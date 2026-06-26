@@ -1,0 +1,33 @@
+[package]
+name = "commonplace-api"
+version = "0.1.0"
+edition = "2021"
+description = "CommonPlace interoperability API seam (plan unit F3): a typed consumer GraphQL profile over the CommonPlace object model, gated by per-instance API keys. The universal connection point so any front end or self-hosted instance talks to the database with one API."
+license = "MIT"
+rust-version = "1.85"
+
+# Own Cargo root (bare [workspace]) so this can live inside the CommonPlace
+# product repo while still bridging to the current Theorem/RustyRed source of
+# truth. These paths expect the local product layout:
+#
+#   Website/
+#     CommonPlace/
+#     Theorem/
+#
+# The deployable follow-up is to replace these sibling paths with published or
+# pinned git crates once the Theorem-internal crates are promoted.
+[workspace]
+
+[dependencies]
+commonplace = { path = "../../../Theorem/rustyredcore_THG/crates/commonplace" }
+rustyred-thg-core = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-core" }
+theorem-harness-core = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-core" }
+theorem-harness-runtime = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-runtime" }
+async-graphql = "7"
+async-graphql-axum = "7"
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tower-http = { version = "0.6", features = ["cors"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12.22", default-features = false, features = ["blocking", "json", "rustls-tls"] }

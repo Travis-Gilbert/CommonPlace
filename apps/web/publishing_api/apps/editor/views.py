@@ -1,0 +1,4333 @@
+"""
+Editor views: the writing interface and site management panel.
+
+All views require login (enforced via LoginRequiredMixin). The URL structure:
+
+  /                                 Dashboard (landing page)
+  /essays/                          Essay list
+  /essays/new/                      Create essay
+  /essays/<slug>/                   Edit essay
+  /essays/<slug>/publish/           Publish essay (POST only)
+  ... (same pattern for field-notes, shelf, projects, toolkit)
+
+  /compose/                         Page composition list
+  /compose/new/                     Create page composition
+  /compose/<page_key>/              Edit page composition
+
+  /settings/tokens/                 Design tokens (singleton)
+  /settings/nav/                    Navigation editor (formset)
+  /settings/site/                   Site settings (singleton)
+  /settings/publish-log/            Publish log (history)
+
+  /delete/<content_type>/<slug>/    Delete content (POST only)
+  /set-stage/<content_type>/<slug>/ Set stage (POST only, HTMX)
+  /publish-config/                  Publish site config (POST only)
+  /auto-save/                       Auto-save (HTMX endpoint)
+"""
+
+import difflib
+import json
+import logging
+import os
+import traceback
+from collections import defaultdict
+from datetime import timedelta
+
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import FieldDoesNotExist
+from django.http import Http404, JsonResponse
+from django.db.models import Count, Max, Sum
+from django.db.models.functions import TruncDate
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.decorators import method_decorator
+from django.utils.html import strip_tags
+from django.utils import timezone
+from django.utils.text import slugify
+from django.urls import reverse
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import CreateView, ListView, TemplateView, UpdateView
+
+logger = logging.getLogger(__name__)
+
+from apps.content.models import (
+    ContentRevision,
+    ContentTask,
+    DesignTokenSet,
+    EditorMention,
+    Essay,
+    FieldNote,
+    NavItem,
+    NowPage,
+    PageComposition,
+    Project,
+    PublishLog,
+    Sheet,
+    ShelfEntry,
+    SiteSettings,
+    StashItem,
+    ToolkitEntry,
+    VideoProject,
+    VideoScene,
+    VideoDeliverable,
+    VideoSession,
+)
+from apps.editor.forms import (
+    DesignTokenSetForm,
+    EssayForm,
+    FieldNoteForm,
+    NavItemFormSet,
+    NowPageForm,
+    PageCompositionForm,
+    ProjectForm,
+    ShelfEntryForm,
+    SiteSettingsForm,
+    ToolkitEntryForm,
+    VideoProjectForm,
+    VideoSceneForm,
+    VideoDeliverableForm,
+)
+from apps.connections.services import build_connections_graph
+from apps.editor.auth import require_studio_token
+from apps.publisher.github import publish_binary_file
+from apps.publisher.publish import (
+    delete_content,
+    publish_essay,
+    publish_field_note,
+    publish_now_page,
+    publish_project,
+    publish_shelf_entry,
+    publish_site_config,
+    publish_toolkit_entry,
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _publish_response(request, log, redirect_url):
+    """Standard publish result: HTMX JSON or redirect."""
+    if request.headers.get("HX-Request"):
+        return JsonResponse({
+            "success": log.success,
+            "commit_sha": log.commit_sha,
+            "commit_url": log.commit_url,
+            "error": log.error_message,
+        })
+    return redirect(redirect_url)
+
+
+def _publish_error(request, redirect_url, exc):
+    """Publish exception result: HTMX JSON or redirect."""
+    if request.headers.get("HX-Request"):
+        return JsonResponse({
+            "success": False,
+            "commit_sha": "",
+            "commit_url": "",
+            "error": traceback.format_exc().splitlines()[-1],
+        })
+    return redirect(redirect_url)
+
+
+# Maps URL content type slugs to model and stage field name.
+# Used by DeleteContentView and SetStageView.
+CONTENT_REGISTRY = {
+    "essay": {"model": Essay, "stage_field": "stage"},
+    "field-note": {"model": FieldNote, "stage_field": "status"},
+    "shelf": {"model": ShelfEntry, "stage_field": "stage"},
+    "project": {"model": Project, "stage_field": "stage"},
+    "toolkit": {"model": ToolkitEntry, "stage_field": "stage"},
+    "video": {"model": VideoProject, "stage_field": "phase"},
+}
+
+# Icon name + brand color for each content type. Used in list/edit headers
+# and dashboard cards. Colors match the section color language from the
+# Next.js frontend (terracotta=essays, teal=notes, gold=shelf/projects).
+CONTENT_META = {
+    "essay": {"icon": "file-text", "color": "#B45A2D"},
+    "field_note": {"icon": "note-pencil", "color": "#2D5F6B"},
+    "shelf": {"icon": "book-open", "color": "#C49A4A"},
+    "project": {"icon": "briefcase", "color": "#C49A4A"},
+    "toolkit": {"icon": "wrench", "color": "#B45A2D"},
+    "now": {"icon": "clock", "color": "#2D5F6B"},
+    "video": {"icon": "video-camera", "color": "#5A7A4A"},
+}
+
+
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
+
+
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "editor/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        _body = ("body", "composition")
+
+        # ── Totals and draft counts ──────────────────────────────────
+        essay_total = Essay.objects.count()
+        note_total = FieldNote.objects.count()
+        shelf_total = ShelfEntry.objects.count()
+        project_total = Project.objects.count()
+        toolkit_total = ToolkitEntry.objects.count()
+        video_total = VideoProject.objects.count()
+
+        essay_drafts = Essay.objects.filter(draft=True).count()
+        note_drafts = FieldNote.objects.filter(draft=True).count()
+        project_drafts = Project.objects.filter(draft=True).count()
+        video_drafts = VideoProject.objects.filter(draft=True).count()
+
+        ctx["totals"] = {
+            "essays": essay_total,
+            "field_notes": note_total,
+            "shelf": shelf_total,
+            "projects": project_total,
+            "toolkit": toolkit_total,
+            "videos": video_total,
+            "all": (
+                essay_total + note_total + shelf_total
+                + project_total + toolkit_total + video_total
+            ),
+        }
+        ctx["draft_counts"] = {
+            "essays": essay_drafts,
+            "field_notes": note_drafts,
+            "projects": project_drafts,
+            "videos": video_drafts,
+        }
+        ctx["has_drafts"] = (
+            essay_drafts or note_drafts or project_drafts or video_drafts
+        )
+
+        # ── Pipeline: essay stage distribution ───────────────────────
+        essay_stages = dict(
+            Essay.objects.values_list("stage")
+            .annotate(n=Count("id"))
+            .values_list("stage", "n")
+        )
+        ctx["pipeline"] = {
+            "research": essay_stages.get("research", 0),
+            "drafting": essay_stages.get("drafting", 0),
+            "production": essay_stages.get("production", 0),
+            "published": essay_stages.get("published", 0),
+        }
+
+        # ── Continue editing: most recently updated draft ────────────
+        candidates = []
+        latest_essay = (
+            Essay.objects.filter(draft=True)
+            .defer(*_body)
+            .order_by("-updated_at")
+            .first()
+        )
+        if latest_essay:
+            candidates.append(
+                (latest_essay.updated_at, {
+                    "title": latest_essay.title,
+                    "url": reverse("editor:essay-edit", kwargs={"slug": latest_essay.slug}),
+                    "type": "Essay",
+                    "icon": "file-text",
+                    "color": "#B45A2D",
+                    "date": latest_essay.updated_at,
+                })
+            )
+        latest_note = (
+            FieldNote.objects.filter(draft=True)
+            .defer(*_body)
+            .order_by("-updated_at")
+            .first()
+        )
+        if latest_note:
+            candidates.append(
+                (latest_note.updated_at, {
+                    "title": latest_note.title,
+                    "url": reverse("editor:field-note-edit", kwargs={"slug": latest_note.slug}),
+                    "type": "Field Note",
+                    "icon": "note-pencil",
+                    "color": "#2D5F6B",
+                    "date": latest_note.updated_at,
+                })
+            )
+        latest_project = (
+            Project.objects.filter(draft=True)
+            .defer(*_body)
+            .order_by("-updated_at")
+            .first()
+        )
+        if latest_project:
+            candidates.append(
+                (latest_project.updated_at, {
+                    "title": latest_project.title,
+                    "url": reverse("editor:project-edit", kwargs={"slug": latest_project.slug}),
+                    "type": "Project",
+                    "icon": "briefcase",
+                    "color": "#C49A4A",
+                    "date": latest_project.updated_at,
+                })
+            )
+        latest_video = (
+            VideoProject.objects.filter(draft=True)
+            .defer("script_body", "research_notes", "composition")
+            .order_by("-updated_at")
+            .first()
+        )
+        if latest_video:
+            candidates.append(
+                (latest_video.updated_at, {
+                    "title": latest_video.title,
+                    "url": reverse("editor:video-edit", kwargs={"slug": latest_video.slug}),
+                    "type": "Video",
+                    "icon": "video-camera",
+                    "color": "#5A7A4A",
+                    "date": latest_video.updated_at,
+                })
+            )
+        if candidates:
+            candidates.sort(key=lambda c: c[0], reverse=True)
+            ctx["continue_editing"] = candidates[0][1]
+
+        # ── Activity timeline: 10 most recently touched items ────────
+        activity = []
+        for essay in Essay.objects.defer(*_body).order_by("-updated_at")[:5]:
+            activity.append({
+                "title": essay.title,
+                "url": reverse("editor:essay-edit", kwargs={"slug": essay.slug}),
+                "type": "Essay",
+                "icon": "file-text",
+                "color": "#B45A2D",
+                "date": essay.updated_at,
+                "draft": essay.draft,
+            })
+        for note in FieldNote.objects.defer(*_body).order_by("-updated_at")[:5]:
+            activity.append({
+                "title": note.title,
+                "url": reverse("editor:field-note-edit", kwargs={"slug": note.slug}),
+                "type": "Field Note",
+                "icon": "note-pencil",
+                "color": "#2D5F6B",
+                "date": note.updated_at,
+                "draft": note.draft,
+            })
+        for proj in Project.objects.defer(*_body).order_by("-updated_at")[:3]:
+            activity.append({
+                "title": proj.title,
+                "url": reverse("editor:project-edit", kwargs={"slug": proj.slug}),
+                "type": "Project",
+                "icon": "briefcase",
+                "color": "#C49A4A",
+                "date": proj.updated_at,
+                "draft": proj.draft,
+            })
+        for vid in VideoProject.objects.defer(
+            "script_body", "research_notes", "composition",
+        ).order_by("-updated_at")[:3]:
+            activity.append({
+                "title": vid.title,
+                "url": reverse("editor:video-edit", kwargs={"slug": vid.slug}),
+                "type": "Video",
+                "icon": "video-camera",
+                "color": "#5A7A4A",
+                "date": vid.updated_at,
+                "draft": vid.draft,
+            })
+        activity.sort(key=lambda a: a["date"], reverse=True)
+        ctx["activity"] = activity[:10]
+
+        # ── Supporting data ──────────────────────────────────────────
+        ctx["now_page"] = NowPage.objects.first()
+        ctx["recent_publishes"] = PublishLog.objects.all()[:5]
+
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# Essay CRUD
+# ---------------------------------------------------------------------------
+
+
+class EssayListView(LoginRequiredMixin, ListView):
+    model = Essay
+    template_name = "editor/content_list.html"
+    context_object_name = "items"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "essay"
+        ctx["content_type_plural"] = "Essays"
+        ctx["content_type_display"] = "Essay"
+        ctx["new_url"] = reverse("editor:essay-create")
+        ctx["edit_url_name"] = "editor:essay-edit"
+        ctx["content_icon"] = CONTENT_META["essay"]["icon"]
+        ctx["content_color"] = CONTENT_META["essay"]["color"]
+        ctx["empty_title"] = "No essays yet"
+        ctx["empty_description"] = (
+            "Start writing your first long-form investigation."
+        )
+        return ctx
+
+
+class EssayCreateView(LoginRequiredMixin, CreateView):
+    model = Essay
+    form_class = EssayForm
+    template_name = "editor/edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "essay"
+        ctx["content_color"] = CONTENT_META["essay"]["color"]
+        ctx["is_new"] = True
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:essay-edit", kwargs={"slug": self.object.slug})
+
+
+class EssayEditView(LoginRequiredMixin, UpdateView):
+    model = Essay
+    form_class = EssayForm
+    template_name = "editor/edit.html"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "essay"
+        ctx["content_color"] = CONTENT_META["essay"]["color"]
+        ctx["is_new"] = False
+        ctx["publish_url"] = reverse(
+            "editor:essay-publish", kwargs={"slug": self.object.slug}
+        )
+        ctx["delete_url"] = reverse(
+            "editor:delete-content",
+            kwargs={"content_type": "essay", "slug": self.object.slug},
+        )
+        ctx["set_stage_url"] = reverse(
+            "editor:set-stage",
+            kwargs={"content_type": "essay", "slug": self.object.slug},
+        )
+        ctx["stage_choices"] = json.dumps(self.object.stage_list)
+        ctx["current_stage"] = self.object.stage
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="essay", content_slug=self.object.slug
+        )[:5]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:essay-edit", kwargs={"slug": self.object.slug})
+
+
+class EssayPublishView(LoginRequiredMixin, View):
+    """POST-only view that publishes an essay to GitHub."""
+
+    def post(self, request, slug):
+        essay = get_object_or_404(Essay, slug=slug)
+        redirect_url = reverse("editor:essay-edit", kwargs={"slug": slug})
+        try:
+            log = publish_essay(essay)
+        except Exception:
+            logger.exception("Publish failed for essay '%s'", slug)
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Field Note CRUD
+# ---------------------------------------------------------------------------
+
+
+class FieldNoteListView(LoginRequiredMixin, ListView):
+    model = FieldNote
+    template_name = "editor/content_list.html"
+    context_object_name = "items"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "field_note"
+        ctx["content_type_plural"] = "Field Notes"
+        ctx["content_type_display"] = "Field Note"
+        ctx["new_url"] = reverse("editor:field-note-create")
+        ctx["edit_url_name"] = "editor:field-note-edit"
+        ctx["content_icon"] = CONTENT_META["field_note"]["icon"]
+        ctx["content_color"] = CONTENT_META["field_note"]["color"]
+        ctx["empty_title"] = "No field notes yet"
+        ctx["empty_description"] = (
+            "Capture an observation or developing idea."
+        )
+        return ctx
+
+
+class FieldNoteCreateView(LoginRequiredMixin, CreateView):
+    model = FieldNote
+    form_class = FieldNoteForm
+    template_name = "editor/edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "field_note"
+        ctx["content_color"] = CONTENT_META["field_note"]["color"]
+        ctx["is_new"] = True
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:field-note-edit", kwargs={"slug": self.object.slug})
+
+
+class FieldNoteEditView(LoginRequiredMixin, UpdateView):
+    model = FieldNote
+    form_class = FieldNoteForm
+    template_name = "editor/edit.html"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "field_note"
+        ctx["content_color"] = CONTENT_META["field_note"]["color"]
+        ctx["is_new"] = False
+        ctx["publish_url"] = reverse(
+            "editor:field-note-publish", kwargs={"slug": self.object.slug}
+        )
+        ctx["delete_url"] = reverse(
+            "editor:delete-content",
+            kwargs={"content_type": "field-note", "slug": self.object.slug},
+        )
+        ctx["set_stage_url"] = reverse(
+            "editor:set-stage",
+            kwargs={"content_type": "field-note", "slug": self.object.slug},
+        )
+        ctx["stage_choices"] = json.dumps(self.object.stage_list)
+        ctx["current_stage"] = self.object.status
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="field_note", content_slug=self.object.slug
+        )[:5]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:field-note-edit", kwargs={"slug": self.object.slug})
+
+
+class FieldNotePublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        note = get_object_or_404(FieldNote, slug=slug)
+        redirect_url = reverse("editor:field-note-edit", kwargs={"slug": slug})
+        try:
+            log = publish_field_note(note)
+        except Exception:
+            logger.exception("Publish failed for field note '%s'", slug)
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Shelf CRUD
+# ---------------------------------------------------------------------------
+
+
+class ShelfListView(LoginRequiredMixin, ListView):
+    model = ShelfEntry
+    template_name = "editor/content_list.html"
+    context_object_name = "items"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "shelf"
+        ctx["content_type_plural"] = "Shelf"
+        ctx["content_type_display"] = "Shelf Entry"
+        ctx["new_url"] = reverse("editor:shelf-create")
+        ctx["edit_url_name"] = "editor:shelf-edit"
+        ctx["content_icon"] = CONTENT_META["shelf"]["icon"]
+        ctx["content_color"] = CONTENT_META["shelf"]["color"]
+        ctx["empty_title"] = "Nothing on the shelf"
+        ctx["empty_description"] = (
+            "Add books, articles, and sources that inform your work."
+        )
+        return ctx
+
+
+class ShelfCreateView(LoginRequiredMixin, CreateView):
+    model = ShelfEntry
+    form_class = ShelfEntryForm
+    template_name = "editor/edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "shelf"
+        ctx["content_color"] = CONTENT_META["shelf"]["color"]
+        ctx["is_new"] = True
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:shelf-edit", kwargs={"slug": self.object.slug})
+
+
+class ShelfEditView(LoginRequiredMixin, UpdateView):
+    model = ShelfEntry
+    form_class = ShelfEntryForm
+    template_name = "editor/edit.html"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "shelf"
+        ctx["content_color"] = CONTENT_META["shelf"]["color"]
+        ctx["is_new"] = False
+        ctx["publish_url"] = reverse(
+            "editor:shelf-publish", kwargs={"slug": self.object.slug}
+        )
+        ctx["delete_url"] = reverse(
+            "editor:delete-content",
+            kwargs={"content_type": "shelf", "slug": self.object.slug},
+        )
+        ctx["set_stage_url"] = reverse(
+            "editor:set-stage",
+            kwargs={"content_type": "shelf", "slug": self.object.slug},
+        )
+        ctx["stage_choices"] = json.dumps(self.object.stage_list)
+        ctx["current_stage"] = self.object.stage
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="shelf", content_slug=self.object.slug
+        )[:5]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:shelf-edit", kwargs={"slug": self.object.slug})
+
+
+class ShelfPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        entry = get_object_or_404(ShelfEntry, slug=slug)
+        redirect_url = reverse("editor:shelf-edit", kwargs={"slug": slug})
+        try:
+            log = publish_shelf_entry(entry)
+        except Exception:
+            logger.exception("Publish failed for shelf entry '%s'", slug)
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Project CRUD
+# ---------------------------------------------------------------------------
+
+
+class ProjectListView(LoginRequiredMixin, ListView):
+    model = Project
+    template_name = "editor/content_list.html"
+    context_object_name = "items"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "project"
+        ctx["content_type_plural"] = "Projects"
+        ctx["content_type_display"] = "Project"
+        ctx["new_url"] = reverse("editor:project-create")
+        ctx["edit_url_name"] = "editor:project-edit"
+        ctx["content_icon"] = CONTENT_META["project"]["icon"]
+        ctx["content_color"] = CONTENT_META["project"]["color"]
+        ctx["empty_title"] = "No projects yet"
+        ctx["empty_description"] = (
+            "Document the work you have built and organized."
+        )
+        return ctx
+
+
+class ProjectCreateView(LoginRequiredMixin, CreateView):
+    model = Project
+    form_class = ProjectForm
+    template_name = "editor/edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "project"
+        ctx["content_color"] = CONTENT_META["project"]["color"]
+        ctx["is_new"] = True
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:project-edit", kwargs={"slug": self.object.slug})
+
+
+class ProjectEditView(LoginRequiredMixin, UpdateView):
+    model = Project
+    form_class = ProjectForm
+    template_name = "editor/edit.html"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "project"
+        ctx["content_color"] = CONTENT_META["project"]["color"]
+        ctx["is_new"] = False
+        ctx["publish_url"] = reverse(
+            "editor:project-publish", kwargs={"slug": self.object.slug}
+        )
+        ctx["delete_url"] = reverse(
+            "editor:delete-content",
+            kwargs={"content_type": "project", "slug": self.object.slug},
+        )
+        ctx["set_stage_url"] = reverse(
+            "editor:set-stage",
+            kwargs={"content_type": "project", "slug": self.object.slug},
+        )
+        ctx["stage_choices"] = json.dumps(self.object.stage_list)
+        ctx["current_stage"] = self.object.stage
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="project", content_slug=self.object.slug
+        )[:5]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:project-edit", kwargs={"slug": self.object.slug})
+
+
+class ProjectPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        project = get_object_or_404(Project, slug=slug)
+        redirect_url = reverse("editor:project-edit", kwargs={"slug": slug})
+        try:
+            log = publish_project(project)
+        except Exception:
+            logger.exception("Publish failed for project '%s'", slug)
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Toolkit CRUD (new)
+# ---------------------------------------------------------------------------
+
+
+class ToolkitListView(LoginRequiredMixin, ListView):
+    model = ToolkitEntry
+    template_name = "editor/content_list.html"
+    context_object_name = "items"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "toolkit"
+        ctx["content_type_plural"] = "Toolkit"
+        ctx["content_type_display"] = "Toolkit Entry"
+        ctx["new_url"] = reverse("editor:toolkit-create")
+        ctx["edit_url_name"] = "editor:toolkit-edit"
+        ctx["content_icon"] = CONTENT_META["toolkit"]["icon"]
+        ctx["content_color"] = CONTENT_META["toolkit"]["color"]
+        ctx["empty_title"] = "No toolkit entries yet"
+        ctx["empty_description"] = (
+            "Add a tool, technique, or resource to your workshop."
+        )
+        return ctx
+
+
+class ToolkitCreateView(LoginRequiredMixin, CreateView):
+    model = ToolkitEntry
+    form_class = ToolkitEntryForm
+    template_name = "editor/edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "toolkit"
+        ctx["content_color"] = CONTENT_META["toolkit"]["color"]
+        ctx["is_new"] = True
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:toolkit-edit", kwargs={"slug": self.object.slug})
+
+
+class ToolkitEditView(LoginRequiredMixin, UpdateView):
+    model = ToolkitEntry
+    form_class = ToolkitEntryForm
+    template_name = "editor/edit.html"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "toolkit"
+        ctx["content_color"] = CONTENT_META["toolkit"]["color"]
+        ctx["is_new"] = False
+        ctx["publish_url"] = reverse(
+            "editor:toolkit-publish", kwargs={"slug": self.object.slug}
+        )
+        ctx["delete_url"] = reverse(
+            "editor:delete-content",
+            kwargs={"content_type": "toolkit", "slug": self.object.slug},
+        )
+        ctx["set_stage_url"] = reverse(
+            "editor:set-stage",
+            kwargs={"content_type": "toolkit", "slug": self.object.slug},
+        )
+        ctx["stage_choices"] = json.dumps(self.object.stage_list)
+        ctx["current_stage"] = self.object.stage
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="toolkit", content_slug=self.object.slug
+        )[:5]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:toolkit-edit", kwargs={"slug": self.object.slug})
+
+
+class ToolkitPublishView(LoginRequiredMixin, View):
+    def post(self, request, slug):
+        entry = get_object_or_404(ToolkitEntry, slug=slug)
+        redirect_url = reverse("editor:toolkit-edit", kwargs={"slug": slug})
+        try:
+            log = publish_toolkit_entry(entry)
+        except Exception:
+            logger.exception("Publish failed for toolkit entry '%s'", slug)
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Video Project CRUD
+# ---------------------------------------------------------------------------
+
+
+class VideoListView(LoginRequiredMixin, ListView):
+    model = VideoProject
+    template_name = "editor/content_list.html"
+    context_object_name = "items"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "video"
+        ctx["content_type_plural"] = "Video Projects"
+        ctx["content_type_display"] = "Video Project"
+        ctx["new_url"] = reverse("editor:video-create")
+        ctx["edit_url_name"] = "editor:video-edit"
+        ctx["content_icon"] = CONTENT_META["video"]["icon"]
+        ctx["content_color"] = CONTENT_META["video"]["color"]
+        ctx["empty_title"] = "No video projects yet"
+        ctx["empty_description"] = (
+            "Start planning your first YouTube production."
+        )
+        return ctx
+
+
+class VideoCreateView(LoginRequiredMixin, CreateView):
+    model = VideoProject
+    form_class = VideoProjectForm
+    template_name = "editor/edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "video"
+        ctx["content_color"] = CONTENT_META["video"]["color"]
+        ctx["is_new"] = True
+        return ctx
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # Best-effort TickTick sync for the new video project
+        try:
+            from apps.content.ticktick_sync import create_video_breakdown
+
+            create_video_breakdown(self.object)
+        except Exception:
+            logger.exception("TickTick video breakdown sync failed")
+        return response
+
+    def get_success_url(self):
+        return reverse("editor:video-edit", kwargs={"slug": self.object.slug})
+
+
+class VideoEditView(LoginRequiredMixin, UpdateView):
+    model = VideoProject
+    form_class = VideoProjectForm
+    template_name = "editor/video_edit.html"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "video"
+        ctx["content_color"] = CONTENT_META["video"]["color"]
+        ctx["is_new"] = False
+        ctx["publish_url"] = reverse(
+            "editor:video-publish", kwargs={"slug": self.object.slug}
+        )
+        ctx["delete_url"] = reverse(
+            "editor:delete-content",
+            kwargs={"content_type": "video", "slug": self.object.slug},
+        )
+        # Video uses dedicated set-phase endpoint (lock semantics)
+        ctx["set_stage_url"] = reverse(
+            "editor:video-set-phase",
+            kwargs={"slug": self.object.slug},
+        )
+        ctx["stage_choices"] = json.dumps(self.object.stage_list)
+        ctx["current_stage"] = self.object.phase
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="video", content_slug=self.object.slug
+        )[:5]
+        # Phase bar context: choices tuples + numeric indices for template
+        ctx["phases"] = VideoProject.Phase.choices
+        ctx["phase_number"] = self.object.phase_number
+        ctx["locked_phase_number"] = self.object.locked_phase_number
+
+        # Video-specific context: scenes, deliverables, sessions
+        ctx["scenes"] = self.object.scenes.all()
+        ctx["deliverables"] = self.object.deliverables.all()
+        ctx["sessions"] = self.object.sessions.all()[:10]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:video-edit", kwargs={"slug": self.object.slug})
+
+
+class VideoPublishView(LoginRequiredMixin, View):
+    """POST-only: publish a video project to GitHub (deferred; stub for now)."""
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        redirect_url = reverse("editor:video-edit", kwargs={"slug": slug})
+        # Publish function will be created in Batch 5; for now return a
+        # placeholder response so the route is wired and testable.
+        if request.headers.get("HX-Request"):
+            return JsonResponse({
+                "success": False,
+                "commit_sha": "",
+                "commit_url": "",
+                "error": "Video publishing not yet implemented.",
+            })
+        return redirect(redirect_url)
+
+
+class VideoSetPhaseView(LoginRequiredMixin, View):
+    """
+    POST-only endpoint: advance or roll back a video project's phase.
+
+    Unlike the generic SetStageView, this enforces sequential advancement
+    and lock semantics via VideoProject.advance_phase() / rollback_phase().
+
+    POST body (JSON): {"phase": "scripting"}
+    Returns JSON with the updated phase and locked boundary.
+    """
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        new_phase = data.get("phase", "")
+
+        # Validate against the Phase choices
+        valid_phases = [c[0] for c in VideoProject.Phase.choices]
+        if new_phase not in valid_phases:
+            return JsonResponse(
+                {"error": f"Invalid phase: {new_phase}"}, status=400
+            )
+
+        current_number = video.phase_number
+        target_number = list(dict(VideoProject.Phase.choices).keys()).index(
+            new_phase
+        )
+
+        if target_number > current_number:
+            # Advancing: use advance_phase() which handles locks
+            if not video.can_advance:
+                return JsonResponse(
+                    {"error": "Cannot advance: video is published."},
+                    status=400,
+                )
+            # Advance one step at a time to respect sequential lock semantics
+            while video.phase_number < target_number:
+                video.advance_phase()
+        elif target_number < current_number:
+            # Roll back one step at a time, respecting phase locks
+            while video.phase_number > target_number:
+                result = video.rollback_phase()
+                if result is None:
+                    return JsonResponse(
+                        {"error": f"Cannot roll back past locked phase: {video.phase}"},
+                        status=400,
+                    )
+        # else: same phase, no-op
+
+        # Best-effort TickTick priority sync
+        try:
+            from apps.content.ticktick_sync import update_phase_priorities
+
+            update_phase_priorities(video)
+        except Exception:
+            logger.exception("TickTick phase priority sync failed")
+
+        return JsonResponse({
+            "phase": video.phase,
+            "phase_locked_through": video.phase_locked_through,
+            "success": True,
+        })
+
+
+# ---------------------------------------------------------------------------
+# Video HTMX Inline Endpoints (scenes, deliverables, sessions)
+# ---------------------------------------------------------------------------
+
+
+def _render_scenes_panel(request, video):
+    """Re-render the scenes partial for an HTMX swap."""
+    return render(request, "editor/partials/video_scenes.html", {
+        "scenes": video.scenes.all(),
+        "object": video,
+        "current_stage": video.phase,
+    })
+
+
+def _render_deliverables_panel(request, video):
+    """Re-render the deliverables partial for an HTMX swap."""
+    return render(request, "editor/partials/video_deliverables.html", {
+        "deliverables": video.deliverables.all(),
+        "object": video,
+    })
+
+
+def _render_sessions_panel(request, video):
+    """Re-render the sessions partial for an HTMX swap."""
+    return render(request, "editor/partials/video_sessions.html", {
+        "sessions": video.sessions.all()[:10],
+        "object": video,
+    })
+
+
+class VideoSceneAddView(LoginRequiredMixin, View):
+    """POST: create a new blank scene, return refreshed scenes panel."""
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        max_order = video.scenes.aggregate(Max("order"))["order__max"] or 0
+        VideoScene.objects.create(
+            video=video,
+            order=max_order + 1,
+            title=f"Scene {max_order + 1}",
+        )
+        return _render_scenes_panel(request, video)
+
+
+class VideoSceneUpdateView(LoginRequiredMixin, View):
+    """POST: update a scene via form data, return refreshed scenes panel."""
+
+    def post(self, request, slug, pk):
+        video = get_object_or_404(VideoProject, slug=slug)
+        scene = get_object_or_404(VideoScene, pk=pk, video=video)
+        form = VideoSceneForm(request.POST, instance=scene)
+        if form.is_valid():
+            form.save()
+        return _render_scenes_panel(request, video)
+
+
+class VideoSceneDeleteView(LoginRequiredMixin, View):
+    """POST: delete a scene, return refreshed scenes panel."""
+
+    def post(self, request, slug, pk):
+        video = get_object_or_404(VideoProject, slug=slug)
+        scene = get_object_or_404(VideoScene, pk=pk, video=video)
+        scene.delete()
+        return _render_scenes_panel(request, video)
+
+
+class VideoSceneToggleView(LoginRequiredMixin, View):
+    """POST: toggle a boolean completion field on a scene."""
+
+    def post(self, request, slug, pk):
+        video = get_object_or_404(VideoProject, slug=slug)
+        scene = get_object_or_404(VideoScene, pk=pk, video=video)
+        field = request.POST.get("field", "")
+        toggleable = {
+            "script_locked", "vo_recorded", "filmed", "assembled", "polished",
+        }
+        if field in toggleable:
+            setattr(scene, field, not getattr(scene, field))
+            scene.save()
+        return _render_scenes_panel(request, video)
+
+
+class VideoDeliverableAddView(LoginRequiredMixin, View):
+    """POST: create a new deliverable at the current phase."""
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        VideoDeliverable.objects.create(
+            video=video,
+            phase=video.phase,
+            deliverable_type=VideoDeliverable.DeliverableType.RESEARCH_NOTES,
+        )
+        return _render_deliverables_panel(request, video)
+
+
+class VideoDeliverableUpdateView(LoginRequiredMixin, View):
+    """POST: update a deliverable via form data."""
+
+    def post(self, request, slug, pk):
+        video = get_object_or_404(VideoProject, slug=slug)
+        deliverable = get_object_or_404(VideoDeliverable, pk=pk, video=video)
+        form = VideoDeliverableForm(request.POST, instance=deliverable)
+        if form.is_valid():
+            form.save()
+        return _render_deliverables_panel(request, video)
+
+
+class VideoDeliverableDeleteView(LoginRequiredMixin, View):
+    """POST: delete a deliverable."""
+
+    def post(self, request, slug, pk):
+        video = get_object_or_404(VideoProject, slug=slug)
+        deliverable = get_object_or_404(VideoDeliverable, pk=pk, video=video)
+        deliverable.delete()
+        return _render_deliverables_panel(request, video)
+
+
+class VideoSessionStartView(LoginRequiredMixin, View):
+    """POST: start a new work session at the current phase."""
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        VideoSession.objects.create(
+            video=video,
+            phase=video.phase,
+            started_at=timezone.now(),
+        )
+        return _render_sessions_panel(request, video)
+
+
+class VideoSessionStopView(LoginRequiredMixin, View):
+    """POST: stop an active session, compute duration."""
+
+    def post(self, request, slug, pk):
+        video = get_object_or_404(VideoProject, slug=slug)
+        session = get_object_or_404(VideoSession, pk=pk, video=video)
+        if not session.ended_at:
+            session.ended_at = timezone.now()
+            session.duration_minutes = int(
+                (session.ended_at - session.started_at).total_seconds() / 60
+            )
+            session.save()
+        return _render_sessions_panel(request, video)
+
+
+# ---------------------------------------------------------------------------
+# Now Page
+# ---------------------------------------------------------------------------
+
+
+class NowPageEditView(LoginRequiredMixin, UpdateView):
+    model = NowPage
+    form_class = NowPageForm
+    template_name = "editor/edit_now.html"
+
+    def get_object(self, queryset=None):
+        obj, _ = NowPage.objects.get_or_create(
+            pk=1,
+            defaults={"updated": "2026-01-01"},
+        )
+        return obj
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["content_type"] = "now"
+        ctx["publish_url"] = reverse("editor:now-publish")
+        ctx["recent_publishes"] = PublishLog.objects.filter(
+            content_type="now"
+        )[:5]
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:now-edit")
+
+
+class NowPagePublishView(LoginRequiredMixin, View):
+    def post(self, request):
+        now = get_object_or_404(NowPage, pk=1)
+        redirect_url = reverse("editor:now-edit")
+        try:
+            log = publish_now_page(now)
+        except Exception:
+            logger.exception("Publish failed for Now page")
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Generic content actions (delete, set-stage)
+# ---------------------------------------------------------------------------
+
+
+class DeleteContentView(LoginRequiredMixin, View):
+    """
+    POST-only: delete content from GitHub and DB.
+
+    Requires confirm_slug in POST data to match the actual slug.
+    Returns HTMX JSON or redirects to the content type list.
+    """
+
+    # Maps URL content_type to list URL name
+    LIST_URLS = {
+        "essay": "editor:essay-list",
+        "field-note": "editor:field-note-list",
+        "shelf": "editor:shelf-list",
+        "project": "editor:project-list",
+        "toolkit": "editor:toolkit-list",
+        "video": "editor:video-list",
+    }
+
+    def post(self, request, content_type, slug):
+        if content_type not in CONTENT_REGISTRY:
+            raise Http404
+
+        model = CONTENT_REGISTRY[content_type]["model"]
+        instance = get_object_or_404(model, slug=slug)
+        list_url = reverse(self.LIST_URLS[content_type])
+
+        # Safety: require the user to type the slug to confirm
+        confirm = request.POST.get("confirm_slug", "")
+        if confirm != slug:
+            if request.headers.get("HX-Request"):
+                return JsonResponse(
+                    {"error": "Slug confirmation does not match."}, status=400
+                )
+            return redirect(list_url)
+
+        try:
+            log = delete_content(instance)
+        except Exception:
+            logger.exception("Delete failed for %s '%s'", content_type, slug)
+            return _publish_error(request, list_url, None)
+
+        return _publish_response(request, log, list_url)
+
+
+class SetStageView(LoginRequiredMixin, View):
+    """
+    POST-only HTMX endpoint: advance or set a content item's stage.
+
+    POST body (JSON): {"stage": "drafting"}
+    Returns JSON with the new stage value.
+    """
+
+    def post(self, request, content_type, slug):
+        if content_type not in CONTENT_REGISTRY:
+            raise Http404
+
+        reg = CONTENT_REGISTRY[content_type]
+        model = reg["model"]
+        field_name = reg["stage_field"]
+        instance = get_object_or_404(model, slug=slug)
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        new_stage = data.get("stage", "")
+
+        # Validate against the model's field choices
+        field = model._meta.get_field(field_name)
+        valid_values = [c[0] for c in field.choices]
+        if new_stage not in valid_values:
+            return JsonResponse(
+                {"error": f"Invalid stage: {new_stage}"}, status=400
+            )
+
+        setattr(instance, field_name, new_stage)
+        update_fields = [field_name]
+        if hasattr(instance, "updated_at"):
+            update_fields.append("updated_at")
+        instance.save(update_fields=update_fields)
+
+        return JsonResponse({"stage": new_stage, "success": True})
+
+
+# ---------------------------------------------------------------------------
+# Page Composition (Compose section)
+# ---------------------------------------------------------------------------
+
+
+class PageCompositionListView(LoginRequiredMixin, ListView):
+    model = PageComposition
+    template_name = "editor/compose_list.html"
+    context_object_name = "compositions"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "compose"
+        return ctx
+
+
+class PageCompositionCreateView(LoginRequiredMixin, CreateView):
+    model = PageComposition
+    form_class = PageCompositionForm
+    template_name = "editor/compose_edit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "compose"
+        return ctx
+
+    def get_success_url(self):
+        return reverse(
+            "editor:compose-edit", kwargs={"page_key": self.object.page_key}
+        )
+
+
+class PageCompositionEditView(LoginRequiredMixin, UpdateView):
+    model = PageComposition
+    form_class = PageCompositionForm
+    template_name = "editor/compose_edit.html"
+    slug_field = "page_key"
+    slug_url_kwarg = "page_key"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "compose"
+        return ctx
+
+    def get_success_url(self):
+        return reverse(
+            "editor:compose-edit", kwargs={"page_key": self.object.page_key}
+        )
+
+
+# ---------------------------------------------------------------------------
+# Settings: Design Tokens (singleton)
+# ---------------------------------------------------------------------------
+
+
+class DesignTokensEditView(LoginRequiredMixin, UpdateView):
+    model = DesignTokenSet
+    form_class = DesignTokenSetForm
+    template_name = "editor/tokens.html"
+
+    def get_object(self, queryset=None):
+        return DesignTokenSet.load()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "tokens"
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:tokens-edit")
+
+
+# ---------------------------------------------------------------------------
+# Settings: Navigation (formset)
+# ---------------------------------------------------------------------------
+
+
+class NavEditorView(LoginRequiredMixin, TemplateView):
+    template_name = "editor/nav_editor.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "nav"
+        if "formset" not in ctx:
+            ctx["formset"] = NavItemFormSet(
+                queryset=NavItem.objects.order_by("order")
+            )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        formset = NavItemFormSet(
+            request.POST, queryset=NavItem.objects.order_by("order")
+        )
+        if formset.is_valid():
+            formset.save()
+            return redirect(reverse("editor:nav-editor"))
+        ctx = self.get_context_data(formset=formset)
+        return self.render_to_response(ctx)
+
+
+# ---------------------------------------------------------------------------
+# Settings: Site Settings (singleton)
+# ---------------------------------------------------------------------------
+
+
+class SiteSettingsEditView(LoginRequiredMixin, UpdateView):
+    model = SiteSettings
+    form_class = SiteSettingsForm
+    template_name = "editor/settings.html"
+
+    def get_object(self, queryset=None):
+        return SiteSettings.load()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "site_settings"
+        return ctx
+
+    def get_success_url(self):
+        return reverse("editor:site-settings")
+
+
+# ---------------------------------------------------------------------------
+# Settings: Publish Log
+# ---------------------------------------------------------------------------
+
+
+class PublishLogListView(LoginRequiredMixin, ListView):
+    model = PublishLog
+    template_name = "editor/publish_log.html"
+    context_object_name = "logs"
+    paginate_by = 50
+    ordering = ["-created_at"]
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["nav_section"] = "publish_log"
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# Publish site configuration (POST only)
+# ---------------------------------------------------------------------------
+
+
+class PublishSiteConfigView(LoginRequiredMixin, View):
+    """Publish site.json to GitHub (design tokens, nav, SEO, pages)."""
+
+    def post(self, request):
+        redirect_url = reverse("editor:site-settings")
+        try:
+            log = publish_site_config()
+        except Exception:
+            logger.exception("Publish failed for site configuration")
+            return _publish_error(request, redirect_url, None)
+        return _publish_response(request, log, redirect_url)
+
+
+# ---------------------------------------------------------------------------
+# Auto-save (HTMX endpoint)
+# ---------------------------------------------------------------------------
+
+
+class AutoSaveView(LoginRequiredMixin, View):
+    """
+    HTMX POST endpoint for auto-saving drafts.
+
+    Accepts JSON with content_type, slug (or id for now page), and fields.
+    Returns a JSON response with saved status.
+    """
+
+    MODEL_MAP = {
+        "essay": (Essay, EssayForm),
+        "field_note": (FieldNote, FieldNoteForm),
+        "shelf": (ShelfEntry, ShelfEntryForm),
+        "project": (Project, ProjectForm),
+        "toolkit": (ToolkitEntry, ToolkitEntryForm),
+        "video": (VideoProject, VideoProjectForm),
+    }
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        content_type = data.get("content_type")
+        slug = data.get("slug")
+
+        if content_type == "now":
+            obj = NowPage.objects.first()
+            if obj:
+                form = NowPageForm(data.get("fields", {}), instance=obj)
+                if form.is_valid():
+                    form.save()
+                    return JsonResponse({"saved": True})
+                return JsonResponse({"saved": False, "errors": form.errors}, status=400)
+
+        if content_type not in self.MODEL_MAP:
+            return JsonResponse({"error": "Unknown content type"}, status=400)
+
+        model_cls, form_cls = self.MODEL_MAP[content_type]
+        obj = get_object_or_404(model_cls, slug=slug)
+        form = form_cls(data.get("fields", {}), instance=obj)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({"saved": True})
+        return JsonResponse({"saved": False, "errors": form.errors}, status=400)
+
+
+# ---------------------------------------------------------------------------
+# Markdown preview (HTMX endpoint)
+# ---------------------------------------------------------------------------
+
+
+class MarkdownPreviewView(LoginRequiredMixin, View):
+    """
+    HTMX POST endpoint: render markdown text to HTML for the split-pane editor.
+
+    Accepts JSON body with a ``text`` field containing raw markdown.
+    Returns JSON with the rendered HTML string.
+    """
+
+    def post(self, request):
+        import markdown as md
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        raw = data.get("text", "")
+        html = md.markdown(
+            raw,
+            extensions=["extra", "codehilite", "smarty", "toc"],
+            extension_configs={
+                "codehilite": {"css_class": "highlight", "guess_lang": False},
+            },
+        )
+        return JsonResponse({"html": html})
+
+
+# ---------------------------------------------------------------------------
+# Collage image upload
+# ---------------------------------------------------------------------------
+
+# 500 KB limit for collage fragment PNGs
+MAX_COLLAGE_UPLOAD_BYTES = 500 * 1024
+
+ALLOWED_IMAGE_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+}
+
+
+class UploadCollageImageView(LoginRequiredMixin, View):
+    """
+    POST-only: upload a collage fragment image to public/collage/ via GitHub.
+
+    Accepts multipart form data with a single file field named "image".
+    Validates file type (PNG, JPEG, WebP) and size (max 500KB).
+    Commits the file to public/collage/{sanitized_name} in the repo.
+    Returns JSON with the path for the composition form to reference.
+    """
+
+    def post(self, request):
+        import re
+
+        uploaded = request.FILES.get("image")
+        if not uploaded:
+            return JsonResponse({"error": "No image file provided."}, status=400)
+
+        # Validate content type
+        content_type = uploaded.content_type
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            allowed = ", ".join(ALLOWED_IMAGE_TYPES.keys())
+            return JsonResponse(
+                {"error": f"Invalid file type: {content_type}. Allowed: {allowed}"},
+                status=400,
+            )
+
+        # Validate size
+        if uploaded.size > MAX_COLLAGE_UPLOAD_BYTES:
+            limit_kb = MAX_COLLAGE_UPLOAD_BYTES // 1024
+            return JsonResponse(
+                {"error": f"File too large ({uploaded.size} bytes). Max: {limit_kb}KB."},
+                status=400,
+            )
+
+        # Sanitize filename: lowercase, alphanumeric + hyphens only, force correct extension
+        base_name = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
+        safe_name = re.sub(r"[^a-z0-9]+", "-", base_name.lower()).strip("-")
+        if not safe_name:
+            safe_name = "fragment"
+        ext = ALLOWED_IMAGE_TYPES[content_type]
+        filename = f"{safe_name}{ext}"
+
+        # Read all bytes
+        raw_bytes = uploaded.read()
+
+        # Commit to repo
+        repo_path = f"public/collage/{filename}"
+        result = publish_binary_file(
+            file_path=repo_path,
+            content_bytes=raw_bytes,
+            commit_message=f"feat(collage): upload {filename}",
+        )
+
+        if result["success"]:
+            return JsonResponse({
+                "success": True,
+                "path": f"/collage/{filename}",
+                "repo_path": repo_path,
+                "commit_sha": result["commit_sha"],
+            })
+
+        return JsonResponse(
+            {"success": False, "error": result.get("error", "Upload failed.")},
+            status=500,
+        )
+
+
+class RemoveBackgroundView(LoginRequiredMixin, View):
+    """POST: accept an image, remove background with rembg, commit cutout PNG to repo."""
+
+    def post(self, request):
+        import re
+        import io
+
+        uploaded = request.FILES.get("image")
+        if not uploaded:
+            return JsonResponse({"error": "No image provided"}, status=400)
+
+        try:
+            from rembg import remove
+            from PIL import Image
+        except ImportError:
+            return JsonResponse(
+                {"error": "rembg not installed on this server"},
+                status=501,
+            )
+
+        try:
+            input_image = Image.open(uploaded)
+            if input_image.mode != "RGBA":
+                input_image = input_image.convert("RGBA")
+
+            output_image = remove(input_image)
+
+            buf = io.BytesIO()
+            output_image.save(buf, "PNG")
+            raw_bytes = buf.getvalue()
+
+            base_name = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
+            safe_name = re.sub(r"[^a-z0-9]+", "-", base_name.lower()).strip("-")
+            if not safe_name:
+                safe_name = "cutout"
+            filename = f"{safe_name}.png"
+
+            repo_path = f"public/collage/{filename}"
+            result = publish_binary_file(
+                file_path=repo_path,
+                content_bytes=raw_bytes,
+                commit_message=f"feat(collage): auto-cutout {filename}",
+            )
+
+            if result["success"]:
+                return JsonResponse({
+                    "success": True,
+                    "path": f"/collage/{filename}",
+                    "name": safe_name,
+                })
+
+            return JsonResponse(
+                {"success": False, "error": result.get("error", "Upload failed.")},
+                status=500,
+            )
+        except Exception as exc:
+            return JsonResponse({"error": str(exc)}, status=500)
+
+
+# ---------------------------------------------------------------------------
+# Video API endpoints (for Orchestra Conductor + frontend)
+# ---------------------------------------------------------------------------
+
+
+def _serialize_scene(scene):
+    """Compact JSON dict for a VideoScene."""
+    return {
+        "id": scene.pk,
+        "order": scene.order,
+        "title": scene.title,
+        "scene_type": scene.scene_type,
+        "word_count": scene.word_count,
+        "estimated_seconds": scene.estimated_seconds,
+        "script_locked": scene.script_locked,
+        "vo_recorded": scene.vo_recorded,
+        "filmed": scene.filmed,
+        "assembled": scene.assembled,
+        "polished": scene.polished,
+    }
+
+
+def _serialize_deliverable(d):
+    """Compact JSON dict for a VideoDeliverable."""
+    return {
+        "id": d.pk,
+        "phase": d.phase,
+        "type": d.deliverable_type,
+        "file_path": d.file_path,
+        "file_url": d.file_url,
+        "approved": d.approved,
+        "created_at": d.created_at.isoformat(),
+    }
+
+
+def _serialize_session(s):
+    """Compact JSON dict for a VideoSession."""
+    return {
+        "id": s.pk,
+        "phase": s.phase,
+        "started_at": s.started_at.isoformat(),
+        "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+        "duration_minutes": s.duration_minutes,
+        "summary": s.summary,
+        "subtasks_completed": s.subtasks_completed,
+        "next_action": s.next_action,
+        "next_tool": s.next_tool,
+    }
+
+
+def _serialize_video(video, detail=False):
+    """
+    Serialize a VideoProject to a JSON-safe dict.
+    detail=True includes scenes, deliverables, and richer metadata.
+    """
+    data = {
+        "slug": video.slug,
+        "title": video.title,
+        "short_title": video.short_title,
+        "phase": video.phase,
+        "phase_display": video.get_phase_display(),
+        "phase_number": video.phase_number,
+        "draft": video.draft,
+        "updated_at": video.updated_at.isoformat(),
+        "youtube_id": video.youtube_id,
+        "linked_essay_slugs": [e.slug for e in video.linked_essays.all()],
+        "published_at": video.published_at.isoformat() if video.published_at else None,
+    }
+
+    if detail:
+        data.update({
+            "thesis": video.thesis,
+            "sources": video.sources,
+            "research_notes": video.research_notes,
+            "script_body": video.script_body,
+            "script_word_count": video.script_word_count,
+            "script_estimated_duration": video.script_estimated_duration,
+            "phase_locked_through": video.phase_locked_through,
+            "evidence_board": video.evidence_board,
+            "youtube_id": video.youtube_id,
+            "youtube_url": video.youtube_url,
+            "youtube_title": video.youtube_title,
+            "youtube_description": video.youtube_description,
+            "youtube_chapters": video.youtube_chapters,
+            "created_at": video.created_at.isoformat(),
+            "linked_essays": [
+                {"slug": e.slug, "title": e.title}
+                for e in video.linked_essays.all()
+            ],
+            "linked_field_notes": [
+                {"slug": n.slug, "title": n.title}
+                for n in video.linked_field_notes.all()
+            ],
+            "scenes": [_serialize_scene(s) for s in video.scenes.all()],
+            "deliverables": [
+                _serialize_deliverable(d) for d in video.deliverables.all()
+            ],
+            "sessions": [
+                _serialize_session(s) for s in video.sessions.all()[:20]
+            ],
+        })
+
+    return data
+
+
+# Phase to scene boolean field mapping (which boolean tracks completion for each phase)
+_PHASE_SCENE_FIELD = {
+    "scripting": "script_locked",
+    "voiceover": "vo_recorded",
+    "filming": "filmed",
+    "assembly": "assembled",
+    "polish": "polished",
+}
+
+# Phase to suggested tool
+_PHASE_TOOL = {
+    "research": "Browser / Zotero",
+    "scripting": "Ulysses",
+    "voiceover": "Descript",
+    "filming": "Camera",
+    "assembly": "DaVinci Resolve",
+    "polish": "DaVinci Resolve",
+    "metadata": "Studio",
+    "publish": "YouTube Studio",
+}
+
+
+class VideoAPIListView(View):
+    """GET /api/videos/ : list active (non-published) video projects."""
+
+    def get(self, request):
+        qs = VideoProject.objects.prefetch_related("linked_essays").all()
+        if request.GET.get("active") == "true":
+            qs = qs.exclude(phase="published")
+        return JsonResponse(
+            {"videos": [_serialize_video(v) for v in qs]},
+        )
+
+
+class VideoAPIDetailView(View):
+    """
+    GET  /api/videos/<slug>/ : full project detail with scenes and deliverables.
+    PATCH /api/videos/<slug>/ : partial update (evidence_board, etc.).
+    """
+
+    def get(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        return JsonResponse(_serialize_video(video, detail=True))
+
+    def patch(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        # Allowlist of PATCH-able fields
+        patchable = {"evidence_board", "research_notes", "thesis", "sources"}
+        updated = []
+        for field in patchable:
+            if field in data:
+                setattr(video, field, data[field])
+                updated.append(field)
+
+        if not updated:
+            return JsonResponse(
+                {"error": "No patchable fields provided"}, status=400
+            )
+
+        video.save(update_fields=updated + ["updated_at"])
+        return JsonResponse({"success": True, "updated": updated})
+
+
+class VideoAPISessionsView(View):
+    """GET /api/videos/<slug>/sessions/ : session history for a project."""
+
+    def get(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        sessions = video.sessions.all()
+        return JsonResponse({
+            "video": video.slug,
+            "sessions": [_serialize_session(s) for s in sessions],
+        })
+
+
+class VideoAPILogSessionView(View):
+    """
+    POST /api/videos/<slug>/log-session/
+    Log a completed work session. Body (JSON):
+    {
+        "phase": "voiceover",
+        "started_at": "2026-02-28T14:00:00Z",
+        "ended_at": "2026-02-28T15:30:00Z",
+        "summary": "Recorded scenes 1-3",
+        "subtasks_completed": ["Scene 1", "Scene 2", "Scene 3"],
+        "next_action": "Record Scene 4",
+        "next_tool": "Descript"
+    }
+    """
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        phase = data.get("phase", video.phase)
+        started_at = data.get("started_at")
+        ended_at = data.get("ended_at")
+
+        if not started_at:
+            return JsonResponse(
+                {"error": "started_at is required"}, status=400
+            )
+
+        from django.utils.dateparse import parse_datetime
+
+        started_dt = parse_datetime(started_at)
+        ended_dt = parse_datetime(ended_at) if ended_at else None
+
+        if not started_dt:
+            return JsonResponse(
+                {"error": "Invalid started_at format"}, status=400
+            )
+
+        duration = 0
+        if started_dt and ended_dt:
+            duration = int((ended_dt - started_dt).total_seconds() / 60)
+
+        session = VideoSession.objects.create(
+            video=video,
+            phase=phase,
+            started_at=started_dt,
+            ended_at=ended_dt,
+            duration_minutes=duration,
+            summary=data.get("summary", ""),
+            subtasks_completed=data.get("subtasks_completed", []),
+            next_action=data.get("next_action", ""),
+            next_tool=data.get("next_tool", ""),
+        )
+
+        return JsonResponse({
+            "success": True,
+            "session": _serialize_session(session),
+        }, status=201)
+
+
+class VideoAPIAdvanceView(View):
+    """
+    POST /api/videos/<slug>/advance/
+    Advance video to the next phase. Validates that phase criteria are met.
+    """
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+
+        if not video.can_advance():
+            return JsonResponse(
+                {"error": "Video is already published"}, status=400
+            )
+
+        # Check phase-specific criteria
+        current = video.phase
+        issues = []
+
+        if current == "scripting":
+            unlocked = video.scenes.filter(script_locked=False)
+            if unlocked.exists():
+                titles = [s.title for s in unlocked]
+                issues.append(
+                    f"Scenes not script-locked: {', '.join(titles)}"
+                )
+
+        elif current == "voiceover":
+            vo_scenes = video.scenes.filter(
+                scene_type__in=["vo", "mixed"]
+            )
+            unrecorded = vo_scenes.filter(vo_recorded=False)
+            if unrecorded.exists():
+                titles = [s.title for s in unrecorded]
+                issues.append(
+                    f"VO not recorded: {', '.join(titles)}"
+                )
+
+        elif current == "filming":
+            cam_scenes = video.scenes.filter(
+                scene_type__in=["on_camera", "mixed"]
+            )
+            unfilmed = cam_scenes.filter(filmed=False)
+            if unfilmed.exists():
+                titles = [s.title for s in unfilmed]
+                issues.append(
+                    f"Scenes not filmed: {', '.join(titles)}"
+                )
+
+        elif current == "assembly":
+            unassembled = video.scenes.filter(assembled=False)
+            if unassembled.exists():
+                titles = [s.title for s in unassembled]
+                issues.append(
+                    f"Scenes not assembled: {', '.join(titles)}"
+                )
+
+        elif current == "polish":
+            unpolished = video.scenes.filter(polished=False)
+            if unpolished.exists():
+                titles = [s.title for s in unpolished]
+                issues.append(
+                    f"Scenes not polished: {', '.join(titles)}"
+                )
+
+        elif current == "metadata":
+            if not video.youtube_title:
+                issues.append("YouTube title not set")
+            if not video.youtube_description:
+                issues.append("YouTube description not set")
+
+        # Allow force advance even with issues
+        force = False
+        try:
+            body = json.loads(request.body) if request.body else {}
+            force = body.get("force", False)
+        except json.JSONDecodeError:
+            pass
+
+        if issues and not force:
+            return JsonResponse({
+                "error": "Phase criteria not met",
+                "issues": issues,
+                "hint": "Send {\"force\": true} to advance anyway",
+            }, status=409)
+
+        new_phase = video.advance_phase()
+
+        # Best-effort TickTick priority sync
+        try:
+            from apps.content.ticktick_sync import update_phase_priorities
+
+            update_phase_priorities(video)
+        except Exception:
+            logger.exception("TickTick phase priority sync failed")
+
+        return JsonResponse({
+            "success": True,
+            "previous_phase": current,
+            "new_phase": new_phase,
+            "new_phase_display": video.get_phase_display(),
+        })
+
+
+class VideoAPIDeliverableView(View):
+    """
+    POST /api/videos/<slug>/deliverable/
+    Register a new deliverable. Body (JSON):
+    {
+        "phase": "voiceover",
+        "type": "vo_audio",
+        "file_path": "/path/to/audio.wav",
+        "file_url": "",
+        "notes": "Clean recording, no retakes needed"
+    }
+    """
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        d_type = data.get("type", "")
+        valid_types = [c[0] for c in VideoDeliverable.DeliverableType.choices]
+        if d_type not in valid_types:
+            return JsonResponse(
+                {"error": f"Invalid deliverable type: {d_type}"}, status=400
+            )
+
+        deliverable = VideoDeliverable.objects.create(
+            video=video,
+            phase=data.get("phase", video.phase),
+            deliverable_type=d_type,
+            file_path=data.get("file_path", ""),
+            file_url=data.get("file_url", ""),
+            notes=data.get("notes", ""),
+        )
+
+        return JsonResponse({
+            "success": True,
+            "deliverable": _serialize_deliverable(deliverable),
+        }, status=201)
+
+
+class VideoAPINextActionView(View):
+    """
+    GET /api/videos/<slug>/next-action/
+    Session Launcher logic: determines the recommended next action
+    based on current phase and scene completion status.
+    """
+
+    def get(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        scenes = list(video.scenes.all())
+        current = video.phase
+
+        if current == "published":
+            return JsonResponse({
+                "video": video.short_title or video.title,
+                "phase": "Published",
+                "phase_name": "Published",
+                "progress": "Complete",
+                "next_action": "No action needed",
+                "next_tool": None,
+                "estimated_minutes": 0,
+                "done_when": None,
+                "context": [],
+            })
+
+        # Determine progress and next action based on phase
+        scene_field = _PHASE_SCENE_FIELD.get(current)
+        tool = _PHASE_TOOL.get(current, "Studio")
+
+        phase_label = video.get_phase_display()
+        phase_code = f"P{video.phase_number}"
+
+        # Default next action for phases without per-scene tracking
+        if not scene_field:
+            # Research, metadata, publish phases
+            next_action, done_when, est_min, context = (
+                _phase_action_no_scenes(video, current, scenes)
+            )
+            return JsonResponse({
+                "video": video.short_title or video.title,
+                "phase": phase_code,
+                "phase_name": phase_label,
+                "progress": "In progress",
+                "next_action": next_action,
+                "next_tool": tool,
+                "estimated_minutes": est_min,
+                "done_when": done_when,
+                "context": context,
+            })
+
+        # Phases with per-scene completion (scripting through polish)
+        total = len(scenes)
+        done = sum(1 for s in scenes if getattr(s, scene_field))
+        incomplete = [s for s in scenes if not getattr(s, scene_field)]
+
+        if not incomplete:
+            return JsonResponse({
+                "video": video.short_title or video.title,
+                "phase": phase_code,
+                "phase_name": phase_label,
+                "progress": f"{done}/{total} complete",
+                "next_action": f"All scenes complete for {phase_label}. Ready to advance.",
+                "next_tool": "Studio",
+                "estimated_minutes": 2,
+                "done_when": f"Phase advanced from {phase_label}",
+                "context": [f"Use POST /api/videos/{video.slug}/advance/ to proceed"],
+            })
+
+        next_scene = incomplete[0]
+        est_seconds = next_scene.estimated_seconds or 120
+        est_minutes = max(5, est_seconds // 60 * 2)  # Rough 2x multiplier for production overhead
+
+        field_label = scene_field.replace("_", " ").title()
+        action = f"{field_label}: Scene {next_scene.order}: {next_scene.title}"
+
+        context_lines = []
+        if next_scene.word_count:
+            context_lines.append(
+                f"Scene {next_scene.order} is {next_scene.word_count} words, "
+                f"estimated {next_scene.estimated_seconds}s"
+            )
+
+        last_session = video.sessions.first()
+        if last_session and last_session.summary:
+            context_lines.append(
+                f"Previous session: {last_session.summary}"
+            )
+
+        return JsonResponse({
+            "video": video.short_title or video.title,
+            "phase": phase_code,
+            "phase_name": phase_label,
+            "progress": f"{done}/{total} scenes complete",
+            "next_action": action,
+            "next_tool": tool,
+            "estimated_minutes": est_minutes,
+            "done_when": f"Scene {next_scene.order} {field_label.lower()} exported",
+            "context": context_lines,
+        })
+
+
+def _phase_action_no_scenes(video, phase, scenes):
+    """
+    Return (next_action, done_when, estimated_minutes, context_lines)
+    for phases that don't track per-scene booleans.
+    """
+    if phase == "research":
+        has_thesis = bool(video.thesis)
+        has_sources = bool(video.sources)
+        if not has_thesis and not has_sources:
+            return (
+                "Define thesis and gather initial sources",
+                "Thesis statement written and at least 3 sources collected",
+                30,
+                ["Start with the central question this video will answer"],
+            )
+        if not has_thesis:
+            return (
+                "Write the thesis statement",
+                "One-sentence thesis captured in project",
+                15,
+                [f"{len(video.sources)} sources already collected"],
+            )
+        return (
+            "Review sources and finalize research notes",
+            "Research notes complete, ready to outline script",
+            20,
+            [
+                f"Thesis: {video.thesis[:80]}",
+                f"{len(video.sources)} sources collected",
+            ],
+        )
+
+    if phase == "metadata":
+        missing = []
+        if not video.youtube_title:
+            missing.append("title")
+        if not video.youtube_description:
+            missing.append("description")
+        if not video.youtube_tags:
+            missing.append("tags")
+        if not video.youtube_chapters:
+            missing.append("chapters")
+        if missing:
+            return (
+                f"Complete YouTube metadata: {', '.join(missing)}",
+                "All metadata fields populated",
+                20,
+                [f"Use Generate Description button for a starting point"],
+            )
+        return (
+            "Review and finalize all metadata",
+            "Metadata approved, ready for export",
+            10,
+            [],
+        )
+
+    if phase == "publish":
+        return (
+            "Upload video to YouTube and set publish date",
+            "Video live on YouTube, youtube_id recorded in project",
+            15,
+            ["Export final render from DaVinci Resolve first"],
+        )
+
+    return ("Continue working", "Phase complete", 30, [])
+
+
+# ---------------------------------------------------------------------------
+# Video research integration
+# ---------------------------------------------------------------------------
+
+
+class VideoPullResearchView(LoginRequiredMixin, View):
+    """
+    POST /video/<slug>/pull-research/
+    Pull sources and annotations from linked essays into the video project.
+    One-time merge operation (idempotent on URL match).
+    """
+
+    def post(self, request, slug):
+        video = get_object_or_404(VideoProject, slug=slug)
+        essays = video.linked_essays.all()
+
+        if not essays.exists():
+            if request.headers.get("HX-Request"):
+                return JsonResponse(
+                    {"message": "No linked essays to pull from."}, status=200
+                )
+            return redirect(
+                reverse("editor:video-edit", kwargs={"slug": slug})
+            )
+
+        existing_urls = {
+            s.get("url", "") for s in (video.sources or []) if s.get("url")
+        }
+        new_sources = list(video.sources or [])
+        notes_additions = []
+
+        for essay in essays:
+            # Merge sources (skip duplicates by URL)
+            essay_sources = getattr(essay, "sources", None) or []
+            if isinstance(essay_sources, list):
+                for src in essay_sources:
+                    url = src.get("url", "")
+                    if url and url not in existing_urls:
+                        new_sources.append(src)
+                        existing_urls.add(url)
+
+            # Append annotations to research notes
+            annotations = getattr(essay, "annotations", None) or []
+            if isinstance(annotations, list) and annotations:
+                notes_lines = [f"\n\n## From: {essay.title}\n"]
+                for ann in annotations:
+                    text = ann.get("text", "") if isinstance(ann, dict) else str(ann)
+                    if text:
+                        notes_lines.append(f"- {text}")
+                notes_additions.append("\n".join(notes_lines))
+
+        video.sources = new_sources
+        if notes_additions:
+            video.research_notes = (
+                video.research_notes + "\n".join(notes_additions)
+            )
+        video.save()
+
+        if request.headers.get("HX-Request"):
+            return JsonResponse({
+                "success": True,
+                "sources_count": len(new_sources),
+                "message": f"Pulled research from {essays.count()} essay(s)",
+            })
+        return redirect(
+            reverse("editor:video-edit", kwargs={"slug": slug})
+        )
+
+
+class VideoGenerateDescriptionView(LoginRequiredMixin, View):
+    """
+    POST /video/<slug>/generate-description/
+    Generate YouTube description from project data and update the field.
+    Returns the generated text for HTMX to inject into the textarea.
+    """
+
+    def post(self, request, slug):
+        from apps.content.description_generator import generate_description
+
+        video = get_object_or_404(VideoProject, slug=slug)
+        description = generate_description(video)
+        video.youtube_description = description
+        video.save(update_fields=["youtube_description", "updated_at"])
+
+        if request.headers.get("HX-Request"):
+            return JsonResponse({
+                "success": True,
+                "description": description,
+            })
+        return redirect(
+            reverse("editor:video-edit", kwargs={"slug": slug})
+        )
+
+
+class ProductionDashboardView(LoginRequiredMixin, TemplateView):
+    """
+    GET /production/
+    Production dashboard: active video projects, session heatmap,
+    cumulative output, and weekly summary.
+    """
+
+    template_name = "editor/production_dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        now = timezone.now()
+
+        # ── Active projects (everything except published) ─────────────
+        active_projects = (
+            VideoProject.objects
+            .exclude(phase=VideoProject.Phase.PUBLISHED)
+            .defer("script_body", "research_notes", "composition")
+            .order_by("-updated_at")
+        )
+
+        # Annotate each project with its latest session info
+        project_data = []
+        for project in active_projects:
+            latest_session = project.sessions.first()  # ordered by -started_at
+            total_hours = (
+                project.sessions
+                .aggregate(total=Sum("duration_minutes"))["total"] or 0
+            ) / 60
+            project_data.append({
+                "project": project,
+                "latest_session": latest_session,
+                "total_hours": round(total_hours, 1),
+                "session_count": project.sessions.count(),
+            })
+        ctx["active_projects"] = project_data
+
+        # ── Production calendar (30-day session heatmap) ──────────────
+        thirty_days_ago = now - timedelta(days=30)
+        daily_sessions = (
+            VideoSession.objects
+            .filter(started_at__gte=thirty_days_ago)
+            .annotate(day=TruncDate("started_at"))
+            .values("day")
+            .annotate(
+                count=Count("id"),
+                minutes=Sum("duration_minutes"),
+            )
+            .order_by("day")
+        )
+
+        # Build a dict of date -> {count, minutes} for template lookup
+        session_by_day = {}
+        max_minutes = 1
+        for row in daily_sessions:
+            session_by_day[row["day"]] = {
+                "count": row["count"],
+                "minutes": row["minutes"] or 0,
+            }
+            if (row["minutes"] or 0) > max_minutes:
+                max_minutes = row["minutes"] or 0
+
+        # Build calendar grid (30 days, most recent last)
+        calendar = []
+        for i in range(30):
+            day = (now - timedelta(days=29 - i)).date()
+            info = session_by_day.get(day, {"count": 0, "minutes": 0})
+            # Intensity 0..4 for CSS classes
+            if info["minutes"] == 0:
+                intensity = 0
+            elif info["minutes"] <= 30:
+                intensity = 1
+            elif info["minutes"] <= 90:
+                intensity = 2
+            elif info["minutes"] <= 180:
+                intensity = 3
+            else:
+                intensity = 4
+            calendar.append({
+                "date": day,
+                "weekday": day.strftime("%a"),
+                "day_num": day.day,
+                "count": info["count"],
+                "minutes": info["minutes"],
+                "intensity": intensity,
+            })
+        ctx["calendar"] = calendar
+
+        # ── Weekly summary (current week) ─────────────────────────────
+        week_start = now - timedelta(days=now.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        week_sessions = VideoSession.objects.filter(started_at__gte=week_start)
+        week_stats = week_sessions.aggregate(
+            count=Count("id"),
+            total_minutes=Sum("duration_minutes"),
+        )
+        ctx["week_session_count"] = week_stats["count"] or 0
+        ctx["week_total_hours"] = round((week_stats["total_minutes"] or 0) / 60, 1)
+
+        # Phases completed this week (sessions where video phase advanced)
+        week_phases = (
+            week_sessions
+            .values("phase")
+            .annotate(count=Count("id"))
+            .order_by("phase")
+        )
+        ctx["week_phases"] = list(week_phases)
+
+        # Next actions across all active projects
+        next_actions = []
+        for pd in project_data:
+            if pd["latest_session"] and pd["latest_session"].next_action:
+                next_actions.append({
+                    "project": pd["project"],
+                    "action": pd["latest_session"].next_action,
+                    "tool": pd["latest_session"].next_tool,
+                })
+        ctx["next_actions"] = next_actions
+
+        # ── Cumulative output (published counts) ──────────────────────
+        ctx["published_essays"] = Essay.objects.filter(draft=False).count()
+        ctx["published_notes"] = FieldNote.objects.filter(draft=False).count()
+        ctx["published_videos"] = VideoProject.objects.filter(
+            phase=VideoProject.Phase.PUBLISHED
+        ).count()
+
+        ctx["content_type"] = "production"
+        return ctx
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Research Panel API (JSON endpoints for the editor research window)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ResearchContextView(LoginRequiredMixin, View):
+    """
+    Proxy the research_api trail endpoint for a given content slug.
+
+    Returns JSON: { sources, backlinks, thread, mentions }
+    Falls back gracefully when research_api is unavailable.
+    """
+
+    def get(self, request, content_type, slug):
+        from apps.editor.services import fetch_research_trail
+
+        data = fetch_research_trail(slug)
+        return JsonResponse(data)
+
+
+class ResearchGraphView(LoginRequiredMixin, View):
+    """
+    Proxy the research_api graph endpoint, optionally focused on a slug.
+
+    Returns JSON: { nodes, edges } for D3.js force graph rendering.
+    """
+
+    def get(self, request, content_type, slug):
+        from apps.editor.services import fetch_research_graph
+
+        data = fetch_research_graph(slug=slug)
+        return JsonResponse(data)
+
+
+class ResearchNoteListView(LoginRequiredMixin, View):
+    """
+    GET: return all research notes for a content item as JSON.
+    POST: create a new research note and return the updated list.
+
+    Used by the research panel's note input area (HTMX or fetch).
+    """
+
+    def get(self, request, content_type, slug):
+        from apps.editor.models import ResearchNote
+
+        notes = ResearchNote.objects.filter(
+            content_type=content_type,
+            content_slug=slug,
+        ).values("id", "text", "created_at")
+
+        return JsonResponse({
+            "notes": [
+                {
+                    "id": n["id"],
+                    "text": n["text"],
+                    "created_at": n["created_at"].isoformat(),
+                }
+                for n in notes
+            ]
+        })
+
+    def post(self, request, content_type, slug):
+        from apps.editor.models import ResearchNote
+
+        try:
+            body = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        text = body.get("text", "").strip()
+        if not text:
+            return JsonResponse({"error": "text is required"}, status=400)
+
+        ResearchNote.objects.create(
+            content_type=content_type,
+            content_slug=slug,
+            text=text,
+            author=request.user,
+        )
+
+        # Return refreshed notes list
+        notes = ResearchNote.objects.filter(
+            content_type=content_type,
+            content_slug=slug,
+        ).values("id", "text", "created_at")
+
+        return JsonResponse({
+            "saved": True,
+            "notes": [
+                {
+                    "id": n["id"],
+                    "text": n["text"],
+                    "created_at": n["created_at"].isoformat(),
+                }
+                for n in notes
+            ]
+        })
+
+
+class ResearchNoteDeleteView(LoginRequiredMixin, View):
+    """Delete a single research note. Returns JSON confirmation."""
+
+    def post(self, request, content_type, slug, pk):
+        from apps.editor.models import ResearchNote
+
+        note = get_object_or_404(
+            ResearchNote,
+            pk=pk,
+            content_type=content_type,
+            content_slug=slug,
+        )
+        note.delete()
+        return JsonResponse({"deleted": True})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Studio JSON wrappers for Next.js Studio (/editor/api/*)
+# ═══════════════════════════════════════════════════════════════════════════
+
+STUDIO_API_ALLOWED_ORIGINS = {
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://travisgilbert.me",
+    "https://www.travisgilbert.me",
+    "https://studio.travisgilbert.me",
+}
+
+_studio_api_extra_origins = {
+    origin.strip()
+    for origin in os.getenv("STUDIO_API_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+}
+STUDIO_API_ALLOWED_ORIGINS.update(_studio_api_extra_origins)
+
+STUDIO_API_ALLOWED_ORIGIN_SUFFIXES = tuple(
+    suffix.strip().lower()
+    for suffix in os.getenv(
+        "STUDIO_API_ALLOWED_ORIGIN_SUFFIXES",
+        ".vercel.app",
+    ).split(",")
+    if suffix.strip()
+)
+
+
+def _studio_api_is_origin_allowed(origin):
+    if not origin:
+        return False
+    if origin in STUDIO_API_ALLOWED_ORIGINS:
+        return True
+
+    origin_lower = origin.lower()
+    return any(
+        origin_lower.endswith(suffix)
+        for suffix in STUDIO_API_ALLOWED_ORIGIN_SUFFIXES
+    )
+
+
+STUDIO_API_CONTENT_REGISTRY = {
+    "essay": {
+        "model": Essay,
+        "stage_field": "stage",
+        "body_field": "body",
+        "excerpt_field": "summary",
+        "tags_field": "tags",
+        "default_title": "Untitled Essay",
+    },
+    "field-note": {
+        "model": FieldNote,
+        "stage_field": "status",
+        "body_field": "body",
+        "excerpt_field": "excerpt",
+        "tags_field": "tags",
+        "default_title": "Untitled Field Note",
+    },
+    "shelf": {
+        "model": ShelfEntry,
+        "stage_field": "stage",
+        "body_field": "annotation",
+        "excerpt_field": "annotation",
+        "tags_field": "tags",
+        "default_title": "Untitled Shelf Entry",
+    },
+    "project": {
+        "model": Project,
+        "stage_field": "stage",
+        "body_field": "body",
+        "excerpt_field": "description",
+        "tags_field": "tags",
+        "default_title": "Untitled Project",
+    },
+    "toolkit": {
+        "model": ToolkitEntry,
+        "stage_field": "stage",
+        "body_field": "body",
+        "excerpt_field": None,
+        "tags_field": None,
+        "default_title": "Untitled Toolkit Entry",
+    },
+    "video": {
+        "model": VideoProject,
+        "stage_field": "phase",
+        "body_field": "script_body",
+        "excerpt_field": "thesis",
+        "tags_field": "youtube_tags",
+        "default_title": "Untitled Video",
+    },
+}
+
+STUDIO_API_CONTENT_ALIASES = {
+    "essay": "essay",
+    "essays": "essay",
+    "field-note": "field-note",
+    "field-notes": "field-note",
+    "field_note": "field-note",
+    "field_notes": "field-note",
+    "shelf": "shelf",
+    "video": "video",
+    "videos": "video",
+    "project": "project",
+    "projects": "project",
+    "toolkit": "toolkit",
+}
+
+
+def _studio_api_add_cors_headers(request, response):
+    origin = request.headers.get("Origin")
+    if _studio_api_is_origin_allowed(origin):
+        response["Access-Control-Allow-Origin"] = origin
+        vary = response.get("Vary")
+        response["Vary"] = f"{vary}, Origin" if vary else "Origin"
+
+    requested_headers = request.headers.get("Access-Control-Request-Headers")
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = requested_headers or "Content-Type"
+    response["Access-Control-Max-Age"] = "86400"
+    return response
+
+
+def _normalize_studio_api_content_type(raw_content_type):
+    if not raw_content_type:
+        return None
+    key = str(raw_content_type).strip().lower()
+    return STUDIO_API_CONTENT_ALIASES.get(key)
+
+
+def _get_studio_api_content_config(raw_content_type):
+    normalized = _normalize_studio_api_content_type(raw_content_type)
+    if not normalized:
+        return None, None
+    return normalized, STUDIO_API_CONTENT_REGISTRY.get(normalized)
+
+
+def _create_defaults_for_content_type(content_type):
+    today = timezone.localdate()
+    if content_type == "essay":
+        return {
+            "date": today,
+            "summary": "",
+            "body": "",
+        }
+    if content_type == "field-note":
+        return {
+            "date": today,
+            "body": "",
+            "excerpt": "",
+        }
+    if content_type == "shelf":
+        return {
+            "creator": "Unknown",
+            "type": ShelfEntry.EntryType.ARTICLE,
+            "annotation": "",
+            "date": today,
+        }
+    if content_type == "project":
+        return {
+            "role": "Creator",
+            "description": "",
+            "year": today.year,
+            "date": today,
+            "body": "",
+        }
+    if content_type == "toolkit":
+        return {
+            "category": "",
+            "body": "",
+        }
+    if content_type == "video":
+        return {
+            "script_body": "",
+            "thesis": "",
+        }
+    return {}
+
+
+def _generate_unique_slug(model_cls, title):
+    base_slug = slugify(title) or "untitled"
+    slug = base_slug
+    suffix = 2
+    while model_cls.objects.filter(slug=slug).exists():
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
+    return slug
+
+
+def _word_count_for_text(value):
+    if not value:
+        return 0
+    plain = strip_tags(str(value))
+    words = [word for word in plain.split() if word]
+    return len(words)
+
+
+def _serialize_studio_content_item(instance, content_type, config):
+    body_field = config.get("body_field")
+    excerpt_field = config.get("excerpt_field")
+    tags_field = config.get("tags_field")
+    stage_field = config.get("stage_field")
+
+    body_value = getattr(instance, body_field, "") if body_field else ""
+    excerpt_value = getattr(instance, excerpt_field, "") if excerpt_field else ""
+    tags_value = getattr(instance, tags_field, []) if tags_field else []
+    if not isinstance(tags_value, list):
+        tags_value = []
+
+    published_at = getattr(instance, "published_at", None)
+    created_at = getattr(instance, "created_at", timezone.now())
+    updated_at = getattr(instance, "updated_at", timezone.now())
+
+    return {
+        "id": str(instance.pk),
+        "title": getattr(instance, "title", "") or "",
+        "slug": getattr(instance, "slug", "") or "",
+        "content_type": content_type,
+        "stage": getattr(instance, stage_field, "") or "",
+        "body": body_value or "",
+        "excerpt": excerpt_value or "",
+        "word_count": _word_count_for_text(body_value),
+        "tags": tags_value,
+        "created_at": created_at.isoformat(),
+        "updated_at": updated_at.isoformat(),
+        "published_at": published_at.isoformat() if published_at else None,
+    }
+
+
+def _apply_studio_filters(queryset, config, stage=None, query=None):
+    stage_field = config.get("stage_field")
+    filtered = queryset
+
+    if stage and stage_field:
+        try:
+            model_field = config["model"]._meta.get_field(stage_field)
+            valid_values = [choice[0] for choice in model_field.choices]
+            if stage in valid_values:
+                filtered = filtered.filter(**{stage_field: stage})
+            else:
+                return filtered.none()
+        except FieldDoesNotExist:
+            pass
+
+    if query:
+        filtered = filtered.filter(title__icontains=query)
+
+    return filtered.order_by("-updated_at")
+
+
+def _list_serialized_content(content_type=None, stage=None, query=None):
+    items = []
+
+    if content_type:
+        config = STUDIO_API_CONTENT_REGISTRY[content_type]
+        queryset = _apply_studio_filters(
+            config["model"].objects.all(),
+            config,
+            stage=stage,
+            query=query,
+        )
+        for instance in queryset:
+            items.append(_serialize_studio_content_item(instance, content_type, config))
+        return items
+
+    for item_type, config in STUDIO_API_CONTENT_REGISTRY.items():
+        queryset = _apply_studio_filters(
+            config["model"].objects.all(),
+            config,
+            stage=stage,
+            query=query,
+        )
+        for instance in queryset:
+            items.append(_serialize_studio_content_item(instance, item_type, config))
+
+    items.sort(key=lambda item: item["updated_at"], reverse=True)
+    return items
+
+
+def _update_instance_from_payload(instance, config, payload):
+    title = payload.get("title")
+    if isinstance(title, str):
+        instance.title = title.strip() or config["default_title"]
+
+    if "body" in payload and config.get("body_field"):
+        setattr(instance, config["body_field"], payload.get("body") or "")
+
+    excerpt_field = config.get("excerpt_field")
+    if "excerpt" in payload and excerpt_field:
+        raw_excerpt = payload.get("excerpt") or ""
+        try:
+            max_len = instance._meta.get_field(excerpt_field).max_length
+        except Exception:
+            max_len = None
+        if max_len and len(raw_excerpt) > max_len:
+            raw_excerpt = raw_excerpt[:max_len]
+        setattr(instance, excerpt_field, raw_excerpt)
+
+    tags_field = config.get("tags_field")
+    if "tags" in payload and tags_field:
+        tags = payload.get("tags")
+        if isinstance(tags, list):
+            setattr(instance, tags_field, tags)
+
+    instance.save()
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(require_studio_token, name="dispatch")
+class StudioApiBaseView(View):
+    """Base view for JSON wrappers with CORS, token auth, and OPTIONS support."""
+
+    def options(self, request, *args, **kwargs):
+        return self._json(request, {"ok": True})
+
+    def _json(self, request, payload, status=200):
+        response = JsonResponse(payload, status=status, safe=not isinstance(payload, list))
+        return _studio_api_add_cors_headers(request, response)
+
+    def _error(self, request, message, status=400):
+        return self._json(request, {"error": message}, status=status)
+
+    def _parse_json_body(self, request):
+        if not request.body:
+            return {}
+        try:
+            return json.loads(request.body)
+        except json.JSONDecodeError:
+            return None
+
+
+class StudioApiContentListView(StudioApiBaseView):
+    """GET /editor/api/content/ (optional query: content_type, stage, q)."""
+
+    def get(self, request):
+        requested_type = request.GET.get("content_type")
+        stage = request.GET.get("stage")
+        query = request.GET.get("q")
+
+        if requested_type:
+            normalized, config = _get_studio_api_content_config(requested_type)
+            if not normalized or not config:
+                return self._error(request, "Unknown content type", status=404)
+            items = _list_serialized_content(
+                content_type=normalized,
+                stage=stage,
+                query=query,
+            )
+            return self._json(request, items)
+
+        items = _list_serialized_content(stage=stage, query=query)
+        return self._json(request, items)
+
+
+class StudioApiContentTypeListView(StudioApiBaseView):
+    """GET /editor/api/content/<content_type>/."""
+
+    def get(self, request, content_type):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        stage = request.GET.get("stage")
+        query = request.GET.get("q")
+        items = _list_serialized_content(
+            content_type=normalized,
+            stage=stage,
+            query=query,
+        )
+        return self._json(request, items)
+
+
+class StudioApiContentDetailView(StudioApiBaseView):
+    """GET /editor/api/content/<content_type>/<slug>/."""
+
+    def get(self, request, content_type, slug):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        instance = config["model"].objects.filter(slug=slug).first()
+        if not instance:
+            return self._error(request, "Content item not found", status=404)
+        return self._json(
+            request,
+            _serialize_studio_content_item(instance, normalized, config),
+        )
+
+
+class StudioApiContentCreateView(StudioApiBaseView):
+    """POST /editor/api/content/<content_type>/create/."""
+
+    def post(self, request, content_type):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+
+        title = str(payload.get("title") or config["default_title"]).strip()
+        if not title:
+            title = config["default_title"]
+
+        model_cls = config["model"]
+        create_data = _create_defaults_for_content_type(normalized)
+        create_data["title"] = title
+        create_data["slug"] = _generate_unique_slug(model_cls, title)
+
+        instance = model_cls.objects.create(**create_data)
+        return self._json(
+            request,
+            _serialize_studio_content_item(instance, normalized, config),
+            status=201,
+        )
+
+
+def _sync_editor_mentions(content_type: str, slug: str, body: str):
+    """Extract @mention references from editor content and sync to EditorMention model."""
+    import re
+
+    pattern = r'data-mention-id="([^"]+)"'
+    matches = re.findall(pattern, body)
+
+    current_mentions = set()
+    for match in matches:
+        if ':' in match:
+            target_type, target_slug = match.split(':', 1)
+            current_mentions.add((target_type, target_slug))
+
+    # Delete all and recreate (simple, idempotent)
+    EditorMention.objects.filter(source_type=content_type, source_slug=slug).delete()
+    for target_type, target_slug in current_mentions:
+        EditorMention.objects.create(
+            source_type=content_type,
+            source_slug=slug,
+            target_type=target_type,
+            target_slug=target_slug,
+        )
+
+
+class StudioApiContentUpdateView(StudioApiBaseView):
+    """POST /editor/api/content/<content_type>/<slug>/update/."""
+
+    def post(self, request, content_type, slug):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+
+        instance = config["model"].objects.filter(slug=slug).first()
+        if not instance:
+            return self._error(request, "Content item not found", status=404)
+        _update_instance_from_payload(instance, config, payload)
+
+        # Sync @mention references after saving
+        body_field = config.get("body_field", "body")
+        body_content = getattr(instance, body_field, "") or ""
+        _sync_editor_mentions(normalized, slug, body_content)
+
+        return self._json(
+            request,
+            _serialize_studio_content_item(instance, normalized, config),
+        )
+
+
+class StudioApiContentDeleteView(StudioApiBaseView):
+    """POST /editor/api/content/<content_type>/<slug>/delete/."""
+
+    def post(self, request, content_type, slug):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        instance = config["model"].objects.filter(slug=slug).first()
+        if not instance:
+            return self._error(request, "Content item not found", status=404)
+        instance.delete()
+        return self._json(
+            request,
+            {"deleted": True, "content_type": normalized, "slug": slug},
+        )
+
+
+class StudioApiContentSetStageView(StudioApiBaseView):
+    """POST /editor/api/content/<content_type>/<slug>/set-stage/."""
+
+    def post(self, request, content_type, slug):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+
+        new_stage = str(payload.get("stage") or "").strip()
+        if not new_stage:
+            return self._error(request, "stage is required", status=400)
+
+        stage_field = config.get("stage_field")
+        model_cls = config["model"]
+
+        try:
+            model_field = model_cls._meta.get_field(stage_field)
+        except FieldDoesNotExist:
+            return self._error(request, "Stage field is not configured", status=500)
+
+        valid_values = [choice[0] for choice in model_field.choices]
+        if new_stage not in valid_values:
+            return self._error(request, f"Invalid stage: {new_stage}", status=400)
+
+        instance = model_cls.objects.filter(slug=slug).first()
+        if not instance:
+            return self._error(request, "Content item not found", status=404)
+        setattr(instance, stage_field, new_stage)
+        instance.save()
+
+        return self._json(
+            request,
+            _serialize_studio_content_item(instance, normalized, config),
+        )
+
+
+class StudioApiTimelineView(StudioApiBaseView):
+    """GET /editor/api/timeline/."""
+
+    def get(self, request):
+        limit_raw = request.GET.get("limit", "40")
+        try:
+            limit = max(1, min(int(limit_raw), 200))
+        except (TypeError, ValueError):
+            limit = 40
+
+        items = _list_serialized_content()
+        entries = []
+        for index, item in enumerate(items[:limit]):
+            entries.append({
+                "id": f"timeline-{item['content_type']}-{item['id']}-{index}",
+                "content_id": item["id"],
+                "content_title": item["title"],
+                "content_type": item["content_type"],
+                "action": "updated",
+                "detail": f"Updated \"{item['title']}\"",
+                "occurred_at": item["updated_at"],
+            })
+
+        return self._json(request, entries)
+
+
+class StudioApiSettingsView(StudioApiBaseView):
+    """GET /editor/api/settings/."""
+
+    def get(self, request):
+        tokens = DesignTokenSet.load()
+        site_settings = SiteSettings.load()
+        nav_items = list(NavItem.objects.order_by("order", "id"))
+        compositions = list(PageComposition.objects.order_by("page_key"))
+
+        recent_logs = list(
+            PublishLog.objects.order_by("-created_at")[:10]
+        )
+        last_deploy = next((log for log in recent_logs if log.success), None)
+
+        def serialize_log(log):
+            return {
+                "id": str(log.pk),
+                "content_type": log.content_type,
+                "content_slug": log.content_slug,
+                "content_title": log.content_title,
+                "success": log.success,
+                "commit_sha": log.commit_sha,
+                "commit_url": log.commit_url,
+                "error_message": log.error_message,
+                "created_at": log.created_at.isoformat(),
+            }
+
+        # Build page_key label lookup from model choices
+        page_key_labels = dict(PageComposition.PAGE_KEY_CHOICES)
+
+        payload = {
+            "connection": {
+                "status": "ok",
+                "checked_at": timezone.now().isoformat(),
+                "message": "Connected to Django editor API",
+            },
+            "design_tokens": {
+                "colors": tokens.colors or {},
+                "fonts": tokens.fonts or {},
+                "spacing": tokens.spacing or {},
+                "section_colors": tokens.section_colors or {},
+            },
+            "navigation": [
+                {
+                    "id": str(item.pk),
+                    "label": item.label,
+                    "path": item.path,
+                    "icon": item.icon,
+                    "visible": item.visible,
+                    "order": item.order,
+                }
+                for item in nav_items
+            ],
+            "seo": {
+                "title_template": site_settings.seo_title_template or "",
+                "description": site_settings.seo_description or "",
+                "og_fallback": site_settings.seo_og_image_fallback or "",
+            },
+            "compositions": [
+                {
+                    "id": str(comp.pk),
+                    "page_key": comp.page_key,
+                    "page_label": page_key_labels.get(comp.page_key, comp.page_key),
+                    "settings": comp.settings or {},
+                    "updated_at": comp.updated_at.isoformat() if hasattr(comp, "updated_at") else "",
+                }
+                for comp in compositions
+            ],
+            "publishing": {
+                "last_deploy": serialize_log(last_deploy) if last_deploy else None,
+                "publish_log": [serialize_log(log) for log in recent_logs],
+            },
+        }
+
+        return self._json(request, payload)
+
+
+class StudioApiConnectionsView(StudioApiBaseView):
+    """GET /editor/api/connections/."""
+
+    def get(self, request):
+        limit_raw = request.GET.get("limit", "80")
+        max_edges_raw = request.GET.get("max_edges", "240")
+
+        try:
+            limit = max(10, min(int(limit_raw), 200))
+        except (TypeError, ValueError):
+            limit = 80
+
+        try:
+            max_edges = max(20, min(int(max_edges_raw), 600))
+        except (TypeError, ValueError):
+            max_edges = 240
+
+        graph = build_connections_graph(limit=limit, max_edges=max_edges)
+        return self._json(request, graph)
+
+
+class StudioApiCommonplaceSearchView(StudioApiBaseView):
+    """
+    GET /editor/api/commonplace/search/?q=<query>
+
+    Searches Shelf entries and Field Notes by title and body text.
+    Returns combined results sorted by relevance (title match first).
+    Limited to 20 results.
+    """
+
+    def get(self, request):
+        q = request.GET.get("q", "").strip()
+        if not q:
+            return self._json(request, {"results": []})
+
+        from django.db.models import Q, Value, IntegerField, Case, When
+
+        shelf_qs = (
+            ShelfEntry.objects.filter(
+                Q(title__icontains=q) | Q(annotation__icontains=q)
+            )
+            .annotate(
+                relevance=Case(
+                    When(title__icontains=q, then=Value(2)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .values("title", "slug", "annotation", "creator", "type")[:10]
+        )
+
+        note_qs = (
+            FieldNote.objects.filter(
+                Q(title__icontains=q) | Q(body__icontains=q)
+            )
+            .annotate(
+                relevance=Case(
+                    When(title__icontains=q, then=Value(2)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .values("title", "slug", "body", "status")[:10]
+        )
+
+        results = []
+        for item in shelf_qs:
+            results.append(
+                {
+                    "id": f'shelf:{item["slug"]}',
+                    "title": item["title"],
+                    "source": item.get("creator", ""),
+                    "text": (item.get("annotation", "") or "")[:200],
+                    "contentType": "shelf",
+                }
+            )
+
+        for item in note_qs:
+            results.append(
+                {
+                    "id": f'field-note:{item["slug"]}',
+                    "title": item["title"],
+                    "source": "Field Note",
+                    "text": (item.get("body", "") or "")[:200],
+                    "contentType": "field-note",
+                }
+            )
+
+        # Sort: title matches first
+        results.sort(
+            key=lambda r: (0 if q.lower() in r["title"].lower() else 1)
+        )
+
+        return self._json(request, {"results": results[:20]})
+
+
+# ---------------------------------------------------------------------------
+# Stash CRUD
+# ---------------------------------------------------------------------------
+
+
+class StudioApiStashListView(StudioApiBaseView):
+    """
+    GET  /editor/api/content/{type}/{slug}/stash/   list stash items
+    POST /editor/api/content/{type}/{slug}/stash/   create a stash item
+    """
+
+    def get(self, request, content_type, slug):
+        items = StashItem.objects.filter(
+            content_type=content_type, content_slug=slug,
+        ).values("id", "text", "created_at", "sort_order")
+        return self._json(request, {"items": list(items)})
+
+    def post(self, request, content_type, slug):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+        text = (body.get("text") or "").strip()
+        if not text:
+            return self._error(request, "text is required", 400)
+        item = StashItem.objects.create(
+            content_type=content_type,
+            content_slug=slug,
+            text=text,
+            sort_order=body.get("sort_order", 0),
+        )
+        return self._json(request, {
+            "id": item.pk,
+            "text": item.text,
+            "created_at": item.created_at.isoformat(),
+            "sort_order": item.sort_order,
+        })
+
+
+class StudioApiStashDeleteView(StudioApiBaseView):
+    """POST /editor/api/content/{type}/{slug}/stash/{id}/delete/"""
+
+    def post(self, request, content_type, slug, pk):
+        deleted, _ = StashItem.objects.filter(
+            pk=pk, content_type=content_type, content_slug=slug,
+        ).delete()
+        if not deleted:
+            return self._error(request, "Not found", 404)
+        return self._json(request, {"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Task CRUD
+# ---------------------------------------------------------------------------
+
+
+class StudioApiTaskListView(StudioApiBaseView):
+    """
+    GET  /editor/api/content/{type}/{slug}/tasks/   list tasks
+    POST /editor/api/content/{type}/{slug}/tasks/   create a task
+    """
+
+    def get(self, request, content_type, slug):
+        tasks = ContentTask.objects.filter(
+            content_type=content_type, content_slug=slug,
+        ).values(
+            "id", "text", "done", "done_at", "created_at",
+            "ticktick_task_id", "ticktick_project_id",
+        )
+        return self._json(request, {"tasks": list(tasks)})
+
+    def post(self, request, content_type, slug):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+        text = (body.get("text") or "").strip()
+        if not text:
+            return self._error(request, "text is required", 400)
+        task = ContentTask.objects.create(
+            content_type=content_type,
+            content_slug=slug,
+            text=text,
+        )
+        # Best effort TickTick sync (does not block task creation)
+        try:
+            from apps.content.ticktick_sync import (
+                TICKTICK_STUDIO_PROJECT_ID,
+                sync_content_task_to_ticktick,
+            )
+            ticktick_id = sync_content_task_to_ticktick(task)
+            if ticktick_id:
+                task.ticktick_task_id = ticktick_id
+                task.ticktick_project_id = TICKTICK_STUDIO_PROJECT_ID
+                task.save(update_fields=["ticktick_task_id", "ticktick_project_id"])
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("TickTick sync failed")
+        return self._json(request, {
+            "id": task.pk,
+            "text": task.text,
+            "done": task.done,
+            "done_at": None,
+            "created_at": task.created_at.isoformat(),
+            "ticktick_task_id": task.ticktick_task_id,
+            "ticktick_project_id": task.ticktick_project_id,
+        })
+
+
+class StudioApiTaskUpdateView(StudioApiBaseView):
+    """POST /editor/api/content/{type}/{slug}/tasks/{id}/update/"""
+
+    def post(self, request, content_type, slug, pk):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+        try:
+            task = ContentTask.objects.get(
+                pk=pk, content_type=content_type, content_slug=slug,
+            )
+        except ContentTask.DoesNotExist:
+            return self._error(request, "Not found", 404)
+
+        if "done" in body:
+            task.done = bool(body["done"])
+            if task.done and not task.done_at:
+                from django.utils import timezone
+                task.done_at = timezone.now()
+            elif not task.done:
+                task.done_at = None
+        if "text" in body:
+            task.text = body["text"]
+        task.save()
+
+        # Best effort TickTick completion sync
+        if task.done and task.ticktick_task_id:
+            try:
+                from apps.content.ticktick_sync import complete_ticktick_task
+                complete_ticktick_task(task.ticktick_project_id, task.ticktick_task_id)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("TickTick complete sync failed")
+
+        return self._json(request, {
+            "id": task.pk,
+            "text": task.text,
+            "done": task.done,
+            "done_at": task.done_at.isoformat() if task.done_at else None,
+            "created_at": task.created_at.isoformat(),
+            "ticktick_task_id": task.ticktick_task_id,
+            "ticktick_project_id": task.ticktick_project_id,
+        })
+
+
+class StudioApiTaskDeleteView(StudioApiBaseView):
+    """POST /editor/api/content/{type}/{slug}/tasks/{id}/delete/"""
+
+    def post(self, request, content_type, slug, pk):
+        deleted, _ = ContentTask.objects.filter(
+            pk=pk, content_type=content_type, content_slug=slug,
+        ).delete()
+        if not deleted:
+            return self._error(request, "Not found", 404)
+        return self._json(request, {"ok": True})
+
+
+class StudioApiAllTasksView(StudioApiBaseView):
+    """
+    GET /editor/api/tasks/all/
+
+    Returns all tasks across all content items, grouped by content piece.
+    Supports ?include_done=true to also include completed tasks.
+    """
+
+    def get(self, request):
+        include_done = request.GET.get("include_done", "false") == "true"
+
+        qs = ContentTask.objects.all()
+        if not include_done:
+            qs = qs.filter(done=False)
+
+        qs = qs.order_by("content_type", "content_slug", "done", "-created_at")
+
+        grouped: dict[str, dict] = {}
+        for task in qs:
+            key = f"{task.content_type}:{task.content_slug}"
+            if key not in grouped:
+                grouped[key] = {
+                    "content_type": task.content_type,
+                    "content_slug": task.content_slug,
+                    "tasks": [],
+                }
+            grouped[key]["tasks"].append({
+                "id": task.pk,
+                "text": task.text,
+                "done": task.done,
+                "created_at": task.created_at.isoformat(),
+            })
+
+        return self._json(request, {"groups": list(grouped.values())})
+
+
+# ---------------------------------------------------------------------------
+# Studio v4.1: Image Upload, Collage, Content Search
+# ---------------------------------------------------------------------------
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class EditorImageUploadView(StudioApiBaseView):
+    """
+    POST /editor/api/upload/image/
+    Accepts multipart/form-data with a single 'image' file.
+    Returns JSON: { "url": "/media/editor/filename.ext" }
+    """
+
+    def post(self, request):
+        import uuid
+        from django.core.files.storage import default_storage
+
+        image = request.FILES.get("image")
+        if not image:
+            return self._error(request, "No image file provided")
+
+        allowed = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+        if image.content_type not in allowed:
+            return self._error(request, "File type not allowed")
+
+        if image.size > 10 * 1024 * 1024:
+            return self._error(request, "File too large (10MB max)")
+
+        ext = image.name.rsplit(".", 1)[-1] if "." in image.name else "jpg"
+        filename = f"editor/{uuid.uuid4().hex[:12]}.{ext}"
+        saved_path = default_storage.save(filename, image)
+        url = default_storage.url(saved_path)
+
+        return self._json(request, {"url": url})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CollageGenerateView(StudioApiBaseView):
+    """
+    POST /editor/api/collage/generate/
+    Runs the collage engine and returns the generated image URL.
+    """
+
+    def post(self, request):
+        data = self._parse_json_body(request)
+        if data is None:
+            return self._error(request, "Invalid JSON")
+
+        slug = data.get("slug", "")
+        if not slug:
+            return self._error(request, "slug is required")
+
+        try:
+            from collage.collage_engine import compose
+        except ImportError:
+            return self._error(
+                request,
+                "Collage engine not available on this server",
+                status=501,
+            )
+
+        output_path = f"public/collage/{slug}.jpg"
+        canvas_size = tuple(data.get("canvas_size", [1400, 875]))
+
+        try:
+            compose(
+                slug=slug,
+                hero=data.get("hero"),
+                supports=data.get("supports", []),
+                strips=data.get("strips", []),
+                output=output_path,
+                canvas_size=canvas_size,
+                ground=data.get("ground", "olive"),
+            )
+            return self._json(request, {
+                "success": True,
+                "url": f"/collage/{slug}.jpg",
+            })
+        except Exception as exc:
+            logger.exception("Collage generation failed for %s", slug)
+            return self._json(
+                request,
+                {"error": str(exc), "success": False},
+                status=500,
+            )
+
+
+class CollageCutoutsListView(StudioApiBaseView):
+    """
+    GET /editor/api/collage/cutouts/
+    Lists available cutout PNGs in photos/cutouts/.
+    """
+
+    def get(self, request):
+        from pathlib import Path
+
+        cutout_dir = Path("photos/cutouts")
+        if not cutout_dir.exists():
+            return self._json(request, {"cutouts": []})
+
+        cutouts = [
+            {"path": str(p), "name": p.stem}
+            for p in sorted(cutout_dir.glob("*.png"))
+        ]
+        return self._json(request, {"cutouts": cutouts})
+
+
+class ContentSearchView(StudioApiBaseView):
+    """
+    GET /editor/api/search/?q=<query>
+    Searches all content types by title. Returns combined results
+    with content_type and slug for each match.
+    """
+
+    def get(self, request):
+        from django.db.models import Q
+
+        q = request.GET.get("q", "").strip()
+        if len(q) < 2:
+            return self._json(request, {"results": []})
+
+        results = []
+
+        for Model, ct in [
+            (Essay, "essay"),
+            (FieldNote, "field-note"),
+            (ShelfEntry, "shelf"),
+            (Project, "project"),
+            (VideoProject, "video"),
+        ]:
+            matches = Model.objects.filter(
+                Q(title__icontains=q)
+            ).values("title", "slug")[:5]
+
+            for item in matches:
+                results.append({
+                    "id": f"{ct}:{item['slug']}",
+                    "label": item["title"],
+                    "contentType": ct,
+                    "slug": item["slug"],
+                })
+
+        return self._json(request, {"results": results[:15]})
+
+
+class EditorMentionBacklinksView(StudioApiBaseView):
+    """
+    GET /editor/api/mentions/<content_type>/<slug>/backlinks/
+
+    Returns documents that @mention this content item.
+    """
+
+    def get(self, request, content_type, slug):
+        normalized = _normalize_studio_api_content_type(content_type)
+        if not normalized:
+            return self._error(request, "Unknown content type", status=404)
+
+        mentions = EditorMention.objects.filter(
+            target_type=normalized,
+            target_slug=slug,
+        ).values('source_type', 'source_slug')
+
+        results = []
+        for m in mentions:
+            title = m['source_slug'].replace('-', ' ').title()
+            config = STUDIO_API_CONTENT_REGISTRY.get(m['source_type'])
+            if config:
+                model_cls = config['model']
+                try:
+                    obj = model_cls.objects.get(slug=m['source_slug'])
+                    title = obj.title
+                except model_cls.DoesNotExist:
+                    pass
+
+            results.append({
+                'sourceType': m['source_type'],
+                'sourceSlug': m['source_slug'],
+                'sourceTitle': title,
+            })
+
+        return self._json(request, {'mentionedBy': results})
+
+
+# ---------------------------------------------------------------------------
+# Content Revision CRUD
+# ---------------------------------------------------------------------------
+
+
+def _next_revision_number(content_type, content_slug):
+    """Return the next sequential revision number for a content item."""
+    last = (
+        ContentRevision.objects.filter(
+            content_type=content_type,
+            content_slug=content_slug,
+        )
+        .order_by("-revision_number")
+        .values_list("revision_number", flat=True)
+        .first()
+    )
+    return (last or 0) + 1
+
+
+class StudioApiRevisionListView(StudioApiBaseView):
+    """
+    GET  .../revisions/           list revisions (excludes body for speed)
+    POST .../revisions/           create a revision snapshot
+    """
+
+    def get(self, request, content_type, slug):
+        normalized = _normalize_studio_api_content_type(content_type)
+        if not normalized:
+            return self._error(request, "Unknown content type", status=404)
+
+        revisions = ContentRevision.objects.filter(
+            content_type=normalized,
+            content_slug=slug,
+        ).values(
+            "id", "revision_number", "title", "word_count",
+            "label", "source", "created_at",
+        )
+        return self._json(request, {"revisions": list(revisions)})
+
+    def post(self, request, content_type, slug):
+        normalized = _normalize_studio_api_content_type(content_type)
+        if not normalized:
+            return self._error(request, "Unknown content type", status=404)
+
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+
+        title = body.get("title", "")
+        text = body.get("body", "")
+        word_count = len(text.split()) if text else 0
+        source = body.get("source", ContentRevision.Source.MANUAL)
+        label = body.get("label", "")
+
+        # Validate source choice
+        valid_sources = [c[0] for c in ContentRevision.Source.choices]
+        if source not in valid_sources:
+            source = ContentRevision.Source.MANUAL
+
+        rev_number = _next_revision_number(normalized, slug)
+        rev = ContentRevision.objects.create(
+            content_type=normalized,
+            content_slug=slug,
+            revision_number=rev_number,
+            title=title,
+            body=text,
+            word_count=word_count,
+            source=source,
+            label=label,
+        )
+        return self._json(request, {
+            "id": rev.pk,
+            "revision_number": rev.revision_number,
+            "title": rev.title,
+            "word_count": rev.word_count,
+            "source": rev.source,
+            "label": rev.label,
+            "created_at": rev.created_at.isoformat(),
+        })
+
+
+class StudioApiRevisionDetailView(StudioApiBaseView):
+    """GET .../revisions/<pk>/ (includes body)."""
+
+    def get(self, request, content_type, slug, pk):
+        normalized = _normalize_studio_api_content_type(content_type)
+        if not normalized:
+            return self._error(request, "Unknown content type", status=404)
+
+        try:
+            rev = ContentRevision.objects.get(
+                pk=pk,
+                content_type=normalized,
+                content_slug=slug,
+            )
+        except ContentRevision.DoesNotExist:
+            return self._error(request, "Revision not found", status=404)
+
+        return self._json(request, {
+            "id": rev.pk,
+            "revision_number": rev.revision_number,
+            "title": rev.title,
+            "body": rev.body,
+            "word_count": rev.word_count,
+            "source": rev.source,
+            "label": rev.label,
+            "created_at": rev.created_at.isoformat(),
+        })
+
+
+class StudioApiRevisionDiffView(StudioApiBaseView):
+    """
+    GET .../revisions/<pk>/diff/?compare_to=<other_pk>
+
+    Returns unified diff lines. If compare_to omitted, diffs against the
+    immediately preceding revision (or empty if this is revision 1).
+    """
+
+    def get(self, request, content_type, slug, pk):
+        normalized = _normalize_studio_api_content_type(content_type)
+        if not normalized:
+            return self._error(request, "Unknown content type", status=404)
+
+        try:
+            rev = ContentRevision.objects.get(
+                pk=pk,
+                content_type=normalized,
+                content_slug=slug,
+            )
+        except ContentRevision.DoesNotExist:
+            return self._error(request, "Revision not found", status=404)
+
+        compare_to_pk = request.GET.get("compare_to")
+        if compare_to_pk:
+            try:
+                other = ContentRevision.objects.get(
+                    pk=int(compare_to_pk),
+                    content_type=normalized,
+                    content_slug=slug,
+                )
+            except (ContentRevision.DoesNotExist, ValueError):
+                return self._error(request, "Comparison revision not found", status=404)
+        else:
+            # Find preceding revision
+            other = (
+                ContentRevision.objects.filter(
+                    content_type=normalized,
+                    content_slug=slug,
+                    revision_number__lt=rev.revision_number,
+                )
+                .order_by("-revision_number")
+                .first()
+            )
+
+        old_lines = (other.body if other else "").splitlines(keepends=True)
+        new_lines = rev.body.splitlines(keepends=True)
+
+        diff_lines = list(difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"r{other.revision_number}" if other else "empty",
+            tofile=f"r{rev.revision_number}",
+            lineterm="",
+        ))
+
+        old_wc = other.word_count if other else 0
+        return self._json(request, {
+            "revision": rev.revision_number,
+            "compare_to": other.revision_number if other else None,
+            "diff": diff_lines,
+            "word_count_delta": rev.word_count - old_wc,
+        })
+
+
+class StudioApiRevisionRestoreView(StudioApiBaseView):
+    """
+    POST .../revisions/<pk>/restore/
+
+    Checkpoints the current content as a 'restore' revision, then overwrites
+    the content item's body/title with the selected revision's data.
+    Returns the updated content and new checkpoint revision ID.
+    """
+
+    def post(self, request, content_type, slug, pk):
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        try:
+            rev = ContentRevision.objects.get(
+                pk=pk,
+                content_type=normalized,
+                content_slug=slug,
+            )
+        except ContentRevision.DoesNotExist:
+            return self._error(request, "Revision not found", status=404)
+
+        # Load the current content item
+        model_cls = config["model"]
+        try:
+            instance = model_cls.objects.get(slug=slug)
+        except model_cls.DoesNotExist:
+            return self._error(request, "Content item not found", status=404)
+
+        # Determine body field name
+        body_field = config.get("body_field", "body")
+        current_body = getattr(instance, body_field, "") or ""
+        current_title = getattr(instance, "title", "") or ""
+
+        # Checkpoint current state before restoring
+        checkpoint_number = _next_revision_number(normalized, slug)
+        checkpoint = ContentRevision.objects.create(
+            content_type=normalized,
+            content_slug=slug,
+            revision_number=checkpoint_number,
+            title=current_title,
+            body=current_body,
+            word_count=len(current_body.split()) if current_body else 0,
+            source=ContentRevision.Source.RESTORE,
+            label=f"Checkpoint before restore to r{rev.revision_number}",
+        )
+
+        # Overwrite content with restored revision
+        setattr(instance, body_field, rev.body)
+        if hasattr(instance, "title"):
+            instance.title = rev.title
+        instance.save()
+
+        return self._json(request, {
+            "ok": True,
+            "restored_revision": rev.revision_number,
+            "checkpoint_id": checkpoint.pk,
+            "checkpoint_revision": checkpoint.revision_number,
+            "title": rev.title,
+            "body": rev.body,
+        })
+
+
+# Maps content types to their publish functions.
+_PUBLISH_FUNCTIONS = {
+    "essay": publish_essay,
+    "field-note": publish_field_note,
+    "shelf": publish_shelf_entry,
+    "project": publish_project,
+    "toolkit": publish_toolkit_entry,
+}
+
+
+class StudioApiContentPublishView(StudioApiBaseView):
+    """
+    POST /editor/api/content/<content_type>/<slug>/publish/
+
+    Publishes content to GitHub and returns JSON with commit info.
+    Replaces the template-redirect publish views for Next.js Studio.
+
+    Auth: Bearer token via STUDIO_API_TOKEN env var (session auth not
+    available because the Next.js frontend sends credentials: 'omit').
+    """
+
+    def _check_publish_token(self, request):
+        """Validate Bearer token against STUDIO_API_TOKEN env var."""
+        expected = os.environ.get("STUDIO_API_TOKEN", "")
+        if not expected:
+            return False
+        auth = request.META.get("HTTP_AUTHORIZATION", "")
+        if not auth.startswith("Bearer "):
+            return False
+        return auth[7:] == expected
+
+    def post(self, request, content_type, slug):
+        if not self._check_publish_token(request):
+            return self._error(request, "Invalid or missing API token", status=401)
+
+        normalized, config = _get_studio_api_content_config(content_type)
+        if not normalized or not config:
+            return self._error(request, "Unknown content type", status=404)
+
+        publish_fn = _PUBLISH_FUNCTIONS.get(normalized)
+        if not publish_fn:
+            return self._error(
+                request,
+                f"Publishing not supported for {normalized}",
+                status=400,
+            )
+
+        model_cls = config["model"]
+        try:
+            instance = model_cls.objects.get(slug=slug)
+        except model_cls.DoesNotExist:
+            return self._error(request, "Content item not found", status=404)
+
+        # If sheets exist, concatenate non-material bodies into the body field
+        # before publishing (in-memory only: publish functions never save back).
+        body_field = config.get("body_field", "body")
+        active_sheets = list(
+            Sheet.objects.filter(
+                content_type=normalized,
+                content_slug=slug,
+                is_material=False,
+            ).order_by("order")
+        )
+        if active_sheets:
+            combined = "\n\n".join(s.body for s in active_sheets if s.body)
+            setattr(instance, body_field, combined)
+
+        try:
+            log = publish_fn(instance)
+        except Exception:
+            logger.exception("Publish failed for %s '%s'", normalized, slug)
+            return self._json(request, {
+                "success": False,
+                "commit_sha": "",
+                "commit_url": "",
+                "error": traceback.format_exc().splitlines()[-1],
+            }, status=500)
+
+        return self._json(request, {
+            "success": log.success,
+            "commit_sha": log.commit_sha or "",
+            "commit_url": log.commit_url or "",
+            "error": log.error_message or "",
+        })
+
+
+# ---------------------------------------------------------------------------
+# Sheet CRUD (Batch 16: Ulysses-style sub-documents)
+# ---------------------------------------------------------------------------
+
+
+def _serialize_sheet(sheet: Sheet) -> dict:
+    """Serialize a Sheet instance to the Studio API wire format."""
+    return {
+        "id": str(sheet.id),
+        "contentType": sheet.content_type,
+        "contentSlug": sheet.content_slug,
+        "order": sheet.order,
+        "title": sheet.title,
+        "body": sheet.body,
+        "isMaterial": sheet.is_material,
+        "status": sheet.status,
+        "wordCount": sheet.word_count,
+        "createdAt": sheet.created_at.isoformat(),
+        "updatedAt": sheet.updated_at.isoformat(),
+    }
+
+
+class StudioApiSheetListView(StudioApiBaseView):
+    """
+    GET  /editor/api/content/{type}/{slug}/sheets/   list sheets
+    POST /editor/api/content/{type}/{slug}/sheets/   create a sheet
+    """
+
+    def get(self, request, content_type, slug):
+        sheets = Sheet.objects.filter(
+            content_type=content_type, content_slug=slug,
+        ).order_by("order")
+        return self._json(request, {"sheets": [_serialize_sheet(s) for s in sheets]})
+
+    def post(self, request, content_type, slug):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+
+        # Place new sheet at end by default
+        last = Sheet.objects.filter(
+            content_type=content_type, content_slug=slug,
+        ).order_by("-order").values_list("order", flat=True).first()
+        next_order = (last + 1) if last is not None else 0
+
+        sheet = Sheet.objects.create(
+            content_type=content_type,
+            content_slug=slug,
+            order=body.get("order", next_order),
+            title=str(body.get("title") or "").strip(),
+            body=str(body.get("body") or ""),
+            is_material=bool(body.get("isMaterial", False)),
+            status=body.get("status") or None,
+        )
+        return self._json(request, _serialize_sheet(sheet), status=201)
+
+
+class StudioApiSheetDetailView(StudioApiBaseView):
+    """
+    GET  /editor/api/content/{type}/{slug}/sheets/{pk}/   sheet detail
+    POST /editor/api/content/{type}/{slug}/sheets/{pk}/   update sheet
+    """
+
+    def _get_sheet(self, request, content_type, slug, pk):
+        sheet = Sheet.objects.filter(
+            id=pk, content_type=content_type, content_slug=slug,
+        ).first()
+        if not sheet:
+            return None, self._error(request, "Sheet not found", 404)
+        return sheet, None
+
+    def get(self, request, content_type, slug, pk):
+        sheet, err = self._get_sheet(request, content_type, slug, pk)
+        if err:
+            return err
+        return self._json(request, _serialize_sheet(sheet))
+
+    def post(self, request, content_type, slug, pk):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+
+        action = body.get("action")
+        if action == "delete":
+            deleted, _ = Sheet.objects.filter(
+                id=pk, content_type=content_type, content_slug=slug,
+            ).delete()
+            if not deleted:
+                return self._error(request, "Sheet not found", 404)
+            return self._json(request, {"ok": True})
+
+        sheet, err = self._get_sheet(request, content_type, slug, pk)
+        if err:
+            return err
+
+        updatable = ("title", "body", "order", "isMaterial", "status")
+        if "title" in body:
+            sheet.title = str(body["title"])
+        if "body" in body:
+            sheet.body = str(body["body"])
+        if "order" in body:
+            sheet.order = int(body["order"])
+        if "isMaterial" in body:
+            sheet.is_material = bool(body["isMaterial"])
+        if "status" in body:
+            sheet.status = body["status"] or None
+        sheet.save()
+        return self._json(request, _serialize_sheet(sheet))
+
+
+class StudioApiSheetReorderView(StudioApiBaseView):
+    """
+    POST /editor/api/content/{type}/{slug}/sheets/reorder/
+
+    Body: {"ids": ["uuid1", "uuid2", ...]}
+    Reassigns order=0,1,2... based on the provided ID sequence.
+    """
+
+    def post(self, request, content_type, slug):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+
+        ids = body.get("ids")
+        if not isinstance(ids, list):
+            return self._error(request, "ids must be a list", 400)
+
+        sheets_by_id = {
+            str(s.id): s
+            for s in Sheet.objects.filter(
+                content_type=content_type, content_slug=slug,
+            )
+        }
+
+        to_save = []
+        for idx, sheet_id in enumerate(ids):
+            sheet = sheets_by_id.get(str(sheet_id))
+            if sheet and sheet.order != idx:
+                sheet.order = idx
+                to_save.append(sheet)
+
+        # Bulk update to minimize DB round-trips
+        for sheet in to_save:
+            sheet.save(update_fields=["order", "updated_at"])
+
+        updated = Sheet.objects.filter(
+            content_type=content_type, content_slug=slug,
+        ).order_by("order")
+        return self._json(request, {"sheets": [_serialize_sheet(s) for s in updated]})
+
+
+class StudioApiSheetSplitView(StudioApiBaseView):
+    """
+    POST /editor/api/content/{type}/{slug}/sheets/{pk}/split/
+
+    Body: {"position": <int>}  (character offset in sheet.body)
+    Splits the sheet at the given position, creating a new sheet
+    immediately after with the tail content.
+    """
+
+    def post(self, request, content_type, slug, pk):
+        body = self._parse_json_body(request)
+        if body is None:
+            return self._error(request, "Invalid JSON body", 400)
+
+        sheet = Sheet.objects.filter(
+            id=pk, content_type=content_type, content_slug=slug,
+        ).first()
+        if not sheet:
+            return self._error(request, "Sheet not found", 404)
+
+        position = int(body.get("position", 0))
+        head = sheet.body[:position]
+        tail = sheet.body[position:]
+
+        # Update original with head
+        sheet.body = head
+        sheet.save(update_fields=["body", "updated_at"])
+
+        # Shift all later sheets up by 1
+        Sheet.objects.filter(
+            content_type=content_type,
+            content_slug=slug,
+            order__gt=sheet.order,
+        ).update(order=models.F("order") + 1)
+
+        # Create new sheet with tail immediately after
+        new_sheet = Sheet.objects.create(
+            content_type=content_type,
+            content_slug=slug,
+            order=sheet.order + 1,
+            title="",
+            body=tail,
+            is_material=False,
+            status=None,
+        )
+
+        return self._json(request, {
+            "original": _serialize_sheet(sheet),
+            "new": _serialize_sheet(new_sheet),
+        })
+
+
+class StudioApiSheetMergeView(StudioApiBaseView):
+    """
+    POST /editor/api/content/{type}/{slug}/sheets/{pk}/merge-next/
+
+    Merges the target sheet with the next sheet (by order).
+    The next sheet is deleted; the target's body grows.
+    """
+
+    def post(self, request, content_type, slug, pk):
+        sheet = Sheet.objects.filter(
+            id=pk, content_type=content_type, content_slug=slug,
+        ).first()
+        if not sheet:
+            return self._error(request, "Sheet not found", 404)
+
+        next_sheet = Sheet.objects.filter(
+            content_type=content_type,
+            content_slug=slug,
+            order__gt=sheet.order,
+        ).order_by("order").first()
+
+        if not next_sheet:
+            return self._error(request, "No next sheet to merge", 400)
+
+        sheet.body = sheet.body + "\n\n" + next_sheet.body
+        sheet.save(update_fields=["body", "updated_at"])
+        next_sheet.delete()
+
+        return self._json(request, {"sheet": _serialize_sheet(sheet)})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ML Analysis API (proxies to Index-API)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class StudioApiDraftConnectionsView(StudioApiBaseView):
+    """POST: Analyze draft connections via Index-API."""
+
+    def post(self, request):
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+        result = services.analyze_draft(
+            payload.get("text", ""),
+            payload.get("content_type", "essay"),
+            payload.get("slug", ""),
+            payload.get("top", 10),
+        )
+        return self._json(request, result)
+
+
+class StudioApiSimilarTextView(StudioApiBaseView):
+    """POST: Find similar objects to raw text."""
+
+    def post(self, request):
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+        result = services.find_similar_text(
+            payload.get("text", ""),
+            payload.get("top", 8),
+            payload.get("threshold", 0.4),
+        )
+        return self._json(request, result)
+
+
+class StudioApiClaimAuditView(StudioApiBaseView):
+    """POST: Audit claims against linked sources."""
+
+    def post(self, request):
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+        result = services.audit_claims(
+            payload.get("text", ""),
+            payload.get("source_slugs", []),
+        )
+        return self._json(request, result)
+
+
+class StudioApiExtractEntitiesView(StudioApiBaseView):
+    """POST: Extract entities for tag suggestions."""
+
+    def post(self, request):
+        payload = self._parse_json_body(request)
+        if payload is None:
+            return self._error(request, "Invalid JSON", status=400)
+        result = services.extract_entities(payload.get("text", ""))
+        return self._json(request, result)
+
+
+# ---------------------------------------------------------------------------
+# Sourcebox JSON API (for Next.js Studio frontend)
+# ---------------------------------------------------------------------------
+
+
+def _serialize_raw_source(source):
+    """Serialize a RawSource instance to a JSON-friendly dict."""
+    return {
+        "id": source.pk,
+        "url": source.url,
+        "title": source.og_title or source.url or str(source.source_file),
+        "description": source.og_description,
+        "image": source.og_image,
+        "siteName": source.og_site_name,
+        "phase": source.phase,
+        "scrapeStatus": source.scrape_status,
+        "inputType": source.input_type,
+        "importance": source.importance,
+        "decision": source.decision,
+        "tags": source.tags if isinstance(source.tags, list) else [],
+        "createdAt": source.created_at.isoformat() if source.created_at else "",
+        "content": source.extracted_content,
+    }
+
+
+class StudioApiSourceboxListView(StudioApiBaseView):
+    """GET /editor/api/sourcebox/ (optional query: phase)."""
+
+    def get(self, request):
+        from apps.intake.models import RawSource
+
+        phase = request.GET.get("phase")
+        qs = RawSource.objects.all()
+        if phase:
+            qs = qs.filter(phase=phase)
+        sources = [_serialize_raw_source(s) for s in qs[:200]]
+        return self._json(request, {"sources": sources})
+
+
+class StudioApiSourceboxCaptureView(StudioApiBaseView):
+    """POST /editor/api/sourcebox/capture/ (JSON body: { url })."""
+
+    def post(self, request):
+        from apps.intake.models import RawSource
+        from apps.intake.services import start_scrape_thread
+
+        payload = self._parse_json_body(request)
+        if not payload or not payload.get("url"):
+            return self._error(request, "url is required")
+
+        url = payload["url"].strip()
+        existing = RawSource.objects.filter(url=url).first()
+        if existing:
+            return self._json(request, _serialize_raw_source(existing))
+
+        source = RawSource.objects.create(
+            url=url,
+            input_type=RawSource.InputType.URL,
+            phase=RawSource.Phase.INBOX,
+            scrape_status=RawSource.ScrapeStatus.PENDING,
+        )
+        start_scrape_thread(source.pk)
+        return self._json(request, _serialize_raw_source(source), status=201)
+
+
+class StudioApiSourceboxStatusView(StudioApiBaseView):
+    """GET /editor/api/sourcebox/status/<id>/ (poll for scrape completion)."""
+
+    def get(self, request, pk):
+        from apps.intake.models import RawSource
+
+        source = get_object_or_404(RawSource, pk=pk)
+        return self._json(request, _serialize_raw_source(source))

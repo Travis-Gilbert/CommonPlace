@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Site Settings{% endblock %}
+
+{% block content %}
+<header class="flex items-center gap-3 mb-6">
+  <h1 class="font-title text-[22px] text-ink m-0">Site Settings</h1>
+</header>
+
+<form method="post" class="max-w-2xl">
+  {% csrf_token %}
+
+  {% crispy form %}
+
+  {% if form.non_field_errors %}
+  <div class="mt-4 p-3 bg-error/5 border border-error/20 rounded-brand">
+    {% for error in form.non_field_errors %}
+    <p class="font-mono text-[11px] tracking-wide text-error leading-relaxed m-0">
+      {{ error }}
+    </p>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="mt-6">
+    <c-btn variant="primary" type="submit">Save Settings</c-btn>
+  </div>
+</form>
+{% endblock %}

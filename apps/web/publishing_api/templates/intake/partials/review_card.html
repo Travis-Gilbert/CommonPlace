@@ -1,0 +1,61 @@
+{# Review card: richer display with tags, importance, and connection count. #}
+<div
+  id="source-{{ source.pk }}"
+  class="rounded-brand border border-border bg-cream shadow-warm-sm p-3 cursor-pointer
+         hover:shadow-warm hover:-translate-y-px transition-all duration-200"
+  onclick="openDetailPanel({{ source.pk }})"
+>
+  <div class="flex items-start gap-3">
+    {# Thumbnail or file icon #}
+    {% if source.og_image %}
+    <div class="w-12 h-12 rounded overflow-hidden bg-parchment-alt flex-shrink-0">
+      <img
+        src="{{ source.og_image }}"
+        alt=""
+        class="w-full h-full object-cover"
+        loading="lazy"
+      >
+    </div>
+    {% elif source.is_file %}
+    <div class="w-12 h-12 rounded bg-parchment-alt flex items-center justify-center flex-shrink-0">
+      <c-icon name="file-text" size="20" color="#B45A2D" />
+    </div>
+    {% endif %}
+
+    {# Title and metadata #}
+    <div class="flex-1 min-w-0">
+      <p class="font-body text-[14px] text-ink line-clamp-2 m-0 leading-snug font-semibold">
+        {{ source.display_title|truncatechars:80 }}
+      </p>
+      {% if source.og_site_name %}
+      <span class="font-mono text-[9px] tracking-wide text-ink-muted uppercase">
+        {{ source.og_site_name }}
+      </span>
+      {% endif %}
+    </div>
+
+    {# Importance dot #}
+    <div
+      class="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
+      style="background: {% if source.importance == 'high' %}#B45A2D{% elif source.importance == 'low' %}#A09890{% else %}#C49A4A{% endif %};"
+      title="{{ source.get_importance_display }} importance"
+    ></div>
+  </div>
+
+  {# Tags + connection count #}
+  {% if source.tags or source.connections %}
+  <div class="flex items-center gap-2 mt-2 flex-wrap">
+    {% for tag in source.tags %}
+    <span class="font-mono text-[9px] tracking-wide text-ink-muted
+                 px-1.5 py-[2px] bg-parchment-alt rounded border border-border">
+      {{ tag }}
+    </span>
+    {% endfor %}
+    {% if source.connections %}
+    <span class="font-mono text-[9px] tracking-wide text-teal ml-auto">
+      {{ source.connections|length }} link{{ source.connections|pluralize }}
+    </span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

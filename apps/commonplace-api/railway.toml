@@ -1,0 +1,24 @@
+# Railway deploy config for commonplace-api from the CommonPlace product repo.
+#
+# Deploy as a CommonPlace service with this repository root as Docker context.
+# The Dockerfile clones Theorem as a sibling bridge until Theorem/RustyRed crates
+# are published or git-pinned. Set THEOREM_REF to the promoted branch or commit.
+# Give the service a public domain: the website's Next proxy calls /graphql
+# server-side with x-api-key = COMMONPLACE_API_KEY.
+#
+# Required env: COMMONPLACE_API_KEY (the instance key the proxy must send).
+# Exposes HTTP, so a real healthcheck is wired: GET /healthz returns "ok".
+#
+# NOTE: backing is the in-memory store for this slice, so data resets on every
+# deploy/restart. Durable RedCore+Disk backing behind the identical schema is the
+# named follow-up; until then the website populates it live via Capture/ingest.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/commonplace-api/Dockerfile"
+
+[deploy]
+startCommand = "commonplace-api"
+healthcheckPath = "/healthz"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

@@ -1,0 +1,54 @@
+/* Shell chrome: ambient glow.
+   Extracted from commonplace.css into a CSS Module. */
+
+/* Shell root: stacking context for the entire app. */
+
+.shellRoot {
+  position: relative;
+  isolation: isolate;
+  /* Transparent shell: parchment comes from html background (--color-paper).
+     DotGrid canvas sits between html bg and shell, dots show directly. */
+  background: transparent;
+}
+
+/* Construction grid disabled: DotGrid provides its own dot texture */
+.shellRoot::before {
+  display: none;
+}
+
+/* Oxblood upper-right glow: ambient desk lamp.
+   Large radius, very subtle. Not a spot; an atmosphere. */
+
+.ambientGlow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at 65% 0%,
+    rgba(var(--cp-red-rgb), 0.04) 0%,
+    rgba(var(--cp-red-rgb), 0.015) 20%,
+    transparent 50%
+  );
+}
+
+/* Top gradient: dark chrome fades into parchment content.
+   CSS approach avoids DotGrid's dark mode gradient inversion.
+   Covers full width; sidebar's own dark bg obscures overlap. */
+.topGradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 35vh;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(28, 28, 32, 0.85) 0%,
+    rgba(28, 28, 32, 0.45) 12%,
+    rgba(42, 36, 32, 0.18) 35%,
+    rgba(42, 36, 32, 0.06) 60%,
+    transparent 100%
+  );
+}

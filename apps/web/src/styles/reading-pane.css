@@ -1,0 +1,535 @@
+/* ─────────────────────────────────────────────────
+   ReadingPane: type-aware reading surface for
+   CommonPlace objects. Uses --cp-* tokens from
+   commonplace.css (loaded by the layout).
+
+   Import this file from the consuming layout:
+     @import './reading-pane.css';
+   ───────────────────────────────────────────────── */
+
+/* ── Container: the reading surface ── */
+
+.rp-container {
+  position: relative;
+  width: 100%;
+  padding: 24px 28px 32px;
+
+  /* Reading pane sits on a light parchment surface, so override
+     the dark-chrome --cp-text tokens with dark readable values. */
+  --cp-text: #2A2520;
+  --cp-text-muted: #5C554D;
+  --cp-text-faint: #8A8279;
+  --cp-text-ghost: #AEA89F;
+}
+
+/* ── Reading progress bar ── */
+
+.rp-progress-track {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 3px;
+  background: var(--cp-border-faint);
+}
+
+.rp-progress-fill {
+  height: 100%;
+  background: var(--cp-red);
+  box-shadow: 0 0 6px rgba(196, 80, 60, 0.3);
+  width: 0%;
+  transition: width 150ms ease-out;
+  will-change: width;
+}
+
+/* ── Section rule (labeled divider) ── */
+
+.rp-section-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 16px;
+}
+
+.rp-section-rule-label {
+  font-family: var(--cp-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cp-text-faint);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.rp-section-rule-line {
+  flex: 1;
+  height: 1px;
+  background: var(--cp-red-line);
+}
+
+/* ── Layout: column + margin ── */
+
+.rp-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+}
+
+.rp-column {
+  max-width: 560px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── Provenance card (sources with OG data) ── */
+
+.rp-provenance {
+  border-left: 3px solid var(--cp-teal);
+  background: rgba(45, 95, 107, 0.05);
+  padding: 12px 14px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 16px;
+}
+
+.rp-provenance-site {
+  font-family: var(--cp-font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-teal);
+  margin-bottom: 4px;
+}
+
+.rp-provenance-title {
+  font-family: var(--cp-font-body);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--cp-text);
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
+.rp-provenance-desc {
+  font-family: var(--cp-font-body);
+  font-size: 12.5px;
+  color: var(--cp-text-muted);
+  line-height: 1.5;
+}
+
+/* ── Metadata grid (PDF / file properties) ── */
+
+.rp-metadata-grid {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr;
+  gap: 0;
+  background: var(--cp-bg-secondary, var(--cp-surface-hover));
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  font-family: var(--cp-font-body);
+  font-size: 12.5px;
+}
+
+.rp-metadata-key {
+  padding: 6px 10px;
+  color: var(--cp-text-faint);
+  font-weight: 500;
+  border-bottom: 1px solid var(--cp-border-faint);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.rp-metadata-val {
+  padding: 6px 10px;
+  color: var(--cp-text);
+  border-bottom: 1px solid var(--cp-border-faint);
+  word-break: break-word;
+}
+
+.rp-metadata-key:last-of-type,
+.rp-metadata-val:last-of-type {
+  border-bottom: none;
+}
+
+/* ── Terminal block (scripts) ── */
+
+.rp-terminal {
+  background: var(--cp-term);
+  border: 1px solid var(--cp-term-border);
+  color: var(--cp-term-text);
+  font-family: var(--cp-font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.7;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-feature-settings: var(--cp-kern-mono);
+}
+
+.rp-terminal pre,
+.rp-terminal code {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  background: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Markdown body typography ── */
+
+.rp-body {
+  font-family: var(--cp-font-body);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--cp-text);
+  text-wrap: pretty;
+  hanging-punctuation: first;
+  font-variant-numeric: oldstyle-nums;
+  hyphens: auto;
+  font-feature-settings: var(--cp-kern-body);
+  animation: rp-fade-in 300ms ease-out both;
+}
+
+@keyframes rp-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Raw / long-form prose (PDFs, single-block text): improve wall-of-text readability */
+.rp-body--raw {
+  text-align: justify;
+  text-justify: inter-word;
+  word-spacing: 0.02em;
+}
+
+.rp-body--raw p {
+  text-indent: 1.5em;
+  margin: 0 0 8px;
+}
+
+.rp-body--raw p:first-child {
+  text-indent: 0;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .rp-body {
+    animation: none;
+  }
+}
+
+.rp-body h1 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 28px 0 14px;
+  color: var(--cp-text);
+}
+
+.rp-body h2 {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 28px 0 12px;
+  color: var(--cp-text);
+}
+
+.rp-body h3 {
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.35;
+  margin: 24px 0 10px;
+  color: var(--cp-text);
+}
+
+.rp-body h4 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 20px 0 8px;
+  color: var(--cp-text-secondary, var(--cp-text-muted));
+}
+
+.rp-body p {
+  margin: 0 0 16px;
+}
+
+.rp-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lead paragraph: slightly larger for a clear reading entry point */
+.rp-body > p:first-child {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--cp-text);
+}
+
+.rp-body blockquote {
+  border-left: 3px solid var(--cp-red-line);
+  padding: 2px 0 2px 20px;
+  margin: 20px 0;
+  font-style: italic;
+  color: var(--cp-text-secondary, var(--cp-text-muted));
+  font-size: 14.5px;
+  line-height: 1.7;
+  position: relative;
+}
+
+.rp-body code {
+  background: var(--cp-bg-secondary, var(--cp-surface-hover));
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: var(--cp-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rp-body pre {
+  background: var(--cp-term);
+  border: 1px solid var(--cp-term-border);
+  color: var(--cp-term-text);
+  font-family: var(--cp-font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.7;
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.rp-body pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+.rp-body ul,
+.rp-body ol {
+  margin: 16px 0;
+  padding-left: 24px;
+}
+
+.rp-body ul {
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
+.rp-body ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+
+.rp-body li {
+  margin-bottom: 4px;
+}
+
+.rp-body li > ul,
+.rp-body li > ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.rp-body a {
+  color: var(--cp-teal);
+  text-decoration: none;
+}
+
+.rp-body a:hover {
+  text-decoration: underline;
+}
+
+.rp-body a:focus-visible {
+  outline: 2px solid var(--cp-teal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.rp-body hr {
+  border: none;
+  border-top: 1px solid var(--cp-border-faint);
+  margin: 28px 0;
+}
+
+/* GFM tables */
+
+.rp-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13px;
+}
+
+.rp-body th {
+  background: var(--cp-bg-secondary, var(--cp-surface-hover));
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid var(--cp-border-faint);
+}
+
+.rp-body td {
+  padding: 6px 10px;
+  border: 1px solid var(--cp-border-faint);
+}
+
+/* ── Tags row ── */
+
+.rp-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.rp-tag {
+  font-family: var(--cp-font-mono);
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--cp-teal);
+  background: rgba(45, 95, 107, 0.08);
+  border: 1px solid rgba(45, 95, 107, 0.18);
+  border-radius: 12px;
+  padding: 3px 9px;
+}
+
+/* ── Entity margin / chips ── */
+
+.rp-margin {
+  width: 140px;
+  flex-shrink: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 4px;
+}
+
+.rp-entity-chip {
+  font-family: var(--cp-font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--cp-text-muted);
+  border: 1px solid var(--cp-border);
+  border-radius: 3px;
+  padding: 2px 7px;
+  cursor: pointer;
+  background: transparent;
+  transition: background 100ms ease, border-color 100ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  appearance: none;
+  text-align: left;
+}
+
+.rp-entity-chip:hover {
+  background: var(--cp-bg-secondary, var(--cp-surface-hover));
+  border-color: var(--cp-text-faint);
+}
+
+.rp-entity-chip:focus-visible {
+  outline: 2px solid var(--cp-teal);
+  outline-offset: 1px;
+}
+
+.rp-entity-chip:active {
+  background: var(--cp-border-faint);
+}
+
+/* ── Footer stats ── */
+
+.rp-footer {
+  border-top: 1px solid var(--cp-border-faint);
+  padding: 14px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 18px;
+  font-family: var(--cp-font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--cp-text-faint);
+  letter-spacing: 0.02em;
+  margin-top: 24px;
+}
+
+.rp-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+/* First two stats (words, read time) are reader-facing: stronger weight */
+.rp-stat:nth-child(-n+2) .rp-stat-value {
+  color: var(--cp-text);
+  font-size: 12px;
+}
+
+.rp-stat-label {
+  color: var(--cp-text-faint);
+}
+
+.rp-stat-value {
+  color: var(--cp-text-muted);
+}
+
+/* Visual separator between reader stats and metadata stats */
+.rp-stat:nth-child(2)::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 10px;
+  background: var(--cp-border);
+  margin-left: 14px;
+  vertical-align: middle;
+}
+
+/* ── Responsive: narrow / mobile ── */
+
+@media (max-width: 640px) {
+  .rp-layout {
+    flex-direction: column;
+  }
+
+  .rp-column {
+    max-width: 100%;
+  }
+
+  .rp-margin {
+    width: 100%;
+    padding-left: 0;
+    padding-top: 16px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--cp-border-faint);
+    margin-top: 16px;
+  }
+}
+
+/* Note: Import this file from the consuming layout, e.g.:
+   @import '../styles/reading-pane.css';
+   Do NOT import from commonplace.css. */

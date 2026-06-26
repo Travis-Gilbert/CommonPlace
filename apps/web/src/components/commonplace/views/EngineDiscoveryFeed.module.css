@@ -1,0 +1,228 @@
+/* ─── Conversation container ─── */
+
+.convo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 44px;
+}
+
+/* ─── Conversation row ─── */
+
+.convoRow {
+  display: flex;
+  gap: 12px;
+}
+
+.convoRowFlipped {
+  flex-direction: row-reverse;
+}
+
+/* ─── Bubbles ─── */
+
+.bubble {
+  max-width: 55%;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: var(--cp-card);
+  border: 1px solid var(--cp-border);
+  box-shadow: var(--cp-shadow);
+  cursor: pointer;
+  transition: border-color 200ms, transform 200ms;
+}
+
+.bubble:hover {
+  border-color: var(--cp-border-faint);
+  background: var(--cp-card-hover);
+  transform: translateY(-1px);
+}
+
+.bubblePrimary {
+  max-width: 60%;
+  padding: 18px 22px;
+}
+
+.bubbleSecondary {
+  max-width: 40%;
+  padding: 10px 14px;
+  align-self: center;
+}
+
+/* ─── Bubble internals ─── */
+
+.bubbleNames {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bubbleNamesRight {
+  justify-content: flex-end;
+}
+
+.bubbleName {
+  font-family: var(--cp-font-title);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ─── Strength bar ─── */
+
+.strengthBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+
+.strengthBarCompact {
+  margin: 4px 0 6px;
+}
+
+.strengthTrack {
+  flex: 1;
+  height: 3px;
+  background: rgba(42, 36, 32, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.strengthFill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cp-red), var(--cp-red));
+  transition: width 400ms ease;
+}
+
+.strengthLabel {
+  font-family: var(--cp-font-mono);
+  font-size: 9px;
+  color: var(--cp-text-faint);
+  flex-shrink: 0;
+  min-width: 18px;
+}
+
+.bubbleReason {
+  font-family: var(--cp-font-body);
+  font-size: 12px;
+  color: var(--cp-text-muted);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.textRight {
+  text-align: right;
+}
+
+.bubbleMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metaRight {
+  justify-content: flex-end;
+}
+
+.engineBadge {
+  font-family: var(--cp-font-mono);
+  font-size: 9px;
+  color: var(--cp-text-faint);
+  background: rgba(42, 36, 32, 0.04);
+  border: 1px solid rgba(42, 36, 32, 0.06);
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Connector ─── */
+
+.connector {
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.connectorLine {
+  width: 2px;
+  height: 40px;
+  background: var(--cp-red);
+  opacity: 0.3;
+  border-radius: 1px;
+}
+
+/* ─── Compact pair ─── */
+
+.compactRow {
+  display: flex;
+  gap: 12px;
+}
+
+.compactBubble {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--cp-card);
+  border: 1px solid var(--cp-border);
+  box-shadow: var(--cp-shadow);
+  cursor: pointer;
+  transition: border-color 200ms;
+}
+
+.compactBubble:hover {
+  border-color: var(--cp-border-faint);
+  background: var(--cp-card-hover);
+}
+
+.compactNames {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.compactName {
+  font-family: var(--cp-font-title);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compactSep {
+  color: var(--cp-text-faint);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+/* ─── Empty state ─── */
+
+.empty {
+  padding: 32px 20px;
+  border-radius: 8px;
+  background: var(--cp-card);
+  border: 1px solid var(--cp-border);
+  box-shadow: var(--cp-shadow);
+  text-align: center;
+  color: var(--cp-text-faint);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+}
+
+.emptyPrompt {
+  color: var(--cp-term-cyan);
+}

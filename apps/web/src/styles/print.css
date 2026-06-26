@@ -1,0 +1,430 @@
+/**
+ * Print stylesheet for travisgilbert.me
+ *
+ * Activated only during print (Ctrl+P / Cmd+P).
+ * Reveals footnote markers hidden on screen, adds page frame,
+ * hides interactive/decorative elements, and appends a colophon.
+ *
+ * Works in concert with .fn-marker and .fn-table rules in global.css
+ * (display: none on screen; revealed here).
+ */
+
+@media print {
+  /* ──────────────────────────────────────────────
+   * Page setup
+   * ──────────────────────────────────────────────*/
+  @page {
+    size: auto;
+    margin: 2cm;
+    marks: crop cross;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Hide non-content elements
+   * ──────────────────────────────────────────────*/
+  /* Navigation and chrome */
+  nav,
+  footer,
+  .skip-to-content,
+  .dot-grid-canvas,
+  .reading-progress {
+    display: none !important;
+  }
+
+  /* Interactive and decorative elements */
+  .document-stamp,
+  .sticky-note-layer,
+  .mobile-comment-list,
+  .scroll-annotation,
+  .annotation-mobile-footnote,
+  .connection-dots,
+  .margin-annotation-anchor,
+  .article-comments {
+    display: none !important;
+  }
+
+  /* Easter eggs and floating UI */
+  .architecture-easter-egg,
+  .design-language-easter-egg,
+  .research-api-easter-egg,
+  .source-graph-easter-egg,
+  .fig-index-easter-egg,
+  .studio-shortcut {
+    display: none !important;
+  }
+
+  /* DotGrid canvas (in case class isn't applied) */
+  canvas[data-dotgrid] {
+    display: none !important;
+  }
+
+  /* Paper grain overlay on body */
+  body::after {
+    display: none !important;
+  }
+
+  /* L-shaped crop marks at each page corner */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0.5cm;
+    left: 0.5cm;
+    right: 0.5cm;
+    bottom: 0.5cm;
+    pointer-events: none;
+    z-index: 9999;
+    background:
+      /* Top-left */
+      linear-gradient(to right, #ccc 0.5pt, transparent 0.5pt) no-repeat 0 0 / 8mm 0.5pt,
+      linear-gradient(to bottom, #ccc 0.5pt, transparent 0.5pt) no-repeat 0 0 / 0.5pt 8mm,
+      /* Top-right */
+      linear-gradient(to left, #ccc 0.5pt, transparent 0.5pt) no-repeat 100% 0 / 8mm 0.5pt,
+      linear-gradient(to bottom, #ccc 0.5pt, transparent 0.5pt) no-repeat 100% 0 / 0.5pt 8mm,
+      /* Bottom-left */
+      linear-gradient(to right, #ccc 0.5pt, transparent 0.5pt) no-repeat 0 100% / 8mm 0.5pt,
+      linear-gradient(to top, #ccc 0.5pt, transparent 0.5pt) no-repeat 0 100% / 0.5pt 8mm,
+      /* Bottom-right */
+      linear-gradient(to left, #ccc 0.5pt, transparent 0.5pt) no-repeat 100% 100% / 8mm 0.5pt,
+      linear-gradient(to top, #ccc 0.5pt, transparent 0.5pt) no-repeat 100% 100% / 0.5pt 8mm;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Base typography for print
+   * ──────────────────────────────────────────────*/
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  /* Remove all background tints from cards */
+  .surface-tint-terracotta,
+  .surface-tint-teal,
+  .surface-tint-gold,
+  .surface-tint-neutral {
+    background-color: transparent !important;
+  }
+
+  /* Remove box shadows */
+  .surface-elevated {
+    box-shadow: none !important;
+  }
+
+  /* Main content: remove max-width constraints for full-page use */
+  .main-content {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Hero adjustments for print
+   * ──────────────────────────────────────────────*/
+  /* Essay hero: collapse full-bleed to normal flow */
+  .essay-hero,
+  [class*="relative overflow-hidden"][style*="margin-left: calc(-50vw"] {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    margin-top: 0 !important;
+  }
+
+  /* Force hero text to black on white */
+  .essay-hero h1,
+  .essay-hero p,
+  .essay-hero span {
+    color: #000 !important;
+  }
+
+  /* Hide hero background images and overlays */
+  .essay-hero .absolute {
+    display: none !important;
+  }
+
+  /* Keep the typography layer visible */
+  .essay-hero .relative.z-10 {
+    position: relative !important;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Prose content
+   * ──────────────────────────────────────────────*/
+  .prose {
+    max-width: none !important;
+    color: #000 !important;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    color: #000 !important;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .prose h2,
+  .prose h3 {
+    font-variant: small-caps;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3 {
+    font-family: 'Vollkorn', Georgia, serif;
+  }
+
+  .prose h4 {
+    font-family: 'IBM Plex Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  body {
+    font-family: 'Cabin', sans-serif;
+  }
+
+  code, pre code {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+  }
+
+  .prose blockquote {
+    border-left-color: #666 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .prose pre,
+  .prose code {
+    background-color: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    color: #000 !important;
+  }
+
+  .prose pre {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .prose img,
+  .prose figure {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .prose a {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Footnote markers and table (revealed for print)
+   * ──────────────────────────────────────────────*/
+  .fn-marker {
+    display: inline !important;
+    font-size: 0.7em;
+    vertical-align: super;
+    line-height: 0;
+    color: #555;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+  }
+
+  .fn-table {
+    display: block !important;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #999;
+    page-break-before: auto;
+  }
+
+  .fn-table-title {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    margin-bottom: 0.5rem;
+  }
+
+  .fn-row {
+    font-size: 8pt;
+    line-height: 1.6;
+    color: #333;
+    word-break: break-all;
+  }
+
+  .fn-num {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    color: #555;
+    display: inline-block;
+    min-width: 2em;
+  }
+
+  .fn-url {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    color: #666;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Annotation footnotes (margin notes for print)
+   * ──────────────────────────────────────────────*/
+  .annotation-fn-marker {
+    display: inline !important;
+    font-size: 0.7em;
+    vertical-align: super;
+    line-height: 0;
+    color: #555;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+  }
+
+  .annotation-footnotes {
+    display: block !important;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #999;
+    page-break-before: auto;
+  }
+
+  .annotation-footnotes-title {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    margin-bottom: 0.5rem;
+  }
+
+  .annotation-fn-row {
+    font-size: 8pt;
+    line-height: 1.6;
+    color: #333;
+  }
+
+  .annotation-fn-num {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    color: #555;
+    display: inline-block;
+    min-width: 2em;
+  }
+
+  .annotation-fn-text {
+    font-family: 'Cabin', sans-serif;
+  }
+
+  /* Hide the CSS-only margin annotations in print (footnotes replace them) */
+  .margin-annotation-anchor {
+    display: none !important;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Page frame
+   * ──────────────────────────────────────────────*/
+  article {
+    position: relative;
+  }
+
+  article::before {
+    content: '';
+    position: fixed;
+    top: 1cm;
+    left: 1cm;
+    right: 1cm;
+    bottom: 1cm;
+    border: 0.5pt solid #ccc;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Colophon (appended to article)
+   * ──────────────────────────────────────────────*/
+  /* Print colophon: CSS fallback for static text.
+     Dynamic URL/date colophon rendered by .print-colophon element in essay template. */
+  article::after {
+    content: 'travisgilbert.com  \2022  Travis Gilbert';
+    display: block;
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 0.5pt solid #ccc;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 8pt;
+    color: #999;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  /* When JS-rendered colophon is present, hide the CSS fallback */
+  article:has(.print-colophon)::after {
+    display: none;
+  }
+
+  .print-colophon {
+    display: block !important;
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 0.5pt solid #ccc;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 8pt;
+    color: #999;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Connection callout blocks: simplified for print
+   * ──────────────────────────────────────────────*/
+  .connection-callout {
+    border: 0.5pt solid #ccc !important;
+    background: transparent !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .connection-callout-link {
+    color: #000 !important;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Sources section
+   * ──────────────────────────────────────────────*/
+  details {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  details[open] summary {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* ──────────────────────────────────────────────
+   * RoughBox canvases: hide hand-drawn borders
+   * ──────────────────────────────────────────────*/
+  .rough-box canvas,
+  .rough-line canvas {
+    display: none !important;
+  }
+
+  /* Keep the card content visible with a simple border */
+  .rough-box {
+    border: 0.5pt solid #ddd !important;
+    box-shadow: none !important;
+  }
+
+  /* ──────────────────────────────────────────────
+   * Orphan/widow control
+   * ──────────────────────────────────────────────*/
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h2, h3, h4 {
+    orphans: 4;
+    widows: 2;
+  }
+}

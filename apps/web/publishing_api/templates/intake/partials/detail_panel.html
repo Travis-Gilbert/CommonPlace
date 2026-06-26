@@ -1,0 +1,208 @@
+{# Slide-out detail panel: source preview + enrichment form + decision bar. #}
+
+{# Close button #}
+<div class="flex items-center justify-between mb-6">
+  <span class="font-mono text-[10px] tracking-wide text-ink-muted uppercase">Source Detail</span>
+  <button
+    type="button"
+    onclick="closeDetailPanel()"
+    class="p-1 rounded text-ink-muted hover:text-ink transition-colors cursor-pointer"
+  >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+  </button>
+</div>
+
+{# ---- Source Preview (read-only) ---- #}
+<div class="flex items-start gap-4 mb-6 pb-6 border-b border-border">
+  {% if source.og_image %}
+  <div class="w-[120px] h-[80px] rounded overflow-hidden bg-parchment-alt flex-shrink-0">
+    <img
+      src="{{ source.og_image }}"
+      alt=""
+      class="w-full h-full object-cover"
+      loading="lazy"
+    >
+  </div>
+  {% elif source.is_file %}
+  <div class="w-[120px] h-[80px] rounded bg-parchment-alt flex items-center justify-center flex-shrink-0">
+    <c-icon name="file-text" size="32" color="#B45A2D" />
+  </div>
+  {% endif %}
+
+  <div class="flex-1 min-w-0">
+    <h3 class="font-body text-[16px] font-semibold text-ink m-0 leading-snug">
+      {{ source.display_title }}
+    </h3>
+    {% if source.url %}
+    <a
+      href="{{ source.url }}"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="font-mono text-[10px] text-terracotta no-underline hover:underline break-all mt-1 block"
+    >
+      {{ source.url|truncatechars:80 }}
+    </a>
+    {% endif %}
+    {% if source.og_site_name %}
+    <span class="font-mono text-[10px] tracking-wide text-ink-muted uppercase mt-1 block">
+      {{ source.og_site_name }}
+    </span>
+    {% endif %}
+    {% if source.og_description %}
+    <p class="font-body text-[13px] text-ink-secondary leading-relaxed mt-2 m-0">
+      {{ source.og_description|truncatewords:40 }}
+    </p>
+    {% endif %}
+    <time class="font-mono text-[9px] tracking-wide text-ink-muted/50 mt-2 block">
+      Captured {{ source.created_at|date:"M j, Y g:i A" }}
+    </time>
+  </div>
+</div>
+
+{# Saved confirmation #}
+{% if saved %}
+<div class="mb-4 px-3 py-2 rounded-brand bg-success/10 border border-success/20 text-success font-mono text-[11px]">
+  Enrichment saved.
+</div>
+{% endif %}
+
+{# ---- Enrichment Form ---- #}
+<form
+  hx-post="{% url 'intake:sourcebox-detail' pk=source.pk %}"
+  hx-target="#detail-content"
+  hx-swap="innerHTML"
+  class="space-y-5"
+>
+  {% csrf_token %}
+
+  {# Importance: three toggle buttons #}
+  <div>
+    <label class="font-mono text-[10px] tracking-wide text-ink-muted uppercase block mb-2">
+      Importance
+    </label>
+    <div class="flex gap-2">
+      {% for value, label in enrichment_form.importance.field.choices %}
+      <label
+        class="
+          flex-1 text-center cursor-pointer
+          px-3 py-2 rounded-brand font-mono text-[11px] tracking-wide font-bold uppercase
+          border transition-all duration-150
+          {% if enrichment_form.importance.value == value %}
+            {% if value == 'high' %}bg-terracotta/15 border-terracotta text-terracotta{% endif %}
+            {% if value == 'medium' %}bg-gold/15 border-gold text-gold{% endif %}
+            {% if value == 'low' %}bg-ink-muted/10 border-ink-muted/30 text-ink-muted{% endif %}
+          {% else %}
+            bg-transparent border-border text-ink-muted/60 hover:border-ink-muted
+          {% endif %}
+        "
+      >
+        <input type="radio" name="importance" value="{{ value }}" class="hidden"
+               {% if enrichment_form.importance.value == value %}checked{% endif %}>
+        {{ label }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Source Type #}
+  <div>
+    <label class="font-mono text-[10px] tracking-wide text-ink-muted uppercase block mb-2">
+      Source Type
+    </label>
+    {{ enrichment_form.source_type }}
+  </div>
+
+  {# Tags #}
+  <div>
+    <label class="font-mono text-[10px] tracking-wide text-ink-muted uppercase block mb-2">
+      Tags
+    </label>
+    {{ enrichment_form.tags_raw }}
+    {% if source.tags %}
+    <div class="flex flex-wrap gap-1 mt-2">
+      {% for tag in source.tags %}
+      <span class="font-mono text-[9px] tracking-wide text-ink-muted
+                   px-1.5 py-[2px] bg-parchment-alt rounded border border-border">
+        {{ tag }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# Notes #}
+  <div>
+    <label class="font-mono text-[10px] tracking-wide text-ink-muted uppercase block mb-2">
+      Notes
+    </label>
+    {{ enrichment_form.decision_note }}
+  </div>
+
+  {# Save enrichment button #}
+  <c-btn variant="ghost" type="submit">
+    Save Enrichment
+  </c-btn>
+</form>
+
+{# ---- Decision Bar (sticky bottom) ---- #}
+{% if source.decision == 'pending' %}
+<div class="sticky bottom-0 bg-cream border-t border-border pt-4 mt-8 -mx-6 px-6 pb-6">
+  <label class="font-mono text-[10px] tracking-wide text-ink-muted uppercase block mb-3">
+    Decision
+  </label>
+  <div class="flex gap-2">
+    <button
+      hx-post="{% url 'intake:sourcebox-triage' pk=source.pk %}"
+      hx-vals='{"decision": "accepted"}'
+      hx-target="#source-{{ source.pk }}"
+      hx-swap="outerHTML"
+      hx-on::after-request="closeDetailPanel()"
+      type="button"
+      class="flex-1 px-3 py-2 rounded-brand font-mono text-[10px] tracking-wide font-bold uppercase
+             bg-success/10 text-success border border-success/20
+             hover:bg-success/20 cursor-pointer transition-colors duration-150"
+    >
+      Accept
+    </button>
+    <button
+      hx-post="{% url 'intake:sourcebox-triage' pk=source.pk %}"
+      hx-vals='{"decision": "rejected"}'
+      hx-target="#source-{{ source.pk }}"
+      hx-swap="outerHTML"
+      hx-on::after-request="closeDetailPanel()"
+      type="button"
+      class="flex-1 px-3 py-2 rounded-brand font-mono text-[10px] tracking-wide font-bold uppercase
+             bg-error/10 text-error border border-error/20
+             hover:bg-error/20 cursor-pointer transition-colors duration-150"
+    >
+      Reject
+    </button>
+    <button
+      hx-post="{% url 'intake:sourcebox-triage' pk=source.pk %}"
+      hx-vals='{"decision": "deferred"}'
+      hx-target="#source-{{ source.pk }}"
+      hx-swap="outerHTML"
+      hx-on::after-request="closeDetailPanel()"
+      type="button"
+      class="flex-1 px-3 py-2 rounded-brand font-mono text-[10px] tracking-wide font-bold uppercase
+             bg-parchment-alt text-ink-muted border border-border
+             hover:bg-parchment cursor-pointer transition-colors duration-150"
+    >
+      Defer
+    </button>
+  </div>
+</div>
+{% else %}
+<div class="mt-8 pt-4 border-t border-border">
+  <c-badge
+    color="{% if source.decision == 'accepted' %}success{% elif source.decision == 'rejected' %}error{% else %}ink{% endif %}"
+  >
+    {{ source.get_decision_display }}
+  </c-badge>
+  {% if source.decided_at %}
+  <time class="font-mono text-[9px] tracking-wide text-ink-muted/50 ml-2">
+    {{ source.decided_at|date:"M j, g:i A" }}
+  </time>
+  {% endif %}
+</div>
+{% endif %}

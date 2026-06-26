@@ -1,0 +1,2590 @@
+/* Disable Tailwind v4's automatic project-root content scan and
+   explicitly scope it to src/ only. Without source(none), the Oxide
+   scanner walks the entire project root, including the nested
+   Index-API/ (5.4GB Python venv) and research_api/ directories. That
+   walk can take long enough to deadlock Turbopack's PostCSS subprocess
+   IPC, causing "evaluate_webpack_loader failed" panics on every cold
+   compile of global.css. Scoping to src/ keeps the scan under a second. */
+@import "tailwindcss" source(none);
+@source "../**/*.{ts,tsx,js,jsx,md,mdx}";
+
+/* ─────────────────────────────────────────────────
+   Design Tokens:Patent Parchment Palette
+   Brand System v1.0 · Feb 2026
+   ───────────────────────────────────────────────── */
+
+@theme inline {
+  /* Backgrounds (amber parchment: hue ~35°, sat ~53%) */
+  --color-paper: #F5E6D2;
+  --color-surface: #FBF0E2;
+  --color-bg-alt: #EBD8C0;
+  --color-card: #FBF0E2;           /* alias → surface */
+  --color-code: #EBD8C0;           /* alias → bg-alt */
+  --color-theseus-panel: rgba(251, 240, 226, 0.80); /* transparent parchment for light */
+  --color-nav-bg: #1C1C20;         /* nav: dark slate instrument panel */
+
+  /* Text */
+  --color-ink: #2A2420;
+  --color-ink-muted: #6A5E52;
+  --color-ink-light: #9A8E82;
+  --color-ink-secondary: #6A5E52;  /* alias: prefer --color-ink-muted */
+  --color-ink-faint: #9A8E82;      /* alias: prefer --color-ink-light */
+
+  /* Accent:Terracotta (brand constant across all modes) */
+  --color-terracotta: #B45A2D;
+  --color-terracotta-hover: #9A4A22;
+  --color-terracotta-light: #D4875A;
+
+  /* Secondary:Teal */
+  --color-teal: #2D5F6B;
+  --color-teal-light: #3A7A88;
+
+  /* Highlight:Gold */
+  --color-gold: #C49A4A;
+  --color-gold-light: #D4AA5A;
+
+  /* Nav link colors (legacy, kept for any remaining references) */
+  --color-nav-terracotta: #CC6A4E;
+  --color-nav-teal: #5AA89F;
+  --color-nav-gold: #C89C52;
+
+  /* Nav tab colors: full (active), muted (dormant text), dim (dormant LED)
+     Muted stops tuned for 4.5:1+ contrast on #1C1C20 (WCAG AA small text) */
+  --nav-terracotta:       #CC7E52;
+  --nav-terracotta-muted: #B47A54;
+  --nav-terracotta-dim:   #5C3D28;
+
+  --nav-teal:       #4A9AAA;
+  --nav-teal-muted: #4A8E98;
+  --nav-teal-dim:   #1F4148;
+
+  --nav-gold:       #C49A4A;
+  --nav-gold-muted: #A08548;
+  --nav-gold-dim:   #5C4B26;
+
+  --nav-cream:       #F0EBE4;
+  --nav-cream-muted: #8A8580;
+  --nav-cream-dim:   #3A3835;
+
+  /* Ink (rough.js strokes) */
+  --color-rough: #3A3632;
+  --color-rough-light: #A29B8E;
+
+  /* Borders */
+  --color-border: #D7CBC1;
+  --color-border-light: #ECE0D2;
+
+  /* Paper at zero alpha (for gradient fades; avoids OKLAB green shift) */
+  --color-paper-0: rgba(245, 237, 226, 0);
+
+  /* Utility */
+  --color-shadow: rgba(42, 36, 32, 0.08);
+
+  /* Warm Shadows:brown-tinted, not gray */
+  --shadow-warm-sm:  0 1px 2px rgba(42, 36, 32, 0.05);
+  --shadow-warm:     0 2px 8px rgba(42, 36, 32, 0.07), 0 1px 3px rgba(42, 36, 32, 0.04);
+  --shadow-warm-lg:  0 4px 16px rgba(42, 36, 32, 0.10), 0 2px 6px rgba(42, 36, 32, 0.05);
+
+  /* Semantic */
+  --color-success: #5A7A4A;
+  --color-success-light: #7A9A6A;
+  --color-error: #A44A3A;
+
+  /* Motion (eases + durations)
+     Used by /spacetime and any other surface that wants the project's
+     standard hand-drawn easing curve. Keep in sync with the design
+     system tokens.css. */
+  --ease-out:  cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:  120ms;
+  --dur-base:  200ms;
+  --dur-slow:  320ms;
+
+  /* Hero: Dark Collage Ground
+     Used by CollageHero (homepage) and EssayHero (essay detail pages).
+     Dark warm charcoal ground with cream text for editorial magazine feel. */
+  --color-hero-ground: #2A2824;
+  --color-hero-text: #F0EBE4;
+  --color-hero-text-muted: rgba(240, 235, 228, 0.7);
+  --color-hero-overlay: rgba(42, 40, 36, 0.70);
+
+  /* Dark Mode */
+  --color-dark: #1A1816;
+  --color-dark-surface: #2A2622;
+  --color-dark-border: #3A3632;
+
+  /* Typography:The Documentarian (Primary System)
+     Variables set by next/font on <html> → aliased here for design tokens */
+  --font-title: var(--font-vollkorn), Georgia, serif;
+  --font-title-alt: var(--font-ibm-plex), sans-serif;
+  --font-body: var(--font-ibm-plex), sans-serif;
+  --font-body-alt: var(--font-ibm-plex), sans-serif;
+  /* Monospace: two faces, two roles
+     --font-mono  (Courier Prime):   labels, metadata, nav, tags, DateStamp
+     --font-code  (JetBrains Mono):  CodeComment annotations, inline code */
+  --font-mono: var(--font-courier-prime), 'Courier New', monospace;
+  --font-mono-alt: var(--font-jetbrains-mono), monospace;
+  --font-code: var(--font-jetbrains-mono), var(--font-courier-prime), monospace;
+  --font-metadata: var(--font-courier-prime), 'Courier New', monospace;
+  --font-name: var(--font-amarna), serif;
+  --font-archivist: var(--font-caudex), 'Palatino Linotype', 'Book Antiqua', serif;
+  /* Caveat: only used for margin annotations, candidate for font-display:swap deferred loading */
+  --font-handwritten: var(--font-caveat), 'Comic Sans MS', cursive;
+  --font-annotation: var(--font-caveat), cursive;
+
+  /* Legacy aliases (prevent breaking existing Tailwind classes) */
+  --font-heading: var(--font-vollkorn), Georgia, serif;
+  --font-display: var(--font-vollkorn), Georgia, serif;
+
+  /* README page surfaces */
+  --color-readme-bg: #1C1C20;
+  --color-readme-bg-soft: #222226;
+  --color-readme-border: #2E2E34;
+  --color-readme-text: #F0EBE4;
+  --color-readme-text-muted: #B8AFA5;
+  --color-readme-text-dim: #7A746C;
+
+  /* Patent surface */
+  --color-patent-bg: #F0EBE4;
+  --color-patent-text: #2A2420;
+  --color-patent-text-secondary: #6B6358;
+  --color-patent-text-tertiary: #9B9488;
+  --color-patent-border: #D4CFC7;
+  --color-patent-grid: rgba(45, 95, 107, 0.045);
+
+  /* Connector lines for tree schematics */
+  --color-connector: #2E2E34;
+  --color-connector-patent: #C8C2B8;
+
+  /* shadcn semantic token aliases. The assistant-ui Claude-clone fork uses
+     Tailwind utilities named `bg-background`, `text-foreground`,
+     `text-muted-foreground`, etc. These aliases map those names to the
+     Patent Parchment palette so the fork renders in the right register
+     without editing its class strings. Dark mode picks up automatically
+     because every token on the right-hand side swaps under
+     html[data-theme="dark"]. */
+  --color-background:           var(--color-paper);
+  --color-foreground:           var(--color-ink);
+  --color-muted:                var(--color-bg-alt);
+  --color-muted-foreground:     var(--color-ink-muted);
+  --color-accent:               var(--color-bg-alt);
+  --color-accent-foreground:    var(--color-ink);
+  --color-popover:              var(--color-surface);
+  --color-popover-foreground:   var(--color-ink);
+  --color-primary:              var(--color-terracotta);
+  --color-primary-foreground:   #FBF0E2;
+  --color-secondary:            var(--color-bg-alt);
+  --color-secondary-foreground: var(--color-ink);
+  --color-destructive:          var(--color-error);
+  --color-destructive-foreground: #FBF0E2;
+  --color-ring:                 var(--color-terracotta);
+  --color-input:                var(--color-border);
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode Token Overrides
+   Applied via html[data-theme="dark"] (set by ThemeProvider
+   or blocking script in layout.tsx). Every token that changes
+   is listed here; unchanged tokens (fonts, etc.) inherit from
+   @theme inline above.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] {
+  /* Backgrounds: warm charcoal, not blue-gray */
+  --color-paper: #1B1815;
+  --color-nav-bg: #1C1C20;
+  --color-surface: #252016;
+  --color-bg-alt: #302A24;
+  --color-card: #252016;
+  --color-code: #302A24;
+  --color-theseus-panel: rgba(37, 32, 22, 0.82); /* transparent dark for DotGrid bleed */
+
+  /* Text: cream tones, not pure white */
+  --color-ink: #E8E0D6;
+  --color-ink-muted: #A89E92;
+  --color-ink-light: #7A7268;
+  --color-ink-secondary: #A89E92;  /* alias: prefer --color-ink-muted */
+  --color-ink-faint: #7A7268;      /* alias: prefer --color-ink-light */
+
+  /* Accent: Terracotta (warmed for dark backgrounds, retaining brown-red richness) */
+  --color-terracotta: #C0623A;
+  --color-terracotta-hover: #D07245;
+  --color-terracotta-light: #D8885E;
+
+  /* Secondary: Teal (lifted) */
+  --color-teal: #358090;
+  --color-teal-light: #4898A8;
+
+  /* Highlight: Gold (lifted) */
+  --color-gold: #CCA050;
+  --color-gold-light: #DCB060;
+
+  /* Rough.js strokes: lighter for visibility */
+  --color-rough: #8A8480;
+  --color-rough-light: #B2AAA2;
+
+  /* Borders: darker but still visible */
+  --color-border: #3C3630;
+  --color-border-light: #4C4640;
+
+  /* Paper at zero alpha (for gradient fades; avoids OKLAB green shift) */
+  --color-paper-0: rgba(27, 24, 21, 0);
+
+  /* Utility */
+  --color-shadow: rgba(0, 0, 0, 0.25);
+
+  /* Warm shadows: higher alpha for dark surfaces */
+  --shadow-warm-sm:  0 1px 3px rgba(0, 0, 0, 0.20);
+  --shadow-warm:     0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
+  --shadow-warm-lg:  0 4px 16px rgba(0, 0, 0, 0.30), 0 2px 6px rgba(0, 0, 0, 0.18);
+
+  /* Semantic */
+  --color-success: #7A9A6A;
+  --color-success-light: #8AAA7A;
+  --color-error: #D46A5A;
+
+  /* Hero: slightly darker ground (differentiate from page bg) */
+  --color-hero-ground: #141210;
+  --color-hero-text: #F0EBE4;
+  --color-hero-text-muted: rgba(240, 235, 228, 0.65);
+  --color-hero-overlay: rgba(20, 18, 16, 0.75);
+}
+
+/* ─────────────────────────────────────────────────
+   Brand Color sRGB Overrides
+   Tailwind v4 auto-converts hex colors to CIE Lab
+   for opacity modifiers, which shifts warm hues:
+   terracotta skews orange, teal skews baby-blue.
+   These overrides force sRGB interpolation for the
+   brand palette opacity variants used in tags,
+   cards, and hero elements.
+   ───────────────────────────────────────────────── */
+
+@layer utilities {
+  /* Terracotta backgrounds */
+  .bg-terracotta\/\[0\.03\] { background-color: color-mix(in srgb, var(--color-terracotta) 3%, transparent) !important; }
+  .bg-terracotta\/\[0\.04\] { background-color: color-mix(in srgb, var(--color-terracotta) 4%, transparent) !important; }
+  .bg-terracotta\/\[0\.06\] { background-color: color-mix(in srgb, var(--color-terracotta) 6%, transparent) !important; }
+  .bg-terracotta\/10 { background-color: color-mix(in srgb, var(--color-terracotta) 10%, transparent) !important; }
+  .bg-terracotta\/\[0\.20\] { background-color: color-mix(in srgb, var(--color-terracotta) 20%, transparent) !important; }
+
+  /* Terracotta borders */
+  .border-terracotta\/15 { border-color: color-mix(in srgb, var(--color-terracotta) 15%, transparent) !important; }
+  .border-terracotta\/20 { border-color: color-mix(in srgb, var(--color-terracotta) 20%, transparent) !important; }
+  .border-terracotta\/25 { border-color: color-mix(in srgb, var(--color-terracotta) 25%, transparent) !important; }
+  .border-terracotta\/30 { border-color: color-mix(in srgb, var(--color-terracotta) 30%, transparent) !important; }
+  .border-terracotta\/40 { border-color: color-mix(in srgb, var(--color-terracotta) 40%, transparent) !important; }
+
+  /* Terracotta-light borders (inverted hero tags) */
+  .border-terracotta-light\/40 { border-color: color-mix(in srgb, var(--color-terracotta-light) 40%, transparent) !important; }
+  .border-terracotta-light\/60 { border-color: color-mix(in srgb, var(--color-terracotta-light) 60%, transparent) !important; }
+
+  /* Teal backgrounds */
+  .bg-teal\/\[0\.03\] { background-color: color-mix(in srgb, var(--color-teal) 3%, transparent) !important; }
+  .bg-teal\/\[0\.04\] { background-color: color-mix(in srgb, var(--color-teal) 4%, transparent) !important; }
+  .bg-teal\/\[0\.06\] { background-color: color-mix(in srgb, var(--color-teal) 6%, transparent) !important; }
+  .bg-teal\/10 { background-color: color-mix(in srgb, var(--color-teal) 10%, transparent) !important; }
+  .bg-teal\/\[0\.20\] { background-color: color-mix(in srgb, var(--color-teal) 20%, transparent) !important; }
+
+  /* Teal borders */
+  .border-teal\/10 { border-color: color-mix(in srgb, var(--color-teal) 10%, transparent) !important; }
+  .border-teal\/15 { border-color: color-mix(in srgb, var(--color-teal) 15%, transparent) !important; }
+  .border-teal\/25 { border-color: color-mix(in srgb, var(--color-teal) 25%, transparent) !important; }
+  .border-teal\/30 { border-color: color-mix(in srgb, var(--color-teal) 30%, transparent) !important; }
+  .border-teal\/\[0\.12\] { border-color: color-mix(in srgb, var(--color-teal) 12%, transparent) !important; }
+
+  /* Teal-light borders (inverted hero tags) */
+  .border-teal-light\/40 { border-color: color-mix(in srgb, var(--color-teal-light) 40%, transparent) !important; }
+  .border-teal-light\/60 { border-color: color-mix(in srgb, var(--color-teal-light) 60%, transparent) !important; }
+
+  /* Gold backgrounds */
+  .bg-gold\/\[0\.04\] { background-color: color-mix(in srgb, var(--color-gold) 4%, transparent) !important; }
+  .bg-gold\/10 { background-color: color-mix(in srgb, var(--color-gold) 10%, transparent) !important; }
+  .bg-gold\/20 { background-color: color-mix(in srgb, var(--color-gold) 20%, transparent) !important; }
+  .bg-gold\/\[0\.20\] { background-color: color-mix(in srgb, var(--color-gold) 20%, transparent) !important; }
+
+  /* Gold borders */
+  .border-gold\/15 { border-color: color-mix(in srgb, var(--color-gold) 15%, transparent) !important; }
+  .border-gold\/20 { border-color: color-mix(in srgb, var(--color-gold) 20%, transparent) !important; }
+  .border-gold\/30 { border-color: color-mix(in srgb, var(--color-gold) 30%, transparent) !important; }
+
+  /* Gold-light borders (inverted hero tags) */
+  .border-gold-light\/40 { border-color: color-mix(in srgb, var(--color-gold-light) 40%, transparent) !important; }
+  .border-gold-light\/60 { border-color: color-mix(in srgb, var(--color-gold-light) 60%, transparent) !important; }
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Surface Utilities
+   Higher-opacity tints on dark backgrounds so the
+   brand color wash remains perceptible.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] .surface-tint-terracotta { background-color: rgba(212, 135, 90, 0.12); }
+html[data-theme="dark"] .surface-tint-teal       { background-color: rgba(58, 136, 152, 0.11); }
+html[data-theme="dark"] .surface-tint-gold       { background-color: rgba(212, 170, 90, 0.12); }
+html[data-theme="dark"] .surface-tint-neutral    { background-color: rgba(232, 224, 214, 0.05); }
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Paper Grain Overlay
+   Switch to overlay blend mode so the grain adds
+   texture to dark surfaces without washing them out.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] body::after {
+  mix-blend-mode: overlay;
+  opacity: 0.04;
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Reader Notes + Comments
+   Warmer backgrounds that feel like dark amber paper.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] .reader-note {
+  box-shadow: 0 0 12px rgba(196, 154, 74, 0.12), 2px 3px 10px rgba(0, 0, 0, 0.25);
+}
+html[data-theme="dark"] .reader-note:hover {
+  box-shadow: 0 0 18px rgba(196, 154, 74, 0.20), 3px 5px 14px rgba(0, 0, 0, 0.30);
+}
+html[data-theme="dark"] .comment-form {
+  background-color: rgba(196, 154, 74, 0.04);
+  box-shadow: 0 0 14px rgba(196, 154, 74, 0.12), 2px 3px 10px rgba(0, 0, 0, 0.20);
+}
+html[data-theme="dark"] .comment-form-input {
+  border-bottom-color: rgba(196, 154, 74, 0.12);
+  color: var(--color-ink);
+}
+html[data-theme="dark"] .comment-form-input:focus {
+  border-bottom-color: rgba(196, 154, 74, 0.35);
+}
+
+/* Paragraph hover on dark */
+html[data-theme="dark"] #article-prose p:hover {
+  background-color: rgba(212, 170, 90, 0.05);
+}
+
+/* Mobile comment items */
+html[data-theme="dark"] .mobile-comment-item {
+  background-color: rgba(212, 170, 90, 0.05);
+  border-color: rgba(212, 170, 90, 0.12);
+}
+html[data-theme="dark"] .mobile-comment-item--flagged {
+  background-color: rgba(212, 106, 90, 0.06);
+  border-color: rgba(212, 106, 90, 0.15);
+}
+html[data-theme="dark"] .mobile-comment-count {
+  background-color: rgba(212, 170, 90, 0.12);
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Margin Annotations
+   Slightly increased opacity for readability.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] .margin-annotation-anchor::after {
+  opacity: 0.8;
+}
+
+@media (max-width: 1279px) {
+  html[data-theme="dark"] .margin-annotation-anchor::after {
+    border-top-color: rgba(212, 135, 90, 0.2);
+  }
+}
+
+@media (min-width: 1280px) {
+  html[data-theme="dark"] .margin-annotation-anchor[data-annotation-side="right"]::before,
+  html[data-theme="dark"] .margin-annotation-anchor[data-annotation-side="left"]::before {
+    border-top-color: rgba(212, 135, 90, 0.35);
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Blockquotes
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] blockquote {
+  border-left-color: var(--color-terracotta);
+  background: var(--color-bg-alt);
+  color: var(--color-ink-muted);
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Connection Callouts
+   Lifted brand colors for dark backgrounds.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] .connection-callout[data-connection-type="essay"] {
+  --callout-color: #D4875A;
+}
+html[data-theme="dark"] .connection-callout[data-connection-type="field-note"] {
+  --callout-color: #4EA0B2;
+}
+html[data-theme="dark"] .connection-callout[data-connection-type="shelf"] {
+  --callout-color: #D4AA5A;
+}
+
+html[data-theme="dark"] .connection-callout:hover {
+  background-color: color-mix(in srgb, var(--callout-color, var(--color-terracotta)) 5%, transparent);
+}
+
+/* ─────────────────────────────────────────────────
+   Dark Mode: Timeline Dots
+   Ring and dot contrast against dark background.
+   ───────────────────────────────────────────────── */
+
+html[data-theme="dark"] .ptl-dot {
+  border-color: var(--color-paper);
+  box-shadow: 0 0 0 2px var(--color-paper);
+}
+
+/* ─────────────────────────────────────────────────
+   Base Styles
+   ───────────────────────────────────────────────── */
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-paper);
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  font-size: 1.0625rem; /* 17px per brand spec */
+  line-height: 1.75;
+  isolation: isolate;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* Bottom warmth gradient: subtle amber bloom at viewport floor.
+   Mirrors the top shadow gradient, inverted. Encourages scrolling
+   by suggesting content continues below the fold. */
+body::before {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 15vh;
+  pointer-events: none;
+  z-index: 90;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(200, 160, 100, 0.04) 40%,
+    rgba(190, 140, 75, 0.11) 70%,
+    rgba(180, 125, 60, 0.16) 100%
+  );
+}
+
+/* ─────────────────────────────────────────────────
+   Global Paper Grain:Subtle noise for materiality
+   SVG feTurbulence applied as a fixed overlay.
+   Opacity 0.025:barely visible but registers subconsciously.
+   ───────────────────────────────────────────────── */
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.025;
+  will-change: transform;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* Reduce grain on mobile for performance */
+@media (max-width: 640px) {
+  body::after {
+    opacity: 0.015;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Surface Utilities:Textured card surfaces
+   ───────────────────────────────────────────────── */
+
+/* Elevated surface with warm shadow:tint classes handle fill color */
+.surface-elevated {
+  box-shadow: var(--shadow-warm-sm);
+}
+
+/* Card tint washes:transparent brand-color fills */
+.surface-tint-terracotta { background-color: rgba(180, 90, 45, 0.08); }
+.surface-tint-teal       { background-color: rgba(45, 95, 107, 0.08); }
+.surface-tint-gold       { background-color: rgba(196, 154, 74, 0.08); }
+.surface-tint-neutral    { background-color: rgba(42, 36, 32, 0.05); }
+
+/* Card hover lift:shadow deepens, subtle Y translate */
+.surface-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.surface-hover:hover {
+  box-shadow: var(--shadow-warm-lg);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface-hover:hover {
+    transform: none;
+  }
+}
+
+/* Stretched-link card pattern: entire card is clickable,
+   tag links remain independently interactive */
+.card-link-stretch {
+  position: relative;
+}
+.card-link-stretch .card-link-main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.card-link-stretch .card-tags {
+  position: relative;
+  z-index: 1;
+}
+
+/* Nav atmospheric fade: dark spill below sticky nav into parchment.
+   Uses position: absolute on ::after; sticky nav is a positioned ancestor.
+   rgb(28, 28, 32) matches --color-nav-bg (#1C1C20). */
+.nav-fade::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    in srgb,
+    to bottom,
+    rgba(28, 28, 32, 0.55),
+    rgba(28, 28, 32, 0.25) 40%,
+    rgba(28, 28, 32, 0)
+  );
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* Nav tab hover: brighten text and LED to full section color.
+   Uses CSS custom properties set via inline style on each tab element. */
+.nav-tab:not([aria-current="page"]):hover {
+  color: var(--tab-color) !important;
+}
+.nav-tab:not([aria-current="page"]):hover .nav-tab-icon {
+  opacity: 0.7 !important;
+}
+.nav-tab:not([aria-current="page"]):hover .led-dot {
+  background: var(--tab-color-muted) !important;
+}
+
+/* Nav tab focus-visible: section-colored ring instead of generic blue */
+.nav-tab:focus-visible {
+  outline: 2px solid var(--tab-color);
+  outline-offset: 2px;
+}
+
+/* Hero artifact: subtle scale on hover, disabled for reduced-motion */
+.hero-artifact:hover {
+  transform: rotate(-1.5deg) scale(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-artifact:hover {
+    transform: rotate(-1.5deg);
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Main Content: Padding Custom Property
+   Hero components use --main-pad-y to negate main's
+   top padding and sit flush against the nav edge.
+   ───────────────────────────────────────────────── */
+
+.main-content {
+  --main-pad-y: 1.5rem;
+}
+
+@media (width >= 40rem) {
+  .main-content {
+    --main-pad-y: 2rem;
+  }
+}
+
+
+/* ─────────────────────────────────────────────────
+   Animation Keyframes
+   ───────────────────────────────────────────────── */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes slideDown {
+  from { height: 0; opacity: 0; }
+  to   { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to   { height: 0; opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes stamp {
+  0%   { transform: scale(1) rotate(0deg); }
+  30%  { transform: scale(1.3) rotate(3deg); }
+  60%  { transform: scale(0.95) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes stamp-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes scatter-out {
+  0%   { opacity: var(--scatter-opacity, 0.7); transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--scatter-x, 0px)), calc(-50% + var(--scatter-y, 0px))); }
+}
+
+@keyframes pulseRing {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 0; transform: scale(1.4); }
+}
+
+/* Torn-edge clip-path:subtle paper-tear effect */
+.torn-edge-bottom {
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% calc(100% - 4px),
+    97% 100%, 93% calc(100% - 2px), 89% 100%,
+    85% calc(100% - 3px), 80% 100%, 75% calc(100% - 2px),
+    70% 100%, 65% calc(100% - 4px), 60% 100%,
+    55% calc(100% - 2px), 50% 100%, 45% calc(100% - 3px),
+    40% 100%, 35% calc(100% - 2px), 30% 100%,
+    25% calc(100% - 4px), 20% 100%, 15% calc(100% - 2px),
+    10% 100%, 5% calc(100% - 3px), 0% 100%
+  );
+}
+
+/* ─────────────────────────────────────────────────
+   Typography
+   ───────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title);
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+h2 {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  h1 { font-size: 2.44rem; }
+  h2 { font-size: 1.625rem; }
+  h3 { font-size: 1.375rem; }
+}
+
+/* ─────────────────────────────────────────────────
+   Labels:Monospace metadata pattern
+   ───────────────────────────────────────────────── */
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-ink-muted);
+}
+
+.label--accent {
+  color: var(--color-terracotta);
+}
+
+/* ─────────────────────────────────────────────────
+   Focus Indicators:Keyboard Navigation
+   :focus-visible fires only for keyboard nav (Tab key),
+   not mouse clicks. Terracotta ring matches brand color.
+   ───────────────────────────────────────────────── */
+
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ─────────────────────────────────────────────────
+   Links
+   ───────────────────────────────────────────────── */
+
+a {
+  color: var(--color-terracotta);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-terracotta-hover);
+}
+
+/* ─────────────────────────────────────────────────
+   Code
+   ───────────────────────────────────────────────── */
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background-color: var(--color-bg-alt);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  word-break: break-word;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  word-break: normal; /* Undo break-word inside pre blocks */
+}
+
+pre {
+  font-family: var(--font-mono);
+  background-color: var(--color-bg-alt);
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ─────────────────────────────────────────────────
+   Blockquotes
+   ───────────────────────────────────────────────── */
+
+blockquote {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 1.05rem;
+  border-left: 3px solid var(--color-terracotta);
+  background: var(--color-bg-alt);
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 0.875rem;
+  margin-left: 0;
+  color: var(--color-ink-muted);
+}
+
+@media (min-width: 640px) {
+  blockquote { padding: 1rem 1.25rem; }
+}
+
+/* ─────────────────────────────────────────────────
+   Utility: skip to content
+   ───────────────────────────────────────────────── */
+
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  padding: 0.5rem 1rem;
+  z-index: 100;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* ─────────────────────────────────────────────────
+   Prose:Article Content
+   Shared base; per-page font overrides via scoped styles
+   ───────────────────────────────────────────────── */
+
+.prose {
+  max-width: 65ch;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--color-ink);
+  overflow-wrap: break-word;
+  hanging-punctuation: first last;
+  text-wrap: pretty;
+  font-variant-numeric: oldstyle-nums;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.prose h2 {
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 3rem;
+  margin-bottom: 0.75rem;
+  scroll-margin-top: 6rem;
+  hyphens: none;
+}
+
+.prose h3 {
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 2.25rem;
+  margin-bottom: 0.5rem;
+  scroll-margin-top: 6rem;
+  hyphens: none;
+}
+
+.prose h4 {
+  font-family: var(--font-body-alt);
+  text-transform: uppercase;
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  hyphens: none;
+}
+
+.prose figcaption {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--color-ink-faint);
+  margin-top: 0.5rem;
+}
+
+.prose p { margin-bottom: 1.25rem; }
+.prose ul, .prose ol { margin-bottom: 1.25rem; padding-left: 1.5rem; }
+.prose li { margin-bottom: 0.5rem; }
+.prose strong { font-weight: 700; }
+
+.prose a {
+  color: var(--color-terracotta);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose a:hover { color: var(--color-terracotta-hover); }
+
+/* External link indicator:subtle arrow for links opening in new tabs */
+.prose a[target="_blank"]::after {
+  content: ' \2197';
+  font-size: 0.75em;
+  opacity: 0.5;
+}
+
+.prose blockquote {
+  font-style: normal;
+  background: var(--color-bg-alt);
+  border-left: 3px solid var(--color-terracotta);
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 0.875rem;
+  margin-bottom: 1.25rem;
+  color: var(--color-ink-secondary);
+  position: relative;
+}
+
+@media (min-width: 640px) {
+  .prose blockquote { padding: 1rem 1.25rem; }
+}
+@media (min-width: 768px) {
+  .prose blockquote { margin-left: -1em; }
+}
+
+/* Note callout labels:
+   Activated when a blockquote's first <strong> matches a known keyword.
+   Markdown convention: > **Note:** text here
+   The label floats above the blockquote as a monospace tag. */
+
+.prose blockquote::before {
+  content: 'NOTE';
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-terracotta);
+  margin-bottom: 0.5rem;
+  opacity: 0.7;
+}
+
+/* Keyword-specific variants via data attributes set by remark plugin or CSS. Since
+   remark HTML output puts <strong> inside <p> inside <blockquote>, we detect keywords
+   via has() selector to style the label. */
+.prose blockquote:has(> p:first-child > strong:first-child) {
+  padding-top: 0.75rem;
+}
+
+/* Hide the generic label when no callout pattern is present (only show for
+   blockquotes in the essay prose variant) */
+.prose blockquote::before {
+  display: none;
+}
+
+.prose-essays blockquote::before {
+  display: block;
+}
+
+/* ─────────────────────────────────────────────────
+   Metadata / small text
+   ───────────────────────────────────────────────── */
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+}
+
+/* ─────────────────────────────────────────────────
+   Per-page Prose Variants
+   Replaces Astro scoped <style> overrides
+   ───────────────────────────────────────────────── */
+
+.prose-essays {
+  font-family: var(--font-body-alt);
+}
+
+.prose-essays h2,
+.prose-essays h3 {
+  font-family: var(--font-title);
+}
+
+.prose-toolkit {
+  font-family: var(--font-body);
+}
+
+.prose-toolkit h2,
+.prose-toolkit h3 {
+  font-family: var(--font-title-alt);
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────────────
+   Reading Surface:Responsive + Section Separator
+   ───────────────────────────────────────────────── */
+
+/* Base reading surface layout */
+.reading-surface {
+  position: relative;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 32px 48px 48px 80px;
+  border-radius: 3px;
+  background-color: var(--color-paper);
+  box-shadow: 0 2px 24px rgba(42, 36, 32, 0.10), 0 0 0 1px rgba(42, 36, 32, 0.04);
+}
+
+html[data-theme="dark"] .reading-surface {
+  box-shadow: 0 2px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* Grain overlay */
+.reading-surface-grain {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.reading-surface-grain-svg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.045;
+  mix-blend-mode: multiply;
+}
+
+html[data-theme="dark"] .reading-surface-grain-svg {
+  opacity: 0.03;
+}
+
+/* Left margin rule */
+.reading-surface-margin-rule {
+  position: absolute;
+  left: 60px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(45, 95, 107, 0.24);
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-theme="dark"] .reading-surface-margin-rule {
+  background-color: rgba(45, 95, 107, 0.18);
+}
+
+/* When the reading surface follows a hero, pull it up so the paper
+   extends almost to the nav bar. The hero background shows behind. */
+.reading-surface--hero-overlap {
+  margin-top: -160px;
+  padding-top: 20px;
+  z-index: 1;
+}
+
+/* Mobile: compressed padding, hide margin rule, soften shadow */
+@media (max-width: 767px) {
+  .reading-surface {
+    max-width: calc(100vw - 24px) !important;
+    padding: 24px 20px 32px 20px !important;
+    box-shadow: 0 1px 16px rgba(42, 36, 32, 0.08), 0 0 0 1px rgba(42, 36, 32, 0.03) !important;
+  }
+
+  html[data-theme="dark"] .reading-surface {
+    box-shadow: 0 1px 16px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.03) !important;
+  }
+
+  .reading-surface-margin-rule {
+    display: none;
+  }
+
+  .reading-surface--hero-overlap {
+    margin-top: -120px !important;
+    padding-top: 40px !important;
+  }
+}
+
+/* ── Per-element ruled lines ──
+   Lines track actual text baselines instead of a fixed container grid.
+   Each element type gets rules matching its own line-height.
+   Baseline sits ~80% down from the top of each line box.
+   ──────────────────────────────────────────────────── */
+
+/* Per-element ruled lines using lh unit (1lh = element's computed line-height).
+   This tracks baselines correctly regardless of font-size differences between
+   paragraphs, headings, and list items. */
+
+.reading-surface .prose p,
+.reading-surface .prose li {
+  --rule-opacity: 0.07;
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(1lh - 1px),
+    rgba(45, 95, 107, var(--rule-opacity)) calc(1lh - 1px),
+    rgba(45, 95, 107, var(--rule-opacity)) 1lh,
+    transparent 1lh
+  );
+  background-size: 100% 1lh;
+  background-repeat: repeat-y;
+  background-position: 0 0;
+}
+
+/* Headings: single underline at the baseline of the first line */
+.reading-surface .prose h2,
+.reading-surface .prose h3 {
+  --rule-opacity: 0.10;
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(1lh - 1px),
+    rgba(45, 95, 107, var(--rule-opacity)) calc(1lh - 1px),
+    rgba(45, 95, 107, var(--rule-opacity)) 1lh,
+    transparent 1lh
+  );
+  background-size: 100% 1lh;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+/* Dark mode: slightly less visible */
+html[data-theme="dark"] .reading-surface .prose p,
+html[data-theme="dark"] .reading-surface .prose li {
+  --rule-opacity: 0.05;
+}
+
+html[data-theme="dark"] .reading-surface .prose h2,
+html[data-theme="dark"] .reading-surface .prose h3 {
+  --rule-opacity: 0.07;
+}
+
+/* Blockquotes and code blocks: no ruled lines */
+.reading-surface .prose blockquote,
+.reading-surface .prose pre,
+.reading-surface .prose code {
+  background-image: none !important;
+}
+
+/* Section Separator: JetBrains Mono label + trailing line */
+.reading-surface hr[data-label] {
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2.5rem 0;
+  height: auto;
+}
+
+.reading-surface hr[data-label]::before {
+  content: attr(data-label);
+  font-family: var(--font-code);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-teal);
+  opacity: 0.22;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.reading-surface hr[data-label]::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-teal);
+  opacity: 0.15;
+}
+
+/* Plain hr inside reading surface: teal dot divider */
+.reading-surface .prose hr:not([data-label]) {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    transparent calc(50% - 2px),
+    var(--color-teal) calc(50% - 2px),
+    var(--color-teal) calc(50% + 2px),
+    transparent calc(50% + 2px),
+    transparent
+  );
+  opacity: 0.18;
+  margin: 2.5rem 0;
+  position: relative;
+}
+
+.reading-surface .prose hr:not([data-label])::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-teal);
+  opacity: 0.2;
+}
+
+/* ─────────────────────────────────────────────────
+   Margin Annotations:Handwritten notes in essay margins
+   Frontmatter-driven, CSS-only (no Client Component).
+   Desktop: positioned in the right/left margin beside prose.
+   Mobile: inline block below the annotated paragraph.
+   ───────────────────────────────────────────────── */
+
+.prose-essays {
+  position: relative;
+  overflow: visible;
+}
+
+.margin-annotation-anchor {
+  display: block;
+  position: relative;
+  height: 0;
+  overflow: visible;
+}
+
+.margin-annotation-anchor::after {
+  content: attr(data-annotation-text);
+  font-family: var(--font-annotation);
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--color-terracotta);
+  opacity: 0.7;
+}
+
+/* Mobile/tablet: inline note below paragraph */
+@media (max-width: 1279px) {
+  .margin-annotation-anchor {
+    height: auto;
+    margin-bottom: 1rem;
+  }
+
+  .margin-annotation-anchor::after {
+    display: inline-block;
+    width: 100%;
+    font-size: 14px;
+    padding: 0.25rem 0;
+    border-top: 1px solid rgba(180, 90, 45, 0.15);
+    margin-top: 0.25rem;
+  }
+}
+
+/* Desktop (xl+): absolute positioned in margin */
+@media (min-width: 1280px) {
+  .margin-annotation-anchor::after {
+    position: absolute;
+    /* Use viewport and max-w-4xl (896px) for accurate margin calc.
+       The old 100% resolved to the prose container (~663px), not the
+       layout container, making annotations appear wider than available space. */
+    width: min(450px, calc((100vw - 896px) / 2 - 3rem));
+    top: 0;
+  }
+
+  /* Right-side annotation (default) */
+  .margin-annotation-anchor[data-annotation-side="right"]::after {
+    left: calc(100% + 1.5rem);
+  }
+
+  /* Left-side annotation */
+  .margin-annotation-anchor[data-annotation-side="left"]::after {
+    right: calc(100% + 1.5rem);
+    text-align: right;
+  }
+
+  /* Tick mark connecting annotation to prose column */
+  .margin-annotation-anchor[data-annotation-side="right"]::before {
+    content: '';
+    position: absolute;
+    left: calc(100% + 0.25rem);
+    top: 6px;
+    width: 1rem;
+    border-top: 1px solid rgba(180, 90, 45, 0.3);
+  }
+
+  .margin-annotation-anchor[data-annotation-side="left"]::before {
+    content: '';
+    position: absolute;
+    right: calc(100% + 0.25rem);
+    top: 6px;
+    width: 1rem;
+    border-top: 1px solid rgba(180, 90, 45, 0.3);
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Sidenotes: Footnote-based margin notes
+   Author writes [^1] in markdown; rendered as margin notes.
+   Teal-tinted, positioned by SidenoteMargin component.
+   ───────────────────────────────────────────────── */
+
+/* Inline reference marker */
+.sidenote-ref {
+  cursor: help;
+}
+
+.sidenote-marker {
+  font-family: var(--font-code);
+  font-size: 0.7em;
+  color: var(--color-teal);
+  opacity: 0.6;
+  margin-left: 1px;
+}
+
+/* The margin container: absolutely positioned to the right of the reading surface */
+.sidenote-margin {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .sidenote-margin {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: calc(100% + 2rem);
+    width: min(280px, calc((100vw - 740px) / 2 - 4rem));
+  }
+
+  .sidenote-note {
+    position: absolute;
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--color-ink-muted);
+    padding-left: 12px;
+    border-left: 1px solid var(--color-teal);
+    opacity: 0.75;
+    transition: opacity 0.2s ease;
+  }
+
+  .sidenote-note:hover {
+    opacity: 1;
+  }
+
+  .sidenote-number {
+    font-family: var(--font-code);
+    font-size: 10px;
+    color: var(--color-teal);
+    opacity: 0.5;
+    margin-right: 4px;
+  }
+
+  .sidenote-text a {
+    color: var(--color-teal);
+  }
+}
+
+/* Mobile: inline expandable below the reference */
+@media (max-width: 1279px) {
+  .sidenote-ref {
+    position: relative;
+  }
+
+  /* On mobile, clicking the marker toggles a tooltip-style popup.
+     This is handled by SidenoteMargin being hidden; instead, a CSS-only
+     inline fallback shows the note. For now, the marker is the only
+     visible element on mobile. Full mobile expand is a follow-up. */
+}
+
+/* ─────────────────────────────────────────────────
+   Reader Comments: Sticky Note System
+   Gold/amber sticky notes in the right margin (xl+).
+   Visually distinct from author's terracotta annotations.
+   ───────────────────────────────────────────────── */
+
+/* Contextual cursor states */
+.article-body-wrapper { cursor: text; }
+[data-cursor="crosshair"] { cursor: crosshair; }
+
+/* Wrapper that holds both the prose and the absolute note layer */
+.article-body-wrapper {
+  position: relative;
+}
+
+/* Annotated article: positioned wrapper for scroll annotations */
+.annotated-article {
+  position: relative;
+}
+
+/* Scroll annotations: hidden on small screens, right-margin on xl+ */
+.scroll-annotation {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .scroll-annotation {
+    display: block;
+    left: calc(100% + 1.5rem);
+    width: min(200px, calc((100vw - 896px) / 2 - 2rem));
+  }
+}
+
+/* Footnote markers: hidden on screen, shown in print (see print.css) */
+.fn-marker,
+.fn-table {
+  display: none;
+}
+
+/* Annotation footnotes: hidden on screen, shown in print (see print.css) */
+.annotation-fn-marker,
+.annotation-footnotes {
+  display: none;
+}
+
+/* The absolute-positioned layer that floats notes in the margin */
+.sticky-note-layer {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 1.25rem);
+  width: min(260px, calc((100vw - 896px) / 2 - 1.75rem));
+  pointer-events: none;
+}
+
+/* Individual positioner: each note/form sits at its paragraph's Y offset */
+.sticky-note-positioner {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  pointer-events: auto;
+}
+
+/* Reader note card: streamlined mono card with gold glow */
+.reader-note {
+  position: relative;
+  padding: 0.5rem 0.875rem;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(196, 154, 74, 0.15), 2px 3px 8px rgba(42, 36, 32, 0.08);
+  color: var(--color-ink);
+  margin-bottom: 0.625rem;
+  transition: box-shadow 0.25s ease;
+}
+
+.reader-note:hover {
+  box-shadow: 0 0 16px rgba(196, 154, 74, 0.25), 3px 5px 12px rgba(42, 36, 32, 0.10);
+}
+
+/* Paper grain: subtle fractal noise overlay for tactile feel */
+.reader-note::before,
+.mobile-comment-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .reader-note::before,
+  .mobile-comment-item::before {
+    opacity: 0.05;
+  }
+}
+
+/* #N number header in JetBrains Mono Semi */
+.reader-note-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+.reader-note-number {
+  font-family: var(--font-code);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gold);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.reader-note-author {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink);
+  opacity: 0.75;
+}
+
+.reader-note-date {
+  font-family: var(--font-code);
+  font-size: 10px;
+  color: var(--color-ink-faint);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Comment body: JetBrains Mono for the actual reader text */
+.reader-note-body {
+  font-family: var(--font-code);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--color-ink);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.01em;
+}
+
+.reader-note-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.reader-note-flag {
+  font-family: var(--font-code);
+  font-size: 10px;
+  color: var(--color-ink-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.reader-note-flag:hover {
+  opacity: 1;
+  color: var(--color-error);
+}
+
+.reader-note-flagged-label {
+  font-family: var(--font-code);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-error);
+  opacity: 0.7;
+}
+
+/* Hint text shown on first load when no comments exist yet */
+.sticky-note-hint {
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: var(--color-gold);
+  opacity: 0.45;
+  padding: 0.5rem 0;
+  pointer-events: none;
+}
+
+/* Paragraph hover: indicate it is clickable */
+#article-prose p {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+
+#article-prose p:hover {
+  background-color: rgba(196, 154, 74, 0.06);
+}
+
+/* Comment Form: streamlined mono card, no inner borders */
+.comment-form-wrapper {
+  width: 100%;
+}
+
+.comment-form {
+  position: relative;
+  background-color: rgba(196, 154, 74, 0.05);
+  border-radius: 3px;
+  padding: 0.5rem 0.875rem 0.625rem;
+  box-shadow: 0 0 10px rgba(196, 154, 74, 0.15), 2px 3px 8px rgba(42, 36, 32, 0.08);
+}
+
+.comment-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.375rem;
+}
+
+.comment-form-label {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.comment-form-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-ink-faint);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.comment-form-close:hover { opacity: 1; }
+
+/* Borderless inputs: blend into the card, only bottom divider separates them */
+.comment-form-input,
+.comment-form-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(196, 154, 74, 0.15);
+  border-radius: 0;
+  padding: 0.35rem 0;
+  font-family: var(--font-code);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: 0.25rem;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s ease;
+  letter-spacing: -0.01em;
+}
+
+.comment-form-textarea {
+  border-bottom: none;
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+.comment-form-input::placeholder,
+.comment-form-textarea::placeholder {
+  color: var(--color-ink-faint);
+  opacity: 0.5;
+  font-weight: 600;
+}
+
+.comment-form-input:focus,
+.comment-form-textarea:focus {
+  border-color: rgba(196, 154, 74, 0.4);
+}
+
+.comment-form-input:disabled,
+.comment-form-textarea:disabled {
+  opacity: 0.5;
+}
+
+.comment-form-error {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--color-error);
+  margin-bottom: 0.25rem;
+}
+
+.comment-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.comment-form-recaptcha-note {
+  font-family: var(--font-code);
+  font-size: 9px;
+  color: var(--color-ink-faint);
+  opacity: 0.35;
+}
+
+.comment-form-submit {
+  font-family: var(--font-code);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: none;
+  color: var(--color-gold);
+  border: 1px solid rgba(196, 154, 74, 0.3);
+  border-radius: 2px;
+  padding: 0.25rem 0.625rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+}
+
+.comment-form-submit:hover:not(:disabled) {
+  border-color: var(--color-gold);
+  color: var(--color-gold-light);
+}
+
+.comment-form-submit:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Mobile Comment List (shown below xl, hidden at xl+) */
+.mobile-comment-list {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.mobile-comment-list-heading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-gold);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-comment-count {
+  background-color: rgba(196, 154, 74, 0.15);
+  color: var(--color-gold);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 10px;
+}
+
+.mobile-comment-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-comment-item {
+  position: relative;
+  background-color: rgba(196, 154, 74, 0.07);
+  border: 1px solid var(--color-gold, rgba(196, 154, 74, 0.25));
+  border-radius: 2px;
+  padding: 0.75rem;
+}
+
+
+.mobile-comment-item--flagged {
+  background-color: rgba(164, 74, 58, 0.07);
+  border-color: rgba(164, 74, 58, 0.20);
+}
+
+.mobile-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.mobile-comment-number {
+  font-family: var(--font-code);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gold);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.mobile-comment-author {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink);
+  opacity: 0.75;
+}
+
+.mobile-comment-paragraph {
+  font-family: var(--font-code);
+  font-size: 10px;
+  color: var(--color-ink-faint);
+  opacity: 0.7;
+}
+
+.mobile-comment-date {
+  font-family: var(--font-code);
+  font-size: 10px;
+  color: var(--color-ink-faint);
+  opacity: 0.6;
+}
+
+.mobile-comment-body {
+  font-family: var(--font-code);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin: 0 0 0.375rem;
+}
+
+.mobile-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mobile-comment-toggle {
+  margin-top: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.mobile-comment-toggle:hover { opacity: 1; }
+
+/* ─────────────────────────────────────────────────
+   Project Timeline: Organizer Style
+   Three-column layout: gutter | dot+line | content
+   ───────────────────────────────────────────────── */
+
+/* Each entry: date header + row */
+.ptl-entry {
+  padding-bottom: 1.5rem;
+}
+.ptl-entry:last-child {
+  padding-bottom: 0;
+}
+
+/* Full date header above each entry */
+.ptl-date-header {
+  padding-left: 6rem; /* gutter(4rem) + dot-col(2rem) */
+  padding-bottom: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+/* Three-column row: gutter | dot | content */
+.ptl-row {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+}
+
+/* Left gutter: short date label */
+.ptl-gutter {
+  width: 4rem;
+  flex-shrink: 0;
+  padding-top: 0.375rem;
+  text-align: right;
+  padding-right: 0.75rem;
+}
+
+/* Dot column:no per-column line; the continuous line is on .ptl */
+.ptl-dot-col {
+  width: 2rem;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+/* Continuous vertical timeline line:runs through the full .ptl container
+   so there are no gaps between entries (the date-header divs used to break it). */
+.ptl::before {
+  content: '';
+  position: absolute;
+  /* Offset top to align with the first dot, bottom with the last */
+  top: 4.25rem;     /* first date-header height + dot offset */
+  bottom: 1.75rem;  /* last entry bottom padding + dot offset */
+  /* Align to the center of the dot column: gutter(4rem) + half dot-col(1rem) */
+  left: 5rem;
+  width: 2px;
+  background-color: var(--color-border);
+}
+
+/* The dot itself:larger and bolder for better role-color visibility */
+.ptl-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--color-paper);
+  position: relative;
+  z-index: 1;
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+  /* Add a subtle ring so dots pop against the line */
+  box-shadow: 0 0 0 2px var(--color-paper);
+}
+
+/* Clickable summary row */
+.ptl-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.ptl-summary:hover .font-title {
+  color: var(--color-terracotta);
+}
+
+.ptl-summary:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Expanded detail area:subtle divider, no card */
+.ptl-detail {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptl-chevron {
+    transition: none;
+  }
+}
+
+/* Stack gutter under content on mobile */
+@media (max-width: 640px) {
+  .ptl-date-header {
+    padding-left: 2.5rem;
+  }
+  .ptl-gutter {
+    display: none;
+  }
+  .ptl-dot-col {
+    width: 1.5rem;
+  }
+  /* Reposition the continuous line for mobile (no gutter, narrower dot-col) */
+  .ptl::before {
+    left: 0.75rem; /* center of 1.5rem dot-col */
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Connection Callouts (inline, build-time injected)
+   ───────────────────────────────────────────────── */
+
+.connection-callout {
+  display: block;
+  margin: 0.75rem 0 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--callout-color, var(--color-terracotta));
+  border-radius: 0 4px 4px 0;
+  transition: border-width 200ms ease, background-color 200ms ease;
+}
+
+.connection-callout:hover {
+  border-left-width: 3px;
+  background-color: color-mix(in srgb, var(--callout-color, var(--color-terracotta)) 3%, transparent);
+}
+
+.connection-callout[data-connection-type="essay"] {
+  --callout-color: #B45A2D;
+}
+
+.connection-callout[data-connection-type="field-note"] {
+  --callout-color: #2D5F6B;
+}
+
+.connection-callout[data-connection-type="shelf"] {
+  --callout-color: #C49A4A;
+}
+
+.connection-callout-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.connection-callout-type {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--callout-color, var(--color-terracotta));
+  opacity: 0.7;
+}
+
+.connection-callout-title {
+  font-family: var(--font-annotation);
+  font-size: 15px;
+  color: var(--callout-color, var(--color-terracotta));
+  line-height: 1.3;
+}
+
+/* ─────────────────────────────────────────────────
+   Mobile Shell + Safe Areas
+   ───────────────────────────────────────────────── */
+
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-nav-height: 58px;
+  --mobile-shell-surface: rgba(250, 246, 241, 0.96);
+  --mobile-shell-surface-solid: var(--color-surface);
+  --mobile-shell-border: var(--color-border);
+  --mobile-shell-text: var(--color-ink);
+  --mobile-shell-text-muted: var(--color-ink-muted);
+}
+
+.safe-area-pad-top {
+  padding-top: var(--safe-area-top);
+}
+
+.safe-area-pad-bottom {
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.mobile-bottom-nav-content-pad {
+  padding-bottom: calc(var(--mobile-nav-height) + var(--safe-area-bottom) + 10px);
+}
+
+.mobile-shell-top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: calc(8px + var(--safe-area-top)) 12px 8px;
+  border-bottom: 1px solid var(--mobile-shell-border);
+  background: var(--mobile-shell-surface);
+  color: var(--mobile-shell-text);
+  backdrop-filter: blur(10px);
+}
+
+.mobile-shell-side-slot {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-shell-icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--mobile-shell-border);
+  background: var(--mobile-shell-surface-solid);
+  color: var(--mobile-shell-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mobile-shell-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-shell-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  border: none;
+  background: rgba(21, 16, 12, 0.54);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.mobile-shell-drawer-backdrop[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-shell-drawer-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  z-index: 80;
+  background: var(--mobile-shell-surface-solid);
+  box-shadow: 12px 0 28px rgba(0, 0, 0, 0.26);
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-shell-tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 65;
+  height: calc(var(--mobile-nav-height) + var(--safe-area-bottom));
+  padding-bottom: var(--safe-area-bottom);
+  background: var(--mobile-shell-surface);
+  border-top: 1px solid var(--mobile-shell-border);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: stretch;
+}
+
+.mobile-shell-tab {
+  flex: 1;
+  min-height: var(--mobile-nav-height);
+  border: none;
+  background: transparent;
+  color: var(--mobile-shell-text-muted);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px 2px;
+}
+
+.mobile-shell-tab[data-active="true"] {
+  color: var(--color-terracotta);
+}
+
+.mobile-shell-tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-shell-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 84;
+  border: none;
+  background: rgba(18, 13, 10, 0.56);
+}
+
+.mobile-shell-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 85;
+  max-height: min(86dvh, 780px);
+  background: var(--mobile-shell-surface-solid);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.26);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mobile-shell-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--mobile-shell-border);
+  padding: 10px 12px;
+}
+
+.mobile-shell-sheet-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--mobile-shell-text);
+}
+
+.mobile-shell-sheet-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0 0 calc(12px + var(--safe-area-bottom));
+}
+
+/* ─────────────────────────────────────────────────
+   Mobile Density (<640px)
+   Tighter card interiors, scaled tracker, tap feedback
+   ───────────────────────────────────────────────── */
+
+@media (max-width: 639px) {
+  /* Tighter card interiors (overrides inline padding) */
+  .rough-box-pad {
+    padding: 14px !important;
+  }
+
+  /* ProgressTracker: scale down to fit 375px viewport */
+  .mobile-tracker .tracker-connector {
+    width: 16px !important;
+  }
+  .mobile-tracker .tracker-label {
+    font-size: 8px !important;
+    letter-spacing: 0.04em !important;
+  }
+  .mobile-tracker .tracker-dot {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  /* Tap feedback on interactive cards */
+  .surface-hover:active {
+    transform: scale(0.98);
+    transition: transform 100ms ease;
+  }
+}
+
+/* Smooth scrolling (respects reduced-motion) */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Reading Typography + Mobile Footnotes
+   ───────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  #article-prose {
+    font-size: 1.1rem;
+    line-height: 1.86;
+  }
+
+  #article-prose h2 {
+    font-size: clamp(1.38rem, 6vw, 1.62rem);
+    line-height: 1.2;
+    margin-top: 2.4rem;
+  }
+
+  #article-prose h3 {
+    font-size: clamp(1.18rem, 5vw, 1.35rem);
+    line-height: 1.25;
+    margin-top: 1.85rem;
+  }
+
+  #article-prose h4 {
+    letter-spacing: 0.04em;
+  }
+
+  #article-prose pre {
+    font-size: 0.95rem;
+    line-height: 1.58;
+    border-radius: 8px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .comment-form-input,
+  .comment-form-textarea {
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 0.4rem 0;
+  }
+
+  .mobile-comment-list {
+    margin-top: 2.3rem;
+    padding-top: 1.7rem;
+  }
+
+  .mobile-comment-items {
+    gap: 0.95rem;
+  }
+
+  .mobile-comment-item {
+    border-radius: 8px;
+    padding: 0.9rem 0.9rem;
+  }
+}
+
+.annotation-mobile-footnote {
+  display: none;
+}
+
+@media (max-width: 1279px) {
+  .margin-annotation-anchor {
+    display: none;
+  }
+
+  .annotation-mobile-footnote {
+    display: block;
+    margin: 0.4rem 0 1.1rem;
+    border: 1px solid rgba(180, 90, 45, 0.15);
+    border-radius: 10px;
+    background: rgba(180, 90, 45, 0.04);
+    overflow: hidden;
+  }
+
+  .annotation-mobile-footnote > summary {
+    list-style: none;
+    cursor: pointer;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-terracotta);
+  }
+
+  .annotation-mobile-footnote > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .annotation-mobile-footnote-body {
+    border-top: 1px solid rgba(180, 90, 45, 0.13);
+    padding: 10px 12px 12px;
+    font-family: var(--font-annotation);
+    font-size: 15px;
+    line-height: 1.42;
+    color: var(--color-terracotta);
+    opacity: 0.84;
+  }
+
+  .annotation-mobile-marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid rgba(180, 90, 45, 0.22);
+    background: rgba(180, 90, 45, 0.08);
+    font-size: 10px;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Theseus Explainer Page
+   Full-bleed sections escape the max-w-4xl container.
+   Text-heavy sections apply their own constraint.
+   ───────────────────────────────────────────────── */
+
+.theseus-page {
+  /* Break out of max-w-4xl mx-auto in MainLayout */
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  /* No solid background: DotGrid texture shows through */
+}
+
+/* Heavier mono type with OpenType features across all Theseus mono text */
+.theseus-page [style*="font-family"] {
+  font-weight: 800 !important;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+}
+.theseus-page .font-mono {
+  font-weight: 800;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+}
+
+.theseus-section {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.theseus-divider {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.theseus-hero {
+  position: relative;
+  padding: 60px 24px 40px;
+  overflow: visible;
+}
+
+.theseus-hero-fade {
+  position: absolute;
+  bottom: -40px;
+  left: 0;
+  right: 0;
+  height: 60%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--color-paper) 3%, transparent) 15%,
+    color-mix(in srgb, var(--color-paper) 8%, transparent) 28%,
+    color-mix(in srgb, var(--color-paper) 18%, transparent) 40%,
+    color-mix(in srgb, var(--color-paper) 35%, transparent) 55%,
+    color-mix(in srgb, var(--color-paper) 58%, transparent) 68%,
+    color-mix(in srgb, var(--color-paper) 80%, transparent) 80%,
+    var(--color-paper) 100%
+  );
+}
+
+/* Inline badge styles for Theseus comparison responses */
+.tag-contradiction {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+  background: rgba(180, 90, 45, 0.1);
+  color: var(--color-terracotta);
+}
+
+.tag-connection {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+  background: rgba(45, 95, 107, 0.1);
+  color: var(--color-teal);
+}
+
+.tag-gap {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+  background: rgba(196, 154, 74, 0.1);
+  color: var(--color-gold);
+}
+
+.tag-provenance {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+  background: rgba(107, 79, 122, 0.1);
+  color: #6B4F7A;
+}
+
+/* ─────────────────────────────────────────────────
+   README Page Responsive
+   ───────────────────────────────────────────────── */
+
+/* Hide margin schematics when there's no margin space */
+@media (max-width: 1200px) {
+  .margin-schematic { display: none !important; }
+}
+
+@media (max-width: 800px) {
+  .readme-name { font-size: 32px !important; }
+  .readme-ver-tag { display: block !important; margin-left: 0 !important; margin-top: 4px !important; }
+  .readme-claim-item { grid-template-columns: 28px 1fr !important; }
+  .readme-claim-schematic { display: none !important; }
+  .readme-limitation-item { grid-template-columns: 1fr !important; gap: 4px !important; }
+  .readme-prior-art-grid { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+  .readme-name { font-size: 28px !important; }
+}
+
+/* Lens (Tier 3 close-read) parchment-glass surfaces.
+   These rules expect the --paper, --paper-ink, --paper-pencil tokens
+   declared on .theseus-root in src/styles/theseus.css. The Lens panel
+   always mounts inside a theseus-root subtree, so the variables
+   resolve via inheritance. */
+.lens-properties-strip {
+  position: absolute;
+  left: 16px;
+  top: 96px;
+  width: 280px;
+  padding: 16px;
+  background: color-mix(in oklab, var(--paper) 92%, transparent);
+  border: 1px solid color-mix(in oklab, var(--paper-pencil) 30%, transparent);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  color: var(--paper-ink);
+  box-shadow: 0 4px 16px color-mix(in oklab, var(--paper-ink) 18%, transparent);
+}
+.lens-properties-strip header {
+  font-family: var(--font-display);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.lens-properties-strip dl { margin: 0; padding: 0; }
+.lens-properties-strip dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.6;
+}
+.lens-properties-strip dd {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+}
+.lens-properties-strip-empty p {
+  font-style: italic;
+  opacity: 0.6;
+}
+.lens-properties-strip h3 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin: 12px 0 6px 0;
+}
+.lens-properties-strip ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.lens-properties-strip li {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+/* Inline Lens overlay rendered inside ExplorerShell. The Atlas-Fork
+   base (--app-base) is dark warm-ink; this overlay forces a parchment
+   surface so the close-read view matches the rest of the parchment
+   site. Mounted as a sibling to the cosmos.gl canvas at zIndex 20 so
+   it covers the canvas + chrome but sits below modal toasts. */
+.lens-inline-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--paper);
+  color: var(--paper-ink);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.lens-root-inline {
+  background: var(--paper);
+  color: var(--paper-ink);
+}
+.lens-root-inline .lens-back {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 12;
+  padding: 6px 12px;
+  border: 1px solid var(--paper-rule);
+  background: color-mix(in oklab, var(--paper) 92%, transparent);
+  color: var(--paper-ink);
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.lens-root-inline .lens-back:hover {
+  background: var(--paper-2);
+}
+.lens-root-inline .lens-back:focus-visible {
+  outline: 2px solid var(--paper-pencil);
+  outline-offset: 2px;
+}

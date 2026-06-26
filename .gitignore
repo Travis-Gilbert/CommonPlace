@@ -1,3 +1,10 @@
 target/
 node_modules/
 .DS_Store
+dist/
+coverage/
+*.tsbuildinfo
+apps/web/.next/
+apps/web/out/
+apps/commonplace-api/target/
+apps/desktop/src-tauri/target/

@@ -1,0 +1,17 @@
+{
+  "name": "@commonplace/block-view-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./block-view": "./src/block-view-types.ts",
+    "./rustyred-data": "./src/rustyred-data-contract.ts"
+  },
+  "scripts": {
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

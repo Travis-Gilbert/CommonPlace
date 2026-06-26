@@ -1,0 +1,44 @@
+{
+  "tokens": {
+    "colors": {
+      "terracotta": "#B45A2D",
+      "teal": "#2D5F6B",
+      "gold": "#C49A4A",
+      "green": "#5A7A4A",
+      "parchment": "#F5F0E8",
+      "darkGround": "#2A2824",
+      "cream": "#F0EBE3"
+    },
+    "fonts": {
+      "title": "Vollkorn",
+      "body": "Cabin",
+      "mono": "Courier Prime",
+      "annotation": "Caveat",
+      "tagline": "IBM Plex Sans"
+    },
+    "spacing": {
+      "contentMaxWidth": "896px",
+      "heroMaxWidth": "1152px"
+    }
+  },
+  "nav": [
+    { "label": "WIP", "path": "/essays", "icon": "file-text", "visible": true },
+    { "label": "Field Notes", "path": "/field-notes", "icon": "note-pencil", "visible": true },
+    { "label": "Paper Trails", "path": "/research", "icon": "magnifying-glass", "visible": true },
+    { "label": "Projects", "path": "/projects", "icon": "briefcase", "visible": true },
+    { "label": "Toolkit", "path": "/toolkit", "icon": "wrench", "visible": true },
+    { "label": "Shelf", "path": "/shelf", "icon": "book-open", "visible": true },
+    { "label": "Experiments", "path": "/experiments", "icon": "gears", "visible": true },
+    { "label": "Connect", "path": "/connect", "icon": "chat-circle", "visible": true },
+    { "label": "README", "path": "/readme", "icon": "file-text", "visible": true }
+  ],
+  "footer": {
+    "tagline": "A living record of work, interests, and thinking.",
+    "links": []
+  },
+  "seo": {
+    "titleTemplate": "%s | Travis Gilbert",
+    "description": "A creative workbench by Travis Gilbert: essays on design decisions, field notes, projects, and tools."
+  },
+  "pages": {}
+}

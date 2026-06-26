@@ -1,0 +1,102 @@
+/* assistant-ui palette + composer + message overrides for Theseus.
+   The forked Claude-clone composition uses shadcn-flavoured Tailwind
+   classes (bg-background, text-foreground, bg-muted, rounded-(--composer-radius),
+   etc.). The semantic token aliases in global.css take care of colour
+   resolution. This file covers the handful of places where the Claude
+   clone's visual polish needs a nudge to land on the parchment register. */
+
+/* Thread viewport: let the DotGrid background bleed through instead of the
+   default solid "bg-background". The paper grain reads as the material
+   surface; solid fill would break the register. */
+.theseus-root [data-slot="aui_thread-viewport"] {
+  background: transparent;
+}
+
+/* ViewportFooter (composer dock): faint parchment card so the composer
+   detaches from the messages above without a hard edge. */
+.theseus-root .aui-thread-viewport-footer {
+  background: linear-gradient(
+    to top,
+    var(--color-paper) 0%,
+    var(--color-paper) 60%,
+    var(--color-paper-0) 100%
+  );
+}
+
+/* Composer input: parchment field with warm shadow. The border stays
+   neutral on focus; the outer focus-within:ring-2 from the Claude-clone
+   Tailwind classes is the only highlight, so the composer doesn't get
+   a double terracotta outline. */
+.theseus-root .aui-composer-root [data-slot="aui_composer-shell"] {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-warm-sm);
+}
+.theseus-root .aui-composer-root [data-slot="aui_composer-shell"]:focus-within {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-warm);
+}
+.theseus-root .aui-composer-input {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+}
+.theseus-root .aui-composer-input::placeholder {
+  color: var(--color-ink-light);
+  font-style: italic;
+}
+
+/* Send button: terracotta brand colour, cream foreground. */
+.theseus-root .aui-composer-send {
+  background: var(--color-terracotta);
+  color: #FBF0E2;
+  box-shadow: var(--shadow-warm-sm);
+}
+.theseus-root .aui-composer-send:hover {
+  background: var(--color-terracotta-hover);
+}
+
+/* User message bubble: warm tint, not the default muted grey. */
+.theseus-root [data-slot="aui_user-message-root"] .aui-user-message-content {
+  background: color-mix(in srgb, var(--color-terracotta) 8%, var(--color-surface));
+  color: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--color-terracotta) 20%, transparent);
+}
+
+/* Assistant message: serif prose directly on parchment, no bubble. */
+.theseus-root [data-slot="aui_assistant-message-root"] {
+  font-family: var(--font-title);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-ink);
+}
+
+/* Welcome screen headline: Vollkorn italic follow-up matches parchment
+   register, eyebrow in Courier small caps. */
+.theseus-root .aui-thread-welcome-message-inner {
+  font-family: var(--font-title);
+  color: var(--color-ink);
+  text-align: left;
+}
+.theseus-root .aui-thread-welcome-message-inner + .aui-thread-welcome-message-inner {
+  color: var(--color-ink-muted);
+  font-style: italic;
+}
+
+/* Welcome suggestion cards: parchment tiles, warm border. */
+.theseus-root .aui-thread-welcome-suggestion {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-warm-sm);
+  font-family: var(--font-body);
+  color: var(--color-ink);
+}
+.theseus-root .aui-thread-welcome-suggestion:hover {
+  background: var(--color-bg-alt);
+  border-color: var(--color-border-light);
+}
+.theseus-root .aui-thread-welcome-suggestion-text-1 {
+  color: var(--color-ink);
+}
+.theseus-root .aui-thread-welcome-suggestion-text-2 {
+  color: var(--color-ink-muted);
+}

@@ -5,10 +5,18 @@
   "type": "module",
   "scripts": {
     "sync:rustyred": "node scripts/update-rustyred-source.mjs",
-    "check": "node scripts/update-rustyred-source.mjs --check && cargo test --workspace",
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "web:build:desktop": "npm --prefix apps/web run build:desktop",
+    "desktop:dev": "npm --prefix apps/desktop run tauri -- dev",
+    "desktop:build": "npm --prefix apps/desktop run tauri -- build",
+    "api:dev": "cargo run --manifest-path apps/commonplace-api/Cargo.toml",
+    "api:test": "cargo test --manifest-path apps/commonplace-api/Cargo.toml",
+    "check": "node scripts/update-rustyred-source.mjs --check && cargo test --workspace && npm --prefix packages/block-view-contracts run check",
     "check:rust": "cargo test --workspace"
   },
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "engines": {

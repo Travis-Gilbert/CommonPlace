@@ -1,0 +1,68 @@
+<div class="relative inline-block">
+  <c-badge
+    color="{% if stage == 'drafting' %}ink{% elif stage == 'revising' %}gold{% elif stage == 'ready' %}teal{% elif stage == 'published' %}success{% else %}ink{% endif %}"
+    {% if stage == 'drafting' or stage == 'archived' %}outline{% endif %}
+  >
+    {{ stage }}
+  </c-badge>
+
+  {% if interactive %}
+  {# Clickable overlay that reveals the stage selector #}
+  <details class="absolute inset-0">
+    <summary class="opacity-0 cursor-pointer w-full h-full block"></summary>
+    <div class="absolute top-full left-0 mt-1 z-50 bg-cream border border-border rounded-brand shadow-warm-lg p-2 min-w-[140px]">
+      {# Enumerate stages explicitly (Django templates have no split filter) #}
+      {% if stage != "drafting" %}
+      <button
+        class="block w-full text-left px-3 py-[6px] rounded font-mono text-[10px] uppercase tracking-widest bg-transparent border-none cursor-pointer text-ink-secondary hover:bg-parchment-alt hover:text-ink transition-colors duration-150"
+        hx-post="{% url 'editor:set-stage' content_type slug %}"
+        hx-headers='{"Content-Type": "application/json"}'
+        hx-vals='{"stage": "drafting"}'
+        hx-target="closest .relative"
+        hx-swap="outerHTML"
+      >drafting</button>
+      {% endif %}
+      {% if stage != "revising" %}
+      <button
+        class="block w-full text-left px-3 py-[6px] rounded font-mono text-[10px] uppercase tracking-widest bg-transparent border-none cursor-pointer text-ink-secondary hover:bg-parchment-alt hover:text-ink transition-colors duration-150"
+        hx-post="{% url 'editor:set-stage' content_type slug %}"
+        hx-headers='{"Content-Type": "application/json"}'
+        hx-vals='{"stage": "revising"}'
+        hx-target="closest .relative"
+        hx-swap="outerHTML"
+      >revising</button>
+      {% endif %}
+      {% if stage != "ready" %}
+      <button
+        class="block w-full text-left px-3 py-[6px] rounded font-mono text-[10px] uppercase tracking-widest bg-transparent border-none cursor-pointer text-ink-secondary hover:bg-parchment-alt hover:text-ink transition-colors duration-150"
+        hx-post="{% url 'editor:set-stage' content_type slug %}"
+        hx-headers='{"Content-Type": "application/json"}'
+        hx-vals='{"stage": "ready"}'
+        hx-target="closest .relative"
+        hx-swap="outerHTML"
+      >ready</button>
+      {% endif %}
+      {% if stage != "published" %}
+      <button
+        class="block w-full text-left px-3 py-[6px] rounded font-mono text-[10px] uppercase tracking-widest bg-transparent border-none cursor-pointer text-ink-secondary hover:bg-parchment-alt hover:text-ink transition-colors duration-150"
+        hx-post="{% url 'editor:set-stage' content_type slug %}"
+        hx-headers='{"Content-Type": "application/json"}'
+        hx-vals='{"stage": "published"}'
+        hx-target="closest .relative"
+        hx-swap="outerHTML"
+      >published</button>
+      {% endif %}
+      {% if stage != "archived" %}
+      <button
+        class="block w-full text-left px-3 py-[6px] rounded font-mono text-[10px] uppercase tracking-widest bg-transparent border-none cursor-pointer text-ink-secondary hover:bg-parchment-alt hover:text-ink transition-colors duration-150"
+        hx-post="{% url 'editor:set-stage' content_type slug %}"
+        hx-headers='{"Content-Type": "application/json"}'
+        hx-vals='{"stage": "archived"}'
+        hx-target="closest .relative"
+        hx-swap="outerHTML"
+      >archived</button>
+      {% endif %}
+    </div>
+  </details>
+  {% endif %}
+</div>

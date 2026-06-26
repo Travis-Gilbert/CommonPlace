@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ content_type_plural }}{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+  <div class="flex items-center gap-3 mb-3">
+    <c-icon
+      name="{{ content_icon|default:'file-text' }}"
+      size="24"
+      color="{{ content_color|default:'currentColor' }}"
+    />
+    <h1 class="font-title text-[22px] text-ink m-0">{{ content_type_plural }}</h1>
+    {% if items %}
+    <c-badge color="ink">{{ items|length }}</c-badge>
+    {% endif %}
+  </div>
+  <c-btn variant="primary" href="{{ new_url }}">
+    <c-icon name="plus" size="14" color="currentColor" /> New {{ content_type_display }}
+  </c-btn>
+</header>
+
+<div class="space-y-2">
+  {% for item in items %}
+  <c-content_row
+    href="{% url edit_url_name slug=item.slug %}"
+    icon="{{ content_icon|default:'file-text' }}"
+    color="{{ content_color|default:'currentColor' }}"
+    title="{{ item.title }}"
+    {% if item.stage %}stage="{{ item.stage }}"{% endif %}
+    {% if item.status %}status="{{ item.get_status_display }}"{% endif %}
+    draft="{{ item.draft }}"
+    date="{% if item.date %}{{ item.date|date:'M j, Y' }}{% else %}{{ item.updated_at|date:'M j, Y' }}{% endif %}"
+  />
+  {% empty %}
+  <c-empty_state
+    icon="{{ content_icon|default:'file-text' }}"
+    color="{{ content_color|default:'currentColor' }}"
+    title="{{ empty_title|default:'Nothing here yet' }}"
+    description="{{ empty_description|default:'Create your first piece of content.' }}"
+  >
+    <c-btn variant="primary" href="{{ new_url }}">
+      <c-icon name="plus" size="14" color="currentColor" /> Create {{ content_type_display }}
+    </c-btn>
+  </c-empty_state>
+  {% endfor %}
+</div>
+{% endblock %}

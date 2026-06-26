@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+.next/
+
+# Astro (legacy)
+.astro/
+
+# Vercel
+.vercel/
+
+# Environment
+.env
+.env.*
+
+# Private notes
+docs/notes/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tooling — Claude Code
+# Track .claude/ for shared config (settings.json, commands, agents, rules, hooks)
+# Only gitignore machine-local and ephemeral state files
+.claude/settings.local.json
+.claude/CLAUDE.local.md
+.claude/*.local.md
+.claude/*.local.txt
+
+# Tooling — other
+.serena/
+.playwright-mcp/
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Debug logs
+firebase-debug.log
+
+# Screenshots (dev artifacts)
+*.png
+!public/**/*.png
+
+# Collage engine reference materials (not project code)
+blake-cale-reference/
+Photos/
+Essay collage engine/
+*.textClipping
+
+# Git worktrees
+.worktrees/

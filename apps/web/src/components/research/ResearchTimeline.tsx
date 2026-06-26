@@ -1,0 +1,209 @@
+'use client';
+
+/**
+ * ResearchTimeline: horizontal timeline of source encounters.
+ *
+ * Displays sources along a time axis based on their dateEncountered
+ * or creation date, grouped by source type. Sources are positioned
+ * by date on the X axis and stacked by type on the Y axis.
+ */
+
+import { useRef, useEffect, useState } from 'react';
+import * as d3 from 'd3';
+import type { GraphResponse, GraphNode } from '@/lib/research';
+import { fetchSourceGraph } from '@/lib/research';
+import { ALL_NODE_COLORS } from '@/lib/graph/colors';
+import GraphTooltip from '@/components/GraphTooltip';
+
+interface TimelineNode {
+  id: string;
+  label: string;
+  type: string;
+  sourceType: string;
+  creator: string;
+  connectionCount: number;
+}
+
+interface ResearchTimelineProps {
+  initialData?: GraphResponse | null;
+}
+
+export default function ResearchTimeline({ initialData }: ResearchTimelineProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [fetchedData, setFetchedData] = useState<GraphResponse | null>(null);
+  const [fetchedLoaded, setFetchedLoaded] = useState(false);
+  const [tooltipData, setTooltipData] = useState<{
+    title: string; subtitle: string; lines: string[];
+    position: { x: number; y: number }; visible: boolean;
+  }>({ title: '', subtitle: '', lines: [], position: { x: 0, y: 0 }, visible: false });
+  const [dimensions, setDimensions] = useState({ width: 900, height: 400 });
+
+  const data = initialData !== undefined ? initialData : fetchedData;
+  const loaded = initialData !== undefined || fetchedLoaded;
+
+  useEffect(() => {
+    if (initialData !== undefined) {
+      return;
+    }
+
+    let cancelled = false;
+    fetchSourceGraph().then((d) => {
+      if (cancelled) return;
+      setFetchedData(d);
+      setFetchedLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [initialData]);
+
+  useEffect(() => {
+    const updateSize = () => {
+      const container = svgRef.current?.parentElement;
+      if (container) {
+        setDimensions({
+          width: container.clientWidth,
+          height: Math.max(300, Math.min(container.clientWidth * 0.45, 450)),
+        });
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  useEffect(() => {
+    if (!data || !svgRef.current) return;
+
+    const sourceNodes = data.nodes.filter((n) => n.type === 'source');
+    if (sourceNodes.length === 0) return;
+
+    // Count connections per source
+    const connectionCounts = new Map<string, number>();
+    for (const edge of data.edges) {
+      connectionCounts.set(edge.source, (connectionCounts.get(edge.source) || 0) + 1);
+      connectionCounts.set(edge.target, (connectionCounts.get(edge.target) || 0) + 1);
+    }
+
+    // Get unique source types for Y axis
+    const sourceTypes = [...new Set(sourceNodes.map((n) => n.sourceType || 'other'))].sort();
+
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+
+    const { width, height } = dimensions;
+    const margin = { top: 24, right: 40, bottom: 40, left: 90 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // X scale: distribute nodes evenly (no real dates, use index)
+    const xScale = d3.scaleLinear().domain([0, sourceNodes.length - 1]).range([0, innerWidth]);
+
+    // Y scale: source type bands
+    const yScale = d3.scaleBand().domain(sourceTypes).range([0, innerHeight]).padding(0.3);
+
+    // Y axis
+    g.append('g')
+      .call(d3.axisLeft(yScale))
+      .selectAll('text')
+      .attr('font-family', 'var(--font-mono)')
+      .attr('font-size', '10px')
+      .attr('fill', 'var(--color-ink-light)');
+
+    g.selectAll('.domain, .tick line').attr('stroke', 'var(--color-border)');
+
+    // Horizontal grid lines
+    g.selectAll('.grid-line')
+      .data(sourceTypes)
+      .join('line')
+      .attr('class', 'grid-line')
+      .attr('x1', 0)
+      .attr('x2', innerWidth)
+      .attr('y1', (d) => (yScale(d) ?? 0) + yScale.bandwidth() / 2)
+      .attr('y2', (d) => (yScale(d) ?? 0) + yScale.bandwidth() / 2)
+      .attr('stroke', 'var(--color-border-light)')
+      .attr('stroke-dasharray', '3 3');
+
+    // Timeline baseline
+    g.append('line')
+      .attr('x1', 0)
+      .attr('x2', innerWidth)
+      .attr('y1', innerHeight + 12)
+      .attr('y2', innerHeight + 12)
+      .attr('stroke', 'var(--color-border)')
+      .attr('stroke-width', 2);
+
+    // Source dots
+    const nodeGroups = g
+      .selectAll<SVGGElement, GraphNode>('.source-node')
+      .data(sourceNodes)
+      .join('g')
+      .attr('class', 'source-node')
+      .attr('transform', (d, i) => {
+        const x = xScale(i);
+        const y = (yScale(d.sourceType || 'other') ?? 0) + yScale.bandwidth() / 2;
+        return `translate(${x},${y})`;
+      })
+      .attr('cursor', 'pointer');
+
+    nodeGroups
+      .append('circle')
+      .attr('r', (d) => {
+        const count = connectionCounts.get(d.id) || 1;
+        return Math.min(4 + count * 2, 12);
+      })
+      .attr('fill', (d) => ALL_NODE_COLORS[d.sourceType || 'other'] || '#6A5E52')
+      .attr('stroke', '#F0EBE4')
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0.85);
+
+    // Hover interactions
+    nodeGroups
+      .on('mouseenter', function (event, d) {
+        d3.select(this).select('circle').attr('opacity', 1).attr('stroke-width', 2.5);
+        const rect = svgRef.current!.getBoundingClientRect();
+        const count = connectionCounts.get(d.id) || 0;
+        setTooltipData({
+          title: d.label,
+          subtitle: d.creator || d.sourceType || 'source',
+          lines: [d.sourceType || 'other', `${count} connection${count !== 1 ? 's' : ''}`],
+          position: { x: event.clientX - rect.left, y: event.clientY - rect.top - 12 },
+          visible: true,
+        });
+      })
+      .on('mouseleave', function () {
+        d3.select(this).select('circle').attr('opacity', 0.85).attr('stroke-width', 1.5);
+        setTooltipData((prev) => ({ ...prev, visible: false }));
+      });
+
+  }, [data, dimensions]);
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center h-[300px] text-ink-light font-mono text-sm">
+        Loading timeline...
+      </div>
+    );
+  }
+
+  if (!data || data.nodes.filter((n) => n.type === 'source').length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[200px] text-ink-light font-body-alt text-sm">
+        No sources to display yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <svg
+        ref={svgRef}
+        width={dimensions.width}
+        height={dimensions.height}
+        className="rounded-lg border border-border bg-surface"
+      />
+
+      <GraphTooltip {...tooltipData} />
+    </div>
+  );
+}

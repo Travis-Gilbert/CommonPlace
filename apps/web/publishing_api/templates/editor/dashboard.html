@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{# ------------------------------------------------------------------ #}
+{#  Continue Editing: most recently updated draft (if any)             #}
+{# ------------------------------------------------------------------ #}
+{% if continue_editing %}
+<section class="mb-6">
+  <a
+    href="{{ continue_editing.url }}"
+    class="
+      flex items-center gap-4 px-5 py-4
+      bg-cream rounded-brand shadow-warm-sm
+      border-l-[3px]
+      no-underline text-ink
+      hover:shadow-warm hover:translate-y-[-1px]
+      transition-all duration-200
+    "
+    style="border-left-color: {{ continue_editing.color }}"
+  >
+    <div class="
+      w-10 h-10 rounded-brand flex items-center justify-center
+      bg-ink/5
+    ">
+      <c-icon
+        name="{{ continue_editing.icon }}"
+        size="20"
+        color="{{ continue_editing.color }}"
+      />
+    </div>
+    <div class="flex-1 min-w-0">
+      <span class="font-mono text-[10px] uppercase tracking-widest text-ink-muted block">
+        Continue editing &middot; {{ continue_editing.type }}
+      </span>
+      <span class="font-title text-[18px] font-bold leading-tight block truncate">
+        {{ continue_editing.title }}
+      </span>
+    </div>
+    <span class="font-mono text-[10px] tracking-wide text-ink-muted hidden sm:block">
+      {{ continue_editing.date|date:"M j, g:ia" }}
+    </span>
+    <c-icon name="chevron-right" size="16" color="currentColor" class="text-ink-muted" />
+  </a>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ #}
+{#  Quick Create: action buttons for new content                       #}
+{# ------------------------------------------------------------------ #}
+<section class="mb-8">
+  <div class="flex flex-wrap items-center gap-3">
+    <c-btn variant="primary" href="{% url 'editor:essay-create' %}" class="!font-body !normal-case !tracking-normal !font-medium !text-sm">
+      <c-icon name="file-text" size="16" color="currentColor" /> New Essay
+    </c-btn>
+    <c-btn variant="ghost" href="{% url 'editor:field-note-create' %}" class="!font-body !normal-case !tracking-normal !font-medium !text-sm">
+      <c-icon name="note-pencil" size="16" /> Field Note
+    </c-btn>
+    <c-btn variant="ghost" href="{% url 'editor:shelf-create' %}" class="!font-body !normal-case !tracking-normal !font-medium !text-sm">
+      <c-icon name="book-open" size="16" /> Shelf Entry
+    </c-btn>
+    <c-btn variant="ghost" href="{% url 'editor:project-create' %}" class="!font-body !normal-case !tracking-normal !font-medium !text-sm">
+      <c-icon name="briefcase" size="16" /> Project
+    </c-btn>
+    <c-btn variant="ghost" href="{% url 'editor:now-edit' %}" class="!font-body !normal-case !tracking-normal !font-medium !text-sm">
+      <c-icon name="clock" size="16" /> Now Page
+    </c-btn>
+  </div>
+</section>
+
+{# ------------------------------------------------------------------ #}
+{#  Stats Grid: content type counts with draft badges                  #}
+{# ------------------------------------------------------------------ #}
+<section class="mb-8">
+  <c-section_label color="gold">Workbench</c-section_label>
+  <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mt-3">
+    <c-stat_card
+      href="{% url 'editor:essay-list' %}"
+      icon="file-text" color="terracotta"
+      label="Essays" value="{{ totals.essays }}"
+      {% if draft_counts.essays %}badge="{{ draft_counts.essays }}d"{% endif %}
+    />
+    <c-stat_card
+      href="{% url 'editor:field-note-list' %}"
+      icon="note-pencil" color="teal"
+      label="Field Notes" value="{{ totals.field_notes }}"
+      {% if draft_counts.field_notes %}badge="{{ draft_counts.field_notes }}d"{% endif %}
+    />
+    <c-stat_card
+      href="{% url 'editor:shelf-list' %}"
+      icon="book-open" color="gold"
+      label="Shelf" value="{{ totals.shelf }}"
+    />
+    <c-stat_card
+      href="{% url 'editor:project-list' %}"
+      icon="briefcase" color="green"
+      label="Projects" value="{{ totals.projects }}"
+      {% if draft_counts.projects %}badge="{{ draft_counts.projects }}d"{% endif %}
+    />
+    <c-stat_card
+      href="{% url 'editor:toolkit-list' %}"
+      icon="wrench" color="terracotta"
+      label="Toolkit" value="{{ totals.toolkit }}"
+    />
+    <c-stat_card
+      href="{% url 'editor:video-list' %}"
+      icon="video-camera" color="green"
+      label="Videos" value="{{ totals.videos }}"
+      {% if draft_counts.videos %}badge="{{ draft_counts.videos }}d"{% endif %}
+    />
+  </div>
+</section>
+
+{# ------------------------------------------------------------------ #}
+{#  Two-column layout: Pipeline + Activity / Publishes                 #}
+{# ------------------------------------------------------------------ #}
+<div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 mb-8">
+
+  {# ---- Left column ---- #}
+  <div class="space-y-8">
+
+    {# Essay Pipeline: proportional stage bar #}
+    <section>
+      <c-section_label color="terracotta">Essay Pipeline</c-section_label>
+      {% with total=pipeline.research|add:pipeline.drafting|add:pipeline.production|add:pipeline.published %}
+      <div class="mt-3 flex items-stretch h-9 bg-ink/5 rounded-brand overflow-hidden">
+        {% if total %}
+          {% if pipeline.research %}
+          <div class="flex items-center justify-center px-3 bg-terracotta/15"
+               style="flex: {{ pipeline.research }}">
+            <span class="font-mono text-[10px] tracking-wide text-terracotta whitespace-nowrap">
+              {{ pipeline.research }} research
+            </span>
+          </div>
+          {% endif %}
+          {% if pipeline.drafting %}
+          <div class="flex items-center justify-center px-3 bg-gold/15"
+               style="flex: {{ pipeline.drafting }}">
+            <span class="font-mono text-[10px] tracking-wide text-gold whitespace-nowrap">
+              {{ pipeline.drafting }} drafting
+            </span>
+          </div>
+          {% endif %}
+          {% if pipeline.production %}
+          <div class="flex items-center justify-center px-3 bg-teal/15"
+               style="flex: {{ pipeline.production }}">
+            <span class="font-mono text-[10px] tracking-wide text-teal whitespace-nowrap">
+              {{ pipeline.production }} production
+            </span>
+          </div>
+          {% endif %}
+          {% if pipeline.published %}
+          <div class="flex items-center justify-center px-3 bg-success/15"
+               style="flex: {{ pipeline.published }}">
+            <span class="font-mono text-[10px] tracking-wide text-success whitespace-nowrap">
+              {{ pipeline.published }} published
+            </span>
+          </div>
+          {% endif %}
+        {% else %}
+          <div class="flex-1 flex items-center justify-center">
+            <span class="font-mono text-[10px] tracking-wide text-ink-muted">
+              No essays yet
+            </span>
+          </div>
+        {% endif %}
+      </div>
+      {% endwith %}
+    </section>
+
+    {# Activity Timeline #}
+    <section>
+      <c-section_label color="teal">Recent Activity</c-section_label>
+      <div class="mt-3 space-y-2">
+        {% for item in activity %}
+        <c-content_row
+          href="{{ item.url }}"
+          icon="{{ item.icon }}"
+          color="{{ item.color }}"
+          title="{{ item.title }}"
+          date="{{ item.date|date:'M j' }}"
+        >
+          <c-badge
+            color="{% if item.draft %}gold{% else %}success{% endif %}"
+            {% if not item.draft %}outline{% endif %}
+          >
+            {{ item.type }}
+          </c-badge>
+        </c-content_row>
+        {% empty %}
+        <c-empty_state
+          icon="file-text"
+          color="#B45A2D"
+          title="No activity yet"
+          description="Create your first piece of content to see activity here."
+        />
+        {% endfor %}
+      </div>
+    </section>
+
+  </div>
+
+  {# ---- Right column ---- #}
+  <aside class="space-y-6">
+
+    {# Recent Publishes #}
+    <div>
+      <c-section_label color="teal">Recent Publishes</c-section_label>
+      <div class="mt-3 space-y-1.5">
+        {% for log in recent_publishes %}
+        <div class="flex items-center gap-2 px-3 py-2 bg-cream rounded-brand border border-border">
+          {% if log.success %}
+            <c-badge color="success">OK</c-badge>
+          {% else %}
+            <c-badge color="error">FAIL</c-badge>
+          {% endif %}
+          <span class="font-body text-[12px] flex-1 truncate">{{ log.content_title }}</span>
+          <time class="font-mono text-[9px] tracking-wide text-ink-muted"
+                datetime="{{ log.created_at|date:'c' }}">
+            {{ log.created_at|date:"M j" }}
+          </time>
+        </div>
+        {% empty %}
+        <p class="font-mono text-[11px] tracking-wide text-ink-muted py-3">
+          Nothing published yet.
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Now page shortcut #}
+    {% if now_page %}
+    <div class="flex items-center gap-3 px-4 py-3 bg-cream rounded-brand border border-border">
+      <c-icon name="clock" size="16" color="#2D5F6B" />
+      <span class="font-mono text-[11px] tracking-wide text-ink-muted flex-1">
+        Now page updated {{ now_page.updated|date:"M j" }}
+      </span>
+      <c-btn variant="ghost" href="{% url 'editor:now-edit' %}">Edit</c-btn>
+    </div>
+    {% endif %}
+
+  </aside>
+
+</div>
+{% endblock %}

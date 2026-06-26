@@ -1,0 +1,577 @@
+<!-- project-template: 48 -->
+# travisgilbert.me
+
+## Project Overview
+
+Personal "creative workbench" site: a living record of work, interests, and thinking. Studio-journal aesthetic with hand-drawn visual elements (rough.js). NOT a traditional portfolio or resume.
+
+## The Spec Is The Floor, Not The Ceiling
+
+**The spec is not a goal to aspire to, it is the minimum viable satisfactory measure of completion. It's the bar to hit or exceed.** Every requirement, intent statement, and worked example in a spec is part of the definition of done. Hitting the spec means matching every requirement. Exceeding the spec means matching them all plus adding the kind of value the spec did not anticipate.
+
+Operational rules that fall out of this:
+
+- Do not introduce the word "MVP" into a plan unless the user used it first. Self-imposed MVP scoping is the failure mode this rule exists to prevent.
+- Every checklist item in a plan must carry a backreference to the spec section it implements. If a spec section has zero checklist items pointing at it, that is a planning bug, not a scope decision.
+- Deferring any spec requirement requires explicit user consent. Surface each candidate deferral individually with a one-sentence justification; do not batch them into a quiet "non-goals" table at the end.
+- "Phase 1 of N" framing is fine when N is the number of phases the spec itself defines. It is not fine when N is something the planner invented to reduce scope.
+- A plan that "would ship the killer demo" is not a plan that ships the spec. The killer demo is a sufficient slice of the spec, not a substitute for it.
+
+## Writing Rules
+
+- **No dashes.** Never use em dashes (`---`) or en dashes (`--`) anywhere: not in code comments, not in UI strings, not in markdown content. Use colons, periods, commas, semicolons, or parentheses instead.
+- Applies to all files: `.tsx`, `.ts`, `.css`, `.md`, frontmatter strings, JSDoc comments, JSX comments
+
+## Name Gaps Explicitly. Don't Lie By Omission.
+
+If the user asks for X and the current state is not X, every subsequent reply must restate the gap on its first line until the gap is closed or the user explicitly acknowledges and accepts it. The failure pattern this rule exists to forbid: user asks for canvas, the work delivers CSS, subsequent replies describe the CSS using analogies like "canvas feel" or "matches the register" that let the user assume canvas was delivered. That is lying by omission. The user noticing later and correcting you is not absolution; it is the rule failing to fire.
+
+- Use precise technical terms. "Canvas feel" is not "canvas." "Looks like" is not "is." "Matches the register" is not "uses the same primitive." If a metaphor or analogy is in use, label it as such in the same sentence.
+- When reporting on whether something has shipped, the answer is the literal state (shipped / not shipped / partially shipped, with named gaps), not what the work resembles. "Closely approximates" is not "is."
+- Same shape applies to: claimed-but-not-shipped tests, partial implementations, deferred items, third-party limits not verified, packages not actually pinned, env vars not actually set, or any state the user might reasonably believe is finished when it isn't.
+- When reaching for a vague descriptor, stop. Check whether the underlying claim is precise. If it is not, restate as a precise claim with file paths and concrete details. Examples of forbidden phrasing without an immediate precise follow-up in the same sentence: "looks like the site canvas," "matches the rest of the cards," "has the same feel," "is consistent with."
+- If a user follow-up assumes the gap is closed, the first sentence of the response must surface the actual state. Do not bury it after a list of completed work. Do not surface it only when the user explicitly asks again.
+
+## Investigation Before Questions
+
+Before asking the user any question, search the codebase and search the web. Clone repos, grep, read, `WebFetch`, `WebSearch`, `find` for existing local copies, check `git log`. Do NOT ask "what license does X use", "is repo Y at version A or B", "where does file Z live", "what does that env var do", "should I use library X or Y" if the answer is reachable by tools. Reserve questions for genuine ambiguity that searching cannot resolve: irreversible product framing decisions, personal preference between two equal options, and missing requirements that only the user has. One extra clone, grep, or web search is always cheaper than a round-trip with the user. If a question is unavoidable, do the search first and frame the question with the facts you already gathered: "I checked X and Y and found Z; the remaining ambiguity is W."
+
+## Plans Live On Disk
+
+Plans for non-trivial work go in `Index-API/docs/plans/<topic>/` with the canonical filenames `implementation-plan.md` and sibling files for sub-plans (`README.md` index when the topic has more than two files). Do NOT surface long plan text in chat as the primary deliverable: write the file, then summarize in chat with file paths and the key changes. Long inline plan output makes it hard to separate what is important and forces the user to re-read content they cannot easily revisit later.
+
+## Visual Design & CSS
+
+- **Design-gate is mandatory for new visual surfaces and rebuilds.** Before writing any `.tsx`, `.css`, `.glsl`, shader, canvas, R3F, or motion-design code on a new surface or rebuild, the FIRST tool calls must be (1) `superpowers:brainstorming` and (2) the design specialists matched to the routing intent in `Index-API/apps/orchestrate/registry/design_visual_systems.ts`. The full forcing-function rules live in the `visual-work-design-gate` skill (`~/.claude/skills/visual-work-design-gate/SKILL.md`). The entire `vie-design:` plugin is excluded — Theseus no longer uses that aesthetic. Implementation code is forbidden until the user has approved the synthesized design proposal. Maintenance edits, refactors, tests, backend, docs, and pure logic changes inside existing components do not trigger the gate.
+- When making visual/CSS changes, do NOT modify elements the user didn't ask to change. Preserve existing backgrounds, gradients, and patterns unless explicitly told to change them.
+- When implementing visual specs or design references (e.g., Observable examples, Figma specs), match the EXACT visual style shown. Do not substitute with similar-looking alternatives (e.g., curved Bezier paths vs straight lines, sized nodes vs hollow/filled nodes).
+- **The design domain registry is the authoritative reference for rendering-surface selection (CSS vs SVG vs Canvas 2D vs WebGL vs WebGPU), visual vocabulary, layer-stack composition, accessibility policy, and motion/performance budget.** Read it before designing. Source of truth: `apps/orchestrate/registry/design_visual_systems.ts` (canonical editor-facing) and `apps/orchestrate/registry/design_visual_systems.py` (runtime authority for Orchestrate routing). Both must stay in sync semantically.
+- **The Theseus component library is the project's curated visual vocabulary.** Folder: `Theseus/Design Components/`. 43 hand-curated `.md` files, each a working TSX snippet for a specific pattern (Bento, Marketing hero, Dashboard, Best Dock, Globe, Tilt card, File tree, Pricing, Morphing text, Browser-style tabs, Mobile dock, Skill chart, Text scramble, Glowing shadow, Dotted animation surface, Dynamic island TOC, Slider, Menu, Footer, etc.). Before designing any new component or surface, list the folder and start from a matching pre-curated pattern as the visual baseline. New components must feel continuous with what's already curated there, not introduce a parallel visual language.
+- **`ui-design-pro:design-theory` is the mandatory design-judgment skill.** Its own description states *"Always consult this skill before building new layouts or reviewing existing ones."* This rule is binding: read it on any new layout or layout review, regardless of routing intent.
+- **`/impeccable` and `/design-taste-frontend` are the mandatory craft layer.** Run `$impeccable shape <feature>` (or `$impeccable craft <feature>`) BEFORE writing visual code. Impeccable's Absolute Bans are binding project-wide: no side-stripe borders (`border-left`/`border-right` >1px as a colored accent), no gradient text (`background-clip: text` + gradient), no glassmorphism as default, no hero-metric template (big number + small label + gradient accent), no identical card grids, no modal as first thought. Impeccable's AI Slop Test must pass at both orders: someone seeing the design must not be able to guess the theme/palette from the category alone (first-order), AND must not be able to guess the aesthetic family from category-plus-anti-references (second-order). `design-taste-frontend` adds the metric-based rules + CSS hardware-acceleration discipline. Run both for any non-trivial visual work.
+
+## No Fake UI, No Mock Data in Shipped Surfaces
+
+This project has repeatedly accumulated decorative-only buttons, mock data in production views, and generic placeholder content that looks real but does nothing. It creates unbounded cleanup work because later sessions cannot tell what is intentional vs. abandoned scaffolding. Hold this line strictly:
+
+- **Every interactive element must do something real the moment it ships.** Buttons, pills, toggles, and links must either be wired to real application state, a real endpoint, a real navigation target, or a real event handler that affects observable state. No `onClick={() => {}}`, no `<span>` styled like a button, no `console.log`/`console.warn` as the primary effect.
+- **No mock data in surfaces that the user can reach.** `MOCK_*`, `SAMPLE_*`, `DEMO_*`, `FAKE_*` constants and hardcoded string arrays of "example" content are allowed ONLY inside test files (`*.test.ts`, `*.test.tsx`, `__tests__/`, `vitest`/`playwright` fixtures). They are NEVER allowed in any component, page, route, hook, or library file that the production bundle ships, regardless of any URL flag.
+- **No `?mock=1` (or equivalent) URL flag as a way to ship demo data.** Past versions of this rule carved out `?mock=1` for "preview the seeded dataset"; that exception has been removed. Mock-mode URL flags create a shadow product that drifts away from the real backend, traps users in a path that "doesn't seem to search the web," and rots into abandoned scaffolding that later sessions cannot tell apart from production logic. If a feature has no working backend yet, render an honest empty state and do not ship the feature. If the backend exists, point at it directly with no flag.
+- **No hardcoded "suggested questions" / "example prompts" / "try asking" arrays.** If suggestion surfaces exist, they must be backed by a real endpoint (e.g., `/ask/suggestions/`). If the endpoint returns nothing, render nothing: an empty state is always better than generic personalized-looking prompts that lie.
+- **No `TODO`/`FIXME` branches left as the runtime behavior of a user-facing action.** If a handler is not yet implemented, do not render the button that dispatches it. Add the button back in the same PR that adds the real handler.
+- **No scripted `setTimeout` "activity" theater.** Loading states, agent progress, streaming text, and any other "something is happening" UI must reflect real backend/process state. Never fake progress with timers to make an empty feature look alive.
+- **Empty states are honest, not cosmetic.** When a feature has no real backend yet, the component that would render it must render an explicit empty state (e.g., "No repository connected", "No graph activity") rather than a populated-looking fake. Link to a working alternative when one exists.
+- **Scaffold code stays inert until it is real.** It is fine to keep a richer component (file tree, editor, agent ribbon, etc.) in the repo as a scaffold for a future wiring pass, but it must not be mounted into any route or panel the user can reach until it runs against real data.
+- **No parallel demo routes.** Never ship a route under `/demo/`, `/showcase/`, `/preview/<feature>/`, or any similarly-shaped path that demonstrates a capability in isolation from the real user surface that ships it. Acceptance for a feature is a demonstration of the real surface working: a query submitted in the live product chat bar (Graph Explorer, Threads, AskPanel) that triggers the real behavior against real backend data. The dev server is the proving ground. Fixture preview pages may exist under developer paths (`/theseus/scene-fixtures-v2/` etc.) but they are not linked from product navigation, do not auto-play scripted choreography, and never form their own `/demo/` hierarchy. Past sessions have repeated this mistake; the rule is now explicit so future sessions inherit the constraint.
+- **No "demo as acceptance artifact" framing in plan files.** Plans that describe a feature's acceptance must point at the real user surface, not at a parallel demo URL. Replace any "demo as acceptance" language with "demonstration of the real surface working."
+
+When reviewing your own work before ending a session, grep the files you touched for `MOCK_`, `TODO`, `FIXME`, `placeholder`, `coming soon`, `not implemented`, `console.warn`, `console.log`, `onClick={() => {}}`. Any match in a user-reachable file needs a justification or a removal.
+
+## Git Workflow
+
+- Before committing, run `git diff --cached` and verify only relevant files are staged. Never include previously staged unrelated files in a commit.
+- You have standing authorization to ship without further confirmation: rebase feature branches, push to feature branches, fast-forward `main`, push to `main`, and trigger Vercel/Railway deploys. Apply the same care (clean diffs, passing tests, no unrelated files) but do not pause to ask permission for these specific actions in this project.
+- Do NOT create git worktrees by default. Work directly in the main checkout. Never spawn subagents with `isolation: "worktree"` and never run `git worktree add` unless the user explicitly asks you to. If a plan or skill says to use a worktree, ignore that instruction unless the user has confirmed it for the current task. Worktrees accumulate as `.claude/worktrees/<random-name>/` and `.worktrees/<feature>/` and become impossible to track over many sessions.
+
+## Preview & Verification
+
+- For preview/eval verification: set viewport to desktop (1280px+) by default. If a view requires navigation (e.g., clicking a tab or route), describe what you're doing and confirm the correct view is visible before evaluating.
+
+## Index-API Codebase Map
+
+When working anywhere inside `Index-API/`, read `Index-API/docs/codebase-map.md` first. It is the navigation truth for the Django backend (1,350+ lines, TOC + mermaid + per-subsystem entry points, dated and generated from the live tree). It supersedes older specs and plans where they disagree.
+
+**Hard rule: map → code → update map. Never doc-sweep.** The truth order in this repo is (1) read the codebase map at the start, (2) read the actual code files for the surface you are touching, (3) update the map at the end if architecture/ownership/runtime flow changed. Do NOT pre-read piles of docs as "context": no opening 3-5 plans in `docs/plans/`, no skimming root-level `SPEC-*.md`, no reading multiple design docs hoping they describe current reality. Plans and specs lag the code by weeks to months; reading them up-front produces confidently wrong reconciliations ("this is already planned", "this is half built") and burns context on stale facts. Open a specific plan or spec ONLY when the map or the code points at it as authoritative for an open question, and prefer reading the code over reading prose about the code in every case.
+
+If a session changes architecture (new app, renamed module, removed subsystem, new entrypoint, drift discovered against the map), propose a diff to `Index-API/docs/codebase-map.md` before ending the session. Do not rewrite the file silently: show the proposed edit, let the user approve, then commit it alongside the code change.
+
+## Tech Stack
+
+Next.js 16 (App Router, Turbopack, React Compiler), React 19, Tailwind CSS v4 (`@tailwindcss/postcss`), rough.js, rough-notation, `next/font` (Google + local), Zod, gray-matter + remark, `@cosmos.gl/graph` 3.0-beta (WebGL force layout) + luma.gl 9.2.6 pinned, `@tensorflow/tfjs` (client-side SceneDirector GNN scorer), `@uwdata/mosaic-*` + `@uwdata/vgplot` + `@duckdb/duckdb-wasm` (Phase B: cross-filter), Django 5.x (publishing_api + research_api), DRF, spaCy (en_core_web_md), PyTorch (CPU), sentence-transformers, FAISS, django-cotton, django-crispy-forms (`studio` pack), django-tailwind, django-template-partials
+
+## Key Directories
+
+| Path | Purpose |
+|------|---------|
+| `src/app/` | App Router: `(main)/` site pages, `(commonplace)/` knowledge graph, `(networks)/` research pages, `(studio)/` live preview |
+| `src/components/` | React components; `rough/` (hand-drawn visuals), `commonplace/` (split pane UI), `commonplace/objects/` (10 polymorphic renderers) |
+| `src/content/` | Markdown collections: essays, field-notes, shelf, toolkit, projects |
+| `src/lib/` | Utilities: `content.ts` (Zod + remark), `commonplace-*.ts` (API, layout, capture, graph, context), `siteConfig.ts`, `connectionEngine.ts` |
+| `src/lib/theseus-viz/` | Scene intelligence: `SceneDirective.ts` (v3 types), `SceneDirector.ts` (entry), `intelligence/` (7 job modules), `model/` (GNN + heads), `features/` (extractors + graph utils), `rules/` (cold-start fallback), `training/` (feedback + weights) |
+| `src/styles/` | `global.css` (site tokens, surfaces, prose), `commonplace.css` (scoped `--cp-*` tokens) |
+| `src/config/site.json` | Site configuration (tokens, nav, footer, SEO); Django commits updates via GitHub API |
+| `src/app/fonts.ts` | 7 fonts: Vollkorn, Cabin, IBM Plex Sans, Ysabeau, Courier Prime, JetBrains Mono, Amarna (local) |
+| `publishing_api/` | Django Studio: content management, HTMX editor, video production pipeline. Deployed at draftroom.travisgilbert.me |
+| `research_api/` | Django research API: sources, backlinks, Webmentions, notebook (knowledge graph). Deployed at research.travisgilbert.me |
+| `research_api/apps/notebook/` | CommonPlace backend: 12 models, DRF API, spaCy connection engine. See its own `CLAUDE.md` |
+| `research_api/apps/api/` | API-key-gated product: 22 endpoints, 190 tests |
+| `docs/plans/` | Design documents and implementation plans |
+| `docs/records/` | Decision logs and feature records |
+| `Index-API/docs/plans/theseus-redesign/` | Active redesign plan tree: `README.md` (master), `language-atlas.md` (Phase 0, approved), `algorithm-scenes-north-star.md` (Phase 4 direction, approved), `reference-inventory.md` (18 references mapped to surfaces), `extracts/<n>-<name>/design-extract-output/` (18 designlang extractions, ~450 design artifacts) |
+| `Index-API/apps/orchestrate/registry/design_visual_systems.{ts,py}` | Canonical design-domain registry. TS = editor-facing source of truth (read by design-gate skill + specialists). Python = runtime authority for Orchestrate routing. Both must stay semantically in sync. |
+| `~/.claude/skills/visual-work-design-gate/SKILL.md` | Project-wide design-thinking forcing function. Auto-loads on `.tsx`/`.css`/`.glsl` edits. Mandates `superpowers:brainstorming` + `$impeccable shape` + `ui-design-pro:design-theory` + scan of `Theseus/Design Components/` BEFORE any visual code. `vie-design:*` excluded. |
+| `Orchestra MCP/` | YouTube production orchestration (TickTick, YouTube, Ulysses, Resolve, File Bridge MCPs) |
+
+## Development Commands
+
+```bash
+npm install        # Install dependencies
+npm run dev        # Start Next.js dev server
+npm run build      # Production build (SSG)
+npm run start      # Serve production build locally
+npm run lint       # Run ESLint (standalone; `next lint` removed in Next.js 16)
+```
+
+```bash
+# Django Studio (from publishing_api/)
+python manage.py runserver               # Dev server on port 8000
+python manage.py tailwind start          # Tailwind CSS watch mode (run in parallel)
+python manage.py import_content             # Import all markdown into Django DB
+python manage.py import_content --dry-run   # Parse and report without writing
+```
+
+```bash
+# Research API (from research_api/)
+python3 manage.py runserver 8001          # Dev server (8001 to avoid conflict with publishing_api)
+python3 manage.py publish_research        # Publish all research data as JSON to Next.js repo
+python3 manage.py seed_commonplace            # Combined seed: ObjectTypes + ComponentTypes + master Timeline
+python3 manage.py create_sample_data          # Create ~15 sample Objects with Components for testing
+python3 manage.py run_connection_engine        # Process inbox + active nodes through spaCy NER
+```
+
+## Content Workflow
+
+**Manual (current):**
+1. Create a `.md` file in the appropriate `src/content/` subdirectory
+2. Fill in frontmatter matching the Zod schema in `src/lib/content.ts`
+3. Push to `main` (Vercel auto-deploys)
+
+**Via Django Studio (when deployed):**
+1. Create/edit content in Studio's editor (markdown toolbar, autosave, split-pane)
+2. Move through visual pipeline: Draft -> Review -> Published
+3. Studio commits `.md` to GitHub via Contents API; Vercel auto-deploys
+4. Site config changes (tokens, nav, SEO) commit to `src/config/site.json` via Git Trees API
+
+## Architecture Notes
+
+### Server vs Client Components
+
+Most components are **Server Components** by default. `'use client'` when needed for: canvas/animation, interactive state, or browser APIs. The directive is the source of truth.
+
+### Font System
+
+`next/font` sets CSS variables on `<html>`. Global CSS bridges to Tailwind via `@theme inline`:
+`next/font > --font-vollkorn` -> `global.css > --font-title: var(--font-vollkorn)` -> `Tailwind > font-title`
+
+Key distinction: `--font-code` (JetBrains Mono) for code comments vs `--font-metadata` (Courier Prime) for section labels.
+
+### Content Loading
+
+`src/lib/content.ts`: reads `src/content/{name}/*.md` with gray-matter, validates with Zod, renders with remark. Dynamic routes use `generateStaticParams()`.
+
+### Surface Materiality
+
+Three layers: page (DotGrid + paper grain), card (tint fill + warm shadow + rough.js stroke), content (SectionLabel + TagList). CSS classes: `.surface-elevated`, `.surface-tint-{color}`, `.surface-hover`.
+
+### Section Color Language
+
+| Section | Color | Hex |
+|---------|-------|-----|
+| Essays / Toolkit | Terracotta | `#B45A2D` |
+| Field Notes / Connect | Teal | `#2D5F6B` |
+| Projects / Shelf | Gold | `#C49A4A` |
+| Video | Green | `#5A7A4A` |
+
+Flows through: SectionLabel, TagList, SketchIcon, RoughBox tint, card borders.
+
+### RoughBox
+
+Primary card container. Props: `tint` (terracotta/teal/gold/neutral), `elevated`, `hover`, `stroke`. Surface styles go on wrapper div; canvas only draws the hand-drawn stroke.
+
+### Hero System
+
+CollageHero (homepage) and EssayHero (essay pages) share: dark ground, `--hero-height` on `<html>`, gradient fade to parchment. DotGrid reads `--hero-height` to render cream dots over dark zone. Both use deterministic PRNG (djb2 + LCG, no `Math.random()`).
+
+### CommonPlace Architecture
+
+Scoped route group `(commonplace)` with own layout.tsx (warm studio theme, not main site DotGrid/TopNav/Footer). Split pane system uses recursive binary tree. API calls go through `commonplace-api.ts` anti-corruption layer. Sidebar collapse is reactive via context (`SplitPaneContainer` is sole writer). See `docs/records/004-commonplace-v5-dark-chrome.md`.
+
+**Two API fetch helpers**: `apiFetch()` -> `/api/v1/notebook/...` (objects, edges, nodes), `epistemicFetch()` -> `/api/v1/...` (inquiries, artifacts, provenance). Inquiry endpoints live at `/api/v1/inquiries/`, not notebook-scoped.
+
+**Ask Theseus endpoints** (notebook-scoped): `POST /ask/` (compose engine retrieval with type-specific object payloads), `POST /ask/feedback/` (training signals), `GET /ask/suggestions/` (gap-driven suggestions), `GET /graph-weather/` (overnight activity summary). Frontend types and API functions live in `src/lib/ask-theseus.ts` (when created).
+
+**Evidence rendering is polymorphic**: `EvidenceItem.tsx` dispatches to sub-components per object type (source=gradient bar, hunch=dashed italic, quote=blockquote, concept=pill, note=card). Visual constants (`EVIDENCE_TYPE_COLOR`, `EVIDENCE_RELATION_COLOR`, `AGREEMENT_STYLE`) live in `commonplace-models.ts`.
+
+**Icon system**: CommonPlace uses `iconoir-react` (not Phosphor). Phosphor is used on the main site only.
+
+### API Proxy (Next.js Rewrite)
+
+All `/api/*` requests are proxied through Next.js to the Index-API Django backend via `next.config.ts` rewrites. This eliminates CORS in every environment (local dev, Claude Code, Vercel production). The browser only ever talks to its own origin; Next.js forwards to Railway.
+
+`NEXT_PUBLIC_RESEARCH_API_URL` is optional. If unset, the rewrite defaults to `https://index-api-production-a5f7.up.railway.app`. Set it only when pointing at a different backend (e.g., a staging instance). Because the frontend uses relative URLs (`/api/v1/notebook/...`), no env file is needed for `npm run dev` to work with live data.
+
+All three API client files use this pattern: `commonplace.ts`, `networks.ts`, and `research.ts`.
+
+### Theseus Visual Intelligence Engine (theseus-viz)
+
+`src/lib/theseus-viz/` is a pure TypeScript library (no React imports) that sits between Theseus reasoning and the rendering stack. Two generations coexist:
+
+**v2 (SceneSpec):** `SceneSpec.ts` defines the old output contract with computed node positions, used by existing renderers (`src/components/theseus/renderers/`). `VizConstructor.ts` is the old entry point (deprecated, redirects to v3).
+
+**v3 (SceneDirective):** `SceneDirective.ts` defines the new 7-job output contract. `SceneDirector.ts` is the entry point (`directScene()`). The 7 intelligence modules in `intelligence/` each have a rule-based path (cold start) and accept optional learned outputs from the GNN. Force configuration is parameterized (force-graph-3d/sigma-2d compute positions) rather than computing final positions.
+
+Pipeline: `TheseusResponse` -> feature extraction (`features/`) -> GNN encoder + IntelligenceHead OR RuleEngine -> 7 intelligence modules -> `SceneDirective`. TF.js is an enhancement; if unavailable, rule-based path works silently. Model weights (~12,415 params, ~50KB) persist in IndexedDB.
+
+Shared graph traversal utilities (degree maps, adjacency, BFS components) live in `features/graphUtils.ts` to avoid duplication across modules.
+
+### Explorer Canvas (cosmos.gl + Inline Ask)
+
+The Theseus Explorer panel renders against the **bare `@cosmos.gl/graph`
+Graph class**, not Cosmograph. `CosmosGraphCanvas.tsx` is the React
+wrapper: it builds flat `Float32Array` point/link/color/size buffers and
+drives the imperative Graph API (`setPointPositions`, `setPointColors`,
+`setLinks`, `render()`, `start()`). Data normalization lives in
+`useGraphData.ts` (`mapNode` / `mapEdge` are exported for reuse in
+chat-inline subgraphs via `GraphPart.tsx`).
+
+Scene intelligence is client-side: `ExplorerAskComposer.tsx` streams a
+question through `askTheseusAsyncStream` -> `/ask/async` -> SSE, then
+runs the returned `TheseusResponse` through `directScene()` from
+`src/lib/theseus-viz/SceneDirector.ts` (TF.js GNN scorer with
+rule-based fallback) to produce a `SceneDirective`. The directive
+drives the canvas via `applySceneDirective()` from
+`src/lib/theseus/cosmograph/adapter.ts`, which talks to the canvas
+through the operation-based `GraphAdapter` interface
+(`focusNodes` / `clearFocus` / `zoomToNode` / `fitView`): never reach
+into the Graph instance from outside the wrapper.
+
+### Canvas Components
+
+All canvas components (PaneDotGrid, TerminalCanvas, KnowledgeMap, TimelineViz) must guard against zero dimensions (browsers show broken-image icon) and cap to 8192px (browser canvas size limit). Pattern: `if (w < 1 || h < 1) return; const cw = Math.min(w, 8192);`
+
+### cosmos.gl / luma.gl
+
+- **Pin luma.gl to 9.2.6** via `overrides` in `package.json`. cosmos.gl 3.0-beta.7 crashes in luma.gl 9.3.x with `TypeError: Cannot convert undefined or null to object` inside `UniformStore`. All four packages (`@luma.gl/core`, `engine`, `webgl`, `shadertools`) must be pinned AND declared as direct deps so Turbopack can resolve `@luma.gl/core` from the top level.
+- **Mount race: luma.gl `autoResize` captures initial `clientWidth`** at `Graph` construction time. If React commits before the grid layout resolves, the canvas locks onto 0x0 and never recovers. `CosmosGraphCanvas.tsx` observes the container with a `ResizeObserver` and delays `new Graph(...)` until `contentRect` has non-zero dimensions. Do not remove this gate.
+- **cosmos.gl render order**: call `setPointPositions` + `setPointColors` + `setPointSizes` + `setLinks` before `render(alpha)`, and always `render(1)` before `start(1)` on first load: the GL programs initialize inside `render()`, not the constructor. For pinned-XY (layer projection) mode call `render(0)` instead and skip `start()`.
+- **fitView after simulation ends, not at frame 0**. Calling `fitView()` while the force sim is still expanding anchors the viewport to the random seed positions and drifts out of frame as nodes cluster. Register `onSimulationEnd` in the Graph config and call `fitView` from there.
+- **SSE `error` event carries a JSON payload**. The server sends `event: error\ndata: {"error":"..."}` for backend exceptions (RQ worker crashes, Python TypeErrors, etc.). `askTheseusAsyncStream` parses that payload so real backend errors reach `handlers.onError`. If you simplify the handler to ignore `e.data`, every failure collapses to a meaningless "Stream error" label.
+
+## Deployment
+
+Vercel (frontend) with auto-deploy on push to main. Backend runs on Railway. When debugging deployment issues, check Vercel/Railway dashboards and logs before making speculative fixes.
+
+Vercel with native Next.js builder. **Important:** Output Directory must be blank/default (not `dist`).
+
+**Django services (Railway):** Both services deploy with PostgreSQL via `railway.toml`. Env vars: `SECRET_KEY`, `DATABASE_URL`, `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_BRANCH`. research_api also needs `WEBMENTION_TARGET_DOMAIN`.
+
+**Index-API (Railway):** Production at `https://index-api-production-a5f7.up.railway.app`. Two services from one repo: web (`railway.toml` -> `Dockerfile.web` -> gunicorn), worker (`railway.worker.toml` -> `Dockerfile.worker` -> rqworker). Worker env vars are NOT shared with web; each needs `DATABASE_URL`, `REDIS_URL`, `FIRECRAWL_API_KEY`. Local dev port: 8000. Publishing API: 8080.
+
+## Status
+
+| Milestone | Status | Reference |
+|-----------|--------|-----------|
+| Site redesign (4 phases) | Complete | `docs/records/001-site-wide-redesign.md` |
+| Branding overhaul (8 phases) | Complete | `docs/plans/plan-01-branding-homepage-interactions.md` |
+| Hero redesign | Complete | CollageHero + EssayHero + HeroArtifact |
+| Django Studio | Complete, deployed | `docs/records/002-publishing-api.md` |
+| Research API (Batches 0-8) | Complete, deployed, 190 tests | `docs/records/003-research-api.md` |
+| Notebook backend (Sessions 1-3) | Complete | 12 models, DRF API, spaCy engine |
+| YouTube Pipeline (7 batches) | Complete | `docs/plans/plan-03-studio-youtube-production.md` |
+| CommonPlace frontend (Sessions 5-9) | Complete | API integration, split pane, capture, timeline, network |
+| CommonPlace v5 Dark Chrome (9 batches) | Complete | `docs/records/004-commonplace-v5-dark-chrome.md` |
+| CommonPlace v5.1 Lego Composition (5 batches) | Complete | PinnedBadge, drag/drop, layout presets, tab drag |
+| Model View v6 redesign | Complete | Polymorphic evidence, two-column workspace, timeline-style assumptions |
+| Nav model migration (Spec A) | Complete | Screen/view navigation replaces tab system |
+| Engine tag system (Spec C) | Complete | StatusBadge, SignalPips, drawer provenance, backend tag_summary |
+| Ask Theseus backend (Spec AT Batch 4) | Complete | 4 endpoints: /ask/, /ask/feedback/, /ask/suggestions/, /graph-weather/; AskQuestion + AskFeedback models |
+| ML Extensions 1-3 | Complete | Active learning queue, contrastive SBERT, Graph Transformer (5af141a) |
+| Level 8: Explanation-Based Learning | Complete | ebl.py, run_ebl command, RQ task, IQ Learning axis integration (f7c2d45) |
+| VIE-3 v3 Scene Intelligence | Complete | 7-job SceneDirective, 12,415-param GNN, rule-based fallback (91fd73f) |
+| Gemma 4B DPO fine-tuning | Complete | 804 examples, 375 DPO pairs, adapter at `s3://models/gemma-4b-gl-fusion-v1/` |
+| Gemma 26B MoE training design | Design complete | `docs/plans/2026-04-04-gemma-26b-training-design.md` |
+| Gemma 4 31B V4 GL-Fusion training | Halted after 30 iterations | Stage 1 after-contrastive valid on S3; Run 9 after-sft tainted with echo-mode labels bug; defer to V5 post-spacetime graph rebuild |
+| Graph noise cleanup | Complete | `purge_noise_sources` command removed TVTropes/Wikidata |
+| Ask pipeline GPU inference | Complete | 26B on Modal A100 via llama-cpp-python CUDA, parallel retrieval, generalized visual pipeline (2e21991) |
+| Ask frontend visual pipeline | In progress | Backend returns structured_visual for 7 types; frontend types need wiring |
+| Atlas redesign (Spinebar + Dock + Lens) | In progress | Spinebar / Dock / Lens 1:1 port verified at `localhost:3001/theseus?view=lens&node=1`. Lives in `Index-API/Theseus-UI/`. Edge-type translator pending. See `Index-API/Theseus-UI/docs/plans/atlas-redesign-spinebar-dock-lens/HANDOFF.md` |
+| Claude Code marketplace plugins | Complete, published | `theorem-context-claude` (commit `1305fa17`) standalone and `production-theorem` (commit `f77b8ca9`) as dual-host single-plugin (one source of truth, `.claude-plugin/plugin.json` + `.codex-plugin/plugin.json` side-by-side; same skills/agents/references are read by both hosts). Earlier commit `f1b60bad` shipped `production-theorem-claude` as a duplicate; collapsed in `f77b8ca9` because it created a sync surface. Local install via `local-desktop-app-uploads` symlink for active development. |
+| Scene OS v2 rich renderer (10 stages) | Complete | Substrate-and-projection architecture: atoms, transitions, choreographer, glyph atlas, coord-space interp, scene artifacts, composition signals, outcome critic. ADR, runbook, catalog, migration guide in `Index-API/docs/plans/scene-os-rich-renderer-v2/` |
+| Scene OS takeover wiring (button removal + v1→v2 adapter + SceneHostV2 in portal + radix-colors + GraphForceOrbit/ImageEvidence library substitution + screen-shake H2 fix) | Complete this session; DEFERRED behind Theseus redesign | Per user 2026-05-15: Scene OS itself is paused until Theseus redesign lands. The takeover plumbing this session built remains in place but the renderer aesthetic (beige paneled CSS) was rejected as "hideous." Next Scene OS work resumes after redesign Phase 6. |
+| Design-thinking environment (forcing functions) | Complete this session | `~/.claude/skills/visual-work-design-gate/SKILL.md` (auto-loads on any visual file edit; mandates `superpowers:brainstorming` + `impeccable shape` + `ui-design-pro:design-theory` + component-library scan before code). `apps/orchestrate/registry/design_visual_systems.ts` (canonical design-domain registry, 573 lines, sits alongside the existing Python runtime version). Project CLAUDE.md `## Visual Design & CSS` updated with binding rules. `vie-design:*` excluded from roster. |
+| Theseus redesign — Phase 0 (Language Atlas) | Complete this session, user-approved 2026-05-15 | `docs/plans/theseus-redesign/language-atlas.md` (185 lines). Binding mappings: Claim→Point, Tension→Conflict, Provenance→Source/Trace, Dossier→Details, Argument-graph kept, Evidence kept (case-by-case Reasoning/Logic swap), Epistemic-qualifier dropped, Inquiry→Question, Hypothesis→Idea/Hunch, Narrative→Story/Summary. Tier 1 user-visible sites + Tier 2 component renames + Tier 3 FE alias map documented. |
+| Theseus redesign — Phase 4 north star + Phase 1 reference inventory + cosmos.gl architectural decision | Complete this session, user-approved 2026-05-16 | `docs/plans/theseus-redesign/algorithm-scenes-north-star.md` (Algorithm Trace Mode + Brush-style node overlay, 4 layers ordered 4a→4d). `docs/plans/theseus-redesign/reference-inventory.md` (18 references mapped to surfaces). 18 designlang extracts (~450 artifacts) saved under `docs/plans/theseus-redesign/extracts/<n>-<name>/design-extract-output/`. Cosmos.gl decision RESOLVED: retain; problem is surface aesthetic + graph math, not the renderer. |
+
+**Next step:** Theseus redesign Phase 1 (Discovery). In a FRESH session (current is dense), run `$impeccable teach` against `docs/plans/theseus-redesign/` (README + language-atlas + algorithm-scenes-north-star + reference-inventory + 18 extracts) → produces PRODUCT.md + DESIGN.md draft. Then Phase 2 direction synthesis from extract diff. Scene OS work is paused until Phase 6 (after redesign Phase 5 lands).
+
+**Remaining backlog:**
+- Ask frontend: wire `structured_visual` + visual renderers for all 7 answer types (comparison_table, timeline_strip, hierarchy_tree, concept_map, process_flow, tfjs_stipple)
+- Ask frontend: fix duplicate response rendering (SSE reconnect or state management issue in AskExperience)
+- Ask frontend: v2 sync path DEFAULT_TIMEOUT_MS (14s) too short for 26B expression, increase to 60s
+- 26B model quality: repetition artifacts at start of synthesis, needs stop token tuning or prompt adjustment
+- CommonPlace: verify production deploy with live API
+- CommonPlace: optimistic capture sync (CaptureButton local-first; POST wired but no optimistic UI update yet)
+- Notebook Sessions 4+: daily log views, publisher, Next.js data publishing
+- Sourcebox UX redesign (brainstorm in progress)
+- Dark mode (deferred; tokens ready in `global.css`)
+- Hero artifact photography (composed still-life images for `public/hero/`)
+- Component integration: TopNav, layout.tsx, CollageHero, DotGrid could consume siteConfig
+- Begin 26B training data generation (Opus Batch API for preferred, Sonnet Batch API for rejected)
+- Atlas redesign: edge-type translator in `Index-API/Theseus-UI/src/components/theseus/lens/AtlasLensMount.tsx` so backend `structural` / `analogy` edges map to prototype `pairs` / `derived` / `cites` and populate the inner KIN shell. See `HANDOFF.md` in that subapp's docs/plans for full context.
+- Atlas redesign: Lens-5 button in Explorer is silently disabled when no node is focused (UX gap, not bug). Add fallback (navigate to `/theseus?view=lens` with empty state) so click is never a dead end.
+
+## Recent Decisions
+
+| Decision | Choice | Why |
+|----------|--------|-----|
+| Deterministic PRNG | djb2 hash + LCG (not Math.random()) | SSG builds must produce identical output across runs |
+| Notebook v4 architecture | Objects + Components, Nodes (immutable), explained Edges | Everything is an Object; changes are Nodes; edges carry `reason` field |
+| CommonPlace: scoped route group | Own layout.tsx, not sharing root shell | Different visual language (warm studio vs parchment site) |
+| CommonPlace: split pane system | Recursive binary tree (not fixed panels) | Arbitrary nesting; JSON-serializable; 4 presets |
+| CommonPlace: API anti-corruption layer | Mapping functions in `commonplace-api.ts` | Components unchanged when data source changes |
+| CommonPlace: sidebar collapse | Reactive via context (not user toggle) | `SplitPaneContainer` is single writer; sidebar is pure reader |
+| Canvas dimension guards | Min 1px, max 8192px on all canvas components | Prevents broken-image icons (0px) and browser crashes (>16384px) |
+| CommonPlace: Models placement | Under Library (not Views) | Models are a creation surface, not a view |
+| CommonPlace: Model View v6 | Two-column layout, no drag reorder, polymorphic evidence | White card repetition was poor UI; timeline rows + type-specific rendering is more information-dense |
+| Deploy sequencing | Push backend (Index-API) before frontend (Website) | Frontend depends on new API fields; optional types prevent breakage but backend should land first |
+| tag_summary badge_confirmed | Uses `_has_reviewed_claim` annotation (claims with reviewed_at set) | Object model has no epistemic_status field; Claim.reviewed_at is the ground truth |
+| API proxy via Next.js rewrites | Rewrite `/api/*` through Next.js to Railway backend | Eliminates CORS, removes env var requirement, works in Claude Code without config |
+| Nightly schedule order | evolve → tensions → reorganize → communities → IQ → web_validation | Each step feeds the next; evolve needs latest scorer, tensions need latest edges, communities need cleaned graph |
+| Modal for engine batch | Always use Modal GPU for >20 objects | Local CPU is ~50s/object; Modal is ~5s/object |
+| Graph Transformer loader | config.architecture field in checkpoint | Same _load_relational_gnn() loads either RelationalGNN or TheseusGraphTransformer based on checkpoint metadata |
+| Active learning strategy | Uncertainty sampling as default, committee as opt-in | Single-model uncertainty is cheaper and sufficient; committee trains N models per request |
+| Gemma 4B deployment target | Railway CPU via GGUF Q4_K_M (~2.5GB) | 3.8B active params; symbolic pipeline does heavy compute, LM just renders synthesis |
+| Gemma 26B training: two-stage | SFT warm-up (external datasets) then DPO (Theseus pairs) | SFT builds reasoning/coding foundation; DPO shapes epistemic behavior |
+| DPO preferred via Opus Batch API | Batch API at 50% off, 1K req/min | Faster and cheaper than MCP-based generation; MCP reserved for quality refinement |
+| Gemma 4 PEFT monkey-patch | Patch Gemma4ClippableLinear to inherit nn.Linear | PEFT doesn't support Gemma 4 natively yet (huggingface/peft#3129) |
+| Explanation frameworks trained into weights | Both: DPO trains natural structure + runtime ExplanationPlan steers | Model naturally good at 4/6 functions; plan provides runtime control |
+| 26B inference: llama-cpp-python on Modal | Pre-built CUDA wheel + nvidia pip packages + ldconfig, not vLLM | vLLM has unsupported Gemma 4 MoE gaps (rope_parameters + layer_scalar); llama.cpp handles GGUF natively |
+| 26B Modal app name | `theseus-gemma-26b-v2` (Starlette ASGI) | Original `theseus-gemma-26b` had stale FastAPI containers; v2 uses plain Starlette to avoid parameter introspection bugs |
+| L1 retrieval parallelization | ThreadPoolExecutor Phase 1 (4 signals) + Phase 2 (2 signals) | Cuts retrieval from ~500ms to ~200ms; async version existed but was never called |
+| Claude Code plugin layering | Two plugins, separate concerns: `theorem-context-claude` (standalone Claude-only plugin, sibling of `theorem-context-py`/`ts` SDKs which are libraries not plugins) + `production-theorem` (dual-host: same plugin loads in both Claude Code and Codex via separate manifests, shared content). Both register hooks on `UserPromptSubmit`; enable only one at a time. | The SDK-layer plugin is Claude-only because there is no codex plugin equivalent to merge with. The workflow plugin is dual-host because `production-theorem` already had the dual-manifest pattern (`.claude-plugin/plugin.json` + `.codex-plugin/plugin.json`); adding `hooks/`, `scripts/`, `mcp/` on top completes the Claude side. |
+| Dual-host single-plugin layout | Shared `skills/`, `agents/`, `references/` read by both hosts. Per-host manifests in `.claude-plugin/` and `.codex-plugin/`. Claude-only files (`hooks/`, `scripts/`, `mcp/`) ignored by Codex because not declared in its manifest; Codex-only files (`interface` block in its manifest) ignored by Claude. | A single source of truth means a codex update to any shared file flows to Claude on next install with no port, no rsync, no `diff -r`. Earlier I shipped `production-theorem-claude` as a parallel directory and that created a sync surface; collapsed in `f77b8ca9`. |
+| Port vs design discipline | When asked to mirror/port/add to existing work: locate the source implementation FIRST and read it before writing code; propose the port as a diff (source → target + named edits); design fresh only if no source exists | Earlier in this work I built `theorem-context-claude/skills/orchestrate/SKILL.md` from spec text and shipped a 40-line refresh helper while the codex parent (`production-theorem`) had a 488-line workflow command. The naming collision ("orchestrate" in both plugins) made the gap invisible until invocation time. The fix is structural: read-source-before-writing, not "be more careful." |
+| Visual renderer per answer type | 7 renderers: tfjs_stipple, comparison_table, timeline_strip, hierarchy_tree, concept_map, process_flow | Generalized from geography-only; each builds structured data from evidence objects |
+| Railway worker env vars | Must mirror web service for SPEAKING_26B_URL, DISABLE_* flags | Worker runs async ask pipeline via RQ; env vars are NOT shared between Railway services |
+| 31B V4 GPU strategy | Halt multi-GPU, single-GPU only, defer to V5 | FSDP2+wrapper DTensor mixing and mystery 47 GB cuda:0 overhead under device_map burned 30 iterations without resolution; architectural rethink needed, not more code patches |
+| 31B V5 hardware target | Single B200 (192 GB) preferred over multi-H100 | Every V4 multi-GPU failure was at composition boundaries (wrapper/FSDP/accelerate), not memory capacity; bigger single GPU collapses the boundaries |
+| PyG (torch_geometric) for spacetime training | Add to Modal image for `train_spacetime.py` only; do NOT retrofit `train_true_gl_fusion.py` | PyG's `TGNMemory`, `TemporalEncoder`, `NeighborLoader`, `TemporalData`, and `HeteroData` match the spacetime pipeline directly; tested scatter ops would have avoided V4's HyperbolicMessagePassing max-mode inplace bug and `_aggregate` dtype drift; retrofitting working GL-Fusion code is a rewrite not a drop-in, so keep the custom hyperbolic MP where it already works |
+| Theseus redesign before Scene OS, not after | Original plan built Scene OS on the current Theseus foundation, then redesigned Theseus. New plan: redesign first, Scene OS second. | Scene OS is a transformation layer that visually extends Theseus. Building it on the current "flat, bland, hairball" foundation either inherits those problems or forces Scene OS to be 70% redesign + 30% scene rendering — then full redesign forces re-doing Scene OS. Reverse order = one design pass instead of two. |
+| Cosmos.gl: retain, not rip | Keep cosmos.gl as graph renderer. Fix substrate aesthetic (background canvas) + graph math (layout, backbone) instead. Optional Brush-style WebGPU node overlay added later for node aesthetic only. | User decision 2026-05-16: "Cosmos.gl is fine. The problem is deeper." Re-rendering on a different engine wouldn't have fixed the hairball or the beige background. Phase 4 order: 4a substrate → 4b math → 4c trace animation → 4d Brush overlay (on cosmos.gl, not replacing it). |
+| Algorithm scenes solve ONE thing | Algorithm Trace Mode (events animate on the canvas) solves trust/inspectability. Does NOT solve hairball density, flat substrate, sidebar flatness, system-wide beige. | Was initially framed as "solves flat+bland+hairball"; user corrected. Algorithm scenes are Phase 4's capstone layer, not its headline. Structural hairball fix (backbone + community layout + edge typing) is its own layer that runs first. Background-canvas redesign is its own layer. Sidebar / Spinebar / Threads chrome are each their own surface tracks in Phase 5. |
+| Epistemic jargon → plain language (binding from Phase 1 onward) | Claim→Point, Tension→Conflict, Provenance→Source/Trace, Dossier→Details, Argument-graph kept, Evidence kept (case-by-case Reasoning/Logic), Epistemic-qualifier deleted, Inquiry→Question, Hypothesis→Idea/Hunch, Narrative→Story/Summary. Internal backend types stay; FE renames at the component + label layer. | User feedback 2026-05-15: the average person does not think in claims and tensions. The vocabulary intimidates and is a product mismatch. Renaming at user-visible Tier 1 (labels) + Tier 2 (component symbols) clears the surface; backend Tier 4 stays for now. Mapping locked in `docs/plans/theseus-redesign/language-atlas.md`. |
+| Design-gate skill is the forcing function | `~/.claude/skills/visual-work-design-gate/SKILL.md` auto-loads on `.tsx`/`.css`/`.glsl` edits and mandates `superpowers:brainstorming` + `$impeccable shape` + `ui-design-pro:design-theory` + scan of `Theseus/Design Components/` BEFORE any code. Implementation forbidden until user approves the synthesized design proposal. | The repeated failure mode (most recently in this session: beige paneled CSS Scene OS takeover) is "literal plan execution skips design specialists who are sitting right there." The forcing function makes design-skill invocation mandatory rather than discretionary. `vie-design:*` excluded — Theseus no longer uses that aesthetic. |
+| Reference URL inventory drives Phase 1 | 18 references extracted via `designlang` → `docs/plans/theseus-redesign/extracts/` (~450 design artifacts). Phase 2 direction proposals synthesize from this corpus. | User provided the reference set 2026-05-16. Captured under explicit Theseus-surface mapping (which reference informs which surface). Anti-pattern axis pre-filtered (no AI→blue+purple, no dev-tool→neon-terminal, no knowledge-graph→symmetric-hairball). |
+
+### Next.js / React
+- **Canvas stacking context**: Body needs `isolation: isolate`, canvas needs `z-index: -1`, `background-color` on `html` (not body)
+- **Canvas DPR scaling**: Multiply canvas dimensions by `devicePixelRatio`, use `ctx.scale(dpr, dpr)`, set CSS size to logical pixels
+- **Phosphor icons in Server Components**: Import from `@phosphor-icons/react/dist/ssr` (not default export)
+- **Route handlers need force-static**: `sitemap.ts` and `rss.xml/route.ts` require `export const dynamic = 'force-static'`
+- **Async params (Next.js 16)**: Dynamic route `params` is `Promise<{ slug: string }>`; must `await` it
+- **Date serialization across RSC boundary**: Date objects can't cross Server/Client Component boundary; use `.toISOString()`
+- **OG image via `opengraph-image.tsx`**: Do NOT also set `metadata.openGraph.images` in `layout.tsx` or it will conflict
+- **Satori CSS limitations**: Only flexbox layout, no grid. Every element needs `display: 'flex'`
+- **Webpack `.next/` cache corruption**: After major file deletions or renames, fix with `rm -rf .next` and rebuild
+- **`NEXT_PUBLIC_*` env vars**: Inlined at build time, not runtime. Changing values requires Vercel redeploy. Note: `NEXT_PUBLIC_RESEARCH_API_URL` is no longer required for backend connectivity (the rewrite proxy handles it), but other `NEXT_PUBLIC_*` vars still follow this rule
+- **Default array/object props cause infinite loops**: `dotColor = [26, 26, 29]` in function signature creates a new ref each render. Use `useMemo` or module-level constant
+
+### Styling / Design System
+- **Font variable bridging**: `next/font` vars (e.g., `--font-vollkorn`) are distinct from Tailwind theme aliases (e.g., `--font-title`). Bridge in `global.css` `@theme inline`
+- **RoughBox needs `position: relative`** for absolute-positioned children like RoughPivotCallout
+- **Absolute-positioned callout text needs explicit `width`**: `max-width` alone causes shrink-to-fit
+- **`overflow-hidden` clips absolute callouts**: Only put on image wrappers, not card containers hosting absolute decorations
+- **Two-layer graph rendering**: Canvas (behind) for rough.js edges + SVG (front) for interactive nodes. Both ConnectionMap and KnowledgeMap use this
+- **MarginAnnotation paragraph counting**: `injectAnnotations()` counts `</p>` tags. Indices in frontmatter are 1-based
+
+### Django / Backend
+- **Django JSONField silent data loss**: If a JSONField isn't rendered in template, Django resets it on save. Every JSONField needs both widget AND template rendering
+- **HTMX CSRF outside `<form>`**: Wrap partial in `<div hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>`
+- **Two Django services share patterns**: When updating `publishing_api` or `research_api`, check if the other needs the same change
+- **Source promotion requires 3 env vars**: `INTERNAL_API_KEY` (same on both), `RESEARCH_API_URL` and `RESEARCH_API_KEY` on publishing_api
+- **`python3 -m pip` required on this machine**: `pip` alone is not found
+- **spaCy model fallback pattern**: Always try `en_core_web_md` first, fall back to `en_core_web_sm`
+- **JSONField `__contains` is PostgreSQL-only**: Use Python-side filtering for SQLite test compatibility
+- **Studio CORS allowlist**: `STUDIO_API_ALLOWED_ORIGINS` in `publishing_api/apps/editor/views.py`. Must include all Next.js domains
+- **"Loads but can't save" = CORS**: Server Components fetch server-side (no CORS), Client Components POST from browser (CORS preflight)
+- **APIKeyMiddleware gates ALL `/api/v1/` paths**: New public endpoints must be added to `EXEMPT_PREFIXES`
+- **CPU-only PyTorch on Railway**: `--extra-index-url https://download.pytorch.org/whl/cpu` in requirements.txt
+- **Gemma 4 PEFT OOM**: `prepare_model_for_kbit_training` casts all params to float32, doubling VRAM. Use `model.gradient_checkpointing_enable()` instead
+- **Gemma 4 ClippableLinear**: PEFT doesn't recognize `Gemma4ClippableLinear`. Monkey-patch to inherit from `nn.Linear` before loading (see `modal_app/gemma_finetune.py`)
+- **TRL DPOConfig API drift**: Use only `max_length` (not `max_prompt_length` or `max_target_length`). API changed between TRL versions
+- **Modal S3 endpoint_url**: Empty string `""` breaks boto3. Only pass `endpoint_url` kwarg when the env var is non-empty
+
+### CommonPlace
+- **Route group scoping**: `(commonplace)` has its own layout.tsx, does NOT render html/body. Do not add DotGrid, TopNav, or Footer here
+- **CSS tokens are scoped**: `--cp-*` variables only exist inside `.commonplace-theme`. Use site `--color-*` tokens elsewhere
+- **Layout presets are index-based**: Reordering or removing presets in `commonplace-layout.ts` breaks saved references. Always append
+- **Feed Node vs Object identity**: Use `node-${node.id}` (Node ID) as React key, not Object ID (may duplicate)
+- **`commonplace-api.ts` is the single source for all API calls**: No raw fetch in components
+- **`useApiData` hook deps**: Passing unstable references (objects, arrays) causes infinite re-fetch loops
+- **`sidebarCollapsed` is reactive, not a toggle**: `SplitPaneContainer` writes; sidebar only reads
+- **Portal theme escaping**: `createPortal` to `document.body` exits `.commonplace-theme`. Wrap portal content in `<div className="commonplace-theme">` for `--cp-*` token resolution
+- **Sidebar dual data sources**: Expanded sidebar reads `SIDEBAR_SECTIONS` from `commonplace.ts`; collapsed rail has a hardcoded array in `CommonPlaceSidebar.tsx`. Both must stay in sync when reordering
+- **Tension to Object relationship**: M2M via `source_objects` with `related_name='tensions'`. Filter by `tensions__status__in=['open', 'investigating']`
+- **Evidence links traverse Claims**: Objects have no direct evidence_links FK. Use `claims__evidence_links` for ORM joins
+- **Index-API has noisy working tree**: Many untracked spec docs, .idea files, .DS_Store. Always stage specific files, never `git add .`
+
+### Deployment
+- **Vercel Output Directory**: Must be blank/default. `dist` setting from old Astro config breaks Next.js builds
+- **Railway auto-deploys from `main`**: Both services deploy independently, ~2 minutes each
+- **reCAPTCHA v3 tokens are single-use**: Never split verification and scoring into separate HTTP calls
+- **Railway nixpacks `cmds` doesn't persist to runtime**: Use `startCommand` with conditional download instead
+- **`SECURE_SSL_REDIRECT=True` when `DEBUG=False`**: Breaks CORS preflight (HTTP->HTTPS 301). Always use `DEBUG=True` for local dev
+- **Scraper env vars read at import time**: `FIRECRAWL_API_KEY`, `WHOOGLE_BASE_URL` must be set before server starts
+- **Whoogle on cloud IPs blocked by Google**: Use Firecrawl as production search provider
+- **Railway worker env vars not shared with web**: Each service needs its own `DATABASE_URL`, `REDIS_URL`, `FIRECRAWL_API_KEY`
+
+### Index-API Engine Operations
+- **Local Django management commands against Railway Postgres are fine.** Short read-only queries (count, values, shell `-c "..."`) and dispatcher-only commands (`train_dygformer`, `export_spacetime_embeddings`, etc.) work well from the M1 Max. Keep two things in mind: (1) cold-load of spaCy / SBERT / transformers adds ~5s to each invocation, so avoid tight loops where that matters; (2) the `gondola.proxy.rlwy.net` round-trip is ~80ms per ORM call, so batch operations that would issue thousands of queries are still better run inside Railway. One-shot bulk writes (`backfill_place_geometry`, `create_spatial_edges`, `build_spacetime_training_data`, `run_connection_engine` on many objects, etc.) are candidates for (a) Modal GPU dispatch via a management command that wraps `.remote()`, (b) a Railway RQ job pushed by a one-liner, or (c) a marker-gated hook in `scripts/start_web.sh`. `pg_dump` / `psql` from the laptop is also fine.
+- **Always use Modal for batch engine runs (>20 objects)**: Local CPU processes ~50s/object. Modal GPU finishes 500 objects in under an hour vs 14+ hours locally
+- **Never run concurrent `run_connection_engine` processes**: They compete for the same objects, causing duplication not parallelization
+- **Post-engine chain (run in order)**: `backfill_tensions && detect_communities && evolve_edges && iq_report`
+- **IQ dilution after corpus ingestion**: Ingesting corpus objects without engine-processing them drops Discovery (novel_rate denominator grows) and Learning (edge_evolution_rate denominator grows). Always engine objects after ingestion
+- **Nightly schedule (Railway, ENABLE_SELF_ORGANIZE_SCHEDULER=true)**: evolve_edges 2:30 → backfill_tensions 2:45 → reorganize 3:00 → communities 3:30 → IQ 4:00 → web_validation 4:30
+- **Index-API is a separate git repo**: `cd Index-API && git status/commit/push` independently from the Website repo. Do not commit Index-API files from the Website root
+- **`modal_app/` files must NOT import Django**: They run on Modal with a minimal image. Use S3 (Parquet/JSON) as the data boundary between Django and Modal
+- **ML extension module pattern**: Django module in `apps/notebook/` + Modal GPU function in `modal_app/` + management command in `management/commands/`
+- **vLLM cannot load Gemma 4 26B MoE**: No released vLLM version (0.11.0 through 0.19.0) fully supports Gemma 4 A4B (rope_parameters stripping + missing layer_scalar). Use llama-cpp-python with GGUF instead
+- **CUDA pip packages need ldconfig**: `nvidia-cuda-runtime-cu12` installs `.so` files in site-packages, not system paths. Must run `find + ldconfig` in the image build to register them
+- **Modal NegativeHealthCache is per-process**: When a speaking service is temporarily down, each gunicorn worker caches the failure independently. Restart the deployment to clear all workers
+- **speaking_dispatch auth is URL-based**: `_auth_headers()` sends Bearer token only for non-Railway URLs (checks for `.railway.internal:8080` suffix)
+
+### GL-Fusion Training (31B / 14B / M27) — hard-won gotchas
+
+Captured while debugging the Hyperbolic GL-Fusion 14B Qwen training (SPEC-EPISTEMIC-14B-V2). Most apply to any hyperbolic GL-Fusion trainer that reuses the shared primitives in `true_gl_fusion_model.py`.
+
+**Infrastructure prerequisites (check before launching)**
+- **`edge_topology.json` is a hard prerequisite on S3**: `gnn-export/edge_topology.json` MUST exist BEFORE any GL-Fusion SFT run. If missing, `GraphTopologyStore.edges` is empty, `_build_graph_data` returns None on every row, MP/CA modules never fire, gates stay at 0/16, training silently degrades to text-only DoRA fine-tune. Export with `python3 manage.py export_edge_topology` then upload to `s3://.../gnn-export/edge_topology.json` (29 MB at 254K edges)
+- **Modal image must mount `train_true_gl_fusion` source**: `GNNEmbeddingStore`, `GraphTopologyStore`, `SBERTEmbeddingStore`, `KGETokenGenerator`, `_build_graph_data`, and `_insert_graph_tokens` all live in `train_true_gl_fusion.py` (the 31B trainer) even though the 14B reuses them. Include `.add_local_python_source('train_true_gl_fusion')` in the training image or imports fail at runtime
+- **Pre-training verifier script is cheap and catches 80% of drift**: `modal run modal_app/verify_metacog_14b.py` runs 13 checks on H100 in ~2 min ($0.10): hidden_dim, DoRA target coverage, layer count, projector dims, special tokens, Poincare norm, clean forward-pass logits. Build one for every new GL-Fusion variant before spending training compute
+- **The verifier catches forward crashes but NOT backward crashes**: Forward-only smoke tests pass because autograd issues only surface during `loss.backward()`. Add a second verifier path that calls `loss.backward()` on a tiny dummy batch before launching full training. At least three bf16-specific crashes in the 14B run would have been caught by a 30-second backward check
+
+**Correctness — shared primitive bugs (fixes now merged)**
+- **Shared primitive `HyperbolicMessagePassing._aggregate` dtype**: `msgs`, `counts`, and the `ones` contributions must ALL match `node_tan.dtype`. Float32 defaults leak into the `msgs / counts` division, promoting bf16 → float32 and crashing the downstream `agg_proj` Linear. Fix is merged in `modal_app/true_gl_fusion_model.py` around line 200. 31B never hit this because Gemma ran float32 end-to-end
+- **`_aggregate` max-mode used a Python loop with overlapping slice views**: `for i, d in enumerate(dst_r): msgs[:, d, :] = torch.max(msgs[:, d, :], transformed[:, i, :])` crashes `loss.backward()` with "variable needed for gradient computation modified by inplace" when `dst_r` has repeated destinations (common in real graphs). Fix: replace with `msgs.scatter_reduce(1, idx, transformed, reduce='amax', include_self=False)` — a single vectorized autograd-friendly op. Fix merged. `mean` and `std` modes were already safe because `index_add_` is a single op
+- **In-place injection into `inputs_embeds` or `h_sem_input` must be vectorized**: The pattern `for i, pos in enumerate(node_positions): tensor[:, pos, :] = node_embs[:, i, :]` works forward but breaks backward when positions overlap or are re-read. Use a single fancy-index assignment: `tensor[:, node_positions, :] = node_embs`. Autograd sees one op instead of N
+- **DoRA-wrapped embedding returns a leaf-view**: `inputs_embeds = embed_fn(input_ids)` followed by any in-place assignment crashes with "a view of a leaf Variable that requires grad is being used in an in-place operation" on DoRA+Qwen. Add `inputs_embeds = inputs_embeds.clone()` before the injection. 31B's Gemma path returns a fresh tensor so it didn't trigger, but the clone is universally safe
+
+**Correctness — Qwen-specific host model differences (Gemma path likely untouched)**
+- **Qwen 2.5 decoder layer API needs `position_embeddings`**: When the wrapper calls `decoder_layer(...)` directly (bypassing `Qwen2Model.forward`), the caller must precompute `position_embeddings = self.rotary_emb(hidden_states, position_ids)` and pass them in. Transformers ≥4.46 hard-requires it. Gemma's decoder layer has a different API so this is Qwen-specific
+- **SDPA rejects int64 attention_mask**: The raw padding mask from the tokenizer is int64; `scaled_dot_product_attention` demands bool/float/matching-query-dtype. When there's no custom graph mask, pass `attention_mask=None` so the layer falls through to default causal. `Qwen2Model.forward` normally converts upstream; we bypass that by calling the layer directly
+- **DeepSeek-R1-Distill-Qwen-14B has 48 layers, not 40**: SPEC-EPISTEMIC-14B-V2 §2.2 says "40 decoder layers" but that's the attention-head count. Real Qwen 2.5 14B = 48 layers. MP/CA injection schedule (0..38) fits either
+
+**Stage orchestration**
+- **Stage 1 contrastive does NOT open gates**: Only the projector is exercised; MP/CA never run. Gates opening is a Stage 2 (joint SFT) signal, not a Stage 1 signal. Spec §5.1's "4 gates >0.01 by end of contrastive" is aspirational
+- **Stage 2 requires explicit DoRA unfreeze**: Stage 1 freezes DoRA with `requires_grad=False`. Fresh base load leaves DoRA trainable, but if you load a Stage 1 checkpoint into Stage 2 without flipping the flag back you'll train only the new modules again. `_set_lora_trainable(gl_model, trainable=True)` handles both
+- **Log `warm-start from Stage 1: loaded=7 missing=0`**: If Stage 2 loads a Stage 1 checkpoint, verify all 7 NEW_MODULE_ATTRS load (`gnn_projector`, `semantic_projector`, `mp_modules`, `ca_modules`, `semantic_ca_modules`, `fusion_gates`, `gnn_readout`). A silent "missing=N" means Stage 2 starts from fresh-init, wasting Stage 1 compute
+
+**Observability — add these metrics per 50 steps, not per 500**
+- **`gates=0/16` is the canonical sign graph_data is dead**: Add `gate_mean`/`gate_max`/`graph_data_pct` log lines every 50 steps. If `graph_data_pct` stays at 0, something in the data → stores → `_build_graph_data` pipeline is broken (synthetic PKs don't resolve, topology store not loaded, etc.). Catch within 5 min, not 5 hours
+- **Split `real_pct` vs `graph_data_pct`**: `real_pct` is the fraction of rows whose declared `evidence_pks` resolved naturally; `graph_data_pct` includes augmented subgraphs. If `graph_data_pct=100` but `real_pct<1`, you're relying on augmentation (fine for SFT warmup, but flag it for DPO)
+- **Log `gate_max` not just `gates>0.01`**: gates cracking off exactly 0 (e.g., to 0.006) is the first positive signal that the hyperbolic geometry is learning. They often hover below the 0.01 display threshold for several thousand steps before crossing
+
+**Performance — the 14B trained at ~65 steps/min (~8h for 34.5K steps on single H100). Effective batch_size=1 is the trap**
+- **Batch with dynamic padding**: Group 4-8 rows per step via `torch.utils.data.DataLoader` + `collate_fn=pad_and_collate`. 3-4× speedup with no correctness cost. The 14B's `train_sft` loops `for idx, row in enumerate(rows)` which forces batch=1; the 31B may have the same pattern — check before launching
+- **Length-bucket the corpus before batching**: Sort training rows by tokenized length, then form batches of near-equal length. Padding waste drops from ~40% to <5%. Pair with a BucketingSampler or pre-sort + shuffle within buckets
+- **Pre-tokenize the corpus once, offline**: Save a `.pt` or HF Datasets shard. Training loop loads tensors directly; eliminates per-step tokenization overhead
+- **Sequence packing for short examples**: Federation F5 gossip rows are ~100 tokens; many M1-M10 examples are 300-800 tokens. Packing 4-5 short examples into one 2048-token sequence with a packing-aware attention mask can 2-3× throughput
+- **Verify `max_length` matches corpus p95**: Default 2048 wastes compute if 95th percentile actual length is 1200. Drop `max_length` to 1280 or 1536 → ~1.6× speedup. Measure first
+- **Training data needs REAL connected PKs to exercise MP/CA**: Synthetic PKs like `rng.randint(1000, 99999)` almost never land on actual connected node pairs in a 135K/261K graph. Either curate `evidence_pks` from live `AskQuestion.retrieved_object_ids` / `Object.pk` OR build a subgraph-sample-pool augmentation in the trainer that walks `topology_store.edges` and emits seed+neighbor pairs. See `build_subgraph_sample_pool` in `modal_app/train_metacog_gl_fusion.py`
+- **`torch.compile` is off-limits with PEFT+DoRA**: Don't waste time trying. `gradient_checkpointing_enable()` stays on for memory; compile stays off for compatibility
+
+### GL-Fusion 31B (Gemma 4 V4) — additional gotchas from 2026-04-17/18 debug session
+
+**FSDP2 orchestration (any wrapper that bypasses `BaseModel.forward`)**
+- **FSDP2 `fully_shard` is bottom-up**: applying it to decoder layers alone without also wrapping the root module produces orphan shards. Each rank ends up holding a full model replica (77 GB OOM per rank on 31B). Always wrap root after wrapping layers
+- **FSDP2 + custom wrapper = DTensor mixing**: `get_input_embeddings()(input_ids)` crashes with `aten.embedding.default got mixed torch.Tensor and DTensor` because after `fully_shard`, `embedding.weight` is a DTensor but `input_ids` is local. Fix: `register_fsdp_forward_method(model, "method_name")` on every wrapper method that reaches root-level tensors (embed, final norm, lm_head), OR do explicit unshard/reshard around those calls
+- **HF `device_map` behavior for Gemma 4 31B on 2x H100**: `auto` and `balanced` both overload cuda:0 (sequential fill); `balanced_low_0` puts everything on cuda:1; explicit `max_memory={0: 'XGiB', 1: 'XGiB'}` forces even param split but cuda:0 still filled to 78 GB during first forward despite confirmed 50/50 split. Isolate with `torch.cuda.memory_summary()` per GPU before/after load and before/after first forward, don't trust the distribution
+
+**PEFT DoRA at 31B scale**
+- **DoRA materializes full `[out, in]` weight per forward** via `weight + scaling * lora_weight`. At Gemma 4 31B all-linear (60 layers × 7 modules), intermediates reach ~50 GB per forward. Not in any V4 memory estimate. If OOM with DoRA enabled, first test: `use_dora=False`. 31B Stage 1 with `use_dora=False` ran 5x faster than with DoRA (13 min vs 71 min)
+- **PEFT `init_lora_weights='eva'` installs activation-capture hooks** on every LoRA Linear. If EVA calibration fails (e.g. under FSDP), hooks persist and crash every subsequent forward with distributed op errors. Safest at 31B: `init_lora_weights=True`. Skip EVA until the FSDP+EVA interaction is isolated in a dedicated session
+
+**Gemma 4 decoder contract (transformers >=4.57)**
+- **Decoder layers hard-require**: `position_embeddings` tuple (cos, sin), `shared_kv_states` dict, and per-layer-type rope dispatch (based on `config.layer_types` sequence of `full_attention` / `sliding_attention`). Wrappers bypassing `Gemma4TextModel.forward` must precompute cos/sin per layer type and pass `shared_kv_states={}` into every decoder call
+- **Gemma 4 multimodal dispatch requires `mm_token_type_ids` in train mode**. Stripping it raises `ValueError`. Workaround: route all text-only training paths through the GL-Fusion wrapper (which sidesteps the vision tower) rather than calling `base_model.forward` directly with raw tokens
+
+**HyperbolicMessagePassing memory at hidden=5376**
+- `einsum('rb,bio->rio', comps, bases)` materializes `[num_rel, hidden, hidden]`. At num_rel=34, hidden=5376, bf16: 1.96 GB per MP layer, 60x = out of budget. Use factored form: `sum_b comps[r, b] * (src_features @ bases[b])`. Peak drops to tens of KB. Also: 31B Stage 1 Run 30 with factored MP ran 5x faster than Run 6
+
+**Checkpoint wrapping (don't double-wrap)**
+- **HF `gradient_checkpointing_enable()` is sufficient** for decoder layers. Wrappers that call `decoder_layer()` directly still benefit. Do NOT additionally `torch.utils.checkpoint.checkpoint(decoder_layer, ...)`: that double-wraps and triggers `CheckpointError: recomputed values have different metadata`
+- **`torch.utils.checkpoint(use_reentrant=False)` does strict metadata validation** on recomputed tensors. HyperbolicMessagePassing forward produces tensors whose save order differs between forward and recompute; manual wrap crashes. Factored MP + dropping the manual wrap removes both the memory pressure and the crash
+
+**Debug discipline (meta-lesson)**
+- **After 3 failures with the same error signature** (e.g., 78 GB OOM at identical allocation size), stop iterating code. Add `torch.cuda.memory_summary()` / `memory_snapshot()`. V4 session burned 30 runs without isolating the memory delta
+- **Pre-training verifier MUST exercise backward pass** under the actual multi-GPU config. Forward-only verifier passes even when memory OOMs during backward, the labels bug exists, or `gradient_checkpointing` is miswired. Backward smoke on minimum-viable inputs is essential. Pairs with the existing "forward-only verifier is cheap" rule: cheap for smoke, but backward catches the real bugs
+
+**Stage 1 LoRA no-train behavior (affects resume logic)**
+- **Stage 1 contrastive does NOT train LoRA adapters**: `base_model` forward is inside `torch.no_grad()` for text encoding, so only `gnn_projector` receives gradients. After Stage 1, LoRA weights are identical to init. Resume: a missing LoRA load when transitioning Stage 1 to Stage 2 doesn't compromise Stage 2, because LoRA state in `after-contrastive` equals fresh init. Don't panic if `_warm_start_from_stage1` reports `loaded=6 missing=1` where the missing=1 is the LoRA adapter
+
+**Alternative hardware**
+- **Single B200 (192 GB HBM3e) > multi-H100 for 31B** when multi-GPU orchestration keeps failing at composition boundaries (wrapper/FSDP/accelerate). Eliminates every sharding bug in one hardware swap. MEMORY.md whitelists H100 or B200 only for Modal. Modal supports B200. Try this before another FSDP refactor round
+
+### GL-Fusion 31B V5 — additional gotchas from 2026-04-19/22 V5 build session
+
+- **`google/gemma-4-31B-it` only generates via vLLM.** `transformers.generate()` produces gibberish (`la la la...`, `LC0C0C0...`) regardless of attn_implementation, decode strategy, chat template, mm_token_type_ids, or inner-LM bypass. Phase 0/1/2 verifiers never exercise generate() (they're forward+loss only) — must run a separate inference smoke test against the base model BEFORE any training, or you'll only discover it post-Phase 2. Existing `gemma_a31b_inference.py` works because vLLM has multimodal-Gemma-specific kernels.
+- **Stream A retrain ≠ topology refresh.** `train_epignn_modal.py` re-trains weights on the EXISTING `gnn-export/entity_map.tsv` + `triples.tsv`. To pick up new Object PKs, first re-export topology via Django command (writes new entity_map/triples), THEN retrain EpiGNN. Otherwise gnn-export's max PK stays stale.
+- **Corpus seed extraction must follow Stream A export, not precede it.** If corpus seeds reference PKs > Stream A's max, `_build_graph_data` returns None for all rows → trainer falls back to augmentation pool → `real_pct=0%` → text-only fine-tune (gates never open). This bit V5: corpus 04/19-20, Stream A 04/18, lost 95% of Cat 1/2/6 rows.
+- **GL-Fusion zero-init gates need cold-start intervention.** With spec §4.3 zero init + standard graph LR (5e-5), gates stay frozen at ~0.002 (10× below spec §5.3 minimum 0.02) even with 55%+ real_pct. Chicken-and-egg: gates can't open until they're useful, can't be useful until they open. Fix candidates: gate-specific high LR (10×), init gates at 0.01 instead of 0, or two-phase optimizer (gates first then everything).
+- **GPT-5.x reasoning models reject `max_tokens`.** Use `max_completion_tokens=N` instead. Old `max_tokens` works for GPT-4 / DeepSeek / older OpenAI models. 400 error otherwise.
+- **Modal `app stop` on ephemeral apps may cancel subsequent same-named dispatches.** When stopping a `theseus-corpus-v5` app, the next `modal run` for the same app name can be cancelled by the still-propagating stop. Wait briefly between stop and re-dispatch, or use distinct app names per dispatch.
+- **Modal `.map()` worker preemption kills orchestrators silently.** Cat 1 fanout's orchestrator died mid-map after worker preemption, leaving partial S3 state. Always pair `.map()` orchestrators with explicit resume logic that reads existing output before dispatching, AND a watchdog that re-dispatches if the orchestrator dies.
+- **GNN store's runtime dim is data-determined.** Stream A base is 160d (h_content 128 + h_epistemic 32) but grows to 416d when GeoMoE + TGN variants exist on S3. Any inference wrapper that hardcodes `gnn_dim=160` will fail to load checkpoints trained with 416d. Always read dim from the store at runtime, OR inspect `lora_adapter/adapter_config.json` and `gnn_projector.pt` shapes before instantiating wrapper.
+- **Local Django mgmt commands against Railway PG: chunk + connection.close() to survive admin-kill.** Long-running queries get terminated mid-loop with `OperationalError: terminating connection due to administrator command`. Pattern: process in batches of ~500 with `from django.db import connection; connection.close()` between batches; Django auto-reconnects. Add `--append` to mgmt commands so chunks accumulate to a single S3 file rather than overwriting.
+
+### GL-Fusion 31B V6 — additional gotchas from 2026-04-23 canary session (Lorentz migration + base-model diagnostic)
+
+- **Gemma 4 31B-IT `transformers.generate()` requires sampling.** Default `generation_config` is `do_sample=True, top_p=0.95, top_k=64`. Under `do_sample=False`, decode traps on the argmax token (often 50%+ of mass) and produces loops: `' France is France is France...'`, `' la la la la...'`, `'額額額額...'`. Pipelines and chat APIs all use sampling (the "thousands use this model daily" reality). Every canary / verifier / wrapper `generate()` call must pass `do_sample=True, top_p=0.95, top_k=64` with `torch.manual_seed(42)` for reproducibility.
+- **Canary coherence checks must be token-level, not char-level.** Char heuristics let `'額額額額額額額額額額額額額額額額'` (16 copies of one CJK token) slip past any length-based repetition gate. Use `len(set(ids))/len(ids) >= 0.3` AND bigram diversity `>= 0.4` on the tokenized output.
+- **`google/gemma-4-31B-it` checkpoint stores weights under the multimodal `model.language_model.*` prefix.** `Gemma4ForCausalLM.from_pretrained(...)` produces all-MISSING / all-UNEXPECTED silently (random init, looks loaded). Either load via `AutoModelForCausalLM` (resolves to `Gemma4ForConditionalGeneration`, correct load, wrapper bypasses multimodal via direct decoder iteration — V5's pattern, still works in V6), OR explicit state-dict remap + `model.tie_weights()` after `_from_config`.
+- **Lorentz ops need fp32 boundaries AND output magnitude clamping.** bf16 cancellation destroys the `<x,x>_L = -1` invariant. Fp32 ALSO fails once `||space||^2 > ~10^7` because `1 + S` loses the `1`. Fix: `fp32_boundary` context manager around every manifold op (expmap0, logmap0, project, centroid, distance_sq) PLUS `clamp_norm(x, max_norm=15)` at HTC output so `1 + space_sq` stays in fp32's precision window.
+- **`lorentz_expmap0` must separate the unit direction from the clamped scaled norm.** Correct: `space = sinh(sc_vn_clamped) * (v / ||v||) / sqrt(c)`. Wrong: `space = sinh(sc_vn_clamped) * v / sc_vn_clamped` — the latter loses hyperboloid closure when `||v|| > clamp` because `v / sc_vn` stops being unit-length. Invariant drifts by 10^10+ on random high-dim input.
+- **GenerationMixin-aware wrappers need a full contract:** `main_input_name` class attr, `self.config`, `self.generation_config`, `@property device` and `@property dtype`, `get_input_embeddings` / `set_input_embeddings` / `get_output_embeddings` delegating to base, `can_generate` returning True, `prepare_inputs_for_generation` override that injects custom kwargs (and FORCES `use_cache=False` + full `input_ids` if the wrapper's forward recomputes from scratch), `generate` override with try/finally on custom state, `ModelOutput` subclass as forward return (NOT plain dict — attribute access required), and `__getattr__` fallthrough to `self.base_model` for HF-specific attrs (`set_experts_implementation`, `hf_device_map`, `_supports_sdpa`).
+- **Teacher-forced training (forward + labels) is independent of `generate` path quality.** Don't block training dispatches on inference-path canary failures. Weights come out correct; inference-time quality depends on sampling params the caller supplies. Diagnose the generate path separately.
+- **Canary discipline: write the hypothesis before dispatching, and run vanilla `transformers.pipeline` as the FIRST diagnostic.** "Canary N tests whether X is the bug. If still gibberish, X is not the bug and I will investigate Y next." V6 burned 4 canary runs chain-fixing when the real bug was `do_sample=False` in one line of the verifier. If a public model works for thousands daily but not for us, the delta is our setup; finding what IS the job.
+- **`modal run ...` canaries cost $2-5 on B200.** Use `run_in_background=true` in Bash; Modal notifies on completion. Don't re-dispatch without confirming prior finish — dupes eat the workspace spend cap. File-modified check aborts dispatch if any `modal_app/` file changed during the build; don't edit during an active build.
+
+### GL-Fusion 31B V7 — additional gotchas from 2026-04-24/25 pipeline run
+
+- **Modal ↔ Railway external PG drops SSL on long ORM queries.** Symptom: `psycopg2.OperationalError: SSL connection has been closed unexpectedly` or `the database system is shutting down`. Three different phases hit this in one session (compute_curvature, embed_views, import_gnn_embeddings). Root cause: `DISABLE_SERVER_SIDE_CURSORS=True` in `config/settings.py` makes Django's `.iterator(chunk_size=N)` silently materialize the FULL result set, losing the SSL session for large scans. Canonical fix: replace `.iterator()` with explicit `pk__gt=last_pk` PK-pagination, call `connection.close()` between pages so Django auto-reconnects. Applied to `apps/notebook/curvature_features.py`, `apps/notebook/tda_features.py`, `apps/notebook/spatial/edges.py`, `apps/notebook/management/commands/embed_views.py`. Grep `\.iterator(chunk_size=` to find others.
+- **Per-row `get_or_create` is the spatial-edges hot path, not pagination.** `apps/notebook/spatial/edges.py:create_spatial_edges_for_object` originally made ~120 round-trips per object via per-candidate `get_or_create`. At Railway 80ms latency = ~33 days for 144K Objects. Fix: `bulk_create(update_conflicts=True, unique_fields=[...])` for the inner loop AND batch the candidate SQL across the page using `src.id = ANY(%s)` + `ROW_NUMBER() OVER (PARTITION BY src.id ORDER BY ...) <= max_edges` for per-source LIMIT semantics. Net: ~5 min for 144K objects. Reference `_batch_candidate_object_ids`.
+- **`AutoModelForCausalLM.from_pretrained('google/gemma-4-31B-it')` resolves to `Gemma4ForConditionalGeneration`, NOT `Gemma4ForCausalLM`.** The checkpoint config is `Gemma4Config` (multimodal); only `Gemma4TextConfig` would route to `Gemma4ForCausalLM`. Manual state-dict remap into `Gemma4ForCausalLM._from_config()` produces subtly broken weights (canary 13 confirmed CJK collapse + degraded wrapper output across 6 iterations). V7 loader at `modal_app/gemma4_text_only_loader.py` now uses `Gemma4ForConditionalGeneration.from_pretrained()` directly and accepts ~5-10 GB of vision-tower dead weight. The TrueGLFusionGemma wrapper has fallback access patterns for both classes (multimodal path is the longer `base_model.model.model.language_model.layers`).
+- **Gemma 4 31B-IT generate has prompt-dependent failure modes that no decoding param fixes:** '額' (U+984D) CJK collapse on low-information prompts ("The knowledge graph shows that..."), AND argmax loops (' France is France is France...') on high-information prompts ("The capital of France is"). `do_sample=True` + `top_p=0.95` + `top_k=64` does NOT fix either. `repetition_penalty=1.3` shifts log-space by 0.26 nat, too small to break a ~7 nat top-1 dominance. Standard inference deployments still use `repetition_penalty` for hygiene, but it won't rescue degenerate prompts. Use baseline-proven prompts only ("The capital of France is" works under sampling+rep-penalty).
+- **Token-level coherence beats char-level for Gemma decode checks.** Char-level `_looks_gibberish` missed 16-token CJK collapse because all 16 tokens decode to one CJK char each. Use `unique_ratio >= 0.3 AND bigram_ratio >= 0.4` on encoded token IDs, min 5 new tokens. Reference impl in `modal_app/verify_gl_fusion_v6.py::_token_level_coherence`.
+- **`run_pipeline --skip` takes ONE comma-separated list, not multiple flags.** Argparse silently keeps only the last `--skip`. Correct: `--skip embed-views,train-sbert-epistemic,compute-curvature`. Wrong: `--skip embed-views --skip train-sbert-epistemic --skip compute-curvature`.
+- **Modal engine_worker chained commands share ONE container's filesystem.** `cmd1 && cmd2 && cmd3` run sequentially in the same container; outputs in `gnn_export/` from cmd1 are visible to cmd2 and cmd3. BUT each separate `modal run engine_worker.py --command "..."` dispatch starts a FRESH container with empty `/app/gnn_export/`. Phases that depend on a prior phase's output (e.g. `train-gnn-alignment` needs `train-epignn`'s NPZ) must download from S3 explicitly. See `scripts/download_gnn_outputs.py` and `_phase_train_gnn_alignment` chain.
+- **Modal app/task ID conventions:** `ap-XXXX` is the APP ID (passed to `modal app logs`), `ta-XXXX` is the TASK ID (shown in error messages, NOT usable with `modal app logs`). To find the app for a recent dispatch: `modal app list | grep $(date +%Y-%m-%d)`. To override training GPU: `THESEUS_MODAL_GPU=B200` env var on the local shell before `modal run`; engine_worker, train_epignn_modal, train_hgcn_standalone, and train_spacetime all read it at module-import time.
+- **`run_pipeline` does NOT track phase completion across runs.** No idempotency cache. To resume after a crash, list every phase that succeeded in `--skip`. Phases with internal coverage checks (preflight, embed) self-skip even when not in --skip. Some phases self-skip on artifact existence; many do not.
+- **Phase 5 compute-curvature on Modal B200 takes ~21 min for 275K edges, ~$5.** Useful budget anchor.
+- **V7 unblocked the V6 architecture.** Stages 0, 3A, 3B, 3C (Stream A train-epignn), 3E canary 34/34 are complete. Stream A NPZs + Stream B SBERT + Stream C KGE all on S3 (see `docs/plans/gl-fusion-v7/` design doc for paths). Next: Stage 3D pre-alignment corpus generation, then Stages 4-6 (pre-align/SFT/DPO training).
+
+### Metacog 14B deployment state (v1, Stage 2 retrain pending)
+
+As of the first deploy attempt the infrastructure is live but Stage 2 SFT produced an undertrained model. The deployed worker is safe because every federation dispatch failure falls through to `DefaultPolicyProvider`.
+
+**Deployed**: `theseus-metacog-worker` Modal app, persistent container, Stage 2 checkpoint at `models/metacog-14b-hyp-gl-fusion/stage2/` (14 files, ~9 GB). Load pipeline works: tokenizer from checkpoint (151,683 tokens), embed_tokens + lm_head restored from adapter safetensors, DoRA merged.
+
+**Active policy provider**: `DefaultPolicyProvider` (setting default is safe). **DO NOT** set `FEDERATION_POLICY_PROVIDER=apps.federation.policy.Qwen14BPolicyProvider` until the retrain lands and smoke tests pass.
+
+**Known quality defect**: the Stage 2 model is in prompt-tail echo mode — it repeats whatever the last distinctive token of the prompt is (`}` or `Response` or whatever), regardless of task or decoding strategy. Infrastructure diagnostics are all clean; the model weights themselves are undertrained.
+
+**Root cause trifecta for Stage 2 v1**:
+1. `labels = input_ids.clone()` put full-sequence CE loss on prompt tokens, so the model learned to reproduce prompt structure instead of producing outputs
+2. `--per-task 1000` with most generators falling through to `_fallback` stubs (identical structure) gave the model almost nothing to learn from
+3. Effective `batch_size=1` cut training token-throughput by ~4x, starving the limited real signal even further
+
+**Retrain plan (Stage 2 v2)** — see ticketed todos on the training-side chat. In order:
+1. DataLoader with dynamic padding + length bucketing (fix batch=1)
+2. Prompt masking: `labels[:prompt_len] = -100` so loss is completion-only
+3. Sequence packing for short examples (F5 gossip @ ~100 tok, M* stubs @ 300-800 tok)
+4. Add completion-only perplexity eval at each checkpoint (raw CE loss is misleading; track prediction quality on the JSON output span only)
+5. Audit + regenerate training data: replace `_fallback` stub rows with real graph queries; target >90% non-stub rate
+6. Resume from Stage 1 checkpoint (`_warm_start_from_stage1` already wired)
+7. Expected 4-6 hours on single H100 with proper batching
+
+After retrain + smoke tests, flip `FEDERATION_POLICY_PROVIDER` to `Qwen14BPolicyProvider` via env var (no code change needed).

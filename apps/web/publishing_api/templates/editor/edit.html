@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if is_new %}New{% else %}Edit{% endif %} {{ content_type|title }}{% endblock %}
+
+{% block body_attrs %}{% if not is_new %}data-content-type="{{ content_type }}" data-slug="{{ object.slug }}"{% endif %}{% endblock %}
+
+{% block content %}
+{# ------------------------------------------------------------------ #}
+{#  Header bar: navigation, content type badge, stage, actions        #}
+{# ------------------------------------------------------------------ #}
+<c-toolbar back_url="{% url 'editor:dashboard' %}" content_type="{{ content_type|title }}" content_color="{{ content_color }}">
+  <c-slot name="left">
+    {% if not is_new and stage_choices %}
+    <c-stage_pipeline stages="{{ stage_choices }}" current="{{ current_stage }}" color="{{ content_color }}" />
+    {% endif %}
+  </c-slot>
+
+  {% if not is_new %}
+  <span class="font-mono text-[10px] uppercase tracking-wider text-ink-muted"
+        id="save-indicator"></span>
+  {% endif %}
+
+  <c-btn variant="primary" type="submit" form="content-form">
+    {% if is_new %}Create{% else %}Save{% endif %}
+  </c-btn>
+
+  {% if not is_new and publish_url %}
+  <c-btn variant="secondary" type="button"
+         title="Publish (Cmd+Shift+P)"
+         hx-post="{{ publish_url }}"
+         hx-target="#publish-toast"
+         hx-swap="none"
+         hx-on-htmx-after-request="handlePublishResponse(event)">
+    Publish
+  </c-btn>
+  {% endif %}
+</c-toolbar>
+
+{# ------------------------------------------------------------------ #}
+{#  Editor form: single column layout with dockable metadata panel    #}
+{#                                                                     #}
+{#  The <form> wraps everything so body/annotation, metadata fields,  #}
+{#  and hidden fields all submit together. Panel position is persisted #}
+{#  to localStorage via Alpine $persist.                              #}
+{# ------------------------------------------------------------------ #}
+<form method="post" id="content-form"
+      x-data="{
+        panelPos: $persist('collapsed').as('editor_panel_pos'),
+        panelH: $persist(340).as('editor_panel_h'),
+        panelW: $persist(380).as('editor_panel_w'),
+        dragging: false,
+        startDrag(axis) {
+          this.dragging = true;
+          const startY = event.clientY;
+          const startX = event.clientX;
+          const startH = this.panelH;
+          const startW = this.panelW;
+          const pos = this.panelPos;
+          const self = this;
+
+          document.body.style.userSelect = 'none';
+          document.body.style.cursor = pos === 'bottom' ? 'row-resize' : 'col-resize';
+
+          function onMove(e) {
+            if (pos === 'bottom') {
+              self.panelH = Math.max(200, Math.min(startH - (e.clientY - startY), window.innerHeight * 0.7));
+            } else {
+              self.panelW = Math.max(300, Math.min(startW - (e.clientX - startX), window.innerWidth * 0.5));
+            }
+          }
+          function onUp() {
+            self.dragging = false;
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+          }
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        }
+      }"
+      :class="{
+        'flex flex-col': panelPos === 'bottom' || panelPos === 'collapsed',
+        'flex flex-row': panelPos === 'right'
+      }"
+      class="{% if not form.body and not form.annotation %}max-w-2xl{% endif %}"
+>
+  {% csrf_token %}
+
+  {% if form.body or form.annotation %}
+  {# ================================================================ #}
+  {#  Writing + Research vertical stack                                #}
+  {# ================================================================ #}
+  <div class="flex flex-col flex-1 min-w-0 gap-2">
+
+  {# ================================================================ #}
+  {#  Writing area: split-pane editor + preview                       #}
+  {# ================================================================ #}
+  <section class="bg-cream rounded-brand-lg border border-border shadow-warm-sm overflow-clip flex flex-col flex-1 min-w-0"
+           x-data="{
+             mode: $persist('edit').as('editor_mode'),
+             previewHtml: '',
+             loading: false,
+             cycle() {
+               if (this.mode === 'edit') this.mode = 'split';
+               else if (this.mode === 'split') this.mode = 'preview';
+               else this.mode = 'edit';
+             }
+           }"
+           @keydown.window.prevent.cmd.e="cycle()"
+           @keydown.window.prevent.ctrl.e="cycle()"
+  >
+    {# Markdown toolbar + mode toggle #}
+    <div class="flex flex-wrap items-center gap-1 px-4 py-2 border-b border-border bg-cream/80"
+         id="editor-toolbar">
+      {# Formatting buttons (hidden in preview-only mode) #}
+      <template x-if="mode !== 'preview'">
+        <div class="flex flex-wrap items-center gap-1">
+          {% with tb_cls="inline-flex items-center justify-center w-8 h-8 rounded-brand text-ink-muted hover:text-ink hover:bg-black/5 cursor-pointer bg-transparent border-none transition-colors" %}
+          {# ── Inline formatting ── #}
+          <button type="button" class="{{ tb_cls }}" data-action="bold" title="Bold (Cmd+B)"><c-icon name="bold" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="italic" title="Italic (Cmd+I)"><c-icon name="italic" size="15" /></button>
+          <span class="w-px h-5 bg-border mx-1"></span>
+          {# ── Headings ── #}
+          <button type="button" class="{{ tb_cls }}" data-action="h2" title="Heading 2"><c-icon name="heading-2" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="h3" title="Heading 3"><c-icon name="heading-3" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="h4" title="Heading 4"><c-icon name="heading-4" size="15" /></button>
+          <span class="w-px h-5 bg-border mx-1"></span>
+          {# ── Block structures ── #}
+          <button type="button" class="{{ tb_cls }}" data-action="ul" title="Unordered list"><c-icon name="list-bullets" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="ol" title="Ordered list"><c-icon name="list-numbers" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="blockquote" title="Blockquote"><c-icon name="quotes" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="rule" title="Horizontal rule"><c-icon name="horizontal-rule" size="15" /></button>
+          <span class="w-px h-5 bg-border mx-1"></span>
+          {# ── Code and links ── #}
+          <button type="button" class="{{ tb_cls }}" data-action="code" title="Code"><c-icon name="code" size="15" /></button>
+          <button type="button" class="{{ tb_cls }}" data-action="link" title="Link (Cmd+K)"><c-icon name="link" size="15" /></button>
+          {% endwith %}
+        </div>
+      </template>
+
+      {# Spacer pushes mode toggle to the right #}
+      <span class="flex-1"></span>
+
+      {# Mode toggle: Edit | Split | Preview #}
+      <div class="flex items-center bg-black/5 rounded-brand overflow-hidden">
+        {% with mode_cls="px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider cursor-pointer border-none transition-colors" %}
+        <button type="button" class="{{ mode_cls }}"
+                :class="mode === 'edit' ? 'bg-cream text-ink shadow-warm-sm' : 'bg-transparent text-ink-muted hover:text-ink'"
+                @click="mode = 'edit'" title="Edit (Cmd+E)">Edit</button>
+        <button type="button" class="{{ mode_cls }}"
+                :class="mode === 'split' ? 'bg-cream text-ink shadow-warm-sm' : 'bg-transparent text-ink-muted hover:text-ink'"
+                @click="mode = 'split'" title="Split view">Split</button>
+        <button type="button" class="{{ mode_cls }}"
+                :class="mode === 'preview' ? 'bg-cream text-ink shadow-warm-sm' : 'bg-transparent text-ink-muted hover:text-ink'"
+                @click="mode = 'preview'" title="Preview">Preview</button>
+        {% endwith %}
+      </div>
+    </div>
+
+    {# Split-pane container #}
+    <div :class="mode === 'split' ? 'grid grid-cols-2' : ''" class="flex-1 min-h-0">
+      {# Textarea pane #}
+      <div x-show="mode !== 'preview'" x-cloak
+           :class="mode === 'split' ? 'border-r border-border-light' : ''">
+        <label for="editor-body" class="sr-only">
+          {% if form.body %}Body{% else %}Annotation{% endif %}
+        </label>
+        {% if form.body %}
+          {{ form.body }}
+        {% elif form.annotation %}
+          {{ form.annotation }}
+        {% endif %}
+      </div>
+
+      {# Preview pane #}
+      <div x-show="mode !== 'edit'" x-cloak
+           class="min-h-[400px]">
+        <div class="px-6 py-4">
+          <template x-if="loading && !previewHtml">
+            <p class="font-mono text-[11px] text-ink-muted tracking-wide">Rendering preview...</p>
+          </template>
+          <template x-if="!loading && !previewHtml">
+            <p class="font-mono text-[11px] text-ink-muted tracking-wide">
+              Start typing to see a live preview.
+            </p>
+          </template>
+          <div x-show="previewHtml"
+               x-html="previewHtml"
+               class="prose prose-parchment max-w-none font-body text-[17px] leading-relaxed"></div>
+        </div>
+      </div>
+    </div>
+  {# ================================================================ #}
+  {#  Research panel (docked at bottom of writing card)                #}
+  {# ================================================================ #}
+  {% if not is_new %}
+  {% include "editor/partials/research_panel.html" %}
+  {% endif %}
+  </section>
+
+  </div>{# end writing + research stack #}
+  {% endif %}
+
+  {# ================================================================ #}
+  {#  Drag handle: visible between writing area and metadata panel     #}
+  {# ================================================================ #}
+  {% if form.body or form.annotation %}
+  <div x-show="panelPos !== 'collapsed'" x-cloak
+       @mousedown.prevent="startDrag(panelPos === 'bottom' ? 'y' : 'x')"
+       :class="{
+         'h-2 cursor-row-resize flex items-center justify-center my-1': panelPos === 'bottom',
+         'w-2 cursor-col-resize flex items-center justify-center mx-1': panelPos === 'right'
+       }"
+       class="flex-shrink-0 group select-none">
+    {# Drag grip dots #}
+    <div :class="{
+           'w-8 h-[3px] rounded-full bg-border group-hover:bg-ink-muted transition-colors': panelPos === 'bottom',
+           'h-8 w-[3px] rounded-full bg-border group-hover:bg-ink-muted transition-colors': panelPos === 'right'
+         }"></div>
+  </div>
+  {% endif %}
+
+  {# ================================================================ #}
+  {#  Metadata panel: dockable (bottom / right / collapsed)           #}
+  {#                                                                   #}
+  {#  Contains all crispy form fields, hidden fields, errors, and     #}
+  {#  publish history. Uses x-show (not x-if) so fields stay in DOM   #}
+  {#  for autosave and form submission even when collapsed.            #}
+  {# ================================================================ #}
+  <div x-show="panelPos !== 'collapsed'" x-cloak
+       :style="{
+         height: panelPos === 'bottom' ? panelH + 'px' : 'auto',
+         width: panelPos === 'right' ? panelW + 'px' : 'auto',
+         minHeight: panelPos === 'bottom' ? '200px' : 'auto',
+         minWidth: panelPos === 'right' ? '300px' : 'auto'
+       }"
+       class="border border-border rounded-brand-lg bg-cream shadow-warm-sm overflow-hidden flex flex-col flex-shrink-0">
+
+    {# Panel header: title + dock position toggles #}
+    <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-parchment-alt/50">
+      <span class="font-mono text-[10px] uppercase tracking-widest font-bold text-ink-secondary">
+        Metadata
+      </span>
+      <div class="flex items-center gap-1">
+        {# Dock bottom #}
+        <button type="button"
+                @click="panelPos = 'bottom'"
+                :class="panelPos === 'bottom' ? 'text-ink' : 'text-ink-muted hover:text-ink'"
+                class="p-1 bg-transparent border-none cursor-pointer transition-colors"
+                title="Dock to bottom">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="12" height="12" rx="2" />
+            <line x1="2" y1="10" x2="14" y2="10" />
+          </svg>
+        </button>
+        {# Dock right #}
+        <button type="button"
+                @click="panelPos = 'right'"
+                :class="panelPos === 'right' ? 'text-ink' : 'text-ink-muted hover:text-ink'"
+                class="p-1 bg-transparent border-none cursor-pointer transition-colors"
+                title="Dock to right">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="12" height="12" rx="2" />
+            <line x1="10" y1="2" x2="10" y2="14" />
+          </svg>
+        </button>
+        {# Collapse #}
+        <button type="button"
+                @click="panelPos = 'collapsed'"
+                class="p-1 bg-transparent border-none cursor-pointer text-ink-muted hover:text-ink transition-colors"
+                title="Collapse panel">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="4" x2="12" y2="12" />
+            <line x1="12" y1="4" x2="4" y2="12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    {# Scrollable fields area #}
+    <div class="flex-1 overflow-y-auto p-4">
+      {# Crispy renders all Layout fields with studio template pack #}
+      {% crispy form %}
+
+      {# Hidden fields not in the crispy layout #}
+      {% for field in form.hidden_fields %}
+        {{ field }}
+      {% endfor %}
+
+      {# Non-field errors #}
+      {% if form.non_field_errors %}
+      <div class="mt-4 p-3 bg-error/5 border border-error/20 rounded-brand">
+        {% for error in form.non_field_errors %}
+        <p class="font-mono text-[11px] tracking-wide text-error leading-relaxed m-0">
+          {{ error }}
+        </p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# Publish history (collapsible panel) #}
+      {% if recent_publishes %}
+      <div class="mt-4">
+        <c-panel title="Publish History" open="false">
+          <ul class="list-none p-0 space-y-1.5">
+            {% for log in recent_publishes %}
+            <li class="flex items-center gap-2 font-mono text-[11px] tracking-wide">
+              <span class="text-ink-muted">{{ log.created_at|date:"M j, g:i A" }}</span>
+              {% if log.success %}
+                <c-badge color="success">OK</c-badge>
+              {% else %}
+                <c-badge color="error">FAILED</c-badge>
+              {% endif %}
+              {% if log.commit_url %}
+              <a href="{{ log.commit_url }}" target="_blank" rel="noopener"
+                 class="text-teal hover:text-teal-hover underline">
+                {{ log.commit_sha|truncatechars:7 }}
+              </a>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </c-panel>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ================================================================ #}
+  {#  Collapsed bar: thin toggle to reopen the metadata panel         #}
+  {# ================================================================ #}
+  {% if form.body or form.annotation %}
+  <div x-show="panelPos === 'collapsed'" x-cloak
+       class="mt-2">
+    <button type="button"
+            @click="panelPos = 'bottom'"
+            class="w-full flex items-center justify-center gap-2 py-1.5
+                   bg-cream/60 border border-border rounded-brand
+                   cursor-pointer hover:bg-cream transition-colors">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-ink-muted">
+        <polyline points="4,10 8,6 12,10" />
+      </svg>
+      <span class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">
+        Metadata
+      </span>
+    </button>
+  </div>
+  {% endif %}
+
+  {# ---- Fallback: no writing area, just form fields ---- #}
+  {% if not form.body and not form.annotation %}
+  <div>
+    {% crispy form %}
+    {% for field in form.hidden_fields %}
+      {{ field }}
+    {% endfor %}
+    {% if form.non_field_errors %}
+    <div class="mt-4 p-3 bg-error/5 border border-error/20 rounded-brand">
+      {% for error in form.non_field_errors %}
+      <p class="font-mono text-[11px] tracking-wide text-error leading-relaxed m-0">
+        {{ error }}
+      </p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</form>
+
+{# ------------------------------------------------------------------ #}
+{#  Delete section (separate form, outside main form)                 #}
+{# ------------------------------------------------------------------ #}
+{% if not is_new and delete_url %}
+<div class="mt-8 pt-6 border-t border-border">
+  <details class="group">
+    <summary class="font-mono text-[11px] uppercase tracking-wider text-ink-muted
+                    hover:text-error cursor-pointer transition-colors select-none">
+      Delete this {{ content_type|title }}
+    </summary>
+    <form method="post" action="{{ delete_url }}"
+          class="mt-4 p-4 bg-error/5 border border-error/20 rounded-brand">
+      {% csrf_token %}
+      <p class="font-body text-[14px] text-ink mb-3">
+        Type <strong class="font-semibold">{{ object.slug }}</strong> to confirm:
+      </p>
+      <input type="text" name="confirm_slug" autocomplete="off" required
+             class="w-full px-4 py-[10px] font-body text-[15px] text-ink bg-cream
+                    border border-border rounded-brand shadow-warm-sm outline-none
+                    transition-all duration-200 mb-3
+                    focus:border-error focus:shadow-[0_0_0_3px_rgba(164,74,58,0.12)]">
+      <c-btn variant="danger" type="submit">Permanently Delete</c-btn>
+    </form>
+  </details>
+</div>
+{% endif %}
+
+{# Toast container is in base.html (do not duplicate #publish-toast here) #}
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+{# D3.js v7 for the research panel graph (loaded only on edit pages with content) #}
+{% if not is_new %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="{% static 'js/research-graph.js' %}"></script>
+{% endif %}
+<script>
+/* ---- Auto-generate slug from title on new content ---- */
+{% if is_new %}
+(function() {
+  var titleEl = document.querySelector('[name="title"]');
+  var slugEl = document.querySelector('[name="slug"]');
+  if (!titleEl || !slugEl) return;
+  titleEl.addEventListener('input', function(e) {
+    if (!slugEl.dataset.manual) {
+      slugEl.value = e.target.value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+  });
+  slugEl.addEventListener('input', function() {
+    this.dataset.manual = 'true';
+  });
+})();
+{% endif %}
+
+/* ---- Hide stage/status fields when pipeline controls them ---- */
+{% if not is_new and stage_choices %}
+(function() {
+  ['id_stage', 'id_status'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      var wrapper = el.closest('.mb-5');
+      if (wrapper) wrapper.style.display = 'none';
+    }
+  });
+})();
+{% endif %}
+
+/* ---- Validate JSON fields before submit ---- */
+document.getElementById('content-form').addEventListener('submit', function(e) {
+  var jsonFields = document.querySelectorAll('[data-json-field]');
+  for (var i = 0; i < jsonFields.length; i++) {
+    var field = jsonFields[i];
+    var val = field.value.trim();
+    if (val && val !== '[]' && val !== '{}') {
+      try {
+        JSON.parse(val);
+      } catch (err) {
+        e.preventDefault();
+        var wrapper = field.closest('.mb-5');
+        if (wrapper) wrapper.classList.add('ring-2', 'ring-error/30', 'rounded-brand');
+        field.focus();
+        alert('Invalid JSON in "' + (field.name || 'field') + '": ' + err.message);
+        return;
+      }
+    }
+  }
+});
+
+/* Clear error highlight on JSON field input */
+document.querySelectorAll('[data-json-field]').forEach(function(field) {
+  field.addEventListener('input', function() {
+    var wrapper = this.closest('.mb-5');
+    if (wrapper) wrapper.classList.remove('ring-2', 'ring-error/30', 'rounded-brand');
+  });
+});
+
+/* ---- Composition widget: toggle fragments on heroStyle change ---- */
+document.querySelectorAll('[data-composition-toggle]').forEach(function(sel) {
+  sel.addEventListener('change', function() {
+    var wrapper = sel.closest('[id$="-wrapper"]');
+    if (!wrapper) return;
+    var section = wrapper.querySelector('[data-composition-section="collage"]');
+    if (!section) return;
+    section.style.display = sel.value === 'collage' ? '' : 'none';
+  });
+});
+
+/* ---- Toast builder (safe DOM construction) ---- */
+function buildToast(type, message, link) {
+  var toast = document.getElementById('publish-toast');
+  while (toast.firstChild) toast.removeChild(toast.firstChild);
+
+  var bg = type === 'success'
+    ? 'bg-cream border border-teal/30 shadow-warm-sm'
+    : 'bg-cream border border-error/30 shadow-warm-sm';
+  toast.className = 'fixed bottom-6 right-6 max-w-sm z-50 px-5 py-3 rounded-brand relative ' + bg;
+
+  var msgEl = document.createElement('p');
+  msgEl.className = 'font-mono text-[12px] tracking-wide leading-relaxed m-0 pr-6 '
+    + (type === 'success' ? 'text-teal' : 'text-error');
+  msgEl.appendChild(document.createTextNode(message));
+
+  if (link) {
+    var a = document.createElement('a');
+    a.href = link.href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'underline';
+    a.textContent = link.text;
+    msgEl.appendChild(a);
+  }
+
+  toast.appendChild(msgEl);
+
+  var dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'absolute top-2 right-2 text-ink-muted hover:text-ink '
+    + 'bg-transparent border-none cursor-pointer text-lg leading-none';
+  dismiss.textContent = '\u00D7';
+  dismiss.addEventListener('click', function() { toast.style.display = 'none'; });
+  toast.appendChild(dismiss);
+
+  toast.style.display = 'block';
+  setTimeout(function() { toast.style.display = 'none'; }, 8000);
+}
+
+/* ---- Handle publish HTMX response ---- */
+function handlePublishResponse(event) {
+  var xhr = event.detail.xhr;
+  var status = xhr ? xhr.status : 0;
+
+  try {
+    var data = JSON.parse(xhr.responseText);
+    if (data.success) {
+      buildToast('success', 'Published! Commit: ', {
+        href: data.commit_url,
+        text: data.commit_sha.substring(0, 7)
+      });
+    } else {
+      buildToast('error', 'Publish failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch(err) {
+    var msg = 'Publish failed: ';
+    if (status === 403) msg += 'CSRF or permission error (403)';
+    else if (status >= 500) msg += 'Server error (' + status + ')';
+    else if (status === 0) msg += 'Could not reach server';
+    else msg += 'Unexpected response (' + status + ')';
+    buildToast('error', msg);
+  }
+}
+
+/* ---- Live markdown preview (debounced fetch to /preview-markdown/) ---- */
+document.addEventListener('alpine:init', function() {
+  var textarea = document.getElementById('editor-body');
+  if (!textarea) return;
+
+  var timer = null;
+  var DEBOUNCE_MS = 500;
+  var previewUrl = '{% url "editor:preview-markdown" %}';
+  var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  /* Locate the Alpine component wrapping the writing area */
+  var section = textarea.closest('[x-data]');
+  if (!section) return;
+
+  function getAlpineData() {
+    if (section._x_dataStack && section._x_dataStack.length) {
+      return section._x_dataStack[0];
+    }
+    return null;
+  }
+
+  function fetchPreview() {
+    var data = getAlpineData();
+    if (!data) return;
+
+    /* Skip fetch if user is in edit-only mode */
+    if (data.mode === 'edit') return;
+
+    var raw = textarea.value;
+    if (!raw.trim()) {
+      data.previewHtml = '';
+      data.loading = false;
+      return;
+    }
+
+    data.loading = true;
+    fetch(previewUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ text: raw })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(json) {
+      data.previewHtml = json.html || '';
+      data.loading = false;
+    })
+    .catch(function() {
+      data.loading = false;
+    });
+  }
+
+  /* Debounce on textarea input */
+  textarea.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(fetchPreview, DEBOUNCE_MS);
+  });
+
+  /* Trigger preview when mode changes away from edit-only */
+  var lastMode = '';
+  var checkMode = setInterval(function() {
+    var data = getAlpineData();
+    if (!data) return;
+    if (data.mode !== lastMode) {
+      lastMode = data.mode;
+      if (data.mode !== 'edit' && textarea.value.trim()) {
+        fetchPreview();
+      }
+    }
+  }, 200);
+
+  window.addEventListener('beforeunload', function() {
+    clearInterval(checkMode);
+  });
+});
+</script>
+{% endblock %}
