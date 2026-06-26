@@ -56,11 +56,15 @@ export async function POST(req: Request) {
 
 function upstreamCandidates(): string[] {
   const configured = [
+    process.env.THEOREM_AGENT_ENDPOINT,
     process.env.THEOREM_AGENT_API_URL,
     process.env.THEOREM_AGENT_URL,
     process.env.THEOREM_PRODUCT_API_URL,
+    process.env.THEOREM_API_URL,
     process.env.RUSTYRED_AGENT_URL,
     process.env.NEXT_PUBLIC_THEOREM_AGENT_API_URL,
+    process.env.NEXT_PUBLIC_THEOREM_API_URL,
+    process.env.NEXT_PUBLIC_HARNESS_URL,
   ]
     .map(normalizeAgentEndpoint)
     .filter(nonNullable);
@@ -72,7 +76,14 @@ function upstreamCandidates(): string[] {
 }
 
 function upstreamHeaders(): HeadersInit {
-  const token = text(process.env.THEOREM_AGENT_API_BEARER ?? process.env.THEOREM_AGENT_BEARER ?? process.env.RUSTYRED_AGENT_BEARER ?? process.env.HARNESS_API_KEY);
+  const token = text(
+    process.env.THEOREM_AGENT_API_TOKEN ??
+      process.env.THEOREM_API_TOKEN ??
+      process.env.THEOREM_AGENT_API_BEARER ??
+      process.env.THEOREM_AGENT_BEARER ??
+      process.env.RUSTYRED_AGENT_BEARER ??
+      process.env.HARNESS_API_KEY,
+  );
   return token ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } : { 'Content-Type': 'application/json' };
 }
 
@@ -93,8 +104,16 @@ function normalizeAgentEndpoint(value: unknown): string | undefined {
   try {
     const url = new URL(raw);
     const pathname = trimSlash(url.pathname);
-    if (!pathname || pathname === '/graphql') {
+    if (!pathname) {
       url.pathname = AGENT_RUN_PATH;
+      url.search = '';
+      url.hash = '';
+      return url.toString();
+    }
+    if (pathname.endsWith(AGENT_RUN_PATH)) return trimSlash(url.toString());
+    const basePath = pathname.replace(/\/(?:graphql|mcp|api\/theorem\/agent)$/i, '');
+    if (basePath !== pathname) {
+      url.pathname = `${basePath}${AGENT_RUN_PATH}`.replace(/\/{2,}/g, '/');
       url.search = '';
       url.hash = '';
       return url.toString();
