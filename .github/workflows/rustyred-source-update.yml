@@ -1,0 +1,117 @@
+name: RustyRed source update
+
+on:
+  repository_dispatch:
+    types:
+      - rustyred-updated
+      - rustyred-main-updated
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: RustyRed source repository in owner/repo form.
+        default: Travis-Gilbert/RustyRed-Graph-Database
+        required: true
+      source_ref:
+        description: Branch or ref to resolve when source_sha is blank.
+        default: main
+        required: true
+      source_sha:
+        description: Exact RustyRed commit SHA to pin.
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-rustyred-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CommonPlace
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve update payload
+        id: payload
+        env:
+          EVENT_PATH: ${{ github.event_path }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require("node:fs");
+          const event = JSON.parse(fs.readFileSync(process.env.EVENT_PATH, "utf8"));
+          const payload = event.client_payload || {};
+          const inputs = event.inputs || {};
+          const repo = payload.repository || payload.source_repo || inputs.source_repo || "Travis-Gilbert/RustyRed-Graph-Database";
+          const ref = payload.ref || payload.source_ref || inputs.source_ref || "main";
+          const sha = payload.sha || payload.source_sha || inputs.source_sha || "";
+          const updatedAt = payload.updated_at || new Date().toISOString();
+          console.log(`repo=${repo}`);
+          console.log(`ref=${ref}`);
+          console.log(`sha=${sha}`);
+          console.log(`updated_at=${updatedAt}`);
+          console.log(`run_url=${process.env.RUN_URL}`);
+          NODE
+
+      - name: Update RustyRed source pin
+        run: |
+          args=(
+            --repo "${{ steps.payload.outputs.repo }}"
+            --ref "${{ steps.payload.outputs.ref }}"
+            --updatedAt "${{ steps.payload.outputs.updated_at }}"
+            --dispatchUrl "${{ steps.payload.outputs.run_url }}"
+          )
+          if [ -n "${{ steps.payload.outputs.sha }}" ]; then
+            args+=(--sha "${{ steps.payload.outputs.sha }}")
+          fi
+          node scripts/update-rustyred-source.mjs "${args[@]}"
+          npm run check
+
+      - name: Open update PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.payload.outputs.sha }}
+          SOURCE_REPO: ${{ steps.payload.outputs.repo }}
+          SOURCE_REF: ${{ steps.payload.outputs.ref }}
+        run: |
+          if git diff --quiet; then
+            echo "RustyRed source pin is already current."
+            exit 0
+          fi
+
+          resolved_sha="${SHA}"
+          if [ -z "$resolved_sha" ]; then
+            resolved_sha="$(node -e 'const source=require("./packages/rustyred-contracts/rustyred-source.json"); console.log(source.source.sha)')"
+          fi
+          short_sha="${resolved_sha:0:12}"
+          branch="automation/rustyred-${short_sha}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add packages/rustyred-contracts/rustyred-source.json
+          git commit -m "chore(rustyred): update source to ${short_sha}"
+          git push --force-with-lease origin "$branch"
+
+          body_file="$(mktemp)"
+          {
+            echo "Updates the CommonPlace RustyRed source pin."
+            echo
+            echo "- Source: ${SOURCE_REPO}@${resolved_sha}"
+            echo "- Ref: ${SOURCE_REF}"
+            echo "- Validation: \`npm run check\`"
+          } > "$body_file"
+
+          if gh pr view "$branch" --json url --jq .url >/dev/null 2>&1; then
+            gh pr edit "$branch" --title "chore(rustyred): update source to ${short_sha}" --body-file "$body_file"
+          else
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "chore(rustyred): update source to ${short_sha}" \
+              --body-file "$body_file"
+          fi

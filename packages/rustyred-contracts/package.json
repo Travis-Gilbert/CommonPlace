@@ -1,0 +1,15 @@
+{
+  "name": "@commonplace/rustyred-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CommonPlace-side pin and generated contract boundary for RustyRed.",
+  "exports": {
+    "./source": "./rustyred-source.json",
+    "./rustyred-source.json": "./rustyred-source.json"
+  },
+  "files": [
+    "rustyred-source.json",
+    "README.md"
+  ]
+}

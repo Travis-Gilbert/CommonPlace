@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repo": "Travis-Gilbert/RustyRed-Graph-Database",
+    "ref": "main",
+    "sha": "6a4555d7f6b98df73703e83468c1f15706d8d911",
+    "url": "https://github.com/Travis-Gilbert/RustyRed-Graph-Database/tree/6a4555d7f6b98df73703e83468c1f15706d8d911"
+  },
+  "updatedAt": "2026-06-26T14:02:14Z",
+  "notes": [
+    "This file is the CommonPlace-side source pin for RustyRed contracts.",
+    "GitHub Actions updates it from RustyRed repository_dispatch events and opens a PR.",
+    "Generated API clients and block/view contracts should be derived from this pin, not copied by hand."
+  ]
+}

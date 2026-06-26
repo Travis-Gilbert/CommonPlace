@@ -1,0 +1,16 @@
+{
+  "name": "@commonplace/root",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:rustyred": "node scripts/update-rustyred-source.mjs",
+    "check": "node scripts/update-rustyred-source.mjs --check"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
