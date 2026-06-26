@@ -7,19 +7,19 @@ license = "MIT"
 rust-version = "1.85"
 
 # Own Cargo root (bare [workspace]) so this can live inside the CommonPlace
-# product repo while still bridging to the current Theorem/RustyRed source of
-# truth. These paths expect the local product layout:
+# product repo while still bridging to current Theorem/RustyRed substrate crates.
+# These paths expect the local product layout:
 #
 #   Website/
 #     CommonPlace/
 #     Theorem/
 #
-# The deployable follow-up is to replace these sibling paths with published or
-# pinned git crates once the Theorem-internal crates are promoted.
+# The deployable follow-up is to replace remaining sibling substrate paths with
+# published or pinned git crates once the Theorem-internal crates are promoted.
 [workspace]
 
 [dependencies]
-commonplace = { path = "../../../Theorem/rustyredcore_THG/crates/commonplace" }
+commonplace = { path = "../../crates/commonplace" }
 rustyred-thg-core = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-core" }
 theorem-harness-core = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-core" }
 theorem-harness-runtime = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-runtime" }

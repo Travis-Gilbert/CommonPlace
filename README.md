@@ -15,6 +15,8 @@ contracts it consumes from RustyRed and Theorem.
 - `apps/commonplace-api/` is the backend GraphQL/MCP block contract moved into
   the product repo. It currently bridges to the sibling Theorem checkout for
   RustyRed and harness crates.
+- `crates/commonplace/` is the CommonPlace-owned graph-native object model,
+  ingest, organize, renderable object, and block/view contract crate.
 - `crates/commonplace-desktop-runtime/` is the native desktop runtime that
   starts the local RustyRed node, durable `commonplace-api`, and Theorem
   receiver loop behind the Tauri shell.
