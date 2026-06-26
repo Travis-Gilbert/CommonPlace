@@ -156,14 +156,20 @@ export function normalizeTheoremAgentInput(input: TheoremAgentRunInput): Theorem
 }
 
 function normalizeInput(input: TheoremAgentRunInput): TheoremAgentNormalizedInput {
-  const task = input.task.trim();
+  const task = typeof input.task === 'string' ? input.task.trim() : '';
   if (!task) throw new Error('Theorem agent requires a task.');
   return {
     task,
-    mode: input.mode ?? 'ask',
+    mode: input.mode === 'research' ? 'research' : 'ask',
     claims: normalizeClaims(input.claims ?? []),
-    bindingId: input.bindingId?.trim() || uniqueBindingId(),
-    tenant: input.tenant?.trim() || DEFAULT_TENANT,
+    bindingId:
+      typeof input.bindingId === 'string'
+        ? input.bindingId.trim() || uniqueBindingId()
+        : uniqueBindingId(),
+    tenant:
+      typeof input.tenant === 'string'
+        ? input.tenant.trim() || DEFAULT_TENANT
+        : DEFAULT_TENANT,
     requestTimeoutMs: clampNumber(input.requestTimeoutMs, DEFAULT_TIMEOUT_MS, 5_000, 120_000),
   };
 }
