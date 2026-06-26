@@ -22,11 +22,13 @@ Theorem should power that shell through explicit package and API boundaries.
 - `scripts/update-rustyred-source.mjs` for local and CI pin updates.
 - `.github/workflows/rustyred-source-update.yml` to receive RustyRed dispatches
   and open update PRs.
+- `crates/commonplace-browser-substrate`, a Servo-free product port of the
+  browser page capture seam. Theorem keeps its harness-native browser copy.
 
 ## Next migration targets
 
 1. Move the real `travisgilbert.me/commonplace` web app into `apps/web`.
 2. Generate TypeScript contracts in `packages/rustyred-contracts`.
 3. Move block/view contracts into a package consumed by `apps/web`.
-4. Port the product-facing browser seam into CommonPlace while leaving the
-   Theorem browser in place for harness skills and abilities.
+4. Add the RustyRed graph-store adapter behind the browser substrate seam once
+   shared RustyRed crates are published or vendored behind a clean boundary.

@@ -29,6 +29,11 @@ Suggested CommonPlace destination:
 crates/commonplace-browser-substrate/
 ```
 
+Status: done for the product-facing contract. CommonPlace now has
+`crates/commonplace-browser-substrate`, which preserves the loaded-page,
+affordance, page-graph-delta, receipt, and search/render seam without depending
+on Servo or Theorem-local path dependencies.
+
 This stage needs the RustyRed dependency boundary decided first: either git
 dependencies pinned through `packages/rustyred-contracts/rustyred-source.json`,
 or generated Rust contracts in a CommonPlace crate.
@@ -36,6 +41,10 @@ or generated Rust contracts in a CommonPlace crate.
 Keep the Theorem `apps/browser-substrate` copy unless and until the harness has a
 replacement dependency boundary. CommonPlace's port can periodically sync from
 Theorem or share a generated contract package.
+
+The direct RustyRed `GraphStore` write adapter is intentionally deferred until
+the shared RustyRed crates have a clean package boundary. The current
+CommonPlace crate emits deterministic graph deltas for that adapter to persist.
 
 ## Stage 2: wire desktop and capture surfaces
 

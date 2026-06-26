@@ -1,0 +1,9 @@
+[package]
+name = "commonplace-browser-substrate"
+version = "0.0.0"
+edition = "2021"
+description = "Servo-free browser page capture seam for CommonPlace. Ports the Theorem browser-substrate contract while keeping the harness-native browser in Theorem."
+license = "MIT"
+publish = false
+
+[dependencies]

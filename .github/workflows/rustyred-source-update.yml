@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Resolve update payload
         id: payload
         env:

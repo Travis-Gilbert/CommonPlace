@@ -1,0 +1,5 @@
+[workspace]
+members = [
+  "crates/commonplace-browser-substrate",
+]
+resolver = "2"

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "sync:rustyred": "node scripts/update-rustyred-source.mjs",
-    "check": "node scripts/update-rustyred-source.mjs --check"
+    "check": "node scripts/update-rustyred-source.mjs --check && cargo test --workspace",
+    "check:rust": "cargo test --workspace"
   },
   "workspaces": [
     "packages/*"

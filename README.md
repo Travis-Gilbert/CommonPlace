@@ -9,6 +9,8 @@ contracts it consumes from RustyRed and Theorem.
 ## Current foundation
 
 - `packages/rustyred-contracts/` records the pinned RustyRed source revision.
+- `crates/commonplace-browser-substrate/` ports the Servo-free browser page
+  capture seam for CommonPlace while Theorem keeps its harness browser.
 - `.github/workflows/rustyred-source-update.yml` receives RustyRed update
   dispatches and opens CommonPlace PRs.
 - `docs/rustyred-update-channel.md` documents the cross-repo automation.
@@ -19,6 +21,7 @@ contracts it consumes from RustyRed and Theorem.
 
 ```bash
 npm run check
+npm run check:rust
 npm run sync:rustyred -- --repo Travis-Gilbert/RustyRed-Graph-Database --ref main
 ```
 
