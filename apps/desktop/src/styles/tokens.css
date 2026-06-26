@@ -1,13 +1,13 @@
 /*
- * Theorem Desktop design tokens. Patent-paper ground: a warm paper field with
+ * CommonPlace Desktop design tokens. Patent-paper ground: a warm paper field with
  * hairline rules and a faint engineering grid. One accent does the work, the
  * oxblood "pencil" (annotation, grounding, primary action, focus). Agent and
  * ingestion are ochre. PCB green is gone. Light is the home; dark is a warm
  * toasted-paper variant, not a cool grey.
  *
- * Direction reference: docs/plans/theorem-desktop/design.md and the Theseus
+ * Direction reference: CommonPlace paper UI and the Theseus
  * Atlas iPhone exemplar (paper #f5ecd6, pencil #a8301e, rule #bcae90).
- * All accent/neutral hex below is contrast-checked; see design.md for the math.
+ * All accent/neutral hex below is contrast-checked.
  */
 
 :root {

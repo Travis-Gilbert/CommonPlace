@@ -1,0 +1,22 @@
+[package]
+name = "commonplace-desktop-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Native CommonPlace desktop runtime: local RustyRed node, CommonPlace API, receiver, browser commands, and provider seams."
+license = "MIT"
+rust-version = "1.85"
+
+[workspace]
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+theorem-receiver = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-receiver" }
+rustyred-thg-server = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-server" }
+commonplace-api = { path = "../../apps/commonplace-api" }
+tokio = { version = "1", features = ["sync"] }
+reqwest = { version = "0.12.22", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+keyring = "3"

@@ -22,17 +22,15 @@ site. Keeping product code in a separate preview shell made sidebar, route, and
 token drift likely. Moving the real app into this repo gives future CommonPlace
 work one launch point.
 
-## Deferred
+## Native Runtime
 
-The Tauri shell now builds from this repo and exposes the expected command names
-through a lightweight command shim. The full embedded native runtime is still a
-backend integration:
+The Tauri shell builds from this repo and delegates its native command layer to
+`crates/commonplace-desktop-runtime`. That runtime starts the embedded
+`rustyred-thg` local node, starts the durable `commonplace-api` loopback server,
+and wires the Theorem receiver dispatch loop back into the desktop commands.
 
-- embedded `rustyred-thg` local node
-- Theorem receiver dispatch loop
-- durable `commonplace-api` spawning from the shell
-
-`apps/commonplace-api` still depends on sibling Theorem crates via local paths.
-Those should become published crates, git-pinned crates, or CommonPlace-owned
-adapter crates before CI or remote desktop packaging treats the API as fully
-independent.
+`apps/commonplace-api` and `crates/commonplace-desktop-runtime` still depend on
+sibling Theorem crates via local paths. Those should become published crates,
+git-pinned crates, or CommonPlace-owned adapter crates before CI or remote
+desktop packaging treats the native runtime as fully independent of a local
+Theorem checkout.

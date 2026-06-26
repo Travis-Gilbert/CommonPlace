@@ -7,9 +7,13 @@ and at `../web/out` for packaged builds.
 
 The Vite/React files under `src/` are not the primary product surface anymore.
 Keep them only as a typed command-contract/reference harness for Tauri invoke
-commands while the CommonPlace panels live in the Next.js app. The current Rust
-command layer is a buildable shim; embedding the full RustyRed local node,
-Theorem receiver, and durable CommonPlace API runtime is the next backend pass.
+commands while the CommonPlace panels live in the Next.js app.
+
+The native command layer is implemented in
+`../../crates/commonplace-desktop-runtime`. It starts the local RustyRed node,
+starts the durable `commonplace-api` loopback server, and owns the Theorem
+receiver loop while the underlying Theorem/RustyRed crates are still sourced
+from the sibling Theorem checkout.
 
 ## Recommended IDE Setup
 
