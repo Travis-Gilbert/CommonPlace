@@ -11,7 +11,6 @@ import {
   History,
   Home,
   Inbox,
-  MessageSquare,
   MoreHorizontal,
   MousePointer2,
   Paperclip,
@@ -282,7 +281,6 @@ export default function CommonPlaceMobileApp() {
           <WorkspaceMenu
             activeSurface={surface}
             onSelectItem={handleMenuItem}
-            onOpenAgent={() => setChatOpen(true)}
           />
         )}
       </section>
@@ -509,9 +507,6 @@ function SettingsScreen({
   const [url, setUrl] = useState(
     instanceSettings.url || DEFAULT_LOCAL_COMMONPLACE_INSTANCE.url,
   );
-  const [apiKey, setApiKey] = useState(
-    instanceSettings.apiKey,
-  );
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(
     instanceSettings.mode === 'self-hosted'
@@ -523,7 +518,7 @@ function SettingsScreen({
     const next: CommonPlaceInstanceSettings = {
       mode: 'self-hosted',
       url: url.trim(),
-      apiKey: apiKey.trim(),
+      apiKey: '',
     };
     setBusy(true);
     setStatus('Checking local instance.');
@@ -542,7 +537,7 @@ function SettingsScreen({
     } finally {
       setBusy(false);
     }
-  }, [apiKey, onInstanceSettingsChange, url]);
+  }, [onInstanceSettingsChange, url]);
 
   const useCloudInstance = useCallback(() => {
     const next: CommonPlaceInstanceSettings = { mode: 'cloud', url: '', apiKey: '' };
@@ -605,22 +600,11 @@ function SettingsScreen({
                 inputMode="url"
               />
             </label>
-            <label className={styles.instanceLabel}>
-              <span>API key optional</span>
-              <input
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder={`${DEFAULT_LOCAL_COMMONPLACE_INSTANCE.apiKey} if blank`}
-                autoCapitalize="none"
-                autoComplete="off"
-                type="password"
-              />
-            </label>
           </div>
 
           <div className={styles.instanceActions}>
             <button type="button" onClick={useLocalInstance} disabled={busy || !url.trim()}>
-              {busy ? 'Checking' : 'Connect local'}
+              {busy ? 'Checking' : 'Connect URL'}
             </button>
             <button type="button" onClick={useCloudInstance} disabled={busy}>
               Use cloud
@@ -840,50 +824,43 @@ function DockButton({
 function WorkspaceMenu({
   activeSurface,
   onSelectItem,
-  onOpenAgent,
 }: {
   activeSurface: MobileSurface;
   onSelectItem: (item: MenuItem) => void;
-  onOpenAgent: () => void;
 }) {
   return (
-    <>
-      <aside className={styles.menuPanel} aria-label="CommonPlace navigation menu">
-        <header className={styles.menuHeader}>
-          <span className={styles.menuWorkspace}>
-            Travis gilbert
-            <ChevronUp size={17} strokeWidth={2.4} aria-hidden="true" />
-          </span>
-          <button type="button" className={styles.textButton} aria-label="Workspace controls">
-            <SlidersHorizontal size={24} strokeWidth={2.2} />
-          </button>
-        </header>
+    <aside className={styles.menuPanel} aria-label="CommonPlace navigation menu">
+      <header className={styles.menuHeader}>
+        <span className={styles.menuWorkspace}>
+          Travis gilbert
+          <ChevronUp size={17} strokeWidth={2.4} aria-hidden="true" />
+        </span>
+        <button type="button" className={styles.textButton} aria-label="Workspace controls">
+          <SlidersHorizontal size={24} strokeWidth={2.2} />
+        </button>
+      </header>
 
-        <div className={styles.menuList}>
-          {MENU_ITEMS.map((item) => {
-            const isActive =
-              (item.surface && item.surface === activeSurface) ||
-              (item.key === 'favorites' && activeSurface === 'favorites');
-            return (
-              <button
-                key={item.key}
-                type="button"
-                className={styles.menuItem}
-                data-active={isActive ? 'true' : 'false'}
-                onClick={() => onSelectItem(item)}
-              >
-                <MenuIcon item={item} />
-                <span>{item.label}</span>
-                {item.count && <span className={styles.menuCount}>{item.count}</span>}
-              </button>
-            );
-          })}
-        </div>
-      </aside>
-      <button type="button" className={styles.menuAgentButton} onClick={onOpenAgent} aria-label="Open Theorem agent">
-        <MessageSquare size={34} strokeWidth={2.3} />
-      </button>
-    </>
+      <div className={styles.menuList}>
+        {MENU_ITEMS.map((item) => {
+          const isActive =
+            (item.surface && item.surface === activeSurface) ||
+            (item.key === 'favorites' && activeSurface === 'favorites');
+          return (
+            <button
+              key={item.key}
+              type="button"
+              className={styles.menuItem}
+              data-active={isActive ? 'true' : 'false'}
+              onClick={() => onSelectItem(item)}
+            >
+              <MenuIcon item={item} />
+              <span>{item.label}</span>
+              {item.count && <span className={styles.menuCount}>{item.count}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </aside>
   );
 }
 

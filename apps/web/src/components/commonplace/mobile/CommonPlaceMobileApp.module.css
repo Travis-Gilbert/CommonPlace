@@ -121,8 +121,7 @@
 
 .avatarButton,
 .roundIconButton,
-.circleAction,
-.menuAgentButton {
+.circleAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -738,12 +737,12 @@ button.browseItem {
 .bottomDock {
   position: fixed;
   right: 24px;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   left: 24px;
   z-index: 30;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 60px;
+  gap: 12px;
   pointer-events: none;
 }
 
@@ -751,9 +750,9 @@ button.browseItem {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   min-width: 0;
-  height: 72px;
+  height: 60px;
   border: 1px solid var(--cp-plane-border-strong);
-  border-radius: 36px;
+  border-radius: 30px;
   background: rgba(24, 24, 27, 0.88);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(18px);
@@ -767,20 +766,20 @@ button.browseItem {
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 32px;
+  border-radius: 26px;
   background: transparent;
   color: #d7d7dc;
   cursor: pointer;
 }
 
 .dockButton svg {
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
 }
 
 .dockFileIcon {
-  width: 28px;
-  height: 28px;
+  width: 25px;
+  height: 25px;
 }
 
 .dockButton[data-active='true'] {
@@ -790,7 +789,7 @@ button.browseItem {
 
 .dockBadge {
   position: absolute;
-  top: 15px;
+  top: 12px;
   right: calc(50% - 14px);
   width: 11px;
   height: 11px;
@@ -800,8 +799,8 @@ button.browseItem {
 }
 
 .circleAction {
-  width: 72px;
-  height: 72px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: rgba(16, 16, 18, 0.86);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.3);
@@ -810,14 +809,14 @@ button.browseItem {
 }
 
 .circleAction svg {
-  width: 30px;
-  height: 30px;
+  width: 27px;
+  height: 27px;
 }
 
 .menuPanel {
   position: fixed;
-  right: 108px;
-  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  right: 96px;
+  bottom: calc(82px + env(safe-area-inset-bottom, 0px));
   left: 42px;
   z-index: 35;
   display: grid;
@@ -893,18 +892,6 @@ button.browseItem {
   color: white;
   font-size: 17px;
   font-weight: 700;
-}
-
-.menuAgentButton {
-  position: fixed;
-  right: 24px;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-  z-index: 36;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: rgba(25, 25, 27, 0.9);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.3);
 }
 
 .chatOverlay {
@@ -1161,23 +1148,21 @@ button.browseItem {
   }
 
   .bottomDock {
-    grid-template-columns: minmax(0, 1fr) 64px;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 10px;
   }
 
   .dockPill,
-  .circleAction,
-  .menuAgentButton {
-    height: 64px;
+  .circleAction {
+    height: 56px;
   }
 
-  .circleAction,
-  .menuAgentButton {
-    width: 64px;
+  .circleAction {
+    width: 56px;
   }
 
   .menuPanel {
-    right: 84px;
+    right: 28px;
     left: 28px;
   }
 }
