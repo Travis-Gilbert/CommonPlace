@@ -89,6 +89,32 @@ cloud mobile URL should be the public domain for the dedicated
 `commonplace-api` Railway service, where `GET /healthz` returns `ok` and
 `/graphql` serves GraphQL.
 
+## Mobile app shell and Capacitor
+
+`/commonplace/mobile` is the deterministic mobile entrypoint. It always renders
+the Plane-style CommonPlace mobile shell, while `/commonplace` can still respond
+to viewport size. The CommonPlace PWA manifest starts at `/commonplace/mobile`
+so installing from mobile does not fall back to the older Daily layout.
+
+The first native wrapper lives in `apps/web/ios` and is driven by Capacitor:
+
+```bash
+cd apps/web
+npm run build:desktop
+npm run cap:sync:ios
+npm run cap:open:ios
+```
+
+For local iOS WebView testing against a running dev server, set
+`CAPACITOR_SERVER_URL`, for example:
+
+```bash
+CAPACITOR_SERVER_URL=http://localhost:3040 npm run cap:sync:ios
+```
+
+Leave `CAPACITOR_SERVER_URL` unset for a bundled build; Capacitor will use the
+static export in `out`.
+
 ## Auth0 and tenant linking
 
 Auth0 should authenticate humans; CommonPlace should still decide tenancy and

@@ -2,7 +2,7 @@
   "name": "CommonPlace",
   "short_name": "CommonPlace",
   "description": "A local-first knowledge workbench for capture, reading, and graph-native memory.",
-  "start_url": "/commonplace",
+  "start_url": "/commonplace/mobile",
   "scope": "/commonplace/",
   "display": "standalone",
   "background_color": "#FBF0E2",
