@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "install:railway": "npm ci --legacy-peer-deps --workspaces=false",
-    "prebuild": "npx tsx scripts/fetch-changelog.ts",
+    "prebuild": "tsx scripts/fetch-changelog.ts",
     "build": "next build",
-    "build:railway": "npm run prebuild && RAILWAY_STANDALONE=1 next build && npm run postbuild && node scripts/prepare-railway-standalone.mjs",
+    "build:railway": "tsx scripts/fetch-changelog.ts && RAILWAY_STANDALONE=1 next build && pagefind && node scripts/prepare-railway-standalone.mjs",
     "build:desktop": "node scripts/desktop-export.mjs",
     "a11y:commonplace": "node scripts/a11y-commonplace-contrast.mjs",
     "cap": "cap",
@@ -20,7 +20,7 @@
     "start:railway": "node .next/standalone/server.js",
     "lint": "eslint src scripts next.config.ts",
     "export-icons": "node scripts/export-icons.mjs",
-    "postbuild": "npx pagefind",
+    "postbuild": "pagefind",
     "test": "vitest run",
     "test:watch": "vitest"
   },
