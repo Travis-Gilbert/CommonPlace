@@ -1,13 +1,16 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const serverCandidates = [
-  '.next/standalone/server.js',
-  '.next/standalone/apps/web/server.js',
+  resolve(appDir, '.next/standalone/server.js'),
+  resolve(appDir, '.next/standalone/apps/web/server.js'),
 ];
 
-const serverPath = serverCandidates.map((candidate) => resolve(candidate)).find(existsSync);
+const serverPath = serverCandidates.find(existsSync);
 
 if (!serverPath) {
   console.error(

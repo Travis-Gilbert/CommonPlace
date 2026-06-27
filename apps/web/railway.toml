@@ -21,7 +21,7 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = "npm run start:railway"
+startCommand = "node apps/web/scripts/start-railway.mjs"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

@@ -157,15 +157,18 @@ npm run dev   # http://localhost:3040/commonplace in the current local setup
    but the config also tolerates Railway executing from the repository root. It
    runs `npm run build:railway`, which enables Next standalone output and copies
    `public` plus `.next/static` into the standalone server bundle, then starts
-   with `npm run start:railway`. The root package scripts delegate those commands
-   to `apps/web`; the app package exposes the same command names for an app-root
-   service. Pin the service build variables to `RAILPACK_NODE_VERSION=22` and
-   `RAILPACK_INSTALL_CMD=true`; the root `build:railway` script runs the app
-   install before invoking the app build. Keep build CLIs such as `tsx` and
-   `pagefind` declared in `apps/web/package.json`; Railway's clean builder will
-   not have locally cached binaries. The Railway start script forces Next's
-   standalone server to bind `0.0.0.0`; otherwise container-provided `HOSTNAME`
-   values can keep the process unreachable by Railway healthchecks.
+   with `node apps/web/scripts/start-railway.mjs`. The root package scripts
+   delegate build commands to `apps/web`; the app package exposes the same
+   command names for an app-root service. Pin the service build variables to
+   `RAILPACK_NODE_VERSION=22` and `RAILPACK_INSTALL_CMD=true`; the root
+   `build:railway` script runs the app install before invoking the app build.
+   The root `railpack.json` forces Railpack's provider to `node`, so the runtime
+   image contains the Node binary needed by the direct start command. Keep build
+   CLIs such as `tsx` and `pagefind` declared in `apps/web/package.json`;
+   Railway's clean builder will not have locally cached binaries. The Railway
+   start script forces Next's standalone server to bind `0.0.0.0`; otherwise
+   container-provided `HOSTNAME` values can keep the process unreachable by
+   Railway healthchecks.
 3. **Frontend on Vercel:** still a reasonable fallback while proving Railway.
    The main drawback to leaving Vercel is losing Vercel-managed Next.js platform
    conveniences such as image optimization, CDN/function integration, and Vercel
