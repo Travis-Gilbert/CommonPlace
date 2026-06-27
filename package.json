@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "sync:rustyred": "node scripts/update-rustyred-source.mjs",
+    "install:railway": "npm --prefix apps/web ci --legacy-peer-deps --workspaces=false",
+    "build:railway": "npm --prefix apps/web run build:railway",
+    "start:railway": "npm --prefix apps/web run start:railway",
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "web:build:desktop": "npm --prefix apps/web run build:desktop",
