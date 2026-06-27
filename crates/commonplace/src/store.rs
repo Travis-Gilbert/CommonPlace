@@ -56,6 +56,36 @@ pub const DEPENDS_ON_EDGE: &str = "DEPENDS_ON";
 pub const ABOUT_EDGE: &str = "ABOUT";
 /// Edge: a delegated task points at the agent-run node working it (Task -> Run).
 pub const WORKED_BY_EDGE: &str = "WORKED_BY";
+/// Edge: a PM object is scoped to a project (Item|Collection -> Project).
+pub const IN_PROJECT_EDGE: &str = "IN_PROJECT";
+/// Edge: a work item has exactly one current workflow state (Task -> State).
+pub const HAS_STATE_EDGE: &str = "HAS_STATE";
+/// Edge: a work item belongs to a cycle (Task -> Cycle).
+pub const IN_CYCLE_EDGE: &str = "IN_CYCLE";
+/// Edge: a work item belongs to a module (Task -> Module).
+pub const IN_MODULE_EDGE: &str = "IN_MODULE";
+/// Edge: a work item advances a milestone (Task -> Milestone).
+pub const TOWARD_MILESTONE_EDGE: &str = "TOWARD_MILESTONE";
+/// Edge: a child item belongs to an epic (Task -> Epic).
+pub const PART_OF_EPIC_EDGE: &str = "PART_OF_EPIC";
+/// Edge: a work item blocks another work item (Task -> Task).
+pub const BLOCKS_EDGE: &str = "BLOCKS";
+/// Edge: a work item is a duplicate of another work item (Task -> Task).
+pub const DUPLICATE_OF_EDGE: &str = "DUPLICATE_OF";
+/// Edge: a work item is related to another work item without stronger semantics.
+pub const RELATES_TO_EDGE: &str = "RELATES_TO";
+/// Edge: a work item points at an external link item.
+pub const LINKS_TO_EDGE: &str = "LINKS_TO";
+/// Edge: a comment item annotates an item.
+pub const COMMENT_ON_EDGE: &str = "COMMENT_ON";
+/// Edge: a file item is attached to another item.
+pub const ATTACHED_TO_EDGE: &str = "ATTACHED_TO";
+/// Edge: a worklog item records time against a task.
+pub const LOGGED_ON_EDGE: &str = "LOGGED_ON";
+/// Edge: a member belongs to a project/workspace collection.
+pub const MEMBER_OF_EDGE: &str = "MEMBER_OF";
+/// Edge: a higher-level collection contains a project.
+pub const CONTAINS_PROJECT_EDGE: &str = "CONTAINS_PROJECT";
 /// Property holding a collection's label embedding (centroid / name embedding).
 pub const LABEL_EMBEDDING_PROPERTY: &str = "label_embedding";
 /// Property holding an item's or entity's embedding vector.
@@ -242,18 +272,23 @@ where
         name: impl Into<String>,
         kind: CollectionKind,
     ) -> GraphStoreResult<Collection> {
-        let collection = Collection {
-            id: new_id("coll"),
-            name: name.into(),
-            kind,
-            created_at_ms: now_ms(),
-        };
-        let props = json!({
-            "name": collection.name,
-            "kind": collection.kind.as_str(),
-            "created_at_ms": collection.created_at_ms,
-        });
-        let record = NodeRecord::new(collection.id.clone(), [COLLECTION_LABEL], props);
+        self.put_collection(Collection::new(name, kind))
+    }
+
+    /// Write a collection with metadata. Used by PM constructs where a
+    /// collection has project identifiers, timeboxes, colors, or feature flags.
+    pub fn put_collection(&mut self, mut collection: Collection) -> GraphStoreResult<Collection> {
+        if collection.id.trim().is_empty() {
+            collection.id = new_id("coll");
+        }
+        if collection.created_at_ms == 0 {
+            collection.created_at_ms = now_ms();
+        }
+        let record = NodeRecord::new(
+            collection.id.clone(),
+            [COLLECTION_LABEL],
+            collection_props(&collection)?,
+        );
         self.store.upsert_node(record)?;
         Ok(collection)
     }
@@ -264,18 +299,7 @@ where
             Some(node) if node.labels.iter().any(|label| label == COLLECTION_LABEL) => node,
             _ => return Ok(None),
         };
-        Ok(Some(Collection {
-            id: node.id.clone(),
-            name: prop_str(&node.properties, "name").unwrap_or_default(),
-            kind: prop_str(&node.properties, "kind")
-                .map(CollectionKind::from)
-                .unwrap_or_default(),
-            created_at_ms: node
-                .properties
-                .get("created_at_ms")
-                .and_then(Value::as_i64)
-                .unwrap_or(0),
-        }))
+        self.hydrate_collection(node).map(Some)
     }
 
     /// Add an item to a collection (idempotent).
@@ -334,6 +358,381 @@ where
             }
         }
         Ok(items)
+    }
+
+    /// All collections of a given kind.
+    pub fn collections_by_kind(&self, kind: CollectionKind) -> GraphStoreResult<Vec<Collection>> {
+        let nodes = self.store.query_nodes(
+            NodeQuery::label(COLLECTION_LABEL)
+                .with_property("kind", json!(kind.as_str()))
+                .with_limit(usize::MAX),
+        );
+        nodes
+            .iter()
+            .map(|node| self.hydrate_collection(node))
+            .collect()
+    }
+
+    // ---- Plane-parity PM primitives ---------------------------------------
+
+    /// Create a first-class project collection. The identifier is the human
+    /// work-item prefix (`CP`, `API`, `PROJ`) used to mint sequence ids.
+    pub fn create_project(
+        &mut self,
+        name: impl Into<String>,
+        identifier: impl Into<String>,
+    ) -> GraphStoreResult<Collection> {
+        let mut collection = Collection::new(name, CollectionKind::Project)
+            .with_identifier(identifier)
+            .with_feature_flag("states", true)
+            .with_feature_flag("cycles", true)
+            .with_feature_flag("modules", true)
+            .with_feature_flag("worklogs", true);
+        collection.sort_order = Some(now_ms());
+        self.put_collection(collection)
+    }
+
+    /// All project collections.
+    pub fn projects(&self) -> GraphStoreResult<Vec<Collection>> {
+        self.collections_by_kind(CollectionKind::Project)
+    }
+
+    /// Create a workflow state scoped to a project.
+    pub fn create_state(
+        &mut self,
+        project_id: &str,
+        name: impl Into<String>,
+        group: impl Into<String>,
+        sort_order: i64,
+    ) -> GraphStoreResult<Item> {
+        let name = name.into();
+        let group = group.into();
+        let state = Item::new(ItemKind::State, name)
+            .with_extra("group", json!(group))
+            .with_extra("sort_order", json!(sort_order))
+            .with_extra("project_id", json!(project_id));
+        let state = self.put_item(state)?;
+        self.upsert_link_with_props(
+            IN_PROJECT_EDGE,
+            &state.id,
+            project_id,
+            json!({ "scope": "workflow_state" }),
+        )?;
+        Ok(state)
+    }
+
+    /// Workflow states for a project, ordered by their declared sort order.
+    pub fn project_states(&self, project_id: &str) -> GraphStoreResult<Vec<Item>> {
+        let mut states: Vec<Item> = self
+            .items_for(NeighborQuery::in_(project_id).with_edge_type(IN_PROJECT_EDGE))?
+            .into_iter()
+            .filter(|item| item.kind == ItemKind::State)
+            .collect();
+        states.sort_by_key(|item| extra_i64(item, "sort_order").unwrap_or(0));
+        Ok(states)
+    }
+
+    /// Assign a task's current workflow state. The edge id is stable per task so
+    /// a new assignment replaces the prior current-state target.
+    pub fn set_task_state(&mut self, task_id: &str, state_id: &str) -> GraphStoreResult<()> {
+        let state = self.get_item(state_id)?;
+        if let Some(mut task) = self.get_item(task_id)? {
+            task.status = state.as_ref().map(|state| state.title.clone());
+            self.put_item(task)?;
+        }
+        let edge = EdgeRecord::new(
+            format!("has_state:{task_id}"),
+            task_id,
+            HAS_STATE_EDGE,
+            state_id,
+            json!({}),
+        );
+        self.store.upsert_edge(edge)?;
+        Ok(())
+    }
+
+    /// Current workflow state for a task, if assigned.
+    pub fn task_state(&self, task_id: &str) -> GraphStoreResult<Option<Item>> {
+        let hit = self
+            .store
+            .neighbors(NeighborQuery::out(task_id).with_edge_type(HAS_STATE_EDGE))
+            .into_iter()
+            .next();
+        match hit {
+            Some(hit) => self.get_item(&hit.node_id),
+            None => Ok(None),
+        }
+    }
+
+    /// Scope a work item to a project. This writes the PM-specific edge and the
+    /// generic collection membership edge so legacy collection views continue
+    /// to work.
+    pub fn add_to_project(&mut self, item_id: &str, project_id: &str) -> GraphStoreResult<()> {
+        self.add_to_collection(item_id, project_id)?;
+        self.upsert_link(IN_PROJECT_EDGE, item_id, project_id)
+    }
+
+    /// Work items owned by a project.
+    pub fn project_work_items(&self, project_id: &str) -> GraphStoreResult<Vec<Item>> {
+        let mut items: Vec<Item> = self
+            .items_for(NeighborQuery::in_(project_id).with_edge_type(IN_PROJECT_EDGE))?
+            .into_iter()
+            .filter(|item| matches!(item.kind, ItemKind::Task | ItemKind::Epic))
+            .collect();
+        items.sort_by_key(|item| std::cmp::Reverse(item.updated_at_ms));
+        Ok(items)
+    }
+
+    /// Create a cycle scoped to a project.
+    pub fn create_cycle(
+        &mut self,
+        project_id: &str,
+        name: impl Into<String>,
+        start_at_ms: i64,
+        end_at_ms: i64,
+    ) -> GraphStoreResult<Collection> {
+        let cycle = self.put_collection(
+            Collection::new(name, CollectionKind::Cycle).with_timebox(start_at_ms, end_at_ms),
+        )?;
+        self.upsert_link_with_props(
+            IN_PROJECT_EDGE,
+            &cycle.id,
+            project_id,
+            json!({ "scope": "cycle" }),
+        )?;
+        Ok(cycle)
+    }
+
+    /// Cycles scoped to a project.
+    pub fn project_cycles(&self, project_id: &str) -> GraphStoreResult<Vec<Collection>> {
+        self.collections_for(NeighborQuery::in_(project_id).with_edge_type(IN_PROJECT_EDGE))
+            .map(|mut collections| {
+                collections.retain(|collection| collection.kind == CollectionKind::Cycle);
+                collections.sort_by_key(|collection| collection.start_at_ms.unwrap_or(0));
+                collections
+            })
+    }
+
+    /// Add a work item to a cycle.
+    pub fn add_to_cycle(&mut self, item_id: &str, cycle_id: &str) -> GraphStoreResult<()> {
+        self.add_to_collection(item_id, cycle_id)?;
+        self.upsert_link(IN_CYCLE_EDGE, item_id, cycle_id)
+    }
+
+    /// Create a module scoped to a project.
+    pub fn create_module(
+        &mut self,
+        project_id: &str,
+        name: impl Into<String>,
+    ) -> GraphStoreResult<Collection> {
+        let module = self.put_collection(Collection::new(name, CollectionKind::Module))?;
+        self.upsert_link_with_props(
+            IN_PROJECT_EDGE,
+            &module.id,
+            project_id,
+            json!({ "scope": "module" }),
+        )?;
+        Ok(module)
+    }
+
+    /// Modules scoped to a project.
+    pub fn project_modules(&self, project_id: &str) -> GraphStoreResult<Vec<Collection>> {
+        self.collections_for(NeighborQuery::in_(project_id).with_edge_type(IN_PROJECT_EDGE))
+            .map(|mut collections| {
+                collections.retain(|collection| collection.kind == CollectionKind::Module);
+                collections.sort_by(|a, b| a.name.cmp(&b.name));
+                collections
+            })
+    }
+
+    /// Add a work item to a module.
+    pub fn add_to_module(&mut self, item_id: &str, module_id: &str) -> GraphStoreResult<()> {
+        self.add_to_collection(item_id, module_id)?;
+        self.upsert_link(IN_MODULE_EDGE, item_id, module_id)
+    }
+
+    /// Add Plane-style relation semantics between work items.
+    pub fn link_work_items(
+        &mut self,
+        from_item_id: &str,
+        to_item_id: &str,
+        relation: &str,
+    ) -> GraphStoreResult<()> {
+        let edge_type = match relation.trim().to_ascii_lowercase().as_str() {
+            "blocks" | "blocked_by" | "blocked-by" => BLOCKS_EDGE,
+            "duplicate" | "duplicate_of" | "duplicate-of" => DUPLICATE_OF_EDGE,
+            "depends" | "depends_on" | "depends-on" => DEPENDS_ON_EDGE,
+            _ => RELATES_TO_EDGE,
+        };
+        self.upsert_link(edge_type, from_item_id, to_item_id)
+    }
+
+    /// Attach an external URL to a work item as a graph-native `Link` item.
+    pub fn link_work_item_url(
+        &mut self,
+        item_id: &str,
+        title: impl Into<String>,
+        url: impl Into<String>,
+    ) -> GraphStoreResult<Item> {
+        let url = url.into();
+        let link = Item::new(ItemKind::Link, title).with_source(url.clone());
+        let link = self.put_item(link)?;
+        self.upsert_link_with_props(LINKS_TO_EDGE, item_id, &link.id, json!({ "url": url }))?;
+        Ok(link)
+    }
+
+    /// Create an item comment.
+    pub fn create_comment(
+        &mut self,
+        item_id: &str,
+        author_id: Option<String>,
+        body: impl Into<String>,
+    ) -> GraphStoreResult<Item> {
+        let body = body.into();
+        let mut comment = Item::new(ItemKind::Comment, "Comment")
+            .with_text(body)
+            .with_extra("target_id", json!(item_id));
+        if let Some(author_id) = author_id {
+            comment = comment.with_extra("author_id", json!(author_id));
+        }
+        let comment = self.put_item(comment)?;
+        self.upsert_link(COMMENT_ON_EDGE, &comment.id, item_id)?;
+        Ok(comment)
+    }
+
+    /// Comments on an item, newest first.
+    pub fn comments_for(&self, item_id: &str) -> GraphStoreResult<Vec<Item>> {
+        let mut comments =
+            self.items_for(NeighborQuery::in_(item_id).with_edge_type(COMMENT_ON_EDGE))?;
+        comments.sort_by_key(|item| std::cmp::Reverse(item.created_at_ms));
+        Ok(comments)
+    }
+
+    /// Attach a file/blob item to another item.
+    pub fn attach_item(&mut self, item_id: &str, file_item_id: &str) -> GraphStoreResult<()> {
+        self.upsert_link(ATTACHED_TO_EDGE, file_item_id, item_id)
+    }
+
+    /// Create a worklog entry for a task.
+    pub fn log_work(
+        &mut self,
+        task_id: &str,
+        duration_ms: i64,
+        logged_by: Option<String>,
+        description: Option<String>,
+    ) -> GraphStoreResult<Item> {
+        let mut worklog = Item::new(ItemKind::Worklog, "Worklog")
+            .with_extra("duration_ms", json!(duration_ms.max(0)))
+            .with_extra("logged_at_ms", json!(now_ms()))
+            .with_extra("task_id", json!(task_id));
+        if let Some(logged_by) = logged_by {
+            worklog = worklog.with_extra("logged_by", json!(logged_by));
+        }
+        if let Some(description) = description {
+            worklog = worklog
+                .with_text(description.clone())
+                .with_extra("description", json!(description));
+        }
+        let worklog = self.put_item(worklog)?;
+        self.upsert_link(LOGGED_ON_EDGE, &worklog.id, task_id)?;
+        Ok(worklog)
+    }
+
+    /// Worklogs for a task, newest first.
+    pub fn worklogs_for(&self, task_id: &str) -> GraphStoreResult<Vec<Item>> {
+        let mut worklogs =
+            self.items_for(NeighborQuery::in_(task_id).with_edge_type(LOGGED_ON_EDGE))?;
+        worklogs.sort_by_key(|item| {
+            std::cmp::Reverse(extra_i64(item, "logged_at_ms").unwrap_or(item.created_at_ms))
+        });
+        Ok(worklogs)
+    }
+
+    /// Total logged work for a task, in milliseconds.
+    pub fn total_worklog_duration_ms(&self, task_id: &str) -> GraphStoreResult<i64> {
+        Ok(self
+            .worklogs_for(task_id)?
+            .iter()
+            .filter_map(|worklog| extra_i64(worklog, "duration_ms"))
+            .sum())
+    }
+
+    /// Create a Plane-style sticky note.
+    pub fn create_sticky(
+        &mut self,
+        owner_id: Option<String>,
+        title: impl Into<String>,
+        description: impl Into<String>,
+        color: Option<String>,
+        background_color: Option<String>,
+        sort_order: Option<i64>,
+    ) -> GraphStoreResult<Item> {
+        let mut sticky = Item::sticky(title, description);
+        if let Some(owner_id) = owner_id {
+            sticky = sticky.with_extra("owner_id", json!(owner_id));
+        }
+        if let Some(color) = color {
+            sticky = sticky.with_extra("color", json!(color));
+        }
+        if let Some(background_color) = background_color {
+            sticky = sticky.with_extra("background_color", json!(background_color));
+        }
+        if let Some(sort_order) = sort_order {
+            sticky = sticky.with_extra("sort_order", json!(sort_order));
+        }
+        self.put_item(sticky)
+    }
+
+    /// Scope an existing tag as a project label, carrying color on the scope
+    /// edge so tag identity remains unified.
+    pub fn scope_label_to_project(
+        &mut self,
+        project_id: &str,
+        name: &str,
+        color: Option<String>,
+    ) -> GraphStoreResult<Tag> {
+        let id = tag_id(name);
+        let clean = name.trim().to_string();
+        let record = NodeRecord::new(id.clone(), [TAG_LABEL], json!({ "name": clean }));
+        self.store.upsert_node(record)?;
+        self.upsert_link_with_props(
+            IN_PROJECT_EDGE,
+            &id,
+            project_id,
+            json!({ "scope": "label", "color": color }),
+        )?;
+        Ok(Tag { id, name: clean })
+    }
+
+    /// Project-scoped labels with their edge color, if any.
+    pub fn project_labels(&self, project_id: &str) -> GraphStoreResult<Vec<(Tag, Option<String>)>> {
+        let hits = self
+            .store
+            .neighbors(NeighborQuery::in_(project_id).with_edge_type(IN_PROJECT_EDGE));
+        let mut labels = Vec::new();
+        for hit in hits {
+            let Some(node) = self.store.get_node(&hit.node_id) else {
+                continue;
+            };
+            if !node.labels.iter().any(|label| label == TAG_LABEL) {
+                continue;
+            }
+            let color = self
+                .store
+                .get_edge(&hit.edge_id)
+                .and_then(|edge| edge.properties.get("color"))
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            labels.push((
+                Tag {
+                    id: node.id.clone(),
+                    name: prop_str(&node.properties, "name").unwrap_or_default(),
+                },
+                color,
+            ));
+        }
+        labels.sort_by(|a, b| a.0.name.cmp(&b.0.name));
+        Ok(labels)
     }
 
     // ---- Tags --------------------------------------------------------------
@@ -443,12 +842,22 @@ where
     // ---- internals ---------------------------------------------------------
 
     fn upsert_link(&mut self, edge_type: &str, from: &str, to: &str) -> GraphStoreResult<()> {
+        self.upsert_link_with_props(edge_type, from, to, json!({}))
+    }
+
+    fn upsert_link_with_props(
+        &mut self,
+        edge_type: &str,
+        from: &str,
+        to: &str,
+        properties: Value,
+    ) -> GraphStoreResult<()> {
         let edge = EdgeRecord::new(
             format!("{}:{from}:{to}", edge_type.to_ascii_lowercase()),
             from,
             edge_type,
             to,
-            json!({}),
+            properties,
         );
         self.store.upsert_edge(edge)?;
         Ok(())
@@ -468,6 +877,22 @@ where
             }
         }
         Ok(items)
+    }
+
+    fn collections_for(&self, query: NeighborQuery) -> GraphStoreResult<Vec<Collection>> {
+        let ids: Vec<String> = self
+            .store
+            .neighbors(query)
+            .into_iter()
+            .map(|hit| hit.node_id)
+            .collect();
+        let mut collections = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(collection) = self.get_collection(&id)? {
+                collections.push(collection);
+            }
+        }
+        Ok(collections)
     }
 
     fn write_tag_projection(&mut self, item_id: &str, name: &str) -> GraphStoreResult<Tag> {
@@ -506,6 +931,16 @@ where
         item.collections = self.read_member_collections(&node.id);
         Ok(item)
     }
+
+    pub(crate) fn hydrate_collection(&self, node: &NodeRecord) -> GraphStoreResult<Collection> {
+        let mut props = node.properties.clone();
+        if let Some(object) = props.as_object_mut() {
+            object.insert("id".to_string(), json!(node.id));
+        }
+        let mut collection: Collection = serde_json::from_value(props).map_err(serde_err)?;
+        collection.id = node.id.clone();
+        Ok(collection)
+    }
 }
 
 fn item_props(item: &Item) -> GraphStoreResult<Value> {
@@ -525,6 +960,18 @@ fn item_props(item: &Item) -> GraphStoreResult<Value> {
         }
     }
     Ok(value)
+}
+
+fn collection_props(collection: &Collection) -> GraphStoreResult<Value> {
+    let mut value = serde_json::to_value(collection).map_err(serde_err)?;
+    if let Some(object) = value.as_object_mut() {
+        object.remove("id");
+    }
+    Ok(value)
+}
+
+fn extra_i64(item: &Item, key: &str) -> Option<i64> {
+    item.extra.get(key).and_then(Value::as_i64)
 }
 
 fn prop_str(properties: &Value, key: &str) -> Option<String> {

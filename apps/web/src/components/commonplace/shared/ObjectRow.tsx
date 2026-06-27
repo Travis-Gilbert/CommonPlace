@@ -99,7 +99,7 @@ export default function ObjectRow({
           <span style={{
             fontFamily: 'var(--cp-font-mono)',
             fontSize: 9,
-            color: 'rgba(45, 95, 107, 0.5)',
+            color: 'var(--cp-teal)',
           }}>
             {edgeCount} conn.
           </span>
@@ -108,7 +108,7 @@ export default function ObjectRow({
           <span style={{
             fontFamily: 'var(--cp-font-mono)',
             fontSize: 9,
-            color: 'rgba(26, 24, 22, 0.25)',
+            color: 'var(--cp-text-faint)',
           }}>
             {dateStr}
           </span>
@@ -172,7 +172,7 @@ function TypeMark({ typeSlug, title }: { typeSlug: string; title: string }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--cp-font-body)',
         fontSize: 10, fontWeight: 600,
-        color: '#8A2E29',
+        color: '#A65324',
         flexShrink: 0,
       }}>
         {initial}
@@ -191,7 +191,7 @@ function TypeMark({ typeSlug, title }: { typeSlug: string; title: string }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--cp-font-title)',
         fontSize: 11, fontStyle: 'italic',
-        color: 'rgba(196, 154, 74, 0.6)',
+        color: 'var(--cp-red)',
         flexShrink: 0,
       }}>
         ?
@@ -219,7 +219,7 @@ function TypeMark({ typeSlug, title }: { typeSlug: string; title: string }) {
       }}>
         <div style={{
           width: 3, height: 28, borderRadius: 1,
-          background: '#8A2E29',
+          background: '#A65324',
           flexShrink: 0,
         }} />
         <span style={{

@@ -16,16 +16,16 @@
   --cp-chrome-muted: #88868E;
   --cp-chrome-dim: #807E86;
 
-  /* Sidebar: cool slate */
-  --cp-sidebar: #151517;
-  --cp-sidebar-surface: rgba(255, 255, 255, 0.025);
-  --cp-sidebar-surface-hover: rgba(255, 255, 255, 0.05);
-  --cp-sidebar-text: #E8E6EC;
-  --cp-sidebar-text-muted: #9A98A0;
-  --cp-sidebar-text-faint: #7A7880;
-  --cp-sidebar-border: rgba(255, 255, 255, 0.05);
-  --cp-sidebar-border-strong: rgba(255, 255, 255, 0.08);
-  --cp-sidebar-edge: rgba(255, 255, 255, 0.05);
+  /* Sidebar: selected graphite surface. */
+  --cp-sidebar: #383532;
+  --cp-sidebar-surface: rgba(225, 224, 218, 0.045);
+  --cp-sidebar-surface-hover: rgba(225, 224, 218, 0.075);
+  --cp-sidebar-text: #E1E0DA;
+  --cp-sidebar-text-muted: #BDB7AF;
+  --cp-sidebar-text-faint: #978F87;
+  --cp-sidebar-border: rgba(225, 224, 218, 0.08);
+  --cp-sidebar-border-strong: rgba(225, 224, 218, 0.13);
+  --cp-sidebar-edge: rgba(225, 224, 218, 0.10);
 
   /* Content surfaces (cooler neutral) */
   --cp-bg: #1a1a1d;
@@ -39,16 +39,19 @@
   --cp-text-muted: #BDBBC0;
   --cp-text-faint: #96949A;
 
-  /* Accent: oxblood pencil */
-  --cp-oxblood: #8A2E29;
-  --cp-oxblood-rgb: 138, 46, 41;
-  --cp-oxblood-light: #8A2E29;
-  --cp-oxblood-light-rgb: 138, 46, 41;
-  --cp-red: var(--cp-oxblood);
-  --cp-red-rgb: var(--cp-oxblood-rgb);
+  /* Accent: burnt-orange pencil */
+  --cp-burnt-orange: #A65324;
+  --cp-burnt-orange-rgb: 166, 83, 36;
+  --cp-burnt-orange-light: #A75A2A;
+  --cp-oxblood: var(--cp-burnt-orange);
+  --cp-oxblood-rgb: var(--cp-burnt-orange-rgb);
+  --cp-oxblood-light: var(--cp-burnt-orange-light);
+  --cp-oxblood-light-rgb: var(--cp-burnt-orange-rgb);
+  --cp-red: var(--cp-burnt-orange);
+  --cp-red-rgb: var(--cp-burnt-orange-rgb);
   --cp-red-soft: #2A171D;
-  --cp-red-line: rgba(138, 46, 41, 0.28);
-  --cp-red-glow: rgba(138, 46, 41, 0.18);
+  --cp-red-line: rgba(166, 83, 36, 0.28);
+  --cp-red-glow: rgba(166, 83, 36, 0.18);
   --cp-accent: var(--cp-red);
 
   --cp-terracotta: var(--cp-red);
@@ -90,7 +93,7 @@
   --cp-term-elevated: #1c1c1e;
   --cp-term-hover: #212123;
   --cp-term-border: rgba(255, 255, 255, 0.05);
-  --cp-term-border-hover: rgba(138, 46, 41, 0.18);
+  --cp-term-border-hover: rgba(166, 83, 36, 0.18);
   --cp-term-text: #EDE8E2;
   --cp-term-text-secondary: #B5AEA8;
   --cp-term-muted: #8A847E;
@@ -114,11 +117,13 @@
   /* Construction grid */
   --cp-grid-color: rgba(255, 255, 255, 0.012);
 
-  /* Typography (unchanged) */
+  /* Typography: IBM Plex Sans UI with JetBrains Mono for code/data marks. */
   --cp-font-title: var(--font-vollkorn), Georgia, serif;
   --cp-font-body: var(--font-ibm-plex), 'IBM Plex Sans', system-ui, sans-serif;
   --cp-font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
   --cp-font-code: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  --cp-ui-font-size: 14.5px;
+  --cp-ui-line-height: 1.45;
 
   /* Font feature settings */
   --cp-kern-title: 'kern' 1, 'liga' 1, 'calt' 1, 'onum' 1;
@@ -171,7 +176,7 @@
   --cp-focus-ring: var(--cp-red);
   --cp-focus-ring-offset: 2px;
   --cp-focus-ring-width: 2px;
-  --cp-focus-ring-sidebar: rgba(138, 46, 41, 0.55);
+  --cp-focus-ring-sidebar: rgba(225, 224, 218, 0.62);
 
   /* Timing tokens */
   --cp-transition-fast: 100ms;
@@ -191,7 +196,7 @@
   /* Search bar */
   --cp-search-bg: rgba(255,255,255,0.015);
   --cp-search-border: var(--cp-border-faint);
-  --cp-search-focus-border: rgba(138, 46, 41, 0.3);
+  --cp-search-focus-border: rgba(166, 83, 36, 0.3);
   --cp-search-placeholder: var(--cp-text-faint);
 
   /* Ask Theseus */
@@ -203,11 +208,14 @@
   --cp-ask-negative: #C0504D;
   --cp-ask-negative-bg: rgba(192, 80, 77, 0.08);
   --cp-ask-save: var(--cp-terra, var(--cp-red));
-  --cp-ask-save-bg: rgba(138, 46, 41, 0.10);
+  --cp-ask-save-bg: rgba(166, 83, 36, 0.10);
 
   /* State tokens */
   --cp-disabled-opacity: 0.35;
 
+  font-family: var(--cp-font-body);
+  font-size: var(--cp-ui-font-size);
+  line-height: var(--cp-ui-line-height);
   font-feature-settings: var(--cp-kern-body);
   font-kerning: normal;
 }

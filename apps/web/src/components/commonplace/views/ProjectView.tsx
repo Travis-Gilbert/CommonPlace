@@ -16,10 +16,12 @@ import { fetchProjectBySlug, useApiData } from '@/lib/commonplace-api';
 import { useLayout } from '@/lib/providers/layout-provider';
 import ViewSubTabs from '../panes/ViewSubTabs';
 import ObjectListPanel from './ObjectListPanel';
+import ProjectPagesView from './ProjectPagesView';
 import ScopedTimelinePanel from './ScopedTimelinePanel';
 
 const TABS = [
   { key: 'objects', label: 'Objects' },
+  { key: 'pages', label: 'Pages' },
   { key: 'timeline', label: 'Timeline' },
 ];
 
@@ -142,6 +144,9 @@ export default function ProjectView({ slug, onOpenObject }: ProjectViewProps) {
             objects={project.objects}
             onOpenObject={onOpenObject}
           />
+        )}
+        {activeTab === 'pages' && (
+          <ProjectPagesView projectId={slug} />
         )}
         {activeTab === 'timeline' && (
           <ScopedTimelinePanel

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { ViewType, ScreenType } from '@/lib/commonplace';
 import type { PaneNode } from '@/lib/commonplace-layout';
@@ -63,12 +63,18 @@ const LayoutContext = createContext<LayoutContextValue>({
 });
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
-  const [layout, setLayoutRaw] = useState<PaneNode>(
-    () => loadPersistedLayout() ?? LAYOUT_PRESETS[0].tree,
-  );
+  const [layout, setLayoutRaw] = useState<PaneNode>(LAYOUT_PRESETS[0].tree);
   const [focusedPaneId, setFocusedPaneId] = useState<string | null>(null);
   const [fullscreenPaneId, setFullscreenPaneId] = useState<string | null>(null);
   const [activeScreen, setActiveScreen] = useState<ScreenType | null>('daily');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const persisted = loadPersistedLayout();
+      if (persisted) setLayoutRaw(persisted);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const setLayout = useCallback(
     (updater: PaneNode | ((prev: PaneNode) => PaneNode)) => {

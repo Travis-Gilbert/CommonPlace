@@ -1,4 +1,5 @@
 import { callTheoremAgentEndpoint, normalizeTheoremAgentInput, normalizeTheoremAgentProductResponse, type TheoremAgentRunInput } from '@/lib/theorem-agent';
+import { runDirectProviderHead } from './direct-provider';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,34 @@ export async function POST(req: Request) {
   const errors: string[] = [];
   let timedOut = false;
 
-  for (const upstream of upstreamCandidates()) {
+  for (const upstream of upstreamCandidates('configured')) {
+    try {
+      const raw = await callTheoremAgentEndpoint(upstream, input, upstreamHeaders());
+      return json(normalizeTheoremAgentProductResponse(raw, input), 200);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.toLowerCase().includes('timed out')) timedOut = true;
+      errors.push(`${upstream}: ${message}`);
+    }
+  }
+
+  const direct = await runDirectProviderHead(input);
+  if (direct.result) {
+    return json(direct.result, 200);
+  }
+  errors.push(...direct.attempts);
+  if (direct.configured) {
+    return json(
+      {
+        error: 'theorem_agent_provider_failed',
+        message: `Theorem direct provider head failed. ${attemptSummary(errors)}`,
+        attempts: errors,
+      },
+      502,
+    );
+  }
+
+  for (const upstream of upstreamCandidates('defaults')) {
     try {
       const raw = await callTheoremAgentEndpoint(upstream, input, upstreamHeaders());
       return json(normalizeTheoremAgentProductResponse(raw, input), 200);
@@ -54,7 +82,7 @@ export async function POST(req: Request) {
   );
 }
 
-function upstreamCandidates(): string[] {
+function upstreamCandidates(kind: 'configured' | 'defaults'): string[] {
   const configured = [
     process.env.THEOREM_AGENT_ENDPOINT,
     process.env.THEOREM_AGENT_API_URL,
@@ -68,11 +96,13 @@ function upstreamCandidates(): string[] {
   ]
     .map(normalizeAgentEndpoint)
     .filter(nonNullable);
+  if (kind === 'configured') return unique(configured);
+
   const defaults =
     process.env.NODE_ENV === 'development'
       ? [LOCAL_AGENT_URL, HOSTED_AGENT_URL]
       : [HOSTED_AGENT_URL];
-  return unique([...configured, ...defaults]);
+  return unique(defaults);
 }
 
 function upstreamHeaders(): HeadersInit {

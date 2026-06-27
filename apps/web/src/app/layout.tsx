@@ -75,13 +75,15 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={fontVariableClasses} data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        {/* Theme detection runs before paint. Content is a hardcoded string with no user input. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       {/* Built with curiosity and too much coffee. */}
       <body
         className="min-h-screen flex flex-col overflow-x-clip"
         style={{ isolation: 'isolate' }}
       >
-        {/* Theme detection runs before paint. Content is a hardcoded string with no user input. */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ThemeProvider>
           <OwnerProvider isOwner={isOwner}>
             {children}

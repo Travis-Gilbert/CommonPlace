@@ -205,9 +205,10 @@ export function FileTree({ data, className, label = 'explorer', variant = 'card'
 }
 
 /* ─────────────────────────────────────────────────
-   Build a folder tree from items' auto-structured paths (used by the full-pane
-   FilesView). Folders come from path segments; the last segment is the item's
-   own slug, so the leaf shows the item title and carries its id for selection.
+   Build a folder tree from items' auto-structured paths (used by compact file
+   surfaces such as the sidebar Files drawer). Folders come from path segments;
+   the last segment is the item's own slug, so the leaf shows the item title and
+   carries its id for selection.
    ───────────────────────────────────────────────── */
 
 export interface TreeItem {

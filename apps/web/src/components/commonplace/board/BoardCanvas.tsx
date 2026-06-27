@@ -91,9 +91,9 @@ function PlacedCard({
   const isHunch = item.object.object_type_slug === 'hunch';
   const isConcept = item.object.object_type_slug === 'concept';
 
-  /* Connect target: pulsing oxblood glow */
+  /* Connect target: pulsing burnt-orange glow */
   const connectShadow = isConnectTarget
-    ? '0 0 0 2px #8A2E29, 0 0 12px 2px rgba(var(--cp-red-rgb), 0.35)'
+    ? '0 0 0 2px #A65324, 0 0 12px 2px rgba(var(--cp-red-rgb), 0.35)'
     : undefined;
 
   return (
@@ -129,7 +129,7 @@ function PlacedCard({
           padding: '10px 12px',
           borderRadius: isConcept ? 16 : isHunch ? 3 : 6,
           backgroundColor: isConnectTarget
-            ? `color-mix(in srgb, #8A2E29 12%, transparent)`
+            ? `color-mix(in srgb, #A65324 12%, transparent)`
             : `color-mix(in srgb, ${typeIdentity.color} ${isSelected ? 10 : 6}%, transparent)`,
           border: `1px solid ${
             isConnectTarget
@@ -154,7 +154,7 @@ function PlacedCard({
               fontSize: 8,
               fontWeight: 600,
               letterSpacing: '0.06em',
-              color: '#8A2E29',
+              color: '#A65324',
               textTransform: 'uppercase',
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
@@ -261,7 +261,7 @@ function ConnectionLines({ connections, items, hoveredId, onHover }: ConnectionL
         const y2 = to.y + (to.height ?? 160) / 2;
 
         const isEngine = conn.source === 'engine';
-        const color = isEngine ? '#2D5F6B' : '#8A2E29';
+        const color = isEngine ? '#2D5F6B' : '#A65324';
         const isHovered = hoveredId === conn.id;
         const opacity = isHovered ? 0.7 : conn.confirmed ? 0.4 : 0.25;
         const strokeDash = conn.confirmed ? undefined : '4 4';
@@ -365,7 +365,7 @@ function PendingConnectionLine({
     >
       <path
         d={`M ${x1} ${y1} Q ${cpx} ${cpy} ${x2} ${y2}`}
-        stroke="#8A2E29"
+        stroke="#A65324"
         strokeWidth={1.5}
         strokeDasharray="6 4"
         strokeOpacity={0.55}
@@ -404,7 +404,7 @@ function BoardEmptyState() {
           justifyContent: 'center',
           margin: '0 auto 16px',
           fontSize: 28,
-          color: 'rgba(45, 95, 107, 0.3)',
+          color: 'var(--cp-teal)',
         }}
       >
         +
@@ -413,7 +413,7 @@ function BoardEmptyState() {
         style={{
           fontFamily: 'var(--font-metadata)',
           fontSize: 12,
-          color: 'rgba(42, 36, 32, 0.35)',
+          color: 'var(--cp-text-faint)',
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
         }}
@@ -457,9 +457,11 @@ export default function BoardCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const [isPanningActive, setIsPanningActive] = useState(false);
 
   const [dragId, setDragId] = useState<string | null>(null);
   const dragStart = useRef<{ x: number; y: number; itemX: number; itemY: number } | null>(null);
+  const [dragOrigin, setDragOrigin] = useState<{ itemX: number; itemY: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
 
@@ -488,6 +490,7 @@ export default function BoardCanvas({
     (e: React.MouseEvent) => {
       if (e.button === 1) {
         isPanning.current = true;
+        setIsPanningActive(true);
         panStart.current = {
           x: e.clientX,
           y: e.clientY,
@@ -521,6 +524,7 @@ export default function BoardCanvas({
         itemX: item.x,
         itemY: item.y,
       };
+      setDragOrigin({ itemX: item.x, itemY: item.y });
     },
     [selectedItems, selectSingle, toggleSelectItem],
   );
@@ -588,9 +592,11 @@ export default function BoardCanvas({
       }
 
       isPanning.current = false;
+      setIsPanningActive(false);
       setDragId(null);
       setConnectTargetId(null);
       dragStart.current = null;
+      setDragOrigin(null);
     };
 
     document.addEventListener('mousemove', handleMove);
@@ -678,7 +684,7 @@ export default function BoardCanvas({
         height: '100%',
         overflow: 'hidden',
         backgroundColor: '#F5E6D2',
-        cursor: isPanning.current ? 'grabbing' : 'default',
+        cursor: isPanningActive ? 'grabbing' : 'default',
       }}
       onWheel={handleWheel}
       onMouseDown={handleCanvasMouseDown}
@@ -703,7 +709,7 @@ export default function BoardCanvas({
         }}
       />
 
-      {/* Oxblood ambient glow */}
+      {/* Burnt-orange ambient glow */}
       <div
         style={{
           position: 'absolute',
@@ -750,10 +756,10 @@ export default function BoardCanvas({
           />
         ))}
 
-        {draggedItem && dragStart.current && (
+        {draggedItem && dragOrigin && (
           <DragGhost
-            x={dragStart.current.itemX}
-            y={dragStart.current.itemY}
+            x={dragOrigin.itemX}
+            y={dragOrigin.itemY}
             width={draggedItem.width}
             height={draggedItem.height ?? 160}
             typeColor={getObjectTypeIdentity(draggedItem.object.object_type_slug).color}

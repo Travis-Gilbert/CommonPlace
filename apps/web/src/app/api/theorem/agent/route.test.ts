@@ -18,6 +18,22 @@ const AGENT_ENV = [
   'THEOREM_AGENT_BEARER',
   'RUSTYRED_AGENT_BEARER',
   'HARNESS_API_KEY',
+  'THEOREM_AGENT_HEADS',
+  'THEOREM_AGENT_HEAD_DEEPSEEK_PROVIDER',
+  'THEOREM_AGENT_HEAD_DEEPSEEK_MODEL',
+  'THEOREM_AGENT_HEAD_DEEPSEEK_CREDENTIAL_REF',
+  'DEEPSEEK_API_KEY',
+  'DEEPSEEK_CHAT_URL',
+  'DEEPSEEK_BASE_URL',
+  'DEEPSEEK_MODEL',
+  'MISTRAL_API_KEY',
+  'MISTRAL_CHAT_URL',
+  'MISTRAL_BASE_URL',
+  'MISTRAL_MODEL',
+  'MINIMAX_API_KEY',
+  'MINIMAX_CHAT_URL',
+  'MINIMAX_BASE_URL',
+  'MINIMAX_MODEL',
 ] as const;
 
 describe('POST /api/theorem/agent', () => {
@@ -150,6 +166,93 @@ describe('POST /api/theorem/agent', () => {
       message,
     });
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('can answer directly from DeepSeek when only DEEPSEEK_API_KEY is configured', async () => {
+    const calls: Array<{ url: string; body: unknown; authorization?: string | null }> = [];
+    process.env.DEEPSEEK_API_KEY = 'deepseek-test-token';
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      calls.push({
+        url: String(input),
+        body: JSON.parse(String(init?.body)),
+        authorization: headers.get('authorization'),
+      });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'DeepSeek is live from CommonPlace.' } }],
+          usage: { prompt_tokens: 12, completion_tokens: 8 },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }) as typeof fetch;
+
+    const response = await POST(
+      new Request('http://localhost/api/theorem/agent', {
+        method: 'POST',
+        body: JSON.stringify({
+          task: 'Say hello from DeepSeek.',
+          tenant: 'Travis-Gilbert',
+          bindingId: 'agent:theorem',
+        }),
+      }),
+    );
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(response.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('https://api.deepseek.com/chat/completions');
+    expect(calls[0].authorization).toBe('Bearer deepseek-test-token');
+    expect(calls[0].body).toMatchObject({
+      model: 'deepseek-v4-pro',
+      stream: false,
+    });
+    expect(body).toMatchObject({
+      answer: 'DeepSeek is live from CommonPlace.',
+      answerKind: 'MODEL',
+      bindingId: 'agent:theorem',
+      heads: ['deepseek'],
+    });
+  });
+
+  it('skips explicit heads without keys and uses the first configured provider key', async () => {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    process.env.THEOREM_AGENT_HEADS = 'mistral,deepseek';
+    process.env.DEEPSEEK_API_KEY = 'deepseek-test-token';
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({
+        url: String(input),
+        body: JSON.parse(String(init?.body)),
+      });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'DeepSeek handled the explicit head list.' } }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }) as typeof fetch;
+
+    const response = await POST(
+      new Request('http://localhost/api/theorem/agent', {
+        method: 'POST',
+        body: JSON.stringify({
+          task: 'Use whichever configured head can run.',
+          tenant: 'Travis-Gilbert',
+        }),
+      }),
+    );
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(response.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('https://api.deepseek.com/chat/completions');
+    expect(body).toMatchObject({
+      answer: 'DeepSeek handled the explicit head list.',
+      heads: ['deepseek'],
+    });
   });
 });
 

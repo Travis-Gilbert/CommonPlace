@@ -35,7 +35,7 @@ export interface ObjectTypeIdentity {
 export const OBJECT_TYPES: ObjectTypeIdentity[] = [
   { slug: 'note', label: 'Note', plural: 'Notes', color: '#F5F0E8', icon: 'note-pencil' },
   { slug: 'source', label: 'Source', plural: 'Sources', color: '#2D5F6B', icon: 'book-open' },
-  { slug: 'person', label: 'Person', plural: 'People', color: '#8A2E29', icon: 'person' },
+  { slug: 'person', label: 'Person', plural: 'People', color: '#A65324', icon: 'person' },
   { slug: 'place', label: 'Place', plural: 'Places', color: '#C49A4A', icon: 'map-pin' },
   { slug: 'organization', label: 'Org', plural: 'Orgs', color: '#5A7A4A', icon: 'building' },
   { slug: 'concept', label: 'Concept', plural: 'Concepts', color: '#8B6FA0', icon: 'lightbulb' },

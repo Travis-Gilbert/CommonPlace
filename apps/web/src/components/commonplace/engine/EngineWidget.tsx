@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelBottomClose, PanelBottomOpen } from 'lucide-react';
 import type {
@@ -18,6 +18,7 @@ import TerminalCanvas from './TerminalCanvas';
 import EngineAskTab from './EngineAskTab';
 import EngineAnalyzeTab from './EngineAnalyzeTab';
 import { humanizeLogEntry, generateIdleThought } from './humanize';
+import { useIsAppShellMobile } from '@/hooks/useIsAppShellMobile';
 import styles from './EngineWidget.module.css';
 
 type WidgetTab = 'ask' | 'analyze' | 'log' | 'stress' | 'candidates';
@@ -29,9 +30,18 @@ interface EngineWidgetProps {
 const DEFAULT_EXPANDED_HEIGHT = 360;
 const MIN_EXPANDED_HEIGHT = 200;
 const MAX_EXPANDED_HEIGHT = 650;
+const subscribeToHydration = () => () => {};
+const clientHydratedSnapshot = () => true;
+const serverHydratedSnapshot = () => false;
 
 export default function EngineWidget({ activeModelId }: EngineWidgetProps) {
   const { openDrawer } = useDrawer();
+  const isMobile = useIsAppShellMobile();
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    clientHydratedSnapshot,
+    serverHydratedSnapshot,
+  );
   const [expanded, setExpanded] = useState(false);
   const [height, setHeight] = useState(DEFAULT_EXPANDED_HEIGHT);
   const [activeTab, setActiveTab] = useState<WidgetTab>('ask');
@@ -186,6 +196,7 @@ export default function EngineWidget({ activeModelId }: EngineWidgetProps) {
     { id: 'stress', label: 'Stress' },
     { id: 'candidates', label: `Candidates${pendingCount ? ` (${pendingCount})` : ''}` },
   ];
+
   const toggleLabel = expanded
     ? 'Close engine terminal'
     : `Open engine terminal. ${logEntries.length} event${logEntries.length === 1 ? '' : 's'}. ${thoughtText}`;
@@ -446,7 +457,7 @@ export default function EngineWidget({ activeModelId }: EngineWidgetProps) {
     </div>
   );
 
-  if (typeof document === 'undefined') return null;
+  if (!mounted || isMobile || typeof document === 'undefined') return null;
 
   return createPortal(
     <div className="commonplace-theme">{content}</div>,

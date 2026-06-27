@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
  * SiteDotGrid: context-aware canvas dot pattern for CommonPlace panes.
  *
  * Builds on PaneDotGrid but adds:
- *   - Multi-color character rendering (oxblood majority, teal occasional, gold rare)
+ *   - Multi-color character rendering (burnt orange majority, teal occasional, gold rare)
  *   - Context-aware color interpolation via `contextColor` prop
  *   - Smooth transition via requestAnimationFrame intensity animation
  *   - JetBrains Mono for binary characters at 11px
@@ -63,7 +63,7 @@ function lerpColor(
 }
 
 // Section colors as RGB
-const OXBLOOD: [number, number, number] = [138, 46, 41];
+const BURNT_ORANGE: [number, number, number] = [166, 83, 36];
 const TEAL: [number, number, number] = [45, 95, 107];
 const GOLD: [number, number, number] = [196, 154, 74];
 // Light gray base for visibility on dark CommonPlace background (#1C1C20)
@@ -72,7 +72,7 @@ const BASE_DOT: [number, number, number] = [160, 154, 144];
 interface SiteDotGridProps {
   /** Unique seed for this pane */
   seed?: number | string;
-  /** Context-aware color (hex string, e.g. '#8A2E29') */
+  /** Context-aware color (hex string, e.g. '#A65324') */
   contextColor?: string;
   /** Target intensity for context color shift (0 to 0.3) */
   intensity?: number;
@@ -82,7 +82,7 @@ interface SiteDotGridProps {
 
 export default function SiteDotGrid({
   seed = 7,
-  contextColor = '#8A2E29',
+  contextColor = '#A65324',
   intensity = 0.15,
   className,
   style,
@@ -196,8 +196,8 @@ export default function SiteDotGrid({
             // Rare: gold accent
             dotRgb = lerpColor(BASE_DOT, GOLD, 0.25 + currentIntensity * 0.3);
           } else if (colorRoll < 0.25) {
-            // Occasional: oxblood accent
-            dotRgb = lerpColor(BASE_DOT, OXBLOOD, 0.2 + currentIntensity * 0.4);
+            // Occasional: burnt-orange accent
+            dotRgb = lerpColor(BASE_DOT, BURNT_ORANGE, 0.2 + currentIntensity * 0.4);
           } else {
             // Default: base with slight context tint
             dotRgb = lerpColor(BASE_DOT, ctxRgb, currentIntensity * 0.3);
