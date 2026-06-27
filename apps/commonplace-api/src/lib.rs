@@ -38,8 +38,9 @@ pub use retrieve::{
 pub use schema::{
     build_schema, build_schema_with_model, AnswerKindGql, ApiStore, AskResultGql, BriefingGql,
     CandidateLinkGql, CollectionGql, ConnectedItemGql, ConsumerSchema, DurableSchema,
-    DurableShared, ExportFormat, ImportResultGql, InMemoryShared, IngestInputGql, ItemGql,
-    Mutation, ProvenanceGql, Query, SearchHitGql, SharedStore,
+    DurableShared, EmbeddingSpaceGql, EmbeddingSpaceRowGql, ExportFormat, ImportResultGql,
+    InMemoryShared, IngestInputGql, ItemGql, Mutation, ProvenanceGql, Query, SearchHitGql,
+    SharedStore, VectorNeighborGql,
 };
 pub use serve::{build_router_with_model, run_from_env, serve_loopback, serve_loopback_with_ready};
 

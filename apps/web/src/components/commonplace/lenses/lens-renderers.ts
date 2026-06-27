@@ -12,6 +12,7 @@ import type { LensViewProps } from './lens-types';
 const TerminalLens = lazy(() => import('./TerminalLens'));
 const ClusterLens = lazy(() => import('./ClusterLens'));
 const TimelineLens = lazy(() => import('./TimelineLens'));
+const VectorSpaceLens = lazy(() => import('./VectorSpaceLens'));
 const NotesLens = lazy(() => import('./NotesLens'));
 const TasksLens = lazy(() => import('./TasksLens'));
 const ReminderLens = lazy(() => import('./ReminderLens'));
@@ -21,6 +22,7 @@ export const LENS_RENDERERS: Record<string, ComponentType<LensViewProps>> = {
   terminal: TerminalLens,
   cluster: ClusterLens,
   timeline: TimelineLens,
+  'vector-space': VectorSpaceLens,
   notes: NotesLens,
   tasks: TasksLens,
   reminder: ReminderLens,
