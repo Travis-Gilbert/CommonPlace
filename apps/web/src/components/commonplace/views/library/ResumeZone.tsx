@@ -129,7 +129,7 @@ export default function ResumeZone({
           </svg>
           {awayCount} new connection{awayCount !== 1 ? 's' : ''} while you were away
           {recentActivity[0]?.captured_at && (
-            <span style={{ color: 'rgba(45, 95, 107, 0.5)', marginLeft: 'auto' }}>
+            <span style={{ color: 'var(--cp-teal)', marginLeft: 'auto' }}>
               last active {shortTimeAgo(recentActivity[0].captured_at)} ago
             </span>
           )}

@@ -21,7 +21,7 @@ export default function ResurfacedZone({ cards, onOpenObject }: ResurfacedZonePr
           fontWeight: 600,
           letterSpacing: '0.7px',
           textTransform: 'uppercase' as const,
-          color: 'rgba(26, 24, 22, 0.28)',
+          color: 'var(--cp-text-faint)',
         }}>
           Resurfaced
         </span>
@@ -31,7 +31,7 @@ export default function ResurfacedZone({ cards, onOpenObject }: ResurfacedZonePr
           fontWeight: 400,
           letterSpacing: '0.7px',
           textTransform: 'uppercase' as const,
-          color: 'rgba(26, 24, 22, 0.18)',
+          color: 'var(--cp-text-faint)',
         }}>
           Engine chose these for review
         </span>

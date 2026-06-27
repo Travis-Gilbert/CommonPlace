@@ -1,0 +1,28 @@
+# Railway deploy config for the CommonPlace Next.js web service.
+#
+# Service setup:
+# - Root directory: apps/web
+# - Config file: railway.toml
+# - Required env: THEOREM_GRAPHQL_URL, THEOREM_API_KEY, AUTH_SECRET
+# - Auth0 env, when enabled: AUTH0_DOMAIN, AUTH0_CLIENT_ID,
+#   AUTH0_CLIENT_SECRET, AUTH0_SECRET, APP_BASE_URL
+
+[build]
+builder = "RAILPACK"
+buildCommand = "npm run build:railway"
+watchPatterns = [
+  "src/**",
+  "public/**",
+  "scripts/**",
+  "next.config.ts",
+  "package.json",
+  "package-lock.json",
+  "railway.toml"
+]
+
+[deploy]
+startCommand = "npm run start:railway"
+healthcheckPath = "/api/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

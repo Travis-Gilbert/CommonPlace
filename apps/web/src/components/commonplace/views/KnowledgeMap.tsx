@@ -97,7 +97,7 @@ type SignalType = 'mention' | 'support' | 'contradict' | 'similarity' | 'causal'
 const SIGNAL_TYPE_COLORS: Record<SignalType, string> = {
   mention: '#2D5F6B',     // teal
   support: '#5A7A4A',     // green
-  contradict: '#8A2E29',  // oxblood
+  contradict: '#A65324',  // burnt orange
   similarity: '#8B6FA0',  // purple
   causal: '#C49A4A',      // gold
   manual: '#9A9590',      // faint gray

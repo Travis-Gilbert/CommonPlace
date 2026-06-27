@@ -20,7 +20,7 @@ interface AssumptionRowProps {
 function confidenceBarColor(value: number): string {
   if (value > 0.7) return '#2E8A3E';
   if (value > 0.45) return '#D4944A';
-  return '#8A2E29';
+  return '#A65324';
 }
 
 function countByRelation(
@@ -269,7 +269,7 @@ export default function AssumptionRow({
             </span>
           )}
           {contradictCount > 0 && (
-            <span style={{ color: '#8A2E29' }}>
+            <span style={{ color: '#A65324' }}>
               {contradictCount}c{' '}
             </span>
           )}
@@ -349,7 +349,7 @@ export default function AssumptionRow({
                   style={{
                     width: 16,
                     height: 1,
-                    background: '#8A2E29',
+                    background: '#A65324',
                     flexShrink: 0,
                   }}
                 />
@@ -360,7 +360,7 @@ export default function AssumptionRow({
                     fontWeight: 600,
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
-                    color: '#8A2E29',
+                    color: '#A65324',
                   }}
                 >
                   CONTRADICTS

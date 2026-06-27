@@ -36,7 +36,7 @@ export default function ClusterSection({
           fontWeight: 600,
           letterSpacing: '0.7px',
           textTransform: 'uppercase' as const,
-          color: 'rgba(26, 24, 22, 0.28)',
+          color: 'var(--cp-text-faint)',
         }}>
           Clusters
         </span>
@@ -46,7 +46,7 @@ export default function ClusterSection({
           fontWeight: 400,
           letterSpacing: '0.7px',
           textTransform: 'uppercase' as const,
-          color: 'rgba(26, 24, 22, 0.18)',
+          color: 'var(--cp-text-faint)',
         }}>
           Natural groups from shared connections
         </span>

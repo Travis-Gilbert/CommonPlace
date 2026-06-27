@@ -46,8 +46,8 @@ export default function EngineShell({
           /* Parchment-context token overrides */
           --cp-text: #2A2520;
           --cp-text-muted: #5C554D;
-          --cp-text-faint: #8A8279;
-          --cp-text-ghost: #AEA89F;
+          --cp-text-faint: #73665B;
+          --cp-text-ghost: #73665B;
           --cp-color-text: var(--cp-text);
           --cp-color-text-muted: var(--cp-text-muted);
           --cp-border: rgba(42, 37, 32, 0.12);

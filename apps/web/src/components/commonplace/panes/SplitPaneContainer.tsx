@@ -57,6 +57,7 @@ import TemporalEvolutionView from '../views/TemporalEvolutionView';
 import BoardView from '../board/BoardView';
 import FilesView from '../views/FilesView';
 import AgentThreadView from '../views/AgentThreadView';
+import CodeWorkspaceView from '../views/CodeWorkspaceView';
 import ConnectionWorkshop from '../engine/ConnectionWorkshop';
 import LensPane from '../lenses/LensPane';
 import type { LensContext } from '@/lib/commonplace-lenses';
@@ -735,6 +736,11 @@ function PaneViewContent({
     return <FilesView />;
   }
 
+  /* Code workspace: CommonPlace-native harness absorption surface */
+  if (viewType === 'code') {
+    return <CodeWorkspaceView />;
+  }
+
   /* Timeline (3D with 2D fallback) */
   if (viewType === 'timeline') {
     return <Timeline3DWrapper />;
@@ -1308,6 +1314,7 @@ function ViewTypeIcon({
         </svg>
       );
     case 'terminal':
+    case 'code':
       return (
         <svg
           width={s}

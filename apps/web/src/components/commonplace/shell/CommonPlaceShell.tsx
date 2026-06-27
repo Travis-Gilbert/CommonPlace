@@ -3,16 +3,19 @@
 import { useCallback, useEffect } from 'react';
 import CommonPlaceSidebar from './CommonPlaceSidebar';
 import CommonPlaceRail from './CommonPlaceRail';
+import CommonPlaceMobileApp from '../mobile/CommonPlaceMobileApp';
 import SplitPaneContainer from '../panes/SplitPaneContainer';
 import DropZone from '../board/DropZone';
 import { useCapture } from '@/lib/providers/capture-provider';
 import { useWorkspace } from '@/lib/providers/workspace-provider';
 import { syncCapture } from '@/lib/commonplace-capture';
 import type { CapturedObject } from '@/lib/commonplace';
+import { useIsAppShellMobile } from '@/hooks/useIsAppShellMobile';
 
 export default function CommonPlaceShell() {
   const { notifyCaptured } = useCapture();
   const { sidebarMode, toggleSidebarMode } = useWorkspace();
+  const isMobile = useIsAppShellMobile();
 
   const handleDropZoneCapture = useCallback(async (object: CapturedObject) => {
     await syncCapture(object);
@@ -23,6 +26,8 @@ export default function CommonPlaceShell() {
      C = focus the capture area in the sidebar
      T = scroll the sidebar to the toolbox section */
   useEffect(() => {
+    if (isMobile) return;
+
     function handleKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
@@ -49,7 +54,11 @@ export default function CommonPlaceShell() {
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [isMobile]);
+
+  if (isMobile) {
+    return <CommonPlaceMobileApp />;
+  }
 
   return (
     <>

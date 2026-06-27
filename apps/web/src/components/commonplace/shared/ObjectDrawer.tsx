@@ -286,7 +286,7 @@ const ARC_TYPE_COLOR: Record<string, string> = {
   shared_entity: '#2D5F6B',
   supports: '#5A7A4A',
   entailment: '#5A7A4A',
-  contradicts: '#8A2E29',
+  contradicts: '#A65324',
   similarity: '#8B6FA0',
   semantic: '#8B6FA0',
   causal: '#C49A4A',

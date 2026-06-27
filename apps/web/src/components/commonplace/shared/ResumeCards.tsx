@@ -49,7 +49,7 @@ export default function ResumeCards({ lastEdited, recentActivity = [], onOpenObj
             left: 0,
             right: 0,
             height: 2,
-            background: 'linear-gradient(90deg, #8A2E29, rgba(var(--cp-red-rgb), 0.25), transparent)',
+            background: 'linear-gradient(90deg, #A65324, rgba(var(--cp-red-rgb), 0.25), transparent)',
           }} />
           <div>
             <div style={{
@@ -63,7 +63,7 @@ export default function ResumeCards({ lastEdited, recentActivity = [], onOpenObj
                 fontFamily: 'var(--cp-font-mono)',
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#8A2E29',
+                color: '#A65324',
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
               }}>

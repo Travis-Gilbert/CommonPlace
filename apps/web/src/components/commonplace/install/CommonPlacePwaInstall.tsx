@@ -29,6 +29,8 @@ export default function CommonPlacePwaInstall({ surface = 'page' }: { surface?: 
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(() => isStandalone());
   const [status, setStatus] = useState<'idle' | 'installing' | 'dismissed'>('idle');
+  const [mobileShell, setMobileShell] = useState(false);
+  const compact = surface === 'commonplace-shell';
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -54,8 +56,18 @@ export default function CommonPlacePwaInstall({ surface = 'page' }: { surface?: 
     };
   }, []);
 
+  useEffect(() => {
+    if (!compact) return;
+
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    const update = () => setMobileShell(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener('change', update);
+    return () => mediaQuery.removeEventListener('change', update);
+  }, [compact]);
+
   const ios = useMemo(() => isIosSafari(), []);
-  const compact = surface === 'commonplace-shell';
 
   async function install() {
     if (!installEvent) return;
@@ -66,6 +78,7 @@ export default function CommonPlacePwaInstall({ surface = 'page' }: { surface?: 
     setStatus(choice.outcome === 'accepted' ? 'idle' : 'dismissed');
   }
 
+  if (compact && mobileShell) return null;
   if (installed && compact) return null;
   if (!installEvent && compact) return null;
 

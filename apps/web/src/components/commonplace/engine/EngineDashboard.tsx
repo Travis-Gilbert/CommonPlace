@@ -38,7 +38,7 @@ const QUEUE_ROWS: QueueRow[] = [
   {
     label: 'Review Queue',
     description: 'Fast-scan proposed promotions, accept or reject in batch',
-    accentColor: '#8A2E29',
+    accentColor: '#A65324',
     badge: 'TRIAGE',
     viewType: 'promotion-queue',
   },
@@ -206,7 +206,7 @@ export default function EngineDashboard() {
         }
         .ed-row-badge--triage {
           background: rgba(var(--cp-red-rgb), 0.15);
-          color: #8A2E29;
+          color: #A65324;
         }
         .ed-row-arrow {
           flex-shrink: 0;

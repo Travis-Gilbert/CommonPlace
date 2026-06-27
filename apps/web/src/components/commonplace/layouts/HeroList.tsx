@@ -137,7 +137,7 @@ function HeroListRow({
       <span style={{
         fontFamily: 'var(--cp-font-mono)',
         fontSize: 12,
-        color: 'var(--cp-terracotta, #8A2E29)',
+        color: 'var(--cp-terracotta, #A65324)',
       }}>{'\u2192'}</span>
       {edgeCount > 0 && (
         <span style={{
@@ -173,7 +173,7 @@ function TypeLeadElement({ type, object, color }: { type: string; object: Render
       return (
         <div style={{
           width: 20, height: 20, borderRadius: '50%',
-          background: 'var(--cp-person-color, #8A2E29)',
+          background: 'var(--cp-person-color, #A65324)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
           <span style={{ fontFamily: 'var(--cp-font-mono)', fontSize: 9, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{initial}</span>

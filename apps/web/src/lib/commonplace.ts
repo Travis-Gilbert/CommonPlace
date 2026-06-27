@@ -35,7 +35,7 @@ export interface ObjectTypeIdentity {
 export const OBJECT_TYPES: ObjectTypeIdentity[] = [
   { slug: 'note', label: 'Note', plural: 'Notes', color: '#F5F0E8', icon: 'note-pencil' },
   { slug: 'source', label: 'Source', plural: 'Sources', color: '#2D5F6B', icon: 'book-open' },
-  { slug: 'person', label: 'Person', plural: 'People', color: '#8A2E29', icon: 'person' },
+  { slug: 'person', label: 'Person', plural: 'People', color: '#A65324', icon: 'person' },
   { slug: 'place', label: 'Place', plural: 'Places', color: '#C49A4A', icon: 'map-pin' },
   { slug: 'organization', label: 'Org', plural: 'Orgs', color: '#5A7A4A', icon: 'building' },
   { slug: 'concept', label: 'Concept', plural: 'Concepts', color: '#8B6FA0', icon: 'lightbulb' },
@@ -90,6 +90,7 @@ export type ViewType =
   | 'temporal-evolution'
   | 'board'
   | 'files'
+  | 'code'
   | 'connection-review'
   | 'agent-thread'
   | 'terminal'
@@ -103,7 +104,7 @@ export type ViewType =
 
 export type NavigationMode = 'screen' | 'view';
 
-export type ScreenType = 'daily' | 'library' | 'models' | 'notebooks' | 'projects' | 'engine' | 'settings' | 'cobrowser' | 'coordination' | 'receiver' | 'desktop';
+export type ScreenType = 'daily' | 'library' | 'models' | 'notebooks' | 'projects' | 'engine' | 'settings' | 'accounts' | 'cobrowser' | 'coordination' | 'receiver' | 'desktop';
 
 export interface NavigationTargetObject {
   id?: number;
@@ -160,6 +161,7 @@ export const VIEW_REGISTRY: Record<ViewType, { label: string; icon: string }> = 
   'temporal-evolution': { label: 'Temporal', icon: 'timeline' },
   board: { label: 'Free', icon: 'substract' },
   files: { label: 'Files', icon: 'archive' },
+  code: { label: 'Code', icon: 'terminal' },
   'connection-review': { label: 'Connection Review', icon: 'check-circle' },
   'agent-thread': { label: 'Agent Thread', icon: 'sparks' },
   terminal: { label: 'Terminal', icon: 'terminal' },
@@ -273,18 +275,24 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         expandable: true,
         children: [],
       },
+      {
+        label: 'Code',
+        href: '#code',
+        icon: 'terminal',
+        mode: 'view',
+        viewType: 'code',
+      },
     ],
   },
   {
     title: 'System',
     items: [
       {
-        label: 'Agents',
-        href: '#agents',
+        label: 'Accounts',
+        href: '#accounts',
         icon: 'sparkle',
-        mode: 'view',
-        viewType: 'agent-thread',
-        viewContext: { agentId: 'theorem', agentMode: 'api' },
+        mode: 'screen',
+        screenType: 'accounts',
         expandable: true,
         children: [
           {
@@ -294,6 +302,34 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
             mode: 'view',
             viewType: 'agent-thread',
             viewContext: { agentId: 'theorem', agentMode: 'api' },
+          },
+          {
+            label: 'Providers',
+            href: '#accounts-providers',
+            icon: 'keyframes-solid',
+            mode: 'screen',
+            screenType: 'accounts',
+          },
+          {
+            label: 'Connections',
+            href: '#accounts-connections',
+            icon: 'globe',
+            mode: 'screen',
+            screenType: 'accounts',
+          },
+          {
+            label: 'Keys',
+            href: '#accounts-keys',
+            icon: 'archive',
+            mode: 'screen',
+            screenType: 'accounts',
+          },
+          {
+            label: 'Usage',
+            href: '#accounts-usage',
+            icon: 'timeline',
+            mode: 'screen',
+            screenType: 'accounts',
           },
           {
             label: 'Claude Code',

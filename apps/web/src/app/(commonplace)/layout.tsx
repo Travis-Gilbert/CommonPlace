@@ -12,6 +12,7 @@ import CommonPlacePwaInstall from '@/components/commonplace/install/CommonPlaceP
 import { Toaster } from 'sonner';
 import shellStyles from '@/components/commonplace/shell/CommonPlaceShell.module.css';
 import '@/styles/commonplace-tokens.css';
+import '@/styles/studio.css';
 import '@/styles/commonplace.css';
 import '@/styles/object-cards.css';
 import '@/styles/reading-pane.css';
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
  *
  * Visual layers (back to front):
  *   1. Chrome shell background with construction grid
- *   2. Ambient red-pencil glow
+ *   2. Ambient burnt-orange pencil glow
  *   3. Navigation (top bar + rail or sidebar, via CommonPlaceShell)
  *   4. Split pane system
  *   5. Engine terminal toggle (top-right; bottom panel only while open)
@@ -71,7 +72,7 @@ export default function CommonPlaceLayout({
           margin: 0,
         }}
       >
-        {/* Ambient red-pencil glow */}
+        {/* Ambient burnt-orange pencil glow */}
         <div className={shellStyles.ambientGlow} aria-hidden="true" />
 
         {/* Top gradient: dark nav fades into parchment (CSS, not canvas, to avoid dark mode inversion) */}

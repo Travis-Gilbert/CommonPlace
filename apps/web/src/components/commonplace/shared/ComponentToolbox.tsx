@@ -30,8 +30,11 @@ export default function ComponentToolbox() {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('cp-toolbox-open');
-    if (saved !== null) setOpen(saved === 'true');
+    const timer = window.setTimeout(() => {
+      const saved = localStorage.getItem('cp-toolbox-open');
+      if (saved !== null) setOpen(saved === 'true');
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const toggleOpen = useCallback(() => {
@@ -80,11 +83,11 @@ export default function ComponentToolbox() {
 
 const groupLabelStyle: React.CSSProperties = {
   fontFamily: 'var(--cp-font-mono)',
-  fontSize: 8,
+  fontSize: 9,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  color: 'var(--cp-text-muted)',
-  padding: '2px 2px 4px',
+  letterSpacing: '0.12em',
+  color: 'var(--cp-sidebar-text-faint)',
+  padding: '2px 12px 4px',
 };
 
 /** Floating ghost that follows the cursor via portal, escaping sidebar overflow. */

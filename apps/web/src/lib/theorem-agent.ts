@@ -49,7 +49,7 @@ export async function runTheoremAgent(input: TheoremAgentRunInput): Promise<Theo
   try {
     return await runTheoremAgentGraphql(normalized);
   } catch (err) {
-    if (!isGraphqlTransportError(err)) {
+    if (!isGraphqlFallbackEligible(err)) {
       throw err;
     }
     return runTheoremAgentProductFallback(normalized);
@@ -156,11 +156,17 @@ export function normalizeTheoremAgentInput(input: TheoremAgentRunInput): Theorem
 }
 
 function normalizeInput(input: TheoremAgentRunInput): TheoremAgentNormalizedInput {
-  const task = input.task.trim();
+  const task = typeof input.task === 'string' ? input.task.trim() : '';
   if (!task) throw new Error('Theorem agent requires a task.');
+  if (input.tenant !== undefined && typeof input.tenant !== 'string') {
+    throw new Error('Theorem agent tenant must be a string.');
+  }
+  if (input.bindingId !== undefined && typeof input.bindingId !== 'string') {
+    throw new Error('Theorem agent bindingId must be a string.');
+  }
   return {
     task,
-    mode: input.mode ?? 'ask',
+    mode: input.mode === 'research' ? 'research' : 'ask',
     claims: normalizeClaims(input.claims ?? []),
     bindingId: input.bindingId?.trim() || uniqueBindingId(),
     tenant: input.tenant?.trim() || DEFAULT_TENANT,
@@ -263,8 +269,14 @@ function isAbortError(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'name' in err && (err as { name?: unknown }).name === 'AbortError';
 }
 
-function isGraphqlTransportError(err: unknown): boolean {
-  return err instanceof Error && /^commonplace-api \d{3}$/.test(err.message);
+function isGraphqlFallbackEligible(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (/^commonplace-api \d{3}$/.test(err.message)) return true;
+  return [
+    'composed_agent_run has no runtime-configured provider heads',
+    'THEOREM_AGENT_HEADS',
+    'ProviderHeadInvoker',
+  ].some((marker) => err.message.includes(marker));
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
