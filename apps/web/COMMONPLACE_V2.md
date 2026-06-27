@@ -163,7 +163,9 @@ npm run dev   # http://localhost:3040/commonplace in the current local setup
    `RAILPACK_INSTALL_CMD=true`; the root `build:railway` script runs the app
    install before invoking the app build. Keep build CLIs such as `tsx` and
    `pagefind` declared in `apps/web/package.json`; Railway's clean builder will
-   not have locally cached binaries.
+   not have locally cached binaries. The Railway start script forces Next's
+   standalone server to bind `0.0.0.0`; otherwise container-provided `HOSTNAME`
+   values can keep the process unreachable by Railway healthchecks.
 3. **Frontend on Vercel:** still a reasonable fallback while proving Railway.
    The main drawback to leaving Vercel is losing Vercel-managed Next.js platform
    conveniences such as image optimization, CDN/function integration, and Vercel
