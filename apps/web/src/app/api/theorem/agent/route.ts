@@ -112,13 +112,10 @@ function normalizeAgentEndpoint(value: unknown): string | undefined {
     }
     if (pathname.endsWith(AGENT_RUN_PATH)) return trimSlash(url.toString());
     const basePath = pathname.replace(/\/(?:graphql|mcp|api\/theorem\/agent)$/i, '');
-    if (basePath !== pathname) {
-      url.pathname = `${basePath}${AGENT_RUN_PATH}`.replace(/\/{2,}/g, '/');
-      url.search = '';
-      url.hash = '';
-      return url.toString();
-    }
-    return trimSlash(url.toString());
+    url.pathname = `${basePath}${AGENT_RUN_PATH}`.replace(/\/{2,}/g, '/');
+    url.search = '';
+    url.hash = '';
+    return url.toString();
   } catch {
     return trimSlash(raw);
   }

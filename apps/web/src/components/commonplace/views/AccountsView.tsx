@@ -5,18 +5,22 @@ import AgentThreadView from './AgentThreadView';
 
 const accountSections = [
   {
+    id: 'accounts-providers',
     title: 'Providers',
     rows: ['OpenAI', 'Anthropic', 'DeepSeek', 'Gemini', 'Ollama'],
   },
   {
+    id: 'accounts-connections',
     title: 'Connections',
     rows: ['Hosted Theorem', 'Local node', 'ACP bridge', 'CommonPlace API'],
   },
   {
+    id: 'accounts-keys',
     title: 'Keys',
     rows: ['Bearer token', 'Provider secrets', 'Desktop keychain'],
   },
   {
+    id: 'accounts-usage',
     title: 'Usage',
     rows: ['Agent runs', 'Substrate reads', 'Model calls'],
   },
@@ -38,7 +42,7 @@ export default function AccountsView() {
           <h1 style={styles.title}>Accounts</h1>
         </div>
         <div style={styles.statusRow}>
-          <span style={styles.status}>Travis-Gilbert</span>
+          <span style={styles.status}>CommonPlace account</span>
           <span style={styles.status}>agent-ready</span>
         </div>
       </header>
@@ -69,7 +73,7 @@ export default function AccountsView() {
 
           <section style={styles.sectionGrid}>
             {accountSections.map((section) => (
-              <article key={section.title} style={styles.panel}>
+              <article id={section.id} key={section.title} style={styles.panel}>
                 <div style={styles.panelTitle}>{section.title}</div>
                 <div style={styles.rowList}>
                   {section.rows.map((row) => (

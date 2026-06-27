@@ -40,6 +40,11 @@ describe('POST /api/theorem/agent', () => {
 
   it.each([
     ['base URL', 'https://example.test', 'https://example.test/v1/theorem/agent/run'],
+    [
+      'path-prefixed base URL',
+      'https://example.test/theorem',
+      'https://example.test/theorem/v1/theorem/agent/run',
+    ],
     ['GraphQL URL', 'https://example.test/graphql', 'https://example.test/v1/theorem/agent/run'],
     [
       'nested GraphQL URL',
@@ -117,6 +122,32 @@ describe('POST /api/theorem/agent', () => {
     expect(payload).toMatchObject({
       error: 'invalid_agent_request',
       message: 'Theorem agent requires a task.',
+    });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['non-string tenant', { task: 'Run the agent.', tenant: 12 }, 'Theorem agent tenant must be a string.'],
+    [
+      'non-string bindingId',
+      { task: 'Run the agent.', bindingId: 12 },
+      'Theorem agent bindingId must be a string.',
+    ],
+  ])('returns a clear request error for %s', async (_label, body, message) => {
+    globalThis.fetch = vi.fn() as typeof fetch;
+
+    const response = await POST(
+      new Request('http://localhost/api/theorem/agent', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    );
+
+    const payload = (await response.json()) as Record<string, unknown>;
+    expect(response.status).toBe(400);
+    expect(payload).toMatchObject({
+      error: 'invalid_agent_request',
+      message,
     });
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
