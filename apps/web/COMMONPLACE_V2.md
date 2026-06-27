@@ -153,10 +153,13 @@ npm run dev   # http://localhost:3040/commonplace in the current local setup
    and `COMMONPLACE_API_KEY`. (Durable RedCore backing is the named follow-up; the
    slice ships on the in-memory store.)
 2. **Frontend on Railway:** now has `apps/web/railway.toml`. Create a second
-   Railway service from the same repo with root directory `apps/web` and config
-   file `railway.toml`. It runs `npm run build:railway`, which enables Next
-   standalone output and copies `public` plus `.next/static` into the standalone
-   server bundle, then starts with `npm run start:railway`.
+   Railway service from the same repo. The intended root directory is `apps/web`,
+   but the config also tolerates Railway executing from the repository root. It
+   runs `npm run build:railway`, which enables Next standalone output and copies
+   `public` plus `.next/static` into the standalone server bundle, then starts
+   with `npm run start:railway`. Pin the service build variables to
+   `RAILPACK_NODE_VERSION=20` and
+   `RAILPACK_INSTALL_CMD=cd apps/web 2>/dev/null || true; npm ci`.
 3. **Frontend on Vercel:** still a reasonable fallback while proving Railway.
    The main drawback to leaving Vercel is losing Vercel-managed Next.js platform
    conveniences such as image optimization, CDN/function integration, and Vercel

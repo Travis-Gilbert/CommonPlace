@@ -1,7 +1,7 @@
 # Railway deploy config for the CommonPlace Next.js web service.
 #
 # Service setup:
-# - Root directory: apps/web
+# - Commands support repo root or apps/web as the working directory
 # - Config file: railway.toml
 # - Required env: THEOREM_GRAPHQL_URL, THEOREM_API_KEY, AUTH_SECRET
 # - Auth0 env, when enabled: AUTH0_DOMAIN, AUTH0_CLIENT_ID,
@@ -9,7 +9,7 @@
 
 [build]
 builder = "RAILPACK"
-buildCommand = "npm run build:railway"
+buildCommand = "cd apps/web 2>/dev/null || true; npm run build:railway"
 watchPatterns = [
   "src/**",
   "public/**",
@@ -21,7 +21,7 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = "npm run start:railway"
+startCommand = "cd apps/web 2>/dev/null || true; npm run start:railway"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
