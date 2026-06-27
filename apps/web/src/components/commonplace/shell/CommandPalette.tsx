@@ -25,10 +25,12 @@ const ACTION_ITEMS = [
   { key: 'network' as ViewType, label: 'Open Knowledge Map', hint: 'Force-directed graph of all edges' },
   { key: 'timeline' as ViewType, label: 'Open Timeline', hint: 'Chronological capture feed' },
   { key: 'connection-engine' as ViewType, label: 'Open Connection Engine', hint: 'Discover and manage edges' },
+  { key: 'code' as ViewType, label: 'Open Code', hint: 'Code workspace' },
   { key: 'agent-thread' as ViewType, label: 'Open Agent Thread', hint: 'Talk to Theorem or dock an ACP agent' },
 ];
 
 const SCREEN_ACTION_ITEMS = [
+  { key: 'accounts' as ScreenType, label: 'Open Accounts', hint: 'Agents, providers, keys, and usage' },
   { key: 'cobrowser' as ScreenType, label: 'Open Co-browser', hint: 'Desktop webview and page ingest controls' },
   { key: 'coordination' as ScreenType, label: 'Open Coordination', hint: 'Human and agent room feed' },
   { key: 'receiver' as ScreenType, label: 'Open Receiver', hint: 'Local agent execution status' },
