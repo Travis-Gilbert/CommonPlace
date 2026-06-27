@@ -164,7 +164,7 @@ npm run dev   # http://localhost:3040/commonplace in the current local setup
    `build:railway` script runs the app install before invoking the app build.
    The root `railpack.json` forces Railpack's provider to `node`, so the runtime
    image contains the Node binary needed by the direct start command. The root
-   install script also creates an empty `node_modules` directory because
+   install script also creates a placeholder root `node_modules` directory because
    Railpack's Node runtime copy expects `/app/node_modules` to exist even though
    CommonPlace installs the real web dependencies under `apps/web/node_modules`.
    Keep build CLIs such as `tsx` and `pagefind` declared in
