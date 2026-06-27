@@ -60,28 +60,30 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     if (isDesktopExport) return [];
-    return [
-      {
-        source: '/act/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm',
-        destination: actMlcModelLibUrl,
-      },
-      {
-        source: '/act/resolve/:path*',
-        destination: `${actMlcModelUrl}/resolve/:path*`,
-      },
-      {
-        source: '/api/resolve-cache/:path*',
-        destination: 'https://huggingface.co/api/resolve-cache/:path*',
-      },
-      {
-        source: '/api/v2/theseus/:path*',
-        destination: `${backendUrl}/api/v2/theseus/:path*`,
-      },
-      {
-        source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
+    return {
+      fallback: [
+        {
+          source: '/act/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm',
+          destination: actMlcModelLibUrl,
+        },
+        {
+          source: '/act/resolve/:path*',
+          destination: `${actMlcModelUrl}/resolve/:path*`,
+        },
+        {
+          source: '/api/resolve-cache/:path*',
+          destination: 'https://huggingface.co/api/resolve-cache/:path*',
+        },
+        {
+          source: '/api/v2/theseus/:path*',
+          destination: `${backendUrl}/api/v2/theseus/:path*`,
+        },
+        {
+          source: '/api/:path*',
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ],
+    };
   },
   async headers() {
     if (isDesktopExport) return [];
