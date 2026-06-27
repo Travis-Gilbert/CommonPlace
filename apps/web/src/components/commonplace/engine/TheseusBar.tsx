@@ -35,7 +35,7 @@ const TYPE_COLOR: Record<string, string> = {
   note: '#2A2420',
   source: '#2D5F6B',
   concept: '#7B5EA7',
-  person: '#8A2E29',
+  person: '#A65324',
   hunch: '#C49A4A',
   task: '#C49A4A',
   event: '#7B5EA7',

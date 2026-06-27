@@ -121,7 +121,7 @@ function RailIcon({ name, active }: { name: string; active?: boolean }) {
       height={18}
       viewBox="0 0 24 24"
       fill="none"
-      stroke={active ? 'var(--cp-red)' : '#656570'}
+      stroke={active ? 'var(--cp-sidebar-text)' : 'var(--cp-sidebar-text-faint)'}
       strokeWidth={1.6}
       strokeLinecap="round"
       strokeLinejoin="round"

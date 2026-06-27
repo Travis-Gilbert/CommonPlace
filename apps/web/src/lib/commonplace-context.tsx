@@ -33,6 +33,6 @@ export function getContextColor(activeScreen: string | null, viewType?: string):
     case 'compose':
     case 'library':
     default:
-      return '#8A2E29';  // oxblood
+      return '#A65324';  // burnt orange
   }
 }

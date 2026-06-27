@@ -23,6 +23,15 @@ pub enum ItemKind {
     /// (`SUBTASK_OF`/`DEPENDS_ON`/`ABOUT`/`WORKED_BY`) and indexed scalars
     /// (`status`/`priority`/`due_at_ms`) rather than living as `Other("task")`.
     Task,
+    Epic,
+    Sticky,
+    State,
+    Comment,
+    Worklog,
+    Milestone,
+    Member,
+    Invitation,
+    View,
     Other(String),
 }
 
@@ -36,6 +45,15 @@ impl ItemKind {
             ItemKind::Image => "image",
             ItemKind::Doc => "doc",
             ItemKind::Task => "task",
+            ItemKind::Epic => "epic",
+            ItemKind::Sticky => "sticky",
+            ItemKind::State => "state",
+            ItemKind::Comment => "comment",
+            ItemKind::Worklog => "worklog",
+            ItemKind::Milestone => "milestone",
+            ItemKind::Member => "member",
+            ItemKind::Invitation => "invitation",
+            ItemKind::View => "view",
             ItemKind::Other(other) => other.as_str(),
         }
     }
@@ -56,6 +74,15 @@ impl From<String> for ItemKind {
             "image" => ItemKind::Image,
             "doc" => ItemKind::Doc,
             "task" => ItemKind::Task,
+            "epic" => ItemKind::Epic,
+            "sticky" => ItemKind::Sticky,
+            "state" => ItemKind::State,
+            "comment" => ItemKind::Comment,
+            "worklog" => ItemKind::Worklog,
+            "milestone" => ItemKind::Milestone,
+            "member" => ItemKind::Member,
+            "invitation" => ItemKind::Invitation,
+            "view" => ItemKind::View,
             _ => ItemKind::Other(value),
         }
     }
@@ -227,6 +254,11 @@ impl Item {
     /// Convenience: a `Task` item with inline description text.
     pub fn task(title: impl Into<String>, description: impl Into<String>) -> Self {
         Self::new(ItemKind::Task, title).with_text(description)
+    }
+
+    /// Convenience: a Plane-parity sticky note.
+    pub fn sticky(title: impl Into<String>, description: impl Into<String>) -> Self {
+        Self::new(ItemKind::Sticky, title).with_text(description)
     }
 
     /// Convenience: a `Note` item with inline text.

@@ -56,8 +56,8 @@ export function hexToRgb(hex: string): string {
    ───────────────────────────────────────────────── */
 
 export const SIGNAL_COLORS: Record<string, string> = {
-  'fading connection': '#8A2E29',
-  'fading_connection': '#8A2E29',
+  'fading connection': '#A65324',
+  'fading_connection': '#A65324',
   'bridge node': '#2D5F6B',
   'bridge_node': '#2D5F6B',
   'lonely island': '#C49A4A',
