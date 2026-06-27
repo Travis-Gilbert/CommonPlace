@@ -93,12 +93,21 @@ export interface RecallHit {
   createdAt?: number;
 }
 
-export type ProviderId = "anthropic" | "openai" | "deepseek" | "ollama" | "local";
+export type ProviderId =
+  | "anthropic"
+  | "openai"
+  | "deepseek"
+  | "mistral"
+  | "minimax"
+  | "ollama"
+  | "local";
 export type HarnessTarget = "hosted" | "local";
 
-/** Provider roster. DeepSeek is the keyless default per the standing decision. */
+/** Provider roster. Remote API providers need runtime-side keys. */
 export const PROVIDERS: { id: ProviderId; label: string; keyless: boolean }[] = [
-  { id: "deepseek", label: "DeepSeek", keyless: true },
+  { id: "deepseek", label: "DeepSeek", keyless: false },
+  { id: "mistral", label: "Mistral", keyless: false },
+  { id: "minimax", label: "MiniMax", keyless: false },
   { id: "local", label: "Local", keyless: true },
   { id: "ollama", label: "Ollama", keyless: true },
   { id: "anthropic", label: "Anthropic", keyless: false },

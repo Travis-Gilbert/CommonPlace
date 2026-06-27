@@ -61,7 +61,15 @@ const DEFAULT_SETTINGS: Settings = {
     model: "llama3.2",
   },
   defaultModel: "deepseek",
-  providerKeyPresent: { anthropic: false, openai: false, deepseek: false, ollama: false, local: false },
+  providerKeyPresent: {
+    anthropic: false,
+    openai: false,
+    deepseek: false,
+    mistral: false,
+    minimax: false,
+    ollama: false,
+    local: false,
+  },
 };
 
 const initialState: AppState = {
@@ -455,7 +463,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Keep a ref to current state for async orchestrators (avoids stale closures).
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Load persisted session (or seed a single ask-first tab) on mount.
   useEffect(() => {

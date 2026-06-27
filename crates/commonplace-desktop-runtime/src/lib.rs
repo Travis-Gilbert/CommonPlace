@@ -841,6 +841,46 @@ fn model_chat(
         });
     }
 
+    if let Some(profile) = provider_chat_profile(&model_id) {
+        match call_provider_chat(profile, &input) {
+            Ok((content, model_name)) => {
+                let tokens_out = estimate_tokens(&content);
+                let estimated_usd = estimate_cost_usd(&input.model, tokens_in, tokens_out);
+                return Ok(ModelChatResult {
+                    content,
+                    usage: TurnUsage {
+                        provider: input.model.clone(),
+                        model: model_name,
+                        tokens_in,
+                        tokens_out,
+                        estimated_usd,
+                    },
+                });
+            }
+            Err(provider_error) => match call_composed_agent_chat(&settings, &prompt) {
+                Ok(answer) => {
+                    let tokens_out = estimate_tokens(&answer);
+                    let estimated_usd = estimate_cost_usd(&input.model, tokens_in, tokens_out);
+                    return Ok(ModelChatResult {
+                        content: answer,
+                        usage: TurnUsage {
+                            provider: input.model.clone(),
+                            model: input.model,
+                            tokens_in,
+                            tokens_out,
+                            estimated_usd,
+                        },
+                    });
+                }
+                Err(fallback_error) => {
+                    return Err(format!(
+                        "{provider_error}; composed-agent fallback failed: {fallback_error}"
+                    ));
+                }
+            },
+        }
+    }
+
     let answer = call_composed_agent_chat(&settings, &prompt)?;
     let tokens_out = estimate_tokens(&answer);
     let estimated_usd = estimate_cost_usd(&input.model, tokens_in, tokens_out);
@@ -1831,6 +1871,155 @@ fn composed_agent_text(payload: &Value) -> Option<String> {
                 Some(text)
             }
         })
+}
+
+#[derive(Clone, Copy)]
+struct ProviderChatProfile {
+    provider: &'static str,
+    key_env: &'static str,
+    endpoint_env: &'static str,
+    base_url_env: &'static str,
+    model_env: &'static str,
+    default_endpoint: &'static str,
+    default_model: &'static str,
+    base_uses_v1_path: bool,
+}
+
+fn provider_chat_profile(provider: &str) -> Option<ProviderChatProfile> {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "deepseek" => Some(ProviderChatProfile {
+            provider: "deepseek",
+            key_env: "DEEPSEEK_API_KEY",
+            endpoint_env: "DEEPSEEK_CHAT_URL",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            model_env: "DEEPSEEK_MODEL",
+            default_endpoint: "https://api.deepseek.com/chat/completions",
+            default_model: "deepseek-v4-pro",
+            base_uses_v1_path: false,
+        }),
+        "mistral" => Some(ProviderChatProfile {
+            provider: "mistral",
+            key_env: "MISTRAL_API_KEY",
+            endpoint_env: "MISTRAL_CHAT_URL",
+            base_url_env: "MISTRAL_BASE_URL",
+            model_env: "MISTRAL_MODEL",
+            default_endpoint: "https://api.mistral.ai/v1/chat/completions",
+            default_model: "mistral-large-latest",
+            base_uses_v1_path: true,
+        }),
+        "minimax" => Some(ProviderChatProfile {
+            provider: "minimax",
+            key_env: "MINIMAX_API_KEY",
+            endpoint_env: "MINIMAX_CHAT_URL",
+            base_url_env: "MINIMAX_BASE_URL",
+            model_env: "MINIMAX_MODEL",
+            default_endpoint: "https://api.minimaxi.com/v1/chat/completions",
+            default_model: "MiniMax-M3",
+            base_uses_v1_path: true,
+        }),
+        "openai" | "openapi" => Some(ProviderChatProfile {
+            provider: "openai",
+            key_env: "OPENAI_API_KEY",
+            endpoint_env: "OPENAI_CHAT_URL",
+            base_url_env: "OPENAI_BASE_URL",
+            model_env: "OPENAI_MODEL",
+            default_endpoint: "https://api.openai.com/v1/chat/completions",
+            default_model: "gpt-4.1-mini",
+            base_uses_v1_path: true,
+        }),
+        _ => None,
+    }
+}
+
+fn call_provider_chat(
+    profile: ProviderChatProfile,
+    input: &ModelChatInput,
+) -> Result<(String, String), String> {
+    let key = std::env::var(profile.key_env)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            format!(
+                "{} requires {} in the CommonPlace desktop runtime environment",
+                profile.provider, profile.key_env
+            )
+        })?;
+    let endpoint = provider_chat_url(profile);
+    let model = std::env::var(profile.model_env)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| profile.default_model.to_string());
+    let messages = input
+        .messages
+        .iter()
+        .map(|message| json!({ "role": message.role, "content": message.content }))
+        .collect::<Vec<_>>();
+    let response = reqwest::blocking::Client::new()
+        .post(endpoint)
+        .bearer_auth(key)
+        .json(&json!({ "model": model.clone(), "messages": messages, "stream": false }))
+        .send()
+        .map_err(|error| error.to_string())?;
+    let status = response.status();
+    let value: Value = response.json().map_err(|error| error.to_string())?;
+    if !status.is_success() {
+        return Err(format!(
+            "{} provider HTTP {}: {}",
+            profile.provider,
+            status.as_u16(),
+            provider_error_detail(&value)
+        ));
+    }
+    let content = openai_chat_content(&value)
+        .ok_or_else(|| format!("{} returned no message content", profile.provider))?;
+    Ok((content, model))
+}
+
+fn provider_chat_url(profile: ProviderChatProfile) -> String {
+    std::env::var(profile.endpoint_env)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            std::env::var(profile.base_url_env)
+                .ok()
+                .map(|value| normalize_provider_chat_url(&value, profile.base_uses_v1_path))
+        })
+        .unwrap_or_else(|| profile.default_endpoint.to_string())
+}
+
+fn normalize_provider_chat_url(endpoint: &str, base_uses_v1_path: bool) -> String {
+    let trimmed = endpoint.trim().trim_end_matches('/');
+    if trimmed.ends_with("/chat/completions") {
+        trimmed.to_string()
+    } else if trimmed.ends_with("/v1") {
+        format!("{trimmed}/chat/completions")
+    } else if base_uses_v1_path {
+        format!("{trimmed}/v1/chat/completions")
+    } else {
+        format!("{trimmed}/chat/completions")
+    }
+}
+
+fn provider_error_detail(value: &Value) -> String {
+    value
+        .pointer("/error/message")
+        .and_then(Value::as_str)
+        .or_else(|| value.get("message").and_then(Value::as_str))
+        .or_else(|| value.get("error").and_then(Value::as_str))
+        .unwrap_or("provider returned an error")
+        .to_string()
+}
+
+fn openai_chat_content(value: &Value) -> Option<String> {
+    value
+        .pointer("/choices/0/message/content")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_string)
 }
 
 fn call_local_chat(input: &ModelChatInput) -> Result<String, String> {
