@@ -160,7 +160,8 @@ npm run dev   # http://localhost:3040/commonplace in the current local setup
    with `npm run start:railway`. The root package scripts delegate those commands
    to `apps/web`; the app package exposes the same command names for an app-root
    service. Pin the service build variables to `RAILPACK_NODE_VERSION=20` and
-   `RAILPACK_INSTALL_CMD=npm run install:railway`.
+   `RAILPACK_INSTALL_CMD=true`; the root `build:railway` script runs the app
+   install before invoking the app build.
 3. **Frontend on Vercel:** still a reasonable fallback while proving Railway.
    The main drawback to leaving Vercel is losing Vercel-managed Next.js platform
    conveniences such as image optimization, CDN/function integration, and Vercel
