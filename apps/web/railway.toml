@@ -11,13 +11,16 @@
 builder = "RAILPACK"
 buildCommand = "npm run build:railway"
 watchPatterns = [
-  "src/**",
-  "public/**",
-  "scripts/**",
-  "next.config.ts",
+  "apps/web/src/**",
+  "apps/web/public/**",
+  "apps/web/scripts/**",
+  "apps/web/next.config.ts",
+  "apps/web/package.json",
+  "apps/web/package-lock.json",
+  "apps/web/railway.toml",
   "package.json",
-  "package-lock.json",
-  "railway.toml"
+  "packages/**",
+  "railpack.json"
 ]
 
 [deploy]
