@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import CommonPlaceSidebar from './CommonPlaceSidebar';
 import CommonPlaceRail from './CommonPlaceRail';
 import CommonPlaceMobileApp from '../mobile/CommonPlaceMobileApp';
@@ -15,7 +16,10 @@ import { useIsAppShellMobile } from '@/hooks/useIsAppShellMobile';
 export default function CommonPlaceShell() {
   const { notifyCaptured } = useCapture();
   const { sidebarMode, toggleSidebarMode } = useWorkspace();
+  const pathname = usePathname();
   const isMobile = useIsAppShellMobile();
+  const forceMobile =
+    pathname === '/commonplace/mobile' || pathname.startsWith('/commonplace/mobile/');
 
   const handleDropZoneCapture = useCallback(async (object: CapturedObject) => {
     await syncCapture(object);
@@ -56,7 +60,7 @@ export default function CommonPlaceShell() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [isMobile]);
 
-  if (isMobile) {
+  if (forceMobile || isMobile) {
     return <CommonPlaceMobileApp />;
   }
 
