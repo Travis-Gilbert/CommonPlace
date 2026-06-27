@@ -82,6 +82,7 @@ const MENU_ITEMS: MenuItem[] = [
   { key: 'agent', label: 'Theorem Agent', fileIcon: 'atom', action: 'agent' },
   { key: 'code', label: 'Code', fileIcon: 'awk', view: 'code' },
   { key: 'graph', label: 'Graph', fileIcon: 'devicetree', view: 'network' },
+  { key: 'vector-space', label: 'Vector Space', fileIcon: 'database', view: 'vector-space' },
   { key: 'settings', label: 'Settings', icon: Settings, surface: 'settings' },
   { key: 'search', label: 'Search', icon: Search, surface: 'search' },
 ];
@@ -100,6 +101,7 @@ const SEARCH_RESULTS = [
 
 const DATA_ITEMS = [
   { title: 'All objects', meta: '52 stored records', fileIcon: 'database' as const, view: 'files' as const },
+  { title: 'Vector Space', meta: 'Embedding atlas and semantic neighbors', fileIcon: 'database' as const, view: 'vector-space' as const },
   { title: 'Code', meta: 'Scripts and implementation notes', fileIcon: 'awk' as const, view: 'code' as const },
   { title: 'Graph', meta: 'Connections and device-tree structure', fileIcon: 'devicetree' as const, view: 'network' as const },
 ];

@@ -116,6 +116,30 @@ export interface CollectionGql {
   createdAtMs: number;
 }
 
+export interface EmbeddingSpaceRowGql {
+  identifier: string;
+  x: number;
+  y: number;
+  category: number;
+  categoryLabel: string;
+  text: string;
+  createdMs: number;
+  communityId: string;
+  epistemicStatus: string;
+}
+
+export interface EmbeddingSpaceGql {
+  table: string;
+  projection: string;
+  total: number;
+  rows: EmbeddingSpaceRowGql[];
+}
+
+export interface VectorNeighborGql {
+  row: EmbeddingSpaceRowGql;
+  score: number;
+}
+
 const ITEM_FIELDS = `
   id kind title bodyText blobHash mime source residency
   tags collections classification status priority dueAtMs path extra createdAtMs updatedAtMs
@@ -123,6 +147,10 @@ const ITEM_FIELDS = `
 
 const COLLECTION_FIELDS = `
   id name kind identifier description startAtMs endAtMs color sortOrder featureFlags createdAtMs
+`;
+
+const EMBEDDING_SPACE_ROW_FIELDS = `
+  identifier x y category categoryLabel text createdMs communityId epistemicStatus
 `;
 
 /* ─────────────────────────────────────────────────
@@ -744,6 +772,53 @@ export async function gqlSearchObjects(
     { search: [] },
   );
   return data.search.map((h) => itemToSearchResult(h.item));
+}
+
+export async function gqlEmbeddingSpace(options: {
+  kind?: string;
+  limit?: number;
+} = {}): Promise<EmbeddingSpaceGql> {
+  const data = await gqlRead<{ embeddingSpace: EmbeddingSpaceGql }>(
+    `query($kind:String,$limit:Int){
+      embeddingSpace(kind:$kind,limit:$limit){
+        table
+        projection
+        total
+        rows { ${EMBEDDING_SPACE_ROW_FIELDS} }
+      }
+    }`,
+    {
+      kind: options.kind ?? null,
+      limit: options.limit ?? null,
+    },
+    {
+      embeddingSpace: {
+        table: 'embedding_space',
+        projection: 'unavailable',
+        total: 0,
+        rows: [],
+      },
+    },
+  );
+  return data.embeddingSpace;
+}
+
+export async function gqlVectorNeighbors(
+  itemId: string,
+  k = 12,
+): Promise<VectorNeighborGql[]> {
+  if (!itemId.trim()) return [];
+  const data = await gqlRead<{ vectorNeighbors: VectorNeighborGql[] }>(
+    `query($itemId:String!,$k:Int){
+      vectorNeighbors(itemId:$itemId,k:$k){
+        row { ${EMBEDDING_SPACE_ROW_FIELDS} }
+        score
+      }
+    }`,
+    { itemId, k },
+    { vectorNeighbors: [] },
+  );
+  return data.vectorNeighbors;
 }
 
 /** Capture write -> ingest -> ApiCaptureResponse (mirrors POST /capture/). */

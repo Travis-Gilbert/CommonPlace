@@ -44,6 +44,7 @@ export const LENS_REGISTRY: LensDef[] = [
   { id: 'terminal', label: 'Terminal', icon: 'terminal',      color: '#2D5F6B', kind: 'engine',     apiTypeName: 'terminal', description: "The engine's epistemic read of this object", applies: ALWAYS },
   { id: 'cluster',  label: 'Cluster',  icon: 'network-right', color: '#7050A0', kind: 'engine',     apiTypeName: 'cluster',  description: 'This object plus its neighborhood in the graph', applies: ALWAYS },
   { id: 'timeline', label: 'Timeline', icon: 'clock',         color: '#3858B8', kind: 'engine',     apiTypeName: 'timeline', description: "This object's history, yours and the world's", applies: ALWAYS },
+  { id: 'vector-space', label: 'Vector Space', icon: 'scatter', color: '#2D5F6B', kind: 'engine', apiTypeName: 'vector-space', description: 'Nearest semantic neighbors in the embedding atlas', applies: ALWAYS },
   // ── Attachment lenses ──
   { id: 'notes',    label: 'Notes',    icon: 'edit-pencil',   color: '#78767E', kind: 'attachment', apiTypeName: 'text',     description: 'Rich-text notes attached to this object', applies: ALWAYS },
   { id: 'tasks',    label: 'Tasks',    icon: 'check',         color: '#B85C28', kind: 'attachment', apiTypeName: 'task',     description: 'A checklist attached to this object', applies: ALWAYS },

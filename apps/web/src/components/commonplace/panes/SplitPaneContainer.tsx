@@ -37,6 +37,7 @@ import GridView from '../views/GridView';
 import TimelineView from '../views/TimelineView';
 import Timeline3DWrapper from '../views/Timeline3DWrapper';
 import NetworkView from '../views/NetworkView';
+import VectorSpaceView from '../views/VectorSpaceView';
 import ObjectDetailView from '../views/ObjectDetailView';
 import ResurfaceView from '../views/ResurfaceView';
 import NotebookWorkspace from '../views/NotebookWorkspace';
@@ -768,6 +769,19 @@ function PaneViewContent({
     );
   }
 
+  /* Vector Space (Embedding Atlas) */
+  if (viewType === 'vector-space') {
+    return (
+      <VectorSpaceView
+        onOpenObject={
+          paneId && onOpenObject
+            ? (objectRef, title) => onOpenObject(paneId, objectRef, title)
+            : undefined
+        }
+      />
+    );
+  }
+
   /* Object Detail */
   if (viewType === 'object-detail' && context?.objectRef) {
     return (
@@ -1045,6 +1059,25 @@ function ViewTypeIcon({
           <circle cx={12} cy={12} r={2} />
           <line x1={8} y1={6} x2={4} y2={10} />
           <line x1={8} y1={6} x2={12} y2={10} />
+        </svg>
+      );
+    case 'vector-space':
+      return (
+        <svg
+          width={s}
+          height={s}
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke={color}
+          strokeWidth={sw}
+          style={{ display: 'block', margin: '0 auto' }}
+        >
+          <circle cx={4} cy={5} r={1.25} />
+          <circle cx={10.5} cy={3.5} r={1} />
+          <circle cx={12} cy={10.5} r={1.35} />
+          <circle cx={5.5} cy={12} r={1} />
+          <path d="M5.2 5.4c1.6 1 3.1 1.7 5.3 2.3" />
+          <path d="M6.2 11.5c1.7-.5 3.2-.8 4.6-.8" />
         </svg>
       );
     case 'notebook':

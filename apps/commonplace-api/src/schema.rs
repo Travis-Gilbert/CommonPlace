@@ -11,6 +11,7 @@
 //! needs) by swapping the type alias, which is the named follow-up for the
 //! durable self-hosted binary.
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
@@ -22,6 +23,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use commonplace::{
     BlobStore, Collection, CollectionKind, Commonplace, EmbeddingGraphStore, InMemoryBlobStore,
     IngestInput, IngestPipeline, Item, ItemBody, ItemKind, Residency, SourceRef, COLLECTION_LABEL,
+    ITEM_EMBEDDING_PROPERTY,
 };
 use rustyred_thg_core::{DiskObjectStore, InMemoryGraphStore, NodeQuery, RedCoreGraphStore};
 use serde_json::{json, Value};
@@ -244,6 +246,37 @@ pub struct PageCrdtSnapshotGql {
 #[derive(SimpleObject)]
 pub struct SearchHitGql {
     pub item: ItemGql,
+    pub score: f64,
+}
+
+/// One row in the client-side `embedding_space` table consumed by Embedding Atlas.
+#[derive(Clone, SimpleObject)]
+pub struct EmbeddingSpaceRowGql {
+    pub identifier: String,
+    pub x: f64,
+    pub y: f64,
+    /// Integer category id, because Embedding Atlas expects 0-indexed categories.
+    pub category: i32,
+    pub category_label: String,
+    pub text: String,
+    pub created_ms: i64,
+    pub community_id: String,
+    pub epistemic_status: String,
+}
+
+/// The server-side embedding projection plus metadata for the frontend table.
+#[derive(SimpleObject)]
+pub struct EmbeddingSpaceGql {
+    pub table: String,
+    pub projection: String,
+    pub total: i32,
+    pub rows: Vec<EmbeddingSpaceRowGql>,
+}
+
+/// A nearest-neighbor hit for object-seeded vector navigation.
+#[derive(SimpleObject)]
+pub struct VectorNeighborGql {
+    pub row: EmbeddingSpaceRowGql,
     pub score: f64,
 }
 
@@ -832,6 +865,131 @@ fn extra_i32(item: &Item, key: &str) -> Option<i32> {
     extra_i64(item, key).map(|value| value as i32)
 }
 
+fn item_embedding(item: &Item) -> Option<Vec<f32>> {
+    if let Some(embedding) = &item.embedding {
+        if !embedding.is_empty() {
+            return Some(embedding.clone());
+        }
+    }
+    let embedding = item.extra.get(ITEM_EMBEDDING_PROPERTY)?.as_array()?;
+    let mut out = Vec::with_capacity(embedding.len());
+    for value in embedding {
+        out.push(value.as_f64()? as f32);
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+fn embedding_text(item: &Item) -> String {
+    let text = item.text_for_embedding();
+    let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if compact.len() > 360 {
+        format!("{}...", compact.chars().take(357).collect::<String>())
+    } else {
+        compact
+    }
+}
+
+fn embedding_category_label(item: &Item) -> String {
+    item.classification
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| item.kind.as_str().to_string())
+}
+
+fn embedding_community_id(item: &Item) -> String {
+    item.collections
+        .first()
+        .cloned()
+        .or_else(|| item.classification.clone())
+        .unwrap_or_else(|| item.kind.as_str().to_string())
+}
+
+fn embedding_status(item: &Item) -> String {
+    item.status
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| item.residency.as_str().to_string())
+}
+
+fn raw_embedding_projection(embedding: &[f32]) -> (f64, f64) {
+    let mut x = 0.0_f64;
+    let mut y = 0.0_f64;
+    for (idx, value) in embedding.iter().enumerate() {
+        let angle = (idx as f64 + 1.0) * 2.399_963_229_728_653;
+        let weight = 1.0 / (1.0 + idx as f64 * 0.015);
+        let v = *value as f64;
+        x += v * angle.cos() * weight;
+        y += v * angle.sin() * weight;
+    }
+    (x, y)
+}
+
+fn embedding_space_rows<S, B>(
+    cp: &Commonplace<S, B>,
+    kind: Option<&str>,
+    limit: usize,
+) -> rustyred_thg_core::GraphStoreResult<Vec<EmbeddingSpaceRowGql>>
+where
+    S: EmbeddingGraphStore,
+    B: BlobStore,
+{
+    let mut projected = Vec::new();
+    for item in cp.all_items()? {
+        if let Some(kind) = kind {
+            if item.kind.as_str() != kind {
+                continue;
+            }
+        }
+        let Some(embedding) = item_embedding(&item) else {
+            continue;
+        };
+        let (x, y) = raw_embedding_projection(&embedding);
+        projected.push((item, x, y));
+    }
+
+    if projected.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let count = projected.len() as f64;
+    let mean_x = projected.iter().map(|(_, x, _)| x).sum::<f64>() / count;
+    let mean_y = projected.iter().map(|(_, _, y)| y).sum::<f64>() / count;
+    let scale = projected
+        .iter()
+        .map(|(_, x, y)| (x - mean_x).abs().max((y - mean_y).abs()))
+        .fold(0.0_f64, f64::max)
+        .max(1.0);
+
+    let mut labels: Vec<String> = projected
+        .iter()
+        .map(|(item, _, _)| embedding_category_label(item))
+        .collect();
+    labels.sort();
+    labels.dedup();
+
+    let mut rows = Vec::with_capacity(projected.len().min(limit));
+    for (item, x, y) in projected.into_iter().take(limit) {
+        let category_label = embedding_category_label(&item);
+        let category = labels.binary_search(&category_label).unwrap_or_default() as i32;
+        rows.push(EmbeddingSpaceRowGql {
+            identifier: item.id.clone(),
+            x: (x - mean_x) / scale,
+            y: (y - mean_y) / scale,
+            category,
+            category_label,
+            text: embedding_text(&item),
+            created_ms: item.created_at_ms,
+            community_id: embedding_community_id(&item),
+            epistemic_status: embedding_status(&item),
+        });
+    }
+    Ok(rows)
+}
+
 fn is_terminal_status(status: Option<&str>) -> bool {
     match status {
         Some(value) => matches!(
@@ -1337,6 +1495,73 @@ where
             }
         }
         Ok(results)
+    }
+
+    /// Project stored item embeddings into the `embedding_space` table contract.
+    async fn embedding_space(
+        &self,
+        ctx: &Context<'_>,
+        kind: Option<String>,
+        limit: Option<i32>,
+    ) -> Result<EmbeddingSpaceGql> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let limit = limit.unwrap_or(5_000).clamp(1, 50_000) as usize;
+        let rows = embedding_space_rows(&cp, kind.as_deref(), limit).map_err(store_err)?;
+        Ok(EmbeddingSpaceGql {
+            table: "embedding_space".to_string(),
+            projection: "server:embedding_axes_v1".to_string(),
+            total: rows.len() as i32,
+            rows,
+        })
+    }
+
+    /// Nearest embedded items around a stored item, using the RustyRed vector index.
+    async fn vector_neighbors(
+        &self,
+        ctx: &Context<'_>,
+        item_id: String,
+        k: Option<i32>,
+    ) -> Result<Vec<VectorNeighborGql>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let Some(seed) = cp.get_item(&item_id).map_err(store_err)? else {
+            return Ok(Vec::new());
+        };
+        let Some(embedding) = item_embedding(&seed) else {
+            return Ok(Vec::new());
+        };
+        let k = k.unwrap_or(12).clamp(1, 100) as usize;
+        let hits = IngestPipeline::default()
+            .search_embedding(&cp, &embedding, k + 1)
+            .map_err(store_err)?;
+        let rows = embedding_space_rows(&cp, None, usize::MAX).map_err(store_err)?;
+        let by_id: HashMap<String, EmbeddingSpaceRowGql> = rows
+            .into_iter()
+            .map(|row| (row.identifier.clone(), row))
+            .collect();
+        let mut out = Vec::with_capacity(k);
+        for (id, score) in hits {
+            if id == item_id {
+                continue;
+            }
+            if let Some(row) = by_id.get(&id) {
+                out.push(VectorNeighborGql {
+                    row: row.clone(),
+                    score: score as f64,
+                });
+            }
+            if out.len() >= k {
+                break;
+            }
+        }
+        Ok(out)
     }
 
     /// Ask a question over your store: unified graph + vector + lexical retrieval

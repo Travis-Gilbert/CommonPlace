@@ -18,6 +18,7 @@ export function getContextColor(activeScreen: string | null, viewType?: string):
   switch (key) {
     case 'timeline':
     case 'network':
+    case 'vector-space':
     case 'calendar':
     case 'loose-ends':
       return '#2D5F6B';  // teal

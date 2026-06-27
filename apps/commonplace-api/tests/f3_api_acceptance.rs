@@ -83,6 +83,100 @@ async fn client_with_key_reads_and_writes_items() {
 }
 
 #[tokio::test]
+async fn embedding_space_and_vector_neighbors_are_exposed() {
+    let key = "valid-key";
+    let schema = instance_with_key(key);
+
+    let mutation = r#"mutation {
+        rust: ingest(input: { title: "Rust ownership", text: "borrow checker lifetimes ownership", kind: "doc" }) { id }
+        swift: ingest(input: { title: "Swift data model", text: "observable state persistence mobile data", kind: "doc" }) { id }
+    }"#;
+    let response = schema
+        .execute(Request::new(mutation).data(ApiKeyToken(key.to_string())))
+        .await;
+    assert!(
+        response.errors.is_empty(),
+        "ingest errors: {:?}",
+        response.errors
+    );
+    let data = response.data.into_json().unwrap();
+    let rust_id = data["rust"]["id"].as_str().unwrap().to_string();
+    let swift_id = data["swift"]["id"].as_str().unwrap().to_string();
+
+    let atlas = r#"query {
+        embeddingSpace {
+            table
+            projection
+            total
+            rows {
+                identifier
+                x
+                y
+                category
+                categoryLabel
+                text
+                createdMs
+                communityId
+                epistemicStatus
+            }
+        }
+    }"#;
+    let response = schema
+        .execute(Request::new(atlas).data(ApiKeyToken(key.to_string())))
+        .await;
+    assert!(
+        response.errors.is_empty(),
+        "embeddingSpace errors: {:?}",
+        response.errors
+    );
+    let data = response.data.into_json().unwrap();
+    assert_eq!(data["embeddingSpace"]["table"], "embedding_space");
+    assert_eq!(
+        data["embeddingSpace"]["projection"],
+        "server:embedding_axes_v1"
+    );
+    let rows = data["embeddingSpace"]["rows"].as_array().unwrap();
+    assert!(rows.len() >= 2);
+    assert!(rows
+        .iter()
+        .any(|row| row["identifier"].as_str() == Some(rust_id.as_str())));
+    assert!(rows
+        .iter()
+        .any(|row| row["identifier"].as_str() == Some(swift_id.as_str())));
+    for row in rows {
+        assert!(row["x"].as_f64().is_some());
+        assert!(row["y"].as_f64().is_some());
+        assert!(row["category"].as_i64().is_some());
+        assert!(row["createdMs"].as_i64().is_some());
+        assert!(row["text"].as_str().unwrap().len() > 3);
+    }
+
+    let neighbors = format!(
+        r#"query {{ vectorNeighbors(itemId: "{rust_id}", k: 4) {{ row {{ identifier }} score }} }}"#
+    );
+    let response = schema
+        .execute(Request::new(neighbors).data(ApiKeyToken(key.to_string())))
+        .await;
+    assert!(
+        response.errors.is_empty(),
+        "vectorNeighbors errors: {:?}",
+        response.errors
+    );
+    let data = response.data.into_json().unwrap();
+    let hits = data["vectorNeighbors"].as_array().unwrap();
+    assert!(
+        hits.iter()
+            .all(|hit| hit["row"]["identifier"] != serde_json::json!(rust_id)),
+        "seed item must not be returned as its own neighbor"
+    );
+    assert!(
+        hits.iter()
+            .any(|hit| hit["row"]["identifier"] == serde_json::json!(swift_id)),
+        "second embedded item should be reachable as a vector neighbor"
+    );
+}
+
+#[tokio::test]
 async fn invalid_or_missing_key_is_rejected() {
     let schema = instance_with_key("good-key");
     let query = r#"query { items { id } }"#;

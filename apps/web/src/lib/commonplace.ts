@@ -70,6 +70,7 @@ export type ViewType =
   | 'timeline'
   | 'scoped-timeline'
   | 'network'
+  | 'vector-space'
   | 'notebook'
   | 'project'
   | 'object-detail'
@@ -141,6 +142,7 @@ export const VIEW_REGISTRY: Record<ViewType, { label: string; icon: string }> = 
   timeline: { label: 'Timeline', icon: 'timeline' },
   'scoped-timeline': { label: 'My Timelines', icon: 'filter' },
   network: { label: 'Map', icon: 'graph' },
+  'vector-space': { label: 'Vector Space', icon: 'scatter' },
   notebook: { label: 'Notebook', icon: 'book' },
   project: { label: 'Project', icon: 'briefcase' },
   'object-detail': { label: 'Object', icon: 'note-pencil' },
@@ -250,6 +252,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         ],
       },
       { label: 'Map', href: '#networks', icon: 'graph', mode: 'view', viewType: 'network' },
+      { label: 'Vector Space', href: '#vector-space', icon: 'scatter', mode: 'view', viewType: 'vector-space' },
     ],
   },
   {
