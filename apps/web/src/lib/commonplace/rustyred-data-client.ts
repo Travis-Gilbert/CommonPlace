@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  fixtureRustyRedDataPayload,
+  emptyRustyRedDataPayload,
   normalizeCommonplaceRustyRedViewId,
   type CommonplaceRustyRedDataPayload,
   type CommonplaceRustyRedViewId,
@@ -17,7 +17,7 @@ export interface CommonplaceRustyRedDataState {
 export function useCommonplaceRustyRedData(view: CommonplaceRustyRedViewId): CommonplaceRustyRedDataState {
   const normalizedView = normalizeCommonplaceRustyRedViewId(view);
   const [payload, setPayload] = React.useState<CommonplaceRustyRedDataPayload>(() =>
-    fixtureRustyRedDataPayload(normalizedView),
+    emptyRustyRedDataPayload(normalizedView),
   );
   const [error, setError] = React.useState<string>();
 
@@ -40,7 +40,7 @@ export function useCommonplaceRustyRedData(view: CommonplaceRustyRedViewId): Com
         if (requestError instanceof Error && requestError.name === "AbortError") return;
         const message = requestError instanceof Error ? requestError.message : String(requestError);
         setError(message);
-        setPayload(fixtureRustyRedDataPayload(normalizedView, message));
+        setPayload(emptyRustyRedDataPayload(normalizedView, { message }));
       });
 
     return () => controller.abort();

@@ -28,6 +28,8 @@ export interface CommonplaceGraphqlItem {
   path?: string | null;
   createdAtMs: number;
   updatedAtMs: number;
+  validFromMs?: number | null;
+  validToMs?: number | null;
 }
 
 export interface CommonplaceGraphqlCollection {
@@ -239,6 +241,28 @@ export function buildRustyRedDataPayload(input: BuildRustyRedDataPayloadInput): 
   };
 }
 
+export function emptyRustyRedDataPayload(
+  view: CommonplaceRustyRedViewId,
+  input: {
+    source?: CommonplaceRustyRedDataSource;
+    message?: string;
+    generatedAt?: string;
+  } = {},
+): CommonplaceRustyRedDataPayload {
+  return buildRustyRedDataPayload({
+    view,
+    items: [],
+    collections: [],
+    candidateLinks: [],
+    source: input.source ?? {
+      mode: input.message ? "error" : "live",
+      message: input.message,
+    },
+    generatedAt: input.generatedAt,
+    errors: input.message ? [input.message] : undefined,
+  });
+}
+
 export function fixtureRustyRedDataPayload(
   view: CommonplaceRustyRedViewId,
   message?: string,
@@ -396,6 +420,8 @@ function itemToObjectRef(
       path: item.path ?? null,
       createdAtMs: item.createdAtMs,
       updatedAtMs: item.updatedAtMs,
+      validFromMs: item.validFromMs ?? null,
+      validToMs: item.validToMs ?? null,
     },
     relations: {
       IN_COLLECTION: item.collections,
@@ -403,7 +429,10 @@ function itemToObjectRef(
       BRIEFING_RELATED: briefingRelated,
     },
     axes: {
-      valid: { from_ms: item.createdAtMs, to_ms: item.updatedAtMs },
+      valid: {
+        from_ms: item.validFromMs ?? item.createdAtMs,
+        to_ms: item.validToMs ?? undefined,
+      },
       embeddable: true,
     },
   };
@@ -602,6 +631,8 @@ function normalizeItem(item: CommonplaceGraphqlItem): CommonplaceGraphqlItem {
     path: item.path ?? null,
     createdAtMs: Number.isFinite(item.createdAtMs) ? item.createdAtMs : Date.now(),
     updatedAtMs: Number.isFinite(item.updatedAtMs) ? item.updatedAtMs : Date.now(),
+    validFromMs: Number.isFinite(item.validFromMs) ? item.validFromMs ?? null : null,
+    validToMs: Number.isFinite(item.validToMs) ? item.validToMs ?? null : null,
   };
 }
 
@@ -622,6 +653,8 @@ function fixtureItem(input: Partial<CommonplaceGraphqlItem> & { id: string; kind
     path: input.path ?? null,
     createdAtMs: input.createdAtMs ?? baseTime,
     updatedAtMs: input.updatedAtMs ?? baseTime + Math.round(stableUnit(input.id, "time") * 86_400_000),
+    validFromMs: input.validFromMs ?? null,
+    validToMs: input.validToMs ?? null,
   };
 }
 

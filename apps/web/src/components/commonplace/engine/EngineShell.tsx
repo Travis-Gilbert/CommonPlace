@@ -188,7 +188,7 @@ function TrainingPill({ stats }: { stats: FeedbackStats }) {
         }
         .es-pill-tier {
           font-family: var(--cp-font-mono);
-          font-size: 9px;
+          font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.06em;
           padding: 1px 6px;

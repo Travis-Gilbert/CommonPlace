@@ -79,7 +79,7 @@ const MENU_ITEMS: MenuItem[] = [
   { key: 'favorites', label: 'Favorites', icon: Star, surface: 'favorites' },
   { key: 'projects', label: 'Projects', fileIcon: 'artisan', surface: 'projects' },
   { key: 'data', label: 'Data', fileIcon: 'database', surface: 'data' },
-  { key: 'agent', label: 'Theorem Agent', fileIcon: 'atom', action: 'agent' },
+  { key: 'agent', label: 'CommonPlace Chat', fileIcon: 'atom', action: 'agent' },
   { key: 'code', label: 'Code', fileIcon: 'awk', view: 'code' },
   { key: 'graph', label: 'Graph', fileIcon: 'devicetree', view: 'network' },
   { key: 'vector-space', label: 'Vector Space', fileIcon: 'database', view: 'vector-space' },
@@ -208,7 +208,7 @@ export default function CommonPlaceMobileApp() {
         {
           id: `agent-${Date.now()}`,
           role: 'agent',
-          text: result.answer || 'Theorem did not return a publishable answer.',
+          text: result.answer || 'I did not get an answer back.',
         },
       ]);
     } catch (error) {
@@ -217,7 +217,7 @@ export default function CommonPlaceMobileApp() {
         {
           id: `error-${Date.now()}`,
           role: 'system',
-          text: error instanceof Error ? error.message : String(error),
+          text: 'I could not reach the agent right now. Check Accounts when you are ready to reconnect.',
         },
       ]);
     } finally {
@@ -882,7 +882,7 @@ function AgentChatOverlay({
   onSend: () => Promise<void>;
 }) {
   return (
-    <section className={styles.chatOverlay} aria-label="Theorem agent chat">
+    <section className={styles.chatOverlay} aria-label="CommonPlace chat">
       <header className={styles.chatHeader}>
         <button type="button" className={styles.roundIconButton} onClick={onClose} aria-label="Close chat">
           <X size={30} strokeWidth={2.4} />
@@ -897,7 +897,7 @@ function AgentChatOverlay({
         {messages.length === 0 ? (
           <>
             <MousePointer2 className={styles.agentPointer} size={28} strokeWidth={1.9} aria-hidden="true" />
-            <h2>Welcome to Theorem Agent</h2>
+            <h2>Welcome to CommonPlace Chat</h2>
             <p>Ask anything or tell CommonPlace what you need</p>
             <div className={styles.promptChips}>
               <PromptChip icon={Settings} label="Project creation" onClick={() => onComposerChange('Create a project from my latest CommonPlace notes')} />
@@ -918,7 +918,7 @@ function AgentChatOverlay({
             ))}
             {busy && (
               <article className={styles.chatMessage} data-role="system">
-                Theorem Agent is working.
+                CommonPlace is thinking.
               </article>
             )}
           </div>
@@ -941,7 +941,7 @@ function AgentChatOverlay({
         <textarea
           value={composer}
           onChange={(event) => onComposerChange(event.target.value)}
-          placeholder="Ask Theorem..."
+          placeholder="Ask CommonPlace..."
           rows={2}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {

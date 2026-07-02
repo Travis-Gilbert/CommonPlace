@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import AgentThreadView from './AgentThreadView';
+import HarnessLivePanel from './HarnessLivePanel';
 
 const accountSections = [
   {
@@ -27,7 +28,7 @@ const accountSections = [
 ];
 
 const agentLaunches = [
-  { label: 'Theorem Agent', mode: 'api' },
+  { label: 'CommonPlace Chat', mode: 'api' },
   { label: 'Claude Code', mode: 'acp' },
   { label: 'Codex', mode: 'acp' },
   { label: 'Gemini CLI', mode: 'acp' },
@@ -93,14 +94,14 @@ export default function AccountsView() {
         </div>
         <div style={styles.statusRow}>
           <span style={styles.status}>CommonPlace account</span>
-          <span style={styles.status}>agent-ready</span>
+          <span style={styles.status}>ready</span>
         </div>
       </header>
 
       <div style={styles.body}>
         <main style={styles.agentColumn}>
           <div style={styles.columnHeader}>
-            <span>Theorem Agent</span>
+            <span>CommonPlace Chat</span>
             <code style={styles.endpoint}>/api/theorem/agent</code>
           </div>
           <div style={styles.agentFrame}>
@@ -122,6 +123,7 @@ export default function AccountsView() {
           </section>
 
           <GithubAppPanel state={githubState} />
+          <HarnessLivePanel />
 
           <section style={styles.sectionGrid}>
             {accountSections.map((section) => (

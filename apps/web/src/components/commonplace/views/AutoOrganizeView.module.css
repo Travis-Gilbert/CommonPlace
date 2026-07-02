@@ -286,7 +286,7 @@
   background: linear-gradient(90deg, transparent, rgb(var(--card-tint, 45, 95, 107)), transparent);
   background-size: 40% 100%;
   background-repeat: no-repeat;
-  animation: aoSweep 1.1s linear infinite;
+  animation: aoSweep 1000ms linear infinite;
 }
 
 @keyframes aoSweep {
@@ -319,7 +319,7 @@
 
 .cardKind {
   font-family: var(--cp-font-mono);
-  font-size: 8px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0;
   color: var(--card-accent, var(--cp-teal));
@@ -334,13 +334,13 @@
 }
 
 .cardGlyph {
-  font-size: 9px;
-  line-height: 1;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .cardSource {
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--cp-text-muted);
   min-width: 0;
   overflow: hidden;
@@ -408,7 +408,7 @@
   min-width: 0;
   margin-top: 4px;
   font-family: var(--cp-font-mono);
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--cp-text-muted);
 }
 
@@ -442,7 +442,7 @@
   min-height: var(--cp-space-10);
   padding: 0 0 6px;
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0;
   color: var(--cp-text-muted);
@@ -450,7 +450,7 @@
 
 .subtaskChev {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .subtask {
@@ -469,7 +469,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 10px;
   color: rgb(var(--card-tint, 45, 95, 107));
 }
 
@@ -533,7 +533,7 @@
   font-weight: 700;
   color: var(--cp-text);
   padding: 3px 0 5px;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 /* ── note: tags ── */
@@ -547,7 +547,7 @@
 
 .tag {
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   padding: 2px 8px;
   border-radius: 10px;
   color: rgb(var(--card-tint, 196, 154, 74));
@@ -577,7 +577,7 @@
   border-radius: 50%;
   background-color: color-mix(in srgb, var(--cp-teal) 16%, transparent);
   color: var(--cp-teal);
-  font-size: 8px;
+  font-size: 10px;
   flex-shrink: 0;
 }
 
@@ -589,7 +589,7 @@
 .inlineChange {
   margin-left: 6px;
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0;
   color: var(--cp-text-faint);
@@ -748,7 +748,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0;
   color: var(--cp-teal);
@@ -837,7 +837,7 @@
   color: var(--cp-teal);
   font-size: 14px;
   flex-shrink: 0;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .recentBody {
@@ -861,14 +861,14 @@
 
 .recentMeta {
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--cp-text-faint);
   margin-top: 2px;
 }
 
 .undo {
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0;
   color: var(--cp-red);
@@ -931,7 +931,7 @@
 
 .proofTotal {
   font-family: var(--cp-font-mono);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0;
   color: var(--cp-text-faint);
