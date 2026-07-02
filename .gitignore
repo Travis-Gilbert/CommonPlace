@@ -6,5 +6,6 @@ coverage/
 *.tsbuildinfo
 apps/web/.next/
 apps/web/out/
+apps/web/.harness/reports/
 apps/commonplace-api/target/
 apps/desktop/src-tauri/target/

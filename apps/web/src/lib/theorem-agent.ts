@@ -47,12 +47,12 @@ const THEOREM_AGENT_PROXY_PATH = '/api/theorem/agent';
 export async function runTheoremAgent(input: TheoremAgentRunInput): Promise<TheoremAgentRunResult> {
   const normalized = normalizeInput(input);
   try {
-    return await runTheoremAgentGraphql(normalized);
+    return await runTheoremAgentProductFallback(normalized);
   } catch (err) {
-    if (!isGraphqlFallbackEligible(err)) {
+    if (!isProductRouteFallbackEligible(err)) {
       throw err;
     }
-    return runTheoremAgentProductFallback(normalized);
+    return runTheoremAgentGraphql(normalized);
   }
 }
 
@@ -269,13 +269,14 @@ function isAbortError(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'name' in err && (err as { name?: unknown }).name === 'AbortError';
 }
 
-function isGraphqlFallbackEligible(err: unknown): boolean {
+function isProductRouteFallbackEligible(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
-  if (/^commonplace-api \d{3}$/.test(err.message)) return true;
   return [
-    'composed_agent_run has no runtime-configured provider heads',
-    'THEOREM_AGENT_HEADS',
-    'ProviderHeadInvoker',
+    'Failed to parse URL',
+    'Failed to fetch',
+    'Load failed',
+    'NetworkError',
+    'Theorem agent 404',
   ].some((marker) => err.message.includes(marker));
 }
 
