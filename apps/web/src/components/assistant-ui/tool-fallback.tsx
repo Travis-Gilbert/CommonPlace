@@ -19,6 +19,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import SceneHost from "@/components/commonplace/scene-host/SceneHost";
+import { isRenderScenePayload, type RenderScenePayload } from "@/lib/scene-package";
 
 const ANIMATION_DURATION = 200;
 
@@ -269,6 +271,22 @@ function ToolFallbackError({
   );
 }
 
+// D1 (PT-010): a render_scene tool result renders a SceneHost preview card in
+// chat instead of a raw JSON dump. Non-scene results keep the default fallback,
+// so text-only ACP hosts (Zed, Neovim) lose nothing.
+function asScenePayload(result: unknown): RenderScenePayload | null {
+  if (isRenderScenePayload(result)) return result;
+  if (typeof result === "string") {
+    try {
+      const parsed: unknown = JSON.parse(result);
+      if (isRenderScenePayload(parsed)) return parsed;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
@@ -277,6 +295,15 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 }) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
+
+  const scenePayload = asScenePayload(result);
+  if (scenePayload) {
+    return (
+      <div className="commonplace-theme aui-scene-tool-result">
+        <SceneHost payload={scenePayload} />
+      </div>
+    );
+  }
 
   return (
     <ToolFallbackRoot
