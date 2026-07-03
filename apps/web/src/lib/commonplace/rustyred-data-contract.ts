@@ -71,6 +71,12 @@ export interface CommonplaceRustyRedGraphNode {
   color: [number, number, number];
   size: number;
   meta?: string;
+  /** Engine community id (Leiden). Optional: the live payload carries it when
+   *  the graph-algorithm pass has run; the frontend derives it otherwise. */
+  community?: number;
+  /** Engine centrality in 0..1 (PPR/degree). Optional, same derive-or-consume
+   *  contract as `community`. Views bind this for node size. */
+  centrality?: number;
 }
 
 export interface CommonplaceRustyRedGraphLink {

@@ -1,0 +1,109 @@
+/* Timeline (Data): the bi-temporal axis. A vertical spine of Items ordered by
+   date; the toggle scrubs between transaction time (created) and valid time
+   (when the assertion holds in the world). Porcelain tokens, material state,
+   no hex, no counts. */
+
+.toolbar {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--inset-bg);
+  border: 1px solid var(--hair-soft);
+  box-shadow: var(--well);
+}
+
+.seg {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color var(--motion) var(--ease), background var(--motion) var(--ease);
+}
+.seg:hover { color: var(--ink); }
+.segActive {
+  color: var(--ink);
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent);
+  box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.06);
+}
+
+.wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 calc(var(--u) * 5) calc(var(--u) * 6);
+}
+
+.timeline {
+  position: relative;
+  max-width: 680px;
+  margin-top: var(--u);
+  padding-left: 30px;
+  border-left: 2px solid var(--hair);
+}
+
+.item { position: relative; margin-bottom: calc(var(--u) * 2); }
+
+.dot {
+  position: absolute;
+  left: -37px;
+  top: 15px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--raised);
+  border: 1.5px solid var(--ink-faint);
+  box-shadow: var(--edge);
+}
+.dotNull { border-color: var(--hair); background: var(--inset-bg); }
+
+.card {
+  border-radius: var(--r-row);
+  background: var(--plane);
+  background-image: linear-gradient(180deg, var(--lit), transparent 60%);
+  border: 1px solid var(--hair-soft);
+  box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.05);
+  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.75);
+  transition: box-shadow var(--motion) var(--ease);
+}
+.card:hover {
+  box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.05), 0 5px 13px rgba(33, 31, 27, 0.05);
+}
+
+.when {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  margin-bottom: 3px;
+}
+.whenNull { color: var(--ink-faint); }
+
+.title { font-size: 0.94rem; font-weight: 500; color: var(--ink); }
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  margin-top: 5px;
+}
+
+.pill {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--inset-bg);
+  color: var(--ink-dim);
+  border: 1px solid var(--hair-soft);
+}
+
+.other { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-faint); }

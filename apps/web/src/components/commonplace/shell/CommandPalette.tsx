@@ -30,6 +30,7 @@ const ACTION_ITEMS = [
 ];
 
 const SCREEN_ACTION_ITEMS = [
+  { key: 'control-center' as ScreenType, label: 'Open Control Center', hint: 'Workrooms, approvals, receipts, routes, memory' },
   { key: 'accounts' as ScreenType, label: 'Open Accounts', hint: 'Agents, providers, keys, and usage' },
   { key: 'cobrowser' as ScreenType, label: 'Open Co-browser', hint: 'Desktop webview and page ingest controls' },
   { key: 'coordination' as ScreenType, label: 'Open Coordination', hint: 'Human and agent room feed' },
@@ -415,7 +416,7 @@ export default function CommandPalette() {
             )}
 
             {showActions && (
-              <Command.Group heading="Desktop" className="cp-palette-group">
+              <Command.Group heading="System" className="cp-palette-group">
                 {SCREEN_ACTION_ITEMS.map(({ key, label, hint }) => (
                   <Command.Item
                     key={key}

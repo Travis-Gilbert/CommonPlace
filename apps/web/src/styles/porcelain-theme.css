@@ -1,0 +1,106 @@
+/* Porcelain theme: token layer for the v2 shell.
+   Scoped under .porcelain so nothing here touches legacy surfaces
+   and nothing from global.css redefines these values.
+   Registers: porcelain (default) and umber via [data-register="umber"]
+   on any container. Registers are per-container, not a site toggle:
+   where the machine speaks, the ground goes dark.
+   Rule: no hex literals anywhere outside this file. */
+
+.porcelain {
+  /* ground -- warm off-white, blue nudged up a few points to pull a touch of
+     yellow out of the hue (kept warm-neutral, not cold gray) */
+  --g0: #F6F5F4;
+  --g1: #E9E8E5;
+  --bloom: rgba(255, 255, 255, 0.9);
+  --wash-a: rgba(255, 255, 255, 0.55);
+  --wash-b: rgba(48, 46, 40, 0.07);
+  --deep: rgba(48, 46, 40, 0.08);
+
+  /* planes: translucent layers over the lit ground */
+  --plane: rgba(255, 255, 255, 0.5);
+  --plane-grad: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.14) 55%, rgba(48, 46, 40, 0.05));
+  --raised: #FDFDFB;
+  --inset-bg: rgba(236, 233, 226, 0.6);
+
+  /* ink */
+  --ink: #211F1B;
+  --ink-dim: #57534A;
+  /* faint tertiary text: darkened from #8B867B so small mono metadata clears
+     4.5:1 on the ground (~4.75:1), while staying warm-neutral and still lighter
+     than --ink-dim, preserving the faint/dim/ink hierarchy. */
+  --ink-faint: #736E63;
+
+  /* accent: one meaning, a pending decision or a tension */
+  --accent: #8A2E29;
+  --accent-deep: #71231F;
+  --accent-soft: rgba(138, 46, 41, 0.08);
+  --accent-ink: #FBF3E4;
+
+  /* hairlines and light */
+  --hair: rgba(33, 31, 27, 0.15);
+  --hair-soft: rgba(33, 31, 27, 0.08);
+  --lit: rgba(255, 255, 255, 0.9);
+
+  /* status */
+  --ok: #3D7A4A;
+
+  /* light model: every surface is a sheet, a float, or a well */
+  --edge: inset 0 1px 0 var(--lit);
+  --raise: 0 1px 2px rgba(33, 31, 27, 0.05), 0 4px 12px rgba(33, 31, 27, 0.06);
+  --float: 0 1px 2px rgba(33, 31, 27, 0.06), 0 16px 40px rgba(33, 31, 27, 0.1);
+  --well: inset 0 2px 4px rgba(33, 31, 27, 0.08);
+
+  /* type */
+  --font-display: 'Cabinet Grotesk', 'IBM Plex Sans Condensed', sans-serif;
+  --font-body: 'IBM Plex Sans Condensed', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* geometry and motion */
+  --u: 8px;
+  --r-row: 10px;
+  --r-band: 15px;
+  --motion: 220ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* umber register: machine-active containers opt in with data-register */
+.porcelain [data-register='umber'],
+.porcelain[data-register='umber'] {
+  --g0: #292118;
+  --g1: #1E1710;
+  --bloom: rgba(255, 240, 214, 0.06);
+  --wash-a: rgba(255, 240, 214, 0.05);
+  --wash-b: rgba(0, 0, 0, 0.25);
+  --deep: rgba(0, 0, 0, 0.3);
+
+  --plane: rgba(46, 38, 28, 0.55);
+  --plane-grad: linear-gradient(135deg, rgba(255, 244, 224, 0.05), rgba(255, 244, 224, 0.01) 55%, rgba(0, 0, 0, 0.12));
+  --raised: #241D14;
+  --inset-bg: rgba(24, 19, 13, 0.6);
+
+  --ink: #EFE8D9;
+  --ink-dim: #C6BCA8;
+  --ink-faint: #938975;
+
+  --accent: #C4453D;
+  --accent-deep: #A5352E;
+  --accent-soft: rgba(196, 69, 61, 0.14);
+  --accent-ink: #1A0E0C;
+
+  --hair: rgba(239, 232, 217, 0.14);
+  --hair-soft: rgba(239, 232, 217, 0.08);
+  --lit: rgba(255, 244, 224, 0.09);
+
+  --ok: #5FA871;
+
+  --edge: inset 0 1px 0 var(--lit);
+  --raise: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --float: 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --well: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .porcelain {
+    --motion: 0ms;
+  }
+}

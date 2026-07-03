@@ -465,6 +465,29 @@ export async function gqlAddToCollection(
   );
 }
 
+/** Tombstone an item's membership in a collection (provenance retained). */
+export async function gqlRemoveFromCollection(
+  itemId: string,
+  collectionId: string,
+): Promise<void> {
+  await gql(
+    `mutation($i:String!,$c:String!){ removeFromCollection(itemId:$i,collectionId:$c) }`,
+    { i: itemId, c: collectionId },
+  );
+}
+
+/** The durable refile: add the new membership, tombstone the old one. */
+export async function gqlMoveToCollection(
+  itemId: string,
+  oldCollectionId: string,
+  newCollectionId: string,
+): Promise<void> {
+  await gql(
+    `mutation($i:String!,$o:String!,$n:String!){ moveToCollection(itemId:$i,oldCollectionId:$o,newCollectionId:$n) }`,
+    { i: itemId, o: oldCollectionId, n: newCollectionId },
+  );
+}
+
 export interface PmLabelGql {
   id: string;
   name: string;
