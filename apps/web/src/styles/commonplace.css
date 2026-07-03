@@ -1,5 +1,6 @@
 /* Tokens extracted to commonplace-tokens.css (loaded before this file in layout.tsx) */
 /* Reader styles (tokens extracted to reader-tokens.css) */
+@import '@xyflow/react/dist/style.css';
 @import './reader.css';
 
 .commonplace-theme button,
@@ -10913,5 +10914,235 @@ select.cp-input {
   .commonplace-theme .cp-loading-skeleton {
     animation-duration: 2s !important;
     animation-iteration-count: infinite !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   Scene Host: ACP canvas package renderer
+   ───────────────────────────────────────────────── */
+
+.commonplace-theme .cp-scene-host {
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 8px;
+  background: var(--cp-surface);
+  overflow: hidden;
+}
+
+.commonplace-theme .cp-scene-host-preview {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--cp-border-faint);
+}
+
+.commonplace-theme .cp-scene-host-preview h3 {
+  margin: 2px 0 4px;
+  font-family: var(--cp-font-title);
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--cp-text);
+}
+
+.commonplace-theme .cp-scene-host-preview p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-scene-host-kicker {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  color: var(--cp-text-faint);
+  text-transform: uppercase;
+}
+
+.commonplace-theme .cp-scene-host-reason,
+.commonplace-theme .cp-scene-validation-reason {
+  color: var(--cp-red, #A65324);
+}
+
+.commonplace-theme .cp-scene-host-actions,
+.commonplace-theme .cp-scene-host-overlay-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.commonplace-theme .cp-scene-host-actions button,
+.commonplace-theme .cp-scene-host-overlay-bar button {
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  background: var(--cp-card);
+  color: var(--cp-text);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.commonplace-theme .cp-scene-host-inline {
+  min-height: 180px;
+  padding: 12px;
+}
+
+.commonplace-theme .cp-scene-host-loading {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  color: var(--cp-text-muted);
+  font-size: 12px;
+}
+
+.commonplace-theme .cp-scene-host-overlay {
+  position: fixed;
+  inset: 18px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+}
+
+.commonplace-theme .cp-scene-host-overlay-bar {
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--cp-border-faint);
+}
+
+.commonplace-theme .cp-scene-host-overlay-bar div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.commonplace-theme .cp-scene-host-overlay-bar span {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  color: var(--cp-text-faint);
+  text-transform: uppercase;
+}
+
+.commonplace-theme .cp-scene-host-overlay-bar strong {
+  font-family: var(--cp-font-title);
+  font-size: 16px;
+  color: var(--cp-text);
+}
+
+.commonplace-theme .cp-scene-host-canvas {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+  overflow: auto;
+}
+
+.commonplace-theme .cp-scene-evidence-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.commonplace-theme .cp-scene-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.commonplace-theme .cp-scene-relation-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-scene-relation-list span {
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 4px;
+  padding: 3px 6px;
+  background: var(--cp-card);
+}
+
+.commonplace-theme .cp-scene-table-wrap {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.commonplace-theme .cp-scene-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: var(--cp-card);
+}
+
+.commonplace-theme .cp-scene-table th,
+.commonplace-theme .cp-scene-table td {
+  border: 1px solid var(--cp-border-faint);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.commonplace-theme .cp-scene-table th {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  color: var(--cp-text-muted);
+  background: var(--cp-surface-hover);
+}
+
+.commonplace-theme .cp-scene-graph-neighborhood,
+.commonplace-theme .cp-scene-mechanism,
+.commonplace-theme .cp-scene-chart {
+  min-height: 360px;
+  height: 100%;
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  background: var(--cp-card);
+  overflow: hidden;
+}
+
+.commonplace-theme .cp-scene-mechanism .react-flow__node {
+  border: 1px solid var(--cp-border);
+  border-radius: 6px;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-family: var(--cp-font-body);
+  font-size: 12px;
+}
+
+.commonplace-theme .cp-obj-kind-well {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--kind-color) 18%, transparent);
+  color: var(--kind-color);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.commonplace-theme .cp-object-grammar .cp-obj-title,
+.commonplace-theme .cp-obj-grammar .cp-obj-title {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .commonplace-theme .cp-scene-host-preview {
+    flex-direction: column;
+  }
+
+  .commonplace-theme .cp-scene-host-overlay {
+    inset: 8px;
+  }
+
+  .commonplace-theme .cp-scene-host-canvas {
+    padding: 8px;
   }
 }

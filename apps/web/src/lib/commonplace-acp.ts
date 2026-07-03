@@ -1,3 +1,5 @@
+import { isRenderScenePayload, type RenderScenePayload } from '@/lib/scene-package';
+
 export const ACP_AGENTS = [
   {
     agentId: 'claude',
@@ -146,4 +148,55 @@ export function diffFromAcpUpdate(update: unknown): string | null {
   if (typeof record.patch === 'string') return record.patch;
   if (record.update && typeof record.update === 'object') return diffFromAcpUpdate(record.update);
   return null;
+}
+
+export function sceneFromAcpUpdate(update: unknown): RenderScenePayload | null {
+  const seen = new Set<unknown>();
+
+  const visit = (value: unknown, depth = 0): RenderScenePayload | null => {
+    if (!value || depth > 8) return null;
+    if (typeof value === 'string') {
+      try {
+        return visit(JSON.parse(value), depth + 1);
+      } catch {
+        return null;
+      }
+    }
+    if (typeof value !== 'object') return null;
+    if (seen.has(value)) return null;
+    seen.add(value);
+    if (isRenderScenePayload(value)) return value;
+
+    const record = value as Record<string, unknown>;
+    for (const key of [
+      'rawOutput',
+      'raw_output',
+      'result',
+      'output',
+      'payload',
+      'fields',
+      'update',
+      'content',
+      'parts',
+      'messages',
+    ]) {
+      const nested = record[key];
+      if (Array.isArray(nested)) {
+        for (const item of nested) {
+          const found = visit(item, depth + 1);
+          if (found) return found;
+        }
+      } else {
+        const found = visit(nested, depth + 1);
+        if (found) return found;
+      }
+    }
+    for (const nested of Object.values(record)) {
+      const found = visit(nested, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  return visit(update);
 }

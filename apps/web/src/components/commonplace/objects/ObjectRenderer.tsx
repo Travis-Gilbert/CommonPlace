@@ -1,27 +1,15 @@
 'use client';
 
-import { getObjectTypeIdentity } from '@/lib/commonplace';
 import type { ObjectListItem, PinnedBadgeObject, TagSummary } from '@/lib/commonplace';
 import PinnedBadge from './PinnedBadge';
 import StatusBadge from './StatusBadge';
 import SignalPips from './SignalPips';
-import NoteCard from './NoteCard';
-import SourceCard from './SourceCard';
-import PersonPill from './PersonPill';
-import ConceptNode from './ConceptNode';
-import HunchSticky from './HunchSticky';
-import QuoteBlock from './QuoteBlock';
-import TaskRow from './TaskRow';
-import EventBadge from './EventBadge';
-import ScriptBlock from './ScriptBlock';
-import PlacePin from './PlacePin';
-import EmailCard from './EmailCard';
-import PaperCard from './PaperCard';
-import { useState, useCallback, useRef, useEffect, type ComponentType } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPin } from '@/lib/commonplace-api';
 import { useWorkspace } from '@/lib/providers/workspace-provider';
 import RoughBorder from '../shared/RoughBorder';
 import LensAffordance from '../lenses/LensAffordance';
+import { OBJECT_RENDERER_REGISTRY } from './objectRendererRegistry';
 
 /* ── Types ── */
 
@@ -62,23 +50,6 @@ export interface ObjectCardProps {
   /** Called after a successful pin drop (parent slug, child slug). */
   onPinCreated?: (parentSlug: string, childSlug: string) => void;
 }
-
-/* ── Renderer lookup ── */
-
-const RENDERERS: Record<string, ComponentType<ObjectCardProps>> = {
-  note: NoteCard,
-  source: SourceCard,
-  person: PersonPill,
-  concept: ConceptNode,
-  hunch: HunchSticky,
-  quote: QuoteBlock,
-  task: TaskRow,
-  event: EventBadge,
-  script: ScriptBlock,
-  place: PlacePin,
-  email: EmailCard,
-  paper: PaperCard,
-};
 
 /* ── Fallback card ── */
 
@@ -126,12 +97,8 @@ export default function ObjectRenderer(props: ObjectCardProps) {
   }, []);
 
   /* Resolve the renderer for this object type */
-  const Renderer = RENDERERS[props.object.object_type_slug] ?? FallbackCard;
-
-  /* Compact variants (dock/chain/chip) skip DnD wrapping */
-  if (props.variant === 'dock' || props.variant === 'chain' || props.variant === 'chip') {
-    return <Renderer {...props} />;
-  }
+  const Renderer = OBJECT_RENDERER_REGISTRY[props.object.object_type_slug]?.renderer ?? FallbackCard;
+  const compactVariant = props.variant === 'dock' || props.variant === 'chain' || props.variant === 'chip';
 
   /* Full card with DnD + RoughBorder + tags + pins */
   const card = <Renderer {...props} />;
@@ -189,7 +156,7 @@ export default function ObjectRenderer(props: ObjectCardProps) {
         await createPin(props.object.slug, { target_slug: data.slug });
       } catch { /* API error: parent view should refetch */ }
     },
-    [props.object.slug, props.onPinCreated],
+    [props],
   );
 
   const wrapperClass = [
@@ -199,6 +166,11 @@ export default function ObjectRenderer(props: ObjectCardProps) {
     isDropTarget && pointerInside ? 'cp-object-card--hover-drop' : '',
     justAttached ? 'cp-object-card--absorbing' : '',
   ].filter(Boolean).join(' ');
+
+  /* Compact variants (dock/chain/chip) skip DnD wrapping */
+  if (compactVariant) {
+    return <Renderer {...props} />;
+  }
 
   return (
     <div
@@ -217,7 +189,7 @@ export default function ObjectRenderer(props: ObjectCardProps) {
       onPointerEnter={() => isDropTarget && setPointerInside(true)}
       onPointerLeave={() => setPointerInside(false)}
     >
-      <RoughBorder seed={props.object.slug} glow glowColor={getObjectTypeIdentity(props.object.object_type_slug).color}>
+      <RoughBorder seed={props.object.slug} glow glowColor="var(--cp-border-faint)">
         {card}
       </RoughBorder>
       <LensAffordance object={props.object} />
