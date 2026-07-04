@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   allRows,
+  indexRowKey,
   isNeedsYou,
   type IndexBandId,
   type IndexData,
@@ -108,7 +109,7 @@ function Row({
   row: IndexRow;
   selected: boolean;
   destination: IndexRowDestination | null;
-  onSelect: (id: string) => void;
+  onSelect: (key: string) => void;
 }) {
   const Glyph = KIND_GLYPH[row.kind] ?? FileText;
   return (
@@ -118,7 +119,7 @@ function Row({
         row.isTension ? 'is-tension' : ''
       }`}
       aria-current={selected ? 'true' : undefined}
-      onClick={() => onSelect(row.id)}
+      onClick={() => onSelect(indexRowKey(row))}
     >
       {row.band === 'today' ? (
         <span className={`p-when ${row.whenSoft ? 'is-soft' : ''}`}>{row.when}</span>
@@ -138,14 +139,14 @@ function Row({
 function Band({
   band,
   rows,
-  selectedId,
+  selectedKey,
   onSelect,
   destinationFor,
 }: {
   band: IndexBandId;
   rows: readonly IndexRow[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
   destinationFor: (row: IndexRow) => IndexRowDestination | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -173,9 +174,10 @@ function Band({
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((vi) => {
               const row = rows[vi.index];
+              const key = indexRowKey(row);
               return (
                 <div
-                  key={row.id}
+                  key={key}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -186,7 +188,7 @@ function Band({
                 >
                   <Row
                     row={row}
-                    selected={row.id === selectedId}
+                    selected={key === selectedKey}
                     destination={destinationFor(row)}
                     onSelect={onSelect}
                   />
@@ -196,15 +198,18 @@ function Band({
           </div>
         </div>
       ) : (
-        rows.map((row) => (
-          <Row
-            key={row.id}
-            row={row}
-            selected={row.id === selectedId}
-            destination={destinationFor(row)}
-            onSelect={onSelect}
-          />
-        ))
+        rows.map((row) => {
+          const key = indexRowKey(row);
+          return (
+            <Row
+              key={key}
+              row={row}
+              selected={key === selectedKey}
+              destination={destinationFor(row)}
+              onSelect={onSelect}
+            />
+          );
+        })
       )}
     </section>
   );
@@ -212,12 +217,12 @@ function Band({
 
 interface IndexListProps {
   data: IndexData;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
   destinationFor: (row: IndexRow) => IndexRowDestination | null;
 }
 
-export function IndexList({ data, selectedId, onSelect, destinationFor }: IndexListProps) {
+export function IndexList({ data, selectedKey, onSelect, destinationFor }: IndexListProps) {
   const [tab, setTab] = useState<'all' | 'needs'>('all');
   const [query, setQuery] = useState('');
 
@@ -283,7 +288,7 @@ export function IndexList({ data, selectedId, onSelect, destinationFor }: IndexL
                 key={band}
                 band={band}
                 rows={rows}
-                selectedId={selectedId}
+                selectedKey={selectedKey}
                 onSelect={onSelect}
                 destinationFor={destinationFor}
               />
