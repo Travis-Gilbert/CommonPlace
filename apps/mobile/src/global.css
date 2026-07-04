@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Porcelain register v2 custom properties (single source: src/theme/tokens.ts;
+   these mirror it for NativeWind class usage). Light is default; dark values
+   follow the claude.ai warm dark family. */
+:root {
+  --cp-deep: #f5f4ee;
+  --cp-bg: #faf9f5;
+  --cp-surface: #faf9f5;
+  --cp-raised: #ffffff;
+  --cp-secondary: #e9e6dc;
+  --cp-muted: #ede9de;
+  --cp-border: #dad9d4;
+  --cp-input: #b4b2a7;
+  --cp-text: #141413;
+  --cp-text-muted: #6a5e52;
+  --cp-text-faint: #8a857b;
+  --cp-oxblood: #7a2733;
+  --cp-oxblood-pressed: #66202b;
+  --cp-oxblood-wash: #f6e6e5;
+  --cp-teal: #2d5f6b;
+  --cp-gold: #c49a4a;
+  --cp-gold-light: #e0bc60;
+  --cp-machine: #1c1c20;
+  --cp-machine-raise: #2a2a30;
+  --cp-machine-line: #35353c;
+  --cp-machine-text: #d8d6dc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cp-deep: #1f1e1d;
+    --cp-bg: #262624;
+    --cp-surface: #30302e;
+    --cp-raised: #3a3a37;
+    --cp-secondary: #3a3a37;
+    --cp-muted: #30302e;
+    --cp-border: #413f3c;
+    --cp-input: #55534e;
+    --cp-text: #f5f4ee;
+    --cp-text-muted: #a8a59d;
+    --cp-text-faint: #7c7a73;
+    --cp-oxblood: #8a3140;
+    --cp-oxblood-pressed: #7a2733;
+    --cp-oxblood-wash: rgba(138, 49, 64, 0.16);
+  }
+}

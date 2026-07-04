@@ -590,15 +590,12 @@ async fn page_crdt_snapshots_are_owned_by_rustyred_files() {
         data["compactPageCrdtSnapshot"]["item"]["extra"]["compacted"],
         true
     );
-    assert!(
-        BASE64_STANDARD
-            .decode(
-                data["compactPageCrdtSnapshot"]["updateBase64"]
-                    .as_str()
-                    .unwrap()
-            )
-            .unwrap()
-            .len()
-            > 0
-    );
+    assert!(!BASE64_STANDARD
+        .decode(
+            data["compactPageCrdtSnapshot"]["updateBase64"]
+                .as_str()
+                .unwrap()
+        )
+        .unwrap()
+        .is_empty());
 }

@@ -29,6 +29,7 @@ pub mod content_core;
 pub mod ingest;
 pub mod item;
 pub mod organize;
+pub mod reminder;
 pub mod renderable;
 pub mod store;
 pub mod tag;
@@ -59,6 +60,7 @@ pub use ingest::{
 };
 pub use item::{Item, ItemBody, ItemKind, Residency, SourceRef};
 pub use organize::{decide, route, NeedsYouReason, OrganizeDecision, OrganizePolicy, RoutingRule};
+pub use reminder::parse_reminder;
 pub use renderable::{
     get_object_type_identity, item_object_type_slug, renderable_from_item, renderables_from_items,
     ObjectTypeIdentity, OrganizeAction, OrganizeActionReceipt, OrganizeActionVerb,
