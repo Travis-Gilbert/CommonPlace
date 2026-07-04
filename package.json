@@ -8,6 +8,8 @@
     "install:railway": "npm --prefix apps/web ci --legacy-peer-deps --workspaces=false && mkdir -p node_modules && touch node_modules/.railpack-keep",
     "build:railway": "npm run install:railway && npm --prefix apps/web run build:railway",
     "start:railway": "npm --prefix apps/web run start:railway",
+    "mobile:start": "npm --prefix apps/mobile run start",
+    "mobile:check": "npm --prefix apps/mobile exec tsc -- --noEmit",
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "web:build:desktop": "npm --prefix apps/web run build:desktop",

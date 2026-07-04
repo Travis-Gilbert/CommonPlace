@@ -1,48 +1,26 @@
 {
-  "spec": "commonplace-github-app-ingestion-exposure",
-  "roomId": "repo:CommonPlace:branch:Travis-Gilbert/commonplace-vector-space-atlas",
-  "updatedAt": "2026-07-01T01:30:00Z",
+  "plan": "docs/records/004-mobile-app.md",
+  "spec": "SPEC-MOBILE-APP + porcelain-register-v2 (doc_070852d0d404a589)",
+  "created": "2026-07-03",
+  "reconciled": "2026-07-03",
   "items": [
-    {
-      "id": "PT-001",
-      "title": "Expose GitHub webhook proxy",
-      "status": "completed",
-      "acceptance": [
-        "POST /github/webhook forwards the raw body and GitHub delivery, event, and signature headers to the configured Theorem harness webhook upstream.",
-        "POST /api/github/webhook uses the same forwarding path for hosts that prefer API namespace routing.",
-        "When no upstream is configured, the route returns an honest 503 response and does not attempt a network call."
-      ]
-    },
-    {
-      "id": "PT-002",
-      "title": "Expose server side GitHub ingestion status",
-      "status": "completed",
-      "acceptance": [
-        "GET /api/theorem/github/status returns the public webhook URL, proxy path, upstream configured state, and optional GitHub App install URL.",
-        "The status response never exposes server side webhook secrets, app private keys, or upstream credentials.",
-        "Route tests cover configured and unconfigured environments."
-      ]
-    },
-    {
-      "id": "PT-003",
-      "title": "Connect CommonPlace UI",
-      "status": "completed",
-      "acceptance": [
-        "The Accounts product surface loads /api/theorem/github/status and shows the real webhook URL.",
-        "The GitHub App install action appears only when a real install URL is configured.",
-        "The panel has no mock state or inert controls."
-      ]
-    },
-    {
-      "id": "UIV-001",
-      "title": "Visual project gate",
-      "status": "completed",
-      "acceptance": [
-        "The Accounts addition keeps the existing operational layout and does not create a marketing or prototype surface.",
-        "Controls remain readable in the constrained right column.",
-        "Validation records whether browser visual capture was run."
-      ],
-      "validation": "Browser visual capture was attempted against the local dev server, but the Playwright browser MCP could not launch because /Applications/Google Chrome.app was not installed. Endpoint validation and touched-file ESLint passed."
-    }
+    { "id": "PT-001", "title": "Mobile token system (porcelain register v2, light+dark, tokens.ts + NativeWind vars)", "acceptance": "All app values trace to tokens; oxblood exact; contrast math recorded", "status": "completed", "evidence": "src/theme/tokens.ts with computed contrast receipts (oxblood/white 9.7:1, dark 8.1:1, muted 6.0/6.1:1); tsc exit 0; expo export green" },
+    { "id": "PT-002", "title": "Break web oxblood alias to real #7A2733 family", "acceptance": "--cp-oxblood no longer aliases burnt-orange in both token files", "status": "completed", "evidence": "commonplace-tokens.css + commonplace-tokens-neutral.css define #7A2733/#8A3140/#66202B + washes; zero component-level consumers (grep)" },
+    { "id": "PT-003", "title": "Nav shell: tab pill + detached right FAB 56pt, blur bar", "acceptance": "4 tabs + thumb-zone FAB; iOS blur / Android tint fallback", "status": "built (device verification pending)", "evidence": "TabBarWithFab.tsx; compiles into iOS bundle; no simulator on this machine (CLT only)" },
+    { "id": "PT-004", "title": "Omnibar sheet: Keep default + Ask chip arming + paste detection", "acceptance": "Plain submit = Keep offline; Ask explicit only; long-press FAB = voice", "status": "built (device verification pending)", "evidence": "Omnibar.tsx: Keep default verb, Ask arms + never auto-routes (soft highlight only), clipboard offer, voice long-press" },
+    { "id": "PT-005", "title": "Capture trust loop: SQLite queue + state machine + receipts", "acceptance": "Airplane capture survives kill; drains on reconnect; receipt tappable", "status": "built (device verification pending)", "evidence": "capture/queue.ts: durable-write-before-network, kept->syncing->filed/answered, retry pump; airplane-mode acceptance needs a device" },
+    { "id": "PT-006", "title": "GraphQL client + instance seam (probe, secure settings)", "acceptance": "Probe works; settings survive restart", "status": "completed", "evidence": "api/instance.ts ports web probe pattern ({ __typename } + x-api-key) to expo-secure-store; tsc/export green" },
+    { "id": "PT-007", "title": "Index tab: three bands + swipes + On-this-phone + Needs-your-call", "acceptance": "organize+briefing objects via kind renderers; zero badges", "status": "built (device verification pending)", "evidence": "(tabs)/index.tsx: organize+briefing+items queries, swipe done/park/refile, needs-you card, no numeric badges anywhere" },
+    { "id": "PT-008", "title": "commonplace-api: remind_at_ms + NL date parse + edit_item status/due/remind", "acceptance": "cargo test green; ingest echoes reminder parse", "status": "completed", "evidence": "crates/commonplace 31 tests + apps/commonplace-api 36 tests green incl. pt008 acceptance; clippy clean (2 proven-pre-existing block_view warnings excepted)" },
+    { "id": "PT-009", "title": "Chat tab: threads + composer + theoremAgent + scene WebView", "acceptance": "Text first; scene card opens WebView; failure leaves text", "status": "built (device verification pending)", "evidence": "chat.tsx + thread/[id].tsx: text renders first, scene is an explicit affordance, WebView failure isolated in scene.tsx" },
+    { "id": "PT-010", "title": "Commonplaces tab: room list + feed + SSE + composer + approval cards", "acceptance": "Message round-trips via SSE; approve/deny cards; LAN node works", "status": "built (live-node verification pending)", "evidence": "commonplaces.tsx + room/[id].tsx over the new GET /harness/rooms + SSE stream; approval cards wired to respondToApproval" },
+    { "id": "PT-011", "title": "harness-server: rooms list route + Expo push relay", "acceptance": "cargo test green; list returns rooms; push sends on mention", "status": "completed", "evidence": "Theorem worktree: 37+3 server tests + 35 runtime tests green, clippy -D warnings clean, mock-server push test; live exp.host send env-gated by design (THEOREM_PUSH_ENABLED)" },
+    { "id": "PT-012", "title": "Data tab: Objects/Files/Timeline/Graph lenses + object drawer", "acceptance": "Any object opens same drawer; graph lens renders scene", "status": "built (device verification pending)", "evidence": "(tabs)/data.tsx four lenses + object/[id].tsx drawer (provenance, destination tokens, receipts, composer)" },
+    { "id": "PT-013", "title": "Reminders + notification ethics (local schedule, categories, no badge)", "acceptance": "NL reminder fires deep-linked; resurfacing never notifies", "status": "built (device verification pending)", "evidence": "notifications/index.ts is the only expo-notifications importer; 4 allowed kinds; shouldSetBadge:false; categories approve/deny + snooze/done; deep links wired in root layout" },
+    { "id": "PT-014", "title": "Accounts/avatar sheet: instance switcher, secure tokens, sign-out gate", "acceptance": "cloud<->local switch; tokens survive restart; queue drain gate", "status": "built (device verification pending)", "evidence": "account.tsx: mode toggle, probe, secure-store persistence, drain-or-discard sign-out Alert" },
+    { "id": "PT-015", "title": "Share sheet via expo-share-intent -> pre-filled omnibar", "acceptance": "Shared URL lands in composer, capture confirmed", "status": "built (device build pending)", "evidence": "app.json plugin config + ShareIntentBridge in root layout; share extension requires a dev build to exercise" },
+    { "id": "PT-016", "title": "WeaveSpinner RN port on machine surfaces", "acceptance": "Reanimated 4 CSS animations; reduced-motion static fallback", "status": "completed", "evidence": "components/WeaveSpinner.tsx compiles into the Hermes bundle; used on thread pending + room loading + scene loading; reduced-motion static node" },
+    { "id": "PT-017", "title": "Blob capture seam: multipart route + camera/file/voice wiring", "acceptance": "Photo queues offline, files with blob hash; voice files as audio", "status": "completed (server) / built (client, device pending)", "evidence": "POST /ingest/blob + GET /blob/{hash} with 3 acceptance tests; client uploadBlobCapture wired for camera/file/voice; voice transcription deferred (no transcription service exists server-side)" },
+    { "id": "PT-018", "title": "Verification + docs both repos", "acceptance": "tsc + expo export + targeted tests green; records updated", "status": "completed", "evidence": "tsc exit 0; expo export iOS green (4.6MB hbc); Rust suites green both repos; record 004 + READMEs + root scripts updated" }
   ]
 }
