@@ -91,6 +91,9 @@ pub struct ItemGql {
     pub status: Option<String>,
     pub priority: Option<String>,
     pub due_at_ms: Option<i64>,
+    /// Reminder instant in epoch ms (PT-008): explicit or echoed from a
+    /// natural-language phrase at ingest.
+    pub remind_at_ms: Option<i64>,
     pub path: Option<String>,
     pub extra: GqlJson<Value>,
     pub created_at_ms: i64,
@@ -127,6 +130,7 @@ impl From<Item> for ItemGql {
             status: item.status,
             priority: item.priority,
             due_at_ms: item.due_at_ms,
+            remind_at_ms: item.remind_at_ms,
             path,
             extra: GqlJson(Value::Object(item.extra)),
             created_at_ms: item.created_at_ms,
@@ -290,6 +294,11 @@ pub struct IngestInputGql {
     pub tags: Option<Vec<String>>,
     pub source: Option<String>,
     pub residency: Option<String>,
+    /// Explicit reminder instant (epoch ms). Wins over the server-side
+    /// natural-language reminder parse (PT-008).
+    pub remind_at_ms: Option<i64>,
+    /// Explicit due instant (epoch ms).
+    pub due_at_ms: Option<i64>,
 }
 
 #[derive(InputObject)]
@@ -1759,6 +1768,9 @@ where
         if let Some(residency) = input.residency {
             request = request.with_residency(Residency::from(residency));
         }
+        // Explicit scalar instants win over the server-side reminder parse.
+        request.remind_at_ms = input.remind_at_ms;
+        request.due_at_ms = input.due_at_ms;
         let receipt = IngestPipeline::default()
             .ingest(&mut cp, request)
             .map_err(store_err)?;
@@ -1785,7 +1797,9 @@ where
         Ok(ItemGql::from(cp.put_item(item).map_err(store_err)?))
     }
 
-    /// Edit an existing item's title, tags, or residency (in place by id).
+    /// Edit an existing item's title, tags, residency, status, due date, or
+    /// reminder (in place by id).
+    #[allow(clippy::too_many_arguments)]
     async fn edit_item(
         &self,
         ctx: &Context<'_>,
@@ -1793,6 +1807,11 @@ where
         title: Option<String>,
         tags: Option<Vec<String>>,
         residency: Option<String>,
+        #[graphql(desc = "Task/work status token (e.g. open, done).")] status: Option<String>,
+        #[graphql(desc = "Due instant in epoch ms; pass -1 to clear the due date.")]
+        due_at_ms: Option<i64>,
+        #[graphql(desc = "Reminder instant in epoch ms; pass -1 to clear the reminder.")]
+        remind_at_ms: Option<i64>,
     ) -> Result<ItemGql> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
@@ -1811,6 +1830,19 @@ where
         }
         if let Some(residency) = residency {
             item.residency = Residency::from(residency);
+        }
+        if let Some(status) = status {
+            item.status = Some(status);
+        }
+        match due_at_ms {
+            Some(value) if value < 0 => item.due_at_ms = None,
+            Some(value) => item.due_at_ms = Some(value),
+            None => {}
+        }
+        match remind_at_ms {
+            Some(value) if value < 0 => item.remind_at_ms = None,
+            Some(value) => item.remind_at_ms = Some(value),
+            None => {}
         }
         Ok(ItemGql::from(cp.put_item(item).map_err(store_err)?))
     }

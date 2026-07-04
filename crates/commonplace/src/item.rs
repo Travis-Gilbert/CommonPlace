@@ -217,6 +217,13 @@ pub struct Item {
     /// range query.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub due_at_ms: Option<i64>,
+    /// Reminder instant in epoch ms (PT-008). Distinct from `due_at_ms`: a due
+    /// date is when the work is owed, a reminder is when the item should
+    /// resurface. Set explicitly by clients or echoed from a natural-language
+    /// reminder phrase during ingest (see [`crate::reminder`]). Serde default so
+    /// existing stored items load unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remind_at_ms: Option<i64>,
     #[serde(default)]
     pub created_at_ms: i64,
     #[serde(default)]
@@ -245,6 +252,7 @@ impl Item {
             status: None,
             priority: None,
             due_at_ms: None,
+            remind_at_ms: None,
             created_at_ms: 0,
             updated_at_ms: 0,
             extra: Map::new(),
@@ -306,6 +314,11 @@ impl Item {
 
     pub fn with_due_at(mut self, due_at_ms: i64) -> Self {
         self.due_at_ms = Some(due_at_ms);
+        self
+    }
+
+    pub fn with_remind_at(mut self, remind_at_ms: i64) -> Self {
+        self.remind_at_ms = Some(remind_at_ms);
         self
     }
 
