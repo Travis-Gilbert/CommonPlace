@@ -1,0 +1,70 @@
+{
+  "spec": "HANDOFF-INDEX-SURFACE",
+  "owner": "claude-code",
+  "note": "Entire spec is CC's; no part handed to Codex. Frontend in CommonPlace/apps/web. Backend contracts ALREADY EXIST in commonplace-graphql.ts -> running commonplace-api; this was wire-up, not a Rust build.",
+  "items": [
+    {
+      "id": "PT-001",
+      "deliverable": "D1 rail collapsed-state persistence",
+      "status": "done",
+      "verified": "reload -> collapsed icon rail; localStorage v2-rail-collapsed=1; /v2/graph still force-collapses",
+      "file": "apps/web/src/components/v2/V2Shell.tsx"
+    },
+    {
+      "id": "PT-002",
+      "deliverable": "D5 cross-surface refile immediacy",
+      "status": "done",
+      "verified": "shared useRefileSignal + session refileOverrides store; Ledger Collection cell moved via event (verified); Files moves node to dest folder; store-fold-on-mount for surfaces opened later; undo refiles back to original",
+      "file": "index-queries.ts, app/v2/files/page.tsx, app/v2/ledger/page.tsx"
+    },
+    {
+      "id": "PT-003",
+      "deliverable": "D4 Today band M1 valid-time flag",
+      "status": "done",
+      "verified": "INDEX_TEMPORAL_M1 const added parallel to INDEX_EPISTEMIC_M3; tsc clean",
+      "file": "apps/web/src/lib/commonplace/index-queries.ts"
+    },
+    {
+      "id": "PT-004",
+      "deliverable": "D6 --ink-faint small-text contrast",
+      "status": "done",
+      "verified": "#8B867B -> #736E63; computed 4.75:1 on ground; kicker color confirmed #736E63; umber faint left (already 4.58:1)",
+      "file": "apps/web/src/styles/porcelain-theme.css"
+    },
+    {
+      "id": "PT-005",
+      "deliverable": "D4 live band data",
+      "status": "done",
+      "verified": "LIVE-VERIFIED: useIndexData reads gqlBriefing()+gqlCollections(), fail-open to fixture; running commonplace-api behind /api/theorem/graphql renders real substrate items on /v2",
+      "file": "apps/web/src/lib/commonplace/index-queries.ts"
+    },
+    {
+      "id": "PT-006",
+      "deliverable": "D5 durable refile write",
+      "status": "partial",
+      "verified": "wired to gqlAddToCollection (find-or-create collection), fail-open; NOT fired against live data (would mutate real substrate, needs user ok)",
+      "gap": "commonplace-api has add_to_collection but NO remove_from_collection/move -> cannot tombstone the OLD edge. Add remove_from_collection (store.rs:416 neighbor) + move_to_collection mutation (schema.rs:1212).",
+      "file": "apps/web/src/lib/commonplace/index-queries.ts + commonplace-api (backend gap)"
+    },
+    {
+      "id": "PT-007",
+      "deliverable": "D2 confidence + D3 receipts",
+      "status": "available-follow-on",
+      "verified": "D3 agent-filed receipt renders live. Contracts EXIST: gqlOrganize().needsYou carries server confidence (wire Needs-you to it instead of client heuristic); item-touches receipt history is the only genuinely-absent endpoint.",
+      "file": "apps/web/src/lib/commonplace/index-queries.ts (wire-up) / commonplace-api (touches endpoint)"
+    },
+    {
+      "id": "D7",
+      "deliverable": "Naming and cuts",
+      "status": "done",
+      "verified": "wordmark Theorem's Harness + no engine-status line; Workrooms->Commonplaces rename SUPERSEDED by two-item decision (constant not added, YAGNI)"
+    },
+    {
+      "id": "CHASSIS",
+      "deliverable": "Viewport-bounded master/detail (fix found during preview)",
+      "status": "done",
+      "verified": "styles.route (height:100dvh, overflow:hidden) scoped to /v2; list scrolls internally, detail+composer pinned; other surfaces untouched",
+      "file": "apps/web/src/components/v2/index/index.module.css, app/v2/page.tsx"
+    }
+  ]
+}

@@ -20,6 +20,7 @@ import CoordinationView from '../views/CoordinationView';
 import ReceiverView from '../views/ReceiverView';
 import DesktopSettingsView from '../views/DesktopSettingsView';
 import AccountsView from '../views/AccountsView';
+import AgentWorkroomControlCenter from '../control-center/AgentWorkroomControlCenter';
 
 interface ScreenRouterProps {
   screen: ScreenType;
@@ -49,6 +50,8 @@ export default function ScreenRouter({ screen }: ScreenRouterProps) {
       return <DesktopSettingsView />;
     case 'accounts':
       return <AccountsView />;
+    case 'control-center':
+      return <AgentWorkroomControlCenter />;
     case 'settings':
       return <SettingsPlaceholder />;
     default:

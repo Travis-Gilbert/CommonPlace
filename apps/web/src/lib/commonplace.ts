@@ -105,7 +105,7 @@ export type ViewType =
 
 export type NavigationMode = 'screen' | 'view';
 
-export type ScreenType = 'daily' | 'library' | 'models' | 'notebooks' | 'projects' | 'engine' | 'settings' | 'accounts' | 'cobrowser' | 'coordination' | 'receiver' | 'desktop';
+export type ScreenType = 'daily' | 'library' | 'models' | 'notebooks' | 'projects' | 'engine' | 'settings' | 'accounts' | 'cobrowser' | 'coordination' | 'receiver' | 'desktop' | 'control-center';
 
 export interface NavigationTargetObject {
   id?: number;
@@ -290,6 +290,13 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: 'System',
     items: [
+      {
+        label: 'Control Center',
+        href: '#control-center',
+        icon: 'check-list',
+        mode: 'screen',
+        screenType: 'control-center',
+      },
       {
         label: 'Accounts',
         href: '#accounts',

@@ -1,0 +1,412 @@
+/* Index surface: the list|detail chassis, tabs, scoped search, and the object
+   drawer. Reuses the global .p-band/.p-row band recipe (porcelain-surfaces.css);
+   this module adds only the new structural pieces. Tokens only -- every value
+   traces to porcelain-theme.css or the --u scale, no raw literals. */
+
+/* ============ chassis ============ */
+/* Bound the Index route to the viewport so the list scrolls internally and the
+   detail pane + composer stay pinned. The shared shell (.p-ground) is
+   min-height:100dvh and scrolls the whole page for single-column surfaces; a
+   master/detail needs a fixed workspace, so this route opts out locally. */
+.route {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.group {
+  flex: 1;
+  min-height: 0;
+}
+
+.listPanel,
+.detailPanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* resize handle: slim seam, generous hit area, visible keyboard focus */
+.handle {
+  position: relative;
+  width: 11px;
+  flex-shrink: 0;
+  outline: none;
+  cursor: col-resize;
+}
+.handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--hair-soft);
+  transition: background var(--motion) var(--ease), width var(--motion) var(--ease);
+}
+.handle:hover::before,
+.handle[data-resize-handle-state="hover"]::before,
+.handle[data-resize-handle-state="drag"]::before {
+  background: var(--hair);
+  width: 2px;
+}
+.handle:focus-visible::before {
+  background: var(--accent);
+  width: 2px;
+}
+
+/* ============ list pane: tabs + search + bands ============ */
+.listTop {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 3) calc(var(--u) * 1.5) calc(var(--u) * 5);
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--inset-bg);
+  box-shadow: var(--well);
+}
+
+.tab {
+  appearance: none;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 1.4);
+  min-height: 28px;
+  cursor: pointer;
+  transition: color var(--motion) var(--ease), background var(--motion) var(--ease),
+    box-shadow var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.tab:hover {
+  color: var(--ink);
+}
+.tab[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--hair-soft);
+  box-shadow: var(--edge), var(--raise);
+}
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: var(--ink);
+  background: var(--plane);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  padding: calc(var(--u) * 0.7) calc(var(--u) * 1.2);
+  min-height: 30px;
+  box-shadow: var(--edge);
+  backdrop-filter: blur(4px);
+  transition: border-color var(--motion) var(--ease);
+}
+.search::placeholder {
+  color: var(--ink-faint);
+}
+.search:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.listScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 3) calc(var(--u) * 4) calc(var(--u) * 5);
+}
+.bands {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+}
+
+/* virtualized viewport: only mounted when a band exceeds the row threshold */
+.bandViewport {
+  max-height: calc(var(--u) * 56);
+  overflow-y: auto;
+}
+
+.listEmpty {
+  padding: calc(var(--u) * 5) var(--u);
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 0.88rem;
+}
+
+/* row as a selection button: reset chrome, keep the .p-row material. Selected
+   state is material (raise + tone), never a colored left edge. */
+.rowBtn {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.rowBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+:global(.p-row).rowSelected {
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent);
+  box-shadow: var(--edge), var(--raise);
+  border-color: var(--hair);
+}
+
+/* ============ detail pane: the object drawer ============ */
+.detail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--plane);
+  background-image: var(--plane-grad);
+  backdrop-filter: blur(6px) saturate(1.05);
+}
+
+.detailEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(var(--u) * 4);
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  max-width: 34ch;
+  margin: 0 auto;
+}
+
+.detailScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(var(--u) * 3);
+}
+
+.detailHead {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  align-items: flex-start;
+}
+.detailKind {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--inset-bg);
+  box-shadow: var(--edge), inset 0 0 0 1px var(--hair-soft);
+  color: var(--ink-dim);
+}
+.detailKind svg {
+  width: 18px;
+  height: 18px;
+}
+.detailKindTension {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: var(--edge), inset 0 0 0 1px var(--accent-soft);
+}
+.detailTitle {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ink);
+  margin: 0;
+}
+.detailProv {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 6px;
+}
+
+/* filed-to editable token (the training signal) */
+.filed {
+  margin-top: calc(var(--u) * 2.5);
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+}
+.filedLabel {
+  color: var(--ink-faint);
+}
+.destToken {
+  appearance: none;
+  font: inherit;
+  color: var(--ink-dim);
+  background: var(--inset-bg);
+  border: 1px solid var(--hair-soft);
+  border-radius: 6px;
+  padding: 3px 9px;
+  min-height: 26px;
+  cursor: pointer;
+  transition: color var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.destToken:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.destToken:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.destInput {
+  font: inherit;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 3px 9px;
+  min-height: 26px;
+  min-width: 14ch;
+}
+.destInput:focus-visible {
+  outline: none;
+}
+
+/* toolbar */
+.toolbar {
+  margin-top: calc(var(--u) * 2.5);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.toolBtn {
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  background: var(--raised);
+  border: 1px solid var(--hair-soft);
+  border-radius: 6px;
+  padding: calc(var(--u) * 0.7) calc(var(--u) * 1.1);
+  min-height: 30px;
+  cursor: pointer;
+  box-shadow: var(--edge);
+  transition: color var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.toolBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.toolBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* receipts strip */
+.receipts {
+  margin-top: calc(var(--u) * 2.5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.receipt {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+  padding: calc(var(--u) * 0.9) calc(var(--u) * 1.2);
+  border-radius: 8px;
+  background: var(--inset-bg);
+  box-shadow: var(--well);
+}
+.receiptDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex-shrink: 0;
+}
+.receiptText {
+  flex: 1;
+  min-width: 0;
+}
+.receiptUndo {
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--hair-soft);
+  border-radius: 5px;
+  padding: 2px 8px;
+  min-height: 24px;
+  cursor: pointer;
+  transition: color var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.receiptUndo:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.receiptUndo:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* object composer: one field, corrects or asks */
+.composer {
+  border-top: 1px solid var(--hair-soft);
+  padding: calc(var(--u) * 2) calc(var(--u) * 3) calc(var(--u) * 2.5);
+}
+.composerField {
+  width: 100%;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: calc(var(--u) * 1.1) calc(var(--u) * 1.3);
+  min-height: calc(var(--u) * 5.5);
+  resize: none;
+  box-shadow: var(--edge);
+  transition: border-color var(--motion) var(--ease);
+}
+.composerField::placeholder {
+  color: var(--ink-faint);
+}
+.composerField:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+.composerHint {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
