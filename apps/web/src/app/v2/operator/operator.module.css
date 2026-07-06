@@ -925,7 +925,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
     var(--edge),
     0 2px 4px rgba(33, 31, 27, 0.07),
     0 14px 32px rgba(33, 31, 27, 0.12);
-  padding: 16px 16px 0;
+  padding: 16px 16px 14px;
   overflow: hidden;
 }
 .bayCard[data-urgency='waiting'] {
@@ -985,19 +985,21 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 }
 
 .bayTaskTitle {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   color: var(--ink);
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 6px;
 }
 
-/* Progress sits just above the footer: the card reads head -> title -> (air) ->
-   motion -> receipts. */
+/* Progress sits just above the action tiles; a flex spacer above it gives the
+   card the airy title-over-tiles rhythm. */
 .bayProgress {
   margin-top: auto;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   height: 4px;
   width: 100%;
   border-radius: 4px;
@@ -1012,76 +1014,60 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   transition: width var(--motion) var(--ease);
 }
 
-.bayFooter {
-  height: 32px;
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  align-items: center;
-  border-top: 1px solid var(--hair-soft);
-  margin-left: -16px;
-  margin-right: -16px;
-  padding: 0;
+/* Elapsed lives in the head row; PR light + last step form a thin meta line
+   under the title. (The old tri-segment footer is folded into these so the
+   action tiles can own the bottom band.) */
+.bayElapsed {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
 }
-.bayFootCell {
+.bayMeta {
   display: flex;
   align-items: center;
-  height: 100%;
-  padding: 0 12px;
-  border-right: 1px solid var(--hair-soft);
+  gap: 8px;
   min-width: 0;
 }
-.bayFootCell:last-child { border-right: none; }
-.bayPrDot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); opacity: 0.5; }
+.bayPrDot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); opacity: 0.5; flex-shrink: 0; }
 .bayPrDot[data-pr='open'] { background: var(--amber); opacity: 1; }
 .bayPrDot[data-pr='merged'] { background: var(--ok); opacity: 1; }
-.bayFootStep {
+.bayMetaStep {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: block;
-  line-height: 32px;
-}
-.bayFootElapsed {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--ink-faint);
-  justify-content: flex-end;
 }
 
-/* Action row — InfoCard reveal: hidden until hover or keyboard focus lands inside. */
+/* Three action tiles — always present, launcher-style, sitting at the bottom.
+   Layered above the whole-face open button so they stay independently clickable. */
 .bayActions {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   z-index: 2;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+.bayTile {
+  height: 42px;
+  display: flex;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--raised);
-  border-top: 1px solid var(--hair-soft);
-  transform: translateY(100%);
-  transition: transform var(--motion) var(--ease);
-}
-.bayCard:hover .bayActions,
-.bayCard:focus-within .bayActions { transform: translateY(0); }
-.bayActionBtn {
+  justify-content: center;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid var(--hair-soft);
+  background: var(--inset-bg);
+  color: var(--ink-dim);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--hair);
-  background: var(--plane);
-  color: var(--ink);
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: border-color var(--motion) var(--ease), color var(--motion) var(--ease);
+  transition: border-color var(--motion) var(--ease), color var(--motion) var(--ease), background var(--motion) var(--ease);
 }
-.bayActionBtn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
-.bayActionBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.bayTile:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+.bayTile:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .bayEmptyCard {
   width: 340px;
@@ -1541,8 +1527,9 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 @media (max-width: 767px) {
   .col { padding: 0 16px; }
   .bayTilt, .bayCard, .bayEmptyCard { width: 100%; }
-  .bayTilt { height: auto; min-height: 180px; }
-  .bayCard, .bayEmptyCard { height: 180px; }
+  .bayTilt { height: auto; min-height: 210px; }
+  .bayCard { height: auto; min-height: 210px; }
+  .bayEmptyCard { height: 210px; }
   .activityRow { grid-template-columns: 44px 1fr; grid-auto-flow: dense; }
   .activityKind { display: none; }
 }

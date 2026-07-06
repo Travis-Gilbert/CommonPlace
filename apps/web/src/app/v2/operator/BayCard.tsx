@@ -53,16 +53,16 @@ export function BayCard({
   const progress = task.checklist && task.checklist.total > 0 ? task.checklist.done / task.checklist.total : 0;
 
   return (
-    <TiltCard className={styles.bayTilt} tiltLimit={6} scale={1.02} perspective={1200} spotlight>
+    <TiltCard className={styles.bayTilt} tiltLimit={3} scale={1.01} perspective={1400} spotlight>
       <article className={styles.bayCard} data-urgency={urgency}>
-        {/* Whole-face open affordance; the action row layers above it. */}
+        {/* Whole-face open affordance; the action tiles layer above it. */}
         <button
           className={styles.bayFaceBtn}
           onClick={() => onOpenRoom(task.id)}
           aria-label={`Open room — ${task.goal}`}
         />
 
-        {/* 1 — head row */}
+        {/* Head: name + live dot, elapsed right */}
         <div className={styles.bayZoneHead}>
           <span className={styles.bayHeadName}>{bay.label}</span>
           <span
@@ -71,12 +71,23 @@ export function BayCard({
             title={bay.streaming ? 'Streaming' : 'Idle'}
             aria-hidden="true"
           />
+          {elapsed && <span className={styles.bayElapsed}>{elapsed}</span>}
         </div>
 
-        {/* 2 — task title, one line, zero badges */}
+        {/* Title — one line, the card's headline */}
         <div className={styles.bayTaskTitle}>{task.goal}</div>
 
-        {/* 3 — checklist progress */}
+        {/* Meta — PR light + last completed step */}
+        <div className={styles.bayMeta}>
+          <span
+            className={styles.bayPrDot}
+            data-pr={bay.prLight}
+            title={bay.prLight === 'none' ? 'No PR' : bay.prLight === 'open' ? 'PR open' : 'PR merged'}
+          />
+          <span className={styles.bayMetaStep}>{bay.lastStep ?? '—'}</span>
+        </div>
+
+        {/* Checklist progress */}
         <div
           className={styles.bayProgress}
           role="progressbar"
@@ -88,30 +99,15 @@ export function BayCard({
           <span className={styles.bayProgressFill} style={{ width: `${Math.round(progress * 100)}%` }} />
         </div>
 
-        {/* 4 — tri-segment footer */}
-        <div className={styles.bayFooter}>
-          <span className={styles.bayFootCell}>
-            <span
-              className={styles.bayPrDot}
-              data-pr={bay.prLight}
-              title={bay.prLight === 'none' ? 'No PR' : bay.prLight === 'open' ? 'PR open' : 'PR merged'}
-            />
-          </span>
-          <span className={`${styles.bayFootCell} ${styles.bayFootStep}`} title={bay.lastStep}>
-            {bay.lastStep ?? '—'}
-          </span>
-          <span className={`${styles.bayFootCell} ${styles.bayFootElapsed}`}>{elapsed ?? ''}</span>
-        </div>
-
-        {/* Hover / focus-within action row, InfoCard reveal pattern */}
+        {/* Three action tiles — always present */}
         <div className={styles.bayActions}>
-          <button className={styles.bayActionBtn} onClick={() => onOpenRoom(task.id)}>
+          <button className={styles.bayTile} onClick={() => onOpenRoom(task.id)}>
             Open room
           </button>
-          <button className={styles.bayActionBtn} disabled title="Diff link lands with the live wiring (Codex lane)">
+          <button className={styles.bayTile} disabled title="Diff link lands with the live wiring (Codex lane)">
             View diff
           </button>
-          <button className={styles.bayActionBtn} disabled title="Release lands with the live claim wiring (Codex lane)">
+          <button className={styles.bayTile} disabled title="Release lands with the live claim wiring (Codex lane)">
             Release claim
           </button>
         </div>
