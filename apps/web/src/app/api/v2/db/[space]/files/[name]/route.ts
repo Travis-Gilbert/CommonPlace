@@ -1,27 +1,27 @@
-import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { readFile } from 'node:fs/promises';
+import { join, basename, extname } from 'node:path';
 
-export const dynamic = "force-dynamic";
+export const runtime = 'nodejs';
 
-const ALLOWED = new Set(["movie_database", "plant_database"]);
 const MIME: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  gif: "image/gif",
-  svg: "image/svg+xml",
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
 };
+const EXPORTS = 'src/lib/block-view/anytype/exports';
 
-export async function GET(_req: Request, ctx: { params: Promise<{ space: string; name: string }> }) {
-  const { space, name } = await ctx.params;
-  if (!ALLOWED.has(space)) return new Response("not found", { status: 404 });
-  const safe = basename(name);
-  const p = join(process.cwd(), "src/lib/block-view/anytype/exports", space, "files", safe);
-  if (!existsSync(p)) return new Response("not found", { status: 404 });
-  const ext = safe.split(".").pop()?.toLowerCase() ?? "png";
-  const body = readFileSync(p);
-  return new Response(new Uint8Array(body), {
-    headers: { "content-type": MIME[ext] ?? "application/octet-stream", "cache-control": "public, max-age=3600" },
-  });
+export async function GET(_req: Request, { params }: { params: Promise<{ space: string; name: string }> }) {
+  const { space, name } = await params;
+  if (!/^[a-z_]+_database$/.test(space)) return new Response('not found', { status: 404 });
+  const safe = basename(name); // block path traversal
+  try {
+    const buf = await readFile(join(process.cwd(), EXPORTS, space, 'files', safe));
+    return new Response(new Uint8Array(buf), {
+      headers: {
+        'content-type': MIME[extname(safe).toLowerCase()] ?? 'application/octet-stream',
+        'cache-control': 'public, max-age=3600',
+      },
+    });
+  } catch {
+    return new Response('not found', { status: 404 });
+  }
 }

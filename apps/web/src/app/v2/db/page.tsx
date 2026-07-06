@@ -1,30 +1,27 @@
-import Link from "next/link";
-import styles from "@/lib/block-view/database.module.css";
+import Link from 'next/link';
+import styles from './db-index.module.css';
 
 const DATABASES = [
-  { space: "movie_database", emoji: "🍿", name: "Movie Database", sub: "Films, watch lists & Oscar predictions." },
-  { space: "plant_database", emoji: "🌿", name: "Plant Database", sub: "Care guide by type, light, water & toxicity." },
+  { space: 'movie_database', emoji: '🍿', name: 'Movie database', desc: 'Personal film guide — recommendations, watch lists & Oscar predictions.' },
+  { space: 'plant_database', emoji: '🌿', name: 'Plant database', desc: 'Care guide across light, water, soil, toxicity and lifespan.' },
 ];
 
 export default function DbIndexPage() {
   return (
-    <div className="porcelain">
-      <div className={styles.page}>
-        <header className={styles.header}>
-          <div className={styles.crumb}>Harness / Databases</div>
-          <h1 className={styles.title}>Databases</h1>
-          <p className={styles.sub}>Any object type, rendered from the object model — gallery, grid, list, or board.</p>
-        </header>
-        <div className={styles.indexGrid}>
-          {DATABASES.map((d) => (
-            <Link key={d.space} href={`/v2/db/${d.space}`} className={styles.indexCard}>
-              <span className={styles.indexEmoji}>{d.emoji}</span>
-              <span className={styles.indexName}>{d.name}</span>
-              <span className={styles.sub}>{d.sub}</span>
-              <span className={styles.indexMeta}>Set · object model</span>
-            </Link>
-          ))}
-        </div>
+    <div className={styles.wrap}>
+      <header className={styles.head}>
+        <span className={styles.eyebrow}>Object model · Set views</span>
+        <h1 className={styles.title}>Databases</h1>
+        <p className={styles.subtitle}>Any object type, rendered as a live Set — gallery, grid, list, board — from the same interpreter.</p>
+      </header>
+      <div className={styles.grid}>
+        {DATABASES.map((d) => (
+          <Link key={d.space} href={`/v2/db/${d.space}`} className={styles.card}>
+            <span className={styles.cardEmoji}>{d.emoji}</span>
+            <span className={styles.cardName}>{d.name}</span>
+            <span className={styles.cardDesc}>{d.desc}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );

@@ -62,6 +62,21 @@ export interface TypeDef {
   readonly axes: TypeAxes;
 }
 
+export type SurfaceKind = "page" | "workspace" | "panel";
+export type RegionLayout = "split-h" | "split-v" | "grid" | "stack";
+
+export interface OrderedChild {
+  readonly id: string;
+  readonly type: TypeRef;
+  readonly order: number;
+}
+
+export interface SurfaceTreeNode {
+  readonly object: ObjectRef;
+  readonly children?: readonly SurfaceTreeNode[];
+  readonly order: number;
+}
+
 export interface TimeRange {
   readonly from_ms?: number;
   readonly to_ms?: number;
@@ -179,6 +194,7 @@ export interface ObjectSet {
   readonly objects: readonly ObjectRef[];
   readonly shape: ObjectShape;
   readonly next_cursor?: string;
+  readonly notes?: readonly string[];
   subscribe(callback: (next: ObjectSet) => void): Unsubscribe;
 }
 
@@ -198,6 +214,7 @@ export interface JobSpec {
 export type ObjectAction =
   | { readonly kind: "create"; readonly type: TypeRef; readonly props: Readonly<Record<string, JsonValue>> }
   | { readonly kind: "update"; readonly id: string; readonly patch: Readonly<Record<string, JsonValue>> }
+  | { readonly kind: "move"; readonly id: string; readonly new_parent: string; readonly order: number }
   | { readonly kind: "delete"; readonly id: string }
   | { readonly kind: "link"; readonly from: string; readonly edge: string; readonly to: string; readonly confidence?: number }
   | { readonly kind: "unlink"; readonly from: string; readonly edge: string; readonly to: string }
@@ -205,12 +222,7 @@ export type ObjectAction =
   | { readonly kind: "invoke_tool"; readonly tool: string; readonly args: Readonly<Record<string, JsonValue>> }
   | { readonly kind: "dispatch"; readonly job: JobSpec }
   | { readonly kind: "open"; readonly id: string; readonly view?: string }
-  | { readonly kind: "select"; readonly ids: readonly string[] }
-  // Arrangement-as-data: reorder/reparent a child within an ordered CONTAINS
-  // relation (fractional index owned by the host), and patch a view-instance's
-  // config prop (visible fields, group_by, sort, filters, density).
-  | { readonly kind: "move"; readonly id: string; readonly new_parent: string; readonly order: number }
-  | { readonly kind: "set_config"; readonly id: string; readonly config: Readonly<Record<string, JsonValue>> };
+  | { readonly kind: "select"; readonly ids: readonly string[] };
 
 export type ActionKind = ObjectAction["kind"];
 export type ObjectActionStatus = "accepted" | "applied" | "deferred";
@@ -259,10 +271,6 @@ export interface BlockHost {
 export interface ViewRenderProps {
   readonly set: ObjectSet;
   readonly host: BlockHost;
-  /** Per-instance config (visible fields, group_by, sort, density, cover). */
-  readonly config?: Readonly<Record<string, JsonValue>>;
-  /** The view-instance object id, when rendered inside a surface. */
-  readonly instanceId?: string;
 }
 
 export type ViewSourceMode = "vendor" | "reskin" | "wrap" | "fork" | "bespoke";
@@ -281,6 +289,7 @@ export interface ViewDescriptor {
   readonly name: string;
   readonly accepts: ObjectShapeMatch;
   readonly emits: readonly ActionKind[];
+  readonly renderer: string;
   readonly source: ViewSource;
   readonly render: React.ComponentType<ViewRenderProps>;
 }

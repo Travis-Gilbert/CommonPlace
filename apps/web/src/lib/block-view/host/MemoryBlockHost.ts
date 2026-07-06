@@ -1,11 +1,16 @@
+'use client';
+
 /**
  * MemoryBlockHost — the first concrete `BlockHost` in the web app.
  *
- * It IS the object model: `query` returns ObjectSets of ObjectRef, `emit`
- * applies ObjectActions and notifies subscribers. It also exposes the resolved
- * database projection (`list`/`object`/`relation`) so Set-view renderers get
- * typed cells without re-resolving option/ref ids. Swap this for an HttpBlockHost
- * pointed at the substrate and nothing above it changes.
+ * It IS the object model: `query` returns ObjectSets of ObjectRef, `emit` applies
+ * ObjectActions and notifies subscribers. It serves two shapes from one graph:
+ *   - the arrangement (surface/region/view-instance ObjectRefs) so Codex's
+ *     SurfaceRenderer can walk it, and
+ *   - the domain rows (a DbObjectSet that also carries resolved `items`) so the
+ *     registered `database` renderer gets typed cells without re-resolving.
+ * `viewsFor` offers the single `database` descriptor. Swap this for an
+ * HttpBlockHost pointed at the substrate and nothing above it changes.
  */
 
 import type {
@@ -24,8 +29,26 @@ import type {
 } from "../types";
 import { makeCell, type Cell, type DbObject, type ObjectGraph, type RelationMeta } from "../database/model";
 
-const EMPTY_TOKENS: ThemeTokens = { color: {}, space: {}, typography: {}, radius: {} };
+const PORCELAIN_TOKENS: ThemeTokens = {
+  color: { ground: "var(--g0)", raised: "var(--raised)", ink: "var(--ink)", dim: "var(--ink-dim)", accent: "var(--accent)", hair: "var(--hair)" },
+  space: { u: "var(--u)" },
+  typography: { body: "var(--font-body)", display: "var(--font-display)", mono: "var(--font-mono)" },
+  radius: { band: "var(--r-band)", row: "var(--r-row)" },
+};
+
+const LAYOUT_TYPES = new Set(["surface", "region", "view-instance"]);
 let SEQ = 0;
+
+/** The one descriptor a Set exposes: the full DatabaseView (its own view tabs). */
+export const DATABASE_DESCRIPTOR: ViewDescriptor = {
+  id: "database",
+  name: "Database",
+  renderer: "database",
+  accepts: { cardinality: "any" },
+  emits: ["update", "create", "delete", "move", "open", "select"],
+  source: { package: "commonplace", component: "DatabaseSurfaceView", mode: "bespoke", regime: "css-vars", allowedBespokeReason: "Anytype-grade Set view over the resolved object graph" },
+  render: (() => null) as unknown as ViewDescriptor["render"],
+};
 
 export interface DbObjectSet extends ObjectSet {
   /** the resolved objects behind `objects`, in the same order. */
@@ -43,6 +66,7 @@ export interface DbHost extends BlockHost {
 /** Raw ObjectRef projection — the true object-model view of a resolved object. */
 function toRef(o: DbObject): ObjectRef {
   const properties: Record<string, JsonValue> = { title: o.title };
+  if (o.emoji) properties.icon = o.emoji;
   for (const [k, c] of Object.entries(o.cells)) {
     properties[k] = (c.options?.map((x) => x.id) ??
       c.refs?.map((r) => r.id) ??
@@ -59,13 +83,15 @@ function toRef(o: DbObject): ObjectRef {
 
 export class MemoryBlockHost implements DbHost {
   graph: ObjectGraph;
-  readonly tokens: ThemeTokens = EMPTY_TOKENS;
+  readonly tokens: ThemeTokens = PORCELAIN_TOKENS;
   private objects: DbObject[];
+  private surfaceObjects: readonly ObjectRef[];
   private subs = new Set<() => void>();
 
-  constructor(graph: ObjectGraph) {
+  constructor(graph: ObjectGraph, surfaceObjects: readonly ObjectRef[] = []) {
     this.graph = graph;
     this.objects = [...graph.objects];
+    this.surfaceObjects = surfaceObjects;
   }
 
   list(): readonly DbObject[] {
@@ -86,11 +112,19 @@ export class MemoryBlockHost implements DbHost {
   }
 
   query(q: ObjectQuery): ObjectSet {
+    if (q.types.some((t) => LAYOUT_TYPES.has(t))) {
+      const objects = this.surfaceObjects;
+      return {
+        objects,
+        shape: { types: [...q.types], fields: [], relations: [], axes: {}, cardinality: objects.length ? "many" : "empty" },
+        subscribe: (cb) => this.onChange(() => cb(this.query(q))),
+      };
+    }
     const items = this.objects.filter((o) => q.types.length === 0 || q.types.includes(o.typeKey));
     const set: DbObjectSet = {
       items,
       objects: items.map(toRef),
-      shape: { types: q.types, fields: [], relations: [], axes: {}, cardinality: items.length ? "many" : "empty" },
+      shape: { types: [...q.types], fields: Object.keys(this.graph.relations), relations: [], axes: {}, cardinality: items.length ? "many" : "empty" },
       subscribe: (cb) => this.onChange(() => cb(this.query(q))),
     };
     return set;
@@ -114,26 +148,19 @@ export class MemoryBlockHost implements DbHost {
       }
       case "create": {
         const id = `new-${++SEQ}`;
-        const blank: DbObject = {
-          id,
-          typeKey: this.graph.type.key,
-          title: String(action.props.title ?? "Untitled"),
-          cells: {},
-          origin: "seed",
-        };
+        const blank: DbObject = { id, typeKey: this.graph.type.key, title: String(action.props.title ?? "Untitled"), cells: {}, origin: "seed" };
         this.objects = [this.patch(blank, action.props), ...this.objects];
         this.notify();
         return Promise.resolve(receipt({ target_ids: [id] }));
       }
       default:
-        // open / select / link / move / etc. are UI-level or arrangement-level;
-        // accept without mutating the resolved rows.
+        // open / select / link / move / etc. are UI- or arrangement-level.
         return Promise.resolve(receipt({ status: "accepted" }));
     }
   }
 
   viewsFor(_shape: ObjectShape): readonly ViewDescriptor[] {
-    return [];
+    return [DATABASE_DESCRIPTOR];
   }
 
   /** Apply a property patch, re-resolving any touched relation into a Cell. */

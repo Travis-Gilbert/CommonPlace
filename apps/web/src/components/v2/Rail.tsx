@@ -11,7 +11,6 @@ import {
   GraphGlyph,
   IndexGlyph,
   NotesGlyph,
-  OperatorGlyph,
   ResearchGlyph,
   RowsGlyph,
   RustyRedGlyph,
@@ -37,7 +36,6 @@ const HARNESS: RailItem[] = [
   { label: 'Index', href: '/v2', icon: IndexGlyph },
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
   { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },
-  { label: 'Operator', href: '/v2/operator', icon: OperatorGlyph, indent: true },
   { label: 'Notes', href: null, icon: NotesGlyph },
   { label: 'Research', href: null, icon: ResearchGlyph },
   { label: 'Code', href: null, icon: CodeGlyph },
@@ -46,8 +44,8 @@ const HARNESS: RailItem[] = [
 const DATA: RailItem[] = [
   { label: 'Files', href: '/v2/files', icon: FilesGlyph },
   { label: 'Graph', href: '/v2/graph', icon: GraphGlyph },
-  { label: 'Databases', href: '/v2/db', icon: Database },
   { label: 'Tables', href: '/v2/ledger', icon: RowsGlyph },
+  { label: 'Databases', href: '/v2/db', icon: Database },
   { label: 'Timeline', href: '/v2/timeline', icon: Clock3 },
 ];
 
