@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   CircleUser,
   Clock3,
+  Database,
   Frame,
   LayoutPanelLeft,
   PanelLeftClose,
@@ -55,6 +56,7 @@ const DATA: RailItem[] = [
   { label: 'Files', href: '/v2/files', icon: FilesGlyph },
   { label: 'Graph', href: '/v2/graph', icon: GraphGlyph },
   { label: 'Tables', href: '/v2/ledger', icon: RowsGlyph },
+  { label: 'Databases', href: '/v2/db', icon: Database },
   { label: 'Timeline', href: '/v2/timeline', icon: Clock3 },
 ];
 
