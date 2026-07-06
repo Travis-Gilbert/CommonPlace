@@ -150,6 +150,26 @@
   min-width: 0;
 }
 
+/* Chromeless surfaces are a transparent layout skeleton: the wrapped view owns
+   its own surface, so the interpreter contributes no card, border, background,
+   or padding of its own — only the region gaps that space the views. This is
+   what makes a full-bleed surface (e.g. the Operator, a database Set) sit
+   directly on the ground instead of on a phantom nested panel. */
+.root[data-chrome='false'] .viewShell {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.root[data-chrome='false'] .viewBody {
+  padding: 0;
+}
+
+.root[data-chrome='false'] .viewInstance {
+  min-height: 0;
+}
+
 .tableScroller {
   width: 100%;
   overflow-x: auto;

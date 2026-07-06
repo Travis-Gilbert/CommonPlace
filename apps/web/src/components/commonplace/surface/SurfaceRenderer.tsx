@@ -90,7 +90,10 @@ export default function SurfaceRenderer({
   }
 
   return (
-    <div className={[styles.root, className].filter(Boolean).join(' ')}>
+    <div
+      className={[styles.root, className].filter(Boolean).join(' ')}
+      data-chrome={chrome ? 'true' : 'false'}
+    >
       {chrome && (
         <div className={styles.surfaceHeader}>
           <h2 className={styles.surfaceTitle}>{stringProp(root.object, 'name') ?? titleFor(root.object)}</h2>
