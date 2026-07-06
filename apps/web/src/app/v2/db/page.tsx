@@ -12,7 +12,6 @@ export default function DbIndexPage() {
       <header className={styles.head}>
         <span className={styles.eyebrow}>Object model · Set views</span>
         <h1 className={styles.title}>Databases</h1>
-        <p className={styles.subtitle}>Any object type, rendered as a live Set — gallery, grid, list, board — from the same interpreter.</p>
       </header>
       <div className={styles.grid}>
         {DATABASES.map((d) => (

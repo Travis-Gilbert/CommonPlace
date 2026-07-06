@@ -50,9 +50,6 @@ export default function TimelinePage() {
         <div className="p-toph">
           <div className="p-kicker">Data / Timeline</div>
           <h1 className="p-h1">Timeline</h1>
-          <div className="p-orient">
-            Items on the bi-temporal axis. Scrub between when it happened and when it holds.
-          </div>
         </div>
         <div className={styles.toolbar} role="tablist" aria-label="Time basis">
           <button

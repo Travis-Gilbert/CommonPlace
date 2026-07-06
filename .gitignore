@@ -8,3 +8,9 @@ apps/web/.next/
 apps/web/out/
 apps/commonplace-api/target/
 apps/desktop/src-tauri/target/
+
+# Secrets: real provider keys live in .env, never committed. .env.example is the
+# tracked template (placeholders only).
+.env
+.env.*
+!.env.example

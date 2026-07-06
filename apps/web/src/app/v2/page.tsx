@@ -20,7 +20,6 @@ export default function IndexPage() {
         <div className="p-toph">
           <div className="p-kicker">{today}</div>
           <h1 className="p-h1">Index</h1>
-          <div className="p-orient">Everything is filed. Here is what is around today.</div>
         </div>
       </header>
 
