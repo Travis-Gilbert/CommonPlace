@@ -208,9 +208,11 @@ function BlockSuiteCanvasViewer({ item }: { item: ItemGql }) {
 
 function PdfViewer({ url }: { url: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ url: string | null; message: string } | null>(null);
+  const currentError = error?.url === url ? error.message : null;
 
   useEffect(() => {
+    if (currentError) return undefined;
     const canvas = canvasRef.current;
     if (!canvas || !url) return undefined;
     let cancelled = false;
@@ -238,20 +240,25 @@ function PdfViewer({ url }: { url: string | null }) {
         await pdf.cleanup();
       })
       .catch((caught) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : 'Could not render PDF');
+        if (!cancelled) {
+          setError({
+            url,
+            message: caught instanceof Error ? caught.message : 'Could not render PDF',
+          });
+        }
       });
 
     return () => {
       cancelled = true;
       cancelRender?.();
     };
-  }, [url]);
+  }, [currentError, url]);
 
   if (!url) return <div className={styles.empty}>This PDF item does not have a reachable URL.</div>;
 
   return (
     <div className={styles.pdfFrame}>
-      {error ? <div className={styles.empty}>{error}</div> : <canvas ref={canvasRef} className={styles.pdfCanvas} />}
+      {currentError ? <div className={styles.empty}>{currentError}</div> : <canvas ref={canvasRef} className={styles.pdfCanvas} />}
     </div>
   );
 }

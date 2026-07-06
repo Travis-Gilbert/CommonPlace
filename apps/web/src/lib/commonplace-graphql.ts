@@ -465,14 +465,13 @@ export async function gqlItemsAsOf(input: {
   transactionAtMs?: number | null;
   kind?: string | null;
 }): Promise<ItemGql[]> {
-  const data = await gqlRead<{ itemsAsOf: ItemGql[] }>(
+  const data = await gql<{ itemsAsOf: ItemGql[] }>(
     `query($validAtMs:Long,$transactionAtMs:Long,$kind:String){ itemsAsOf(validAtMs:$validAtMs,transactionAtMs:$transactionAtMs,kind:$kind){ ${ITEM_FIELDS_WITH_VALID} } }`,
     {
       validAtMs: input.validAtMs ?? null,
       transactionAtMs: input.transactionAtMs ?? null,
       kind: input.kind ?? null,
     },
-    { itemsAsOf: [] },
   );
   return [...data.itemsAsOf].sort((a, b) => b.updatedAtMs - a.updatedAtMs);
 }
@@ -553,6 +552,29 @@ export async function gqlAddToCollection(
   await gql(
     `mutation($i:String!,$c:String!){ addToCollection(itemId:$i,collectionId:$c) }`,
     { i: itemId, c: collectionId },
+  );
+}
+
+/** Tombstone an item's membership in a collection (provenance retained). */
+export async function gqlRemoveFromCollection(
+  itemId: string,
+  collectionId: string,
+): Promise<void> {
+  await gql(
+    `mutation($i:String!,$c:String!){ removeFromCollection(itemId:$i,collectionId:$c) }`,
+    { i: itemId, c: collectionId },
+  );
+}
+
+/** The durable refile: add the new membership, tombstone the old one. */
+export async function gqlMoveToCollection(
+  itemId: string,
+  oldCollectionId: string,
+  newCollectionId: string,
+): Promise<void> {
+  await gql(
+    `mutation($i:String!,$o:String!,$n:String!){ moveToCollection(itemId:$i,oldCollectionId:$o,newCollectionId:$n) }`,
+    { i: itemId, o: oldCollectionId, n: newCollectionId },
   );
 }
 

@@ -1,8 +1,122 @@
 {
-  "spec": "commonplace-live-harness-and-quality-audit",
-  "roomId": "repo:CommonPlace:branch:Travis-Gilbert/commonplace-data-views",
-  "updatedAt": "2026-07-01T20:19:11Z",
+  "schema_version": 1,
+  "tenant_slug": "Travis-Gilbert",
+  "room_id": "room:ungrouped",
+  "task_ref_id": "task_cb397d8472ac8c74",
+  "workstream": "scene-host-acp+commonplace-data-views",
+  "sources": [
+    "/Users/travisgilbert/Downloads/SPEC-SCENE-HOST-ACP.md",
+    "commonplace-live-harness-and-quality-audit"
+  ],
+  "created_at": "2026-07-03",
+  "planning_skill": "theorems-harness:planning-theorem",
+  "execution_skill": "theorems-harness:execute",
+  "coordination_mirror": {
+    "status": "recorded",
+    "record_id": "record_e5f8e4865e466a0d",
+    "target": "theorems-harness coordination_record"
+  },
   "items": [
+    {
+      "id": "D1",
+      "title": "Shared ScenePackage contract",
+      "status": "verified",
+      "acceptance": [
+        "packages/block-view-contracts exports the TypeScript ScenePackageV2 contract with schema_version, renderer capabilities, budgets, and fallback fields.",
+        "rustyredcore_THG exposes a scene-contract Rust crate consumed by theorem-agentd.",
+        "A Rust to JSON to TypeScript fixture round-trips without losing fields.",
+        "Over-budget packages and unknown renderer ids fail with the same reason string on both sides."
+      ],
+      "verification_evidence": [
+        "Rust scene-contract crate added and consumed by theorem-agentd.",
+        "TypeScript ScenePackageV2 contract exported from packages/block-view-contracts with matching renderer capability catalog.",
+        "cargo test -p scene-contract passed: round-trip fixture, unknown renderer reason, over-budget reason, fail-closed payload.",
+        "npm --prefix packages/block-view-contracts run check passed.",
+        "Focused Vitest scene-package parity tests passed for fixture, unknown renderer, and over-budget reason strings."
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "render_scene tool on theorem-agentd",
+      "status": "verified",
+      "acceptance": [
+        "theorem-agentd advertises a render_scene tool that returns a validated ScenePackage plus a plain-text fallback.",
+        "Invalid packages fail closed to text fallback only.",
+        "ACP tool-call updates carry the package while non-scene clients keep a usable text fallback."
+      ],
+      "verification_evidence": [
+        "theorem-agentd catalog now advertises local render_scene on server agentd.",
+        "turn_loop executes render_scene locally and returns ScenePackage payload or text fallback without routing to MCP.",
+        "apps/theorem-cli keeps local agentd tools while pruning missing MCP servers, so ACP sessions retain render_scene.",
+        "cargo test -p theorem-agentd render_scene passed."
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Chat becomes Scene Host",
+      "status": "verified",
+      "acceptance": [
+        "CommonPlace ACP chat intercepts render_scene tool-call updates.",
+        "A SceneHost block renders inline with collapsed preview, expand full canvas, and dismiss controls.",
+        "Failed client validation renders a fallback evidence board with the validation reason."
+      ],
+      "verification_evidence": [
+        "CommonPlace ACP extraction detects render_scene raw_output payloads inside nested session update envelopes.",
+        "AgentThreadView renders SceneHost thread items before generic text/tool fallback.",
+        "SceneHost implements collapsed preview, full-canvas overlay, dismiss, and local state without mutating transcript items.",
+        "Focused Vitest commonPlace ACP extraction test passed."
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Trusted renderer registry",
+      "status": "verified",
+      "acceptance": [
+        "apps/web owns one trusted scene renderer registry keyed by renderer id.",
+        "Registered renderers include evidence_board, graph_neighborhood, table, chart, and mechanism_diagram.",
+        "Heavy renderers lazy-load, WebGL-dependent renderers detect support, and unsupported clients use fallback.",
+        "Agents never provide executable markup."
+      ],
+      "verification_evidence": [
+        "apps/web SceneHost registry owns trusted renderer ids evidence_board, graph_neighborhood, table, chart, and mechanism_diagram.",
+        "graph_neighborhood lazy-loads the existing CosmosGraphCanvas and WebGL-gated registry fallback is implemented.",
+        "mechanism_diagram uses @xyflow/react with ReactFlowProvider, ReactFlow, MiniMap, Controls, and Background.",
+        "Focused ESLint pass over touched SceneHost and object files passed."
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Object grammar registry entries",
+      "status": "verified",
+      "acceptance": [
+        "Object grammar covers task, file, link, note, claim, and source anatomy.",
+        "Kind tint is limited to icon wells and chips, not the whole row or card.",
+        "The same item passes through the same kind renderer in Index, Ledger, and evidence board surfaces."
+      ],
+      "verification_evidence": [
+        "ObjectRenderer now dispatches through a shared object renderer registry.",
+        "Registry includes task, file, link, note, claim, and source grammar entries, plus the existing object renderers.",
+        "New file/link/claim cards confine kind color to icon wells; ObjectRenderer wrapper glow is neutral.",
+        "Evidence board maps scene atoms through ObjectRenderer with the same registry path."
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Vega-Lite chart gate",
+      "status": "verified",
+      "acceptance": [
+        "Chart renderer accepts only whitelisted Vega-Lite marks.",
+        "Vega-Lite specs are schema-compiled before render.",
+        "External data URLs are rejected; only inline values are allowed.",
+        "Charts use the CommonPlace token theme and lazy-load Vega dependencies."
+      ],
+      "verification_evidence": [
+        "Chart renderer lazy-loads vega-embed and gates specs before render.",
+        "Vega-Lite gate rejects external data URLs, requires inline data values, and whitelists marks.",
+        "Focused Vitest chartGate tests passed for accepted bar chart, rejected external URL, and rejected text mark.",
+        "Context7 checked current Vega-Lite and @xyflow/react docs before implementation."
+      ]
+    },
     {
       "id": "PT-001",
       "title": "Expose GitHub webhook proxy",
@@ -110,5 +224,6 @@
       ],
       "validation": "Pending. The full CommonPlace quality audit currently reports 1862 warnings: mostly token-lint, typography under the readable target, and reduced-motion coverage."
     }
-  ]
+  ],
+  "updated_at": "2026-07-03"
 }

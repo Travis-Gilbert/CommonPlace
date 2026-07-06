@@ -8,6 +8,7 @@ import {
   acpWorkspaceCwd,
   buildAcpWebSocketUrl,
   diffFromAcpUpdate,
+  sceneFromAcpUpdate,
   textFromAcpUpdate,
   type AcpAgentId,
   type AcpCommandApproval,
@@ -25,7 +26,9 @@ import {
   type TheoremAgentClaim,
   type TheoremAgentRunResult,
 } from '@/lib/theorem-agent';
+import type { RenderScenePayload } from '@/lib/scene-package';
 import AgentThreadOmnibar from './AgentThreadOmnibar';
+import SceneHost from '../scene-host/SceneHost';
 import styles from './AgentThreadView.module.css';
 import { WeaveSpinner } from './WeaveSpinner';
 
@@ -58,6 +61,11 @@ type ThreadItem =
       kind: 'tool';
       title: string;
       payload: unknown;
+    }
+  | {
+      id: string;
+      kind: 'scene';
+      payload: RenderScenePayload;
     };
 
 interface AgentThreadViewProps {
@@ -117,6 +125,16 @@ export default function AgentThreadView({
             kind: 'diff',
             title: 'Proposed change',
             diff,
+          });
+          return;
+        }
+
+        const scene = sceneFromAcpUpdate(event.update);
+        if (scene) {
+          addItem({
+            id: `scene-${Date.now()}`,
+            kind: 'scene',
+            payload: scene,
           });
           return;
         }
@@ -464,6 +482,10 @@ function ThreadCard({
         )}
       </article>
     );
+  }
+
+  if (item.kind === 'scene') {
+    return <SceneHost payload={item.payload} />;
   }
 
   return (
