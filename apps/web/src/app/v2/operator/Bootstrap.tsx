@@ -36,7 +36,7 @@ export function BootstrapDialog({
     <Dialog.Root open={!!bootstrap} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.drawerOverlay} />
-        <Dialog.Content className={styles.bootstrap} aria-describedby={undefined}>
+        <Dialog.Content className={`porcelain ${styles.bootstrap}`} aria-describedby={undefined}>
           {bootstrap && (
             <>
               <div className={styles.bootstrapHead}>
@@ -53,7 +53,7 @@ export function BootstrapDialog({
               </p>
               <pre className={styles.bootstrapBlock}>{bootstrap.block}</pre>
               <div className={styles.bootstrapActions}>
-                <button className={styles.btnPrimary} onClick={copy}>
+                <button className={styles.btnNavy} onClick={copy}>
                   {copied ? <Check className={styles.glyph} /> : <Copy className={styles.glyph} />}
                   {copied ? 'Copied' : 'Copy bootstrap'}
                 </button>

@@ -96,6 +96,12 @@ export interface SourceDocRef {
   href?: string;
 }
 
+/** Checklist completion of a task's Build Table ([x] over total ChecklistItems). */
+export interface ChecklistProgress {
+  done: number;
+  total: number;
+}
+
 export interface OperatorTask {
   id: string; // task node id
   goal: string;
@@ -115,15 +121,38 @@ export interface OperatorTask {
   fileScope?: string[];
   /** Link to the run drawer history. */
   runId?: string;
+  /** Build Table completion; drives the bay progress bar. The substrate stores
+      ChecklistItems — the live source binds this directly. */
+  checklist?: ChecklistProgress;
   source: OperatorSource;
 }
+
+/** PR state light for a bay's tri-segment footer, deterministic from repo state. */
+export type PrLight = 'none' | 'open' | 'merged';
 
 export interface Bay {
   head: HeadId;
   label: string;
   /** The claimed task card, or null for an empty bay. */
   task: OperatorTask | null;
+  /** True only while the head is actively streaming output; the live dot pulses. */
+  streaming: boolean;
+  /** Tri-segment footer, cell 1. */
+  prLight: PrLight;
+  /** Tri-segment footer, cell 2: the last completed step's label. */
+  lastStep?: string;
   source: OperatorSource;
+}
+
+/** Three discrete urgency stops for the bay's left rail. Never a spectrum. */
+export type BayUrgency = 'calm' | 'waiting' | 'blocked';
+
+/** Rail color for a bay: blocked task -> blocked; an urgent message from this
+    head awaiting the human -> waiting; otherwise calm. */
+export function bayUrgency(bay: Bay, urgentFromHeads: Set<string>): BayUrgency {
+  if (bay.task && isBlocked(bay.task)) return 'blocked';
+  if (urgentFromHeads.has(bay.head)) return 'waiting';
+  return 'calm';
 }
 
 /** True when a task cannot be assigned (has an unmet prerequisite). */
@@ -172,6 +201,14 @@ export interface VerifyItem {
   evidence?: string;
 }
 
+/** A message in the task's room (the Chat section of the Room Panel). */
+export interface RoomMessage {
+  id: string;
+  at: string; // ISO
+  from: string;
+  text: string;
+}
+
 export interface RunDrawer {
   taskId: string;
   goal: string;
@@ -183,6 +220,13 @@ export interface RunDrawer {
   cursor?: string;
   /** Active tasks cursor-tail live; done tasks reconstruct cold from the substrate. */
   live: boolean;
+  /** The claimed task's spec markdown, rendered in the Room Panel's Spec section.
+      Live source: the handoff document body with Build Table states bound. */
+  specMarkdown?: string;
+  /** Footprint file list (coordination_intent.footprint + presence.changed_files). */
+  footprint?: string[];
+  /** Room chat tail for the panel's Chat section. */
+  messages?: RoomMessage[];
   source: OperatorSource;
 }
 
@@ -343,7 +387,10 @@ export type OperatorAction =
   | { action: 'reorder_queue'; taskId: string; priority: number }
   | { action: 'gate_pass'; taskId: string; note?: string }
   | { action: 'gate_bounce'; taskId: string; requiredChanges: string }
-  | { action: 'refresh_drawer'; taskId: string };
+  | { action: 'refresh_drawer'; taskId: string }
+  /** Task Dial submit: posts to the room bound to the open panel. An optional
+      mention (/claude, /codex) delivers via coordinate to that head. */
+  | { action: 'send_room_message'; taskId: string; text: string; mention?: HeadId };
 
 /** Structured refusal codes (Invariants 2 + 4). */
 export type OperatorErrorCode =
@@ -354,7 +401,8 @@ export type OperatorErrorCode =
   | 'evidence_missing'
   | 'not_in_review'
   | 'invalid_action'
-  | 'missing_required_changes';
+  | 'missing_required_changes'
+  | 'empty_message';
 
 export interface OperatorActionResult {
   ok: boolean;
@@ -417,6 +465,7 @@ function fixtureTasks(now: number): OperatorTask[] {
       ageMs: 3 * HOUR,
       fileScope: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
       runId: 'run_op4',
+      checklist: { done: 4, total: 6 },
       source: fixtureSource('workGraph claim'),
     },
     // NEXT — priority-ordered, draggable.
@@ -431,6 +480,7 @@ function fixtureTasks(now: number): OperatorTask[] {
       prerequisites: [{ taskId: 'task_op4_drawer', goal: 'OP4 run drawer', met: false }],
       ageMs: 2 * HOUR,
       fileScope: ['apps/web/src/app/v2/operator/Gate.tsx'],
+      checklist: { done: 0, total: 5 },
       source: fixtureSource('nextTaskNode'),
     },
     {
@@ -524,6 +574,11 @@ function fixtureBays(tasks: OperatorTask[]): Bay[] {
       head: head.id,
       label: head.label,
       task: claimed,
+      // Live source: presence stream (streaming), repo PR state (prLight),
+      // last checklist transition (lastStep).
+      streaming: head.id === 'claude-code' && claimed !== null,
+      prLight: claimed ? ('open' as const) : ('none' as const),
+      lastStep: claimed ? 'Verify First v1–v4 checked' : undefined,
       source: fixtureSource('workGraph claim'),
     };
   });
@@ -536,6 +591,36 @@ function fixtureDrawers(now: number): Record<string, RunDrawer> {
     live: true,
     cursor: 'stream:op4:42',
     source: fixtureSource('coordinationStream'),
+    specMarkdown: [
+      '## OP4 — the run drawer',
+      '',
+      'Receipts inside CommonPlace: the deploy-log event stream and the Verify First',
+      'checklist for the claimed task, assembled from coordination records,',
+      'contributions, stream events, and checklist transitions.',
+      '',
+      '### Build Table',
+      '',
+      '| mark | step |',
+      '| --- | --- |',
+      '| [x] | introspect task-node + stream shapes |',
+      '| [x] | read harness-console fixtures |',
+      '| [x] | read .harness/checklists schema |',
+      '| [x] | confirm workroom mount point |',
+      '| [-] | porcelain accent decision |',
+      '| [-] | cursor-tail degrade-to-poll pass |',
+      '',
+      'Scope: `apps/web/src/app/v2/operator/**`. The drawer must reconstruct cold',
+      'from the substrate when the stream is quiet.',
+    ].join('\n'),
+    footprint: [
+      'apps/web/src/app/v2/operator/RunDrawer.tsx',
+      'apps/web/src/lib/theorem-operator.ts',
+      'apps/web/src/app/api/theorem/operator/route.ts',
+    ],
+    messages: [
+      { id: 'm1', at: iso(now, 38 * 60 * 1000), from: 'claude-code', text: 'Footprint announced; starting on the drawer contract.' },
+      { id: 'm2', at: iso(now, 16 * 60 * 1000), from: 'codex', text: 'workGraph read is wired behind fixtureBays — flip lands after endpoint verification.' },
+    ],
     verifyFirst: [
       { id: 'v1', label: 'graphql_introspect task-node + stream shapes', done: true, evidence: 'schema probe: workGraph, coordinationStream present; mutations in write server' },
       { id: 'v2', label: 'read harness-console fixtures for task/queue shapes', done: true, evidence: 'apps/harness-console/src/lib/harness/fixtures.ts' },
@@ -676,7 +761,8 @@ function isOperatorAction(body: unknown): body is OperatorAction {
     a === 'reorder_queue' ||
     a === 'gate_pass' ||
     a === 'gate_bounce' ||
-    a === 'refresh_drawer'
+    a === 'refresh_drawer' ||
+    a === 'send_room_message'
   );
 }
 
@@ -772,6 +858,22 @@ export function handleOperatorAction(
       const drawer = state.drawers[action.taskId];
       if (!drawer) return { ok: false, action: action.action, error: 'task_not_found', message: `No drawer for ${action.taskId}.` };
       return { ok: true, action: action.action, message: `Drawer for "${drawer.goal}" refreshed.` };
+    }
+    case 'send_room_message': {
+      const task = state.tasks.find((x) => x.id === action.taskId);
+      if (!task) return { ok: false, action: action.action, error: 'task_not_found', message: `No task ${action.taskId}.` };
+      if (!action.text || !action.text.trim()) {
+        return { ok: false, action: action.action, error: 'empty_message', message: 'A room message needs text.' };
+      }
+      // Live source: stream_publish to the task's room; a mention additionally
+      // delivers via coordinate to the named head.
+      return {
+        ok: true,
+        action: action.action,
+        message: action.mention
+          ? `Sent to the "${task.goal}" room; ${action.mention} mentioned.`
+          : `Sent to the "${task.goal}" room.`,
+      };
     }
   }
 }

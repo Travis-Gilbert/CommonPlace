@@ -262,6 +262,14 @@
   background: var(--raised);
 }
 .btnDanger:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+/* V2 primary on the Operator: navy — oxblood is reserved for blocked here. */
+.btnNavy {
+  composes: btn;
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--g0);
+}
+.btnNavy:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--g0); }
 
 /* ── OP6 Shift summary ────────────────────────────────────────────────────── */
 
@@ -738,7 +746,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   padding: 8px 10px;
   box-shadow: var(--well);
 }
-.bounceInput:focus { outline: none; border-color: var(--accent); }
+.bounceInput:focus { outline: none; border-color: var(--navy); }
 .bounceActions { display: flex; gap: var(--u); }
 
 /* ── OP3 Bootstrap dialog (Radix Dialog, centered) ───────────────────────── */
@@ -779,4 +787,687 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 
 @media (max-width: 900px) {
   .gateGrid { grid-template-columns: 1fr; }
+}
+
+/* ════ V2 presentation layer (SPEC-OPERATOR-SURFACE-V2) ═══════════════════════
+   Monitoring screen with a triage strip. Zones: breadcrumb rail / attention
+   strip / bays (hero) / next queue / disclosures. Color: ink = calm + progress,
+   amber = waiting-on-human + open PR, oxblood = blocked ONLY, green = merged.
+   Spacing grid: 4/8/12/16/24/32. */
+
+/* Content column — nothing spans the viewport. */
+.col {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* Row 1 — breadcrumb rail */
+.crumbRail {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gateBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--hair);
+  background: var(--plane);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion) var(--ease), color var(--motion) var(--ease);
+}
+.gateBadge:hover { border-color: var(--teal); color: var(--teal); }
+.gateBadgeCount {
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.gateBadgeCount[data-zero] { background: var(--inset-bg); color: var(--ink-faint); }
+/* The one dev-mode dot: replaces every FIXTURE badge on the page. */
+.devDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  cursor: help;
+}
+.devDot[data-mode='live'] { background: var(--ok); }
+
+/* Row 2 — attention strip. Absent when all zero; the bays rise. */
+.strip {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.chipBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  white-space: nowrap;
+  padding: 0 14px;
+  border-radius: 20px;
+  border: 1px solid var(--hair);
+  background: var(--plane);
+  box-shadow: var(--edge);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--motion) var(--ease), background var(--motion) var(--ease);
+}
+.chipBtn:hover { background: var(--raised); border-color: var(--hair); }
+.chipDot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); flex-shrink: 0; }
+.chipDot[data-urgent] { background: var(--amber); }
+.chipCount { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-dim); }
+
+/* Row 3 — bays (the hero) */
+.bayStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: flex-start;
+}
+
+.tilt {
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+  transition: transform 0.2s ease-out;
+  transform-style: preserve-3d;
+  border-radius: var(--r-band);
+}
+.tiltSpotFrame {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  transition: opacity 0.3s;
+}
+.tiltSpot {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--lit) 0%, transparent 40%);
+}
+
+.bayTilt { width: 340px; height: 227px; flex-shrink: 0; }
+
+.bayCard {
+  position: relative;
+  width: 340px;
+  height: 227px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-band);
+  background-color: var(--plane);
+  background-image: var(--plane-grad);
+  border: 1px solid var(--hair-soft);
+  box-shadow: var(--edge), var(--raise);
+  padding: 16px 16px 0 20px; /* left clears the rail */
+  overflow: hidden;
+}
+.bayRail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--ink);
+}
+.bayRail[data-urgency='waiting'] { background: var(--amber); }
+.bayRail[data-urgency='blocked'] { background: var(--accent); }
+
+.bayFaceBtn {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-band);
+}
+
+.bayZoneHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.bayHeadName {
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.bayLiveDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex-shrink: 0;
+}
+.bayLiveDot[data-streaming] {
+  background: var(--ok);
+  animation: pulse 1.8s var(--ease) infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(61, 122, 74, 0.35); }
+  50% { box-shadow: 0 0 0 5px rgba(61, 122, 74, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bayLiveDot[data-streaming] { animation: none; }
+}
+
+.bayTaskTitle {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Progress sits just above the footer: the card reads head -> title -> (air) ->
+   motion -> receipts. */
+.bayProgress {
+  margin-top: auto;
+  margin-bottom: 12px;
+  height: 4px;
+  width: 100%;
+  border-radius: 4px;
+  background: var(--inset-bg);
+  overflow: hidden;
+}
+.bayProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--navy);
+  transition: width var(--motion) var(--ease);
+}
+
+.bayFooter {
+  height: 32px;
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  border-top: 1px solid var(--hair-soft);
+  margin-left: -20px;
+  margin-right: -16px;
+  padding: 0;
+}
+.bayFootCell {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  border-right: 1px solid var(--hair-soft);
+  min-width: 0;
+}
+.bayFootCell:last-child { border-right: none; }
+.bayPrDot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); opacity: 0.5; }
+.bayPrDot[data-pr='open'] { background: var(--amber); opacity: 1; }
+.bayPrDot[data-pr='merged'] { background: var(--ok); opacity: 1; }
+.bayFootStep {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 32px;
+}
+.bayFootElapsed {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  justify-content: flex-end;
+}
+
+/* Action row — InfoCard reveal: hidden until hover or keyboard focus lands inside. */
+.bayActions {
+  position: absolute;
+  left: 4px;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--raised);
+  border-top: 1px solid var(--hair-soft);
+  transform: translateY(100%);
+  transition: transform var(--motion) var(--ease);
+}
+.bayCard:hover .bayActions,
+.bayCard:focus-within .bayActions { transform: translateY(0); }
+.bayActionBtn {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--hair);
+  background: var(--plane);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion) var(--ease), color var(--motion) var(--ease);
+}
+.bayActionBtn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.bayActionBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.bayEmptyCard {
+  width: 340px;
+  height: 227px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed var(--hair);
+  border-radius: var(--r-band);
+  opacity: 0.6;
+}
+.bayEmptyName { font-family: var(--font-body); font-size: 0.86rem; font-weight: 600; color: var(--ink-dim); }
+.bayEmptyHint { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint); }
+
+/* Row 4 — Next queue, compact ranked list */
+.queueList {
+  max-width: 672px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qRow {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: var(--r-row);
+  background: var(--plane);
+  border: 1px solid var(--hair-soft);
+  transition: border-color var(--motion) var(--ease), box-shadow var(--motion) var(--ease);
+}
+.qRow:hover { box-shadow: var(--edge), var(--raise); }
+.qRow[data-dragging] { box-shadow: var(--edge), var(--float); }
+.qDot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); flex-shrink: 0; }
+.qDot[data-urgency='waiting'] { background: var(--amber); cursor: help; }
+.qDot[data-urgency='blocked'] { background: var(--accent); cursor: help; }
+.qFace {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  height: 100%;
+}
+.qTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.84rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qFace:hover .qTitle { color: var(--teal); }
+.qChip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  border: 1px solid var(--teal-line);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.qAge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 28px;
+}
+
+/* On this screen oxblood means blocked and nothing else — the focus ring goes
+   navy (information), overriding the global porcelain accent ring. */
+.col :focus-visible,
+.panel :focus-visible,
+.bayCard :focus-visible {
+  outline-color: var(--navy);
+}
+.qDot[data-status='done'] { background: var(--ok); }
+
+/* ── Room Panel: drawer, three stacked sections, sticky mini-headers ─────── */
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(720px, 94vw);
+  z-index: 61;
+  background: var(--g0);
+  border-left: 1px solid var(--hair);
+  box-shadow: -16px 0 40px rgba(33, 31, 27, 0.14);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn var(--motion) var(--ease);
+}
+.panelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--hair-soft);
+  flex-shrink: 0;
+}
+.panelHeadText { min-width: 0; }
+.panelScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+.panelMiniHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--g0);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 16px 0 8px;
+  border-bottom: 1px solid var(--hair-soft);
+}
+.panelSection { padding: 12px 0 8px; }
+.panelChat { padding-bottom: 16px; }
+
+/* Spec prose — the CommonPlace markdown render, porcelain-toned. */
+.specProse { font-size: 0.84rem; line-height: 1.6; color: var(--ink); max-width: 90ch; }
+.specProse h1, .specProse h2, .specProse h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 16px 0 8px;
+  line-height: 1.25;
+}
+.specProse h1 { font-size: 1.05rem; }
+.specProse h2 { font-size: 0.98rem; }
+.specProse h3 { font-size: 0.9rem; }
+.specProse p { margin: 8px 0; }
+.specProse code {
+  font-family: var(--font-mono);
+  font-size: 0.76em;
+  background: var(--inset-bg);
+  border: 1px solid var(--hair-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.specProse pre {
+  background: var(--inset-bg);
+  border: 1px solid var(--hair-soft);
+  border-radius: var(--r-row);
+  padding: 12px;
+  overflow-x: auto;
+}
+.specProse pre code { background: none; border: none; padding: 0; }
+.specProse table { border-collapse: collapse; margin: 12px 0; font-size: 0.8rem; }
+.specProse th, .specProse td {
+  border: 1px solid var(--hair-soft);
+  padding: 4px 12px;
+  text-align: left;
+}
+.specProse th {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  background: var(--inset-bg);
+}
+.specProse a { color: var(--teal); text-decoration: underline; text-underline-offset: 2px; }
+.specProse ul, .specProse ol { margin: 8px 0; padding-left: 24px; }
+
+/* Activity — mono rows, no cards. */
+.footprintList { list-style: none; margin: 0 0 12px; padding: 0; }
+.footprintItem {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--hair-soft);
+  word-break: break-all;
+}
+.activityLog { list-style: none; margin: 0; padding: 0; }
+.activityRow {
+  display: grid;
+  grid-template-columns: 64px 88px 92px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--hair-soft);
+}
+.activityTime { font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-faint); white-space: nowrap; }
+.activityActor { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-dim); }
+.activityKind {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+.activityText { font-size: 0.8rem; color: var(--ink); min-width: 0; word-break: break-word; }
+
+/* Chat */
+.chatList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.chatMsg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 90ch;
+}
+.chatMsg[data-you] .chatText { background: var(--navy-soft); }
+.chatMeta { display: flex; align-items: baseline; gap: 8px; }
+.chatText {
+  font-size: 0.82rem;
+  color: var(--ink);
+  line-height: 1.5;
+  background: var(--plane);
+  border: 1px solid var(--hair-soft);
+  border-radius: var(--r-row);
+  padding: 8px 12px;
+  width: fit-content;
+}
+
+/* ── Task Dial composer ──────────────────────────────────────────────────── */
+
+.dial {
+  position: relative;
+  flex-shrink: 0;
+  border-top: 1px solid var(--hair);
+  background: var(--raised);
+  padding: 12px 24px 16px;
+}
+.dialText {
+  width: 100%;
+  min-height: 64px;
+  resize: none;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: var(--ink);
+  background: var(--g0);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-row);
+  padding: 8px 12px;
+  box-shadow: var(--well);
+}
+.dialText:focus { outline: none; border-color: var(--navy); }
+.dialRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dialTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--hair);
+  background: var(--plane);
+  cursor: pointer;
+  transition: border-color var(--motion) var(--ease);
+}
+.dialTrigger:hover { border-color: var(--teal); }
+.dialMark {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--navy);
+  flex-shrink: 0;
+}
+.dialPos { z-index: 70; }
+.dialPopup {
+  width: 280px;
+  border-radius: var(--r-band);
+  border: 1px solid var(--hair);
+  background: var(--g0);
+  box-shadow: var(--float);
+  overflow: hidden;
+}
+.dialSection {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 12px 12px 4px;
+}
+.dialList { max-height: 280px; overflow-y: auto; padding: 4px; }
+.dialItem { border-radius: 8px; }
+.dialItem[data-highlighted] { background: var(--inset-bg); }
+.dialItemFace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 8px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.dialItemHint { font-size: 0.68rem; margin-left: auto; }
+.dialSlash {
+  position: absolute;
+  bottom: 100%;
+  left: 24px;
+  right: 24px;
+  margin-bottom: 4px;
+  background: var(--g0);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-row);
+  box-shadow: var(--float);
+  padding: 4px;
+  z-index: 5;
+}
+.dialSlashItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dialSlashItem:hover { background: var(--inset-bg); }
+
+.dialPreviewPos { z-index: 80; }
+.dialPreviewPopup {
+  border-radius: var(--r-band);
+  border: 1px solid var(--hair);
+  background: var(--g0);
+  box-shadow: var(--float);
+  overflow: hidden;
+}
+.dialPreview { width: 240px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.dialPreviewName { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+.dialPreviewTask { font-size: 0.8rem; color: var(--ink-dim); line-height: 1.4; }
+.dialMetrics { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.dialMetric { display: flex; flex-direction: column; gap: 4px; }
+.dialMetricLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.dialMetricTrack { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.dialMetricSeg {
+  height: 10px;
+  border-radius: 3px;
+  background: var(--inset-bg);
+}
+.dialMetricSeg[data-filled] { background: var(--navy); }
+
+/* Gate drawer: cards stack single-column inside the panel. */
+.gateStack { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
+
+/* Mobile: bays stack, column padding tightens. */
+@media (max-width: 767px) {
+  .col { padding: 0 16px; }
+  .bayTilt, .bayCard, .bayEmptyCard { width: 100%; }
+  .bayTilt { height: auto; min-height: 180px; }
+  .bayCard, .bayEmptyCard { height: 180px; }
+  .activityRow { grid-template-columns: 44px 1fr; grid-auto-flow: dense; }
+  .activityKind { display: none; }
 }

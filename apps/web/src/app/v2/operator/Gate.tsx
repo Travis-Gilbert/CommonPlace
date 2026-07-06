@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import type { GateCard as GateCardData } from '@/lib/theorem-operator';
 import { gateReady } from '@/lib/theorem-operator';
-import { Pill, SourceBadge, Empty } from './parts';
+import { Pill, Empty } from './parts';
 import styles from './operator.module.css';
 
 type GateRunner =
@@ -31,7 +31,6 @@ export function Gate({
   return (
     <section aria-label="Gate">
       <div className={styles.laneHead}>
-        <h2 className={styles.laneTitle}>The gate</h2>
         <span className={styles.laneHint}>
           Nothing merges without acceptance evidence and a cross-review. The gate reviews the review.
         </span>
@@ -39,7 +38,7 @@ export function Gate({
       {cards.length === 0 ? (
         <Empty>Nothing in review.</Empty>
       ) : (
-        <div className={styles.gateGrid}>
+        <div className={styles.gateStack}>
           {cards.map((card) => (
             <GateCard key={card.taskId} card={card} busy={busy} onPass={onPass} onBounce={onBounce} />
           ))}
@@ -69,7 +68,6 @@ function GateCard({
     <article className={styles.gateCard}>
       <div className={styles.gateHead}>
         <span className={styles.gateGoal}>{card.goal}</span>
-        <SourceBadge source={card.source} />
       </div>
 
       {/* Acceptance marks with cited evidence */}
@@ -142,14 +140,14 @@ function GateCard({
         {!bouncing ? (
           <>
             <button
-              className={styles.btnPrimary}
+              className={styles.btnNavy}
               disabled={!ready || isBusy}
               title={ready ? 'Write the gate record and advance to merge-ready' : `Blocked: ${missing.join('; ')}`}
               onClick={() => onPass(card.taskId)}
             >
               Pass
             </button>
-            <button className={styles.btnDanger} disabled={isBusy} onClick={() => setBouncing(true)}>
+            <button className={styles.btn} disabled={isBusy} onClick={() => setBouncing(true)}>
               Bounce
             </button>
             {!ready && <span className={styles.gateMissing}>Pass needs: {missing.join('; ')}.</span>}
@@ -165,7 +163,7 @@ function GateCard({
             />
             <div className={styles.bounceActions}>
               <button
-                className={styles.btnDanger}
+                className={styles.btn}
                 disabled={!reason.trim() || isBusy}
                 onClick={() => {
                   onBounce(card.taskId, reason.trim());

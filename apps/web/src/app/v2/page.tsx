@@ -1,4 +1,5 @@
 import { IndexSurface } from '@/components/v2/index/IndexSurface';
+import { ActiveRoomsBand } from '@/components/v2/index/ActiveRoomsBand';
 import styles from '@/components/v2/index/index.module.css';
 
 /* Index: the daily driver. Everything is filed; this surface reviews what
@@ -23,6 +24,7 @@ export default function IndexPage() {
         </div>
       </header>
 
+      <ActiveRoomsBand />
       <IndexSurface />
     </div>
   );

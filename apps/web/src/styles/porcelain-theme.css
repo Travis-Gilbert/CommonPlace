@@ -48,6 +48,14 @@
   --teal: #2E6F69;
   --teal-soft: rgba(46, 111, 105, 0.1);
   --teal-line: rgba(46, 111, 105, 0.28);
+  /* amber: warm, from the parchment family. Attention / waiting-on-a-human /
+     an open PR. Sits between teal-calm and accent-blocked in the escalation. */
+  --amber: #9A6A14;
+  --amber-soft: rgba(154, 106, 20, 0.12);
+  --amber-line: rgba(154, 106, 20, 0.34);
+  /* ink navy: information and progress fill — quiet forward motion */
+  --navy: #33455C;
+  --navy-soft: rgba(51, 69, 92, 0.12);
 
   /* light model: every surface is a sheet, a float, or a well */
   --edge: inset 0 1px 0 var(--lit);
@@ -100,6 +108,11 @@
   --teal: #6FB3AB;
   --teal-soft: rgba(111, 179, 171, 0.14);
   --teal-line: rgba(111, 179, 171, 0.32);
+  --amber: #D9A84E;
+  --amber-soft: rgba(217, 168, 78, 0.16);
+  --amber-line: rgba(217, 168, 78, 0.36);
+  --navy: #9DB2C7;
+  --navy-soft: rgba(157, 178, 199, 0.16);
 
   --edge: inset 0 1px 0 var(--lit);
   --raise: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.35);
