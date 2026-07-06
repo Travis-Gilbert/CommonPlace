@@ -443,6 +443,11 @@ pub struct ObjectSet {
     pub next_cursor: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub live: Option<LiveBinding>,
+    /// Out-of-band note channel: how the set was ranked, and any degraded path
+    /// (e.g. a hybrid ranker that fell back to the in-memory scorer because the
+    /// relational planner was unavailable). `None` when nothing needs saying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -523,6 +528,14 @@ pub enum ObjectAction {
     Select {
         ids: Vec<String>,
     },
+    /// Re-home an object under a new parent at a fractional `order`. Reordering
+    /// within the same parent is a single ordered-CONTAINS edge patch; moving
+    /// across parents detaches the old CONTAINS edge and attaches a new one.
+    Move {
+        id: String,
+        new_parent: String,
+        order: f64,
+    },
 }
 
 impl ObjectAction {
@@ -538,6 +551,7 @@ impl ObjectAction {
             Self::Dispatch { .. } => ActionKind::Dispatch,
             Self::Open { .. } => ActionKind::Open,
             Self::Select { .. } => ActionKind::Select,
+            Self::Move { .. } => ActionKind::Move,
         }
     }
 }
@@ -555,6 +569,7 @@ pub enum ActionKind {
     Dispatch,
     Open,
     Select,
+    Move,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -846,7 +861,7 @@ where
         if let Some(predicate) = &query.where_clause {
             items.retain(|item| predicate_matches_item(self, item, predicate));
         }
-        sort_items(&mut items, &query.rank);
+        let note = self.rank_items(&mut items, &query.rank);
 
         let total = items.len();
         let start = query
@@ -879,6 +894,7 @@ where
             live: query.live.then_some(LiveBinding::Poll {
                 interval_ms: DEFAULT_RECORD_POLL_INTERVAL_MS,
             }),
+            note,
         })
     }
 
@@ -961,6 +977,46 @@ where
                 actor_id,
                 note: Some("unlink is deferred to the host undo/tombstone layer".to_string()),
             }),
+            ObjectAction::Move {
+                id,
+                new_parent,
+                order,
+            } => {
+                // The core GraphStore has no edge deletion, so a re-home marks
+                // any stale CONTAINS edge `detached` (ordered_children skips
+                // those) and writes the fresh ordered edge. Reordering within
+                // the same parent is exactly one edge upsert.
+                let previous: Vec<String> = self
+                    .store()
+                    .neighbors(NeighborQuery::in_(&id).with_edge_type(CONTAINS_EDGE))
+                    .into_iter()
+                    .map(|hit| hit.node_id)
+                    .collect();
+                for parent in previous.iter().filter(|parent| *parent != &new_parent) {
+                    self.store_mut().upsert_edge(EdgeRecord::new(
+                        contains_edge_id(parent, &id),
+                        parent.clone(),
+                        CONTAINS_EDGE,
+                        id.clone(),
+                        json!({ "detached": true }),
+                    ))?;
+                }
+                self.store_mut().upsert_edge(EdgeRecord::new(
+                    contains_edge_id(&new_parent, &id),
+                    new_parent.clone(),
+                    CONTAINS_EDGE,
+                    id.clone(),
+                    json!({ "order": order }),
+                ))?;
+                Ok(ObjectActionReceipt {
+                    action_kind,
+                    status: ObjectActionStatus::Applied,
+                    target_ids: vec![new_parent, id],
+                    graph_transform: Some("CONTAINS.move".to_string()),
+                    actor_id,
+                    note: None,
+                })
+            }
             ObjectAction::RunAgent { .. }
             | ObjectAction::InvokeTool { .. }
             | ObjectAction::Dispatch { .. }
@@ -997,6 +1053,194 @@ where
             }
         }
         Ok(items)
+    }
+}
+
+impl<S, B> Commonplace<S, B>
+where
+    S: GraphStore,
+    B: BlobStore,
+{
+    /// Children of `parent` under CONTAINS, sorted by their fractional `order`
+    /// edge prop. Edges marked `detached` by a Move are skipped, so a re-homed
+    /// object shows up under exactly one parent.
+    pub fn ordered_children(&self, parent: &str) -> Vec<String> {
+        let mut children: Vec<(String, f64)> = self
+            .store()
+            .neighbors(NeighborQuery::out(parent).with_edge_type(CONTAINS_EDGE))
+            .into_iter()
+            .filter_map(|hit| {
+                let edge = self.store().get_edge(&contains_edge_id(parent, &hit.node_id))?;
+                if edge
+                    .properties
+                    .get("detached")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    return None;
+                }
+                let order = edge
+                    .properties
+                    .get("order")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
+                Some((hit.node_id, order))
+            })
+            .collect();
+        children.sort_by(|left, right| {
+            left.1
+                .partial_cmp(&right.1)
+                .unwrap_or(Ordering::Equal)
+                .then_with(|| left.0.cmp(&right.0))
+        });
+        children.into_iter().map(|(id, _)| id).collect()
+    }
+
+    /// Apply the query's rankers in priority order (the last ranker is the
+    /// primary key, preserving v1's stable-sort layering). Field ranking is
+    /// exact; the previously-dead VectorKnn / Fulltext / Graph rankers now score
+    /// in-memory. Returns an optional note for the ObjectSet note channel when a
+    /// hybrid ranker used the fallback path.
+    fn rank_items(&self, items: &mut [Item], rankers: &[Ranker]) -> Option<String> {
+        let mut note = None;
+        for ranker in rankers.iter().rev() {
+            match ranker {
+                Ranker::Field { field, direction } => {
+                    items.sort_by(|left, right| {
+                        let ordering = compare_optional_values(
+                            item_field_value(left, field).as_ref(),
+                            item_field_value(right, field).as_ref(),
+                        );
+                        match direction {
+                            RankDirection::Asc => ordering,
+                            RankDirection::Desc => ordering.reverse(),
+                        }
+                    });
+                }
+                Ranker::Fulltext { query, fields } => {
+                    let scores = fulltext_scores(items, query, fields);
+                    sort_by_score(items, &scores);
+                    note = Some(planner_fallback_note("fulltext"));
+                }
+                Ranker::VectorKnn { vector, .. } => {
+                    let scores = vector_scores(items, vector);
+                    sort_by_score(items, &scores);
+                    note = Some(planner_fallback_note("vector_knn"));
+                }
+                Ranker::Graph {
+                    seeds,
+                    edge,
+                    direction,
+                } => {
+                    let scores = self.graph_scores(items, seeds, edge.as_deref(), *direction);
+                    sort_by_score(items, &scores);
+                    note = Some(planner_fallback_note("graph"));
+                }
+            }
+        }
+        note
+    }
+
+    /// Score items by proximity to `seeds` via a bounded BFS over the graph:
+    /// closer objects rank higher, unreachable objects score zero.
+    fn graph_scores(
+        &self,
+        items: &[Item],
+        seeds: &[String],
+        edge: Option<&str>,
+        direction: Option<EdgeDirection>,
+    ) -> BTreeMap<String, f64> {
+        let dir = direction.unwrap_or(EdgeDirection::Out);
+        let mut distance: BTreeMap<String, usize> = BTreeMap::new();
+        let mut frontier: Vec<String> = Vec::new();
+        for seed in seeds {
+            if distance.insert(seed.clone(), 0).is_none() {
+                frontier.push(seed.clone());
+            }
+        }
+        let mut hop = 0usize;
+        while !frontier.is_empty() && hop < 6 {
+            hop += 1;
+            let mut next = Vec::new();
+            for node in &frontier {
+                let mut query = neighbor_query_for(node, dir);
+                if let Some(edge) = edge {
+                    query = query.with_edge_type(edge.to_string());
+                }
+                for hit in self.store().neighbors(query) {
+                    if !distance.contains_key(&hit.node_id) {
+                        distance.insert(hit.node_id.clone(), hop);
+                        next.push(hit.node_id);
+                    }
+                }
+            }
+            frontier = next;
+        }
+        items
+            .iter()
+            .map(|item| {
+                let score = distance
+                    .get(&item.id)
+                    .map(|hops| 1.0 / (1.0 + *hops as f64))
+                    .unwrap_or(0.0);
+                (item.id.clone(), score)
+            })
+            .collect()
+    }
+
+    /// Persist the hardcoded view registry into the graph as `view-descriptor`
+    /// objects — the OC1 seed migration. Idempotent: descriptor ids already in
+    /// the store are left untouched, so user- or pack-registered views survive
+    /// re-seeding. Returns how many descriptors were written.
+    pub fn seed_view_descriptors(&mut self) -> GraphStoreResult<usize> {
+        let existing: BTreeSet<String> = self
+            .items_by_kind(&ItemKind::from(VIEW_DESCRIPTOR_KIND.to_string()))?
+            .into_iter()
+            .filter_map(|item| {
+                item.extra
+                    .get("descriptor_id")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            })
+            .collect();
+        let mut written = 0;
+        for descriptor in ViewRegistry::default_commonplace().descriptors() {
+            if existing.contains(&descriptor.id) {
+                continue;
+            }
+            let value = serde_json::to_value(descriptor).map_err(|error| {
+                GraphStoreError::new("commonplace_view_descriptor", error.to_string())
+            })?;
+            let item = Item::new(
+                ItemKind::from(VIEW_DESCRIPTOR_KIND.to_string()),
+                descriptor.name.clone(),
+            )
+            .with_extra("descriptor_id", json!(descriptor.id))
+            .with_extra("descriptor", value);
+            self.put_item(item)?;
+            written += 1;
+        }
+        Ok(written)
+    }
+
+    /// Hydrate a ViewRegistry from persisted `view-descriptor` objects. A fresh
+    /// workspace holds none, so it falls back to the hardcoded seed and matches
+    /// v1 behavior exactly.
+    pub fn load_view_registry(&self) -> GraphStoreResult<ViewRegistry> {
+        let descriptors: Vec<ViewDescriptor> = self
+            .items_by_kind(&ItemKind::from(VIEW_DESCRIPTOR_KIND.to_string()))?
+            .into_iter()
+            .filter_map(|item| {
+                item.extra
+                    .get("descriptor")
+                    .and_then(|value| serde_json::from_value::<ViewDescriptor>(value.clone()).ok())
+            })
+            .collect();
+        if descriptors.is_empty() {
+            Ok(ViewRegistry::default_commonplace())
+        } else {
+            Ok(ViewRegistry::new(descriptors))
+        }
     }
 }
 
@@ -1040,14 +1284,21 @@ where
 
     let mut relations = BTreeMap::new();
     for relation in requested_relations {
-        let query =
-            neighbor_query_for(&item.id, relation.dir).with_edge_type(relation.edge.clone());
-        let ids = commonplace
-            .store()
-            .neighbors(query)
-            .into_iter()
-            .map(|hit| hit.node_id)
-            .collect::<Vec<_>>();
+        // CONTAINS is the ordered-children edge: honor the fractional `order`
+        // prop so a surface's regions and a region's view-instances round-trip
+        // in the arrangement the user set, not in raw adjacency order.
+        let ids = if relation.edge == CONTAINS_EDGE && relation.dir == EdgeDirection::Out {
+            commonplace.ordered_children(&item.id)
+        } else {
+            let query =
+                neighbor_query_for(&item.id, relation.dir).with_edge_type(relation.edge.clone());
+            commonplace
+                .store()
+                .neighbors(query)
+                .into_iter()
+                .map(|hit| hit.node_id)
+                .collect::<Vec<_>>()
+        };
         if !ids.is_empty() {
             relations.insert(relation.edge.clone(), ids);
         }
@@ -1174,21 +1425,95 @@ fn contains_value(haystack: Option<Value>, needle: &Value) -> bool {
     }
 }
 
-fn sort_items(items: &mut [Item], rankers: &[Ranker]) {
-    for ranker in rankers.iter().rev() {
-        if let Ranker::Field { field, direction } = ranker {
-            items.sort_by(|left, right| {
-                let ordering = compare_optional_values(
-                    item_field_value(left, field).as_ref(),
-                    item_field_value(right, field).as_ref(),
-                );
-                match direction {
-                    RankDirection::Asc => ordering,
-                    RankDirection::Desc => ordering.reverse(),
-                }
-            });
+fn sort_by_score(items: &mut [Item], scores: &BTreeMap<String, f64>) {
+    items.sort_by(|left, right| {
+        let left_score = scores.get(&left.id).copied().unwrap_or(f64::MIN);
+        let right_score = scores.get(&right.id).copied().unwrap_or(f64::MIN);
+        right_score
+            .partial_cmp(&left_score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+}
+
+fn fulltext_haystack(item: &Item, fields: &[String]) -> String {
+    if fields.is_empty() {
+        let mut parts = vec![item.title.clone()];
+        if let ItemBody::Inline { text } = &item.body {
+            parts.push(text.clone());
         }
+        for value in item.extra.values() {
+            if let Some(text) = value.as_str() {
+                parts.push(text.to_string());
+            }
+        }
+        parts.join(" ")
+    } else {
+        fields
+            .iter()
+            .filter_map(|field| item_field_value(item, field))
+            .map(|value| match value {
+                Value::String(text) => text,
+                other => other.to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
+}
+
+fn fulltext_scores(items: &[Item], query: &str, fields: &[String]) -> BTreeMap<String, f64> {
+    let tokens: Vec<String> = query
+        .to_lowercase()
+        .split_whitespace()
+        .map(str::to_string)
+        .collect();
+    let mut scores = BTreeMap::new();
+    for item in items {
+        let haystack = fulltext_haystack(item, fields).to_lowercase();
+        let score = tokens
+            .iter()
+            .map(|token| haystack.matches(token.as_str()).count() as f64)
+            .sum();
+        scores.insert(item.id.clone(), score);
+    }
+    scores
+}
+
+fn vector_scores(items: &[Item], vector: &[f32]) -> BTreeMap<String, f64> {
+    let mut scores = BTreeMap::new();
+    for item in items {
+        let score = item
+            .embedding
+            .as_ref()
+            .map(|embedding| cosine_similarity(embedding, vector))
+            .unwrap_or(f64::MIN);
+        scores.insert(item.id.clone(), score);
+    }
+    scores
+}
+
+fn cosine_similarity(left: &[f32], right: &[f32]) -> f64 {
+    let width = left.len().min(right.len());
+    let mut dot = 0.0f64;
+    let mut left_norm = 0.0f64;
+    let mut right_norm = 0.0f64;
+    for index in 0..width {
+        let x = left[index] as f64;
+        let y = right[index] as f64;
+        dot += x * y;
+        left_norm += x * x;
+        right_norm += y * y;
+    }
+    if left_norm == 0.0 || right_norm == 0.0 {
+        return 0.0;
+    }
+    dot / (left_norm.sqrt() * right_norm.sqrt())
+}
+
+fn planner_fallback_note(ranker: &str) -> String {
+    format!(
+        "ranked in-memory via the {ranker} scorer; the relational planner (QueryIr) is unavailable, so hybrid retrieval used the fallback path"
+    )
 }
 
 fn compare_optional_values(left: Option<&Value>, right: Option<&Value>) -> Ordering {
@@ -1403,6 +1728,130 @@ fn object_edge_id(edge: &str, from: &str, to: &str) -> String {
     format!("object:{}:{from}:{to}", normalize_type_ref(edge))
 }
 
+/// The ordered-children edge. A surface CONTAINS regions; a region CONTAINS
+/// regions or view-instances. The child's rank rides on the edge as a
+/// fractional `order` prop so a reorder is a single edge patch.
+pub const CONTAINS_EDGE: &str = "CONTAINS";
+
+/// Item kind under which persisted `view-descriptor` objects live, so the view
+/// registry is data in the graph rather than a hardcoded table.
+pub const VIEW_DESCRIPTOR_KIND: &str = "view-descriptor";
+
+fn contains_edge_id(parent: &str, child: &str) -> String {
+    object_edge_id(CONTAINS_EDGE, parent, child)
+}
+
+/// Midpoint fractional index between two ordered siblings. `before` / `after`
+/// are the `order` values of the neighbours the object is dropped between;
+/// `None` means "past that edge". Dropping between two children never disturbs
+/// the others — only the moved child's one edge is rewritten.
+pub fn fractional_index(before: Option<f64>, after: Option<f64>) -> f64 {
+    match (before, after) {
+        (Some(before), Some(after)) => (before + after) / 2.0,
+        (Some(before), None) => before + 1.0,
+        (None, Some(after)) => after - 1.0,
+        (None, None) => 0.0,
+    }
+}
+
+/// The four arrangement types (SPEC-OBJECT-CONTRACT-V2 OC1). They inhabit the
+/// same TypeDef vocabulary as every content type — a surface is just an object
+/// whose CONTAINS children are regions and view-instances, so drag-to-rearrange,
+/// fork, and share are ordinary object machinery.
+pub fn commonplace_surface_types() -> Vec<TypeDef> {
+    let contains = |target: &str| RelationDef {
+        edge: CONTAINS_EDGE.to_string(),
+        dir: EdgeDirection::Out,
+        target: target.to_string(),
+    };
+    let string = |name: &str| PropertyDef {
+        name: name.to_string(),
+        prop_type: PropType::String,
+        constraints: Vec::new(),
+    };
+    let json = |name: &str| PropertyDef {
+        name: name.to_string(),
+        prop_type: PropType::Json,
+        constraints: Vec::new(),
+    };
+    vec![
+        TypeDef {
+            name: "surface".to_string(),
+            properties: vec![
+                string("name"),
+                PropertyDef {
+                    name: "kind".to_string(),
+                    prop_type: PropType::String,
+                    constraints: vec![Constraint::Enum {
+                        values: vec![
+                            "page".to_string(),
+                            "workspace".to_string(),
+                            "panel".to_string(),
+                        ],
+                    }],
+                },
+            ],
+            relations: vec![contains("region"), contains("view-instance")],
+            axes: TypeAxes::default(),
+        },
+        TypeDef {
+            name: "region".to_string(),
+            properties: vec![
+                PropertyDef {
+                    name: "layout".to_string(),
+                    prop_type: PropType::String,
+                    constraints: vec![Constraint::Enum {
+                        values: vec![
+                            "split-h".to_string(),
+                            "split-v".to_string(),
+                            "grid".to_string(),
+                            "stack".to_string(),
+                        ],
+                    }],
+                },
+                json("ratios"),
+                PropertyDef {
+                    name: "columns".to_string(),
+                    prop_type: PropType::Integer,
+                    constraints: Vec::new(),
+                },
+                PropertyDef {
+                    name: "gap".to_string(),
+                    prop_type: PropType::Number,
+                    constraints: Vec::new(),
+                },
+            ],
+            relations: vec![contains("region"), contains("view-instance")],
+            axes: TypeAxes::default(),
+        },
+        TypeDef {
+            name: "view-instance".to_string(),
+            properties: vec![
+                PropertyDef {
+                    name: "descriptor_id".to_string(),
+                    prop_type: PropType::String,
+                    constraints: vec![Constraint::Required],
+                },
+                json("query"),
+                json("config"),
+                string("title"),
+            ],
+            relations: Vec::new(),
+            axes: TypeAxes::default(),
+        },
+        TypeDef {
+            name: VIEW_DESCRIPTOR_KIND.to_string(),
+            properties: vec![PropertyDef {
+                name: "descriptor".to_string(),
+                prop_type: PropType::Json,
+                constraints: vec![Constraint::Required],
+            }],
+            relations: Vec::new(),
+            axes: TypeAxes::default(),
+        },
+    ]
+}
+
 fn normalize_type_ref(value: &str) -> String {
     value
         .trim()
@@ -1604,5 +2053,248 @@ mod tests {
 
         assert_eq!(value.get("kind"), Some(&json!("run_agent")));
         assert_eq!(value.get("tier"), Some(&json!("difficult")));
+    }
+
+    fn create(
+        cp: &mut Commonplace<InMemoryGraphStore, InMemoryBlobStore>,
+        type_ref: &str,
+        props: &[(&str, Value)],
+    ) -> String {
+        let mut map = Map::new();
+        for (key, value) in props {
+            map.insert((*key).to_string(), value.clone());
+        }
+        cp.emit_object_action(
+            ObjectAction::Create {
+                type_ref: type_ref.to_string(),
+                props: map,
+            },
+            None,
+        )
+        .unwrap()
+        .target_ids[0]
+            .clone()
+    }
+
+    fn contains(
+        cp: &mut Commonplace<InMemoryGraphStore, InMemoryBlobStore>,
+        parent: &str,
+        child: &str,
+        order: f64,
+    ) {
+        cp.emit_object_action(
+            ObjectAction::Move {
+                id: child.to_string(),
+                new_parent: parent.to_string(),
+                order,
+            },
+            None,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn surface_tree_round_trips_through_query() {
+        // OC1 acceptance: a surface with two nested regions and three
+        // view-instances round-trips through query_object_set, in order.
+        let mut cp = fresh();
+        let surface = create(
+            &mut cp,
+            "surface",
+            &[("name", json!("Operator")), ("kind", json!("page"))],
+        );
+        let region_a = create(&mut cp, "region", &[("layout", json!("split-v"))]);
+        let region_b = create(&mut cp, "region", &[("layout", json!("stack"))]);
+        let vi_chip = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("chip")), ("title", json!("Attention"))],
+        );
+        let vi_queue = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("list")), ("title", json!("Queue"))],
+        );
+        let vi_board = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("board")), ("title", json!("Bays"))],
+        );
+
+        contains(&mut cp, &surface, &region_a, 1.0);
+        contains(&mut cp, &surface, &region_b, 2.0);
+        contains(&mut cp, &region_a, &vi_chip, 1.0);
+        contains(&mut cp, &region_a, &vi_queue, 2.0);
+        contains(&mut cp, &region_b, &vi_board, 1.0);
+
+        let set = cp
+            .query_object_set(ObjectQuery::new(["surface"]).with_traverse(EdgeWalk::out(CONTAINS_EDGE)))
+            .unwrap();
+        assert_eq!(set.objects.len(), 1);
+        let root = &set.objects[0];
+        assert_eq!(
+            root.properties.get("name").and_then(Value::as_str),
+            Some("Operator")
+        );
+        assert_eq!(
+            root.relations.get(CONTAINS_EDGE),
+            Some(&vec![region_a.clone(), region_b.clone()])
+        );
+
+        assert_eq!(
+            cp.ordered_children(&region_a),
+            vec![vi_chip.clone(), vi_queue.clone()]
+        );
+
+        // A view-instance's descriptor_id survives the round-trip.
+        let instances = cp.query_object_set(ObjectQuery::new(["view-instance"])).unwrap();
+        let board = instances
+            .objects
+            .iter()
+            .find(|object| object.id == vi_board)
+            .unwrap();
+        assert_eq!(
+            board.properties.get("descriptor_id").and_then(Value::as_str),
+            Some("board")
+        );
+    }
+
+    #[test]
+    fn move_reorders_with_a_single_action() {
+        // OC1 acceptance: Move reorders with a single action.
+        let mut cp = fresh();
+        let region = create(&mut cp, "region", &[("layout", json!("stack"))]);
+        let a = create(&mut cp, "view-instance", &[("descriptor_id", json!("list"))]);
+        let b = create(&mut cp, "view-instance", &[("descriptor_id", json!("board"))]);
+        contains(&mut cp, &region, &a, 1.0);
+        contains(&mut cp, &region, &b, 2.0);
+        assert_eq!(cp.ordered_children(&region), vec![a.clone(), b.clone()]);
+
+        // Drop `b` above `a` via one fractional-index edge patch.
+        let order = fractional_index(None, Some(1.0));
+        let receipt = cp
+            .emit_object_action(
+                ObjectAction::Move {
+                    id: b.clone(),
+                    new_parent: region.clone(),
+                    order,
+                },
+                Some("codex".to_string()),
+            )
+            .unwrap();
+        assert_eq!(receipt.action_kind, ActionKind::Move);
+        assert_eq!(receipt.status, ObjectActionStatus::Applied);
+        assert_eq!(cp.ordered_children(&region), vec![b, a]);
+    }
+
+    #[test]
+    fn move_across_parents_detaches_the_old_edge() {
+        let mut cp = fresh();
+        let left = create(&mut cp, "region", &[("layout", json!("stack"))]);
+        let right = create(&mut cp, "region", &[("layout", json!("stack"))]);
+        let card = create(&mut cp, "view-instance", &[("descriptor_id", json!("card"))]);
+        contains(&mut cp, &left, &card, 1.0);
+        assert_eq!(cp.ordered_children(&left), vec![card.clone()]);
+
+        contains(&mut cp, &right, &card, 1.0);
+        assert!(cp.ordered_children(&left).is_empty());
+        assert_eq!(cp.ordered_children(&right), vec![card]);
+    }
+
+    #[test]
+    fn view_registry_hydrates_from_store_seed() {
+        // OC1 acceptance: registry hydrates from the store and matches v1.
+        let mut cp = fresh();
+        let v1_ids: BTreeSet<String> = ViewRegistry::default_commonplace()
+            .descriptors()
+            .iter()
+            .map(|descriptor| descriptor.id.clone())
+            .collect();
+
+        // Fresh store holds no descriptors -> fallback matches v1.
+        let fresh_ids: BTreeSet<String> = cp
+            .load_view_registry()
+            .unwrap()
+            .descriptors()
+            .iter()
+            .map(|descriptor| descriptor.id.clone())
+            .collect();
+        assert_eq!(fresh_ids, v1_ids);
+
+        // Seed migration persists the set as objects; reload reads the graph.
+        assert_eq!(cp.seed_view_descriptors().unwrap(), v1_ids.len());
+        let hydrated = cp.load_view_registry().unwrap();
+        let hydrated_ids: BTreeSet<String> = hydrated
+            .descriptors()
+            .iter()
+            .map(|descriptor| descriptor.id.clone())
+            .collect();
+        assert_eq!(hydrated_ids, v1_ids);
+
+        // views_for over the hydrated registry matches v1 on a sample shape.
+        let shape = ObjectShape {
+            types: vec!["task".to_string()],
+            fields: vec!["title".to_string(), "status".to_string()],
+            relations: Vec::new(),
+            axes: TypeAxes {
+                temporal: true,
+                ..TypeAxes::default()
+            },
+            cardinality: ObjectCardinality::Many,
+        };
+        let hydrated_views: BTreeSet<String> = hydrated
+            .views_for(&shape)
+            .into_iter()
+            .map(|view| view.id)
+            .collect();
+        let v1_views: BTreeSet<String> = ViewRegistry::default_commonplace()
+            .views_for(&shape)
+            .into_iter()
+            .map(|view| view.id)
+            .collect();
+        assert_eq!(hydrated_views, v1_views);
+
+        // Re-seeding is idempotent.
+        assert_eq!(cp.seed_view_descriptors().unwrap(), 0);
+    }
+
+    #[test]
+    fn fulltext_ranker_ranks_and_notes_fallback() {
+        // OC4 acceptance: a Fulltext-ranked query returns scored results and the
+        // ObjectSet note channel reports the planner fallback.
+        let mut cp = fresh();
+        cp.put_item(Item::note("Alpha", "the quick brown fox")).unwrap();
+        let target = cp
+            .put_item(Item::note("Beta", "graph graph graph substrate"))
+            .unwrap();
+        cp.put_item(Item::note("Gamma", "unrelated content")).unwrap();
+
+        let set = cp
+            .query_object_set(ObjectQuery::new(["note"]).with_rank(Ranker::Fulltext {
+                query: "graph".to_string(),
+                fields: Vec::new(),
+            }))
+            .unwrap();
+        assert_eq!(set.objects[0].id, target.id);
+        assert!(set.note.as_deref().unwrap_or("").contains("fallback"));
+
+        // Field ranking is exact and leaves the note channel clean.
+        let plain = cp
+            .query_object_set(
+                ObjectQuery::new(["note"]).with_rank(Ranker::field("title", RankDirection::Asc)),
+            )
+            .unwrap();
+        assert!(plain.note.is_none());
+    }
+
+    #[test]
+    fn surface_types_cover_the_four_arrangement_objects() {
+        let names: BTreeSet<String> = commonplace_surface_types()
+            .into_iter()
+            .map(|type_def| type_def.name)
+            .collect();
+        for expected in ["surface", "region", "view-instance", "view-descriptor"] {
+            assert!(names.contains(expected), "missing type {expected}");
+        }
     }
 }
