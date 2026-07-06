@@ -404,7 +404,7 @@ button.shiftStat:hover { border-color: var(--teal); }
 
 /* ── OP2 Queue + minimal task rows ───────────────────────────────────────── */
 
-.queue { display: flex; flex-direction: column; gap: calc(var(--u) * 2.5); max-width: 780px; }
+.queue { display: flex; flex-direction: column; gap: calc(var(--u) * 2.5); }
 .laneCol { display: flex; flex-direction: column; gap: 7px; }
 
 .task {
@@ -879,6 +879,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   flex-wrap: wrap;
   gap: 24px;
   justify-content: flex-start;
+  margin: 8px 0 32px;
 }
 
 .tilt {
@@ -908,6 +909,8 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 
 .bayTilt { width: 340px; height: 227px; flex-shrink: 0; }
 
+/* The card sits ON the page: solid raised sheet, real elevation. Urgency reads
+   as material, not a stripe — a tinted hairline and a warmth in the shadow. */
 .bayCard {
   position: relative;
   width: 340px;
@@ -915,23 +918,30 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   display: flex;
   flex-direction: column;
   border-radius: var(--r-band);
-  background-color: var(--plane);
-  background-image: var(--plane-grad);
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent 45%);
   border: 1px solid var(--hair-soft);
-  box-shadow: var(--edge), var(--raise);
-  padding: 16px 16px 0 20px; /* left clears the rail */
+  box-shadow:
+    var(--edge),
+    0 2px 4px rgba(33, 31, 27, 0.07),
+    0 14px 32px rgba(33, 31, 27, 0.12);
+  padding: 16px 16px 0;
   overflow: hidden;
 }
-.bayRail {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--ink);
+.bayCard[data-urgency='waiting'] {
+  border-color: var(--amber-line);
+  box-shadow:
+    var(--edge),
+    0 2px 4px rgba(154, 106, 20, 0.1),
+    0 14px 32px rgba(154, 106, 20, 0.16);
 }
-.bayRail[data-urgency='waiting'] { background: var(--amber); }
-.bayRail[data-urgency='blocked'] { background: var(--accent); }
+.bayCard[data-urgency='blocked'] {
+  border-color: var(--accent-soft);
+  box-shadow:
+    var(--edge),
+    0 2px 4px rgba(138, 46, 41, 0.1),
+    0 14px 32px rgba(138, 46, 41, 0.15);
+}
 
 .bayFaceBtn {
   position: absolute;
@@ -1008,7 +1018,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   grid-template-columns: 48px 1fr auto;
   align-items: center;
   border-top: 1px solid var(--hair-soft);
-  margin-left: -20px;
+  margin-left: -16px;
   margin-right: -16px;
   padding: 0;
 }
@@ -1044,7 +1054,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 /* Action row — InfoCard reveal: hidden until hover or keyboard focus lands inside. */
 .bayActions {
   position: absolute;
-  left: 4px;
+  left: 0;
   right: 0;
   bottom: 0;
   z-index: 2;
@@ -1461,6 +1471,71 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 
 /* Gate drawer: cards stack single-column inside the panel. */
 .gateStack { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
+
+/* Queue cards — 2:1, the bays' quiet younger sibling. Next is a horizontal
+   drag row; Icebox/Done wrap as a grid (no drag). Same shadow language as the
+   bays so the whole screen sits at one depth. */
+.qCardRow {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+}
+.qCardGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px;
+}
+.qCard {
+  width: 208px;
+  height: 104px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--r-row);
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent 55%);
+  border: 1px solid var(--hair-soft);
+  box-shadow:
+    var(--edge),
+    0 1px 3px rgba(33, 31, 27, 0.06),
+    0 8px 20px rgba(33, 31, 27, 0.09);
+  transition: box-shadow var(--motion) var(--ease), transform var(--motion) var(--ease);
+}
+.qCard:hover { transform: translateY(-1px); box-shadow: var(--edge), 0 2px 4px rgba(33, 31, 27, 0.07), 0 14px 30px rgba(33, 31, 27, 0.12); }
+.qCard[data-dragging] { box-shadow: var(--edge), var(--float); }
+.qCardTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qCardTop .qAge { margin-left: auto; }
+.qCardFace {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.qCardTitle {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.qCardFace:hover .qCardTitle { color: var(--teal); }
+.qCard .qChip { align-self: flex-start; }
 
 /* Mobile: bays stack, column padding tightens. */
 @media (max-width: 767px) {

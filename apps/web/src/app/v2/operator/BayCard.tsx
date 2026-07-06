@@ -55,8 +55,6 @@ export function BayCard({
   return (
     <TiltCard className={styles.bayTilt} tiltLimit={6} scale={1.02} perspective={1200} spotlight>
       <article className={styles.bayCard} data-urgency={urgency}>
-        <span className={styles.bayRail} data-urgency={urgency} aria-hidden="true" />
-
         {/* Whole-face open affordance; the action row layers above it. */}
         <button
           className={styles.bayFaceBtn}

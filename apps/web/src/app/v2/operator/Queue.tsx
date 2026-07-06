@@ -15,7 +15,7 @@ import { isBlocked, unmetPrerequisites } from '@/lib/theorem-operator';
 import { Empty, formatAge } from './parts';
 import styles from './operator.module.css';
 
-function QueueRow({
+function QueueCard({
   task,
   onOpen,
   handleProps,
@@ -35,23 +35,25 @@ function QueueRow({
   const done = task.status === 'done';
 
   return (
-    <div className={styles.qRow} data-dragging={dragging || undefined}>
-      {handleProps && (
-        <span className={styles.grip} {...handleProps} aria-hidden="true" title="Drag to reorder priority">
-          ⋮⋮
-        </span>
-      )}
-      <span
-        className={styles.qDot}
-        data-urgency={blocked ? 'waiting' : undefined}
-        data-status={done ? 'done' : undefined}
-        title={reason}
-      />
-      <button className={styles.qFace} onClick={() => onOpen(task.id)} title={reason ?? 'Open room'}>
-        <span className={styles.qTitle}>{task.goal}</span>
-        {task.laneChip && <span className={styles.qChip}>{task.laneChip}</span>}
+    <div className={styles.qCard} data-dragging={dragging || undefined}>
+      <div className={styles.qCardTop}>
+        <span
+          className={styles.qDot}
+          data-urgency={blocked ? 'waiting' : undefined}
+          data-status={done ? 'done' : undefined}
+          title={reason}
+        />
+        {handleProps && (
+          <span className={styles.grip} {...handleProps} aria-hidden="true" title="Drag to reorder priority">
+            ⋮⋮
+          </span>
+        )}
         <span className={styles.qAge}>{formatAge(task.ageMs)}</span>
+      </div>
+      <button className={styles.qCardFace} onClick={() => onOpen(task.id)} title={reason ?? 'Open room'}>
+        <span className={styles.qCardTitle}>{task.goal}</span>
       </button>
+      {task.laneChip && <span className={styles.qChip}>{task.laneChip}</span>}
     </div>
   );
 }
@@ -111,9 +113,9 @@ export function Queue({
           <Empty>{blockedOnly ? 'Nothing blocked.' : 'Queue empty.'}</Empty>
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="next">
+            <Droppable droppableId="next" direction="horizontal">
               {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className={styles.queueList}>
+                <div ref={provided.innerRef} {...provided.droppableProps} className={styles.qCardRow}>
                   {nextOrdered.map((task, index) => (
                     <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={blockedOnly}>
                       {(prov, snapshot) => (
@@ -121,7 +123,7 @@ export function Queue({
                           ref={prov.innerRef as unknown as React.Ref<HTMLDivElement>}
                           {...(prov.draggableProps as React.HTMLAttributes<HTMLDivElement>)}
                         >
-                          <QueueRow
+                          <QueueCard
                             task={task}
                             onOpen={onOpen}
                             dragging={snapshot.isDragging}
@@ -143,9 +145,9 @@ export function Queue({
         {icebox.length === 0 ? (
           <Empty>Nothing iceboxed.</Empty>
         ) : (
-          <div className={styles.queueList}>
+          <div className={styles.qCardGrid}>
             {icebox.map((task) => (
-              <QueueRow key={task.id} task={task} onOpen={onOpen} />
+              <QueueCard key={task.id} task={task} onOpen={onOpen} />
             ))}
           </div>
         )}
@@ -155,9 +157,9 @@ export function Queue({
         {done.length === 0 ? (
           <Empty>Nothing done yet.</Empty>
         ) : (
-          <div className={styles.queueList}>
+          <div className={styles.qCardGrid}>
             {done.map((task) => (
-              <QueueRow key={task.id} task={task} onOpen={onOpen} />
+              <QueueCard key={task.id} task={task} onOpen={onOpen} />
             ))}
           </div>
         )}

@@ -51,7 +51,7 @@ const STATES: { name: string; bay: Bay; urgency: 'calm' | 'waiting' | 'blocked' 
     }),
   },
   {
-    name: 'waiting on a human (amber rail), idle',
+    name: 'waiting on a human (amber border + warm shadow), idle',
     urgency: 'waiting',
     bay: bay('Codex', {
       task: task('t2', 'OP1 intake parser: specs materialize as tasks', { checklist: { done: 5, total: 6 } }),
@@ -60,7 +60,7 @@ const STATES: { name: string; bay: Bay; urgency: 'calm' | 'waiting' | 'blocked' 
     }),
   },
   {
-    name: 'blocked (oxblood rail)',
+    name: 'blocked (oxblood border + shadow)',
     urgency: 'blocked',
     bay: bay('Claude Code', {
       task: task('t3', 'OP5 the gate: review view with evidence', {
