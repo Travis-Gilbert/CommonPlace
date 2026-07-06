@@ -70,19 +70,19 @@ const NOW = new Date('2026-07-06T00:00:00.000Z');
 
 describe('Operator live workGraph mapping (PT-010)', () => {
   it('returns null when no run is selected (fixtures win)', async () => {
-    const state = await buildOperatorStateLive({}, NOW, mcpFetch({ ok: true, tasks: TASK_NODES }));
+    const state = await buildOperatorStateLive({} as NodeJS.ProcessEnv, NOW, mcpFetch({ ok: true, tasks: TASK_NODES }));
     expect(state).toBeNull();
   });
 
   it('returns null and fails open when the backend is unreachable', async () => {
     const failing = vi.fn(async () => ({ ok: false, status: 502, json: async () => ({}) })) as unknown as typeof fetch;
-    const state = await buildOperatorStateLive({ THEOREM_OPERATOR_RUN_ID: 'run-1' }, NOW, failing);
+    const state = await buildOperatorStateLive({ THEOREM_OPERATOR_RUN_ID: 'run-1' } as unknown as NodeJS.ProcessEnv, NOW, failing);
     expect(state).toBeNull();
   });
 
   it('maps TaskNode status → Operator status/lane faithfully', async () => {
     const state = await buildOperatorStateLive(
-      { THEOREM_OPERATOR_RUN_ID: 'run-1' },
+      { THEOREM_OPERATOR_RUN_ID: 'run-1' } as unknown as NodeJS.ProcessEnv,
       NOW,
       mcpFetch({ ok: true, tasks: TASK_NODES }),
     );
@@ -97,7 +97,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
 
   it('binds claim.owner → head and granted_at → claimedAt', async () => {
     const state = await buildOperatorStateLive(
-      { THEOREM_OPERATOR_RUN_ID: 'run-1' },
+      { THEOREM_OPERATOR_RUN_ID: 'run-1' } as unknown as NodeJS.ProcessEnv,
       NOW,
       mcpFetch({ ok: true, tasks: TASK_NODES }),
     );
@@ -110,7 +110,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
 
   it('resolves prerequisite goals and computes met from accepted nodes', async () => {
     const state = await buildOperatorStateLive(
-      { THEOREM_OPERATOR_RUN_ID: 'run-1' },
+      { THEOREM_OPERATOR_RUN_ID: 'run-1' } as unknown as NodeJS.ProcessEnv,
       NOW,
       mcpFetch({ ok: true, tasks: TASK_NODES }),
     );
@@ -123,7 +123,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
 
   it('assigns claimed now-tasks to their head bay, leaves others empty', async () => {
     const state = await buildOperatorStateLive(
-      { THEOREM_OPERATOR_RUN_ID: 'run-1' },
+      { THEOREM_OPERATOR_RUN_ID: 'run-1' } as unknown as NodeJS.ProcessEnv,
       NOW,
       mcpFetch({ ok: true, tasks: TASK_NODES }),
     );

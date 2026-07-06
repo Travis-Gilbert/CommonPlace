@@ -15,13 +15,12 @@
  * aggregate; unioning across runs (or a backend cross-run task view) is the
  * documented follow-up.
  *
- * The mapper is faithful to the authoritative `TaskNode` shape (source of truth:
- * `theorem-harness-core/src/work_graph.rs`, serialized snake_case). A `TaskNode`
- * carries: `id`, `run_id`, `node_type`, `goal`, `prerequisites: string[]`,
- * `file_scope: string[]`, `status: NodeStatus` (open|claimed|patch_proposed|
- * verifying|accepted|rejected), `claim: { owner, granted_at, ... } | null`,
- * `created_by`, `review_required_by`. It has NO title / lane / priority /
- * checklist / *_ms timestamp fields — those are derived or defaulted here.
+ * THE TASK SHAPE IS NOT GUESSED HERE. `workGraph.tasks` is an opaque `Json`
+ * scalar on the wire, but the bytes are raw serde `TaskNode` structs. That shape
+ * is mirrored ONCE in `./theorem-harness-schema` (pinned to `work_graph.rs` +
+ * `lib.rs:13230`). This module consumes typed `TaskNode`s from
+ * `parseWorkGraphTasks` and only DERIVES the Operator view fields (status→lane,
+ * claim→head, prerequisites→met/goal). No `Record<string, unknown>` task reads.
  *
  * Fail-open: any missing config, empty read, or error returns `null` so the
  * `/api/theorem/operator` route keeps rendering the fixtures.
@@ -39,6 +38,7 @@ import {
   type TaskStatus,
 } from './theorem-operator';
 import { callMcpTool, mcpAuthToken, mcpEndpointUrl } from './theorem-control-center';
+import { parseWorkGraphTasks, type ClaimLease, type NodeStatus, type TaskNode } from './theorem-harness-schema';
 
 const WORK_GRAPH_QUERY = `query OperatorWorkGraph($runId:String!){
   workGraph(runId:$runId){ ok run graph tasks }
@@ -81,12 +81,12 @@ export async function buildOperatorStateLive(
 }
 
 // ---------------------------------------------------------------------------
-// WorkGraphView → OperatorTask[] — faithful to the TaskNode serde shape
+// WorkGraphView envelope → typed TaskNode[] → OperatorTask[]
 // ---------------------------------------------------------------------------
 
 interface WorkGraphView {
   ok: boolean;
-  tasks: unknown[];
+  tasks: unknown; // opaque Json on the wire; typed by parseWorkGraphTasks below
 }
 
 function workGraphView(value: unknown): WorkGraphView | null {
@@ -94,47 +94,33 @@ function workGraphView(value: unknown): WorkGraphView | null {
   const data = asRecord(payload?.data) ?? asRecord(asRecord(payload?.result)?.data) ?? payload;
   const view = asRecord(asRecord(data)?.workGraph);
   if (!view) return null;
-  return { ok: view.ok !== false, tasks: asArray(view.tasks) };
+  return { ok: view.ok !== false, tasks: view.tasks };
 }
 
-function mapWorkGraphTasks(rawTasks: unknown[], nowMs: number, source: OperatorSource): OperatorTask[] {
-  const nodes = rawTasks.map(unwrapTaskNode).filter(nonNull);
+function mapWorkGraphTasks(rawTasks: unknown, nowMs: number, source: OperatorSource): OperatorTask[] {
+  const nodes = parseWorkGraphTasks(rawTasks);
   // A prerequisite is "met" once its referenced node reaches the terminal
   // accepted status. Cross-reference within the same work graph.
-  const acceptedIds = new Set(
-    nodes.filter((n) => nodeStatus(n) === 'accepted').map((n) => text(n.id)).filter(nonNull),
-  );
+  const acceptedIds = new Set(nodes.filter((n) => n.status === 'accepted').map((n) => n.id).filter(Boolean));
   const goalById = new Map<string, string>();
   for (const n of nodes) {
-    const id = text(n.id);
-    if (id) goalById.set(id, taskGoal(n, id));
+    if (n.id) goalById.set(n.id, taskGoal(n, n.id));
   }
   return nodes.map((node, index) => operatorTaskFromNode(node, index, nowMs, source, acceptedIds, goalById));
 }
 
-/** Aggregate `workGraph.tasks` serializes raw TaskNodes; singular mutation
- *  returns wrap as `{ task: TaskNode }`. Tolerate both. */
-function unwrapTaskNode(value: unknown): Record<string, unknown> | null {
-  const record = asRecord(value);
-  if (!record) return null;
-  const wrapped = asRecord(record.task);
-  return wrapped ?? record;
-}
-
 function operatorTaskFromNode(
-  node: Record<string, unknown>,
+  node: TaskNode,
   index: number,
   nowMs: number,
   source: OperatorSource,
   acceptedIds: Set<string>,
   goalById: Map<string, string>,
 ): OperatorTask {
-  const id = text(node.id) ?? `task_${index}`;
-  const status = mapStatus(nodeStatus(node));
-  const lane = laneFromNodeStatus(nodeStatus(node));
+  const id = node.id || `task_${index}`;
   const claim = claimFrom(node.claim, nowMs);
 
-  const prerequisites: Prerequisite[] = asStringArray(node.prerequisites).map((prereqId) => ({
+  const prerequisites: Prerequisite[] = node.prerequisites.map((prereqId) => ({
     taskId: prereqId,
     goal: goalById.get(prereqId) ?? prereqId,
     met: acceptedIds.has(prereqId),
@@ -143,15 +129,15 @@ function operatorTaskFromNode(
   return {
     id,
     goal: taskGoal(node, id),
-    lane,
-    status,
+    lane: laneFromNodeStatus(node.status),
+    status: mapStatus(node.status),
     priority: index, // TaskNode carries no priority; array order is the honest default
     prerequisites,
     claim,
     ageMs: claim ? Math.max(0, nowMs - Date.parse(claim.claimedAt)) : 0,
-    laneChip: text(node.node_type) ?? undefined,
-    fileScope: asStringArray(node.file_scope),
-    runId: text(node.run_id) ?? undefined,
+    laneChip: node.node_type || undefined,
+    fileScope: node.file_scope,
+    runId: node.run_id || undefined,
     source,
     // checklist omitted: TaskNode has no checklist; receipts are proofs, not marks.
   };
@@ -170,17 +156,13 @@ function bayFromTasks(head: HeadId, label: string, tasks: OperatorTask[], source
 }
 
 // ---------------------------------------------------------------------------
-// NodeStatus (open|claimed|patch_proposed|verifying|accepted|rejected) mapping
+// Derivations: NodeStatus → Operator view fields (the node itself is authoritative)
 // ---------------------------------------------------------------------------
-
-function nodeStatus(node: Record<string, unknown>): string {
-  return (text(node.status) ?? 'open').toLowerCase();
-}
 
 /** Map the harness NodeStatus to the Operator card status. `rejected` is a
  *  terminal negative with no OperatorTask analogue; it lands in `done`. */
-function mapStatus(raw: string): TaskStatus {
-  switch (raw) {
+function mapStatus(status: NodeStatus): TaskStatus {
+  switch (status) {
     case 'claimed':
       return 'claimed';
     case 'patch_proposed':
@@ -198,8 +180,8 @@ function mapStatus(raw: string): TaskStatus {
 /** Board lane from NodeStatus: terminal → done, actively owned/in-flight → now,
  *  otherwise queued in next. Blocked-ness is derived separately in the UI from
  *  unmet prerequisites, matching the fixture contract. */
-function laneFromNodeStatus(raw: string): TaskLane {
-  switch (raw) {
+function laneFromNodeStatus(status: NodeStatus): TaskLane {
+  switch (status) {
     case 'accepted':
     case 'rejected':
       return 'done';
@@ -213,53 +195,30 @@ function laneFromNodeStatus(raw: string): TaskLane {
   }
 }
 
-function taskGoal(node: Record<string, unknown>, fallback: string): string {
-  return text(node.goal) ?? text(node.title) ?? text(node.name) ?? text(node.summary) ?? fallback;
+function taskGoal(node: TaskNode, fallback: string): string {
+  return node.goal || fallback;
 }
 
 /** ClaimLease → the Operator claim shape. `owner` is the head; `granted_at` is
  *  epoch-ms (the kernel's logical time). */
-function claimFrom(value: unknown, nowMs: number): OperatorTask['claim'] {
-  const claim = asRecord(value);
-  const owner = text(claim?.owner) ?? text(claim?.head);
-  if (!owner) return undefined;
-  const grantedAt = num(claim?.granted_at) ?? num(claim?.grantedAt);
+function claimFrom(lease: ClaimLease | null, nowMs: number): OperatorTask['claim'] {
+  if (!lease) return undefined;
   return {
-    head: owner as HeadId,
-    claimedAt: new Date(grantedAt ?? nowMs).toISOString(),
+    head: lease.owner as HeadId,
+    claimedAt: new Date(lease.granted_at || nowMs).toISOString(),
   };
 }
 
 // ---------------------------------------------------------------------------
-// Tolerant readers (mirrors theorem-control-center house style)
+// Envelope readers only (the task contract lives in theorem-harness-schema)
 // ---------------------------------------------------------------------------
 
 function text(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-function num(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value);
-  return undefined;
-}
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
-}
-
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function asStringArray(value: unknown): string[] {
-  return asArray(value)
-    .map((v) => text(v))
-    .filter(nonNull);
-}
-
-function nonNull<T>(value: T | null | undefined): value is T {
-  return value !== null && value !== undefined;
 }
