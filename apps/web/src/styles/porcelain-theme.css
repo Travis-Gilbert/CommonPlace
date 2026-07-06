@@ -43,6 +43,11 @@
 
   /* status */
   --ok: #3D7A4A;
+  /* teal: the calm baseline for categories/tags. Red stays reserved for pending
+     decisions and genuine urgency, so the surface does not read as all-alarm. */
+  --teal: #2E6F69;
+  --teal-soft: rgba(46, 111, 105, 0.1);
+  --teal-line: rgba(46, 111, 105, 0.28);
 
   /* light model: every surface is a sheet, a float, or a well */
   --edge: inset 0 1px 0 var(--lit);
@@ -92,6 +97,9 @@
   --lit: rgba(255, 244, 224, 0.09);
 
   --ok: #5FA871;
+  --teal: #6FB3AB;
+  --teal-soft: rgba(111, 179, 171, 0.14);
+  --teal-line: rgba(111, 179, 171, 0.32);
 
   --edge: inset 0 1px 0 var(--lit);
   --raise: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.35);

@@ -2,29 +2,26 @@
 
 /* OP2 — the queue. Below the bays: Next (priority-ordered, drag-to-reorder writes
    priority), Icebox (auto-swept per protocol rule 3, collapsed by default), and
-   Done (collapsed). Drag uses @hello-pangea/dnd; the collapsibles use Radix so
-   the disclosure a11y is not hand-rolled. Now is rendered by the bays above. */
+   Done (collapsed). Drag uses @hello-pangea/dnd with the card grip as the handle;
+   the collapsibles use Radix. Now is rendered by the bays above. Cards are minimal
+   and open into the task drawer — assignment lives there, not on the row. */
 
 import { useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronRight } from 'lucide-react';
-import type { OperatorTask, RegisteredHead } from '@/lib/theorem-operator';
+import type { OperatorTask } from '@/lib/theorem-operator';
 import { TaskCard } from './TaskCard';
 import { Empty } from './parts';
 import styles from './operator.module.css';
 
 export function Queue({
   tasks,
-  emptyBays,
   onOpen,
-  onSend,
   onReorder,
 }: {
   tasks: OperatorTask[];
-  emptyBays: RegisteredHead[];
   onOpen: (taskId: string) => void;
-  onSend: (taskId: string, head: string) => void;
   onReorder: (taskId: string, priority: number) => void;
 }) {
   const nextFromProps = useMemo(
@@ -55,7 +52,6 @@ export function Queue({
     const [moved] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, moved);
     setOrder(reordered);
-    // New priority = destination index (lower is higher priority).
     onReorder(moved, result.destination.index);
   }
 
@@ -80,15 +76,12 @@ export function Queue({
                         <div
                           ref={prov.innerRef as unknown as React.Ref<HTMLDivElement>}
                           {...(prov.draggableProps as React.HTMLAttributes<HTMLDivElement>)}
-                          {...(prov.dragHandleProps as React.HTMLAttributes<HTMLDivElement>)}
                           className={snapshot.isDragging ? styles.dragging : undefined}
                         >
                           <TaskCard
                             task={task}
-                            emptyBays={emptyBays}
                             onOpen={onOpen}
-                            onSend={onSend}
-                            dragHandle
+                            handleProps={(prov.dragHandleProps as React.HTMLAttributes<HTMLElement>) ?? undefined}
                           />
                         </div>
                       )}

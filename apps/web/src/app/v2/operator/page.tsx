@@ -11,9 +11,9 @@
  * to /api/theorem/operator; typed POST actions return structured results and
  * degrade honestly via source.mode until the backend lane swaps fixtures for live.
  *
- * Invariants: the queue renders substrate state only (no UI-local task store);
- * WIP is structural (occupied bays refuse assignment); the gate never passes
- * without rendered evidence; game vocabulary stays out (enterprise skin). */
+ * Deliberately quiet: the board rows carry only a title, one teal category tag,
+ * and age; everything else opens in the task drawer. Red is reserved for pending
+ * decisions and genuine urgency, so the surface does not read as all-alarm. */
 
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -24,7 +24,7 @@ import type { OperatorAction, RegisteredHead, SessionBootstrap } from '@/lib/the
 import { ShiftSummary } from './ShiftSummary';
 import { Bays } from './Bays';
 import { Queue } from './Queue';
-import { RunDrawer } from './RunDrawer';
+import { TaskDrawer } from './RunDrawer';
 import { Gate } from './Gate';
 import { BootstrapDialog } from './Bootstrap';
 import { SourceBadge } from './parts';
@@ -51,12 +51,13 @@ export default function OperatorPage() {
         const result = await postOperatorAction(action);
         if (result.ok) {
           toast.success(result.message);
-          if (result.bootstrap) setBootstrap(result.bootstrap);
+          if (result.bootstrap) {
+            setBootstrap(result.bootstrap);
+            setOpenTaskId(null); // close the task drawer so the bootstrap reads clean
+          }
         } else {
           toast.error(result.message);
         }
-        // Reflect substrate state after mutating actions. Reorder is optimistic
-        // and locally held (fixtures return a fixed priority), so it does not refetch.
         if (action.action !== 'reorder_queue') refetch();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : String(err));
@@ -67,27 +68,21 @@ export default function OperatorPage() {
     [refetch],
   );
 
-  const openDrawer = openTaskId ? (data?.drawers[openTaskId] ?? null) : null;
+  const openTask = openTaskId ? (data?.tasks.find((t) => t.id === openTaskId) ?? null) : null;
+  const openRun = openTaskId ? (data?.drawers[openTaskId] ?? null) : null;
   const reviewCount = data?.gate.length ?? 0;
 
   return (
     <>
-      <header className="p-top">
-        <div className="p-toph">
-          <div className="p-kicker">Harness / Operator</div>
-          <h1 className="p-h1">Operator</h1>
-          <div className="p-orient">
-            The board is the substrate: specs become tasks, heads occupy bays, receipts stream, the gate decides.
-          </div>
-        </div>
-        <div className={styles.headerAside}>
-          <span className={`${styles.mono} ${styles.dim}`}>{data?.targetSurface ?? 'app.theoremharness.com'}</span>
+      <div className={styles.crumbBar}>
+        <span className={styles.crumb}>Harness / Operator</span>
+        <div className={styles.crumbAside}>
           {data && <SourceBadge source={data.source} />}
           <button className={styles.refresh} onClick={() => refetch()} disabled={loading}>
             {loading ? 'Loading…' : 'Refresh'}
           </button>
         </div>
-      </header>
+      </div>
 
       <Tabs.Root value={tab} onValueChange={(v) => setTab(v as OperatorTab)} className={styles.tabsRoot}>
         <Tabs.List className={styles.tabs} aria-label="Operator views">
@@ -114,9 +109,7 @@ export default function OperatorPage() {
                 <Bays bays={data.bays} onOpen={setOpenTaskId} />
                 <Queue
                   tasks={data.tasks}
-                  emptyBays={emptyBays}
                   onOpen={setOpenTaskId}
-                  onSend={(taskId, head) => runAction({ action: 'send_to_bay', taskId, head }, `send:${taskId}`)}
                   onReorder={(taskId, priority) =>
                     runAction({ action: 'reorder_queue', taskId, priority }, `reorder:${taskId}`)
                   }
@@ -137,10 +130,13 @@ export default function OperatorPage() {
         </div>
       </Tabs.Root>
 
-      <RunDrawer
-        drawer={openDrawer}
-        open={!!openDrawer}
+      <TaskDrawer
+        task={openTask}
+        run={openRun}
+        emptyBays={emptyBays}
+        open={!!openTask}
         onClose={() => setOpenTaskId(null)}
+        onSend={(taskId, head) => runAction({ action: 'send_to_bay', taskId, head }, `send:${taskId}`)}
         onRefresh={(taskId) => runAction({ action: 'refresh_drawer', taskId }, `drawer:${taskId}`)}
         busy={busy?.startsWith('drawer:') ?? false}
       />

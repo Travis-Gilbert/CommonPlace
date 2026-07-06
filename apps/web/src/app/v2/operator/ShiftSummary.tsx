@@ -67,9 +67,7 @@ export function ShiftSummary({
                   </button>
                   <div className={styles.shiftBlockers}>
                     {b.blockers.map((x) => (
-                      <Pill key={x} tone="attention">
-                        {x}
-                      </Pill>
+                      <Pill key={x}>{x}</Pill>
                     ))}
                   </div>
                 </li>
