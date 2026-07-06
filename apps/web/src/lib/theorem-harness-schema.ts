@@ -4,27 +4,25 @@
  *
  * WHY THIS FILE EXISTS
  * --------------------
- * The harness GraphQL field `workGraph(runId){ tasks }` is declared as an opaque
- * `Json` scalar (`rustyred-thg-mcp/src/graphql/coordination.rs`, `WorkGraphView`).
- * The resolver forwards the value verbatim from the invoker, and the invoker
- * serializes RAW `TaskNode` structs through serde:
+ * Theorem now exposes `workGraph(runId){ tasks { ... } }` as typed GraphQL
+ * `TaskNode` objects. Older deployments exposed the same bytes as an opaque
+ * `Json` scalar (`rustyred-thg-mcp/src/graphql/coordination.rs`, `WorkGraphView`)
+ * by forwarding raw serde `TaskNode` structs:
  *
  *   rustyredcore_THG/crates/rustyred-thg-mcp/src/lib.rs:13230
  *     "tasks": graph.nodes.values().collect::<Vec<_>>()
  *
- * So the shape is fully determined by Rust but INVISIBLE to GraphQL
- * introspection / codegen (they only see `Json` → `any`). Every consumer that
- * reads `tasks` must therefore mirror the Rust struct by hand. This module is
- * that mirror, done ONCE, in a reviewed place, so no surface re-guesses it.
+ * This module remains the compatibility parser until all deployed backends and
+ * generated clients have moved to the typed GraphQL object. No surface should
+ * re-guess the task-node shape.
  *
  * SOURCE OF TRUTH (keep in sync if the Rust changes):
  *   theorem-harness-core/src/work_graph.rs  — TaskNode, NodeStatus, ClaimLease, Receipt
  *   (serde `rename_all = "snake_case"`; `Millis = u64`, i.e. epoch-ms numbers)
  *
- * The real fix is upstream: give `workGraph.tasks` a typed GraphQL object (or a
- * board projection) so codegen carries the contract and this file becomes
- * generated. Until then, this hand mirror is the guard. See the harness-console
- * migration plan, "Backend ask: type workGraph.tasks".
+ * Once codegen consumes the typed GraphQL object everywhere, this file can
+ * shrink to generated types or disappear. See the harness-console migration
+ * plan, "Backend result: typed workGraph.tasks".
  */
 
 /**

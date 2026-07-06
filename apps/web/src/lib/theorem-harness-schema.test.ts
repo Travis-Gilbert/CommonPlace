@@ -58,6 +58,37 @@ describe('theorem-harness-schema parser', () => {
     expect(node?.status).toBe('claimed');
   });
 
+  it('parses the typed GraphQL TaskNode selection shape', () => {
+    const node = parseTaskNode({
+      id: 'task-a',
+      runId: 'run-1',
+      parentId: null,
+      nodeType: 'implement',
+      goal: 'Ship OP4 drawer',
+      prerequisites: ['task-c'],
+      fileScope: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
+      status: 'claimed',
+      claim: { owner: 'claude-code', epoch: 3, grantedAt: 1_000_000, expiresAt: 9_000_000, lastHeartbeat: 1_500_000 },
+      claimEpoch: 3,
+      receipts: [
+        { kind: 'test', command: 'vitest run', baseCommit: 'abc', claimedStatus: 'pass', verifiedStatus: 'pass', artifactHash: '' },
+      ],
+      createdBy: 'claude-code',
+      reviewRequiredBy: 'codex',
+    });
+    expect(node).toMatchObject({
+      id: 'task-a',
+      run_id: 'run-1',
+      node_type: 'implement',
+      file_scope: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
+      claim_epoch: 3,
+      created_by: 'claude-code',
+      review_required_by: 'codex',
+    });
+    expect(node?.claim?.granted_at).toBe(1_000_000);
+    expect(node?.receipts[0]?.artifact_hash).toBe('');
+  });
+
   it('coerces an unknown/absent status to open (kernel initial state)', () => {
     expect(toNodeStatus('nonsense')).toBe('open');
     expect(toNodeStatus(undefined)).toBe('open');

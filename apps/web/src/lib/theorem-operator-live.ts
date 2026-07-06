@@ -15,10 +15,10 @@
  * aggregate; unioning across runs (or a backend cross-run task view) is the
  * documented follow-up.
  *
- * THE TASK SHAPE IS NOT GUESSED HERE. `workGraph.tasks` is an opaque `Json`
- * scalar on the wire, but the bytes are raw serde `TaskNode` structs. That shape
- * is mirrored ONCE in `./theorem-harness-schema` (pinned to `work_graph.rs` +
- * `lib.rs:13230`). This module consumes typed `TaskNode`s from
+ * THE TASK SHAPE IS NOT GUESSED HERE. The current Theorem schema exposes typed
+ * `TaskNode` objects; older deployments exposed the same bytes as JSON. The
+ * compatibility parser lives ONCE in `./theorem-harness-schema` (pinned to
+ * `work_graph.rs`). This module consumes typed `TaskNode`s from
  * `parseWorkGraphTasks` and only DERIVES the Operator view fields (status→lane,
  * claim→head, prerequisites→met/goal). No `Record<string, unknown>` task reads.
  *
@@ -41,7 +41,39 @@ import { callMcpTool, mcpAuthToken, mcpEndpointUrl } from './theorem-control-cen
 import { parseWorkGraphTasks, type ClaimLease, type NodeStatus, type TaskNode } from './theorem-harness-schema';
 
 const WORK_GRAPH_QUERY = `query OperatorWorkGraph($runId:String!){
-  workGraph(runId:$runId){ ok run graph tasks }
+  workGraph(runId:$runId){
+    ok
+    run
+    graph
+    tasks {
+      id
+      runId
+      parentId
+      nodeType
+      goal
+      prerequisites
+      fileScope
+      status
+      claim {
+        owner
+        epoch
+        grantedAt
+        expiresAt
+        lastHeartbeat
+      }
+      claimEpoch
+      receipts {
+        kind
+        command
+        baseCommit
+        claimedStatus
+        verifiedStatus
+        artifactHash
+      }
+      createdBy
+      reviewRequiredBy
+    }
+  }
 }`;
 
 export async function buildOperatorStateLive(
@@ -86,7 +118,7 @@ export async function buildOperatorStateLive(
 
 interface WorkGraphView {
   ok: boolean;
-  tasks: unknown; // opaque Json on the wire; typed by parseWorkGraphTasks below
+  tasks: unknown; // typed GraphQL selection, with legacy JSON tolerated by parser
 }
 
 function workGraphView(value: unknown): WorkGraphView | null {
