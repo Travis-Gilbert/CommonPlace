@@ -1475,11 +1475,11 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 }
 .qCard {
   width: 208px;
-  height: 104px;
+  height: 128px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   padding: 12px;
   border-radius: var(--r-row);
   background: var(--raised);
