@@ -57,6 +57,20 @@
   --navy: #33455C;
   --navy-soft: rgba(51, 69, 92, 0.12);
 
+  /* tag palette: object-relation values. status (single-select) renders as
+     colored text; tag (multi-select) as a filled chip. Muted for parchment —
+     every hue desaturated to sit on the ground, never neon. */
+  --tag-grey: #6B665C;   --tag-grey-bg: rgba(107, 102, 92, 0.10);  --tag-grey-line: rgba(107, 102, 92, 0.22);
+  --tag-yellow: #8A6A12; --tag-yellow-bg: rgba(154, 120, 20, 0.13); --tag-yellow-line: rgba(154, 120, 20, 0.30);
+  --tag-orange: #A2531F; --tag-orange-bg: rgba(162, 83, 31, 0.12);  --tag-orange-line: rgba(162, 83, 31, 0.30);
+  --tag-red: #9A2E29;    --tag-red-bg: rgba(154, 46, 41, 0.10);     --tag-red-line: rgba(154, 46, 41, 0.26);
+  --tag-pink: #97386A;   --tag-pink-bg: rgba(151, 56, 106, 0.11);   --tag-pink-line: rgba(151, 56, 106, 0.28);
+  --tag-purple: #64499A; --tag-purple-bg: rgba(100, 73, 154, 0.11); --tag-purple-line: rgba(100, 73, 154, 0.28);
+  --tag-blue: #33455C;   --tag-blue-bg: rgba(51, 69, 92, 0.11);     --tag-blue-line: rgba(51, 69, 92, 0.28);
+  --tag-sky: #2E6A8A;    --tag-sky-bg: rgba(46, 106, 138, 0.12);    --tag-sky-line: rgba(46, 106, 138, 0.28);
+  --tag-teal: #2E6F69;   --tag-teal-bg: rgba(46, 111, 105, 0.11);   --tag-teal-line: rgba(46, 111, 105, 0.28);
+  --tag-green: #3D7A4A;  --tag-green-bg: rgba(61, 122, 74, 0.11);   --tag-green-line: rgba(61, 122, 74, 0.28);
+
   /* light model: every surface is a sheet, a float, or a well */
   --edge: inset 0 1px 0 var(--lit);
   --raise: 0 1px 2px rgba(33, 31, 27, 0.05), 0 4px 12px rgba(33, 31, 27, 0.06);
@@ -113,6 +127,17 @@
   --amber-line: rgba(217, 168, 78, 0.36);
   --navy: #9DB2C7;
   --navy-soft: rgba(157, 178, 199, 0.16);
+
+  --tag-grey: #B4AB98;   --tag-grey-bg: rgba(180, 171, 152, 0.14);  --tag-grey-line: rgba(180, 171, 152, 0.28);
+  --tag-yellow: #D9A84E; --tag-yellow-bg: rgba(217, 168, 78, 0.16); --tag-yellow-line: rgba(217, 168, 78, 0.34);
+  --tag-orange: #D98E5A; --tag-orange-bg: rgba(217, 142, 90, 0.16); --tag-orange-line: rgba(217, 142, 90, 0.34);
+  --tag-red: #D9756E;    --tag-red-bg: rgba(217, 117, 110, 0.16);   --tag-red-line: rgba(217, 117, 110, 0.34);
+  --tag-pink: #D983B0;   --tag-pink-bg: rgba(217, 131, 176, 0.16);  --tag-pink-line: rgba(217, 131, 176, 0.32);
+  --tag-purple: #AF95DA; --tag-purple-bg: rgba(175, 149, 218, 0.16);--tag-purple-line: rgba(175, 149, 218, 0.32);
+  --tag-blue: #9DB2C7;   --tag-blue-bg: rgba(157, 178, 199, 0.16);  --tag-blue-line: rgba(157, 178, 199, 0.32);
+  --tag-sky: #86BBD8;    --tag-sky-bg: rgba(134, 187, 216, 0.16);   --tag-sky-line: rgba(134, 187, 216, 0.32);
+  --tag-teal: #6FB3AB;   --tag-teal-bg: rgba(111, 179, 171, 0.16);  --tag-teal-line: rgba(111, 179, 171, 0.32);
+  --tag-green: #6FBE81;  --tag-green-bg: rgba(111, 190, 129, 0.16); --tag-green-line: rgba(111, 190, 129, 0.32);
 
   --edge: inset 0 1px 0 var(--lit);
   --raise: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.35);

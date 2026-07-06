@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Clock3, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Clock3, Database, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   ChatGlyph,
   CodeGlyph,
@@ -46,6 +46,7 @@ const HARNESS: RailItem[] = [
 const DATA: RailItem[] = [
   { label: 'Files', href: '/v2/files', icon: FilesGlyph },
   { label: 'Graph', href: '/v2/graph', icon: GraphGlyph },
+  { label: 'Databases', href: '/v2/db', icon: Database },
   { label: 'Tables', href: '/v2/ledger', icon: RowsGlyph },
   { label: 'Timeline', href: '/v2/timeline', icon: Clock3 },
 ];
