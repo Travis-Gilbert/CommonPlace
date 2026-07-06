@@ -50,6 +50,12 @@ const OperatorQueueView = dynamic<SurfaceViewRendererProps>(
   { ssr: false },
 );
 
+// The rich Anytype-grade Set view, registered as the `database` renderer.
+const DatabaseSurfaceView = dynamic<SurfaceViewRendererProps>(
+  () => import('@/lib/block-view/database/DatabaseSurfaceView').then((module) => module.DatabaseSurfaceView),
+  { ssr: false },
+);
+
 export const SURFACE_RENDERER_MODULES: Readonly<
   Record<string, ComponentType<SurfaceViewRendererProps>>
 > = {
@@ -64,6 +70,7 @@ export const SURFACE_RENDERER_MODULES: Readonly<
   'operator-bays': OperatorBaysView,
   'operator-bay-table': OperatorBayTableView,
   'operator-queue': OperatorQueueView,
+  database: DatabaseSurfaceView,
 };
 
 export function resolveSurfaceRenderer(
