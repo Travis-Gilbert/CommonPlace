@@ -14,6 +14,7 @@ import {
   categoryLabels,
   ingestCommonPlaceEmbeddingSpace,
 } from '@/lib/commonplace-embedding-space';
+import { useSelection } from '@/lib/providers/selection-provider';
 import styles from './VectorSpaceView.module.css';
 
 const AtlasCanvas = dynamic(() => import('./VectorSpaceAtlasCanvas'), {
@@ -39,6 +40,7 @@ export default function VectorSpaceView({
   onOpenObject,
   limit = 5_000,
 }: VectorSpaceViewProps) {
+  const { selectedItems, selectSingle, clearSelection } = useSelection();
   const [query, setQuery] = useState('');
   const [mosaicState, setMosaicState] = useState<{ key: string; error: string | null }>({
     key: '',
@@ -55,20 +57,33 @@ export default function VectorSpaceView({
     [limit],
   );
   const rows = useMemo(() => data?.rows ?? [], [data]);
+  const selectedRowIds = useMemo(
+    () => new Set(rows.map((row) => row.identifier).filter((id) => selectedItems.has(id))),
+    [rows, selectedItems],
+  );
+  const scopedRows = useMemo(
+    () => (selectedRowIds.size > 0 ? rows.filter((row) => selectedRowIds.has(row.identifier)) : rows),
+    [rows, selectedRowIds],
+  );
 
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) =>
+    if (!q) return scopedRows;
+    return scopedRows.filter((row) =>
       `${row.identifier} ${row.text} ${row.categoryLabel} ${row.communityId} ${row.epistemicStatus}`
         .toLowerCase()
         .includes(q),
     );
-  }, [query, rows]);
+  }, [query, scopedRows]);
+  const externallySelectedIdentifier = useMemo(
+    () => rows.find((row) => selectedItems.has(row.identifier))?.identifier ?? null,
+    [rows, selectedItems],
+  );
+  const currentSelectedIdentifier = externallySelectedIdentifier ?? selectedIdentifier;
 
   const selectedRow = useMemo(
-    () => rows.find((row) => row.identifier === selectedIdentifier) ?? null,
-    [rows, selectedIdentifier],
+    () => rows.find((row) => row.identifier === currentSelectedIdentifier) ?? null,
+    [currentSelectedIdentifier, rows],
   );
 
   const labels = useMemo(() => categoryLabels(visibleRows), [visibleRows]);
@@ -76,10 +91,18 @@ export default function VectorSpaceView({
     () => visibleRows.map((row) => row.identifier).join('\u0000'),
     [visibleRows],
   );
-  const effectiveSelectedIdentifier = selectedRow ? selectedIdentifier : null;
-  const neighbors = effectiveSelectedIdentifier && neighborsState.key === effectiveSelectedIdentifier
-    ? neighborsState.items
-    : [];
+  const effectiveSelectedIdentifier = selectedRow ? currentSelectedIdentifier : null;
+  const neighbors = useMemo(
+    () =>
+      effectiveSelectedIdentifier && neighborsState.key === effectiveSelectedIdentifier
+        ? neighborsState.items
+        : [],
+    [effectiveSelectedIdentifier, neighborsState.items, neighborsState.key],
+  );
+  const highlightedIdentifiers = useMemo(
+    () => neighbors.map((hit) => hit.row.identifier),
+    [neighbors],
+  );
   const mosaicReady = visibleRows.length > 0 && mosaicState.key === visibleKey && !mosaicState.error;
   const mosaicError = mosaicState.key === visibleKey ? mosaicState.error : null;
 
@@ -128,6 +151,12 @@ export default function VectorSpaceView({
 
   const openRow = (row: EmbeddingSpaceRowGql) => {
     onOpenObject?.(stableNumId(row.identifier), titleFromText(row));
+  };
+
+  const selectRow = (identifier: string | null) => {
+    setSelectedIdentifier(identifier);
+    if (identifier) selectSingle(identifier);
+    else clearSelection();
   };
 
   if (loading) {
@@ -209,7 +238,8 @@ export default function VectorSpaceView({
               rows={visibleRows}
               mosaicReady={mosaicReady}
               selectedIdentifier={effectiveSelectedIdentifier}
-              onSelect={setSelectedIdentifier}
+              highlightedIdentifiers={highlightedIdentifiers}
+              onSelect={selectRow}
             />
           ) : (
             <div className={styles.empty}>No embedded items match this search.</div>
@@ -260,7 +290,7 @@ export default function VectorSpaceView({
                   key={hit.row.identifier}
                   type="button"
                   className={styles.neighbor}
-                  onClick={() => setSelectedIdentifier(hit.row.identifier)}
+                  onClick={() => selectRow(hit.row.identifier)}
                 >
                   <strong>{titleFromText(hit.row)}</strong>
                   <span>{scoreLabel(hit.score)}</span>

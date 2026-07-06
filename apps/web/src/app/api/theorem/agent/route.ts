@@ -1,11 +1,11 @@
 import { callTheoremAgentEndpoint, normalizeTheoremAgentInput, normalizeTheoremAgentProductResponse, type TheoremAgentRunInput } from '@/lib/theorem-agent';
-import { runDirectProviderHead } from './direct-provider';
+import { THEOREM_HARNESS_AGENT_RUN_URL } from '@/lib/theorem-hosted';
+import { hasDirectProviderHeadConfig, runDirectProviderHead } from './direct-provider';
 
 export const dynamic = 'force-dynamic';
 
 const LOCAL_NODE_URL = 'http://127.0.0.1:17888';
 const LOCAL_AGENT_URL = `${LOCAL_NODE_URL}/v1/theorem/agent/run`;
-const HOSTED_AGENT_URL = 'https://rustyredcore-theorem-production.up.railway.app/v1/theorem/agent/run';
 const AGENT_RUN_PATH = '/v1/theorem/agent/run';
 
 export async function POST(req: Request) {
@@ -31,8 +31,9 @@ export async function POST(req: Request) {
 
   const errors: string[] = [];
   let timedOut = false;
+  const configuredUpstreams = upstreamCandidates('configured');
 
-  for (const upstream of upstreamCandidates('configured')) {
+  for (const upstream of configuredUpstreams) {
     try {
       const raw = await callTheoremAgentEndpoint(upstream, input, upstreamHeaders());
       return json(normalizeTheoremAgentProductResponse(raw, input), 200);
@@ -42,20 +43,38 @@ export async function POST(req: Request) {
       errors.push(`${upstream}: ${message}`);
     }
   }
-
-  const direct = await runDirectProviderHead(input);
-  if (direct.result) {
-    return json(direct.result, 200);
-  }
-  errors.push(...direct.attempts);
-  if (direct.configured) {
+  if (configuredUpstreams.length) {
     return json(
       {
-        error: 'theorem_agent_provider_failed',
-        message: `Theorem direct provider head failed. ${attemptSummary(errors)}`,
+        error: timedOut ? 'theorem_agent_timeout' : 'theorem_agent_upstream_failed',
+        message: timedOut
+          ? `Configured Theorem agent timed out. ${attemptSummary(errors)}`
+          : `Configured Theorem agent backend failed. ${attemptSummary(errors)}`,
         attempts: errors,
       },
-      502,
+      timedOut ? 504 : 502,
+    );
+  }
+
+  if (directProviderFallbackEnabled()) {
+    const direct = await runDirectProviderHead(input);
+    if (direct.result) {
+      return json(direct.result, 200);
+    }
+    errors.push(...direct.attempts);
+    if (direct.configured) {
+      return json(
+        {
+          error: 'theorem_agent_provider_failed',
+          message: `Theorem direct provider head failed. ${attemptSummary(errors)}`,
+          attempts: errors,
+        },
+        502,
+      );
+    }
+  } else if (hasDirectProviderHeadConfig()) {
+    errors.push(
+      'direct provider fallback is disabled; set THEOREM_AGENT_DIRECT_PROVIDER_FALLBACK=1 only for local debugging, or configure THEOREM_HARNESS_URL so CommonPlace uses Theorem harness heads',
     );
   }
 
@@ -89,6 +108,9 @@ function upstreamCandidates(kind: 'configured' | 'defaults'): string[] {
     process.env.THEOREM_AGENT_URL,
     process.env.THEOREM_PRODUCT_API_URL,
     process.env.THEOREM_API_URL,
+    process.env.THEOREM_HARNESS_URL,
+    process.env.THEOREMS_HARNESS_URL,
+    process.env.HARNESS_URL,
     process.env.RUSTYRED_AGENT_URL,
     process.env.NEXT_PUBLIC_THEOREM_AGENT_API_URL,
     process.env.NEXT_PUBLIC_THEOREM_API_URL,
@@ -100,8 +122,8 @@ function upstreamCandidates(kind: 'configured' | 'defaults'): string[] {
 
   const defaults =
     process.env.NODE_ENV === 'development'
-      ? [LOCAL_AGENT_URL, HOSTED_AGENT_URL]
-      : [HOSTED_AGENT_URL];
+      ? [LOCAL_AGENT_URL, THEOREM_HARNESS_AGENT_RUN_URL]
+      : [THEOREM_HARNESS_AGENT_RUN_URL];
   return unique(defaults);
 }
 
@@ -115,6 +137,13 @@ function upstreamHeaders(): HeadersInit {
       process.env.HARNESS_API_KEY,
   );
   return token ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } : { 'Content-Type': 'application/json' };
+}
+
+function directProviderFallbackEnabled(): boolean {
+  const value =
+    process.env.THEOREM_AGENT_DIRECT_PROVIDER_FALLBACK ??
+    process.env.THEOREM_ALLOW_DIRECT_PROVIDER_FALLBACK;
+  return value === '1' || value?.toLowerCase() === 'true';
 }
 
 function json(value: unknown, status: number): Response {

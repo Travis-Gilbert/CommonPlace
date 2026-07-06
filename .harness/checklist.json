@@ -3,9 +3,10 @@
   "tenant_slug": "Travis-Gilbert",
   "room_id": "room:ungrouped",
   "task_ref_id": "task_cb397d8472ac8c74",
-  "workstream": "scene-host-acp",
+  "workstream": "scene-host-acp+commonplace-data-views",
   "sources": [
-    "/Users/travisgilbert/Downloads/SPEC-SCENE-HOST-ACP.md"
+    "/Users/travisgilbert/Downloads/SPEC-SCENE-HOST-ACP.md",
+    "commonplace-live-harness-and-quality-audit"
   ],
   "created_at": "2026-07-03",
   "planning_skill": "theorems-harness:planning-theorem",
@@ -115,6 +116,113 @@
         "Focused Vitest chartGate tests passed for accepted bar chart, rejected external URL, and rejected text mark.",
         "Context7 checked current Vega-Lite and @xyflow/react docs before implementation."
       ]
+    },
+    {
+      "id": "PT-001",
+      "title": "Expose GitHub webhook proxy",
+      "status": "completed",
+      "acceptance": [
+        "POST /github/webhook forwards the raw body and GitHub delivery, event, and signature headers to the configured Theorem harness webhook upstream.",
+        "POST /api/github/webhook uses the same forwarding path for hosts that prefer API namespace routing.",
+        "When no upstream is configured, the route returns an honest 503 response and does not attempt a network call."
+      ]
+    },
+    {
+      "id": "PT-002",
+      "title": "Expose server side GitHub ingestion status",
+      "status": "completed",
+      "acceptance": [
+        "GET /api/theorem/github/status returns the public webhook URL, proxy path, upstream configured state, and optional GitHub App install URL.",
+        "The status response never exposes server side webhook secrets, app private keys, or upstream credentials.",
+        "Route tests cover configured and unconfigured environments."
+      ]
+    },
+    {
+      "id": "PT-003",
+      "title": "Connect CommonPlace UI",
+      "status": "completed",
+      "acceptance": [
+        "The Accounts product surface loads /api/theorem/github/status and shows the real webhook URL.",
+        "The GitHub App install action appears only when a real install URL is configured.",
+        "The panel has no mock state or inert controls."
+      ]
+    },
+    {
+      "id": "UIV-001",
+      "title": "Visual project gate",
+      "status": "completed",
+      "acceptance": [
+        "The Accounts addition keeps the existing operational layout and does not create a marketing or prototype surface.",
+        "Controls remain readable in the constrained right column.",
+        "Validation records whether browser visual capture was run."
+      ],
+      "validation": "Browser visual capture was attempted against the local dev server, but the Playwright browser MCP could not launch because /Applications/Google Chrome.app was not installed. Endpoint validation and touched-file ESLint passed."
+    },
+    {
+      "id": "A11Y-001",
+      "title": "Create CommonPlace quality checklist manifest",
+      "status": "completed",
+      "acceptance": [
+        "apps/web/scripts/commonplace-quality-checklist.json lists token contrast pairs, static source roots, data view source files, route surfaces, and pending rendered checks.",
+        "The checklist distinguishes static checks that can run now from axe, APG, keyboard, target size, and rendered data view checks that need browser tooling.",
+        "The checklist covers /commonplace, /commonplace/mobile, and the primary CommonPlace sidebar views."
+      ],
+      "validation": "Manifest added and read by the CommonPlace quality audit script."
+    },
+    {
+      "id": "A11Y-002",
+      "title": "Implement executable CommonPlace quality audit",
+      "status": "completed",
+      "acceptance": [
+        "The audit computes WCAG contrast for intended token pairs instead of judging color by eye.",
+        "The audit scans CommonPlace files for raw color literals, typography floors, line height floors, motion duration limits, reduced motion coverage, focus visible coverage, and data view static math hazards.",
+        "The audit can optionally smoke test listed routes with a local base URL and records render dependent checks as pending until axe and APG tooling is wired."
+      ],
+      "validation": "node scripts/commonplace-quality-audit.mjs is available through npm run quality:commonplace from apps/web."
+    },
+    {
+      "id": "A11Y-003",
+      "title": "Repair base CommonPlace token contrast failures",
+      "status": "completed",
+      "acceptance": [
+        "Chrome muted text, sidebar faint text, and terminal muted text meet the 4.5:1 normal text threshold on their intended surfaces.",
+        "The contrast gate has no hard failures for the token pairs listed in the executable checklist.",
+        "Token changes stay in src/styles/commonplace-tokens.css and do not add one off component overrides."
+      ],
+      "validation": "npm run quality:commonplace with contrast scope from apps/web reported pass 36, warn 0, fail 0, pending 0."
+    },
+    {
+      "id": "A11Y-004",
+      "title": "Wire rendered accessibility checks",
+      "status": "partial",
+      "acceptance": [
+        "The audit runs axe against each listed CommonPlace route and view state.",
+        "The audit verifies keyboard behavior for menu, tab, dialog, combobox, and grid patterns that appear in CommonPlace.",
+        "The audit verifies target sizes in rendered desktop and mobile viewports."
+      ],
+      "validation": "Partial. After restarting the wedged dev server, HTTP smoke against localhost:3040 returned 200 for /commonplace and /commonplace/mobile. Playwright MCP/browser-render checks are still blocked because /Applications/Google Chrome.app is missing; npx playwright install chrome requested sudo and could not run noninteractively."
+    },
+    {
+      "id": "A11Y-005",
+      "title": "Burn down typography and motion hard failures",
+      "status": "completed",
+      "acceptance": [
+        "All CommonPlace text sizes meet the absolute readable floor or are explicitly exempted as non textual decorative marks.",
+        "All CommonPlace line heights meet the configured floor.",
+        "Long motion durations above the absolute max are reduced or explicitly moved behind a reduced motion safe path."
+      ],
+      "validation": "npm run quality:commonplace with localhost:3040 reported pass 39, warn 1862, fail 0, pending 9 after the hard typography and motion burn-down."
+    },
+    {
+      "id": "A11Y-006",
+      "title": "Burn down warning-level token, typography, and reduced-motion debt",
+      "status": "pending",
+      "acceptance": [
+        "Raw color warnings outside token definition files are either tokenized or explicitly exempted.",
+        "Typography warnings below the readable 12px target are raised or classified as non-body metadata.",
+        "Motion declarations either use the configured 100-500ms range or include explicit reduced-motion coverage."
+      ],
+      "validation": "Pending. The full CommonPlace quality audit currently reports 1862 warnings: mostly token-lint, typography under the readable target, and reduced-motion coverage."
     }
   ],
   "updated_at": "2026-07-03"
