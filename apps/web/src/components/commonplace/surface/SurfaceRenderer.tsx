@@ -91,10 +91,12 @@ export default function SurfaceRenderer({
 
   return (
     <div className={[styles.root, className].filter(Boolean).join(' ')}>
-      <div className={styles.surfaceHeader}>
-        <h2 className={styles.surfaceTitle}>{stringProp(root.object, 'name') ?? titleFor(root.object)}</h2>
-        <span className={styles.surfaceKind}>{stringProp(root.object, 'kind') ?? root.object.type}</span>
-      </div>
+      {chrome && (
+        <div className={styles.surfaceHeader}>
+          <h2 className={styles.surfaceTitle}>{stringProp(root.object, 'name') ?? titleFor(root.object)}</h2>
+          <span className={styles.surfaceKind}>{stringProp(root.object, 'kind') ?? root.object.type}</span>
+        </div>
+      )}
       {root.children.length === 0 ? (
         <div className={styles.emptyState}>No regions.</div>
       ) : (
@@ -339,10 +341,12 @@ function ViewInstanceNode({
         </div>
       )}
       <div className={styles.viewShell}>
-        <div className={styles.viewHeader}>
-          <h3 className={styles.viewTitle}>{title}</h3>
-          <span className={styles.objectMeta}>{descriptorId ?? 'view'}</span>
-        </div>
+        {chrome && (
+          <div className={styles.viewHeader}>
+            <h3 className={styles.viewTitle}>{title}</h3>
+            <span className={styles.objectMeta}>{descriptorId ?? 'view'}</span>
+          </div>
+        )}
         <div className={styles.viewBody}>
           <ResolvedView state={state} host={host} instance={instance} config={config} />
         </div>

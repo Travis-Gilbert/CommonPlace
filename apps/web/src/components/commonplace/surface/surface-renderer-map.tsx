@@ -37,6 +37,23 @@ const DatabaseSurfaceView = dynamic<SurfaceViewRendererProps>(
   () => import('@/lib/block-view/database/DatabaseSurfaceView').then((module) => module.DatabaseSurfaceView),
   { ssr: false },
 );
+// The Operator surface (OC5): each view-instance wraps a live operator component.
+const OperatorAttentionView = dynamic<SurfaceViewRendererProps>(
+  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorAttentionView),
+  { ssr: false },
+);
+const OperatorBaysView = dynamic<SurfaceViewRendererProps>(
+  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorBaysView),
+  { ssr: false },
+);
+const OperatorBayTableView = dynamic<SurfaceViewRendererProps>(
+  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorBayTableView),
+  { ssr: false },
+);
+const OperatorQueueView = dynamic<SurfaceViewRendererProps>(
+  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorQueueView),
+  { ssr: false },
+);
 
 export const SURFACE_RENDERER_MODULES: Readonly<
   Record<string, ComponentType<SurfaceViewRendererProps>>
@@ -49,6 +66,10 @@ export const SURFACE_RENDERER_MODULES: Readonly<
   graph: GraphSurfaceView,
   chip: ChipSurfaceView,
   database: DatabaseSurfaceView,
+  'operator-attention': OperatorAttentionView,
+  'operator-bays': OperatorBaysView,
+  'operator-bay-table': OperatorBayTableView,
+  'operator-queue': OperatorQueueView,
 };
 
 export function resolveSurfaceRenderer(
