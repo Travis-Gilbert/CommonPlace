@@ -868,7 +868,7 @@ async function postJson(
   }
 }
 
-async function callMcpTool(
+export async function callMcpTool(
   fetchImpl: typeof fetch,
   endpoint: string,
   name: string,
@@ -1510,7 +1510,7 @@ function proxyBaseUrl(env: EnvLike): string {
   return normalizeEndpoint(env.THEOREM_PROXY_URL ?? env.NEXT_PUBLIC_THEOREM_PROXY_URL) ?? DEFAULT_LOCAL_PROXY;
 }
 
-function mcpEndpointUrl(env: EnvLike): string {
+export function mcpEndpointUrl(env: EnvLike): string {
   const explicit = normalizeEndpoint(
     env.THEOREM_MEMORY_MCP_URL ??
       env.THEOREM_MCP_URL ??
@@ -1522,7 +1522,7 @@ function mcpEndpointUrl(env: EnvLike): string {
   return `${node}/mcp`;
 }
 
-function mcpAuthToken(env: EnvLike): string | undefined {
+export function mcpAuthToken(env: EnvLike): string | undefined {
   return text(env.THEOREM_MCP_AUTH_TOKEN) ?? text(env.THEOREM_API_TOKEN) ?? text(env.HARNESS_API_KEY);
 }
 

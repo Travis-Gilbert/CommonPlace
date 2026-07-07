@@ -5,7 +5,7 @@
  * re-tokenized to the CommonPlace --cp-* language: an auto-resizing textarea
  * with attach, web search, graph-guided expansion, and a send button. It reads
  * as a chat bar (Travis's ask) -- larger than a command pill. The omnibar wires
- * it to CommonPlace's agent, RustyWeb search, and fractal expansion.
+ * it to Theorem's agent, RustyWeb search, and fractal expansion.
  *
  * Radius note: keeps the rounded chat-bar shape (a deliberate exception to the
  * otherwise-sharp design language, per request).
@@ -13,7 +13,11 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { GitBranch, Globe, Paperclip, ArrowUp, Sparkles } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
+import { NetworkGlyph } from './NetworkGlyph';
+import { WebGlyph } from './WebGlyph';
+import { AiGlyph } from './AiGlyph';
+import { UploadGlyph } from './UploadGlyph';
 
 const INPUT_HEIGHT = {
   default: { min: 52, max: 168 },
@@ -63,9 +67,9 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
       mode,
       onModeChange,
       onAttach,
-      placeholder = 'Ask CommonPlace',
+      placeholder = 'Ask the Theorem agent',
       webPlaceholder = 'Search the web',
-      researchPlaceholder = 'Search, then answer',
+      researchPlaceholder = 'Search, then ask Theorem',
       fractalPlaceholder = 'Search the web from your graph',
       busy,
       autoFocus,
@@ -98,10 +102,10 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
       mode === 'web'
         ? 'Search the web'
         : mode === 'research'
-          ? 'Search, then answer'
+          ? 'Search, then ask Theorem'
           : mode === 'fractal'
             ? 'Search the web from your graph'
-            : 'Ask CommonPlace';
+            : 'Ask the Theorem agent';
 
     return (
       <div className="w-full font-sans">
@@ -161,7 +165,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       className={isTall ? 'grid h-9 w-9 place-items-center rounded-full transition-colors' : 'grid h-8 w-8 place-items-center rounded-full transition-colors'}
                       style={{ color: 'var(--cp-text-muted)' }}
                     >
-                      <Paperclip size={16} />
+                      <UploadGlyph size={16} />
                     </button>
                     <input
                       ref={fileRef}
@@ -188,7 +192,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       : { borderColor: 'transparent', color: 'var(--cp-text-muted)' }
                   }
                 >
-                  <Globe size={16} />
+                  <WebGlyph size={16} />
                   <AnimatePresence>
                     {mode === 'web' ? (
                       <motion.span
@@ -206,9 +210,9 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                 <button
                   type="button"
                   onClick={() => onModeChange(mode === 'research' ? 'ask' : 'research')}
-                  aria-label="Search, then answer"
+                  aria-label="Search, then ask Theorem"
                   aria-pressed={mode === 'research'}
-                  title="Search, then answer"
+                  title="Search, then ask Theorem"
                   className={isTall ? 'flex h-9 items-center gap-1.5 rounded-full border px-2.5 transition-colors' : 'flex h-8 items-center gap-1.5 rounded-full border px-2 transition-colors'}
                   style={
                     mode === 'research'
@@ -216,7 +220,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       : { borderColor: 'transparent', color: 'var(--cp-text-muted)' }
                   }
                 >
-                  <Sparkles size={16} />
+                  <AiGlyph size={16} />
                   <AnimatePresence>
                     {mode === 'research' ? (
                       <motion.span
@@ -244,7 +248,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       : { borderColor: 'transparent', color: 'var(--cp-text-muted)' }
                   }
                 >
-                  <GitBranch size={16} />
+                  <NetworkGlyph size={16} />
                   <AnimatePresence>
                     {mode === 'fractal' ? (
                       <motion.span

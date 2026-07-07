@@ -1,0 +1,448 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3, 12px);
+  min-width: 0;
+  width: 100%;
+  color: var(--cp-text, #2a2520);
+}
+
+.surfaceHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cp-space-3, 12px);
+  min-width: 0;
+}
+
+.surfaceTitle {
+  margin: 0;
+  font-family: var(--cp-font-title, var(--font-title));
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--cp-text, #2a2520);
+  overflow-wrap: anywhere;
+}
+
+.surfaceKind,
+.objectType,
+.objectMeta,
+.emptyState,
+.statusText {
+  font-family: var(--cp-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--cp-text-muted, #6a6560);
+}
+
+.region {
+  position: relative;
+  min-width: 0;
+}
+
+.region[data-layout='split-h'] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--surface-region-gap, 12px);
+}
+
+.region[data-layout='split-v'],
+.region[data-layout='stack'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--surface-region-gap, 12px);
+}
+
+.region[data-layout='grid'] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--surface-region-gap, 12px);
+}
+
+.regionChrome,
+.instanceChrome {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.regionChrome {
+  top: 4px;
+  right: 4px;
+}
+
+.instanceChrome {
+  top: 6px;
+  right: 6px;
+}
+
+.region:hover > .regionChrome,
+.viewInstance:hover > .instanceChrome,
+.region:focus-within > .regionChrome,
+.viewInstance:focus-within > .instanceChrome {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 16%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cp-bg, #f5efe5) 92%, white 8%);
+  color: var(--cp-text, #2a2520);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  border-color: color-mix(in srgb, var(--cp-teal, #2d5f6b) 44%, transparent);
+  color: var(--cp-teal, #2d5f6b);
+}
+
+.dragHandle {
+  cursor: grab;
+}
+
+.viewInstance {
+  position: relative;
+  min-width: 0;
+  min-height: 84px;
+}
+
+.viewInstance[data-dragging='true'] {
+  opacity: 0.6;
+}
+
+.viewShell {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 10%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cp-bg, #f5efe5) 82%, white 18%);
+  overflow: hidden;
+}
+
+.viewHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 8%, transparent);
+}
+
+.viewTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cp-text, #2a2520);
+  overflow-wrap: anywhere;
+}
+
+.viewBody {
+  padding: 12px;
+  min-width: 0;
+}
+
+/* Chromeless surfaces are a transparent layout skeleton: the wrapped view owns
+   its own surface, so the interpreter contributes no card, border, background,
+   or padding of its own — only the region gaps that space the views. This is
+   what makes a full-bleed surface (e.g. the Operator, a database Set) sit
+   directly on the ground instead of on a phantom nested panel. */
+.root[data-chrome='false'] .viewShell {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.root[data-chrome='false'] .viewBody {
+  padding: 0;
+}
+
+.root[data-chrome='false'] .viewInstance {
+  min-height: 0;
+}
+
+.tableScroller {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 8%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  font-family: var(--cp-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  color: var(--cp-text-muted, #6a6560);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.boardColumn {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 8%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cp-bg, #f5efe5) 88%, white 12%);
+}
+
+.boardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-family: var(--cp-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  color: var(--cp-text-muted, #6a6560);
+}
+
+.boardStack,
+.list,
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.objectCard,
+.objectCardCompact,
+.objectRow,
+.fallbackCard {
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 8%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, white 62%, var(--cp-bg, #f5efe5) 38%);
+}
+
+.objectCard {
+  padding: 11px;
+}
+
+.objectCardCompact {
+  padding: 9px;
+}
+
+.objectRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.3fr) minmax(120px, 0.7fr) minmax(120px, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.objectTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cp-text, #2a2520);
+  overflow-wrap: anywhere;
+}
+
+.objectSummary {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--cp-text-muted, #6a6560);
+  overflow-wrap: anywhere;
+}
+
+.timelineRow {
+  display: grid;
+  grid-template-columns: 10px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.timelineDot {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--cp-teal, #2d5f6b);
+}
+
+.graphList,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graphNode,
+.chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--cp-teal, #2d5f6b) 26%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cp-teal, #2d5f6b) 8%, transparent);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.edgeList {
+  flex-basis: 100%;
+  display: grid;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.edgeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  font-family: var(--cp-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  color: var(--cp-text-muted, #6a6560);
+}
+
+.edgeRow span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fallbackCard,
+.popover {
+  padding: 12px;
+}
+
+.fallbackPre,
+.textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-family: var(--cp-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.fallbackPre {
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cp-text, #2a2520) 6%, transparent);
+}
+
+.popover {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  top: 38px;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 14%, transparent);
+  border-radius: 8px;
+  background: var(--cp-bg, #f5efe5);
+  box-shadow: 0 18px 36px color-mix(in srgb, black 16%, transparent);
+}
+
+.popoverHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.popoverTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.textarea {
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 14%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, white 72%, var(--cp-bg, #f5efe5) 28%);
+  color: var(--cp-text, #2a2520);
+  padding: 8px;
+}
+
+.viewOptionList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.viewOption {
+  border: 1px solid color-mix(in srgb, var(--cp-teal, #2d5f6b) 28%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cp-teal, #2d5f6b) 8%, transparent);
+  color: var(--cp-text, #2a2520);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.commandButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--cp-text, #2a2520) 14%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, white 72%, var(--cp-bg, #f5efe5) 28%);
+  color: var(--cp-text, #2a2520);
+  cursor: pointer;
+}
+
+.commandButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.emptyState,
+.statusText {
+  padding: 12px;
+}
+
+@media (max-width: 720px) {
+  .objectRow {
+    grid-template-columns: 1fr;
+  }
+
+  .surfaceHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

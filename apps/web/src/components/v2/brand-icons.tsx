@@ -62,6 +62,24 @@ export function RustyRedGlyph({ className }: IconProps) {
   );
 }
 
+// board / bays + lanes -> Operator (hand-authored to match the currentColor 1200 box)
+export function OperatorGlyph({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 1200 1200" fill="currentColor" className={className} aria-hidden="true">
+      {/* Now bay (tall, single claim) */}
+      <rect x="150" y="200" width="270" height="470" rx="40" opacity="0.55" />
+      {/* Next lane (stacked queue) */}
+      <rect x="465" y="200" width="270" height="190" rx="36" />
+      <rect x="465" y="430" width="270" height="190" rx="36" opacity="0.7" />
+      <rect x="465" y="660" width="270" height="190" rx="36" opacity="0.45" />
+      {/* Done lane */}
+      <rect x="780" y="200" width="270" height="190" rx="36" opacity="0.55" />
+      {/* base rail */}
+      <rect x="150" y="940" width="900" height="60" rx="30" opacity="0.35" />
+    </svg>
+  );
+}
+
 // "chat / code window" (noun-7577030) -> Chat
 export function ChatGlyph({ className }: IconProps) {
   return (

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Clock3, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { CircleUser, Clock3, Frame, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import {
   ChatGlyph,
   CodeGlyph,
@@ -32,10 +32,11 @@ type RailItem = {
 };
 
 const HARNESS: RailItem[] = [
-  { label: 'Chat', href: null, icon: ChatGlyph },
+  { label: 'Chat', href: '/v2/chat', icon: ChatGlyph },
   { label: 'Index', href: '/v2', icon: IndexGlyph },
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
   { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },
+  { label: 'Canvas', href: '/v2/canvas', icon: Frame, indent: true },
   { label: 'Notes', href: null, icon: NotesGlyph },
   { label: 'Research', href: null, icon: ResearchGlyph },
   { label: 'Code', href: null, icon: CodeGlyph },
@@ -46,6 +47,15 @@ const DATA: RailItem[] = [
   { label: 'Graph', href: '/v2/graph', icon: GraphGlyph },
   { label: 'Tables', href: '/v2/ledger', icon: RowsGlyph },
   { label: 'Timeline', href: '/v2/timeline', icon: Clock3 },
+];
+
+/* Account chrome, pinned to the foot of the rail. Settings sits one above
+   Account. Onboarding lives inside Settings; the migrated console surfaces
+   (memory / skills / runs / inbox / keys / providers / usage) live under
+   Account -> Agents. */
+const FOOTER: RailItem[] = [
+  { label: 'Settings', href: '/v2/settings', icon: Settings },
+  { label: 'Account', href: '/v2/account', icon: CircleUser },
 ];
 
 function NavItem({ item, active, collapsed }: { item: RailItem; active: boolean; collapsed: boolean }) {
@@ -121,6 +131,18 @@ export function Rail() {
       <nav className="p-nav" aria-label="Data">
         {DATA.map((item) => (
           <NavItem key={item.label} item={item} active={item.href === pathname} collapsed={collapsed} />
+        ))}
+      </nav>
+
+      <div className="p-raildiv" />
+      <nav className="p-nav" aria-label="Account">
+        {FOOTER.map((item) => (
+          <NavItem
+            key={item.label}
+            item={item}
+            active={!!item.href && pathname.startsWith(item.href)}
+            collapsed={collapsed}
+          />
         ))}
       </nav>
     </aside>

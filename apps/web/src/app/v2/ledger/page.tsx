@@ -107,7 +107,6 @@ export default function LedgerPage() {
         <div className="p-toph">
           <div className="p-kicker">Data / Ledger</div>
           <h1 className="p-h1">Ledger</h1>
-          <div className="p-orient">Every Item as a row. Sort by any column; filter and edit come next.</div>
         </div>
         <div className="p-cmd">
           <span>Search or command</span>

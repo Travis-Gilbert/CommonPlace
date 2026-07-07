@@ -215,7 +215,6 @@ export default function FilesPage() {
         <div className="p-toph">
           <div className="p-kicker">Data / Files</div>
           <h1 className="p-h1">Files</h1>
-          <div className="p-orient">The DocTree: a real folder tree. Agent edits appear here live.</div>
         </div>
         <div className="p-cmd">
           <span>Search or command</span>

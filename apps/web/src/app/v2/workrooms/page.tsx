@@ -162,7 +162,6 @@ export default function WorkroomsPage() {
         <div className="p-toph">
           <div className="p-kicker">Harness / Workrooms</div>
           <h1 className="p-h1">Workroom Control Center</h1>
-          <div className="p-orient">Durable agent work: runs, approvals, receipts, routes, memory.</div>
         </div>
         <div className={styles.headerAside}>
           <span className={`${styles.mono} ${styles.dim}`}>
