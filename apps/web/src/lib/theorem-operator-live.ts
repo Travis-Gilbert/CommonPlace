@@ -5,25 +5,29 @@
  * module never edits that file. `buildOperatorStateLive` reuses the exported
  * fixture builder for the parts not yet wired live (gate, shift, drawers), then
  * overrides `tasks` + `bays` + the top-level `source` with live data read from
- * the harness task-node GraphQL. It mirrors `buildTheoremControlCenterStateLive`
- * / `fetchMemorySnapshot`: `callMcpTool('graphql_query')` over the harness MCP.
+ * the harness task-node GraphQL.
  *
- * Transport: the harness MCP (`THEOREM_MCP_URL` / token via the shared
- * `mcpEndpointUrl` / `mcpAuthToken` resolvers) — NOT the commonplace-api
- * `x-api-key` proxy. `workGraph(runId)` is RUN-SCOPED, so v1 renders a single
- * run selected by `THEOREM_OPERATOR_RUN_ID`. The Operator board is a cross-run
- * aggregate; unioning across runs (or a backend cross-run task view) is the
- * documented follow-up.
+ * Transport: the CANONICAL commonplace-api HTTP GraphQL — the one store's HTTP
+ * door (see docs/architecture/api-topology.md), NOT the harness MCP agent door.
+ * `buildOperatorStateLive` runs SERVER-SIDE (the `/api/theorem/operator` route),
+ * so it already holds `THEOREM_API_KEY` and posts server-to-server directly to
+ * `THEOREM_GRAPHQL_URL` with `x-api-key` — the same endpoint + key the browser
+ * proxy `/api/theorem/graphql` forwards to, minus the browser-only proxy hop.
+ * `workGraph(runId)` is RUN-SCOPED, so v1 renders a single run selected by
+ * `THEOREM_OPERATOR_RUN_ID`. The Operator board is a cross-run aggregate;
+ * unioning across runs (or a backend cross-run task view) is the documented
+ * follow-up.
  *
- * THE TASK SHAPE IS NOT GUESSED HERE. The current Theorem schema exposes typed
- * `TaskNode` objects; older deployments exposed the same bytes as JSON. The
- * compatibility parser lives ONCE in `./theorem-harness-schema` (pinned to
- * `work_graph.rs`). This module consumes typed `TaskNode`s from
- * `parseWorkGraphTasks` and only DERIVES the Operator view fields (status→lane,
- * claim→head, prerequisites→met/goal). No `Record<string, unknown>` task reads.
+ * THE TASK SHAPE IS NOT GUESSED HERE. `commonplace-api` exposes typed `TaskNode`
+ * objects (`apps/commonplace-api/schema.graphql` — WorkGraphGql / TaskNodeGql,
+ * CI-pinned by the SDL drift gate). The compatibility parser lives ONCE in
+ * `./theorem-harness-schema` (pinned to `work_graph.rs`). This module consumes
+ * typed `TaskNode`s from `parseWorkGraphTasks` and only DERIVES the Operator
+ * view fields (status→lane, claim→head, prerequisites→met/goal). No
+ * `Record<string, unknown>` task reads.
  *
- * Fail-open: any missing config, empty read, or error returns `null` so the
- * `/api/theorem/operator` route keeps rendering the fixtures.
+ * Fail-open: any missing config, unreachable backend, empty read, or error
+ * returns `null` so the `/api/theorem/operator` route keeps rendering fixtures.
  */
 import {
   buildOperatorState,
@@ -37,14 +41,13 @@ import {
   type TaskLane,
   type TaskStatus,
 } from './theorem-operator';
-import { callMcpTool, mcpAuthToken, mcpEndpointUrl } from './theorem-control-center';
+import { normalizeCommonPlaceGraphqlEndpoint } from './commonplace-instance';
 import { parseWorkGraphTasks, type ClaimLease, type NodeStatus, type TaskNode } from './theorem-harness-schema';
 
 const WORK_GRAPH_QUERY = `query OperatorWorkGraph($runId:String!){
   workGraph(runId:$runId){
     ok
     run
-    graph
     tasks {
       id
       runId
@@ -84,20 +87,14 @@ export async function buildOperatorStateLive(
   const runId = text(env.THEOREM_OPERATOR_RUN_ID);
   if (!runId) return null; // no run selected → route falls back to fixtures
 
-  const endpoint = mcpEndpointUrl(env);
-  const response = await callMcpTool(
-    fetchImpl,
-    endpoint,
-    'graphql_query',
-    { query: WORK_GRAPH_QUERY, variables: { runId } },
-    mcpAuthToken(env),
-  );
-  if (!response.ok) return null;
+  const { endpoint, apiKey } = graphqlTarget(env);
+  const payload = await postWorkGraph(fetchImpl, endpoint, apiKey, runId);
+  if (!payload) return null; // unreachable / non-2xx / unparseable → fixtures
 
-  const view = workGraphView(response.value);
+  const view = workGraphView(payload);
   if (!view || view.ok === false) return null;
 
-  const src = liveSource('harness workGraph', `${endpoint} · run ${runId}`);
+  const src = liveSource('commonplace-api workGraph', `${endpoint} · run ${runId}`);
   const liveTasks = mapWorkGraphTasks(view.tasks, now.getTime(), src);
   if (liveTasks.length === 0) return null; // empty live board → fixtures
 
@@ -112,6 +109,45 @@ export async function buildOperatorStateLive(
   };
 }
 
+/** Resolve the commonplace-api GraphQL endpoint + key from the same env the
+ *  `/api/theorem/graphql` proxy uses (`THEOREM_GRAPHQL_URL` / `THEOREM_API_KEY`).
+ *  Defaults to the local dev instance so a developer running commonplace-api on
+ *  :50090 gets live reads with no extra config. */
+function graphqlTarget(env: NodeJS.ProcessEnv): { endpoint: string; apiKey: string } {
+  const endpoint =
+    normalizeCommonPlaceGraphqlEndpoint(text(env.THEOREM_GRAPHQL_URL) ?? 'http://localhost:50090') ??
+    'http://localhost:50090/graphql';
+  return { endpoint, apiKey: text(env.THEOREM_API_KEY) ?? 'dev-key' };
+}
+
+/** Server-to-server GraphQL POST to commonplace-api. Returns the parsed JSON
+ *  body, or `null` on any transport / HTTP / parse failure so the caller
+ *  fails open to fixtures rather than throwing. */
+async function postWorkGraph(
+  fetchImpl: typeof fetch,
+  endpoint: string,
+  apiKey: string,
+  runId: string,
+): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetchImpl(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify({ query: WORK_GRAPH_QUERY, variables: { runId } }),
+      cache: 'no-store',
+    });
+  } catch {
+    return null; // backend unreachable
+  }
+  if (!response.ok) return null;
+  try {
+    return await response.json();
+  } catch {
+    return null; // non-JSON body
+  }
+}
+
 // ---------------------------------------------------------------------------
 // WorkGraphView envelope → typed TaskNode[] → OperatorTask[]
 // ---------------------------------------------------------------------------
@@ -121,9 +157,12 @@ interface WorkGraphView {
   tasks: unknown; // typed GraphQL selection, with legacy JSON tolerated by parser
 }
 
+/** Read `workGraph` out of a standard GraphQL response envelope
+ *  (`{ data: { workGraph } }`); tolerate a bare `{ workGraph }` root too. A
+ *  GraphQL `errors` payload leaves `data.workGraph` absent → null → fixtures. */
 function workGraphView(value: unknown): WorkGraphView | null {
   const payload = asRecord(value);
-  const data = asRecord(payload?.data) ?? asRecord(asRecord(payload?.result)?.data) ?? payload;
+  const data = asRecord(payload?.data) ?? payload;
   const view = asRecord(asRecord(data)?.workGraph);
   if (!view) return null;
   return { ok: view.ok !== false, tasks: view.tasks };
