@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CircleUser, Clock3, Frame, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
+import {
+  CircleUser,
+  Clock3,
+  Frame,
+  LayoutPanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+} from 'lucide-react';
 import {
   ChatGlyph,
   CodeGlyph,
@@ -33,6 +41,7 @@ type RailItem = {
 
 const HARNESS: RailItem[] = [
   { label: 'Chat', href: '/v2/chat', icon: ChatGlyph },
+  { label: 'Work', href: '/v2/work', icon: LayoutPanelLeft },
   { label: 'Index', href: '/v2', icon: IndexGlyph },
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
   { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },

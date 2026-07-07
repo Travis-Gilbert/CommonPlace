@@ -18,6 +18,9 @@ public/pagefind/
 .env.*
 !.env.local.example
 
+# Local dev data (JSON Canvas board files, WS4 board-store.ts)
+.data/
+
 # Private notes
 docs/notes/
 
