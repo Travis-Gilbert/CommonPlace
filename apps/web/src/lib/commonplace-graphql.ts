@@ -1302,6 +1302,58 @@ export async function gqlArtifacts(): Promise<ApiArtifactListItem[]> {
 }
 
 /* ─────────────────────────────────────────────────
+   Reconstruction: facts emitted by the four reconstructors.
+   ───────────────────────────────────────────────── */
+
+/**
+ * Fetch items tagged "reconstructed" — the shared front door for all four
+ * reconstructor modalities. Results carry `extra` with confidence, provenance,
+ * and modality metadata. Parse with `parseReconstructedExtra()` from
+ * `reconstruction-types.ts`.
+ */
+export async function gqlReconstructedFacts(
+  limit: number = 50,
+): Promise<ItemGql[]> {
+  const data = await gql<{ items: ItemGql[] }>(
+    `query($limit:Int){
+      items(limit:$limit,kind:"Scene"){
+        ${ITEM_FIELDS}
+      }
+    }`,
+    { limit },
+  );
+  // ponytail: filter client-side by "reconstructed" tag. Server-side tag filter
+  // available when commonplace-api adds `itemsByTag`.
+  return (data.items ?? []).filter(
+    (item) => Array.isArray(item.tags) && item.tags.includes("reconstructed"),
+  );
+}
+
+/**
+ * Fetch reconstructed facts filtered by a specific modality tag
+ * (e.g. "binary", "data", "design", "procedural").
+ */
+export async function gqlReconstructedFactsByModality(
+  modality: string,
+  limit: number = 50,
+): Promise<ItemGql[]> {
+  const data = await gql<{ items: ItemGql[] }>(
+    `query($limit:Int){
+      items(limit:$limit,kind:"Scene"){
+        ${ITEM_FIELDS}
+      }
+    }`,
+    { limit },
+  );
+  return (data.items ?? []).filter(
+    (item) =>
+      Array.isArray(item.tags) &&
+      item.tags.includes("reconstructed") &&
+      item.tags.includes(modality),
+  );
+}
+
+/* ─────────────────────────────────────────────────
    Organize: the auto-organize snapshot (the inbox-replacement).
 
    The organizing engine (commonplace `ingest.rs` classification + the standing
