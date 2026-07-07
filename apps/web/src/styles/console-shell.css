@@ -20,12 +20,9 @@
 .porcelain {
   font-family: var(--cr-font-ui);
   color: var(--cr-ink);
-}
-
-.p-ground {
-  /* The ground: one flat tone, no bloom/wash/deep. Depth is the ladder. */
-  background-color: var(--cr-ground);
-  background-image: none;
+  /* base size so the lh-rhythm resolves against the console's 15px, not the doc.
+     The ground itself (flat --cr-ground, no gradient) is now the bg-cr-ground
+     utility on the v2 layout element; the sheet is bg-cr-surface on V2Shell. */
   font-size: var(--cr-base);
 }
 
@@ -53,14 +50,7 @@
   box-shadow: none;
 }
 
-/* ============ CONTENT = SHEET (elevated, rounded at the seam) ============ */
-.p-main {
-  background: var(--cr-surface);
-  border-left: 1px solid var(--cr-hairline);
-  border-radius: var(--cr-radius-lg) 0 0 var(--cr-radius-lg);
-  min-height: 100dvh;
-  box-shadow: none;
-}
+/* The content sheet is now bg-cr-surface + rounded-l-cr-lg utilities on V2Shell. */
 
 /* ============ WORDMARK — Cabinet Grotesk keeps its one home ============ */
 .p-wordmark,
