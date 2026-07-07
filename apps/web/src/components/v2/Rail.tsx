@@ -32,7 +32,7 @@ type RailItem = {
 };
 
 const HARNESS: RailItem[] = [
-  { label: 'Chat', href: null, icon: ChatGlyph },
+  { label: 'Chat', href: '/v2/chat', icon: ChatGlyph },
   { label: 'Index', href: '/v2', icon: IndexGlyph },
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
   { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },
