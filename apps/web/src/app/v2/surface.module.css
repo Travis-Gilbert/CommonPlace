@@ -99,11 +99,11 @@
   align-self: flex-start;
   font-family: var(--font-body);
   font-size: 0.82rem;
-  color: var(--ink);
+  color: var(--accent);
   text-decoration: none;
-  border-bottom: 1px solid var(--hair-soft);
+  border-bottom: 1px solid var(--accent-soft);
   transition: border-color var(--motion) var(--ease);
 }
 .cardLink:hover {
-  border-color: var(--ink-dim);
+  border-color: var(--accent);
 }
