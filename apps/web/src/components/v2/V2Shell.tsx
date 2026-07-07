@@ -72,7 +72,11 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
   return (
     <V2ShellContext.Provider value={{ collapsed, toggle }}>
       <Rail />
-      <main className="p-main">{children}</main>
+      {/* The content sheet: one lightness step up from the ground, rounded only
+          at the sidebar seam. CR3 flip, in register utilities. */}
+      <main className="flex min-h-dvh min-w-0 flex-1 flex-col rounded-l-cr-lg border-l border-cr-hairline bg-cr-surface">
+        {children}
+      </main>
     </V2ShellContext.Provider>
   );
 }

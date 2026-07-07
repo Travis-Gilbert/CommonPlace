@@ -37,7 +37,7 @@ const src = (rel) => join(here, "..", "src", rel);
  * values (bg-[#fff], text-[13px]) and raw Tailwind palette (bg-red-500,
  * text-black/40) — in these files. Add each surface as it converts to utilities.
  */
-const MIGRATED_COMPONENTS = [];
+const MIGRATED_COMPONENTS = ["app/v2/layout.tsx", "components/v2/V2Shell.tsx"];
 
 const PALETTE = [
   "slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow",

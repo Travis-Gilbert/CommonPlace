@@ -18,7 +18,7 @@ export const metadata: Metadata = {
    cascade cannot restyle it. React 19 hoists the link tags below into head. */
 export default function V2Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="porcelain p-ground">
+    <div className="porcelain flex min-h-dvh bg-cr-ground">
       <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
       <link
         rel="stylesheet"
