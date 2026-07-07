@@ -209,10 +209,12 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(state!.shiftSummary).toMatchObject({
       completed: [{ taskId: 'task-c', goal: 'OP2 queue', gateStatus: 'passed' }],
       reviewReadyCount: 1,
-      queueDepth: 3,
+      queueDepth: 1,
       urgentMessages: [],
     });
     expect(state!.shiftSummary.newlyBlocked.map((task) => task.taskId)).toEqual(['task-b']);
+    // Rollup window matches the fixture contract: 12h lookback from `now`.
+    expect(state!.shiftSummary.since).toBe(new Date(NOW.getTime() - 12 * 60 * 60 * 1000).toISOString());
   });
 
   it('fails open to fixtures when the GraphQL response carries errors (no data.workGraph)', async () => {
