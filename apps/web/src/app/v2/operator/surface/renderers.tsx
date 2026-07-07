@@ -81,7 +81,7 @@ export function OperatorBayTableView({ host }: SurfaceViewRendererProps) {
               <td style={{ ...cellStyle, fontFamily: 'var(--font-mono)', color: 'var(--ink-dim)', width: '9rem' }}>
                 {bay.label}
               </td>
-              <td style={{ ...cellStyle, fontWeight: 500 }}>{bay.task?.title ?? '—'}</td>
+              <td style={{ ...cellStyle, fontWeight: 500 }}>{bay.task?.goal ?? '—'}</td>
               <td style={{ ...cellStyle, color: 'var(--ink-dim)', width: '6rem' }}>{urgency}</td>
             </tr>
           );
