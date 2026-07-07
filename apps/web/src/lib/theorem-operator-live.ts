@@ -13,10 +13,9 @@
  * so it already holds `THEOREM_API_KEY` and posts server-to-server directly to
  * `THEOREM_GRAPHQL_URL` with `x-api-key` — the same endpoint + key the browser
  * proxy `/api/theorem/graphql` forwards to, minus the browser-only proxy hop.
- * `workGraph(runId)` is RUN-SCOPED, so v1 renders a single run selected by
- * `THEOREM_OPERATOR_RUN_ID`. The Operator board is a cross-run aggregate;
- * unioning across runs (or a backend cross-run task view) is the documented
- * follow-up.
+ * `workGraph(runId)` is run-scoped when `THEOREM_OPERATOR_RUN_ID` is present;
+ * when it is absent, the API returns the aggregate Operator board across all
+ * TaskNode records.
  *
  * THE TASK SHAPE IS NOT GUESSED HERE. `commonplace-api` exposes typed `TaskNode`
  * objects (`apps/commonplace-api/schema.graphql` — WorkGraphGql / TaskNodeGql,
@@ -33,18 +32,22 @@ import {
   buildOperatorState,
   liveSource,
   type Bay,
+  type GateCard,
   type HeadId,
   type OperatorSource,
   type OperatorState,
   type OperatorTask,
   type Prerequisite,
+  type RunDrawer,
+  type ShiftSummary,
   type TaskLane,
   type TaskStatus,
+  type VerifyItem,
 } from './theorem-operator';
 import { normalizeCommonPlaceGraphqlEndpoint } from './commonplace-instance';
-import { parseWorkGraphTasks, type ClaimLease, type NodeStatus, type TaskNode } from './theorem-harness-schema';
+import { parseWorkGraphTasks, type ClaimLease, type NodeStatus, type Receipt, type TaskNode } from './theorem-harness-schema';
 
-const WORK_GRAPH_QUERY = `query OperatorWorkGraph($runId:String!){
+const WORK_GRAPH_QUERY = `query OperatorWorkGraph($runId:String){
   workGraph(runId:$runId){
     ok
     run
@@ -85,7 +88,6 @@ export async function buildOperatorStateLive(
   fetchImpl: typeof fetch = globalThis.fetch,
 ): Promise<OperatorState | null> {
   const runId = text(env.THEOREM_OPERATOR_RUN_ID);
-  if (!runId) return null; // no run selected → route falls back to fixtures
 
   const { endpoint, apiKey } = graphqlTarget(env);
   const payload = await postWorkGraph(fetchImpl, endpoint, apiKey, runId);
@@ -94,8 +96,9 @@ export async function buildOperatorStateLive(
   const view = workGraphView(payload);
   if (!view || view.ok === false) return null;
 
-  const src = liveSource('commonplace-api workGraph', `${endpoint} · run ${runId}`);
-  const liveTasks = mapWorkGraphTasks(view.tasks, now.getTime(), src);
+  const src = liveSource('commonplace-api workGraph', runId ? `${endpoint} · run ${runId}` : `${endpoint} · all runs`);
+  const liveNodes = parseWorkGraphTasks(view.tasks);
+  const liveTasks = mapTaskNodes(liveNodes, now.getTime(), src);
   if (liveTasks.length === 0) return null; // empty live board → fixtures
 
   const base = buildOperatorState(env, now, fetchImpl);
@@ -105,7 +108,9 @@ export async function buildOperatorStateLive(
     source: src,
     tasks: liveTasks,
     bays,
-    // gate / shiftSummary / drawers stay fixture (honestly labelled) until wired.
+    gate: gateFromNodes(liveNodes, liveTasks, src),
+    shiftSummary: shiftFromTasks(liveNodes, liveTasks, now, src),
+    drawers: drawersFromNodes(liveNodes, liveTasks, src),
   };
 }
 
@@ -127,14 +132,14 @@ async function postWorkGraph(
   fetchImpl: typeof fetch,
   endpoint: string,
   apiKey: string,
-  runId: string,
+  runId?: string,
 ): Promise<unknown> {
   let response: Response;
   try {
     response = await fetchImpl(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-      body: JSON.stringify({ query: WORK_GRAPH_QUERY, variables: { runId } }),
+      body: JSON.stringify({ query: WORK_GRAPH_QUERY, variables: runId ? { runId } : {} }),
       cache: 'no-store',
     });
   } catch {
@@ -168,8 +173,7 @@ function workGraphView(value: unknown): WorkGraphView | null {
   return { ok: view.ok !== false, tasks: view.tasks };
 }
 
-function mapWorkGraphTasks(rawTasks: unknown, nowMs: number, source: OperatorSource): OperatorTask[] {
-  const nodes = parseWorkGraphTasks(rawTasks);
+function mapTaskNodes(nodes: TaskNode[], nowMs: number, source: OperatorSource): OperatorTask[] {
   // A prerequisite is "met" once its referenced node reaches the terminal
   // accepted status. Cross-reference within the same work graph.
   const acceptedIds = new Set(nodes.filter((n) => n.status === 'accepted').map((n) => n.id).filter(Boolean));
@@ -212,6 +216,126 @@ function operatorTaskFromNode(
     source,
     // checklist omitted: TaskNode has no checklist; receipts are proofs, not marks.
   };
+}
+
+function drawersFromNodes(nodes: TaskNode[], tasks: OperatorTask[], source: OperatorSource): Record<string, RunDrawer> {
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const drawers: Record<string, RunDrawer> = {};
+  for (const node of nodes) {
+    const task = taskById.get(node.id);
+    if (!task || (task.lane !== 'now' && task.lane !== 'done')) continue;
+    drawers[task.id] = {
+      taskId: task.id,
+      goal: task.goal,
+      verifyFirst: verifyItemsFromReceipts(node.receipts),
+      events: drawerEventsFromNode(node, task),
+      live: task.lane === 'now',
+      footprint: node.file_scope.length > 0 ? node.file_scope : undefined,
+      messages: [],
+      source,
+    };
+  }
+  return drawers;
+}
+
+function gateFromNodes(nodes: TaskNode[], tasks: OperatorTask[], source: OperatorSource): GateCard[] {
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  return nodes
+    .filter((node) => node.status === 'patch_proposed' || node.status === 'verifying')
+    .map((node) => {
+      const task = taskById.get(node.id);
+      return {
+        taskId: node.id,
+        goal: task?.goal ?? taskGoal(node, node.id),
+        acceptance:
+          node.receipts.length > 0
+            ? node.receipts.map((receipt, index) => acceptanceFromReceipt(receipt, index))
+            : [{ id: 'receipt_required', label: 'Substrate verification receipt', met: false }],
+        crossReview: null,
+        changedFiles: [],
+        commits: commitsFromReceipts(node.receipts),
+        owner: (node.claim?.owner || node.created_by || 'codex') as HeadId,
+        source,
+      };
+    });
+}
+
+function shiftFromTasks(nodes: TaskNode[], tasks: OperatorTask[], now: Date, source: OperatorSource): ShiftSummary {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  return {
+    since: now.toISOString(),
+    completed: tasks
+      .filter((task) => task.lane === 'done')
+      .map((task) => ({
+        taskId: task.id,
+        goal: task.goal,
+        gateStatus: nodeById.get(task.id)?.status === 'rejected' ? 'bounced' : 'passed',
+      })),
+    newlyBlocked: tasks
+      .filter((task) => task.prerequisites.some((prereq) => !prereq.met))
+      .map((task) => ({
+        taskId: task.id,
+        goal: task.goal,
+        blockers: task.prerequisites.filter((prereq) => !prereq.met).map((prereq) => prereq.goal),
+      })),
+    reviewReadyCount: tasks.filter((task) => task.status === 'review').length,
+    queueDepth: tasks.filter((task) => task.lane === 'now' || task.lane === 'next').length,
+    iceboxMovements: tasks.filter((task) => task.lane === 'icebox').map((task) => ({ taskId: task.id, goal: task.goal })),
+    urgentMessages: [],
+    source,
+  };
+}
+
+function verifyItemsFromReceipts(receipts: Receipt[]): VerifyItem[] {
+  return receipts.map((receipt, index) => ({
+    id: `receipt_${index + 1}`,
+    label: receipt.command || receipt.kind || `Receipt ${index + 1}`,
+    done: receipt.verified_status !== null && receipt.verified_status === receipt.claimed_status,
+    evidence: receipt.artifact_hash || receipt.base_commit || receipt.verified_status || undefined,
+  }));
+}
+
+function drawerEventsFromNode(node: TaskNode, task: OperatorTask): RunDrawer['events'] {
+  const events: RunDrawer['events'] = [];
+  if (task.claim) {
+    events.push({
+      id: `${task.id}_claim`,
+      at: task.claim.claimedAt,
+      actor: task.claim.head,
+      kind: 'claim',
+      summary: `claimed ${task.id}`,
+      payload: node.run_id ? `run ${node.run_id}` : undefined,
+    });
+  }
+  return events;
+}
+
+function acceptanceFromReceipt(receipt: Receipt, index: number): GateCard['acceptance'][number] {
+  const met = receipt.verified_status !== null && receipt.verified_status === receipt.claimed_status;
+  return {
+    id: `receipt_${index + 1}`,
+    label: receipt.command || receipt.kind || `Receipt ${index + 1}`,
+    met,
+    evidence: met
+      ? {
+          label: receipt.artifact_hash || receipt.base_commit || receipt.verified_status || 'verified receipt',
+        }
+      : undefined,
+  };
+}
+
+function commitsFromReceipts(receipts: Receipt[]): GateCard['commits'] {
+  const seen = new Set<string>();
+  const commits: GateCard['commits'] = [];
+  for (const receipt of receipts) {
+    if (!receipt.base_commit || seen.has(receipt.base_commit)) continue;
+    seen.add(receipt.base_commit);
+    commits.push({
+      sha: receipt.base_commit,
+      message: receipt.command || receipt.kind || 'verification receipt',
+    });
+  }
+  return commits;
 }
 
 function bayFromTasks(head: HeadId, label: string, tasks: OperatorTask[], source: OperatorSource): Bay {
