@@ -22,6 +22,7 @@
     "start:railway": "node scripts/start-railway.mjs",
     "lint": "eslint src scripts next.config.ts",
     "provenance": "node scripts/provenance-scan.test.mjs && node scripts/provenance-scan.mjs",
+    "lint:register": "node scripts/lint-console-register.mjs",
     "export-icons": "node scripts/export-icons.mjs",
     "postbuild": "pagefind",
     "gen:tokens": "tsx scripts/gen-tokens.ts",
