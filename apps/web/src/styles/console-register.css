@@ -3,6 +3,7 @@
    Regenerate: npm run build:register (after rebuilding markdown-theory, or sweeping /dev/register).
    Contrast (WCAG AA solved): ink on surface 10.02:1 · ink2 on surface 6.341:1 · ink3 on surface 3.966:1 · signal on surface 4.524:1 · link on surface 4.538:1 */
 :root {
+  --cr-base: 15px;
   --cr-size-n2: 0.7rem;
   --cr-size-n1: 0.8333rem;
   --cr-size-0: 1rem;
