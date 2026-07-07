@@ -50,6 +50,28 @@ const TASK_NODES = [
     receipts: [],
     created_by: 'claude-code',
   },
+  {
+    id: 'task-d',
+    run_id: 'run-1',
+    node_type: 'verify',
+    goal: 'Review gate',
+    prerequisites: [],
+    file_scope: ['apps/web/src/app/v2/operator/Gate.tsx'],
+    status: 'patch_proposed',
+    claim: null,
+    claim_epoch: 2,
+    receipts: [
+      {
+        kind: 'test',
+        command: 'npm --prefix apps/web test -- operator',
+        base_commit: 'abc123',
+        claimed_status: 'pass',
+        verified_status: 'pass',
+        artifact_hash: 'sha256:ok',
+      },
+    ],
+    created_by: 'codex',
+  },
 ];
 
 /**
@@ -76,9 +98,20 @@ const LIVE_ENV = {
 const NOW = new Date('2026-07-06T00:00:00.000Z');
 
 describe('Operator live workGraph mapping (PT-010)', () => {
-  it('returns null when no run is selected (fixtures win)', async () => {
-    const state = await buildOperatorStateLive({} as NodeJS.ProcessEnv, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
-    expect(state).toBeNull();
+  it('uses the aggregate workGraph when no run is selected', async () => {
+    const spy = graphqlFetch({ ok: true, tasks: TASK_NODES });
+    const state = await buildOperatorStateLive(
+      { THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv,
+      NOW,
+      spy,
+    );
+    expect(state).not.toBeNull();
+    expect(state!.source.endpoint).toBe('https://commonplace-api.example/graphql · all runs');
+
+    const [, init] = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { query: string; variables: Record<string, unknown> };
+    expect(body.variables).toEqual({});
+    expect(body.query).toContain('query OperatorWorkGraph($runId:String)');
   });
 
   it('returns null and fails open when the backend returns non-2xx', async () => {
@@ -109,6 +142,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     const body = JSON.parse(init.body as string) as { query: string; variables: { runId: string } };
     expect(body.variables).toEqual({ runId: 'run-1' });
     expect(body.query).toContain('workGraph(runId:$runId)');
+    expect(body.query).toContain('query OperatorWorkGraph($runId:String)');
     // The opaque `graph` blob is retired — tasks IS the graph, typed.
     expect(body.query).not.toMatch(/^\s*graph\s*$/m);
   });
@@ -123,6 +157,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(byId['task-a']).toMatchObject({ status: 'claimed', lane: 'now', laneChip: 'implement' });
     expect(byId['task-b']).toMatchObject({ status: 'queued', lane: 'next' });
     expect(byId['task-c']).toMatchObject({ status: 'done', lane: 'done' });
+    expect(byId['task-d']).toMatchObject({ status: 'review', lane: 'now', laneChip: 'verify' });
   });
 
   it('binds claim.owner → head and granted_at → claimedAt', async () => {
@@ -149,6 +184,39 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(bayByHead['claude-code'].task?.id).toBe('task-a');
     expect(bayByHead['claude-code'].prLight).toBe('open');
     expect(bayByHead['codex'].task).toBeNull();
+  });
+
+  it('derives live gate, shift, and drawer state from TaskNodes', async () => {
+    const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
+    expect(state!.gate).toHaveLength(1);
+    expect(state!.gate[0]).toMatchObject({
+      taskId: 'task-d',
+      owner: 'codex',
+      commits: [{ sha: 'abc123', message: 'npm --prefix apps/web test -- operator' }],
+    });
+    expect(state!.gate[0].acceptance).toEqual([
+      {
+        id: 'receipt_1',
+        label: 'npm --prefix apps/web test -- operator',
+        met: true,
+        evidence: { label: 'sha256:ok' },
+      },
+    ]);
+
+    expect(state!.drawers['task-a']).toMatchObject({
+      taskId: 'task-a',
+      live: true,
+      footprint: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
+    });
+    expect(state!.drawers['task-a'].events[0]).toMatchObject({ kind: 'claim', actor: 'claude-code' });
+
+    expect(state!.shiftSummary).toMatchObject({
+      completed: [{ taskId: 'task-c', goal: 'OP2 queue', gateStatus: 'passed' }],
+      reviewReadyCount: 1,
+      queueDepth: 3,
+      urgentMessages: [],
+    });
+    expect(state!.shiftSummary.newlyBlocked.map((task) => task.taskId)).toEqual(['task-b']);
   });
 
   it('fails open to fixtures when the GraphQL response carries errors (no data.workGraph)', async () => {
