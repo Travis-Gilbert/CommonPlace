@@ -5,6 +5,10 @@ import { auth } from '@/lib/auth';
 import { OwnerProvider } from '@/components/OwnerProvider';
 import { getSiteConfig } from '@/lib/siteConfig';
 import '@/styles/global.css';
+// The console register's raw --cr-* values, loaded app-wide. Plain CSS custom
+// properties (no Tailwind needed); the @theme that re-exports them as utilities
+// is inlined in global.css so Tailwind compiles it in-context.
+import '@/styles/console-register.css';
 import '@/styles/print.css';
 
 export async function generateMetadata(): Promise<Metadata> {
