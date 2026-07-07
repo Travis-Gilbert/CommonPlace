@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
   experimental: {
     viewTransition: true,
   },
-  reactCompiler: true,
+  reactCompiler: false, // ponytail: blocked on babel-plugin-resolution in monorepo, re-enable when fixed
   images: {
     unoptimized: true,
   },
