@@ -1,0 +1,109 @@
+/* Shared porcelain layout for the migrated harness-console surfaces (account,
+   settings, canvas). All values resolve through porcelain tokens — no hex, no
+   edge stripe; cards are "wells" (inset material, light falling in) to match
+   the Files tray. Scoped locally per import; safe to share across the routes. */
+
+.wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+  padding: 0 calc(var(--u) * 5) calc(var(--u) * 5);
+}
+
+/* sub-tab bar (User / Agents) */
+.tabs {
+  display: flex;
+  gap: var(--u);
+  border-bottom: 1px solid var(--hair-soft);
+  padding-bottom: calc(var(--u) * 1);
+}
+
+.tab {
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  color: var(--ink-dim);
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 1.4);
+  border-radius: var(--r-control);
+  text-decoration: none;
+  transition: background var(--motion) var(--ease), color var(--motion) var(--ease);
+}
+.tab:hover {
+  background: var(--plane);
+  color: var(--ink);
+}
+.tabActive,
+.tabActive:hover {
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent);
+  color: var(--ink);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: calc(var(--u) * 2.5);
+}
+
+.card {
+  border-radius: var(--r-band);
+  background: var(--inset-bg);
+  border: 1px solid var(--hair-soft);
+  box-shadow: var(--well);
+  padding: calc(var(--u) * 2.5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+}
+
+.cardIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}
+
+.cardTitle {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cardHint {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* honest status marker for a surface whose data is not wired yet */
+.soon {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cardLink {
+  align-self: flex-start;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-soft);
+  transition: border-color var(--motion) var(--ease);
+}
+.cardLink:hover {
+  border-color: var(--accent);
+}

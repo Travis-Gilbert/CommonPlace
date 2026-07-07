@@ -174,10 +174,9 @@ function Band({
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((vi) => {
               const row = rows[vi.index];
-              const key = indexRowKey(row);
               return (
                 <div
-                  key={key}
+                  key={row.id}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -188,7 +187,7 @@ function Band({
                 >
                   <Row
                     row={row}
-                    selected={key === selectedKey}
+                    selected={indexRowKey(row) === selectedKey}
                     destination={destinationFor(row)}
                     onSelect={onSelect}
                   />
@@ -198,18 +197,15 @@ function Band({
           </div>
         </div>
       ) : (
-        rows.map((row) => {
-          const key = indexRowKey(row);
-          return (
-            <Row
-              key={key}
-              row={row}
-              selected={key === selectedKey}
-              destination={destinationFor(row)}
-              onSelect={onSelect}
-            />
-          );
-        })
+        rows.map((row) => (
+          <Row
+            key={row.id}
+            row={row}
+            selected={indexRowKey(row) === selectedKey}
+            destination={destinationFor(row)}
+            onSelect={onSelect}
+          />
+        ))
       )}
     </section>
   );

@@ -25,21 +25,12 @@ import styles from './index.module.css';
 
 interface RefileOverride {
   destination: IndexRowDestination;
-  destinationId?: string;
   receipt: string;
+  collectionId?: string;
 }
 
-function dispatchCommonplaceEvent(type: string, id: string, extra: Record<string, unknown>): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.dispatchEvent(
-      new CustomEvent(type, {
-        detail: { id, at: Date.now(), ...extra },
-      }),
-    );
-  } catch {
-    /* best-effort */
-  }
+function eventTimestamp(): number {
+  return Date.now();
 }
 
 export function IndexSurface() {
@@ -58,28 +49,28 @@ export function IndexSurface() {
     const verb = prev?.verb ?? 'filed to';
     setOverrides((current) => ({
       ...current,
-      [selected.id]: {
-        destination: { verb, label },
-        receipt: `Refiled to ${label}.`,
-      },
+      [selected.id]: { destination: { verb, label }, receipt: `Refiled to ${label}.` },
     }));
-    void submitRefile(selected.id, label, selected.title, selected.destinationId).then((destinationId) => {
-      if (!destinationId) return;
-      setOverrides((current) => {
-        const existing = current[selected.id];
-        if (!existing || existing.destination.label !== label) return current;
-        return {
-          ...current,
-          [selected.id]: { ...existing, destinationId },
-        };
-      });
-    });
+    void submitRefile(selected.id, label, selected.title, selected.destinationId).then(
+      (collectionId) => {
+        if (!collectionId) return;
+        setOverrides((current) => {
+          const currentOverride = current[selected.id];
+          if (!currentOverride || currentOverride.destination.label !== label) return current;
+          return {
+            ...current,
+            [selected.id]: { ...currentOverride, collectionId },
+          };
+        });
+      },
+    );
   };
 
   const handleUndo = () => {
     if (!selected) return;
     const original = selected.destination; // the pre-refile destination
-    const override = overrides[selected.id];
+    const current = destinationFor(selected);
+    const currentOverride = overrides[selected.id];
     setOverrides((current) => {
       const next = { ...current };
       delete next[selected.id];
@@ -92,8 +83,8 @@ export function IndexSurface() {
         selected.id,
         original.label,
         selected.title,
-        override?.destinationId,
-        override?.destination.label,
+        currentOverride?.collectionId,
+        current?.label,
       );
     }
   };
@@ -102,8 +93,14 @@ export function IndexSurface() {
   // handlers (open, ask, resolve, agent turn) are Codex's backend seam. Fire a
   // CustomEvent so the dispatch is real and other surfaces can bind it.
   const emit = (type: string, extra: Record<string, unknown>) => {
-    if (!selected) return;
-    dispatchCommonplaceEvent(type, selected.id, extra);
+    if (!selected || typeof window === 'undefined') return;
+    try {
+      window.dispatchEvent(
+        new CustomEvent(type, { detail: { id: selected.id, at: eventTimestamp(), ...extra } }),
+      );
+    } catch {
+      /* best-effort */
+    }
   };
   const handleAction = (action: string) => emit('commonplace:action', { action });
   const handleCompose = (text: string) => emit('commonplace:compose', { text });
