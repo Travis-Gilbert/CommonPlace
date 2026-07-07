@@ -13,6 +13,9 @@
 import type { Annotation, Anchor, Resolution } from './types.ts';
 import { anchorLabel } from './types.ts';
 
+const MISSING_ANCHOR_URL = 'about:blank#missing-annotation-anchor';
+const MISSING_ANCHOR_LABEL = 'missing annotation anchor';
+
 /** A scoped Fix-this dispatch: everything the head needs, nothing it does not. */
 export interface FixThisRequest {
   annotationId: string;
@@ -43,11 +46,15 @@ export function buildFixThisRequest(
     .join('\n');
   return {
     annotationId: annotation.id,
-    anchor: annotation.anchor ?? { kind: 'page', url: '' },
-    anchorLabel: annotation.anchor ? anchorLabel(annotation.anchor) : '',
+    anchor: annotation.anchor ?? missingAnchor(),
+    anchorLabel: annotation.anchor ? anchorLabel(annotation.anchor) : MISSING_ANCHOR_LABEL,
     thread,
     ...(screenshotRef ? { screenshotRef } : {}),
   };
+}
+
+function missingAnchor(): Anchor {
+  return { kind: 'page', url: MISSING_ANCHOR_URL };
 }
 
 /** A range of lines a commit touched in one file. */

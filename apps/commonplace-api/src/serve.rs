@@ -401,7 +401,7 @@ where
         || matches!(&kind, ItemKind::Other(name) if name.as_str() == "audio");
     let transcriber = Transcriber::from_env();
     let caption = if is_audio && transcriber.is_enabled() {
-        match transcriber.transcribe(bytes.clone(), mime.as_deref()).await {
+        match transcriber.transcribe(&bytes, mime.as_deref()).await {
             Ok(Some(transcript)) => Some(merge_caption(caption, &transcript)),
             Ok(None) => caption,
             Err(error) => {

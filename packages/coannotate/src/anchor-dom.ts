@@ -199,8 +199,31 @@ function safeQuery(root: AnchorRoot, selector: string): AnchorEl | null {
 }
 
 function cssEscapeIdent(value: string): string {
-  // Minimal identifier escaping: enough for the ids/classes dev pages emit.
-  return value.replace(/([^a-zA-Z0-9_-])/g, '\\$1');
+  let escaped = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (
+      (index === 0 && isDigit(char)) ||
+      (index === 1 && value[0] === '-' && isDigit(char))
+    ) {
+      escaped += cssCodePointEscape(char);
+    } else if (index === 0 && char === '-' && value.length === 1) {
+      escaped += '\\-';
+    } else if (/^[a-zA-Z0-9_-]$/.test(char)) {
+      escaped += char;
+    } else {
+      escaped += `\\${char}`;
+    }
+  }
+  return escaped;
+}
+
+function isDigit(value: string): boolean {
+  return /^[0-9]$/.test(value);
+}
+
+function cssCodePointEscape(value: string): string {
+  return `\\${value.codePointAt(0)?.toString(16).toUpperCase()} `;
 }
 
 function cssEscapeAttr(value: string): string {

@@ -71,7 +71,7 @@ impl Transcriber {
     /// Transcribe audio bytes to text. `Ok(None)` when disabled or empty result.
     pub async fn transcribe(
         &self,
-        bytes: Vec<u8>,
+        bytes: &[u8],
         mime: Option<&str>,
     ) -> Result<Option<String>, String> {
         let name = file_name_for(mime);
@@ -191,11 +191,11 @@ fn client() -> Result<reqwest::Client, String> {
 }
 
 fn audio_part(
-    bytes: Vec<u8>,
+    bytes: &[u8],
     name: &'static str,
     mime: Option<&str>,
 ) -> Result<reqwest::multipart::Part, String> {
-    let part = reqwest::multipart::Part::bytes(bytes).file_name(name);
+    let part = reqwest::multipart::Part::bytes(bytes.to_vec()).file_name(name);
     match mime {
         Some(mime) => part.mime_str(mime).map_err(|error| error.to_string()),
         None => Ok(part),
@@ -267,10 +267,12 @@ async fn collect_audio(resp: reqwest::Response) -> Result<Speech, String> {
 }
 
 fn truncate(text: &str, max: usize) -> String {
-    if text.len() <= max {
-        text.to_string()
+    let mut chars = text.chars();
+    let truncated: String = chars.by_ref().take(max).collect();
+    if chars.next().is_some() {
+        format!("{truncated}...")
     } else {
-        format!("{}...", &text[..max])
+        text.to_string()
     }
 }
 
@@ -306,5 +308,6 @@ mod tests {
     fn truncate_bounds_error_snippets() {
         assert_eq!(truncate("short", 200), "short");
         assert_eq!(truncate("abcdef", 3), "abc...");
+        assert_eq!(truncate("ééé", 2), "éé...");
     }
 }

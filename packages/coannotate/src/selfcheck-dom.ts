@@ -91,6 +91,8 @@ assert.equal(readSourceAnchor(new FakeEl('p')), null);
 
 // 3. robustSelector: id > data-testid > nth-of-type path.
 assert.equal(robustSelector(new FakeEl('div', { id: 'header' })), '#header');
+assert.equal(robustSelector(new FakeEl('div', { id: '123' })), '#\\31 23');
+assert.equal(robustSelector(new FakeEl('div', { id: '-123' })), '#-\\31 23');
 assert.equal(
   robustSelector(new FakeEl('button', { attrs: { 'data-testid': 'save' } })),
   '[data-testid="save"]',
@@ -184,8 +186,9 @@ const stop = observeReanchor(
   },
 );
 assert.equal(updates, 1, 'observeReanchor emits an initial resolution');
-assert.ok(captured.cb, 'the observer callback is registered');
-captured.cb();
+const observerCallback = captured.cb;
+assert.ok(observerCallback, 'the observer callback is registered');
+observerCallback();
 assert.equal(updates, 2, 'a mutation triggers a re-anchor');
 stop();
 assert.equal(disconnected, true, 'stop() disconnects the observer');
