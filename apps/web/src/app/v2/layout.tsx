@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { V2Shell } from '@/components/v2/V2Shell';
+// CR1: the computed console register. Loads first (reset -> register -> components)
+// and declares :root --cr-* — the single source new-shell components reference.
+import '@/styles/console-register.css';
 import '@/styles/porcelain-theme.css';
 import '@/styles/porcelain-surfaces.css';
 
