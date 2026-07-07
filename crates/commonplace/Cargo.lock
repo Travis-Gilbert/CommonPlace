@@ -1556,6 +1556,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "theorem-bayes",
  "zstd",
 ]
 
@@ -1746,6 +1747,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "theorem-bayes"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
