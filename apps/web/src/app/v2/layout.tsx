@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { V2Shell } from '@/components/v2/V2Shell';
-// CR1: the computed console register. Loads first (reset -> register -> components)
-// and declares :root --cr-* — the single source new-shell components reference.
-import '@/styles/console-register.css';
+// The console register (--cr-* + Tailwind @theme) loads globally via global.css
+// so utilities and vars resolve app-wide. These porcelain sheets stay per-v2.
 import '@/styles/porcelain-theme.css';
 import '@/styles/porcelain-surfaces.css';
 // CR3: the console shell — flips the frame onto --cr-* (sidebar=ground,

@@ -25,8 +25,35 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const styles = (name) => join(here, "..", "src", "styles", name);
 
-/** Files that have migrated onto the console register. Add one per surface. */
+/** CSS files that have migrated onto the console register. Add one per surface. */
 const MIGRATED = [styles("console-shell.css")];
+
+const src = (rel) => join(here, "..", "src", rel);
+
+/**
+ * Components written in register-constrained Tailwind utilities. WORK-SURFACE
+ * decision 1: the register emits into @theme so utilities ARE the design system;
+ * this lint keeps them that way by banning the two escape hatches — arbitrary
+ * values (bg-[#fff], text-[13px]) and raw Tailwind palette (bg-red-500,
+ * text-black/40) — in these files. Add each surface as it converts to utilities.
+ */
+const MIGRATED_COMPONENTS = [];
+
+const PALETTE = [
+  "slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow",
+  "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet",
+  "purple", "fuchsia", "pink", "rose",
+].join("|");
+
+const COMPONENT_RULES = [
+  {
+    name: "arbitrary-value class (use a register utility)",
+    re: /(?:bg|text|border|ring|fill|stroke|shadow|rounded|p|px|py|m|mx|my|gap|h|w|min-h|max-w|leading|tracking|font|duration)-\[[^\]]+\]/g,
+  },
+  { name: "raw Tailwind palette utility", re: new RegExp(`\\b(?:bg|text|border|ring|fill|stroke|from|to|via)-(?:${PALETTE})-\\d{2,3}\\b`, "g") },
+  { name: "raw black/white opacity utility", re: /\b(?:bg|text|border|ring)-(?:black|white)\/\d/g },
+  { name: "hex literal in class", re: /#[0-9a-fA-F]{3,8}\b/g },
+];
 
 /** Simple grep rules: any match is a violation. */
 const RULES = [
@@ -81,8 +108,29 @@ for (const file of MIGRATED) {
   }
 }
 
+for (const rel of MIGRATED_COMPONENTS) {
+  const file = src(rel);
+  let code;
+  try {
+    code = readFileSync(file, "utf8");
+  } catch {
+    console.error(`✗ cannot read ${file}`);
+    failures++;
+    continue;
+  }
+  for (const rule of COMPONENT_RULES) {
+    const hits = code.match(rule.re);
+    if (hits) {
+      failures++;
+      console.error(`✗ ${file}: ${rule.name} — ${[...new Set(hits)].join(", ")}`);
+    }
+  }
+}
+
 if (failures > 0) {
   console.error(`\nconsole-register lint failed: ${failures} violation(s).`);
   process.exit(1);
 }
-console.log(`console-register lint clean (${MIGRATED.length} migrated file(s)).`);
+console.log(
+  `console-register lint clean (${MIGRATED.length} CSS + ${MIGRATED_COMPONENTS.length} component file(s)).`,
+);

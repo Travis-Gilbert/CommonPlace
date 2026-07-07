@@ -6,6 +6,13 @@
    IPC, causing "evaluate_webpack_loader failed" panics on every cold
    compile of global.css. Scoping to src/ keeps the scan under a second. */
 @import "tailwindcss" source(none);
+/* The computed console register (CR1). console-register.css declares the raw
+   --cr-* values (solver-generated); console-theme.css re-exports them as Tailwind
+   @theme namespaces so new-shell components use register-constrained utilities
+   (bg-cr-surface, text-cr-ink, rounded-cr-sm). Imported here so Tailwind compiles
+   the @theme/@utility rules. */
+@import "./console-register.css";
+@import "./console-theme.css";
 @source "../**/*.{ts,tsx,js,jsx,md,mdx}";
 
 /* ─────────────────────────────────────────────────
