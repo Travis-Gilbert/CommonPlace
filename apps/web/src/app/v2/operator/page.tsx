@@ -132,7 +132,10 @@ export default function OperatorPage() {
   return (
     <>
       <div className={styles.col}>
-        {/* Row 1 — breadcrumb rail. No page title, no description sentence. */}
+        {/* Row 1 — breadcrumb rail. CONVENTION: monitoring surfaces omit the
+            p-top / p-h1 title block that content surfaces (account, settings,
+            canvas) open with; the triage strip is the anchor, not a display
+            heading. Deliberate divergence, not an oversight. */}
         <div className={styles.crumbRail}>
           <span className={styles.crumb}>Harness / Operator</span>
           <div className={styles.crumbAside}>

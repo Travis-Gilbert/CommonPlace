@@ -25,7 +25,7 @@
   font-size: 0.86rem;
   color: var(--ink-dim);
   padding: calc(var(--u) * 0.6) calc(var(--u) * 1.4);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   text-decoration: none;
   transition: background var(--motion) var(--ease), color var(--motion) var(--ease);
 }

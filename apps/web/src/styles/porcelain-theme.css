@@ -82,10 +82,15 @@
   --font-body: 'IBM Plex Sans Condensed', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* geometry and motion */
+  /* geometry and motion. Radius tiers, smallest to largest: chip (pills/tags),
+     control (buttons/tabs), row (list rows), band (cards/panels), pill (fully
+     rounded). Pick the tier by element role so sibling elements share a radius. */
   --u: 8px;
+  --r-chip: 5px;
+  --r-control: 7px;
   --r-row: 10px;
   --r-band: 15px;
+  --r-pill: 20px;
   --motion: 220ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 }
