@@ -13,8 +13,11 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Globe, Paperclip, ArrowUp, Sparkles } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import { NetworkGlyph } from './NetworkGlyph';
+import { WebGlyph } from './WebGlyph';
+import { AiGlyph } from './AiGlyph';
+import { UploadGlyph } from './UploadGlyph';
 
 const INPUT_HEIGHT = {
   default: { min: 52, max: 168 },
@@ -162,7 +165,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       className={isTall ? 'grid h-9 w-9 place-items-center rounded-full transition-colors' : 'grid h-8 w-8 place-items-center rounded-full transition-colors'}
                       style={{ color: 'var(--cp-text-muted)' }}
                     >
-                      <Paperclip size={16} />
+                      <UploadGlyph size={16} />
                     </button>
                     <input
                       ref={fileRef}
@@ -189,7 +192,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       : { borderColor: 'transparent', color: 'var(--cp-text-muted)' }
                   }
                 >
-                  <Globe size={16} />
+                  <WebGlyph size={16} />
                   <AnimatePresence>
                     {mode === 'web' ? (
                       <motion.span
@@ -217,7 +220,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       : { borderColor: 'transparent', color: 'var(--cp-text-muted)' }
                   }
                 >
-                  <Sparkles size={16} />
+                  <AiGlyph size={16} />
                   <AnimatePresence>
                     {mode === 'research' ? (
                       <motion.span

@@ -47,14 +47,6 @@
   padding-bottom: 14vh; /* lift off the very bottom into the lower third */
 }
 
-.hint {
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  color: var(--ink-dim);
-  text-align: center;
-  margin: 0;
-}
-
 /* Inline the omnibar frame: it defaults to position:fixed, bottom-anchored and
    offset for the rail. Here it lives in the surface flow, centered. */
 .omniFrame {

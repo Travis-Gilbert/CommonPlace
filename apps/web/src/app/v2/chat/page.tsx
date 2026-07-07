@@ -20,7 +20,6 @@ export default function ChatPage() {
   return (
     <div className={styles.wrap}>
       <div className={styles.bridge}>
-        <p className={styles.hint}>Ask Theorem, search the web, or both.</p>
         <Omnibar frameClassName={styles.omniFrame} shellClassName={styles.omniShell} />
       </div>
     </div>

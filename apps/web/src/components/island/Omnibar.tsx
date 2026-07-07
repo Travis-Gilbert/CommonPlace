@@ -132,8 +132,7 @@ export default function Omnibar({
               animate={{ opacity: 1, y: 0 }}
               exit={reduced ? undefined : { opacity: 0, y: 8 }}
               transition={{ duration: 0.18 }}
-              className="mb-3 max-h-[42vh] overflow-y-auto rounded-xl p-4"
-              style={{ background: 'var(--cp-card)', border: '1px solid var(--cp-border)', boxShadow: 'var(--cp-shadow-lg)' }}
+              className="mb-4 max-h-[58vh] overflow-y-auto px-1"
             >
               {busy ? (
                 <div className="flex flex-col items-center gap-3 py-2">
@@ -170,11 +169,12 @@ export default function Omnibar({
   );
 }
 
-/** A graceful failure: a plain-language headline, the raw reason kept muted and
- *  secondary (not shouted in red), and a one-tap retry of the same query. */
+/** A graceful failure: a plain-language message only — never the raw backend
+ *  reason (env vars, GraphQL config, stack). The real error rides along in the
+ *  `title` tooltip for anyone inspecting, and retry re-runs the same query. */
 function FailureView({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="flex flex-col items-start gap-2" title={message}>
       <div className="flex items-center gap-2">
         <span
           className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full"
@@ -186,8 +186,8 @@ function FailureView({ message, onRetry }: { message: string; onRetry: () => voi
           Theorem couldn&rsquo;t answer that.
         </span>
       </div>
-      <p className="font-mono text-[12px] leading-[1.5]" style={{ color: 'var(--cp-text-faint)' }}>
-        {message}
+      <p className="text-[13px] leading-[1.5]" style={{ color: 'var(--cp-text-muted)' }}>
+        Theorem is down, or the network is slow — we&rsquo;re looking into it.
       </p>
       <button
         type="button"
