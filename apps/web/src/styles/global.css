@@ -6,14 +6,97 @@
    IPC, causing "evaluate_webpack_loader failed" panics on every cold
    compile of global.css. Scoping to src/ keeps the scan under a second. */
 @import "tailwindcss" source(none);
-/* The computed console register (CR1). console-register.css declares the raw
-   --cr-* values (solver-generated); console-theme.css re-exports them as Tailwind
-   @theme namespaces so new-shell components use register-constrained utilities
-   (bg-cr-surface, text-cr-ink, rounded-cr-sm). Imported here so Tailwind compiles
-   the @theme/@utility rules. */
-@import "./console-register.css";
-@import "./console-theme.css";
 @source "../**/*.{ts,tsx,js,jsx,md,mdx}";
+
+/* CR1 — the console register as Tailwind @theme utilities.
+   The raw --cr-* values (solver-generated) are JS-imported app-wide via
+   console-register.css in the root layout. This @theme re-exports them under
+   Tailwind namespaces so new-shell components use register-constrained utilities
+   (bg-cr-surface, text-cr-ink, rounded-cr-sm, text-cr-body, font-cr-ui) plus the
+   @utility chrome metrics. It is inlined here — not @import'd — because Next's
+   CSS pipeline splits local @imports into separate chunks that never reach the
+   Tailwind entry, so an @import'd @theme silently generates nothing. Namespaced
+   cr- so it can't collide with the legacy parchment @theme below. */
+@theme {
+  --color-cr-ground: var(--cr-ground);
+  --color-cr-surface: var(--cr-surface);
+  --color-cr-top: var(--cr-top);
+  --color-cr-ink: var(--cr-ink);
+  --color-cr-ink-2: var(--cr-ink-2);
+  --color-cr-ink-3: var(--cr-ink-3);
+  --color-cr-hairline: var(--cr-hairline);
+  --color-cr-signal: var(--cr-signal);
+  --color-cr-signal-pressed: var(--cr-signal-pressed);
+  --color-cr-link: var(--cr-link);
+  --color-cr-accent-ink: var(--cr-accent-ink);
+  --color-cr-tint: var(--cr-tint);
+
+  --radius-cr-sm: var(--cr-radius-sm);
+  --radius-cr: var(--cr-radius);
+  --radius-cr-lg: var(--cr-radius-lg);
+
+  --text-cr-caption: var(--cr-text-caption);
+  --text-cr-small: var(--cr-text-small);
+  --text-cr-body: var(--cr-text-body);
+  --text-cr-body--line-height: var(--cr-leading-body);
+  --text-cr-h4: var(--cr-text-h4);
+  --text-cr-h4--line-height: var(--cr-leading-heading);
+  --text-cr-h3: var(--cr-text-h3);
+  --text-cr-h2: var(--cr-text-h2);
+  --text-cr-h1: var(--cr-text-h1);
+
+  --font-cr-ui: var(--cr-font-ui);
+  --font-cr-mono: var(--cr-font-mono);
+  --font-cr-prose: var(--cr-font-prose);
+
+  --leading-cr-body: var(--cr-leading-body);
+  --leading-cr-heading: var(--cr-leading-heading);
+
+  --ease-cr: var(--cr-ease);
+}
+
+@utility h-control {
+  height: var(--cr-control-h);
+}
+@utility h-row {
+  height: var(--cr-row-h);
+}
+@utility min-h-row {
+  min-height: var(--cr-row-h);
+}
+@utility px-chip {
+  padding-inline: var(--cr-chip-pad-x);
+}
+@utility py-chip {
+  padding-block: var(--cr-chip-pad-y);
+}
+@utility shadow-transient {
+  box-shadow: var(--cr-shadow-transient);
+}
+@utility duration-chrome {
+  transition-duration: var(--cr-motion);
+}
+@utility gap-cr-1 {
+  gap: var(--cr-space-1);
+}
+@utility gap-cr-2 {
+  gap: var(--cr-space-2);
+}
+@utility gap-cr-3 {
+  gap: var(--cr-space-3);
+}
+@utility gap-cr-4 {
+  gap: var(--cr-space-4);
+}
+@utility p-cr-2 {
+  padding: var(--cr-space-2);
+}
+@utility p-cr-3 {
+  padding: var(--cr-space-3);
+}
+@utility p-cr-4 {
+  padding: var(--cr-space-4);
+}
 
 /* ─────────────────────────────────────────────────
    Design Tokens:Patent Parchment Palette
