@@ -22,6 +22,7 @@
 //! and I1's unified retrieve, and it keeps the acceptance suite DB-free. The
 //! catalog stays the home for the tenant/key/billing rows that F3 will read.
 
+pub mod annotation;
 pub mod blob;
 pub mod block_view;
 pub mod collection;
@@ -34,6 +35,10 @@ pub mod renderable;
 pub mod store;
 pub mod tag;
 
+pub use annotation::{
+    annotation_from_item, Anchor, Annotation, AuthorKind, Rect, Resolution, ANCHOR_KEY,
+    AUTHOR_ID_KEY, AUTHOR_KIND_KEY, RESOLUTION_KEY, RESOLVED_KEY, TARGET_ID_KEY,
+};
 pub use blob::{content_hash, BlobStore, InMemoryBlobStore};
 pub use block_view::{
     ActionKind, AgentTier, BlockHost, CardinalityRequirement, CommonplaceBlockHost, Constraint,

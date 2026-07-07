@@ -24,11 +24,12 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use commonplace::{
     BlobStore, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Item, ItemBody,
-    ItemKind, Residency,
+    ItemKind, ObjectAction, ObjectActionReceipt, ObjectQuery, ObjectSet, Residency, ViewDescriptor,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
+use crate::voice::{Transcriber, Voice};
 use crate::{
     answer_model_from_env, build_schema, build_schema_with_model, in_memory_store, redcore_store,
     AnswerModel, ApiKeyRegistry, ApiKeyToken, Mutation, Query, SharedStore,
@@ -101,6 +102,7 @@ where
         .route("/healthz", get(healthz))
         .route("/graphql", get(graphiql).post(graphql_handler::<S, B>))
         .merge(blob_routes::<S, B>())
+        .merge(object_routes::<S, B>())
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -123,6 +125,7 @@ where
         .route("/healthz", get(healthz))
         .route("/graphql", post(graphql_handler::<S, B>))
         .merge(blob_routes::<S, B>())
+        .merge(object_routes::<S, B>())
         .with_state(state)
 }
 
@@ -138,6 +141,85 @@ where
             post(ingest_blob_handler::<S, B>).layer(DefaultBodyLimit::max(BLOB_BODY_LIMIT_BYTES)),
         )
         .route("/blob/{hash}", get(blob_get_handler::<S, B>))
+        .route("/tts", post(tts_handler::<S, B>))
+}
+
+/// The block-view object-model seam over HTTP (SPEC-OBJECT-CONTRACT-V2). The web
+/// `HttpBlockHost` reaches the same `query_object_set` / `emit_object_action` /
+/// registry the Rust `CommonplaceBlockHost` uses, so a surface renders live from
+/// the substrate with nothing above the `BlockHost` seam changing.
+fn object_routes<S, B>() -> Router<AppState<S, B>>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    Router::new()
+        .route("/objects/query", post(objects_query_handler::<S, B>))
+        .route("/objects/action", post(objects_action_handler::<S, B>))
+        .route("/objects/views", get(objects_views_handler::<S, B>))
+}
+
+async fn objects_query_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    headers: HeaderMap,
+    Json(query): Json<ObjectQuery>,
+) -> Result<Json<ObjectSet>, StatusCode>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    authorize(&state, &headers)?;
+    let store = state
+        .store
+        .lock()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let set = store
+        .query_object_set(query)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    Ok(Json(set))
+}
+
+async fn objects_action_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    headers: HeaderMap,
+    Json(action): Json<ObjectAction>,
+) -> Result<Json<ObjectActionReceipt>, StatusCode>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    authorize(&state, &headers)?;
+    let actor = headers
+        .get("x-actor-id")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    let mut store = state
+        .store
+        .lock()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let receipt = store
+        .emit_object_action(action, actor)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    Ok(Json(receipt))
+}
+
+async fn objects_views_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ViewDescriptor>>, StatusCode>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    authorize(&state, &headers)?;
+    let store = state
+        .store
+        .lock()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let registry = store
+        .load_view_registry()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(registry.descriptors().to_vec()))
 }
 
 async fn healthz() -> &'static str {
@@ -310,6 +392,27 @@ where
         .unwrap_or_else(|| "Capture".to_string());
     let kind = blob_item_kind(kind_hint.as_deref(), mime.as_deref());
 
+    // Voice captures: transcribe server-side when a provider is configured, then
+    // fold the transcript into the body so it embeds/searches like any capture.
+    // Fail-open: a transcription error keeps the audio blob, just untranscribed.
+    let is_audio = mime
+        .as_deref()
+        .is_some_and(|mime| mime.starts_with("audio/"))
+        || matches!(&kind, ItemKind::Other(name) if name.as_str() == "audio");
+    let transcriber = Transcriber::from_env();
+    let caption = if is_audio && transcriber.is_enabled() {
+        match transcriber.transcribe(&bytes, mime.as_deref()).await {
+            Ok(Some(transcript)) => Some(merge_caption(caption, &transcript)),
+            Ok(None) => caption,
+            Err(error) => {
+                eprintln!("voice transcription failed: {error}");
+                caption
+            }
+        }
+    } else {
+        caption
+    };
+
     let input = IngestInput {
         title,
         body: IngestBody::Binary {
@@ -357,6 +460,52 @@ fn bad_field(error: axum::extract::multipart::MultipartError) -> (StatusCode, St
         StatusCode::BAD_REQUEST,
         format!("invalid multipart field: {error}"),
     )
+}
+
+/// Fold a fresh transcript into any caption the user already typed.
+fn merge_caption(existing: Option<String>, transcript: &str) -> String {
+    match existing {
+        Some(text) if !text.trim().is_empty() => format!("{text}\n\n{transcript}"),
+        _ => transcript.to_string(),
+    }
+}
+
+/// Read-back request: the answer text and an optional per-call voice override.
+#[derive(Deserialize)]
+struct TtsRequest {
+    text: String,
+    #[serde(default)]
+    voice: Option<String>,
+}
+
+/// `POST /tts`: synthesize speech from text through the env-configured provider
+/// (ElevenLabs by default, or a self-hosted Kokoro node). The provider key stays
+/// on the server; the client only ever sees audio bytes.
+async fn tts_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    headers: HeaderMap,
+    Json(request): Json<TtsRequest>,
+) -> Result<Response, (StatusCode, String)>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    authorize(&state, &headers).map_err(|status| (status, "invalid API key".to_string()))?;
+
+    let trimmed = request.text.trim();
+    if trimmed.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "text is required".to_string()));
+    }
+    // Cap read-back length so a runaway answer cannot fan out a large TTS bill.
+    let text: String = trimmed.chars().take(5000).collect();
+
+    let voice = Voice::from_env().map_err(|error| (StatusCode::SERVICE_UNAVAILABLE, error))?;
+    let speech = voice
+        .synthesize(&text, request.voice.as_deref())
+        .await
+        .map_err(|error| (StatusCode::BAD_GATEWAY, error))?;
+
+    Ok(([(header::CONTENT_TYPE, speech.mime)], speech.bytes).into_response())
 }
 
 /// `GET /blob/{hash}`: the raw bytes at a content hash, served with the mime
