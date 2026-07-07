@@ -13,7 +13,8 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { GitBranch, Globe, Paperclip, ArrowUp, Sparkles } from 'lucide-react';
+import { Globe, Paperclip, ArrowUp, Sparkles } from 'lucide-react';
+import { NetworkGlyph } from './NetworkGlyph';
 
 const INPUT_HEIGHT = {
   default: { min: 52, max: 168 },
@@ -244,7 +245,7 @@ export const AiInputBar = React.forwardRef<HTMLTextAreaElement, AiInputBarProps>
                       : { borderColor: 'transparent', color: 'var(--cp-text-muted)' }
                   }
                 >
-                  <GitBranch size={16} />
+                  <NetworkGlyph size={16} />
                   <AnimatePresence>
                     {mode === 'fractal' ? (
                       <motion.span

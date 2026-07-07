@@ -15,23 +15,14 @@ import Omnibar from '@/components/island/Omnibar';
 import styles from './chat.module.css';
 
 export default function ChatPage() {
+  /* No top chrome: monitoring/focused surfaces omit the p-top title block (the
+     same convention Operator ratified). The bar sits low; results grow above it. */
   return (
-    <>
-      <header className="p-top">
-        <div className="p-toph">
-          <div className="p-kicker">Harness</div>
-          <h1 className="p-h1">Chat</h1>
-        </div>
-      </header>
-
-      <div className={styles.wrap}>
-        <div className={styles.bridge}>
-          <p className={styles.hint}>
-            Ask Theorem, search the web, or both — pick a mode below.
-          </p>
-          <Omnibar frameClassName={styles.omniFrame} shellClassName={styles.omniShell} />
-        </div>
+    <div className={styles.wrap}>
+      <div className={styles.bridge}>
+        <p className={styles.hint}>Ask Theorem, search the web, or both.</p>
+        <Omnibar frameClassName={styles.omniFrame} shellClassName={styles.omniShell} />
       </div>
-    </>
+    </div>
   );
 }
