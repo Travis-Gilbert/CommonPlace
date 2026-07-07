@@ -100,7 +100,7 @@ const NOW = new Date('2026-07-06T00:00:00.000Z');
 describe('Operator live workGraph mapping (PT-010)', () => {
   it('uses the aggregate workGraph when no run is selected', async () => {
     const spy = graphqlFetch({ ok: true, tasks: TASK_NODES });
-    const state = await buildOperatorStateLive({ THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as NodeJS.ProcessEnv, NOW, spy);
+    const state = await buildOperatorStateLive({ THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv, NOW, spy);
     expect(state).not.toBeNull();
     expect(state!.source.endpoint).toBe('https://commonplace-api.example/graphql · all runs');
 
