@@ -66,7 +66,7 @@
   text-align: center;
   padding: calc(var(--u) * 4);
   color: var(--ink-faint);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   max-width: 34ch;
   margin: auto;
@@ -87,14 +87,14 @@
 
 .messageRole {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
 
 .messageBody {
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--ink);
 }
@@ -109,7 +109,7 @@
   gap: 6px;
   margin-top: 4px;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -145,20 +145,20 @@
 
 .toolCardHead {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
 
 .toolAnswer {
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--ink);
 }
 
 .toolMeta {
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
 }
 
@@ -174,7 +174,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--u);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--ink-dim);
 }
 .toolProvenanceScore {
@@ -185,7 +185,7 @@
 .toolLoading,
 .toolEmpty,
 .toolError {
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
 }
 .toolError {
@@ -206,12 +206,12 @@
   display: flex;
   align-items: baseline;
   gap: var(--u);
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: var(--ink);
 }
 .toolFallbackType {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -229,7 +229,7 @@
   align-items: center;
   gap: var(--u);
   font-family: var(--font-body);
-  font-size: 0.86rem;
+  font-size: var(--text-xs);
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--hair);
@@ -258,7 +258,7 @@
 
 .omnibarHint {
   margin-top: 6px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
 }
 
@@ -269,8 +269,6 @@
   bottom: calc(100% - var(--u));
   z-index: 20;
   background-color: var(--plane);
-  background-image: var(--plane-grad);
-  backdrop-filter: blur(6px) saturate(1.05);
   border: 1px solid var(--hair-soft);
   border-radius: var(--r-band);
   box-shadow: var(--edge), var(--float);
@@ -287,7 +285,7 @@
 
 .dropdownGroupLabel {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -305,17 +303,17 @@
 }
 .dropdownItem[data-selected='true'] {
   background: var(--raised);
-  background-image: linear-gradient(180deg, var(--lit), transparent);
+  background-image: none;
   box-shadow: var(--edge);
 }
 .dropdownItemLabel {
-  font-size: 0.85rem;
+  font-size: var(--text-xs);
   color: var(--ink);
 }
 .dropdownItemHint {
   flex: 1;
   min-width: 0;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -324,7 +322,7 @@
 }
 .dropdownEmpty {
   padding: calc(var(--u) * 1.5) calc(var(--u) * 1.1);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
 }
 
@@ -335,8 +333,6 @@
   display: flex;
   flex-direction: column;
   background-color: var(--plane);
-  background-image: var(--plane-grad);
-  backdrop-filter: blur(6px) saturate(1.05);
 }
 
 .stageHead {
@@ -351,7 +347,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -395,7 +391,7 @@
   text-align: center;
   padding: calc(var(--u) * 4);
   color: var(--ink-faint);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.55;
   max-width: 36ch;
   margin: auto;
