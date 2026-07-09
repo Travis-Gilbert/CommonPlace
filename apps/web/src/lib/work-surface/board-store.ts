@@ -18,7 +18,7 @@
  * was found anywhere in this repo, so it is not implemented here rather
  * than invented from nothing — genuinely deferred, not silently dropped.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DEFAULT_BOARD_ID } from './board-flow';
 import { EMPTY_CANVAS, parseCanvasText, serializeCanvas, type JSONCanvas } from './json-canvas';
@@ -62,7 +62,11 @@ export async function loadBoard(boardId: string, root: string = defaultRoot()): 
 export async function saveBoard(boardId: string, canvas: JSONCanvas, root: string = defaultRoot()): Promise<void> {
   const filePath = boardFilePath(boardId, root);
   await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, serializeCanvas(canvas), 'utf8');
+  // Write to a temp file first, then rename atomically so watchers
+  // and concurrent readers never see a partial write.
+  const tmpPath = `${filePath}.tmp-${Date.now()}`;
+  await writeFile(tmpPath, serializeCanvas(canvas), 'utf8');
+  await rename(tmpPath, filePath);
 }
 
 function isEnoent(err: unknown): boolean {
