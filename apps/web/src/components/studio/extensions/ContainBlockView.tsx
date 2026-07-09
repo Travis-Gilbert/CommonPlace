@@ -51,7 +51,9 @@ export default function ContainBlockView(props: NodeViewProps) {
   const handleDissolve = () => {
     const pos = getPos();
     if (typeof pos === 'number') {
-      editor.chain().focus(pos + 1).unsetContainBlock().run();
+    // Custom command on ChainedCommands (mapped type) — use type assertion
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (editor.chain().focus(pos + 1) as any).unsetContainBlock().run();
     }
   };
 

@@ -1,14 +1,12 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-// Explicit Turbopack workspace root. Without this, Turbopack walks up
-// the filesystem looking for the nearest lockfile and picks the wrong
-// directory whenever a stray ~/package-lock.json exists, which mis-roots
-// the module graph and causes the PostCSS subprocess to deadlock when
-// compiling global.css. path.resolve('.') is process.cwd(), which is
-// always the project directory when next dev/build is invoked via
-// npm scripts.
-const projectRoot = path.resolve('.');
+// Explicit Turbopack workspace root. Set to the monorepo root so Turbopack
+// can resolve workspace packages (e.g. @commonplace/block-view-contracts)
+// that live outside the app directory. Without this, Turbopack walks up the
+// filesystem looking for the nearest lockfile, which may pick the wrong
+// directory and cause PostCSS or module-resolution deadlocks.
+const projectRoot = path.resolve('..', '..');
 
 // INDEX_API_PROXY_URL: server-only var for the rewrite destination (not exposed to browser).
 // Falls back to local Index API in development, then Railway production.
