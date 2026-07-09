@@ -47,7 +47,7 @@ export function ObjectSetToolUI({ query, host }: ObjectSetToolUIProps) {
     const instance: ObjectRef = {
       id: `tool-call-view:${descriptor.id}`,
       type: 'view-instance',
-      properties: { descriptor_id: descriptor.renderer },
+      properties: { descriptor_id: descriptor.id },
     };
     return (
       <div className={styles.toolCard}>

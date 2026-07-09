@@ -49,9 +49,9 @@ export function WorkOmnibar({ onAsk, onOpenStage, onRunTool, disabled }: WorkOmn
   const trimmed = text.trim();
   const isSearchQuery = !slash && trimmed.length > 0;
   const dropdownOpen = slash ? stageMatches.length > 0 || toolMatches.length > 0 : trimmed.length > 0;
-  // Stale results from a prior query are never shown once the query that
-  // produced them is no longer active, without needing an effect-driven
-  // reset (which would call setState synchronously inside the effect body).
+  // Only surface results when the user is actively searching. When the
+  // omnibar text is cleared we zero results immediately so stale data from
+  // the prior query never leaks into the dropdown after the user erases it.
   const results = isSearchQuery ? rawResults : [];
   const searching = isSearchQuery && rawSearching;
 

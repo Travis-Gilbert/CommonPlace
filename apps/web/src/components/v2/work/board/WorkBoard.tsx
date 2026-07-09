@@ -210,11 +210,15 @@ export function WorkBoard({ boardId = DEFAULT_BOARD_ID }: WorkBoardProps) {
   // The debounced wrapper is built in an effect (not useMemo) and stashed in
   // a ref: constructing it during render would count as a render-phase read
   // of saveNow's ref-touching closure, which the rules-of-hooks forbid.
+  // On unmount we flush any pending save so unsaved edits are not dropped.
   const persistRef = useRef<ReturnType<typeof debounce<typeof saveNow>> | null>(null);
   useEffect(() => {
     const debounced = debounce(saveNow, 500);
     persistRef.current = debounced;
-    return () => debounced.cancel();
+    return () => {
+      debounced.flush();
+      debounced.cancel();
+    };
   }, [saveNow]);
 
   const commit = useCallback(
@@ -339,7 +343,7 @@ export function WorkBoard({ boardId = DEFAULT_BOARD_ID }: WorkBoardProps) {
         <MiniMap zoomable pannable />
         <Controls showInteractive={false} />
         <Panel position="top-right" className={styles.toolbar}>
-          <button type="button" className={styles.addButton} onClick={handleAddNote}>
+          <button type="button" className={styles.addButton} onClick={handleAddNote} disabled={loadState === 'loading'}>
             <Plus size={13} /> Note
           </button>
           <span className={styles.status} data-status={saveStatus}>

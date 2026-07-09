@@ -14,6 +14,7 @@ import type { JsonValue } from '@/lib/block-view/types';
 import {
   appendUserMessage,
   appendAssistantPlaceholder,
+  applyCancel,
   beginToolCall,
   completeToolCall,
   createStreamHandlers,
@@ -88,6 +89,16 @@ export function useWorkThread(sessionId: string): UseWorkThreadResult {
   const askInFlightRef = useRef(false);
   const closeStreamRef = useRef<(() => void) | null>(null);
   const lastUserTextRef = useRef('');
+  // Bumped at the top of every ask() call; stream handlers capture the epoch
+  // they were created with and bail if it no longer matches, so a stale
+  // stream (superseded by a cancel or a newer ask()) can't mutate a message
+  // that isn't "theirs" anymore.
+  const streamEpochRef = useRef(0);
+  // Lets onCancel abort the in-flight fetch/EventSource even if it fires
+  // before askTheseusAsyncStream has resolved (i.e. before closeStreamRef
+  // is populated).
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const currentAssistantIdRef = useRef<string | null>(null);
 
   const setMessages = useCallback(
     (updater: (messages: readonly WorkMessage[]) => WorkMessage[]) => {
@@ -103,16 +114,37 @@ export function useWorkThread(sessionId: string): UseWorkThreadResult {
       lastUserTextRef.current = trimmed;
       askInFlightRef.current = true;
 
+      const epoch = (streamEpochRef.current += 1);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       setMessages((prev) => appendUserMessage(prev, trimmed));
       const assistantId = nextWorkMessageId('assistant');
+      currentAssistantIdRef.current = assistantId;
       setMessages((prev) => appendAssistantPlaceholder(prev, assistantId));
 
-      const handlers = createStreamHandlers(assistantId, setMessages, () => {
+      // Guards every mutation this stream's handlers make: if a cancel or a
+      // newer ask() has since bumped the epoch, this stream is stale and
+      // must not touch the (possibly reassigned) message log.
+      const guardedSetMessages = (updater: (messages: readonly WorkMessage[]) => WorkMessage[]) => {
+        if (streamEpochRef.current !== epoch) return;
+        setMessages(updater);
+      };
+
+      const handlers = createStreamHandlers(assistantId, guardedSetMessages, () => {
+        if (streamEpochRef.current !== epoch) return;
         askInFlightRef.current = false;
         closeStreamRef.current = null;
+        abortControllerRef.current = null;
       });
 
-      void askTheseusAsyncStream(trimmed, {}, handlers).then((close) => {
+      void askTheseusAsyncStream(trimmed, { signal: controller.signal }, handlers).then((close) => {
+        if (streamEpochRef.current !== epoch) {
+          // Superseded while the request was in flight: close immediately
+          // instead of handing a stale closer to closeStreamRef.
+          close();
+          return;
+        }
         closeStreamRef.current = close;
       });
     },
@@ -158,7 +190,7 @@ export function useWorkThread(sessionId: string): UseWorkThreadResult {
         fail(new Error('Coordination ping is only available in the CommonPlace desktop app.'));
         return;
       }
-      roomContext(DEFAULT_ROOM).then((result) => settle(result as unknown as JsonValue), fail);
+      roomContext(DEFAULT_ROOM, arg).then((result) => settle(result as unknown as JsonValue), fail);
     },
     [setMessages],
   );
@@ -175,9 +207,20 @@ export function useWorkThread(sessionId: string): UseWorkThreadResult {
         ask(textParts.map((part) => part.text).join(' '));
       },
       onCancel: async () => {
+        // Bump the epoch first so any in-flight stream handlers become
+        // no-ops even if they fire between this line and the abort/close
+        // calls below.
+        streamEpochRef.current += 1;
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = null;
         closeStreamRef.current?.();
         closeStreamRef.current = null;
         askInFlightRef.current = false;
+
+        const assistantId = currentAssistantIdRef.current;
+        if (assistantId) {
+          setMessages((prev) => applyCancel(prev, assistantId));
+        }
       },
       onReload: async () => {
         if (lastUserTextRef.current) ask(lastUserTextRef.current);

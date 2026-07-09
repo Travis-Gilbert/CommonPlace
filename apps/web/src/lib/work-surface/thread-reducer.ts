@@ -169,6 +169,21 @@ export function applyError(
 }
 
 /**
+ * User-initiated cancellation. Unlike applyError, this carries no error
+ * text: the assistant message simply stops streaming with whatever
+ * partial content/tool parts it had accumulated so far.
+ */
+export function applyCancel(
+  messages: readonly WorkMessage[],
+  assistantId: string,
+): WorkMessage[] {
+  return updateMessage(messages, assistantId, (message) => ({
+    ...message,
+    isStreaming: false,
+  }));
+}
+
+/**
  * WS3 one-shot tool calls (/recall, /ping). Unlike the Theseus stage
  * machinery above, these never stream tokens: a single tool part goes
  * straight from 'running' to 'complete' once the real backend call

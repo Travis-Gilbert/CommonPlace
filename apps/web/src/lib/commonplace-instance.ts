@@ -136,7 +136,7 @@ export function normalizeCommonPlaceObjectsEndpoint(raw: string, suffix: string)
   try {
     const url = new URL(input);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    const base = trimTrailingSlash(url.pathname);
+    const base = trimTrailingSlash(url.pathname).replace(/\/graphql\/?$/, '');
     url.pathname = `${base}${suffix}`;
     url.search = '';
     url.hash = '';

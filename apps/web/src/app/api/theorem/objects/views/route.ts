@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       method: 'GET',
       headers: { 'x-api-key': target.apiKey },
       cache: 'no-store',
+      signal: AbortSignal.timeout(30_000),
     });
     const text = await res.text();
     return new Response(text, { status: res.status, headers: { 'Content-Type': 'application/json' } });

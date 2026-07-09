@@ -52,7 +52,7 @@ import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next';
 import { unifiedMergeView } from '@codemirror/merge';
 import * as Y from 'yjs';
 import { useCommonplaceCollabYjs } from '@/lib/useCommonplaceCollabYjs';
-import { gqlCreatePage } from '@/lib/commonplace-graphql';
+import { createPage } from '@/lib/commonplace-api';
 import { useSpring, FADE_EXIT } from '@/lib/work-surface/work-motion';
 import {
   CODE_LANGUAGES,
@@ -404,11 +404,27 @@ export function WorkTextEditor({ kind, itemId }: WorkTextEditorProps) {
   const mintStartedRef = useRef(false);
   const spring = useSpring('gentle');
 
+  // WS6 fix: if the component is reused for a different item/kind (e.g.
+  // switching from a scratch doc to scratch code without remounting), the
+  // resolved id and mint state must reset so the effect below mints or
+  // adopts the *new* item instead of continuing to edit the stale one.
+  useEffect(() => {
+    if (itemId) {
+      setResolvedItemId(itemId);
+      mintStartedRef.current = false;
+    } else {
+      setResolvedItemId(null);
+      mintStartedRef.current = false;
+    }
+    setMintNotice(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, kind]);
+
   useEffect(() => {
     if (itemId || resolvedItemId !== null || mintStartedRef.current) return;
     mintStartedRef.current = true;
     let cancelled = false;
-    void gqlCreatePage({ title: mintTitleForStage(kind), body: '' })
+    void createPage({ title: mintTitleForStage(kind), body: '' })
       .then((page) => {
         if (!cancelled) setResolvedItemId(page.id);
       })
