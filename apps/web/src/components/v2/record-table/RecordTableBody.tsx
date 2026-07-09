@@ -2,7 +2,15 @@
 // group-by row rendering, and action emission via BlockHost.
 'use client';
 
-import { Fragment, useCallback, useEffect, useRef, type FC } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+} from 'react';
 import { flexRender, type Table, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { JsonValue, ObjectRef, BlockHost } from '@/lib/block-view/types';
@@ -28,6 +36,11 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
 }) => {
   const store = useRecordTableStore();
   const bodyRef = useRef<HTMLTableSectionElement>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const { rows } = table.getRowModel();
 
@@ -38,7 +51,7 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
     overscan: 10,
   });
 
-  const virtualRows = virtualizer.getVirtualItems();
+  const virtualRows = isClient ? virtualizer.getVirtualItems() : [];
 
   // Keyboard navigation
   const focusedCellRef = useRef<{ rowIdx: number; field: string } | null>(null);
@@ -146,125 +159,159 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
     [store],
   );
 
+  // ── Shared row renderer (used by both SSR fallback and client virtualized) ──
+  const renderTableRow = useCallback(
+    (row: Row<ObjectRef>, index: number, isVirtual: boolean, virtualStart?: number) => {
+      const isSelected = store.selectedIds.has(row.original.id);
+
+      const groupField = store.groupBy?.field;
+      const prevRow = index > 0 ? (rows[index - 1] as Row<ObjectRef>) : null;
+      const prevGroupValue =
+        groupField && prevRow ? String(prevRow.original.properties[groupField] ?? '') : undefined;
+      const thisGroupValue = groupField
+        ? String(row.original.properties[groupField] ?? '')
+        : undefined;
+      const showGroupRow =
+        groupField && thisGroupValue !== undefined && prevGroupValue !== thisGroupValue;
+
+      const rowClass = isSelected
+        ? `${styles['rt-tr']} ${styles['rt-tr--selected']}`
+        : styles['rt-tr'];
+
+      // Only apply absolute positioning when virtualized (client-side)
+      const rowStyle = isVirtual
+        ? {
+            position: 'absolute' as const,
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: ROW_HEIGHT,
+            transform: `translateY(${virtualStart ?? index * ROW_HEIGHT}px)`,
+          }
+        : undefined;
+
+      return (
+        <Fragment key={row.id}>
+          {showGroupRow && (
+            <RecordTableGroupRow
+              label={thisGroupValue!}
+              count={0}
+              depth={0}
+              collapsed={store.collapsedGroups.has(thisGroupValue!)}
+              onToggle={() => store.toggleGroupCollapsed(thisGroupValue!)}
+            />
+          )}
+          <tr
+            data-row={isVirtual ? virtualStart : index}
+            className={rowClass}
+            style={rowStyle}
+            onClick={(e) => handleRowSelect(row.original.id, e)}
+          >
+            {store.selectionMode !== 'none' && (
+              <td
+                className={`${styles['rt-td']} ${styles['rt-td-checkbox']}`}
+                style={{ width: 32 }}
+              >
+                <input
+                  type="checkbox"
+                  className={styles['rt-checkbox']}
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    store.toggleRowSelection(row.original.id);
+                  }}
+                  aria-label={`Select row ${row.original.id}`}
+                />
+              </td>
+            )}
+            {row.getVisibleCells().map((cell) => {
+              const meta = columnMeta.find((c) => c.id === cell.column.id);
+              if (!meta) return null;
+              const isEditing =
+                store.editingCell?.rowId === row.original.id &&
+                store.editingCell?.field === cell.column.id;
+
+              const tdClass = isEditing
+                ? `${styles['rt-td']} ${styles['rt-td--editing']}`
+                : styles['rt-td'];
+
+              return (
+                <td
+                  key={cell.id}
+                  className={tdClass}
+                  style={{
+                    width: store.columnWidths[cell.column.id] ?? meta.defaultWidth,
+                  }}
+                  data-field={cell.column.id}
+                  tabIndex={0}
+                  onKeyDown={(e) => handleKeyDown(e, index, cell.column.id!)}
+                  onDoubleClick={() => {
+                    const value = row.original.properties[cell.column.id!];
+                    store.startEditing({
+                      rowId: row.original.id,
+                      field: cell.column.id!,
+                      value: value != null ? String(value) : '',
+                    });
+                  }}
+                  role="gridcell"
+                >
+                  {isEditing ? (
+                    <InlineEdit
+                      value={store.editingCell!.value}
+                      propType={meta.propType}
+                      onChange={(v) => {
+                        store.startEditing({
+                          rowId: row.original.id,
+                          field: cell.column.id!,
+                          value: v,
+                        });
+                      }}
+                      onCommit={handleCommitEditing}
+                      onCancel={() => store.cancelEditing()}
+                    />
+                  ) : (
+                    flexRender(cell.column.columnDef.cell, cell.getContext())
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        </Fragment>
+      );
+    },
+    [store, columnMeta, rows, handleKeyDown, handleRowSelect, handleCommitEditing],
+  );
+
   return (
     <tbody className={styles['rt-tbody']} ref={bodyRef}>
-      {/* Spacer for virtual scroll */}
-      {virtualRows.length > 0 && (
-        <tr style={{ height: virtualizer.getTotalSize() }}>
-          <td colSpan={columnMeta.length + (store.selectionMode !== 'none' ? 1 : 0)} />
-        </tr>
-      )}
+      {/* SSR fallback: render all rows without virtualization */}
+      {!isClient &&
+        (rows as Row<ObjectRef>[]).map((row, index) =>
+          renderTableRow(row, index, false),
+        )}
 
-      {/* Visible rows positioned absolutely */}
-      {virtualRows.map((virtualRow) => {
-        const row = rows[virtualRow.index] as Row<ObjectRef>;
-        const isSelected = store.selectedIds.has(row.original.id);
-
-        // Group-by injection: render group header before first row of each group
-        const groupField = store.groupBy?.field;
-        const prevRow = virtualRow.index > 0 ? (rows[virtualRow.index - 1] as Row<ObjectRef>) : null;
-        const prevGroupValue = groupField && prevRow ? String(prevRow.original.properties[groupField] ?? '') : undefined;
-        const thisGroupValue = groupField ? String(row.original.properties[groupField] ?? '') : undefined;
-        const showGroupRow = groupField && thisGroupValue !== undefined && prevGroupValue !== thisGroupValue;
-
-        const rowClass = isSelected
-          ? `${styles['rt-tr']} ${styles['rt-tr--selected']}`
-          : styles['rt-tr'];
-
-        return (
-          <Fragment key={row.id}>
-            {showGroupRow && (
-              <RecordTableGroupRow
-                label={thisGroupValue!}
-                count={0}
-                depth={0}
-                collapsed={store.collapsedGroups.has(thisGroupValue!)}
-                onToggle={() => store.toggleGroupCollapsed(thisGroupValue!)}
+      {/* Client-side: virtualized rendering */}
+      {isClient && (
+        <>
+          {virtualRows.length > 0 && (
+            <tr style={{ height: virtualizer.getTotalSize() }}>
+              <td
+                colSpan={
+                  columnMeta.length + (store.selectionMode !== 'none' ? 1 : 0)
+                }
               />
-            )}
-            <tr
-              key={row.id}
-              data-row={virtualRow.index}
-              className={rowClass}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: ROW_HEIGHT,
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-              onClick={(e) => handleRowSelect(row.original.id, e)}
-            >
-              {store.selectionMode !== 'none' && (
-                <td className={`${styles['rt-td']} ${styles['rt-td-checkbox']}`} style={{ width: 32 }}>
-                  <input
-                    type="checkbox"
-                    className={styles['rt-checkbox']}
-                    checked={isSelected}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      store.toggleRowSelection(row.original.id);
-                    }}
-                    aria-label={`Select row ${row.original.id}`}
-                  />
-                </td>
-              )}
-              {row.getVisibleCells().map((cell) => {
-                const meta = columnMeta.find((c) => c.id === cell.column.id);
-                if (!meta) return null;
-                const isEditing =
-                  store.editingCell?.rowId === row.original.id &&
-                  store.editingCell?.field === cell.column.id;
-
-                const tdClass = isEditing
-                  ? `${styles['rt-td']} ${styles['rt-td--editing']}`
-                  : styles['rt-td'];
-
-                return (
-                  <td
-                    key={cell.id}
-                    className={tdClass}
-                    style={{
-                      width: store.columnWidths[cell.column.id] ?? meta.defaultWidth,
-                    }}
-                    data-field={cell.column.id}
-                    tabIndex={0}
-                    onKeyDown={(e) => handleKeyDown(e, virtualRow.index, cell.column.id!)}
-                    onDoubleClick={() => {
-                      const value = row.original.properties[cell.column.id!];
-                      store.startEditing({
-                        rowId: row.original.id,
-                        field: cell.column.id!,
-                        value: value != null ? String(value) : '',
-                      });
-                    }}
-                    role="gridcell"
-                  >
-                    {isEditing ? (
-                      <InlineEdit
-                        value={store.editingCell!.value}
-                        propType={meta.propType}
-                        onChange={(v) => {
-                          store.startEditing({
-                            rowId: row.original.id,
-                            field: cell.column.id!,
-                            value: v,
-                          });
-                        }}
-                        onCommit={handleCommitEditing}
-                        onCancel={() => store.cancelEditing()}
-                      />
-                    ) : (
-                      flexRender(cell.column.columnDef.cell, cell.getContext())
-                    )}
-                  </td>
-                );
-              })}
             </tr>
-          </Fragment>
-        );
-      })}
+          )}
+          {virtualRows.map((virtualRow) =>
+            renderTableRow(
+              rows[virtualRow.index] as Row<ObjectRef>,
+              virtualRow.index,
+              true,
+              virtualRow.start,
+            ),
+          )}
+        </>
+      )}
     </tbody>
   );
 };
