@@ -1,0 +1,219 @@
+/* TW4 data-canvas — porcelain styling for XYFlow data-model canvas */
+
+.host {
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}
+
+/* ── TypeNode ── */
+
+.typeNode {
+  background: var(--plane);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  padding: 0;
+  min-width: 200px;
+  font-size: var(--text-xxs);
+}
+
+.typeNodeSelected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.typeHeader {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--hair-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+}
+
+.typeName {
+  color: var(--ink);
+}
+
+.fieldList {
+  padding: 4px 0;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  position: relative;
+  font-size: var(--text-xxs);
+}
+
+.fieldRow:hover {
+  background: var(--hair-soft);
+}
+
+.fieldIcon {
+  width: 18px;
+  text-align: center;
+  font-size: var(--text-xxs);
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}
+
+.fieldName {
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldType {
+  color: var(--ink-dim);
+  font-size: var(--text-xxs);
+  font-family: var(--font-mono, monospace);
+  flex-shrink: 0;
+}
+
+.fieldRowHover:hover {
+  background: var(--hair-soft);
+}
+
+.fieldDeleteBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fieldRowHover:hover .fieldDeleteBtn {
+  display: flex;
+}
+
+.fieldDeleteBtn:hover {
+  background: var(--danger-soft, rgba(255, 80, 80, 0.12));
+  color: var(--danger, #ff5050);
+}
+
+.fieldHandle {
+  position: absolute;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--hair);
+  border: 1px solid var(--ink-dim);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fieldRowHover:hover .fieldHandle {
+  opacity: 1;
+}
+
+.typeHandle {
+  width: 8px;
+  height: 8px;
+  background: var(--hair);
+  border: 1px solid var(--ink-dim);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.typeNode:hover .typeHandle {
+  opacity: 1;
+}
+
+/* ── Add field ── */
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  border-top: 1px solid var(--hair-soft);
+  border-radius: 0 0 7px 7px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: var(--text-xxs);
+  cursor: pointer;
+}
+
+.addBtn:hover {
+  background: var(--hair-soft);
+  color: var(--ink);
+}
+
+.addForm {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--hair-soft);
+}
+
+.addInput {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  background: var(--hair-soft);
+  color: var(--ink);
+  font-size: var(--text-xxs);
+  min-width: 0;
+}
+
+.addInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.addSelect {
+  padding: 4px;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  background: var(--hair-soft);
+  color: var(--ink);
+  font-size: var(--text-xxs);
+  font-family: var(--font-mono, monospace);
+}
+
+.addConfirm {
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--text-xxs);
+  cursor: pointer;
+}
+
+/* ── Edge label ── */
+
+.edgeLabel {
+  padding: 2px 6px;
+  background: var(--plane);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  font-size: var(--text-xxs);
+  color: var(--ink-dim);
+  pointer-events: all;
+  white-space: nowrap;
+}

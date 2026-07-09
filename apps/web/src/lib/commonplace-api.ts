@@ -56,6 +56,7 @@ import {
   gqlCapture,
   gqlNotebooks,
   gqlCreateCollection,
+  gqlCreatePage,
   gqlNotebookBySlug,
   gqlNotebookHealth,
   gqlProjects,
@@ -68,6 +69,7 @@ import {
   gqlFetchObjects,
   gqlItems,
   stableNumId,
+  type ItemGql,
 } from '@/lib/commonplace-graphql';
 
 /* ─────────────────────────────────────────────────
@@ -612,6 +614,19 @@ export async function createNotebook(data: {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+/** Mint a new Item of kind='doc' (a "page"). Wraps the same createPage
+ * mutation ProjectPagesView.tsx and WorkTextEditor.tsx already use, so
+ * both go through this single source of truth for the API call. */
+export async function createPage(input: {
+  projectId?: string;
+  aboutItemId?: string;
+  title: string;
+  body?: string;
+  tags?: string[];
+}): Promise<ItemGql> {
+  return gqlCreatePage(input);
 }
 
 /** Fetch a single notebook by slug */

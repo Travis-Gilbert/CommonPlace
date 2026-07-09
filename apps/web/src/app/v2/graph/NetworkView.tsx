@@ -191,9 +191,7 @@ export default function NetworkView({ data, focusId, onFocus, selectedCommunitie
     graph.render(0);
     if (focusId) {
       const idx = data.nodes.findIndex((n) => n.id === focusId);
-      if (idx >= 0) graph.selectPointByIndex(idx, true);
-    } else {
-      graph.unselectPoints();
+      if (idx >= 0) graph.fitViewByPointIndices([idx], 300, 128);
     }
     positionLabelsRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps

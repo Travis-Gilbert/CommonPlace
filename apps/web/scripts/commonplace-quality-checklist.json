@@ -83,7 +83,8 @@
   "staticSources": {
     "includeDirs": [
       "src/components/commonplace",
-      "src/app/(commonplace)"
+      "src/app/(commonplace)",
+      "src/components/v2/work"
     ],
     "includeFiles": [
       "src/styles/commonplace.css",
@@ -167,6 +168,13 @@
       "navLabel": "Vector Space",
       "viewport": "desktop",
       "renderChecks": ["axe-pending", "target-size-pending", "coordinate-finite-pending"]
+    },
+    {
+      "id": "work-surface",
+      "path": "/v2/work",
+      "label": "Work surface",
+      "viewport": "desktop",
+      "renderChecks": ["http-ok", "axe-pending", "target-size-pending"]
     }
   ]
 }

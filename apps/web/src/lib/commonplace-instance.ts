@@ -124,6 +124,28 @@ export function normalizeCommonPlaceGraphqlEndpoint(raw: string): string | null 
   }
 }
 
+/**
+ * Same-origin base-URL normalizer for the SPEC-OBJECT-CONTRACT-V2 routes
+ * (`/objects/query|action|views`), sibling to normalizeCommonPlaceGraphqlEndpoint
+ * above. Unlike the GraphQL endpoint, the objects routes are a base path plus
+ * a fixed suffix (e.g. `/objects/query`), not a single `/graphql` endpoint.
+ */
+export function normalizeCommonPlaceObjectsEndpoint(raw: string, suffix: string): string | null {
+  const input = raw.trim();
+  if (!input) return null;
+  try {
+    const url = new URL(input);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    const base = trimTrailingSlash(url.pathname).replace(/\/graphql\/?$/, '');
+    url.pathname = `${base}${suffix}`;
+    url.search = '';
+    url.hash = '';
+    return trimTrailingSlash(url.toString());
+  } catch {
+    return null;
+  }
+}
+
 export function isAllowedLocalCommonPlaceHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host === '::1' || host === '0.0.0.0') return true;

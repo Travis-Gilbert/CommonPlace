@@ -1,0 +1,85 @@
+{
+  "kind": "repo_hygiene_receipt",
+  "timestamp": "2026-07-09T03:57:16Z",
+  "repo_root": "/Volumes/SSD Samsung/var-18/copilot-worktrees/CommonPlace/travis-gilbert-scaling-spork",
+  "branch": "travis-gilbert-scaling-spork",
+  "commit_sha": "bcb3f1631d52499bd08c0639b4d408a09b48f4a2",
+  "mode": "advisory",
+  "failed_count": 0,
+  "warning_count": 1,
+  "hard_axis_failed": false,
+  "reports": [
+    {
+      "checker": "git_status",
+      "status": "warning",
+      "severity": "medium",
+      "message": "Worktree has uncommitted changes outside hook-local state.",
+      "command": "git status --short --branch",
+      "exit_code": 0,
+      "output": "## travis-gilbert-scaling-spork\n M apps/web/package-lock.json\n M apps/web/package.json\n M apps/web/src/app/v2/files/files.module.css\n M apps/web/src/app/v2/graph/graph.module.css\n M apps/web/src/app/v2/ledger/ledger.module.css\n M apps/web/src/app/v2/operator/operator.module.css\n M apps/web/src/app/v2/surface.module.css\n M apps/web/src/app/v2/timeline/timeline.module.css\n M apps/web/src/app/v2/workrooms/workrooms.module.css\n M apps/web/src/components/v2/index/index.module.css\n M apps/web/src/components/v2/work/work.module.css\n M apps/web/src/styles/porcelain-surfaces.css\n M apps/web/src/styles/porcelain-theme.css\n M package-lock.json\n?? apps/web/pnpm-lock.yaml\n?? apps/web/scripts/gen-tokens.ts\n?? apps/web/src/__tests__/\n?? apps/web/src/app/v2/data-model/\n?? apps/web/src/components/v2/data-canvas/\n?? apps/web/src/components/v2/kanban/\n?? apps/web/src/components/v2/record-table/\n?? apps/web/src/lib/theme/"
+    },
+    {
+      "checker": "diff_check_unstaged",
+      "status": "passed",
+      "severity": "error",
+      "message": "No whitespace or patch hygiene errors in unstaged changes.",
+      "command": "git diff --check -- . ':!.theorem' ':!.harness'",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "diff_check_staged",
+      "status": "passed",
+      "severity": "error",
+      "message": "No whitespace or patch hygiene errors in staged changes.",
+      "command": "git diff --cached --check -- . ':!.theorem' ':!.harness'",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "conflict_markers",
+      "status": "passed",
+      "severity": "info",
+      "message": "No conflict markers found.",
+      "command": "git grep --untracked conflict markers",
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "checker": "untracked_secrets",
+      "status": "passed",
+      "severity": "info",
+      "message": "No untracked secret-like files found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "untracked_artifacts",
+      "status": "passed",
+      "severity": "info",
+      "message": "No suspicious untracked artifacts found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "large_untracked_files",
+      "status": "passed",
+      "severity": "info",
+      "message": "No large untracked files found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "tracked_sensitive_artifacts",
+      "status": "passed",
+      "severity": "info",
+      "message": "No tracked secret-like, database, or log artifacts found.",
+      "command": "git ls-files",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

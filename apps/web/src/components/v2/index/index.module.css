@@ -76,7 +76,7 @@
 .tab {
   appearance: none;
   font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid transparent;
@@ -105,7 +105,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--font-body);
-  font-size: 0.84rem;
+  font-size: var(--text-xs);
   color: var(--ink);
   background: var(--plane);
   border: 1px solid var(--hair);
@@ -146,7 +146,7 @@
   padding: calc(var(--u) * 5) var(--u);
   text-align: center;
   color: var(--ink-faint);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
 }
 
 /* row as a selection button: reset chrome, keep the .p-row material. Selected
@@ -166,7 +166,7 @@
 }
 :global(.p-row).rowSelected {
   background: var(--raised);
-  background-image: linear-gradient(180deg, var(--lit), transparent);
+  background-image: none;
   box-shadow: var(--edge), var(--raise);
   border-color: var(--hair);
 }
@@ -178,8 +178,6 @@
   display: flex;
   flex-direction: column;
   background-color: var(--plane);
-  background-image: var(--plane-grad);
-  backdrop-filter: blur(6px) saturate(1.05);
 }
 
 .detailEmpty {
@@ -190,7 +188,7 @@
   text-align: center;
   padding: calc(var(--u) * 4);
   color: var(--ink-faint);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   max-width: 34ch;
   margin: 0 auto;
@@ -231,7 +229,7 @@
 }
 .detailTitle {
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -240,7 +238,7 @@
 }
 .detailProv {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -254,7 +252,7 @@
   align-items: center;
   gap: var(--u);
   flex-wrap: wrap;
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: var(--ink-dim);
 }
 .filedLabel {
@@ -304,7 +302,7 @@
 .toolBtn {
   appearance: none;
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-dim);
@@ -337,7 +335,7 @@
   display: flex;
   align-items: center;
   gap: var(--u);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   color: var(--ink-dim);
   padding: calc(var(--u) * 0.9) calc(var(--u) * 1.2);
   border-radius: 8px;
@@ -358,7 +356,7 @@
 .receiptUndo {
   appearance: none;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--text-xxs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-dim);
@@ -387,7 +385,7 @@
 .composerField {
   width: 100%;
   font: inherit;
-  font-size: 0.86rem;
+  font-size: var(--text-xs);
   color: var(--ink);
   background: var(--raised);
   border: 1px solid var(--hair);
@@ -407,6 +405,6 @@
 }
 .composerHint {
   margin-top: 6px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
 }
