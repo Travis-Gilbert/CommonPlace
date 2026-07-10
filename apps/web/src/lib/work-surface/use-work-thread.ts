@@ -190,7 +190,7 @@ export function useWorkThread(sessionId: string): UseWorkThreadResult {
         fail(new Error('Coordination ping is only available in the CommonPlace desktop app.'));
         return;
       }
-      roomContext(DEFAULT_ROOM, arg).then((result) => settle(result as unknown as JsonValue), fail);
+      roomContext(DEFAULT_ROOM).then((result) => settle(result as unknown as JsonValue), fail);
     },
     [setMessages],
   );
