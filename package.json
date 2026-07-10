@@ -32,7 +32,13 @@
   },
   "pnpm": {
     "overrides": {
-      "@blocksuite/icons": "2.1.75"
+      "@blocksuite/icons": "2.1.75",
+      "@duckdb/duckdb-wasm": "1.32.0",
+      "@luma.gl/core": "9.2.6",
+      "@luma.gl/engine": "9.2.6",
+      "@luma.gl/webgl": "9.2.6",
+      "@luma.gl/shadertools": "9.2.6",
+      "@luma.gl/constants": "9.2.6"
     }
   }
 }
