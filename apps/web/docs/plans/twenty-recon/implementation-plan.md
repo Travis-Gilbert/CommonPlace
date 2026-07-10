@@ -208,3 +208,12 @@ Deferred with named cause (not silent cuts), all tracing to a backend/oracle thi
 - Select/enum + relation editors (TW2): need enum-constraint metadata + relations-as-columns in `ObjectShape`.
 - positions-as-surface-object, research-scope source, cross-surface relation picker (TW4): need reachable backend endpoints.
 - Live oracle items: TW1 5%-diff vs self-hosted Twenty, TW2 60fps on 5k rows, TW6 React-profiler assertion, TW7 cross-repo similarity vs pinned checkout: built to the seam, run needs a browser and/or CI provisioning.
+
+## Post-review hardening (PR 18)
+
+Automated review (Copilot, Codex, CodeRabbit) surfaced defects that were each verified against the code before fixing:
+
+- Commit 03fa85a (Copilot): tabpanel element per tab id so every `aria-controls` target exists (TW5); bulk delete via `Promise.allSettled` in `try/finally` so a rejected emit cannot wedge the bar (TW2/C7); date editor formats/parses from local parts, not UTC, fixing an off-by-one day (TW2/C2); removed an unused `Virtualizer` type; `onPositionsChange` passes a snapshot, not the long-lived ref (TW4).
+- Commit 7711fb6 (Codex + CodeRabbit): `TABLE_VIEW.emits` now includes `delete` so the descriptor contract matches what the table fires (TW5/TW7 provenance); the boolean checkbox commit reads the live editing atom via `getDefaultStore` instead of the render closure, so it emits the toggled value not the pre-toggle one (TW2/C2, was a correctness bug); the keyboard `Enter` path guards on `meta.editable` like double-click (TW2/C3); bulk delete narrows the selection to the failed ids on partial failure (TW2/C7); canvas derives once on mount (TW4); the provenance self-test now plants a copied-source marker as well as an import and asserts both violation classes (TW7).
+
+After both: 282 vitest pass, provenance self-test PASS (both classes) + scan clean, tsc + eslint clean on touched files. All review threads resolved.
