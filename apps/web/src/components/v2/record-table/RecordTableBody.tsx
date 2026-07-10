@@ -21,7 +21,7 @@ import {
 } from 'react';
 import { flexRender, type Table, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useAtomValue } from 'jotai';
+import { useAtomValue, getDefaultStore } from 'jotai';
 import type { JsonValue, ObjectRef, BlockHost } from '@/lib/block-view/types';
 import type { ColumnMeta } from './types';
 import {
@@ -119,6 +119,9 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
           break;
         case 'Enter': {
           e.preventDefault();
+          // Match the double-click path: only editable fields open an editor.
+          const meta = columnMeta.find((c) => c.id === field);
+          if (!meta?.editable) break;
           const row = rows[rowIdx];
           if (!row) break;
           const value = row.original.properties[field];
@@ -377,7 +380,11 @@ const CellEditor: FC<CellEditorProps> = ({ rowId, field, meta, host }) => {
   const value = editing && editing.rowId === rowId && editing.field === field ? editing.value : '';
 
   const commit = useCallback(() => {
-    const current = editing;
+    // Read the live atom, not the render closure: the boolean checkbox fires
+    // onChange then onCommit in one synchronous handler, so `editing` from this
+    // render still holds the pre-toggle value. getDefaultStore is the same store
+    // the actions write through.
+    const current = getDefaultStore().get(editingCellAtom);
     if (!current) return;
     const patch: Record<string, JsonValue> = {};
     if (meta.propType === 'number' || meta.propType === 'integer' || meta.propType === 'timestamp_ms') {
@@ -394,7 +401,7 @@ const CellEditor: FC<CellEditorProps> = ({ rowId, field, meta, host }) => {
         else actions.cancelEditing();
       })
       .catch(() => actions.cancelEditing());
-  }, [editing, meta.propType, field, rowId, host]);
+  }, [meta.propType, field, rowId, host]);
 
   return (
     <InlineEdit

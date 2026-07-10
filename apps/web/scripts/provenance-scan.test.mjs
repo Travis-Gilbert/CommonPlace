@@ -20,10 +20,13 @@ const SRC_DIR = path.resolve(SCRIPT_DIR, '..', 'src');
 const PLANTED_NAME = '__provenance_planted__.tmp.ts';
 const PLANTED_PATH = path.join(SRC_DIR, PLANTED_NAME);
 
-// A minimal fixture whose only provenance violation is the twenty-package import.
+// A fixture that trips both violation classes: a twenty-package import and a
+// copied-source marker string.
 const PLANTED_CONTENT = [
   '// Temporary fixture written by provenance-scan.test.mjs. Auto-removed.',
   "import { Button } from 'twenty-ui';",
+  '',
+  '// copied from twentyhq/twenty',
   '',
   'export const planted = Button;',
   '',
@@ -35,13 +38,21 @@ try {
   writeFileSync(PLANTED_PATH, PLANTED_CONTENT, 'utf8');
   plantedOnDisk = true;
 
-  // Assertion 1: the planted twenty import is detected.
+  // Assertion 1: the planted file trips both violation classes (a twenty import
+  // and a copied-source marker), so the self-test exercises the whole scanner.
   const withPlanted = scanPath(SRC_DIR);
-  const hit = withPlanted.find(
+  const plantedHits = withPlanted.filter(
     (violation) => violation.file === PLANTED_PATH || violation.file.endsWith(PLANTED_NAME),
   );
-  if (!hit) {
-    throw new Error(`planted import in ${PLANTED_NAME} was not detected by scanPath()`);
+  if (plantedHits.length === 0) {
+    throw new Error(`planted violations in ${PLANTED_NAME} were not detected by scanPath()`);
+  }
+  const plantedReasons = plantedHits.map((violation) => violation.reason).join('; ');
+  if (!plantedReasons.includes('import from twenty package')) {
+    throw new Error(`planted twenty import not detected; reasons: ${plantedReasons}`);
+  }
+  if (!plantedReasons.includes('copied-source marker')) {
+    throw new Error(`planted copied-source marker not detected; reasons: ${plantedReasons}`);
   }
 
   // Remove the temp file so the clean check runs against the real tree only.
@@ -55,7 +66,7 @@ try {
     throw new Error(`real src tree is not clean: ${clean.length} violation(s)\n${listed}`);
   }
 
-  console.log(`PASS: planted import detected as [${hit.reason}]; real src tree scans clean (0 violations).`);
+  console.log(`PASS: planted import + marker detected [${plantedReasons}]; real src tree scans clean (0 violations).`);
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
   process.exitCode = 1;

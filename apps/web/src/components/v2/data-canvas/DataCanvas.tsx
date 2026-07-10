@@ -67,12 +67,11 @@ export const DataCanvas: FC<DataCanvasProps> = ({
   // Local state so ReactFlow can show live drag positions. Seeded from the
   // initialPositions prop (never the ref, so nothing is read during render);
   // later updates flow through the resync effect.
-  const [nodes, setNodes] = useState<Node<TypeNodeData>[]>(
-    () => deriveCanvas(types, initialPositions ?? {}).nodes,
-  );
-  const [edges, setEdges] = useState<Edge[]>(
-    () => deriveCanvas(types, initialPositions ?? {}).edges,
-  );
+  // Derive once on mount (dagre layout is not free); seed both node and edge
+  // state from the single pass.
+  const [initialCanvas] = useState(() => deriveCanvas(types, initialPositions ?? {}));
+  const [nodes, setNodes] = useState<Node<TypeNodeData>[]>(initialCanvas.nodes);
+  const [edges, setEdges] = useState<Edge[]>(initialCanvas.edges);
 
   // Mirror on-screen node positions into the position map after every node
   // change (drag or resync), so the map always holds each node's current

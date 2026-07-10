@@ -28,7 +28,7 @@ import { RecordTable } from '@/components/v2/record-table';
 import { KanbanBoard } from '@/components/v2/kanban';
 
 // Declared ActionKinds each renderer is allowed to emit (provenance contract).
-const TABLE_EMITS: readonly ActionKind[] = ['update', 'select', 'open'];
+const TABLE_EMITS: readonly ActionKind[] = ['update', 'select', 'open', 'delete'];
 const BOARD_EMITS: readonly ActionKind[] = ['update', 'create'];
 
 function TableRender({ set, host }: ViewRenderProps) {

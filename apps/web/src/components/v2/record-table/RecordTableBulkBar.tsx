@@ -35,14 +35,16 @@ export const RecordTableBulkBar: FC<RecordTableBulkBarProps> = ({ count, host })
       // allSettled (not all): one rejection must not abort the batch or leave
       // the bar stuck. Count both rejections and non-ok receipts as failures.
       const results = await Promise.allSettled(ids.map((id) => host.emit({ kind: 'delete', id })));
-      const failed = results.filter(
-        (result) => result.status === 'rejected' || !result.value.ok,
-      );
-      if (failed.length) {
-        console.error(`RecordTable bulk delete: ${failed.length}/${ids.length} action(s) failed`, failed);
+      const failedIds = ids.filter((_, i) => {
+        const result = results[i];
+        return result.status === 'rejected' || !result.value.ok;
+      });
+      if (failedIds.length) {
+        console.error(`RecordTable bulk delete: ${failedIds.length}/${ids.length} action(s) failed`, failedIds);
+        // Narrow the selection to just the rows that failed, so the user sees
+        // and can retry exactly those.
+        store.selectAll(failedIds);
       } else {
-        // Only drop the selection when every delete landed, so a partial
-        // failure leaves the failed rows selected for a retry.
         store.clearSelection();
       }
     } finally {
