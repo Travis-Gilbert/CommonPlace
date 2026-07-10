@@ -20,7 +20,7 @@ import {
   type FC,
 } from 'react';
 import { flexRender, type Table, type Row } from '@tanstack/react-table';
-import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtomValue } from 'jotai';
 import type { JsonValue, ObjectRef, BlockHost } from '@/lib/block-view/types';
 import type { ColumnMeta } from './types';
@@ -489,12 +489,22 @@ function msToDateInput(value: string): string {
   const ms = Number.parseInt(value, 10);
   if (Number.isNaN(ms)) return '';
   const date = new Date(ms);
-  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+  if (Number.isNaN(date.getTime())) return '';
+  // Format from local date parts (not toISOString, which is UTC and shifts the
+  // day for non-UTC offsets).
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 /** A yyyy-mm-dd date-input value back to a milliseconds-since-epoch string. */
 function dateInputToMs(dateStr: string): string {
   if (!dateStr) return '';
-  const ms = Date.parse(dateStr);
+  // Parse as local midnight (new Date(y, m-1, d)); Date.parse of a bare date is
+  // UTC and would round-trip to the wrong local day.
+  const [y, m, d] = dateStr.split('-').map((part) => Number.parseInt(part, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return '';
+  const ms = new Date(y, m - 1, d).getTime();
   return Number.isNaN(ms) ? '' : String(ms);
 }

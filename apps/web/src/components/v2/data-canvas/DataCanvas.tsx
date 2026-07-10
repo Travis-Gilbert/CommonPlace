@@ -110,8 +110,10 @@ export const DataCanvas: FC<DataCanvasProps> = ({
       }
     }
     setNodes((nds) => applyNodeChanges(changes, nds) as Node<TypeNodeData>[]);
-    // Persist to external store (e.g. localStorage)
-    onPositionsChange?.(positionMapRef.current as PositionMap);
+    // Persist to external store (e.g. localStorage). Pass a fresh snapshot, not
+    // the long-lived ref: a consumer that stores this in React state needs a new
+    // reference to observe the change, and must not hold a later-mutated object.
+    onPositionsChange?.({ ...positionMapRef.current } as PositionMap);
   }, [onPositionsChange]);
 
   const handleEdgesChange: OnEdgesChange = useCallback((changes) => {

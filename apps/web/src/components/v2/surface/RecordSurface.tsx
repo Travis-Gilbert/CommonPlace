@@ -143,15 +143,25 @@ export const RecordSurface: FC<RecordSurfaceProps> = ({ query }) => {
         })}
       </div>
 
-      <div
-        role="tabpanel"
-        id={`recordview-panel-${active.id}`}
-        aria-labelledby={`recordview-tab-${active.id}`}
-        tabIndex={-1}
-        className={styles.panel}
-      >
-        <Renderer set={state.set} host={host} />
-      </div>
+      {views.map((view) => {
+        const selected = view.id === active.id;
+        // A panel element exists for every tab id so each tab's aria-controls
+        // target is real; only the active panel is shown and mounts a renderer,
+        // keeping the flip to one renderer over one ObjectSet.
+        return (
+          <div
+            key={view.id}
+            role="tabpanel"
+            id={`recordview-panel-${view.id}`}
+            aria-labelledby={`recordview-tab-${view.id}`}
+            tabIndex={-1}
+            className={styles.panel}
+            hidden={!selected}
+          >
+            {selected ? <Renderer set={state.set} host={host} /> : null}
+          </div>
+        );
+      })}
     </div>
   );
 };
