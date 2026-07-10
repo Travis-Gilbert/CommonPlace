@@ -15,7 +15,6 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  getFilteredRowModel,
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
@@ -24,6 +23,7 @@ import {
 } from '@tanstack/react-table';
 import type { ObjectSet, BlockHost, ObjectRef } from '@/lib/block-view/types';
 import { useRecordTableStore } from './record-table-store';
+import { applyFilters } from './record-filter';
 import { columnsFromShape, type ColumnMeta } from './types';
 import { RecordTableHeader } from './RecordTableHeader';
 import { RecordTableBody } from './RecordTableBody';
@@ -92,38 +92,54 @@ export const RecordTable: FC<RecordTableProps> = ({ objectSet, host }) => {
     }));
   }, [columnMeta]);
 
-  // Build sort state for tanstack from store
-  const tableSorting = useMemo<SortingState>(
-    () => store.sorts.map((s) => ({ id: s.field, desc: s.direction === 'desc' })),
-    [store.sorts],
+  // Build sort state for tanstack from store. When grouping, the group field is
+  // the primary sort so each group's rows stay contiguous; user sorts apply within.
+  const tableSorting = useMemo<SortingState>(() => {
+    const base = store.sorts.map((s) => ({ id: s.field, desc: s.direction === 'desc' }));
+    const groupField = store.groupBy?.field;
+    if (!groupField) return base;
+    return [{ id: groupField, desc: false }, ...base.filter((s) => s.id !== groupField)];
+  }, [store.sorts, store.groupBy]);
+
+  // Filter as a pure pre-pass so FilterChip operators are honored (crit 5).
+  const filteredObjects = useMemo(
+    () => applyFilters(objectSet.objects as ObjectRef[], store.filters),
+    [objectSet.objects, store.filters],
   );
 
   // Table instance
   const table = useReactTable({
-    data: objectSet.objects as ObjectRef[],
+    data: filteredObjects,
     columns: tableColumns,
     state: {
       sorting: tableSorting,
       columnVisibility: store.columnVisibility,
+      columnOrder: store.columnOrder,
     },
     onSortingChange: (updater) => {
       const next =
         typeof updater === 'function' ? updater(tableSorting) : updater;
+      const groupField = store.groupBy?.field;
       store.setSorts(
-        next.map((s) => ({
-          field: s.id,
-          direction: s.desc ? 'desc' : 'asc',
-        })),
+        next
+          .filter((s) => s.id !== groupField)
+          .map((s) => ({
+            field: s.id,
+            direction: s.desc ? 'desc' : 'asc',
+          })),
       );
+    },
+    onColumnOrderChange: (updater) => {
+      const next =
+        typeof updater === 'function' ? updater(store.columnOrder) : updater;
+      store.setColumnOrder(next);
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     enableRowSelection: store.selectionMode !== 'none',
     onRowSelectionChange: () => {},
   });
 
-  const hasFilters = store.filters.length > 0;
   const hasSelection = store.selectedIds.size > 0;
   const objects = objectSet.objects as ObjectRef[];
 
@@ -152,9 +168,9 @@ export const RecordTable: FC<RecordTableProps> = ({ objectSet, host }) => {
   }
 
   return (
-    <div className={`${styles['rt-root']} porcelain`} ref={containerRef}>
-      {hasFilters && <RecordTableFilterBar columns={columnMeta} />}
-      <div className={styles['rt-table-container']}>
+    <div className={`${styles['rt-root']} porcelain`}>
+      <RecordTableFilterBar columns={columnMeta} />
+      <div className={styles['rt-table-container']} ref={containerRef}>
         <table className={styles['rt-table']} role="grid" aria-label="Record table">
           <RecordTableHeader table={table} columnMeta={columnMeta} />
           <RecordTableBody
@@ -166,7 +182,7 @@ export const RecordTable: FC<RecordTableProps> = ({ objectSet, host }) => {
         </table>
       </div>
       {hasSelection && (
-        <RecordTableBulkBar count={store.selectedIds.size} />
+        <RecordTableBulkBar count={store.selectedIds.size} host={host} />
       )}
     </div>
   );

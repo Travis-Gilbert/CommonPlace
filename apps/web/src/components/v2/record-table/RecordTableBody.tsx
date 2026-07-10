@@ -1,9 +1,17 @@
-// Virtualized table body with keyboard navigation, inline editing,
-// group-by row rendering, and action emission via BlockHost.
+// Virtualized table body with keyboard navigation, inline editing, group-by
+// row rendering, and action emission via BlockHost.
+//
+// TW6: row and cell state is consumed through granular Jotai hooks, not the
+// coarse store facade. Each RecordRow subscribes only to its own selected flag
+// and each RecordCell only to its own editing flag, so selecting a row or
+// editing a cell re-renders that row/cell, not the whole tbody. The body itself
+// subscribes only to the structural atoms (columns, grouping) that change
+// rarely.
 'use client';
 
 import {
   Fragment,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -12,10 +20,21 @@ import {
   type FC,
 } from 'react';
 import { flexRender, type Table, type Row } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
+import { useAtomValue } from 'jotai';
 import type { JsonValue, ObjectRef, BlockHost } from '@/lib/block-view/types';
 import type { ColumnMeta } from './types';
-import { useRecordTableStore } from './record-table-store';
+import {
+  recordTableActions as actions,
+  useIsRowSelected,
+  useIsCellEditing,
+  columnVisibilityAtom,
+  columnWidthsAtom,
+  selectionModeAtom,
+  groupByAtom,
+  collapsedGroupsAtom,
+  editingCellAtom,
+} from './record-table-store';
 import { RecordTableGroupRow } from './RecordTableGroupRow';
 import styles from './record-table.module.css';
 
@@ -26,7 +45,7 @@ interface RecordTableBodyProps {
   host: BlockHost;
 }
 
-const ROW_HEIGHT = 40; // px — matches Twenty's table row height
+const ROW_HEIGHT = 40; // px, matches the porcelain table row height
 
 export const RecordTableBody: FC<RecordTableBodyProps> = ({
   table,
@@ -34,9 +53,15 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
   containerRef,
   host,
 }) => {
-  const store = useRecordTableStore();
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const [isClient, setIsClient] = useState(false);
+
+  // Structural subscriptions only (change rarely; never selection or editing).
+  const columnVisibility = useAtomValue(columnVisibilityAtom);
+  const columnWidths = useAtomValue(columnWidthsAtom);
+  const selectionMode = useAtomValue(selectionModeAtom);
+  const groupBy = useAtomValue(groupByAtom);
+  const collapsedGroups = useAtomValue(collapsedGroupsAtom);
 
   useEffect(() => {
     setIsClient(true);
@@ -53,257 +78,141 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
 
   const virtualRows = isClient ? virtualizer.getVirtualItems() : [];
 
-  // Keyboard navigation
-  const focusedCellRef = useRef<{ rowIdx: number; field: string } | null>(null);
+  // ── Keyboard navigation. focusCell scrolls the target row into view (for the
+  //    windowed case) then focuses the cell whose td carries both data-row and
+  //    data-field. Both attributes live on the same td (the prior bug put
+  //    data-row on the tr, so the selector never matched). ──
+  const focusCell = useCallback(
+    (rowIdx: number, field: string) => {
+      virtualizer.scrollToIndex(rowIdx, { align: 'auto' });
+      requestAnimationFrame(() => {
+        const el = bodyRef.current?.querySelector(
+          `[data-row="${rowIdx}"][data-field="${field}"]`,
+        ) as HTMLElement | null;
+        el?.focus();
+      });
+    },
+    [virtualizer],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, rowIdx: number, field: string) => {
-      const visibleFields = columnMeta.filter((c) => store.columnVisibility[c.id] !== false);
+      const visibleFields = columnMeta.filter((c) => columnVisibility[c.id] !== false);
       const fieldIdx = visibleFields.findIndex((c) => c.id === field);
 
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          if (rowIdx < rows.length - 1) {
-            focusCell(rowIdx + 1, field);
-          }
+          if (rowIdx < rows.length - 1) focusCell(rowIdx + 1, field);
           break;
         case 'ArrowUp':
           e.preventDefault();
-          if (rowIdx > 0) {
-            focusCell(rowIdx - 1, field);
-          }
+          if (rowIdx > 0) focusCell(rowIdx - 1, field);
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (fieldIdx < visibleFields.length - 1) {
-            focusCell(rowIdx, visibleFields[fieldIdx + 1].id);
-          }
+          if (fieldIdx < visibleFields.length - 1) focusCell(rowIdx, visibleFields[fieldIdx + 1].id);
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          if (fieldIdx > 0) {
-            focusCell(rowIdx, visibleFields[fieldIdx - 1].id);
-          }
+          if (fieldIdx > 0) focusCell(rowIdx, visibleFields[fieldIdx - 1].id);
           break;
-        case 'Enter':
+        case 'Enter': {
           e.preventDefault();
-          if (!store.editingCell) {
-            const row = rows[rowIdx];
-            const value = row.original.properties[field];
-            store.startEditing({
-              rowId: row.original.id,
-              field,
-              value: value != null ? String(value) : '',
-            });
-          }
+          const row = rows[rowIdx];
+          if (!row) break;
+          const value = row.original.properties[field];
+          actions.startEditing({
+            rowId: row.original.id,
+            field,
+            value: value != null ? String(value) : '',
+          });
           break;
+        }
         case 'Escape':
-          if (store.editingCell) {
-            e.preventDefault();
-            store.cancelEditing();
-          }
-          break;
-        case 'Tab':
-          // Let natural tab order work, but close editing
-          if (store.editingCell) {
-            store.commitEditing();
-          }
+          e.preventDefault();
+          actions.cancelEditing();
           break;
       }
     },
-    [rows, columnMeta, store],
+    [rows, columnMeta, columnVisibility, focusCell],
   );
 
-  const focusCell = (rowIdx: number, field: string) => {
-    focusedCellRef.current = { rowIdx, field };
-    const el = document.querySelector(`[data-row="${rowIdx}"][data-field="${field}"]`) as HTMLElement;
-    el?.focus();
-  };
-
-  // Emit object update action on edit commit
-  const handleCommitEditing = useCallback(() => {
-    const edit = store.editingCell;
-    if (!edit) return;
-    const patch: Record<string, JsonValue> = {};
-    // Parse to match propType if possible
-    const meta = columnMeta.find((c) => c.id === edit.field);
-    if (meta?.propType === 'number' || meta?.propType === 'integer') {
-      const n = parseFloat(edit.value);
-      patch[edit.field] = isNaN(n) ? edit.value : n;
-    } else if (meta?.propType === 'boolean') {
-      patch[edit.field] = edit.value === 'true';
-    } else {
-      patch[edit.field] = edit.value;
+  // Per-group counts for the group headers (crit 6).
+  const groupCounts = useMemo(() => {
+    const field = groupBy?.field;
+    if (!field) return null;
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const key = String(row.original.properties[field] ?? '');
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    host
-      .emit({ kind: 'update', id: edit.rowId, patch })
-      .then(() => store.commitEditing())
-      .catch((err) => {
-        console.error('RecordTable: update action failed', err);
-        store.cancelEditing();
-      });
-  }, [store, host, columnMeta]);
+    return counts;
+  }, [rows, groupBy]);
 
-  // Selection handling with group awareness
-  const handleRowSelect = useCallback(
-    (id: string, e: React.MouseEvent | React.ChangeEvent) => {
-      const isShift =
-        'shiftKey' in e && (e as React.MouseEvent).shiftKey && store.selectionMode === 'multi';
-      if (isShift) {
-        store.toggleRowSelection(id);
-      } else if ((e.target as HTMLElement).tagName === 'INPUT') {
-        store.toggleRowSelection(id);
+  const renderRow = (row: Row<ObjectRef>, index: number, isVirtual: boolean, virtualStart?: number) => (
+    <RecordRow
+      key={row.id}
+      row={row}
+      rowIndex={index}
+      columnMeta={columnMeta}
+      columnWidths={columnWidths}
+      selectionMode={selectionMode}
+      host={host}
+      isVirtual={isVirtual}
+      virtualStart={virtualStart}
+      onKeyDown={handleKeyDown}
+    />
+  );
+
+  // Grouped view: headers interleave with rows, and a collapsed group shows only
+  // its header. This path renders directly (not windowed): a grouped view
+  // collapses to few visible rows, while the windowed path below stays for the
+  // flat large-list case (the 60fps path).
+  if (groupBy?.field) {
+    const field = groupBy.field;
+    const items: React.ReactNode[] = [];
+    let lastGroup: string | undefined;
+    (rows as Row<ObjectRef>[]).forEach((row, index) => {
+      const value = String(row.original.properties[field] ?? '');
+      if (value !== lastGroup) {
+        lastGroup = value;
+        items.push(
+          <RecordTableGroupRow
+            key={`group-${value}`}
+            label={value}
+            count={groupCounts?.get(value) ?? 0}
+            depth={0}
+            collapsed={collapsedGroups.has(value)}
+            onToggle={() => actions.toggleGroupCollapsed(value)}
+          />,
+        );
       }
-    },
-    [store],
-  );
-
-  // ── Shared row renderer (used by both SSR fallback and client virtualized) ──
-  const renderTableRow = useCallback(
-    (row: Row<ObjectRef>, index: number, isVirtual: boolean, virtualStart?: number) => {
-      const isSelected = store.selectedIds.has(row.original.id);
-
-      const groupField = store.groupBy?.field;
-      const prevRow = index > 0 ? (rows[index - 1] as Row<ObjectRef>) : null;
-      const prevGroupValue =
-        groupField && prevRow ? String(prevRow.original.properties[groupField] ?? '') : undefined;
-      const thisGroupValue = groupField
-        ? String(row.original.properties[groupField] ?? '')
-        : undefined;
-      const showGroupRow =
-        groupField && thisGroupValue !== undefined && prevGroupValue !== thisGroupValue;
-
-      const rowClass = isSelected
-        ? `${styles['rt-tr']} ${styles['rt-tr--selected']}`
-        : styles['rt-tr'];
-
-      // Only apply absolute positioning when virtualized (client-side)
-      const rowStyle = isVirtual
-        ? {
-            position: 'absolute' as const,
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: ROW_HEIGHT,
-            transform: `translateY(${virtualStart ?? index * ROW_HEIGHT}px)`,
-          }
-        : undefined;
-
-      return (
-        <Fragment key={row.id}>
-          {showGroupRow && (
-            <RecordTableGroupRow
-              label={thisGroupValue!}
-              count={0}
-              depth={0}
-              collapsed={store.collapsedGroups.has(thisGroupValue!)}
-              onToggle={() => store.toggleGroupCollapsed(thisGroupValue!)}
-            />
-          )}
-          <tr
-            data-row={isVirtual ? virtualStart : index}
-            className={rowClass}
-            style={rowStyle}
-            onClick={(e) => handleRowSelect(row.original.id, e)}
-          >
-            {store.selectionMode !== 'none' && (
-              <td
-                className={`${styles['rt-td']} ${styles['rt-td-checkbox']}`}
-                style={{ width: 32 }}
-              >
-                <input
-                  type="checkbox"
-                  className={styles['rt-checkbox']}
-                  checked={isSelected}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    store.toggleRowSelection(row.original.id);
-                  }}
-                  aria-label={`Select row ${row.original.id}`}
-                />
-              </td>
-            )}
-            {row.getVisibleCells().map((cell) => {
-              const meta = columnMeta.find((c) => c.id === cell.column.id);
-              if (!meta) return null;
-              const isEditing =
-                store.editingCell?.rowId === row.original.id &&
-                store.editingCell?.field === cell.column.id;
-
-              const tdClass = isEditing
-                ? `${styles['rt-td']} ${styles['rt-td--editing']}`
-                : styles['rt-td'];
-
-              return (
-                <td
-                  key={cell.id}
-                  className={tdClass}
-                  style={{
-                    width: store.columnWidths[cell.column.id] ?? meta.defaultWidth,
-                  }}
-                  data-field={cell.column.id}
-                  tabIndex={0}
-                  onKeyDown={(e) => handleKeyDown(e, index, cell.column.id!)}
-                  onDoubleClick={() => {
-                    const value = row.original.properties[cell.column.id!];
-                    store.startEditing({
-                      rowId: row.original.id,
-                      field: cell.column.id!,
-                      value: value != null ? String(value) : '',
-                    });
-                  }}
-                  role="gridcell"
-                >
-                  {isEditing ? (
-                    <InlineEdit
-                      value={store.editingCell!.value}
-                      propType={meta.propType}
-                      onChange={(v) => {
-                        store.startEditing({
-                          rowId: row.original.id,
-                          field: cell.column.id!,
-                          value: v,
-                        });
-                      }}
-                      onCommit={handleCommitEditing}
-                      onCancel={() => store.cancelEditing()}
-                    />
-                  ) : (
-                    flexRender(cell.column.columnDef.cell, cell.getContext())
-                  )}
-                </td>
-              );
-            })}
-          </tr>
-        </Fragment>
-      );
-    },
-    [store, columnMeta, rows, handleKeyDown, handleRowSelect, handleCommitEditing],
-  );
+      if (!collapsedGroups.has(value)) items.push(renderRow(row, index, false));
+    });
+    return (
+      <tbody className={styles['rt-tbody']} ref={bodyRef}>
+        {items}
+      </tbody>
+    );
+  }
 
   return (
     <tbody className={styles['rt-tbody']} ref={bodyRef}>
       {/* SSR fallback: render all rows without virtualization */}
       {!isClient &&
-        (rows as Row<ObjectRef>[]).map((row, index) =>
-          renderTableRow(row, index, false),
-        )}
+        (rows as Row<ObjectRef>[]).map((row, index) => renderRow(row, index, false))}
 
       {/* Client-side: virtualized rendering */}
       {isClient && (
         <>
           {virtualRows.length > 0 && (
             <tr style={{ height: virtualizer.getTotalSize() }}>
-              <td
-                colSpan={
-                  columnMeta.length + (store.selectionMode !== 'none' ? 1 : 0)
-                }
-              />
+              <td colSpan={columnMeta.length + (selectionMode !== 'none' ? 1 : 0)} />
             </tr>
           )}
           {virtualRows.map((virtualRow) =>
-            renderTableRow(
+            renderRow(
               rows[virtualRow.index] as Row<ObjectRef>,
               virtualRow.index,
               true,
@@ -313,6 +222,188 @@ export const RecordTableBody: FC<RecordTableBodyProps> = ({
         </>
       )}
     </tbody>
+  );
+};
+
+// ── Row ──
+
+interface RecordRowProps {
+  row: Row<ObjectRef>;
+  rowIndex: number;
+  columnMeta: ColumnMeta[];
+  columnWidths: Record<string, number>;
+  selectionMode: string;
+  host: BlockHost;
+  isVirtual: boolean;
+  virtualStart?: number;
+  onKeyDown: (e: React.KeyboardEvent, rowIdx: number, field: string) => void;
+}
+
+const RecordRow: FC<RecordRowProps> = memo(function RecordRow({
+  row,
+  rowIndex,
+  columnMeta,
+  columnWidths,
+  selectionMode,
+  host,
+  isVirtual,
+  virtualStart,
+  onKeyDown,
+}) {
+  const isSelected = useIsRowSelected(row.original.id);
+
+  const rowStyle = isVirtual
+    ? {
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: ROW_HEIGHT,
+        transform: `translateY(${virtualStart ?? rowIndex * ROW_HEIGHT}px)`,
+      }
+    : undefined;
+
+  const rowClass = isSelected
+    ? `${styles['rt-tr']} ${styles['rt-tr--selected']}`
+    : styles['rt-tr'];
+
+  return (
+    <Fragment>
+      <tr className={rowClass} style={rowStyle}>
+        {selectionMode !== 'none' && (
+          <td className={`${styles['rt-td']} ${styles['rt-td-checkbox']}`} style={{ width: 32 }}>
+            <input
+              type="checkbox"
+              className={styles['rt-checkbox']}
+              checked={isSelected}
+              onChange={() => actions.toggleRowSelection(row.original.id)}
+              aria-label={`Select row ${row.original.id}`}
+            />
+          </td>
+        )}
+        {row.getVisibleCells().map((cell) => {
+          const meta = columnMeta.find((c) => c.id === cell.column.id);
+          if (!meta) return null;
+          return (
+            <RecordCell
+              key={cell.id}
+              rowId={row.original.id}
+              rowIndex={rowIndex}
+              field={cell.column.id}
+              meta={meta}
+              width={columnWidths[cell.column.id] ?? meta.defaultWidth}
+              rawValue={row.original.properties[cell.column.id]}
+              host={host}
+              onKeyDown={onKeyDown}
+              renderStatic={() => flexRender(cell.column.columnDef.cell, cell.getContext())}
+            />
+          );
+        })}
+      </tr>
+    </Fragment>
+  );
+});
+
+// ── Cell ──
+
+interface RecordCellProps {
+  rowId: string;
+  rowIndex: number;
+  field: string;
+  meta: ColumnMeta;
+  width: number;
+  rawValue: JsonValue | undefined;
+  host: BlockHost;
+  onKeyDown: (e: React.KeyboardEvent, rowIdx: number, field: string) => void;
+  renderStatic: () => React.ReactNode;
+}
+
+const RecordCell: FC<RecordCellProps> = memo(function RecordCell({
+  rowId,
+  rowIndex,
+  field,
+  meta,
+  width,
+  rawValue,
+  host,
+  onKeyDown,
+  renderStatic,
+}) {
+  const isEditing = useIsCellEditing(rowId, field);
+
+  const tdClass = isEditing
+    ? `${styles['rt-td']} ${styles['rt-td--editing']}`
+    : styles['rt-td'];
+
+  return (
+    <td
+      className={tdClass}
+      style={{ width }}
+      data-row={rowIndex}
+      data-field={field}
+      tabIndex={0}
+      role="gridcell"
+      onKeyDown={(e) => onKeyDown(e, rowIndex, field)}
+      onDoubleClick={() => {
+        if (!meta.editable) return;
+        actions.startEditing({
+          rowId,
+          field,
+          value: rawValue != null ? String(rawValue) : '',
+        });
+      }}
+    >
+      {isEditing ? (
+        <CellEditor rowId={rowId} field={field} meta={meta} host={host} />
+      ) : (
+        renderStatic()
+      )}
+    </td>
+  );
+});
+
+// ── Cell editor (mounted only for the one editing cell, so it is the only
+//    subscriber to the editing value atom) ──
+
+interface CellEditorProps {
+  rowId: string;
+  field: string;
+  meta: ColumnMeta;
+  host: BlockHost;
+}
+
+const CellEditor: FC<CellEditorProps> = ({ rowId, field, meta, host }) => {
+  const editing = useAtomValue(editingCellAtom);
+  const value = editing && editing.rowId === rowId && editing.field === field ? editing.value : '';
+
+  const commit = useCallback(() => {
+    const current = editing;
+    if (!current) return;
+    const patch: Record<string, JsonValue> = {};
+    if (meta.propType === 'number' || meta.propType === 'integer' || meta.propType === 'timestamp_ms') {
+      const n = parseFloat(current.value);
+      patch[field] = Number.isNaN(n) ? current.value : n;
+    } else if (meta.propType === 'boolean') {
+      patch[field] = current.value === 'true';
+    } else {
+      patch[field] = current.value;
+    }
+    void Promise.resolve(host.emit({ kind: 'update', id: rowId, patch }))
+      .then((result) => {
+        if (result.ok) actions.commitEditing();
+        else actions.cancelEditing();
+      })
+      .catch(() => actions.cancelEditing());
+  }, [editing, meta.propType, field, rowId, host]);
+
+  return (
+    <InlineEdit
+      value={value}
+      propType={meta.propType}
+      onChange={(v) => actions.startEditing({ rowId, field, value: v })}
+      onCommit={commit}
+      onCancel={() => actions.cancelEditing()}
+    />
   );
 };
 
@@ -330,8 +421,10 @@ const InlineEdit: FC<InlineEditProps> = ({ value, propType, onChange, onCommit, 
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
+    const el = inputRef.current;
+    el?.focus();
+    // Only text/number inputs support text selection; date/checkbox throw.
+    if (el && (el.type === 'text' || el.type === 'number')) el.select();
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -344,43 +437,45 @@ const InlineEdit: FC<InlineEditProps> = ({ value, propType, onChange, onCommit, 
     }
   };
 
+  // Boolean: a real checkbox (toggles then commits).
   if (propType === 'boolean') {
-    return (
-      <select
-        className={`${styles['rt-inline-input']} ${styles['rt-inline-select']}`}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          onCommit();
-        }}
-        onKeyDown={handleKeyDown}
-        ref={inputRef as any}
-      >
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
-    );
-  }
-
-  if (propType === 'number' || propType === 'integer') {
     return (
       <input
         ref={inputRef}
+        type="checkbox"
+        className={styles['rt-checkbox']}
+        checked={value === 'true'}
+        onChange={(e) => {
+          onChange(e.target.checked ? 'true' : 'false');
+          onCommit();
+        }}
+        onKeyDown={handleKeyDown}
+        aria-label="Toggle value"
+      />
+    );
+  }
+
+  // Timestamp (ms epoch): a date input.
+  if (propType === 'timestamp_ms') {
+    return (
+      <input
+        ref={inputRef}
+        type="date"
         className={styles['rt-inline-input']}
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={msToDateInput(value)}
+        onChange={(e) => onChange(dateInputToMs(e.target.value))}
         onBlur={onCommit}
         onKeyDown={handleKeyDown}
       />
     );
   }
 
+  const isNumber = propType === 'number' || propType === 'integer';
   return (
     <input
       ref={inputRef}
       className={styles['rt-inline-input']}
-      type="text"
+      type={isNumber ? 'number' : 'text'}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onCommit}
@@ -388,3 +483,18 @@ const InlineEdit: FC<InlineEditProps> = ({ value, propType, onChange, onCommit, 
     />
   );
 };
+
+/** Milliseconds-since-epoch string to a yyyy-mm-dd value for a date input. */
+function msToDateInput(value: string): string {
+  const ms = Number.parseInt(value, 10);
+  if (Number.isNaN(ms)) return '';
+  const date = new Date(ms);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+}
+
+/** A yyyy-mm-dd date-input value back to a milliseconds-since-epoch string. */
+function dateInputToMs(dateStr: string): string {
+  if (!dateStr) return '';
+  const ms = Date.parse(dateStr);
+  return Number.isNaN(ms) ? '' : String(ms);
+}

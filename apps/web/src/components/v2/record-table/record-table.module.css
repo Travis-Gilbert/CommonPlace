@@ -195,8 +195,8 @@
 }
 
 .rt-vis-item input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--accent);
   cursor: pointer;
 }
@@ -282,8 +282,8 @@
 /* ── Checkbox ── */
 .rt-checkbox {
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   border: 1.5px solid var(--hair);
   border-radius: var(--r-chip);
   cursor: pointer;
@@ -302,7 +302,7 @@
 .rt-checkbox:checked::after {
   content: '';
   position: absolute;
-  left: 4px;
+  left: var(--space-1);
   top: 1px;
   width: 5px;
   height: 8px;
@@ -360,8 +360,8 @@
 .rt-filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
   background: var(--plane);
   border: 1px solid var(--hair);
   border-radius: var(--r-chip);
@@ -387,8 +387,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   border: none;
   background: none;
   color: var(--ink-faint);
@@ -408,13 +408,13 @@
 .rt-filter-add-form {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .rt-filter-select,
 .rt-filter-input {
   height: 28px;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   border: 1px solid var(--hair);
   border-radius: var(--r-chip);
   background: var(--plane);
@@ -428,7 +428,7 @@
 .rt-filter-new-btn,
 .rt-filter-clear-all {
   height: 28px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: none;
   border-radius: var(--r-control);
   font: inherit;
@@ -675,4 +675,12 @@
 
 .rt-th[data-drag-over="true"] {
   box-shadow: inset 2px 0 0 0 var(--ink);
+}
+
+/* Reduced motion: stop keyframe animations for vestibular safety. */
+@media (prefers-reduced-motion: reduce) {
+  .rt-skeleton-cell,
+  .rt-bulk-bar {
+    animation: none;
+  }
 }

@@ -1,91 +1,89 @@
-// Record table store unit tests: sorting, filtering, selection,
-// column management, editing state transitions.
+// Record table store unit tests (TW6, Jotai): sorting, filtering, selection,
+// column management, editing state transitions, and the granular per-row /
+// per-cell derived families.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useRecordTableStore } from '@/components/v2/record-table/record-table-store';
+import { getDefaultStore } from 'jotai';
+import {
+  recordTableActions as actions,
+  columnOrderAtom,
+  columnVisibilityAtom,
+  columnWidthsAtom,
+  sortsAtom,
+  filtersAtom,
+  groupByAtom,
+  collapsedGroupsAtom,
+  selectionModeAtom,
+  selectedIdsAtom,
+  editingCellAtom,
+  cursorAtom,
+  hasMoreAtom,
+  isLoadingAtom,
+  isRowSelectedFamily,
+  isCellEditingFamily,
+} from '@/components/v2/record-table/record-table-store';
 
-function freshStore() {
-  // Reset before each test
-  useRecordTableStore.getState().reset();
-  return useRecordTableStore.getState();
-}
+const store = getDefaultStore();
 
-describe('record-table-store', () => {
+describe('record-table-store (Jotai)', () => {
   beforeEach(() => {
-    useRecordTableStore.getState().reset();
+    actions.reset();
   });
 
   describe('column management', () => {
     it('sets column order', () => {
-      const store = useRecordTableStore.getState();
-      store.setColumnOrder(['id', 'title', 'status']);
-      expect(useRecordTableStore.getState().columnOrder).toEqual(['id', 'title', 'status']);
+      actions.setColumnOrder(['id', 'title', 'status']);
+      expect(store.get(columnOrderAtom)).toEqual(['id', 'title', 'status']);
     });
 
     it('sets column visibility', () => {
-      const store = useRecordTableStore.getState();
-      store.setColumnVisibility('title', false);
-      expect(useRecordTableStore.getState().columnVisibility.title).toBe(false);
+      actions.setColumnVisibility('title', false);
+      expect(store.get(columnVisibilityAtom).title).toBe(false);
     });
 
     it('sets column visibility map for bulk updates', () => {
-      const store = useRecordTableStore.getState();
-      store.setColumnVisibilityMap({ id: true, title: true, status: false });
-      const vis = useRecordTableStore.getState().columnVisibility;
+      actions.setColumnVisibilityMap({ id: true, title: true, status: false });
+      const vis = store.get(columnVisibilityAtom);
       expect(vis.id).toBe(true);
       expect(vis.title).toBe(true);
       expect(vis.status).toBe(false);
     });
 
     it('sets column width', () => {
-      const store = useRecordTableStore.getState();
-      store.setColumnWidth('title', 300);
-      expect(useRecordTableStore.getState().columnWidths.title).toBe(300);
+      actions.setColumnWidth('title', 300);
+      expect(store.get(columnWidthsAtom).title).toBe(300);
     });
   });
 
   describe('sorting', () => {
-    it('toggles: none → asc → desc → none', () => {
-      const store = useRecordTableStore.getState();
-
-      store.toggleSort('title');
-      expect(useRecordTableStore.getState().sorts).toEqual([
-        { field: 'title', direction: 'asc' },
-      ]);
-
-      store.toggleSort('title');
-      expect(useRecordTableStore.getState().sorts).toEqual([
-        { field: 'title', direction: 'desc' },
-      ]);
-
-      store.toggleSort('title');
-      expect(useRecordTableStore.getState().sorts).toEqual([]);
+    it('toggles: none -> asc -> desc -> none', () => {
+      actions.toggleSort('title');
+      expect(store.get(sortsAtom)).toEqual([{ field: 'title', direction: 'asc' }]);
+      actions.toggleSort('title');
+      expect(store.get(sortsAtom)).toEqual([{ field: 'title', direction: 'desc' }]);
+      actions.toggleSort('title');
+      expect(store.get(sortsAtom)).toEqual([]);
     });
 
     it('supports multi-column sort', () => {
-      let store = useRecordTableStore.getState();
-      store.toggleSort('title'); // asc
-      store = useRecordTableStore.getState();
-      store.toggleSort('status'); // asc
-      expect(useRecordTableStore.getState().sorts).toHaveLength(2);
+      actions.toggleSort('title');
+      actions.toggleSort('status');
+      expect(store.get(sortsAtom)).toHaveLength(2);
     });
 
     it('clears all sorts', () => {
-      let store = useRecordTableStore.getState();
-      store.toggleSort('title');
-      store = useRecordTableStore.getState();
-      store.toggleSort('status');
-      store.clearSorts();
-      expect(useRecordTableStore.getState().sorts).toEqual([]);
+      actions.toggleSort('title');
+      actions.toggleSort('status');
+      actions.clearSorts();
+      expect(store.get(sortsAtom)).toEqual([]);
     });
 
     it('sets sorts in bulk via setSorts', () => {
-      const store = useRecordTableStore.getState();
-      store.setSorts([
-        { field: 'title', direction: 'asc' as const },
-        { field: 'id', direction: 'desc' as const },
+      actions.setSorts([
+        { field: 'title', direction: 'asc' },
+        { field: 'id', direction: 'desc' },
       ]);
-      expect(useRecordTableStore.getState().sorts).toEqual([
+      expect(store.get(sortsAtom)).toEqual([
         { field: 'title', direction: 'asc' },
         { field: 'id', direction: 'desc' },
       ]);
@@ -94,148 +92,134 @@ describe('record-table-store', () => {
 
   describe('reordering', () => {
     it('reorders columns via setColumnOrder', () => {
-      const store = useRecordTableStore.getState();
-      store.setColumnOrder(['title', 'status', 'id']);
-      expect(useRecordTableStore.getState().columnOrder).toEqual(['title', 'status', 'id']);
+      actions.setColumnOrder(['title', 'status', 'id']);
+      expect(store.get(columnOrderAtom)).toEqual(['title', 'status', 'id']);
     });
   });
 
   describe('filtering', () => {
     it('adds and removes filters', () => {
-      let store = useRecordTableStore.getState();
-      store.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
-      store = useRecordTableStore.getState();
-      store.addFilter({ id: 'f2', field: 'count', op: 'gt', value: '10' });
-
-      expect(useRecordTableStore.getState().filters).toHaveLength(2);
-
-      store.removeFilter('f1');
-      expect(useRecordTableStore.getState().filters).toHaveLength(1);
-      expect(useRecordTableStore.getState().filters[0].id).toBe('f2');
+      actions.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
+      actions.addFilter({ id: 'f2', field: 'count', op: 'gt', value: '10' });
+      expect(store.get(filtersAtom)).toHaveLength(2);
+      actions.removeFilter('f1');
+      expect(store.get(filtersAtom)).toHaveLength(1);
+      expect(store.get(filtersAtom)[0].id).toBe('f2');
     });
 
     it('updates a filter', () => {
-      let store = useRecordTableStore.getState();
-      store.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
-      store = useRecordTableStore.getState();
-      store.updateFilter('f1', { value: 'inactive' });
-      expect(useRecordTableStore.getState().filters[0].value).toBe('inactive');
+      actions.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
+      actions.updateFilter('f1', { value: 'inactive' });
+      expect(store.get(filtersAtom)[0].value).toBe('inactive');
     });
 
     it('clears all filters', () => {
-      let store = useRecordTableStore.getState();
-      store.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
-      store.clearFilters();
-      expect(useRecordTableStore.getState().filters).toEqual([]);
+      actions.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
+      actions.clearFilters();
+      expect(store.get(filtersAtom)).toEqual([]);
     });
   });
 
   describe('selection', () => {
     it('toggles single row selection', () => {
-      let store = useRecordTableStore.getState();
-      store.toggleRowSelection('row-1');
-      expect(useRecordTableStore.getState().selectedIds.has('row-1')).toBe(true);
-      store = useRecordTableStore.getState();
-      store.toggleRowSelection('row-1');
-      expect(useRecordTableStore.getState().selectedIds.has('row-1')).toBe(false);
+      actions.toggleRowSelection('row-1');
+      expect(store.get(selectedIdsAtom).has('row-1')).toBe(true);
+      actions.toggleRowSelection('row-1');
+      expect(store.get(selectedIdsAtom).has('row-1')).toBe(false);
     });
 
     it('selects all rows', () => {
-      let store = useRecordTableStore.getState();
-      store.selectAll(['row-1', 'row-2', 'row-3']);
-      expect(useRecordTableStore.getState().selectedIds.size).toBe(3);
+      actions.selectAll(['row-1', 'row-2', 'row-3']);
+      expect(store.get(selectedIdsAtom).size).toBe(3);
     });
 
     it('clears selection', () => {
-      let store = useRecordTableStore.getState();
-      store.selectAll(['row-1', 'row-2']);
-      store.clearSelection();
-      expect(useRecordTableStore.getState().selectedIds.size).toBe(0);
+      actions.selectAll(['row-1', 'row-2']);
+      actions.clearSelection();
+      expect(store.get(selectedIdsAtom).size).toBe(0);
     });
 
     it('sets selection mode', () => {
-      let store = useRecordTableStore.getState();
-      store.setSelectionMode('single');
-      expect(useRecordTableStore.getState().selectionMode).toBe('single');
+      actions.setSelectionMode('single');
+      expect(store.get(selectionModeAtom)).toBe('single');
     });
   });
 
   describe('editing', () => {
     it('tracks editing cell', () => {
-      let store = useRecordTableStore.getState();
-      store.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
-      expect(useRecordTableStore.getState().editingCell).toEqual({
-        rowId: 'row-1',
-        field: 'title',
-        value: 'Hello',
-      });
+      actions.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
+      expect(store.get(editingCellAtom)).toEqual({ rowId: 'row-1', field: 'title', value: 'Hello' });
     });
 
     it('cancels editing', () => {
-      let store = useRecordTableStore.getState();
-      store.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
-      store.cancelEditing();
-      expect(useRecordTableStore.getState().editingCell).toBeNull();
+      actions.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
+      actions.cancelEditing();
+      expect(store.get(editingCellAtom)).toBeNull();
     });
 
-    it('commits editing (placeholder)', () => {
-      let store = useRecordTableStore.getState();
-      store.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
-      store.commitEditing();
-      expect(useRecordTableStore.getState().editingCell).toBeNull();
+    it('commits editing', () => {
+      actions.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
+      actions.commitEditing();
+      expect(store.get(editingCellAtom)).toBeNull();
     });
   });
 
   describe('grouping', () => {
     it('sets group-by spec', () => {
-      let store = useRecordTableStore.getState();
-      store.setGroupBy({ field: 'status', expanded: true });
-      expect(useRecordTableStore.getState().groupBy).toEqual({
-        field: 'status',
-        expanded: true,
-      });
+      actions.setGroupBy({ field: 'status', expanded: true });
+      expect(store.get(groupByAtom)).toEqual({ field: 'status', expanded: true });
     });
 
     it('toggles group collapsed state', () => {
-      let store = useRecordTableStore.getState();
-      store.setGroupBy({ field: 'status', expanded: true });
-      store.toggleGroupCollapsed('active');
-      expect(useRecordTableStore.getState().collapsedGroups.has('active')).toBe(true);
-      store.toggleGroupCollapsed('active');
-      expect(useRecordTableStore.getState().collapsedGroups.has('active')).toBe(false);
+      actions.setGroupBy({ field: 'status', expanded: true });
+      actions.toggleGroupCollapsed('active');
+      expect(store.get(collapsedGroupsAtom).has('active')).toBe(true);
+      actions.toggleGroupCollapsed('active');
+      expect(store.get(collapsedGroupsAtom).has('active')).toBe(false);
     });
   });
 
   describe('loading and pagination', () => {
     it('sets loading state', () => {
-      let store = useRecordTableStore.getState();
-      store.setLoading(true);
-      expect(useRecordTableStore.getState().isLoading).toBe(true);
+      actions.setLoading(true);
+      expect(store.get(isLoadingAtom)).toBe(true);
     });
 
     it('sets cursor and hasMore', () => {
-      let store = useRecordTableStore.getState();
-      store.setCursor('next-page-token');
-      store.setHasMore(false);
-      expect(useRecordTableStore.getState().cursor).toBe('next-page-token');
-      expect(useRecordTableStore.getState().hasMore).toBe(false);
+      actions.setCursor('next-page-token');
+      actions.setHasMore(false);
+      expect(store.get(cursorAtom)).toBe('next-page-token');
+      expect(store.get(hasMoreAtom)).toBe(false);
+    });
+  });
+
+  describe('granular families (TW6)', () => {
+    it('isRowSelectedFamily reflects only the toggled row', () => {
+      actions.selectAll(['row-1']);
+      expect(store.get(isRowSelectedFamily('row-1'))).toBe(true);
+      expect(store.get(isRowSelectedFamily('row-2'))).toBe(false);
+    });
+
+    it('isCellEditingFamily reflects only the editing cell', () => {
+      actions.startEditing({ rowId: 'row-1', field: 'title', value: 'x' });
+      expect(store.get(isCellEditingFamily('row-1 title'))).toBe(true);
+      expect(store.get(isCellEditingFamily('row-1 status'))).toBe(false);
+      expect(store.get(isCellEditingFamily('row-2 title'))).toBe(false);
     });
   });
 
   describe('reset', () => {
     it('restores default state', () => {
-      let store = useRecordTableStore.getState();
-      store.toggleSort('title');
-      store.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
-      store.toggleRowSelection('row-1');
-      store.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
+      actions.toggleSort('title');
+      actions.addFilter({ id: 'f1', field: 'status', op: 'eq', value: 'active' });
+      actions.toggleRowSelection('row-1');
+      actions.startEditing({ rowId: 'row-1', field: 'title', value: 'Hello' });
 
-      store.reset();
-      const s = useRecordTableStore.getState();
-      expect(s.sorts).toEqual([]);
-      expect(s.filters).toEqual([]);
-      expect(s.selectedIds.size).toBe(0);
-      expect(s.editingCell).toBeNull();
+      actions.reset();
+      expect(store.get(sortsAtom)).toEqual([]);
+      expect(store.get(filtersAtom)).toEqual([]);
+      expect(store.get(selectedIdsAtom).size).toBe(0);
+      expect(store.get(editingCellAtom)).toBeNull();
     });
   });
 });

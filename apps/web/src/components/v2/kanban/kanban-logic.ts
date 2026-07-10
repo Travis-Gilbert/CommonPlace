@@ -1,4 +1,4 @@
-// Pure logic for the kanban board — no React or dnd-kit dependencies.
+// Pure logic for the kanban board: no React or dnd-kit dependencies.
 // Extracted so tests can import these without triggering the React/dnd-kit
 // module tree (which requires jsdom).
 
@@ -41,6 +41,26 @@ export function findColumnForCard(
   if (!obj) return null;
   const raw = obj.properties[field];
   return raw !== null && raw !== undefined ? String(raw) : '(none)';
+}
+
+/**
+ * Resolve a drag-drop target to a COLUMN value.
+ *
+ * dnd-kit reports `overId` as whatever registered droppable or sortable sits
+ * under the cursor at drop time. Dropping onto an EMPTY column yields that
+ * column's droppable id (the group value). Dropping onto a POPULATED column
+ * yields the sortable id of a card under the cursor (an object id), NOT the
+ * column. Writing that object id straight into the group field is the TW3
+ * drop-target bug, so when `overId` matches a card we map it back to the column
+ * that card currently lives in. When it matches no card, `overId` is already a
+ * column value and passes through unchanged.
+ */
+export function resolveDropColumn(
+  objects: readonly ObjectRef[],
+  field: string,
+  overId: string,
+): string {
+  return findColumnForCard(objects, field, overId) ?? overId;
 }
 
 /** Pick a sensible default group-by field from the ObjectShape. */

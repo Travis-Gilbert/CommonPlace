@@ -4,7 +4,7 @@
 
 import { graphlib, layout } from '@dagrejs/dagre';
 import type { Edge, Node } from '@xyflow/react';
-import type { TypeDef } from '@/lib/block-view/types';
+import type { RelationDef, TypeDef } from '@/lib/block-view/types';
 import type { TypeNodeData } from './TypeNode';
 import type { RelationEdgeData } from './RelationEdge';
 
@@ -22,6 +22,49 @@ export interface CanvasResult {
 }
 
 export type PositionMap = Readonly<Record<string, { x: number; y: number }>>;
+
+/**
+ * Cardinality of a relation edge, expressed source (first) to target
+ * (second). This is the canvas's own derived model: RelationDef in the
+ * block-view contract carries no cardinality, so we infer it here.
+ */
+export type EdgeCardinality =
+  | 'one-to-one'
+  | 'one-to-many'
+  | 'many-to-one'
+  | 'many-to-many';
+
+/**
+ * Infer a cardinality for a relation edge from its direction. RelationDef
+ * has no cardinality field, so we default sensibly: an outgoing relation
+ * reads as one (source) to many (target), e.g. User.posts reaches many
+ * Post; an incoming relation is the reverse (many to one). Callers that
+ * later learn a tighter cardinality can override the derived value.
+ */
+export function deriveCardinality(relation: RelationDef): EdgeCardinality {
+  return relation.dir === 'out' ? 'one-to-many' : 'many-to-one';
+}
+
+/**
+ * Stable structural signature of a TypeDef array. The string changes
+ * whenever a type name, a property (name or type), or a relation (edge,
+ * dir, or target) changes, but stays identical across array-reference
+ * churn that carries the same content. The canvas resyncs on this
+ * signature rather than on types.length, so content edits that keep the
+ * count constant (a link-create, an inline field add / edit / delete) are
+ * not missed.
+ */
+export function typesSignature(types: readonly TypeDef[]): string {
+  return types
+    .map((t) => {
+      const props = t.properties.map((p) => `${p.name}:${p.type}`).join(',');
+      const rels = t.relations
+        .map((r) => `${r.edge}>${r.dir}>${r.target}`)
+        .join(',');
+      return `${t.name}|${props}|${rels}`;
+    })
+    .join(';');
+}
 
 /**
  * Derive XYFlow nodes and edges from TypeDef array.
@@ -74,6 +117,7 @@ export function deriveCanvas(
             label: r.edge,
             targetType,
             dir: r.dir,
+            cardinality: deriveCardinality(r),
           },
           animated: false,
         });
@@ -110,7 +154,7 @@ function layoutGraph(
   }
 
   // Preset anchor nodes: include in graph topology but dagre will assign
-  // positions — we'll override back to their preset positions after layout.
+  // positions: we'll override back to their preset positions after layout.
   const presetIds = new Set<string>();
   for (const n of presetNodes) {
     const h = nodeHeight(
@@ -141,7 +185,7 @@ function layoutGraph(
       };
     }
   }
-  // Do NOT overwrite preset node positions — they keep their stored position
+  // Do NOT overwrite preset node positions: they keep their stored position
 }
 
 // ── Helper: flatten TypeDefs to field-level mapping ──

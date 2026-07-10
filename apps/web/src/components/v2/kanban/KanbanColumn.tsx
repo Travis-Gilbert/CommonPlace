@@ -1,4 +1,4 @@
-// KanbanColumn — a single kanban lane. Header shows the group value, count,
+// KanbanColumn: a single kanban lane. Header shows the group value, count,
 // and a quiet-add button. Body is a droppable area with SortableContext for
 // its cards.
 

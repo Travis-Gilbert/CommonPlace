@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web:dev"],
+      "port": 3000
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "api:dev"],
+      "port": 50090
+    },
+    {
+      "name": "collab",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "collab:dev"],
+      "port": 1234
+    }
+  ]
+}

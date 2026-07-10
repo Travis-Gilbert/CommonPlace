@@ -1,6 +1,6 @@
-// KanbanCard — sortable card rendering an ObjectRef via a simple card recipe.
+// KanbanCard: sortable card rendering an ObjectRef via a simple card recipe.
 // Uses @dnd-kit/sortable for drag handles. Emits nothing directly; the parent
-// KanbanBoard handles drag-end → ObjectAction dispatch.
+// KanbanBoard handles drag-end to ObjectAction dispatch.
 
 'use client';
 
@@ -8,7 +8,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import type { ObjectRef } from '@/lib/block-view/types';
-import { renderCardField } from './kanban-recipe';
+import { renderCardField, selectCardFields } from './kanban-recipe';
 import styles from './kanban.module.css';
 
 export interface KanbanCardProps {
@@ -34,7 +34,7 @@ export function KanbanCard({ object, visibleFields, onClick }: KanbanCardProps) 
     transition,
   };
 
-  const fields = visibleFields ?? defaultVisibleFields(object);
+  const fields = visibleFields ?? selectCardFields(object);
 
   return (
     <div
@@ -46,6 +46,10 @@ export function KanbanCard({ object, visibleFields, onClick }: KanbanCardProps) 
       aria-label={cardLabel(object)}
       onClick={() => onClick?.(object.id)}
       onKeyDown={(e) => {
+        // Only the card itself opens on Enter/Space. Keys dispatched from the
+        // drag handle (which starts a keyboard drag via dnd-kit) bubble up here
+        // and must not also fire onClick, or a keyboard drag would open detail.
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick?.(object.id);
@@ -73,11 +77,6 @@ export function KanbanCard({ object, visibleFields, onClick }: KanbanCardProps) 
 }
 
 // ── Helpers ──
-
-function defaultVisibleFields(obj: ObjectRef): string[] {
-  const keys = Object.keys(obj.properties);
-  return keys.filter((k) => k !== 'id').slice(0, 4);
-}
 
 function cardLabel(obj: ObjectRef): string {
   const title = obj.properties['title'] ?? obj.properties['name'] ?? obj.properties['id'];
