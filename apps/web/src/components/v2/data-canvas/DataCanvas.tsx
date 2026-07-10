@@ -1,6 +1,6 @@
 'use client';
 
-// TW4 — Data-model canvas: visual ERD editor over TypeDefs.
+// TW4 data-model canvas: visual ERD editor over TypeDefs.
 // Renders object types as XYFlow nodes with field lists, relations as
 // typed edges with cardinality marks. Supports:
 //  - drag-to-create-relation (connect source handle → target)
@@ -9,7 +9,7 @@
 //  - dagre auto-layout for newly added nodes only
 // All writes go through ObjectActions on the host.
 
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import {
   Background,
   Controls,
@@ -29,7 +29,7 @@ import '@xyflow/react/dist/style.css';
 import type { BlockHost, ObjectAction, TypeDef } from '@/lib/block-view/types';
 import { TypeNode, type TypeNodeData } from './TypeNode';
 import { RelationEdge } from './RelationEdge';
-import { deriveCanvas, type PositionMap } from './canvas-logic';
+import { deriveCanvas, typesSignature, type PositionMap } from './canvas-logic';
 import styles from './data-canvas.module.css';
 
 export interface DataCanvasProps {
@@ -51,53 +51,50 @@ export const DataCanvas: FC<DataCanvasProps> = ({
   onPositionsChange,
 }) => {
   // ── Position persistence ──
-  const positionMapRef = useRef<Record<string, { x: number; y: number }>>(
-    initialPositions as Record<string, { x: number; y: number }> ?? {},
-  );
-  const [, setDragTick] = useState(0); // forces re-render on position change
+  // Own a private copy of the seed positions so the mirror effect below can
+  // record on-screen positions into it without mutating the caller's object.
+  const positionMapRef = useRef<Record<string, { x: number; y: number }>>({
+    ...((initialPositions as Record<string, { x: number; y: number }>) ?? {}),
+  });
 
-  // Merge derived canvas with persisted positions
-  const { nodes: baseNodes, edges: baseEdges } = useMemo(
-    () => deriveCanvas(types, positionMapRef.current),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [types],
-  );
+  // Structural signature of the type set: changes on any content edit (field
+  // add / edit / delete, relation link, type create / delete), not just on
+  // types.length. The resync effect keys off this, so a content edit that
+  // keeps the count constant (a link-create, an inline field add) is never
+  // missed the way a length gate would miss it.
+  const signature = useMemo(() => typesSignature(types), [types]);
 
-  // Local state so ReactFlow can show live drag positions
-  const [nodes, setNodes] = useState<Node<TypeNodeData>[]>(baseNodes);
-  const [edges, setEdges] = useState<Edge[]>(baseEdges);
+  // Local state so ReactFlow can show live drag positions. Seeded from the
+  // initialPositions prop (never the ref, so nothing is read during render);
+  // later updates flow through the resync effect.
+  // Derive once on mount (dagre layout is not free); seed both node and edge
+  // state from the single pass.
+  const [initialCanvas] = useState(() => deriveCanvas(types, initialPositions ?? {}));
+  const [nodes, setNodes] = useState<Node<TypeNodeData>[]>(initialCanvas.nodes);
+  const [edges, setEdges] = useState<Edge[]>(initialCanvas.edges);
 
-  // Resync from deriveCanvas when types change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const prevTypesRef = useRef(types);
-  if (prevTypesRef.current !== types) {
-    prevTypesRef.current = types;
-    // deriveCanvas already used positionMapRef; nodes/edges are up to date
-    if (baseNodes !== nodes || baseEdges !== edges) {
-      // We'll sync in the next render via the effect pattern below
+  // Mirror on-screen node positions into the position map after every node
+  // change (drag or resync), so the map always holds each node's current
+  // position. A later resync then keeps existing nodes exactly where they sit
+  // and only a brand-new type gets a fresh dagre layout.
+  useEffect(() => {
+    for (const n of nodes) {
+      positionMapRef.current[n.id] = { x: n.position.x, y: n.position.y };
     }
-  }
+  }, [nodes]);
 
-  // Keep nodes/edges in sync with deriveCanvas output when types change
-  const [typesVersion, setTypesVersion] = useState(0);
-  if (prevTypesRef.current === types && typesVersion === 0) {
-    // First render: seed state from derived
-    if (nodes.length === 0 && edges.length === 0 && baseNodes.length > 0) {
-      setNodes(baseNodes);
-      setEdges(baseEdges);
-    }
-  }
-
-  // Sync derived → state when types change (cheap version check)
-  const lastTypesLen = useRef(types.length);
-  useMemo(() => {
-    if (lastTypesLen.current !== types.length) {
-      lastTypesLen.current = types.length;
-      setNodes(baseNodes);
-      setEdges(baseEdges);
-      setTypesVersion((v) => v + 1);
-    }
-  }, [baseNodes, baseEdges, types.length]);
+  // Resync nodes/edges whenever the structural signature changes. Re-deriving
+  // with the position map (kept current above) preserves every existing
+  // node's position, so an edit never resets the dagre layout. Guarded so the
+  // mount run is a no-op.
+  const prevSignatureRef = useRef(signature);
+  useEffect(() => {
+    if (prevSignatureRef.current === signature) return;
+    prevSignatureRef.current = signature;
+    const next = deriveCanvas(types, positionMapRef.current);
+    setNodes(next.nodes);
+    setEdges(next.edges);
+  }, [signature, types]);
 
   // ── Handlers ──
 
@@ -112,10 +109,10 @@ export const DataCanvas: FC<DataCanvasProps> = ({
       }
     }
     setNodes((nds) => applyNodeChanges(changes, nds) as Node<TypeNodeData>[]);
-    // Persist to external store (e.g. localStorage)
-    onPositionsChange?.(positionMapRef.current as PositionMap);
-    // Force deriveCanvas to pick up new positions on next types change
-    setDragTick((t) => t + 1);
+    // Persist to external store (e.g. localStorage). Pass a fresh snapshot, not
+    // the long-lived ref: a consumer that stores this in React state needs a new
+    // reference to observe the change, and must not hold a later-mutated object.
+    onPositionsChange?.({ ...positionMapRef.current } as PositionMap);
   }, [onPositionsChange]);
 
   const handleEdgesChange: OnEdgesChange = useCallback((changes) => {

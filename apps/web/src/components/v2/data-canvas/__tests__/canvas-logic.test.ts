@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { deriveCanvas, buildFieldIndex } from '../canvas-logic';
+import {
+  deriveCanvas,
+  buildFieldIndex,
+  deriveCardinality,
+  typesSignature,
+} from '../canvas-logic';
 import type { PropType, RelationDef, TypeDef } from '@/lib/block-view/types';
 
 // ── Test factories ──
@@ -82,6 +87,24 @@ describe('deriveCanvas', () => {
     expect(edges[0].target).toBe('Post');
     expect(edges[0].data?.label).toBe('posts');
     expect(edges[0].data?.dir).toBe('out');
+  });
+
+  it('stamps a derived cardinality on each edge from direction', () => {
+    const types: TypeDef[] = [
+      makeType({
+        name: 'User',
+        relations: [
+          { edge: 'posts', dir: 'out', target: 'Post' },
+          { edge: 'org', dir: 'in', target: 'Org' },
+        ],
+      }),
+      makeType({ name: 'Post' }),
+      makeType({ name: 'Org' }),
+    ];
+    const { edges } = deriveCanvas(types);
+    const byLabel = new Map(edges.map((e) => [e.data?.label, e.data?.cardinality]));
+    expect(byLabel.get('posts')).toBe('one-to-many');
+    expect(byLabel.get('org')).toBe('many-to-one');
   });
 
   it('skips edges where target type is not in the set', () => {
@@ -184,5 +207,87 @@ describe('buildFieldIndex', () => {
       field: 'body',
       propType: 'text',
     });
+  });
+});
+
+// ── deriveCardinality ──
+
+describe('deriveCardinality', () => {
+  it('reads an outgoing relation as one-to-many', () => {
+    const rel: RelationDef = { edge: 'posts', dir: 'out', target: 'Post' };
+    expect(deriveCardinality(rel)).toBe('one-to-many');
+  });
+
+  it('reads an incoming relation as many-to-one', () => {
+    const rel: RelationDef = { edge: 'author', dir: 'in', target: 'User' };
+    expect(deriveCardinality(rel)).toBe('many-to-one');
+  });
+});
+
+// ── typesSignature ──
+
+describe('typesSignature', () => {
+  it('is empty for empty input', () => {
+    expect(typesSignature([])).toBe('');
+  });
+
+  it('is identical for distinct arrays carrying the same content', () => {
+    const a = [
+      makeType({ name: 'User', properties: [{ name: 'name', type: 'string' }] }),
+    ];
+    const b = [
+      makeType({ name: 'User', properties: [{ name: 'name', type: 'string' }] }),
+    ];
+    expect(a).not.toBe(b);
+    expect(typesSignature(a)).toBe(typesSignature(b));
+  });
+
+  it('changes when a field is added even though length is unchanged', () => {
+    const before = [
+      makeType({ name: 'User', properties: [{ name: 'name', type: 'string' }] }),
+    ];
+    const after = [
+      makeType({
+        name: 'User',
+        properties: [
+          { name: 'name', type: 'string' },
+          { name: 'email', type: 'string' },
+        ],
+      }),
+    ];
+    expect(before).toHaveLength(after.length);
+    expect(typesSignature(before)).not.toBe(typesSignature(after));
+  });
+
+  it('changes when a field type is edited', () => {
+    const before = [
+      makeType({ name: 'Post', properties: [{ name: 'views', type: 'string' }] }),
+    ];
+    const after = [
+      makeType({ name: 'Post', properties: [{ name: 'views', type: 'number' }] }),
+    ];
+    expect(typesSignature(before)).not.toBe(typesSignature(after));
+  });
+
+  it('changes when a relation is linked even though length is unchanged', () => {
+    const before = [
+      makeType({ name: 'User' }),
+      makeType({ name: 'Post' }),
+    ];
+    const after = [
+      makeType({
+        name: 'User',
+        relations: [{ edge: 'posts', dir: 'out', target: 'Post' }],
+      }),
+      makeType({ name: 'Post' }),
+    ];
+    expect(before).toHaveLength(after.length);
+    expect(typesSignature(before)).not.toBe(typesSignature(after));
+  });
+
+  it('changes when a type is added', () => {
+    const before = [makeType({ name: 'User' })];
+    const after = [makeType({ name: 'User' }), makeType({ name: 'Post' })];
+    expect(typesSignature(before)).not.toBe(typesSignature(after));
   });
 });

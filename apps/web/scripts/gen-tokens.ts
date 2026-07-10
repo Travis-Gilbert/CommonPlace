@@ -3,7 +3,7 @@
 // The solver measures proportions from the running Twenty product and emits
 // calibrated CSS custom properties. No hex/px literals in component files.
 
-import { writeTokensFile } from '@/lib/theme/porcelain-solver';
+import { writeTokensFile, writeDTCGFile } from '@/lib/theme/porcelain-solver';
 
 const axes = {
   baseFontSize: 16,
@@ -11,4 +11,6 @@ const axes = {
   compactness: 1.0,
 };
 
+// CSS custom properties consumed at runtime, plus the measured DTCG sheet (TW1).
 writeTokensFile(axes);
+writeDTCGFile(axes);

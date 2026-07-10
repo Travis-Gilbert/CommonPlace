@@ -5,7 +5,7 @@
 'use client';
 
 import { useCallback, useState, type FC } from 'react';
-import type { ColumnMeta, FilterChip } from './types';
+import type { ColumnMeta, FilterChip, FilterOp } from './types';
 import { useRecordTableStore } from './record-table-store';
 import styles from './record-table.module.css';
 
@@ -17,6 +17,7 @@ export const RecordTableFilterBar: FC<RecordTableFilterBarProps> = ({ columns })
   const store = useRecordTableStore();
   const [addingFilter, setAddingFilter] = useState(false);
   const [newField, setNewField] = useState('');
+  const [newOp, setNewOp] = useState<FilterOp>('contains');
   const [newValue, setNewValue] = useState('');
 
   const handleRemoveFilter = useCallback(
@@ -32,13 +33,14 @@ export const RecordTableFilterBar: FC<RecordTableFilterBarProps> = ({ columns })
     store.addFilter({
       id,
       field: newField,
-      op: 'contains',
+      op: newOp,
       value: newValue,
     });
     setNewValue('');
     setNewField('');
+    setNewOp('contains');
     setAddingFilter(false);
-  }, [newField, newValue, store]);
+  }, [newField, newOp, newValue, store]);
 
   const clearAll = useCallback(() => {
     store.clearFilters();
@@ -46,13 +48,31 @@ export const RecordTableFilterBar: FC<RecordTableFilterBarProps> = ({ columns })
 
   return (
     <div className={styles['rt-filter-bar']} role="search" aria-label="Active filters">
+      <label className={styles['rt-filter-groupby']}>
+        <span>Group</span>
+        <select
+          className={styles['rt-filter-select']}
+          value={store.groupBy?.field ?? ''}
+          onChange={(e) =>
+            store.setGroupBy(e.target.value ? { field: e.target.value, expanded: true } : null)
+          }
+          aria-label="Group by field"
+        >
+          <option value="">None</option>
+          {columns.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
       {store.filters.map((f) => {
         const col = columns.find((c) => c.id === f.field);
         return (
           <div key={f.id} className={styles['rt-filter-chip']}>
             <span className={styles['rt-filter-chip-field']}>{col?.label ?? f.field}</span>
             <span className={styles['rt-filter-chip-op']}>{f.op}</span>
-            <span className={styles['rt-filter-chip-value']}>"{f.value}"</span>
+            <span className={styles['rt-filter-chip-value']}>{`"${f.value}"`}</span>
             <button
               className={styles['rt-filter-chip-remove']}
               onClick={() => handleRemoveFilter(f.id)}
@@ -78,6 +98,19 @@ export const RecordTableFilterBar: FC<RecordTableFilterBarProps> = ({ columns })
                 {c.label}
               </option>
             ))}
+          </select>
+          <select
+            className={styles['rt-filter-select']}
+            value={newOp}
+            onChange={(e) => setNewOp(e.target.value as FilterOp)}
+            aria-label="Filter operator"
+          >
+            <option value="contains">contains</option>
+            <option value="eq">=</option>
+            <option value="gt">&gt;</option>
+            <option value="gte">&ge;</option>
+            <option value="lt">&lt;</option>
+            <option value="lte">&le;</option>
           </select>
           <input
             className={styles['rt-filter-input']}
