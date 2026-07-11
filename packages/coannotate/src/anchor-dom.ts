@@ -199,10 +199,6 @@ function safeQuery(root: AnchorRoot, selector: string): AnchorEl | null {
 }
 
 function cssEscapeIdent(value: string): string {
-<<<<<<< HEAD
-  // Minimal identifier escaping: enough for the ids/classes dev pages emit.
-  return value.replace(/([^a-zA-Z0-9_-])/g, '\\$1');
-=======
   let escaped = '';
   for (let index = 0; index < value.length; index += 1) {
     const char = value[index];
@@ -228,7 +224,6 @@ function isDigit(value: string): boolean {
 
 function cssCodePointEscape(value: string): string {
   return `\\${value.codePointAt(0)?.toString(16).toUpperCase()} `;
->>>>>>> origin/main
 }
 
 function cssEscapeAttr(value: string): string {

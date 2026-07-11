@@ -1911,8 +1911,6 @@ where
         Ok(ItemGql::from(cp.put_item(item).map_err(store_err)?))
     }
 
-<<<<<<< HEAD
-=======
     /// Create a top-level co-annotation against an object/page/file target.
     async fn create_annotation(
         &self,
@@ -1979,7 +1977,6 @@ where
             .transpose()
     }
 
->>>>>>> origin/main
     /// Edit an existing item's title, tags, residency, status, due date, or
     /// reminder (in place by id).
     #[allow(clippy::too_many_arguments)]

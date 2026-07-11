@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
-<<<<<<< HEAD
-import { buildOperatorState, handleOperatorAction } from '@/lib/theorem-operator';
-=======
 import {
   buildOperatorState,
   handleOperatorActionForState,
   type OperatorActionResult,
 } from '@/lib/theorem-operator';
->>>>>>> origin/main
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
 
 // The Operator surface renders substrate state only (Invariant 1). Force-dynamic
@@ -38,13 +34,6 @@ export async function POST(req: Request) {
     );
   }
 
-<<<<<<< HEAD
-  const result = handleOperatorAction(body, process.env, new Date(), globalThis.fetch);
-  // Structured refusals (bay occupied, prerequisite unmet, evidence missing) are
-  // 409 Conflict; a bad shape is 400; success is 200.
-  const status = result.ok ? 200 : result.error === 'invalid_action' ? 400 : 409;
-  return NextResponse.json(result, { status });
-=======
   const now = new Date();
   let state = buildOperatorState(process.env, now, globalThis.fetch);
   try {
@@ -74,5 +63,4 @@ function statusForOperatorResult(result: OperatorActionResult): number {
     default:
       return 409;
   }
->>>>>>> origin/main
 }

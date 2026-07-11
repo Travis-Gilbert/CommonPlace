@@ -30,10 +30,7 @@ pub mod content_core;
 pub mod ingest;
 pub mod item;
 pub mod organize;
-<<<<<<< HEAD
-=======
 pub mod reconstruction;
->>>>>>> origin/main
 pub mod reminder;
 pub mod renderable;
 pub mod store;
@@ -66,10 +63,6 @@ pub use ingest::{
     EmbeddingGraphStore, IngestBody, IngestExtractionReceipt, IngestInput, IngestPipeline,
     IngestReceipt, ResolvedEntity, SimilarityLink, TaskFields, COLLECTION_EMBEDDING_PROPERTY,
     DEFAULT_SOURCE_PRIOR_BOOST, ENTITY_LABEL, ITEM_EMBEDDING_PROPERTY, MENTIONS_ENTITY_EDGE,
-};
-pub use annotation::{
-    annotation_from_item, Anchor, Annotation, AuthorKind, Rect, Resolution, ANCHOR_KEY,
-    AUTHOR_ID_KEY, AUTHOR_KIND_KEY, RESOLUTION_KEY, RESOLVED_KEY, TARGET_ID_KEY,
 };
 pub use item::{Item, ItemBody, ItemKind, Residency, SourceRef};
 pub use organize::{decide, route, NeedsYouReason, OrganizeDecision, OrganizePolicy, RoutingRule};

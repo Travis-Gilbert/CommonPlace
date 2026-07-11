@@ -646,11 +646,7 @@ where
         body: impl Into<String>,
         anchor: &crate::annotation::Anchor,
     ) -> GraphStoreResult<Item> {
-<<<<<<< HEAD
-        let anchor_value = serde_json::to_value(anchor).unwrap_or(serde_json::Value::Null);
-=======
         let anchor_value = serde_json::to_value(anchor).map_err(serde_err)?;
->>>>>>> origin/main
         let mut comment = Item::new(ItemKind::Comment, "Annotation")
             .with_text(body.into())
             .with_extra(crate::annotation::TARGET_ID_KEY, json!(target_id))

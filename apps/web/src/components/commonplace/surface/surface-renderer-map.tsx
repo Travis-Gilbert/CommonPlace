@@ -32,14 +32,6 @@ const ChipSurfaceView = dynamic<SurfaceViewRendererProps>(
   () => import('./SurfaceViewRenderers').then((module) => module.ChipSurfaceView),
   { ssr: false },
 );
-<<<<<<< HEAD
-// The rich Anytype-grade Set view, registered as the `database` renderer.
-const DatabaseSurfaceView = dynamic<SurfaceViewRendererProps>(
-  () => import('@/lib/block-view/database/DatabaseSurfaceView').then((module) => module.DatabaseSurfaceView),
-  { ssr: false },
-);
-=======
->>>>>>> origin/main
 // The Operator surface (OC5): each view-instance wraps a live operator component.
 const OperatorAttentionView = dynamic<SurfaceViewRendererProps>(
   () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorAttentionView),
@@ -68,10 +60,6 @@ export const SURFACE_RENDERER_MODULES: Readonly<
   timeline: TimelineSurfaceView,
   graph: GraphSurfaceView,
   chip: ChipSurfaceView,
-<<<<<<< HEAD
-  database: DatabaseSurfaceView,
-=======
->>>>>>> origin/main
   'operator-attention': OperatorAttentionView,
   'operator-bays': OperatorBaysView,
   'operator-bay-table': OperatorBayTableView,

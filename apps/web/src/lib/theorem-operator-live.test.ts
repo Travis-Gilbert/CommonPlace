@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
-<<<<<<< HEAD
-=======
 import { handleOperatorActionForState } from '@/lib/theorem-operator';
->>>>>>> origin/main
 
 /**
  * Task-node payloads mirror the authoritative serde shape of
@@ -104,15 +101,11 @@ const NOW = new Date('2026-07-06T00:00:00.000Z');
 describe('Operator live workGraph mapping (PT-010)', () => {
   it('uses the aggregate workGraph when no run is selected', async () => {
     const spy = graphqlFetch({ ok: true, tasks: TASK_NODES });
-<<<<<<< HEAD
-    const state = await buildOperatorStateLive({ THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv, NOW, spy);
-=======
     const state = await buildOperatorStateLive(
       { THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv,
       NOW,
       spy,
     );
->>>>>>> origin/main
     expect(state).not.toBeNull();
     expect(state!.source.endpoint).toBe('https://commonplace-api.example/graphql · all runs');
 
@@ -194,8 +187,6 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(bayByHead['codex'].task).toBeNull();
   });
 
-<<<<<<< HEAD
-=======
   it('validates actions against the live Operator state, not fixture task ids', async () => {
     const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
     expect(state).not.toBeNull();
@@ -212,7 +203,6 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     });
   });
 
->>>>>>> origin/main
   it('derives live gate, shift, and drawer state from TaskNodes', async () => {
     const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
     expect(state!.gate).toHaveLength(1);
@@ -240,19 +230,10 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(state!.shiftSummary).toMatchObject({
       completed: [{ taskId: 'task-c', goal: 'OP2 queue', gateStatus: 'passed' }],
       reviewReadyCount: 1,
-<<<<<<< HEAD
-      queueDepth: 1,
-      urgentMessages: [],
-    });
-    expect(state!.shiftSummary.newlyBlocked.map((task) => task.taskId)).toEqual(['task-b']);
-    // Rollup window matches the fixture contract: 12h lookback from `now`.
-    expect(state!.shiftSummary.since).toBe(new Date(NOW.getTime() - 12 * 60 * 60 * 1000).toISOString());
-=======
       queueDepth: 3,
       urgentMessages: [],
     });
     expect(state!.shiftSummary.newlyBlocked.map((task) => task.taskId)).toEqual(['task-b']);
->>>>>>> origin/main
   });
 
   it('fails open to fixtures when the GraphQL response carries errors (no data.workGraph)', async () => {

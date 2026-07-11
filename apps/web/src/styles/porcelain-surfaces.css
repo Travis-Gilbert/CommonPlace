@@ -40,16 +40,9 @@
   flex-direction: column;
   padding: calc(var(--u) * 3) 0 calc(var(--u) * 2);
   background: var(--raised);
-<<<<<<< HEAD
-  background-image: linear-gradient(180deg, var(--lit), transparent 40%);
-  border: 1px solid var(--hair-soft);
-  border-left: none;
-  border-radius: 0 16px 16px 0;
-=======
   border: 1px solid var(--hair);
   border-left: none;
   border-radius: 0 var(--r-band) var(--r-band) 0;
->>>>>>> origin/main
 }
 
 .p-wordmark {
