@@ -4,7 +4,19 @@ import '@/styles/porcelain-theme.css';
 import '@/styles/porcelain-surfaces.css';
 
 export const metadata: Metadata = {
-  title: 'Index',
+  title: {
+    absolute: 'CommonPlace',
+    default: 'CommonPlace',
+    template: '%s | CommonPlace',
+  },
+  description: 'The CommonPlace porcelain workspace for Theorem and its connected agents.',
+  metadataBase: new URL('https://app.theoremharness.com'),
+  openGraph: {
+    siteName: 'CommonPlace',
+    title: 'CommonPlace',
+    description: 'The CommonPlace porcelain workspace for Theorem and its connected agents.',
+    type: 'website',
+  },
 };
 
 /* The v2 shell. Strangler route: imports only the porcelain stylesheets.

@@ -1,14 +1,11 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
+import { PRODUCT_REDIRECTS } from './src/lib/product-route-matrix';
 
-// Explicit Turbopack workspace root. Without this, Turbopack walks up
-// the filesystem looking for the nearest lockfile and picks the wrong
-// directory whenever a stray ~/package-lock.json exists, which mis-roots
-// the module graph and causes the PostCSS subprocess to deadlock when
-// compiling global.css. path.resolve('.') is process.cwd(), which is
-// always the project directory when next dev/build is invoked via
-// npm scripts.
-const projectRoot = path.resolve('.');
+// Keep Turbopack inside the CommonPlace monorepo while allowing apps/web to
+// resolve the source contracts under packages/. Web scripts run from apps/web,
+// so ../.. is the repository root and avoids unrelated lockfiles above it.
+const projectRoot = path.resolve('../..');
 
 // INDEX_API_PROXY_URL: server-only var for the rewrite destination (not exposed to browser).
 // Falls back to local Index API in development, then Railway production.
@@ -119,6 +116,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     if (isDesktopExport) return [];
     return [
+      ...PRODUCT_REDIRECTS,
       {
         source: '/investigations',
         destination: '/essays',
