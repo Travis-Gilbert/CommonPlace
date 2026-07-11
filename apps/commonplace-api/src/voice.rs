@@ -16,7 +16,11 @@
 //!   ELEVENLABS_TTS_VOICE_ID (default 21m00Tcm4TlvDq8ikWAM, a stock voice)
 //!   ELEVENLABS_TTS_MODEL    (default eleven_turbo_v2_5)
 //!   KOKORO_TTS_URL   (default http://127.0.0.1:8081/v1/audio/speech)
+<<<<<<< HEAD
 //!   KOKORO_TTS_VOICE (default bm_george, a British-male butler register)
+=======
+//!   KOKORO_TTS_VOICE (default bm_george)
+>>>>>>> origin/main
 //!   KOKORO_TTS_MODEL (default kokoro)
 
 use std::env;
@@ -48,7 +52,12 @@ impl Transcriber {
     pub fn from_env() -> Self {
         match env::var("COMMONPLACE_STT_PROVIDER").ok().as_deref() {
             Some("whisper") => Transcriber::Whisper {
+<<<<<<< HEAD
                 url: env::var("WHISPER_STT_URL").unwrap_or_else(|_| DEFAULT_WHISPER_URL.to_string()),
+=======
+                url: env::var("WHISPER_STT_URL")
+                    .unwrap_or_else(|_| DEFAULT_WHISPER_URL.to_string()),
+>>>>>>> origin/main
                 model: env::var("WHISPER_STT_MODEL").unwrap_or_else(|_| "whisper-1".to_string()),
             },
             Some("elevenlabs") => match env::var("ELEVENLABS_API_KEY") {
@@ -70,7 +79,11 @@ impl Transcriber {
     /// Transcribe audio bytes to text. `Ok(None)` when disabled or empty result.
     pub async fn transcribe(
         &self,
+<<<<<<< HEAD
         bytes: Vec<u8>,
+=======
+        bytes: &[u8],
+>>>>>>> origin/main
         mime: Option<&str>,
     ) -> Result<Option<String>, String> {
         let name = file_name_for(mime);
@@ -190,11 +203,19 @@ fn client() -> Result<reqwest::Client, String> {
 }
 
 fn audio_part(
+<<<<<<< HEAD
     bytes: Vec<u8>,
     name: &'static str,
     mime: Option<&str>,
 ) -> Result<reqwest::multipart::Part, String> {
     let part = reqwest::multipart::Part::bytes(bytes).file_name(name);
+=======
+    bytes: &[u8],
+    name: &'static str,
+    mime: Option<&str>,
+) -> Result<reqwest::multipart::Part, String> {
+    let part = reqwest::multipart::Part::bytes(bytes.to_vec()).file_name(name);
+>>>>>>> origin/main
     match mime {
         Some(mime) => part.mime_str(mime).map_err(|error| error.to_string()),
         None => Ok(part),
@@ -227,7 +248,14 @@ async fn parse_text_json(resp: reqwest::Response) -> Result<Option<String>, Stri
     let status = resp.status();
     let body = resp.text().await.map_err(|error| error.to_string())?;
     if !status.is_success() {
+<<<<<<< HEAD
         return Err(format!("transcription HTTP {status}: {}", truncate(&body, 200)));
+=======
+        return Err(format!(
+            "transcription HTTP {status}: {}",
+            truncate(&body, 200)
+        ));
+>>>>>>> origin/main
     }
     let value: Value = serde_json::from_str(&body).map_err(|error| error.to_string())?;
     let text = value
@@ -263,10 +291,19 @@ async fn collect_audio(resp: reqwest::Response) -> Result<Speech, String> {
 }
 
 fn truncate(text: &str, max: usize) -> String {
+<<<<<<< HEAD
     if text.len() <= max {
         text.to_string()
     } else {
         format!("{}...", &text[..max])
+=======
+    let mut chars = text.chars();
+    let truncated: String = chars.by_ref().take(max).collect();
+    if chars.next().is_some() {
+        format!("{truncated}...")
+    } else {
+        text.to_string()
+>>>>>>> origin/main
     }
 }
 
@@ -302,5 +339,9 @@ mod tests {
     fn truncate_bounds_error_snippets() {
         assert_eq!(truncate("short", 200), "short");
         assert_eq!(truncate("abcdef", 3), "abc...");
+<<<<<<< HEAD
+=======
+        assert_eq!(truncate("ééé", 2), "éé...");
+>>>>>>> origin/main
     }
 }

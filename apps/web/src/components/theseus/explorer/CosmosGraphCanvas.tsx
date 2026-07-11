@@ -1761,13 +1761,11 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
             .map((id) => idToIndexRef.current.get(id))
             .filter((i): i is number => typeof i === 'number');
           if (indices.length > 0) {
-            graph.selectPointsByIndices(indices);
-          } else {
-            graph.unselectPoints();
+            graph.fitViewByPointIndices(indices, 300, 128);
           }
         },
         clearFocus() {
-          graphRef.current?.unselectPoints();
+          // No-op: cosmos.gl v3+ removed unselectPoints; focus cleared via setPointColors
         },
         zoomToNode(id, durationMs, distance) {
           const graph = graphRef.current;

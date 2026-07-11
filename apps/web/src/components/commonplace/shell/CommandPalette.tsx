@@ -26,7 +26,7 @@ const ACTION_ITEMS = [
   { key: 'timeline' as ViewType, label: 'Open Timeline', hint: 'Chronological capture feed' },
   { key: 'connection-engine' as ViewType, label: 'Open Connection Engine', hint: 'Discover and manage edges' },
   { key: 'code' as ViewType, label: 'Open Code', hint: 'Code workspace' },
-  { key: 'agent-thread' as ViewType, label: 'Open Agent Thread', hint: 'Talk to Theorem or dock an ACP agent' },
+  { key: 'agent-thread' as ViewType, label: 'Open Chat', hint: 'Talk to CommonPlace' },
 ];
 
 const SCREEN_ACTION_ITEMS = [
@@ -51,8 +51,8 @@ const AGENT_LAUNCH_ITEMS: AgentLaunchItem[] = [
   {
     agentId: 'theorem',
     command: '/agent',
-    label: 'Theorem Agent',
-    hint: 'Use configured API heads',
+    label: 'CommonPlace Chat',
+    hint: 'Open the API-backed chat surface',
     mode: 'api',
   },
   ...ACP_AGENTS.map((agent) => ({

@@ -746,7 +746,7 @@ export default function ConnectionWorkshop({ notebookSlug }: ConnectionWorkshopP
         }
         .cw-shortcut {
           font-family: var(--cp-font-mono);
-          font-size: 9px;
+          font-size: 10px;
           padding: 1px 4px;
           border-radius: 4px;
           background: rgba(42,37,32,0.06);

@@ -772,10 +772,23 @@ export function handleOperatorAction(
   now: Date = new Date(),
   fetchImpl: typeof fetch = globalThis.fetch,
 ): OperatorActionResult {
+<<<<<<< HEAD
   if (!isOperatorAction(body)) {
     return { ok: false, action: 'unknown', error: 'invalid_action', message: 'Unrecognized operator action.' };
   }
   const state = buildOperatorState(env, now, fetchImpl);
+=======
+  return handleOperatorActionForState(body, buildOperatorState(env, now, fetchImpl));
+}
+
+export function handleOperatorActionForState(
+  body: unknown,
+  state: OperatorState,
+): OperatorActionResult {
+  if (!isOperatorAction(body)) {
+    return { ok: false, action: 'unknown', error: 'invalid_action', message: 'Unrecognized operator action.' };
+  }
+>>>>>>> origin/main
   const action = body;
 
   switch (action.action) {

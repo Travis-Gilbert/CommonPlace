@@ -1,0 +1,85 @@
+{
+  "kind": "repo_hygiene_receipt",
+  "timestamp": "2026-07-09T15:34:31Z",
+  "repo_root": "/Volumes/SSD Samsung/var-18/copilot-worktrees/CommonPlace/travis-gilbert-scaling-spork",
+  "branch": "travis-gilbert-scaling-spork",
+  "commit_sha": "86dcd5ae416eb6355d3d53f8176f9af9ef7d2c25",
+  "mode": "advisory",
+  "failed_count": 0,
+  "warning_count": 1,
+  "hard_axis_failed": false,
+  "reports": [
+    {
+      "checker": "git_status",
+      "status": "warning",
+      "severity": "medium",
+      "message": "Worktree has uncommitted changes outside hook-local state.",
+      "command": "git status --short --branch",
+      "exit_code": 0,
+      "output": "## travis-gilbert-scaling-spork...origin/travis-gilbert-scaling-spork\n M apps/web/next.config.ts\n M apps/web/package-lock.json\n M apps/web/package.json\n M apps/web/scripts/commonplace-quality-audit.mjs\n M apps/web/src/app/v2/graph/NetworkView.tsx\n M apps/web/src/components/studio/EditorContextMenu.tsx\n M apps/web/src/components/studio/extensions/ContainBlockView.tsx\n M apps/web/src/components/studio/extensions/ImageUpload.tsx\n M apps/web/src/components/studio/extensions/slashCommandItems.ts\n M apps/web/src/components/theseus/explorer/CosmosGraphCanvas.tsx\n M apps/web/src/lib/scene-package.ts\n M package-lock.json\n M package.json\n?? .next/\n?? apps/web/pnpm-lock.yaml\n?? apps/web/scripts/gen-tokens.ts\n?? apps/web/src/__tests__/\n?? apps/web/src/app/v2/data-model/\n?? apps/web/src/components/v2/data-canvas/DataCanvas.tsx\n?? apps/web/src/components/v2/data-canvas/RelationEdge.tsx\n?? apps/web/src/components/v2/data-canvas/TypeNode.tsx\n?? apps/web/src/components/v2/data-canvas/__tests__/\n?? apps/web/src/components/v2/data-canvas/canvas-logic.ts\n?? apps/web/src/components/v2/data-canvas/index.ts\n?? apps/web/src/components/v2/kanban/KanbanBoard.tsx\n?? apps/web/src/components/v2/kanban/KanbanCard.tsx\n?? apps/web/src/components/v2/kanban/KanbanColumn.tsx\n?? apps/web/src/components/v2/kanban/__tests__/\n?? apps/web/src/components/v2/kanban/index.ts\n?? apps/web/src/components/v2/kanban/kanban-logic.ts\n?? apps/web/src/components/v2/kanban/kanban-recipe.tsx\n?? apps/web/src/components/v2/record-table/RecordTable.tsx\n?? apps/web/src/components/v2/record-table/RecordTableBody.tsx\n?? apps/web/src/components/v2/record-table/RecordTableBulkBar.tsx\n?? apps/web/src/components/v2/record-table/RecordTableFilterBar.tsx\n?? apps/web/src/components/v2/record-table/RecordTableGroupRow.tsx\n?? apps/web/src/components/v2/record-table/RecordTableHeader.tsx\n?? apps/web/src/components/v2/record-table/index.ts\n?? apps/web/src/components/v2/record-table/record-table-store.ts\n?? apps/web/src/components/v2/record-table/types.ts\n?? apps/web/src/lib/theme/\n?? pnpm-lock.yaml\n?? pnpm-workspace.yaml"
+    },
+    {
+      "checker": "diff_check_unstaged",
+      "status": "passed",
+      "severity": "error",
+      "message": "No whitespace or patch hygiene errors in unstaged changes.",
+      "command": "git diff --check -- . ':!.theorem' ':!.harness'",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "diff_check_staged",
+      "status": "passed",
+      "severity": "error",
+      "message": "No whitespace or patch hygiene errors in staged changes.",
+      "command": "git diff --cached --check -- . ':!.theorem' ':!.harness'",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "conflict_markers",
+      "status": "passed",
+      "severity": "info",
+      "message": "No conflict markers found.",
+      "command": "git grep --untracked conflict markers",
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "checker": "untracked_secrets",
+      "status": "passed",
+      "severity": "info",
+      "message": "No untracked secret-like files found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "untracked_artifacts",
+      "status": "passed",
+      "severity": "info",
+      "message": "No suspicious untracked artifacts found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "large_untracked_files",
+      "status": "passed",
+      "severity": "info",
+      "message": "No large untracked files found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "tracked_sensitive_artifacts",
+      "status": "passed",
+      "severity": "info",
+      "message": "No tracked secret-like, database, or log artifacts found.",
+      "command": "git ls-files",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

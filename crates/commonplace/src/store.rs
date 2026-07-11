@@ -216,6 +216,30 @@ where
         nodes.iter().map(|node| self.hydrate_item(node)).collect()
     }
 
+    /// Query all nodes with the given label. Returns raw [`NodeRecord`]s — callers
+    /// that know the expected label (e.g. `ITEM_LABEL`) can hydrate via
+    /// [`hydrate_item`](Self::hydrate_item).
+    pub fn query_by_label(&self, label: &str) -> GraphStoreResult<Vec<NodeRecord>> {
+        Ok(self
+            .store
+            .query_nodes(NodeQuery::label(label).with_limit(usize::MAX)))
+    }
+
+    /// Query nodes matching a label + property filter. Returns raw
+    /// [`NodeRecord`]s for callers to hydrate as needed.
+    pub fn query_by_property(
+        &self,
+        label: &str,
+        key: &str,
+        value: &Value,
+    ) -> GraphStoreResult<Vec<NodeRecord>> {
+        Ok(self.store.query_nodes(
+            NodeQuery::label(label)
+                .with_property(key, value.clone())
+                .with_limit(usize::MAX),
+        ))
+    }
+
     /// The item that came from this exact source record, if one exists (A3). A
     /// single exact-match property filter on the derived `source_ref_key`, so a
     /// re-fetched record updates in place instead of minting a duplicate.
@@ -622,7 +646,11 @@ where
         body: impl Into<String>,
         anchor: &crate::annotation::Anchor,
     ) -> GraphStoreResult<Item> {
+<<<<<<< HEAD
         let anchor_value = serde_json::to_value(anchor).unwrap_or(serde_json::Value::Null);
+=======
+        let anchor_value = serde_json::to_value(anchor).map_err(serde_err)?;
+>>>>>>> origin/main
         let mut comment = Item::new(ItemKind::Comment, "Annotation")
             .with_text(body.into())
             .with_extra(crate::annotation::TARGET_ID_KEY, json!(target_id))

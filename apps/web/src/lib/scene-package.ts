@@ -1,2 +1,2 @@
-export * from '../../../../packages/block-view-contracts/src/scene-package';
-export * from '../../../../packages/block-view-contracts/src/scene-package-fixture';
+export * from '@commonplace/block-view-contracts/scene';
+export * from '@commonplace/block-view-contracts';

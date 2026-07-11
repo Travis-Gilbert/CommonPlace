@@ -119,7 +119,7 @@ export default function ConnectionComposer() {
                 fontFamily: 'var(--cp-font-title)',
                 fontSize: 22,
                 color: 'var(--cp-text)',
-                lineHeight: 1.15,
+                lineHeight: 1.2,
               }}
             >
               {sourceTitle}

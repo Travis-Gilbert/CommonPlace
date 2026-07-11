@@ -8,6 +8,7 @@ interface ProviderProfile {
   readonly provider: string;
   readonly aliases: readonly string[];
   readonly keyEnv: string;
+  readonly alternateKeyEnvs?: readonly string[];
   readonly endpointEnv: string;
   readonly baseUrlEnv: string;
   readonly modelEnv: string;
@@ -74,6 +75,18 @@ const PROVIDER_PROFILES: readonly ProviderProfile[] = [
     baseUsesV1Path: true,
   },
   {
+    provider: 'qwen',
+    aliases: ['qwen', 'dashscope', 'aliyun'],
+    keyEnv: 'QWEN_API_KEY',
+    alternateKeyEnvs: ['DASHSCOPE_API_KEY'],
+    endpointEnv: 'QWEN_CHAT_URL',
+    baseUrlEnv: 'QWEN_BASE_URL',
+    modelEnv: 'QWEN_MODEL',
+    defaultEndpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    defaultModel: 'qwen-plus',
+    baseUsesV1Path: true,
+  },
+  {
     provider: 'openai',
     aliases: ['openai', 'openapi'],
     keyEnv: 'OPENAI_API_KEY',
@@ -94,7 +107,7 @@ export async function runDirectProviderHead(
     return {
       configured: false,
       attempts: [
-        'direct provider: no runnable API head found. Set DEEPSEEK_API_KEY, MISTRAL_API_KEY, or MINIMAX_API_KEY; optionally set THEOREM_AGENT_HEADS=deepseek,mistral,minimax.',
+        'direct provider: no runnable API head found. Set DEEPSEEK_API_KEY, MISTRAL_API_KEY, MINIMAX_API_KEY, QWEN_API_KEY, or DASHSCOPE_API_KEY; optionally set THEOREM_AGENT_HEADS=deepseek,mistral,minimax,qwen.',
       ],
     };
   }
@@ -120,11 +133,16 @@ export async function runDirectProviderHead(
   return { configured: true, attempts };
 }
 
+export function hasDirectProviderHeadConfig(): boolean {
+  return configuredProviderHeads().length > 0;
+}
+
 export function directProviderEnvNames(): readonly string[] {
   return [
     'THEOREM_AGENT_HEADS',
     ...PROVIDER_PROFILES.flatMap((profile) => [
       profile.keyEnv,
+      ...(profile.alternateKeyEnvs ?? []),
       profile.modelEnv,
       profile.endpointEnv,
       profile.baseUrlEnv,
@@ -138,8 +156,8 @@ function configuredProviderHeads(): DirectProviderHead[] {
     return explicitHeads.map(resolveHead).filter(nonNullable);
   }
 
-  return PROVIDER_PROFILES.filter((profile) => text(process.env[profile.keyEnv])).map((profile) =>
-    buildHead(profile.provider, profile, profile.keyEnv),
+  return PROVIDER_PROFILES.filter((profile) => providerCredentialEnv(profile)).map((profile) =>
+    buildHead(profile.provider, profile, providerCredentialEnv(profile) ?? profile.keyEnv),
   );
 }
 
@@ -155,7 +173,7 @@ function resolveHead(headId: string): DirectProviderHead | null {
   const credentialRef =
     text(process.env[`THEOREM_AGENT_HEAD_${headSlug}_CREDENTIAL_REF`]) ??
     text(process.env[`THEOREM_AGENT_HEAD_${headSlug}_CREDENTIAL`]);
-  const keyEnv = credentialEnvName(credentialRef) ?? profile.keyEnv;
+  const keyEnv = credentialEnvName(credentialRef) ?? providerCredentialEnv(profile) ?? profile.keyEnv;
   return buildHead(headId, profile, keyEnv);
 }
 
@@ -196,22 +214,35 @@ async function callOpenAiCompatibleHead(
   head: DirectProviderHead,
   input: TheoremAgentNormalizedInput,
 ): Promise<TheoremAgentRunResult> {
-  const response = await fetch(head.endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${head.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: head.model,
-      messages: messagesForInput(input),
-      stream: false,
-    }),
-    cache: 'no-store',
-  });
-  const value = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(providerErrorMessage(response.status, value));
+  const timeout = timeoutController(input.requestTimeoutMs);
+  let response: Response;
+  let value: unknown;
+  try {
+    response = await fetch(head.endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${head.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: head.model,
+        messages: messagesForInput(input),
+        stream: false,
+      }),
+      cache: 'no-store',
+      signal: timeout.signal,
+    });
+    value = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(providerErrorMessage(response.status, value));
+    }
+  } catch (err) {
+    if (isAbortError(err)) {
+      throw new Error(`${head.profile.provider} timed out after ${input.requestTimeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    timeout.clear();
   }
 
   const answer = chatCompletionText(value);
@@ -242,7 +273,9 @@ function messagesForInput(input: TheoremAgentNormalizedInput): Array<{
   content: string;
 }> {
   const system = [
-    'You are the Theorem agent inside CommonPlace.',
+    'Your name is Theorem. You are an AI agent running inside CommonPlace.',
+    'Theorem is your agent name and product identity, not a mathematical theorem or an interactive proof system.',
+    'If asked who you are, say you are Theorem, the CommonPlace agent for synthesis, retrieval, and grounded work.',
     'Answer the user directly and preserve useful provenance when evidence is supplied.',
   ];
   if (input.claims.length) {
@@ -292,6 +325,12 @@ function providerProfile(value: string): ProviderProfile | undefined {
   );
 }
 
+function providerCredentialEnv(profile: ProviderProfile): string | undefined {
+  return [profile.keyEnv, ...(profile.alternateKeyEnvs ?? [])].find((name) =>
+    text(process.env[name]),
+  );
+}
+
 function credentialEnvName(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const trimmed = value.trim();
@@ -338,4 +377,20 @@ function text(value: unknown): string | undefined {
 
 function nonNullable<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
+}
+
+function timeoutController(timeoutMs: number): {
+  signal: AbortSignal;
+  clear: () => void;
+} {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timeout),
+  };
+}
+
+function isAbortError(value: unknown): boolean {
+  return value instanceof Error && value.name === 'AbortError';
 }

@@ -1,0 +1,197 @@
+/* WS4 board renderer. Tokens only, mirroring work.module.css's stage/handle
+   vocabulary. Node "category" color (from JSON Canvas presets/hex) shows as
+   a full-width top edge, never a side stripe (per DESIGN.md's ban on
+   colored border-left/right accents). */
+
+.host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.host :global(.react-flow) {
+  background: transparent;
+}
+
+.stateMessage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--u) * 3);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* ---- toolbar panel ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  padding: calc(var(--u) * 0.75) calc(var(--u) * 1);
+  border-radius: 8px;
+  border: 1px solid var(--hair-soft);
+  background: var(--plane);
+  backdrop-filter: blur(6px) saturate(1.05);
+}
+
+.addButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 1);
+  border-radius: 6px;
+  border: 1px solid var(--hair-soft);
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.addButton:hover {
+  color: var(--accent);
+  border-color: var(--hair);
+}
+.addButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-inline: calc(var(--u) * 0.5);
+}
+.status[data-status='error'] {
+  color: var(--tag-red);
+}
+.status[data-status='saved'] {
+  color: var(--ink-faint);
+}
+
+/* ---- generic node card ---- */
+.node {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid var(--hair-soft);
+  background: var(--plane);
+  padding: calc(var(--u) * 1.25);
+  overflow: hidden;
+  transition: border-color var(--motion) var(--ease), box-shadow var(--motion) var(--ease);
+}
+.node[data-selected] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+
+.colorDot {
+  position: absolute;
+  top: calc(var(--u) * 1.1);
+  right: calc(var(--u) * 1.1);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--node-accent);
+}
+
+.handle {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hair);
+  border: 1px solid var(--plane);
+  opacity: 0;
+  transition: opacity var(--motion) var(--ease);
+}
+.node:hover .handle,
+.groupNode:hover .handle {
+  opacity: 1;
+}
+
+.textContent {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  color: var(--ink);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+.textEmpty {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.textEdit {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+.nodeHead {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  margin-bottom: calc(var(--u) * 0.75);
+  color: var(--ink-faint);
+}
+.nodeKicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.nodePath {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-xs);
+  word-break: break-word;
+}
+.nodeSubpath {
+  color: var(--ink-faint);
+}
+.nodeLink {
+  color: var(--accent);
+  font-size: var(--text-xs);
+  word-break: break-all;
+  text-decoration: none;
+}
+.nodeLink:hover {
+  text-decoration: underline;
+}
+
+/* ---- group node: a background region, not an interactive card ---- */
+.groupNode {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  border: 1px dashed var(--hair-soft);
+  background: var(--hair-soft);
+}
+.groupLabel {
+  position: absolute;
+  top: calc(var(--u) * -3);
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}

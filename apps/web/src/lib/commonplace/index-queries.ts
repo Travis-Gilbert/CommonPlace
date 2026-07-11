@@ -78,6 +78,10 @@ export interface IndexData {
   readonly bands: Readonly<Record<IndexBandId, readonly IndexRow[]>>;
 }
 
+export function indexRowKey(row: Pick<IndexRow, "band" | "id">): string {
+  return `${row.band}:${row.id}`;
+}
+
 /** Below this, the engine is unsure where it filed something: a refile
  *  candidate that surfaces in Needs you. */
 export const REFILE_CONFIDENCE_THRESHOLD = 0.6;
@@ -317,7 +321,10 @@ function itemGqlToIndexRow(
   const filedBy = item.tags.some((t) => t.startsWith("capture:")) ? "capture" : "agent";
   const when =
     band === "today" && item.dueAtMs
-      ? new Date(item.dueAtMs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      ? new Date(item.dueAtMs).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        })
       : undefined;
   return {
     id: item.id,
@@ -401,11 +408,12 @@ export function allRows(data: IndexData): readonly IndexRow[] {
 interface RefileOverride {
   readonly label: string;
   readonly title?: string;
+  readonly collectionId?: string;
 }
 const refileOverrides = new Map<string, RefileOverride>();
 
-function recordRefileOverride(id: string, label: string, title?: string): void {
-  refileOverrides.set(id, { label, title });
+function recordRefileOverride(id: string, label: string, title?: string, collectionId?: string): void {
+  refileOverrides.set(id, { label, title, collectionId });
 }
 
 /** The corrected destination label for an item by id or title, or undefined. */
@@ -437,15 +445,18 @@ export function submitRefile(
   label: string,
   title?: string,
   currentCollectionId?: string,
-): void {
-  if (typeof window === "undefined") return;
+  currentCollectionLabel?: string,
+): Promise<string | undefined> {
+  if (typeof window === "undefined") return Promise.resolve(undefined);
   recordRefileOverride(id, label, title);
   // 1. Observable signal (immediate): peer surfaces bind this to reflect the
   //    correction without a refetch. `title` lets fixture surfaces (which key by
   //    title) match; live surfaces match by `id`.
   try {
     window.dispatchEvent(
-      new CustomEvent("commonplace:refile", { detail: { id, label, title, at: Date.now() } }),
+      new CustomEvent("commonplace:refile", {
+        detail: { id, label, title, at: Date.now() },
+      }),
     );
   } catch {
     /* ignore: signal is best-effort */
@@ -454,27 +465,38 @@ export function submitRefile(
   //    a collection (create if new). When the item's current collection id is
   //    known (live), MOVE -- add the new membership and tombstone the old with
   //    provenance retained (commonplace-api moveToCollection). Otherwise add.
-  void persistRefile(id, label, currentCollectionId);
+  return persistRefile(id, label, currentCollectionId, currentCollectionLabel).then((collectionId) => {
+    if (collectionId) recordRefileOverride(id, label, title, collectionId);
+    return collectionId;
+  });
 }
 
 async function persistRefile(
   itemId: string,
   label: string,
   currentCollectionId?: string,
-): Promise<void> {
+  currentCollectionLabel?: string,
+): Promise<string | undefined> {
   const name = label.trim();
-  if (!name) return;
+  if (!name) return undefined;
   try {
     const collections = await gqlCollections();
     const match = collections.find((c) => c.name.toLowerCase() === name.toLowerCase());
     const newId = match ? match.id : (await gqlCreateCollection(name)).id;
-    if (currentCollectionId && currentCollectionId !== newId) {
-      await gqlMoveToCollection(itemId, currentCollectionId, newId);
+    const currentId =
+      currentCollectionId ??
+      (currentCollectionLabel
+        ? collections.find((c) => c.name.toLowerCase() === currentCollectionLabel.toLowerCase())?.id
+        : undefined);
+    if (currentId && currentId !== newId) {
+      await gqlMoveToCollection(itemId, currentId, newId);
     } else {
       await gqlAddToCollection(itemId, newId);
     }
+    return newId;
   } catch {
     /* backend unreachable or write failed: the optimistic UI + event still hold */
+    return undefined;
   }
 }
 
@@ -490,7 +512,10 @@ export interface RefileSignal {
  *  handler is held in a ref so the listener is registered once, not per render. */
 export function useRefileSignal(handler: (signal: RefileSignal) => void): void {
   const ref = useRef(handler);
-  ref.current = handler;
+  useEffect(() => {
+    ref.current = handler;
+  }, [handler]);
+
   useEffect(() => {
     const onRefile = (event: Event) => {
       const detail = (event as CustomEvent<RefileSignal>).detail;

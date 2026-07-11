@@ -17,7 +17,7 @@
 }
 
 .toolboxCount {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--cp-sidebar-text-faint);
   margin-left: auto;
@@ -44,7 +44,7 @@
   border: 1px solid rgba(244, 243, 240, 0.04);
   background: rgba(244, 243, 240, 0.02);
   font-family: var(--cp-font-mono);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: rgba(244, 243, 240, 0.22);

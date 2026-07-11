@@ -115,7 +115,7 @@ function Avatar({ size, fontSize, initial }: { size: number; fontSize: number; i
       width: size, height: size, borderRadius: '50%', background: PERSON_COLOR,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
-      <span style={{ fontFamily: 'var(--cp-font-mono)', fontSize, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{initial}</span>
+      <span style={{ fontFamily: 'var(--cp-font-mono)', fontSize, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{initial}</span>
     </div>
   );
 }

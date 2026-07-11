@@ -30,11 +30,19 @@ pub mod content_core;
 pub mod ingest;
 pub mod item;
 pub mod organize;
+<<<<<<< HEAD
+=======
+pub mod reconstruction;
+>>>>>>> origin/main
 pub mod reminder;
 pub mod renderable;
 pub mod store;
 pub mod tag;
 
+pub use annotation::{
+    annotation_from_item, Anchor, Annotation, AuthorKind, Rect, Resolution, ANCHOR_KEY,
+    AUTHOR_ID_KEY, AUTHOR_KIND_KEY, RESOLUTION_KEY, RESOLVED_KEY, TARGET_ID_KEY,
+};
 pub use blob::{content_hash, BlobStore, InMemoryBlobStore};
 pub use block_view::{
     ActionKind, AgentTier, BlockHost, CardinalityRequirement, CommonplaceBlockHost, Constraint,
@@ -78,4 +86,5 @@ pub use store::{
     LOGGED_ON_EDGE, MEMBER_OF_EDGE, PART_OF_EPIC_EDGE, RELATES_TO_EDGE, SIMILAR_TO_EDGE,
     SOURCE_REF_KEY_PROPERTY, SUBTASK_OF_EDGE, TAG_LABEL, TOWARD_MILESTONE_EDGE, WORKED_BY_EDGE,
 };
+pub use reconstruction::{fact_to_item, facts_to_items_and_collections};
 pub use tag::{tag_id, Tag};

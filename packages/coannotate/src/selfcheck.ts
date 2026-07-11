@@ -133,6 +133,12 @@ assert.deepEqual(fix.anchor, ann.anchor);
 assert.equal(fix.anchorLabel, 'src/Card.tsx:42:4');
 assert.equal(fix.thread, 'user:travis: this card is misaligned\nhead:claude: on it');
 assert.equal(fix.screenshotRef, 'blob:crop-1');
+<<<<<<< HEAD
+=======
+const missingAnchorFix = buildFixThisRequest({ ...ann, anchor: undefined });
+assert.deepEqual(missingAnchorFix.anchor, { kind: 'page', url: 'about:blank#missing-annotation-anchor' });
+assert.equal(missingAnchorFix.anchorLabel, 'missing annotation anchor');
+>>>>>>> origin/main
 
 const commit: CommitTouch = {
   hash: 'abc123',
