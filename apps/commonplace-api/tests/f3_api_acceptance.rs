@@ -381,6 +381,50 @@ async fn annotations_round_trip_through_graphql_contract() {
 }
 
 #[tokio::test]
+async fn growth_snapshot_is_a_typed_authenticated_query() {
+    let key = "growth-key";
+    let schema = instance_with_key(key);
+    let query = r#"query {
+        growthSnapshot {
+            available
+            message
+            snapshot {
+                schemaVersion
+                source
+                tenantSlug
+                xp { total byContext { leaf xp } }
+                card { stats { form } bundle { manifest { ownerPublicFingerprint } faceSvg } }
+            }
+        }
+    }"#;
+    let response = schema
+        .execute(Request::new(query).data(ApiKeyToken(key.to_string())))
+        .await;
+    assert!(
+        response.errors.is_empty(),
+        "Growth query errors: {:?}",
+        response.errors
+    );
+    let data = response.data.into_json().unwrap();
+    let result = &data["growthSnapshot"];
+    if result["available"].as_bool() == Some(true) {
+        assert_eq!(result["snapshot"]["schemaVersion"], 1);
+        assert_eq!(result["snapshot"]["source"], "live");
+    } else {
+        assert!(result["snapshot"].is_null());
+        assert!(result["message"]
+            .as_str()
+            .is_some_and(|message| !message.is_empty()));
+    }
+
+    let unauthorized = schema.execute(Request::new(query)).await;
+    assert!(
+        !unauthorized.errors.is_empty(),
+        "Growth query requires an API key"
+    );
+}
+
+#[tokio::test]
 async fn pm_overview_exposes_project_state_and_work_items() {
     let key = "pm-key";
     let schema = instance_with_key(key);

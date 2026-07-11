@@ -39,6 +39,7 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
+use crate::growth::{load_growth_snapshot_from_env, GrowthSnapshotResultGql};
 use crate::organize::{
     organize as run_organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup,
     OrganizeItem, OrganizeSnapshot, OrganizedToday, Subtask, Timeframe,
@@ -1440,6 +1441,13 @@ where
             return Ok(None);
         };
         page_crdt_snapshot_from(&cp, page_id, snapshot).map(Some)
+    }
+
+    /// The live, validated Growth projection. Unconfigured or invalid sources
+    /// return an explicit unavailable result rather than fixture data.
+    async fn growth_snapshot(&self, ctx: &Context<'_>) -> Result<GrowthSnapshotResultGql> {
+        principal(ctx)?;
+        Ok(load_growth_snapshot_from_env().await)
     }
 
     /// All items, optionally filtered to a kind.
