@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "CommonPlace",
+    "slug": "commonplace-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "commonplace",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.travisgilbert.commonplace",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Voice capture records audio so it can be kept in your commonplace."
+      }
+    },
+    "android": {
+      "package": "com.travisgilbert.commonplace",
+      "adaptiveIcon": {
+        "backgroundColor": "#FAF9F5",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FAF9F5",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "reminders"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "The camera captures photos straight into your commonplace."
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 4,
+            "NSExtensionActivationSupportsFileWithMaxCount": 4
+          },
+          "androidIntentFilters": ["text/*", "image/*", "application/*"]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

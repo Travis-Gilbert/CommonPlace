@@ -1,19 +1,23 @@
 'use client';
 
-import type { ScreenType } from '@/lib/commonplace';
+import type { ScreenType, ViewType } from '@/lib/commonplace';
 import { isTauri } from '@/lib/desktop';
+import { findLeafWithView } from '@/lib/commonplace-layout';
 import { useLayout } from '@/lib/providers/layout-provider';
 import styles from './CommonPlaceRail.module.css';
 
 interface RailItem {
   icon: string;
   label: string;
-  screenType: ScreenType;
+  screenType?: ScreenType;
+  viewType?: ViewType;
+  viewContext?: Record<string, unknown>;
   desktopOnly?: boolean;
 }
 
 const RAIL_ITEMS: RailItem[] = [
-  { icon: 'cellar', label: 'Auto Organize', screenType: 'daily' },
+  { icon: 'cellar', label: 'Index', screenType: 'daily' },
+  { icon: 'chat', label: 'Chat', viewType: 'agent-thread', viewContext: { agentId: 'theorem', agentMode: 'api' } },
   { icon: 'grid', label: 'Library', screenType: 'library' },
   { icon: 'graph', label: 'Map', screenType: 'models' },
   { icon: 'book', label: 'Notebooks', screenType: 'notebooks' },
@@ -80,7 +84,7 @@ interface CommonPlaceRailProps {
 }
 
 export default function CommonPlaceRail({ onExpand }: CommonPlaceRailProps) {
-  const { activeScreen, navigateToScreen } = useLayout();
+  const { activeScreen, layout, launchView, navigateToScreen } = useLayout();
 
   return (
     <nav className={styles.rail} data-commonplace-rail="true">
@@ -89,12 +93,24 @@ export default function CommonPlaceRail({ onExpand }: CommonPlaceRailProps) {
       </button>
 
       {RAIL_ITEMS.filter((item) => !item.desktopOnly || isTauri()).map((item) => {
-        const isActive = activeScreen === item.screenType;
+        const isActive = item.screenType
+          ? activeScreen === item.screenType
+          : item.viewType
+            ? Boolean(findLeafWithView(layout, item.viewType))
+            : false;
         return (
           <button
-            key={item.screenType}
+            key={item.screenType ?? item.viewType ?? item.label}
             className={`${styles.btn} ${isActive ? styles.active : ''}`}
-            onClick={() => navigateToScreen(item.screenType)}
+            onClick={() => {
+              if (item.screenType) {
+                navigateToScreen(item.screenType);
+                return;
+              }
+              if (item.viewType) {
+                launchView(item.viewType, item.viewContext);
+              }
+            }}
             title={item.label}
           >
             <RailIcon name={item.icon} active={isActive} />

@@ -1,0 +1,84 @@
+/* TW5 RecordSurface: segmented view switcher (APG tablist) over one ObjectSet.
+   Every value traces to a porcelain token. Transitions ride var(--motion), so
+   the theme's prefers-reduced-motion path (which nulls --motion) disables them
+   with no per-file media query needed. */
+
+.surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  height: 100%;
+}
+
+.switcher {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--inset-bg);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-control);
+}
+
+.tab {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: var(--ink-dim);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-body);
+  transition: background var(--motion) var(--ease), color var(--motion) var(--ease);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab[data-selected] {
+  background: var(--plane);
+  color: var(--ink);
+  box-shadow: var(--raise);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.panel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-8);
+  color: var(--ink-dim);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.statusTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.statusBody {
+  margin: 0;
+}

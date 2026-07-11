@@ -105,7 +105,7 @@ export type ViewType =
 
 export type NavigationMode = 'screen' | 'view';
 
-export type ScreenType = 'daily' | 'library' | 'models' | 'notebooks' | 'projects' | 'engine' | 'settings' | 'accounts' | 'cobrowser' | 'coordination' | 'receiver' | 'desktop';
+export type ScreenType = 'daily' | 'library' | 'models' | 'notebooks' | 'projects' | 'engine' | 'settings' | 'accounts' | 'cobrowser' | 'coordination' | 'receiver' | 'desktop' | 'control-center';
 
 export interface NavigationTargetObject {
   id?: number;
@@ -138,7 +138,7 @@ export interface ViewDefinition {
 
 export const VIEW_REGISTRY: Record<ViewType, { label: string; icon: string }> = {
   library: { label: 'Library', icon: 'grid' },
-  grid: { label: 'All Objects', icon: 'grid' },
+  grid: { label: 'Structured Data', icon: 'grid' },
   timeline: { label: 'Timeline', icon: 'timeline' },
   'scoped-timeline': { label: 'My Timelines', icon: 'filter' },
   network: { label: 'Map', icon: 'graph' },
@@ -208,7 +208,15 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: '',
     items: [
-      { label: 'Auto Organize', href: '#daily', icon: 'cellar', mode: 'screen', screenType: 'daily' },
+      { label: 'Index', href: '#daily', icon: 'cellar', mode: 'screen', screenType: 'daily' },
+      {
+        label: 'Chat',
+        href: '#agent-theorem',
+        icon: 'chat',
+        mode: 'view',
+        viewType: 'agent-thread',
+        viewContext: { agentId: 'theorem', agentMode: 'api' },
+      },
       { label: 'Library', href: '#library', icon: 'grid', mode: 'screen', screenType: 'library' },
       {
         label: 'Models',
@@ -218,7 +226,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         screenType: 'models',
         expandable: true,
         children: [
-          { label: 'Structured', href: '#models', icon: 'keyframes-solid', mode: 'screen', screenType: 'models' },
+          { label: 'Structured', href: '#structured-data', icon: 'keyframes-solid', mode: 'view', viewType: 'grid' },
           { label: 'Free', href: '#boards', icon: 'substract', mode: 'view', viewType: 'board' },
         ],
       },
@@ -238,6 +246,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
     title: 'Views',
     items: [
+      { label: 'Table', href: '#structured-data', icon: 'grid', mode: 'view', viewType: 'grid' },
       {
         label: 'Timeline',
         href: '#timeline',
@@ -291,6 +300,13 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     title: 'System',
     items: [
       {
+        label: 'Control Center',
+        href: '#control-center',
+        icon: 'check-list',
+        mode: 'screen',
+        screenType: 'control-center',
+      },
+      {
         label: 'Accounts',
         href: '#accounts',
         icon: 'sparkle',
@@ -299,7 +315,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         expandable: true,
         children: [
           {
-            label: 'Theorem Agent',
+            label: 'CommonPlace Chat',
             href: '#agent-theorem',
             icon: 'sparkle',
             mode: 'view',
@@ -480,6 +496,8 @@ export interface GraphNode {
   edgeCount: number;
   bodyPreview?: string;
   status?: string;
+  communityId?: string;
+  centrality?: number;
   x?: number;
   y?: number;
   fx?: number | null;

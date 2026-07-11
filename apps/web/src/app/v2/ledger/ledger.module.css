@@ -1,0 +1,90 @@
+/* Ledger table, porcelain-native. All values resolve through porcelain tokens
+   (the page renders inside .porcelain, so var(--*) cascade in). No hex, state is
+   material (row lift on hover), no colored edge stripe. */
+
+.wrap {
+  flex: 1;
+  min-height: 0;
+  padding: 0 calc(var(--u) * 5) calc(var(--u) * 5);
+}
+
+.frame {
+  height: 100%;
+  border-radius: var(--r-band);
+  overflow: auto;
+  border: 1px solid var(--hair-soft);
+  background-color: var(--plane);
+  box-shadow: var(--edge), var(--float);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-xs);
+}
+
+.th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  padding: calc(var(--u) * 1.375) calc(var(--u) * 1.75);
+  background: var(--raised);
+  background-image: none;
+  border-bottom: 1px solid var(--hair);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color var(--motion) var(--ease);
+}
+.th:hover { color: var(--ink-dim); }
+.caret { color: var(--ink-faint); }
+
+.row .td { transition: background var(--motion) var(--ease); }
+.row:hover .td { background: var(--raised); }
+
+.td {
+  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.75);
+  color: var(--ink);
+  border-bottom: 1px solid var(--hair-soft);
+  vertical-align: middle;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title { color: var(--ink); font-weight: 500; }
+
+.pill {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: var(--space-1) calc(var(--u) * 0.875);
+  border-radius: var(--r-chip);
+  background: var(--inset-bg);
+  color: var(--ink-dim);
+  border: 1px solid var(--hair-soft);
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  color: var(--ink-faint);
+  background: var(--inset-bg);
+  border: 1px solid var(--hair-soft);
+  border-radius: var(--r-chip);
+  padding: 1px calc(var(--u) * 0.75);
+  margin-right: var(--space-1);
+}
+
+.mono { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-dim); }
+.dim { color: var(--ink-faint); }

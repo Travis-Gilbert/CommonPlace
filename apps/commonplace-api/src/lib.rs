@@ -20,6 +20,7 @@ pub mod portability;
 pub mod retrieve;
 pub mod schema;
 pub mod serve;
+pub mod voice;
 
 pub use auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 pub use briefing::{briefing, Briefing, BriefingConfig, ConnectedItem};

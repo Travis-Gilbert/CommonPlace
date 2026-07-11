@@ -14,7 +14,9 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { PlugZap } from 'lucide-react';
 import { AiInputBar, type AiInputMode, type AiInputSize } from './AiInputBar';
+import { WeaveSpinner } from './WeaveSpinner';
 import { gqlIngest } from '@/lib/commonplace-graphql';
 import {
   searchRustyWeb,
@@ -130,17 +132,17 @@ export default function Omnibar({
               animate={{ opacity: 1, y: 0 }}
               exit={reduced ? undefined : { opacity: 0, y: 8 }}
               transition={{ duration: 0.18 }}
-              className="mb-3 max-h-[42vh] overflow-y-auto rounded-xl p-4"
-              style={{ background: 'var(--cp-card)', border: '1px solid var(--cp-border)', boxShadow: 'var(--cp-shadow-lg)' }}
+              className="mb-4 max-h-[58vh] overflow-y-auto px-1"
             >
               {busy ? (
-                <p className="font-mono text-sm" style={{ color: 'var(--cp-text-muted)' }}>
-                  {busyText}
-                </p>
+                <div className="flex flex-col items-center gap-3 py-2">
+                  <WeaveSpinner size={64} />
+                  <p className="font-mono text-[13px]" style={{ color: 'var(--cp-text-muted)' }}>
+                    {busyText}
+                  </p>
+                </div>
               ) : error ? (
-                <p className="text-sm" style={{ color: 'var(--cp-red)' }}>
-                  {error}
-                </p>
+                <FailureView message={error} onRetry={submit} />
               ) : agentResult ? (
                 <AgentAnswerView result={agentResult} />
               ) : researchResult ? (
@@ -163,6 +165,38 @@ export default function Omnibar({
           size={inputSize}
         />
       </div>
+    </div>
+  );
+}
+
+/** A graceful failure: a plain-language message only — never the raw backend
+ *  reason (env vars, GraphQL config, stack). The real error rides along in the
+ *  `title` tooltip for anyone inspecting, and retry re-runs the same query. */
+function FailureView({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-start gap-2" title={message}>
+      <div className="flex items-center gap-2">
+        <span
+          className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full"
+          style={{ background: 'var(--cp-red-soft)', color: 'var(--cp-red)' }}
+        >
+          <PlugZap size={15} />
+        </span>
+        <span className="text-[15px]" style={{ color: 'var(--cp-text)' }}>
+          Theorem couldn&rsquo;t answer that.
+        </span>
+      </div>
+      <p className="text-[13px] leading-[1.5]" style={{ color: 'var(--cp-text-muted)' }}>
+        Theorem is down, or the network is slow — we&rsquo;re looking into it.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-1 rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors"
+        style={{ borderColor: 'var(--cp-border)', color: 'var(--cp-text-muted)' }}
+      >
+        Try again
+      </button>
     </div>
   );
 }

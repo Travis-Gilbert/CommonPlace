@@ -44,7 +44,8 @@ const ImageUpload = Extension.create({
             imageFiles.forEach(async (file) => {
               const url = await uploadImage(file);
               if (url) {
-                editor.chain().focus().setImage({ src: url }).run();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor.chain().focus() as any).setImage({ src: url }).run();
               }
             });
 
@@ -67,7 +68,8 @@ const ImageUpload = Extension.create({
               if (!file) return;
               const url = await uploadImage(file);
               if (url) {
-                editor.chain().focus().setImage({ src: url }).run();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor.chain().focus() as any).setImage({ src: url }).run();
               }
             });
 

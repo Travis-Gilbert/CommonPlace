@@ -313,10 +313,10 @@ export default function AutoOrganizeView() {
   const n = displayedNeedsYou.length;
   return (
     <section className={styles.autoOrganize} aria-labelledby="auto-organize-title">
-      <h1 id="auto-organize-title" className={styles.visuallyHidden}>Auto Organize</h1>
+      <h1 id="auto-organize-title" className={styles.visuallyHidden}>Index</h1>
 
       {/* ── Collections sidebar (organized structure) ── */}
-      <aside className={styles.collectionsSidebar} aria-label="Auto-organize sources and spaces">
+      <aside className={styles.collectionsSidebar} aria-label="Index sources and spaces">
         <div className={styles.collGroup}>
           <div className={styles.sectionLabel}>
             <span className={styles.sectionRule} />

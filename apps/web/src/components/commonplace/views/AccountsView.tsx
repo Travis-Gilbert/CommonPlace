@@ -1,7 +1,8 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import AgentThreadView from './AgentThreadView';
+import HarnessLivePanel from './HarnessLivePanel';
 
 const accountSections = [
   {
@@ -27,13 +28,63 @@ const accountSections = [
 ];
 
 const agentLaunches = [
-  { label: 'Theorem Agent', mode: 'api' },
+  { label: 'CommonPlace Chat', mode: 'api' },
   { label: 'Claude Code', mode: 'acp' },
   { label: 'Codex', mode: 'acp' },
   { label: 'Gemini CLI', mode: 'acp' },
 ];
 
+type GithubStatus = {
+  ok: true;
+  webhook: {
+    proxyPath: string;
+    publicUrl: string;
+    upstreamConfigured: boolean;
+  };
+  installation: {
+    configured: boolean;
+    installUrl: string | null;
+  };
+};
+
+type GithubPanelState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; status: GithubStatus }
+  | { kind: 'error'; message: string };
+
 export default function AccountsView() {
+  const [githubState, setGithubState] = useState<GithubPanelState>({ kind: 'loading' });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadStatus() {
+      try {
+        const response = await fetch('/api/theorem/github/status', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`GitHub status returned ${response.status}.`);
+        }
+        const status = (await response.json()) as GithubStatus;
+        if (!status.webhook?.publicUrl) {
+          throw new Error('GitHub status response was incomplete.');
+        }
+        if (active) setGithubState({ kind: 'ready', status });
+      } catch (err) {
+        if (active) {
+          setGithubState({
+            kind: 'error',
+            message: err instanceof Error ? err.message : 'GitHub status unavailable.',
+          });
+        }
+      }
+    }
+
+    void loadStatus();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <section style={styles.shell} aria-label="CommonPlace accounts">
       <header style={styles.header}>
@@ -43,14 +94,14 @@ export default function AccountsView() {
         </div>
         <div style={styles.statusRow}>
           <span style={styles.status}>CommonPlace account</span>
-          <span style={styles.status}>agent-ready</span>
+          <span style={styles.status}>ready</span>
         </div>
       </header>
 
       <div style={styles.body}>
         <main style={styles.agentColumn}>
           <div style={styles.columnHeader}>
-            <span>Theorem Agent</span>
+            <span>CommonPlace Chat</span>
             <code style={styles.endpoint}>/api/theorem/agent</code>
           </div>
           <div style={styles.agentFrame}>
@@ -71,6 +122,9 @@ export default function AccountsView() {
             </div>
           </section>
 
+          <GithubAppPanel state={githubState} />
+          <HarnessLivePanel />
+
           <section style={styles.sectionGrid}>
             {accountSections.map((section) => (
               <article id={section.id} key={section.title} style={styles.panel}>
@@ -88,6 +142,55 @@ export default function AccountsView() {
           </section>
         </aside>
       </div>
+    </section>
+  );
+}
+
+function GithubAppPanel({ state }: { state: GithubPanelState }) {
+  const ready = state.kind === 'ready';
+  const upstreamReady = ready && state.status.webhook.upstreamConfigured;
+  const installUrl = ready ? state.status.installation.installUrl : null;
+  const webhookUrl = ready ? state.status.webhook.publicUrl : '';
+  const statusLabel = state.kind === 'loading'
+    ? 'checking'
+    : upstreamReady
+      ? 'ready'
+      : state.kind === 'error'
+        ? 'status unavailable'
+        : 'needs setup';
+
+  return (
+    <section style={styles.githubPanel} aria-label="GitHub App ingestion">
+      <div style={styles.panelTitle}>GitHub App</div>
+      <div style={styles.githubStatusRow}>
+        <span style={styles.githubLabel}>Ingestion</span>
+        <span style={upstreamReady ? styles.readyStatus : styles.warningStatus}>{statusLabel}</span>
+      </div>
+
+      {state.kind === 'loading' ? (
+        <p style={styles.helperText}>Checking Theorem ingestion.</p>
+      ) : state.kind === 'error' ? (
+        <p style={styles.helperText}>{state.message}</p>
+      ) : (
+        <>
+          <div style={styles.webhookBlock}>
+            <span style={styles.webhookCaption}>Webhook URL</span>
+            <code style={styles.webhookCode}>{webhookUrl}</code>
+          </div>
+
+          {!upstreamReady ? (
+            <p style={styles.helperText}>Theorem webhook upstream is not configured.</p>
+          ) : null}
+
+          {installUrl ? (
+            <a href={installUrl} target="_blank" rel="noreferrer" style={styles.installLink}>
+              Install GitHub App
+            </a>
+          ) : (
+            <p style={styles.helperText}>Install URL is not configured.</p>
+          )}
+        </>
+      )}
     </section>
   );
 }
@@ -225,6 +328,84 @@ const styles: Record<string, CSSProperties> = {
     display: 'grid',
     gap: 10,
     marginTop: 10,
+  },
+  githubPanel: {
+    display: 'grid',
+    gap: 10,
+    marginTop: 10,
+    border: '1px solid var(--cp-border)',
+    borderRadius: 8,
+    padding: 12,
+    background: 'var(--cp-surface)',
+  },
+  githubStatusRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  githubLabel: {
+    fontFamily: 'var(--cp-font-title)',
+    fontSize: 14,
+    color: 'var(--cp-text)',
+  },
+  readyStatus: {
+    border: '1px solid var(--cp-border)',
+    borderRadius: 6,
+    padding: '3px 6px',
+    fontFamily: 'var(--cp-font-mono)',
+    fontSize: 10,
+    color: 'var(--cp-teal-light)',
+    background: 'var(--cp-bg)',
+  },
+  warningStatus: {
+    border: '1px solid var(--cp-border)',
+    borderRadius: 6,
+    padding: '3px 6px',
+    fontFamily: 'var(--cp-font-mono)',
+    fontSize: 10,
+    color: 'var(--cp-text-muted)',
+    background: 'var(--cp-bg)',
+  },
+  webhookBlock: {
+    display: 'grid',
+    gap: 5,
+    minWidth: 0,
+    padding: '8px 0',
+  },
+  webhookCaption: {
+    fontFamily: 'var(--cp-font-mono)',
+    fontSize: 10,
+    color: 'var(--cp-text-faint)',
+  },
+  webhookCode: {
+    display: 'block',
+    fontFamily: 'var(--cp-font-mono)',
+    fontSize: 11,
+    color: 'var(--cp-text)',
+    overflowWrap: 'anywhere',
+  },
+  helperText: {
+    margin: 0,
+    fontFamily: 'var(--cp-font-body)',
+    fontSize: 12,
+    lineHeight: 1.45,
+    color: 'var(--cp-text-muted)',
+  },
+  installLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32,
+    border: '1px solid var(--cp-border)',
+    borderRadius: 6,
+    padding: '6px 10px',
+    fontFamily: 'var(--cp-font-mono)',
+    fontSize: 11,
+    color: 'var(--cp-text)',
+    background: 'var(--cp-bg)',
+    textDecoration: 'none',
   },
   rowList: {
     display: 'grid',

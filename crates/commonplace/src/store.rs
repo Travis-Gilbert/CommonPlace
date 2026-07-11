@@ -216,6 +216,30 @@ where
         nodes.iter().map(|node| self.hydrate_item(node)).collect()
     }
 
+    /// Query all nodes with the given label. Returns raw [`NodeRecord`]s — callers
+    /// that know the expected label (e.g. `ITEM_LABEL`) can hydrate via
+    /// [`hydrate_item`](Self::hydrate_item).
+    pub fn query_by_label(&self, label: &str) -> GraphStoreResult<Vec<NodeRecord>> {
+        Ok(self
+            .store
+            .query_nodes(NodeQuery::label(label).with_limit(usize::MAX)))
+    }
+
+    /// Query nodes matching a label + property filter. Returns raw
+    /// [`NodeRecord`]s for callers to hydrate as needed.
+    pub fn query_by_property(
+        &self,
+        label: &str,
+        key: &str,
+        value: &Value,
+    ) -> GraphStoreResult<Vec<NodeRecord>> {
+        Ok(self.store.query_nodes(
+            NodeQuery::label(label)
+                .with_property(key, value.clone())
+                .with_limit(usize::MAX),
+        ))
+    }
+
     /// The item that came from this exact source record, if one exists (A3). A
     /// single exact-match property filter on the derived `source_ref_key`, so a
     /// re-fetched record updates in place instead of minting a duplicate.
@@ -606,6 +630,106 @@ where
             self.items_for(NeighborQuery::in_(item_id).with_edge_type(COMMENT_ON_EDGE))?;
         comments.sort_by_key(|item| std::cmp::Reverse(item.created_at_ms));
         Ok(comments)
+    }
+
+    /// Create an annotation (SPEC-PREVIEW-COANNOTATION D4): a Comment item
+    /// carrying an [`Anchor`](crate::annotation::Anchor) payload and author
+    /// provenance, linked `COMMENT_ON` the target (a file item in dev mode, a
+    /// page item in general). Builds on the same Comment/`COMMENT_ON` primitives
+    /// as [`create_comment`](Self::create_comment); the anchor and author kind
+    /// ride `extra`. Returns the comment item.
+    pub fn create_annotation(
+        &mut self,
+        target_id: &str,
+        author: Option<&str>,
+        author_kind: crate::annotation::AuthorKind,
+        body: impl Into<String>,
+        anchor: &crate::annotation::Anchor,
+    ) -> GraphStoreResult<Item> {
+        let anchor_value = serde_json::to_value(anchor).map_err(serde_err)?;
+        let mut comment = Item::new(ItemKind::Comment, "Annotation")
+            .with_text(body.into())
+            .with_extra(crate::annotation::TARGET_ID_KEY, json!(target_id))
+            .with_extra(
+                crate::annotation::AUTHOR_KIND_KEY,
+                json!(author_kind.as_str()),
+            )
+            .with_extra(crate::annotation::ANCHOR_KEY, anchor_value);
+        if let Some(author) = author {
+            comment = comment.with_extra(crate::annotation::AUTHOR_ID_KEY, json!(author));
+        }
+        let comment = self.put_item(comment)?;
+        self.upsert_link(COMMENT_ON_EDGE, &comment.id, target_id)?;
+        Ok(comment)
+    }
+
+    /// Reply to an annotation (or another reply): a Comment `COMMENT_ON` the
+    /// parent comment. Replies carry no anchor (they inherit the annotation's);
+    /// the thread is read via [`thread_for`](Self::thread_for).
+    pub fn reply_to_annotation(
+        &mut self,
+        parent_comment_id: &str,
+        author: Option<&str>,
+        author_kind: crate::annotation::AuthorKind,
+        body: impl Into<String>,
+    ) -> GraphStoreResult<Item> {
+        let mut reply = Item::new(ItemKind::Comment, "Reply")
+            .with_text(body.into())
+            .with_extra(crate::annotation::TARGET_ID_KEY, json!(parent_comment_id))
+            .with_extra(
+                crate::annotation::AUTHOR_KIND_KEY,
+                json!(author_kind.as_str()),
+            );
+        if let Some(author) = author {
+            reply = reply.with_extra(crate::annotation::AUTHOR_ID_KEY, json!(author));
+        }
+        let reply = self.put_item(reply)?;
+        self.upsert_link(COMMENT_ON_EDGE, &reply.id, parent_comment_id)?;
+        Ok(reply)
+    }
+
+    /// Mark an annotation resolved with a receipt (D6): the head resolved it
+    /// in-thread, or a commit touched its anchored lines. `put_item` upserts by
+    /// id, so this updates the existing comment. Returns the updated item, or
+    /// `None` if the id is unknown.
+    pub fn resolve_annotation(
+        &mut self,
+        comment_id: &str,
+        resolved_by: &str,
+        receipt: Option<&str>,
+    ) -> GraphStoreResult<Option<Item>> {
+        let Some(item) = self.get_item(comment_id)? else {
+            return Ok(None);
+        };
+        let item = item
+            .with_extra(crate::annotation::RESOLVED_KEY, json!(true))
+            .with_extra(
+                crate::annotation::RESOLUTION_KEY,
+                json!({ "by": resolved_by, "receipt": receipt }),
+            );
+        Ok(Some(self.put_item(item)?))
+    }
+
+    /// The annotations on a target (projected to [`Annotation`](crate::annotation::Annotation)),
+    /// newest first. These are the top-level annotations; each one's reply thread
+    /// is read via [`thread_for`](Self::thread_for).
+    pub fn annotations_for(
+        &self,
+        target_id: &str,
+    ) -> GraphStoreResult<Vec<crate::annotation::Annotation>> {
+        Ok(self
+            .comments_for(target_id)?
+            .iter()
+            .filter_map(crate::annotation::annotation_from_item)
+            .collect())
+    }
+
+    /// The reply thread under an annotation (projected), newest first.
+    pub fn thread_for(
+        &self,
+        annotation_id: &str,
+    ) -> GraphStoreResult<Vec<crate::annotation::Annotation>> {
+        self.annotations_for(annotation_id)
     }
 
     /// Attach a file/blob item to another item.

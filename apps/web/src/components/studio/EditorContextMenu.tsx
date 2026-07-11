@@ -100,7 +100,9 @@ export default function EditorContextMenu({ editor, onStash, onAddTask, onSendTo
 
   const handleContain = (containType: ContainType) => {
     if (!editor) return;
-    editor.chain().focus().setContainBlock({ containType }).run();
+    // setContainBlock is augmented on Commands but ChainedCommands (mapped type) doesn't pick up module augmentations in Turbopack
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (editor.chain().focus() as any).setContainBlock({ containType }).run();
     handleClose();
   };
 

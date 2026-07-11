@@ -43,10 +43,14 @@
   --cp-burnt-orange: #A65324;
   --cp-burnt-orange-rgb: 166, 83, 36;
   --cp-burnt-orange-light: #A75A2A;
-  --cp-oxblood: var(--cp-burnt-orange);
-  --cp-oxblood-rgb: var(--cp-burnt-orange-rgb);
-  --cp-oxblood-light: var(--cp-burnt-orange-light);
-  --cp-oxblood-light-rgb: var(--cp-burnt-orange-rgb);
+  /* Real oxblood (porcelain register v2); dark-register fill is the -light value. */
+  --cp-oxblood: #7A2733;
+  --cp-oxblood-rgb: 122, 39, 51;
+  --cp-oxblood-light: #8A3140;
+  --cp-oxblood-light-rgb: 138, 49, 64;
+  --cp-oxblood-pressed: #66202B;
+  --cp-oxblood-wash: #F6E6E5;
+  --cp-oxblood-wash-dark: rgba(138, 49, 64, 0.16);
   --cp-red: var(--cp-burnt-orange);
   --cp-red-rgb: var(--cp-burnt-orange-rgb);
   --cp-red-soft: #2A171D;

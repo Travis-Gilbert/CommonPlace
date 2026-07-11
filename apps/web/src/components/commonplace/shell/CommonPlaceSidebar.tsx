@@ -179,7 +179,7 @@ export default function CommonPlaceSidebar({ onCollapse }: { onCollapse?: () => 
             fontSize: 22,
             fontWeight: 700,
             color: 'var(--cp-sidebar-text)',
-            lineHeight: 1.1,
+            lineHeight: 1.2,
             letterSpacing: '-0.02em',
           }}>Common</span>
           <span style={{
@@ -188,7 +188,7 @@ export default function CommonPlaceSidebar({ onCollapse }: { onCollapse?: () => 
             fontSize: 22,
             fontWeight: 700,
             color: '#5FA3AF',
-            lineHeight: 1.1,
+            lineHeight: 1.2,
             letterSpacing: '-0.02em',
           }}>Place</span>
         </Link>
@@ -709,7 +709,8 @@ const RAIL_ICON_COMPONENTS: Record<string, ComponentType<{ width?: number; heigh
 const CAPTURE_ACCENT = 'var(--cp-sidebar-text)';
 const LABEL_ACCENT: Record<string, string> = {
   /* Capture section: neutral graphite */
-  'Auto Organize':      CAPTURE_ACCENT,
+  'Index':              CAPTURE_ACCENT,
+  'Chat':               CAPTURE_ACCENT,
   'Home':               CAPTURE_ACCENT,
   'Library':            CAPTURE_ACCENT,
   'Files':              CAPTURE_ACCENT,
@@ -728,7 +729,7 @@ const LABEL_ACCENT: Record<string, string> = {
   'Connection Engine':  '#6E7078',
   'Engine':             '#6E7078',
   'Agents':             '#6E7078',
-  'Theorem Agent':      '#6E7078',
+  'CommonPlace Chat':   '#6E7078',
   'Claude Code':        '#6E7078',
   'Codex':              '#6E7078',
   'Gemini CLI':         '#6E7078',

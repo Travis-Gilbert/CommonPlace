@@ -1,0 +1,238 @@
+/* TW4 data-canvas — porcelain styling for XYFlow data-model canvas */
+
+.host {
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}
+
+/* ── TypeNode ── */
+
+.typeNode {
+  background: var(--plane);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-control);
+  padding: 0;
+  min-width: 200px;
+  font-size: var(--text-xxs);
+}
+
+.typeNodeSelected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.typeHeader {
+  padding: 10px var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--hair-soft);
+  font-weight: 600;
+  font-size: var(--text-xs);
+}
+
+.typeName {
+  color: var(--ink);
+}
+
+.fieldList {
+  padding: var(--space-1) 0;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px var(--space-3);
+  position: relative;
+  font-size: var(--text-xxs);
+}
+
+.fieldRow:hover {
+  background: var(--hair-soft);
+}
+
+.fieldIcon {
+  width: 18px;
+  text-align: center;
+  font-size: var(--text-xxs);
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}
+
+.fieldName {
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldType {
+  color: var(--ink-dim);
+  font-size: var(--text-xxs);
+  font-family: var(--font-mono, monospace);
+  flex-shrink: 0;
+}
+
+.fieldRowHover:hover {
+  background: var(--hair-soft);
+}
+
+.fieldDeleteBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fieldRowHover:hover .fieldDeleteBtn {
+  display: flex;
+}
+
+.fieldDeleteBtn:hover {
+  background: var(--danger-soft, rgba(255, 80, 80, 0.12));
+  color: var(--danger, #ff5050);
+}
+
+.fieldHandle {
+  position: absolute;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--hair);
+  border: 1px solid var(--ink-dim);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fieldRowHover:hover .fieldHandle {
+  opacity: 1;
+}
+
+.typeHandle {
+  width: 8px;
+  height: 8px;
+  background: var(--hair);
+  border: 1px solid var(--ink-dim);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.typeNode:hover .typeHandle {
+  opacity: 1;
+}
+
+/* ── Add field ── */
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: 6px var(--space-3);
+  border: none;
+  border-top: 1px solid var(--hair-soft);
+  border-radius: 0 0 7px 7px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: var(--text-xxs);
+  cursor: pointer;
+}
+
+.addBtn:hover {
+  background: var(--hair-soft);
+  color: var(--ink);
+}
+
+.addForm {
+  display: flex;
+  gap: var(--space-1);
+  padding: 6px var(--space-2) var(--space-2);
+  border-top: 1px solid var(--hair-soft);
+}
+
+.addInput {
+  flex: 1;
+  padding: var(--space-1) 6px;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-chip);
+  background: var(--hair-soft);
+  color: var(--ink);
+  font-size: var(--text-xxs);
+  min-width: 0;
+}
+
+.addInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.addSelect {
+  padding: var(--space-1);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-chip);
+  background: var(--hair-soft);
+  color: var(--ink);
+  font-size: var(--text-xxs);
+  font-family: var(--font-mono, monospace);
+}
+
+.addConfirm {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-chip);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--text-xxs);
+  cursor: pointer;
+}
+
+/* ── Edge label ── */
+
+.edgeLabel {
+  padding: 2px 6px;
+  background: var(--plane);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-chip);
+  font-size: var(--text-xxs);
+  color: var(--ink-dim);
+  pointer-events: all;
+  white-space: nowrap;
+}
+
+/* Reduced motion: disable hover transitions on connection handles. */
+@media (prefers-reduced-motion: reduce) {
+  .fieldHandle,
+  .typeHandle {
+    transition: none;
+  }
+}
+
+/* Visible keyboard focus for interactive controls and node rows. */
+.addBtn:focus-visible,
+.addConfirm:focus-visible,
+.fieldDeleteBtn:focus-visible,
+.addInput:focus-visible,
+.addSelect:focus-visible,
+.fieldRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

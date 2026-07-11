@@ -24,7 +24,11 @@
 .title {
   font-family: var(--cp-font-title);
   font-size: 18px;
+<<<<<<< HEAD
   line-height: 1.15;
+=======
+  line-height: 1.2;
+>>>>>>> origin/main
   color: var(--cp-text);
 }
 
@@ -99,7 +103,11 @@
 
 .railLabel {
   font-family: var(--cp-font-mono);
+<<<<<<< HEAD
   font-size: 9px;
+=======
+  font-size: 10px;
+>>>>>>> origin/main
   line-height: 1.4;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -135,7 +143,11 @@
   border-radius: 999px;
   padding: 3px 8px;
   font-family: var(--cp-font-mono);
+<<<<<<< HEAD
   font-size: 9px;
+=======
+  font-size: 10px;
+>>>>>>> origin/main
   color: var(--cp-text-muted);
 }
 
@@ -187,7 +199,11 @@
   margin-top: 3px;
   color: var(--cp-text-muted);
   font-family: var(--cp-font-mono);
+<<<<<<< HEAD
   font-size: 9px;
+=======
+  font-size: 10px;
+>>>>>>> origin/main
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

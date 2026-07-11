@@ -100,6 +100,12 @@ pub enum IngestBody {
         bytes: Vec<u8>,
         mime: Option<String>,
         kind: ItemKind,
+        /// Optional caption/body text accompanying the bytes (PT-017): it
+        /// contributes to classification/search text and reminder parsing, and
+        /// is echoed onto the item as `extra.caption`. Serde default so stored
+        /// inputs without it deserialize unchanged.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
     },
 }
 
@@ -138,6 +144,14 @@ pub struct IngestInput {
     /// Task scalars (Layer C); meaningful only for `Task`-kind captures.
     #[serde(default)]
     pub task: Option<TaskFields>,
+    /// Explicit reminder instant (epoch ms). When set it wins over the
+    /// natural-language reminder parse (PT-008).
+    #[serde(default)]
+    pub remind_at_ms: Option<i64>,
+    /// Explicit due instant (epoch ms) for any capture kind. When set it wins
+    /// over `task.due_at_ms`.
+    #[serde(default)]
+    pub due_at_ms: Option<i64>,
 }
 
 impl IngestInput {
@@ -161,6 +175,8 @@ impl IngestInput {
             residency: Residency::Local,
             tags: Vec::new(),
             task: None,
+            remind_at_ms: None,
+            due_at_ms: None,
         }
     }
 
@@ -171,12 +187,15 @@ impl IngestInput {
                 bytes,
                 mime,
                 kind: ItemKind::Image,
+                text: None,
             },
             source: None,
             source_ref: None,
             residency: Residency::Local,
             tags: Vec::new(),
             task: None,
+            remind_at_ms: None,
+            due_at_ms: None,
         }
     }
 
@@ -193,6 +212,8 @@ impl IngestInput {
             residency: Residency::Local,
             tags: Vec::new(),
             task: None,
+            remind_at_ms: None,
+            due_at_ms: None,
         }
     }
 
@@ -224,6 +245,19 @@ impl IngestInput {
         self
     }
 
+    /// Set an explicit reminder instant (epoch ms). Wins over the
+    /// natural-language reminder parse.
+    pub fn with_remind_at(mut self, remind_at_ms: i64) -> Self {
+        self.remind_at_ms = Some(remind_at_ms);
+        self
+    }
+
+    /// Set an explicit due instant (epoch ms). Wins over `task.due_at_ms`.
+    pub fn with_due_at(mut self, due_at_ms: i64) -> Self {
+        self.due_at_ms = Some(due_at_ms);
+        self
+    }
+
     pub fn with_tags<I, T>(mut self, tags: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -249,8 +283,14 @@ impl IngestInput {
         match &self.body {
             IngestBody::Text { text, .. } => format!("{}\n{}", self.title, text),
             IngestBody::Link { url, text } => format!("{}\n{}\n{}", self.title, url, text),
-            IngestBody::Binary { mime, .. } => {
-                format!("{}\n{}", self.title, mime.clone().unwrap_or_default())
+            IngestBody::Binary { mime, text, .. } => {
+                let mut searchable =
+                    format!("{}\n{}", self.title, mime.clone().unwrap_or_default());
+                if let Some(text) = text {
+                    searchable.push('\n');
+                    searchable.push_str(text);
+                }
+                searchable
             }
         }
     }
@@ -403,6 +443,9 @@ pub struct IngestPipeline<E = DeterministicEmbedder> {
     similarity_threshold: f32,
     entity_threshold: f32,
     content_core_config: ContentCoreExtractionConfig,
+    /// Injected "now" for the natural-language reminder parse (PT-008);
+    /// `None` means wall-clock local time. Tests inject a fixed instant.
+    reminder_now: Option<chrono::DateTime<chrono::Local>>,
 }
 
 impl Default for IngestPipeline<DeterministicEmbedder> {
@@ -413,6 +456,7 @@ impl Default for IngestPipeline<DeterministicEmbedder> {
             similarity_threshold: 0.62,
             entity_threshold: 0.86,
             content_core_config: ContentCoreExtractionConfig::from_env(),
+            reminder_now: None,
         }
     }
 }
@@ -428,7 +472,14 @@ where
             similarity_threshold: 0.62,
             entity_threshold: 0.86,
             content_core_config: ContentCoreExtractionConfig::from_env(),
+            reminder_now: None,
         }
+    }
+
+    /// Pin the "now" used by the natural-language reminder parse (testability).
+    pub fn with_reminder_now(mut self, now: chrono::DateTime<chrono::Local>) -> Self {
+        self.reminder_now = Some(now);
+        self
     }
 
     pub fn with_collection_threshold(mut self, threshold: f32) -> Self {
@@ -602,14 +653,31 @@ where
         if let Some(task) = &input.task {
             item = task.apply(item);
         }
+        // Explicit scalar instants win over both task fields and the parser.
+        if let Some(due_at_ms) = input.due_at_ms {
+            item.due_at_ms = Some(due_at_ms);
+        }
+        if let Some(remind_at_ms) = input.remind_at_ms {
+            item.remind_at_ms = Some(remind_at_ms);
+        } else {
+            // PT-008: echo a natural-language reminder phrase out of the
+            // captured text (never rewriting the text itself).
+            let now = self.reminder_now.unwrap_or_else(chrono::Local::now);
+            item.remind_at_ms = crate::reminder::parse_reminder(&searchable_text, now);
+        }
         if let Some(extraction) = &extraction {
             item = item.with_extra("content_core_extraction", json!(extraction));
         }
         item = match &input.body {
             IngestBody::Text { text, .. } => item.with_text(text.clone()),
             IngestBody::Link { text, .. } => item.with_text(text.clone()),
-            IngestBody::Binary { bytes, mime, .. } => {
+            IngestBody::Binary {
+                bytes, mime, text, ..
+            } => {
                 let content_hash = commonplace.blobs().put(bytes)?;
+                if let Some(text) = text {
+                    item = item.with_extra("caption", json!(text));
+                }
                 item.with_body(ItemBody::Blob {
                     content_hash,
                     byte_len: bytes.len() as u64,
@@ -1577,12 +1645,15 @@ mod tests {
                 bytes: b"%PDF-1.4 fake".to_vec(),
                 mime: Some("application/pdf".to_string()),
                 kind: ItemKind::Doc,
+                text: None,
             },
             source: None,
             source_ref: None,
             residency: Residency::Local,
             tags: Vec::new(),
             task: None,
+            remind_at_ms: None,
+            due_at_ms: None,
         };
         let (input, receipt) =
             prepare_content_core_input_with(input, &test_config(), |source, _| {
@@ -1619,12 +1690,15 @@ mod tests {
                 bytes: b"audio".to_vec(),
                 mime: Some("audio/mpeg".to_string()),
                 kind: ItemKind::File,
+                text: None,
             },
             source: None,
             source_ref: None,
             residency: Residency::Local,
             tags: Vec::new(),
             task: None,
+            remind_at_ms: None,
+            due_at_ms: None,
         };
         let (input, receipt) =
             prepare_content_core_input_with(input, &test_config(), |_source, _| {
@@ -1659,5 +1733,112 @@ mod tests {
             });
         assert_eq!(image.item_kind(), ItemKind::Image);
         assert!(image_receipt.is_none());
+    }
+
+    #[test]
+    fn ingest_echoes_natural_language_reminder() {
+        use chrono::TimeZone;
+
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        // Wednesday 2026-07-01 10:00 local.
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
+            .single()
+            .expect("fixed test now");
+        let pipeline = IngestPipeline::default()
+            .without_content_core()
+            .with_reminder_now(now);
+
+        let receipt = pipeline
+            .ingest(&mut cp, IngestInput::note("Call mom", "call mom friday 9am"))
+            .expect("ingest note");
+        let expected = crate::reminder::parse_reminder("Call mom\ncall mom friday 9am", now)
+            .expect("phrase parses");
+        assert_eq!(receipt.item.remind_at_ms, Some(expected));
+
+        // The parse is an echo, not a rewrite: text stays intact.
+        assert!(matches!(
+            &receipt.item.body,
+            ItemBody::Inline { text } if text == "call mom friday 9am"
+        ));
+
+        // The stored item round-trips the scalar.
+        let stored = cp
+            .get_item(&receipt.item.id)
+            .expect("get item")
+            .expect("item exists");
+        assert_eq!(stored.remind_at_ms, Some(expected));
+    }
+
+    #[test]
+    fn explicit_remind_at_wins_over_parser() {
+        use chrono::TimeZone;
+
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
+            .single()
+            .expect("fixed test now");
+        let pipeline = IngestPipeline::default()
+            .without_content_core()
+            .with_reminder_now(now);
+
+        let receipt = pipeline
+            .ingest(
+                &mut cp,
+                IngestInput::note("Call mom", "call mom friday 9am").with_remind_at(1_234_567),
+            )
+            .expect("ingest note");
+        assert_eq!(receipt.item.remind_at_ms, Some(1_234_567));
+    }
+
+    #[test]
+    fn plain_capture_has_no_reminder() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let pipeline = IngestPipeline::default().without_content_core();
+        let receipt = pipeline
+            .ingest(&mut cp, IngestInput::note("Groceries", "milk eggs bread"))
+            .expect("ingest note");
+        assert_eq!(receipt.item.remind_at_ms, None);
+    }
+
+    #[test]
+    fn binary_caption_feeds_reminder_and_lands_in_extra() {
+        use chrono::TimeZone;
+
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let now = chrono::Local
+            .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
+            .single()
+            .expect("fixed test now");
+        let pipeline = IngestPipeline::default()
+            .without_content_core()
+            .with_reminder_now(now);
+
+        let input = IngestInput {
+            title: "receipt.png".to_string(),
+            body: IngestBody::Binary {
+                bytes: b"png bytes".to_vec(),
+                mime: Some("image/png".to_string()),
+                kind: ItemKind::Image,
+                text: Some("remind me tomorrow at 9 to expense this".to_string()),
+            },
+            source: None,
+            source_ref: None,
+            residency: Residency::Local,
+            tags: Vec::new(),
+            task: None,
+            remind_at_ms: None,
+            due_at_ms: None,
+        };
+        let receipt = pipeline.ingest(&mut cp, input).expect("ingest image");
+        let expected =
+            crate::reminder::parse_reminder("remind me tomorrow at 9", now).expect("parses");
+        assert_eq!(receipt.item.remind_at_ms, Some(expected));
+        assert_eq!(
+            receipt.item.extra.get("caption").and_then(Value::as_str),
+            Some("remind me tomorrow at 9 to expense this")
+        );
+        assert!(matches!(receipt.item.body, ItemBody::Blob { .. }));
     }
 }

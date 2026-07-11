@@ -29,6 +29,10 @@ interface VectorSpaceAtlasCanvasProps {
   rows: EmbeddingSpaceRowGql[];
   mosaicReady: boolean;
   selectedIdentifier?: string | null;
+<<<<<<< HEAD
+=======
+  highlightedIdentifiers?: string[];
+>>>>>>> origin/main
   onSelect: (identifier: string | null) => void;
 }
 
@@ -36,6 +40,10 @@ export default function VectorSpaceAtlasCanvas({
   rows,
   mosaicReady,
   selectedIdentifier,
+<<<<<<< HEAD
+=======
+  highlightedIdentifiers = [],
+>>>>>>> origin/main
   onSelect,
 }: VectorSpaceAtlasCanvasProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +73,22 @@ export default function VectorSpaceAtlasCanvas({
     () => (selectedRow ? dataPointForRow(selectedRow) : null),
     [selectedRow],
   );
+<<<<<<< HEAD
+=======
+  const selectedIdentifiers = useMemo(() => {
+    const values = new Set(highlightedIdentifiers);
+    if (selectedIdentifier) values.add(selectedIdentifier);
+    return [...values];
+  }, [highlightedIdentifiers, selectedIdentifier]);
+  const selectedDataPoints = useMemo(
+    () =>
+      selectedIdentifiers
+        .map((identifier) => rows.find((row) => row.identifier === identifier))
+        .filter((row): row is EmbeddingSpaceRowGql => !!row)
+        .map(dataPointForRow),
+    [rows, selectedIdentifiers],
+  );
+>>>>>>> origin/main
 
   const handleSelection = (selection: DataPoint[] | null) => {
     const identifier = selection?.[0]?.identifier;
@@ -91,7 +115,11 @@ export default function VectorSpaceAtlasCanvas({
           height={size.height}
           labels={labels}
           categoryColors={CATEGORY_COLORS}
+<<<<<<< HEAD
           selection={selectedIdentifier ? [selectedIdentifier] : null}
+=======
+          selection={selectedIdentifiers.length > 0 ? selectedIdentifiers : null}
+>>>>>>> origin/main
           onSelection={handleSelection}
           theme={{
             fontFamily: 'var(--cp-font-body)',
@@ -112,7 +140,11 @@ export default function VectorSpaceAtlasCanvas({
           height={size.height}
           labels={labels}
           categoryColors={CATEGORY_COLORS}
+<<<<<<< HEAD
           selection={selectedDataPoint ? [selectedDataPoint] : null}
+=======
+          selection={selectedDataPoints.length > 0 ? selectedDataPoints : selectedDataPoint ? [selectedDataPoint] : null}
+>>>>>>> origin/main
           onSelection={handleSelection}
           querySelection={async (x, y, unitDistance) => {
             const row = nearestRow(rows, x, y, unitDistance);
