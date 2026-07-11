@@ -1,0 +1,143 @@
+/* CR3 — the console shell, flipped onto the computed register.
+   Loaded after porcelain-surfaces.css; every rule here overrides the porcelain
+   frame with --cr-* tokens (console-register.css) and the CR3 geometry:
+
+     • the sidebar IS the ground — full-bleed to all four edges, no border, no
+       shadow, no radius. It is not a floating panel.
+     • the content area is the SHEET — one lightness step up (--cr-surface),
+       rounded only at the seam where it meets the ground. The curve belongs to
+       the sheet, not the sidebar (the Claude/Codex shell).
+     • depth is the ground/surface lightness ladder plus hairlines. No relief:
+       no --edge/--raise/--float/--well, no gradients, no static shadow.
+     • the active nav row is a --cr-tint fill with signal text, never a lifted
+       plane with a shadow.
+
+   Only the frame migrates here; per-surface content keeps porcelain until each
+   surface moves (CR5 onward). Nothing references a relief token. */
+
+/* Base: the register's UI face and ink, at the chrome base size so lh-based
+   spacing resolves against the console's 15px rhythm. */
+.porcelain {
+  font-family: var(--cr-font-ui);
+  color: var(--cr-ink);
+  /* base size so the lh-rhythm resolves against the console's 15px, not the doc.
+     The ground itself (flat --cr-ground, no gradient) is now the bg-cr-ground
+     utility on the v2 layout element; the sheet is bg-cr-surface on V2Shell. */
+  font-size: var(--cr-base);
+}
+
+/* Selection + focus speak in the register's signal. */
+.porcelain ::selection {
+  background: var(--cr-tint);
+  color: var(--cr-ink);
+}
+.porcelain :focus-visible {
+  outline: 2px solid var(--cr-signal);
+  outline-offset: 2px;
+  border-radius: var(--cr-radius-sm);
+}
+
+/* ============ SIDEBAR = GROUND (full-bleed, hairline-free) ============ */
+.p-rail {
+  width: 216px;
+  margin: 0;
+  height: 100dvh;
+  padding: calc(var(--cr-space-6)) 0 var(--cr-space-4);
+  background: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The content sheet is now bg-cr-surface + rounded-l-cr-lg utilities on V2Shell. */
+
+/* ============ WORDMARK — Cabinet Grotesk keeps its one home ============ */
+.p-wordmark,
+.p-mark {
+  font-family: var(--font-display);
+  color: var(--cr-ink);
+}
+.p-wordmark .p-r,
+.p-mark .p-r {
+  color: var(--cr-signal);
+}
+
+/* ============ SECTION LABELS — small-caps hairline dividers ============ */
+.p-sec {
+  font-family: var(--cr-font-mono);
+  color: var(--cr-ink-3);
+}
+.p-sec::after {
+  background: var(--cr-hairline);
+}
+.p-raildiv {
+  background: var(--cr-hairline);
+}
+
+/* ============ NAV ROWS — tint-fill active, no lifted plane ============ */
+.p-navitem {
+  color: var(--cr-ink-2);
+  border-radius: var(--cr-radius-sm);
+  transition:
+    color var(--cr-motion) var(--cr-ease),
+    background var(--cr-motion) var(--cr-ease);
+}
+.p-navitem:hover {
+  color: var(--cr-ink);
+  background: var(--cr-tint);
+}
+.p-navitem[data-active='true'] {
+  color: var(--cr-signal);
+  background: var(--cr-tint);
+  background-image: none;
+  box-shadow: none;
+}
+
+/* ============ RAIL TOGGLE ============ */
+.p-railtoggle {
+  border-radius: var(--cr-radius-sm);
+  color: var(--cr-ink-3);
+  transition:
+    color var(--cr-motion) var(--cr-ease),
+    background var(--cr-motion) var(--cr-ease);
+}
+.p-railtoggle:hover {
+  color: var(--cr-ink);
+  background: var(--cr-tint);
+}
+.p-railtoggle:focus-visible {
+  outline: 2px solid var(--cr-signal);
+  outline-offset: 2px;
+}
+
+/* ============ COLLAPSED RAIL — stays flat ground, no shadow ============ */
+.p-rail[data-collapsed] {
+  width: 60px;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+/* ============ PAGE HEADER — one-line title at h4, no display slab ============ */
+.p-h1 {
+  font-family: var(--cr-font-ui);
+  font-size: var(--cr-text-h4);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--cr-leading-heading);
+  color: var(--cr-ink);
+}
+.p-kicker {
+  font-family: var(--cr-font-mono);
+  color: var(--cr-ink-3);
+}
+.p-orient {
+  color: var(--cr-ink-2);
+}
+
+/* Chrome moves at the register's motion; reduced-motion zeroes it. */
+@media (prefers-reduced-motion: reduce) {
+  .porcelain {
+    --cr-motion: 0ms;
+  }
+}
