@@ -1,6 +1,12 @@
 # Plan: migrate the legacy harness-console onto CommonPlace (app.theoremharness.com)
 
-Status: PLAN (pre-execution). Author: Claude Code, 2026-07-06. Resume artifact — written to survive a context compaction.
+Status: SUPERSEDED, DO NOT EXECUTE. Author: Claude Code, 2026-07-06. Retained as historical audit and backend-contract context.
+
+> Superseded for execution by `docs/plans/frontend-ownership-migration/implementation-plan.md`. This file remains the July 6 harness-console commit ledger and backend-contract background. The newer plan covers all Theorem frontend surfaces, the post-July-6 drift, specialty clients, ownership prevention, and final teardown.
+
+> Marketing decision update, July 11: the landing page moves into the CommonPlace repository but remains a standalone public page at `https://theoremharness.com`. It must not be folded into the `app.theoremharness.com` product shell, and its public URL must not change during migration.
+
+> Path note: references below to Theorem crates, apps, and tests are relative to the sibling Theorem repository at the historical snapshot, not to this CommonPlace checkout. The checklist below is archival and must not be used for execution.
 
 ## Executive summary
 
@@ -47,7 +53,7 @@ Consequence: PT-020..PT-050 are re-scoped from "build a route" to "register a vi
 | 80a91e392, 1d39ab412 | SPEC-2 Item domain + live changefeed, SPEC-3 space-type registry, item feed + console | **PORT** → CommonPlace Index/Tables (live changefeed is real backend value) |
 | 756d61029 | Memory: render similar memory graph | **PORT** → CommonPlace Graph/Notes |
 | 9c7de1c31, aa46e6805 | Omnibar: run theorem agent | **PORT** → CommonPlace Operator/Chat (uses `/api/theorem/agent`) |
-| 9e7d0e4cb | Marketing landing page | **DECISION D2** (public site vs operator app — likely a separate surface, not v2 shell) |
+| 9e7d0e4cb, 4e5dc0094 | Marketing landing page and current copy | **PORT** to a standalone CommonPlace-owned marketing entrypoint; preserve `https://theoremharness.com` and keep it outside the product shell |
 | 75140059c, 6a6750337 | Browser: memory graph search | **DROP** (audit: experimental substrate browser, no live wiring) |
 | b41b694f0, 2bf417353, de97c7526, 78867f425, 7d9dabf8b, ae43532ba, 82a21881d | `feat(commonplace)`: durable api + substrate surfaces, governance memory contracts, code contract shell, rustyred data contracts, compiler + block-view substrate, coding agent workspace (#43), commonplace-desktop-through-Next | **RECONCILE** — these are CommonPlace features that bled into the wrong app. Check if already in CommonPlace; port only the delta, discard duplicates. **Highest-value + highest-risk cluster (parallel-dev divergence).** |
 | ccd69699c, 538f7f84b, fbcf9963a | `acp` transports | **SKIP** (merge/incidental; 0 real harness-console files) |
@@ -86,7 +92,7 @@ Order: backend client first (unblocks all), then ports, then reconcile, then tea
 | PT-028 | Port **item domain + live changefeed** → Index/Tables | Changefeed streams; item feed live | med |
 | PT-040 | **Reconcile the commonplace-bleed cluster** (7 commits): diff each against current CommonPlace; port delta, drop duplicates | No feature regressed; no duplicate surface; divergence documented | **high** (parallel-dev) |
 | PT-050 | Re-home the **markdown-theory read surface**: add `@travis-gilbert/markdown-theory`, drop a `GalleyReader` (porcelain register) into the Notes/document read view | A note body renders typeset via `<Galley>` on porcelain | low (already built once for harness-console) |
-| PT-060 | Confirm + execute the **DROP list** (canvas, browser, workspace, /Commonplace-preview, legacy design tokens, theseus/* experimental api, marketing per D2) | Travis consents to each drop; nothing real discarded | needs consent |
+| PT-060 | Confirm + execute the **DROP list** (canvas, browser, workspace, /Commonplace-preview, legacy design tokens, theseus/* experimental api) | Travis consents to each drop; nothing real discarded; marketing is excluded because it ports to CommonPlace | needs consent |
 | PT-070 | **Publish markdown-theory 0.1.1** (T2 Slice B family CSS) + relock consumers | npm has 0.1.1 with `.galley-family-*`; CommonPlace + Theorem/apps/desktop resolve it | outward-facing |
 | PT-080 | **Delete `apps/harness-console`** + its Railway service; repoint app.theoremharness.com at the CommonPlace deploy | Legacy app gone; domain serves CommonPlace; all ports verified live first | **irreversible; last** |
 
@@ -122,7 +128,7 @@ Recorded here (not over the coordination room) because the coordination substrat
 ## Open decisions (per planning discipline, surfaced not buried)
 
 - **D1 — surface→v2-nav mapping. STILL open (Travis's product call), default ADOPTED to unblock.** Working default = the mapping proposed above (Memory→Notes+Graph, Skills→new `/v2/skills`, Agent→Operator/Chat, Rooms→Workrooms, Runs→new `/v2/runs`, Keys/Providers/Connections/Usage/Inbox→admin cluster, Item feed→Index/Tables). PT-010 (backend client) is nav-agnostic, so it does not block on D1; the ports (PT-02x) adopt this default unless Travis redirects.
-- **D2 — RESOLVED (Travis, 2026-07-06):** the marketing/landing page is a **separate public page, kept as-is**. Not folded into the operator app, not ported, not dropped. (So commit 9e7d0e4cb stays where it belongs / on its own surface.)
+- **D2 — UPDATED (Travis, 2026-07-11):** the marketing/landing page moves to CommonPlace ownership while remaining a separate public page at `https://theoremharness.com`. It is not folded into the operator app or `app.theoremharness.com` product shell. The URL is preserved through cutover.
 - **D3 — RESOLVED by evidence (2026-07-06):** the commonplace-bleed already landed in apps/web as the `theorem-*` client layer + object-contract surface (Codex's `object-contract-v2` merged into `commonplace-v2-porcelain-surface`). PT-040 is a per-commit diff of the 7 `feat(commonplace)` commits against current `apps/web`; the client layer is already present, so PT-040 shrinks to "confirm no un-ported delta," not "port the cluster."
 - **D4 — RESOLVED by evidence (2026-07-06):** prod URL = the code default `rustyredcore-theorem-production.up.railway.app` for the harness MCP surface; apps/web reaches Theorem GraphQL via `THEOREM_GRAPHQL_URL` (Railway commonplace-api) + server-only `THEOREM_API_KEY` (x-api-key), both already consumed by `/api/theorem/graphql/route.ts`. Remaining config task (not a decision): set those two env vars on the CommonPlace deploy. The task-node read schema is confirmed live (see Evidence update #2).
 
