@@ -49,7 +49,7 @@
   text-align: left;
   padding: calc(var(--u) * 0.85) calc(var(--u) * 1.25);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--ink-dim);
   cursor: pointer;
@@ -65,7 +65,7 @@
 .viewItem[data-selected] {
   color: var(--ink);
   background: var(--raised);
-  background-image: linear-gradient(180deg, var(--lit), transparent);
+  background-image: none;
   border-color: var(--hair-soft);
   box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.06), 0 3px 9px rgba(33, 31, 27, 0.05);
 }
@@ -76,8 +76,8 @@
 }
 
 .viewGlyph {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   flex-shrink: 0;
 }
 
@@ -89,14 +89,14 @@
 }
 
 .viewLabel {
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 500;
   line-height: 1.1;
 }
 
 .viewHint {
   font-family: var(--font-mono);
-  font-size: 0.56rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -112,7 +112,7 @@
 
 .railSectionLabel {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: var(--text-xxs);
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -134,10 +134,10 @@
   align-items: center;
   gap: calc(var(--u) * 0.75);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.04em;
   padding: calc(var(--u) * 0.6) calc(var(--u) * 1.1);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--hair-soft);
   background: var(--raised);
   box-shadow: var(--edge);
@@ -164,10 +164,10 @@
   align-items: center;
   gap: calc(var(--u) * 0.75);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--text-xxs);
   color: var(--ink-dim);
   padding: calc(var(--u) * 0.6) calc(var(--u) * 1.1);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--hair-soft);
   background: var(--plane);
   cursor: pointer;
@@ -206,10 +206,10 @@
   align-items: center;
   gap: calc(var(--u) * 0.6);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: var(--text-xxs);
   color: var(--ink-dim);
   padding: calc(var(--u) * 0.45) calc(var(--u) * 1);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--hair-soft);
   background: var(--plane);
   cursor: pointer;
@@ -244,7 +244,7 @@
 
 .legendReset {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.04em;
   color: var(--ink-faint);
   background: none;
@@ -261,7 +261,7 @@
 .legendReset:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--r-chip);
 }
 
 /* ============ panel ============ */
@@ -270,7 +270,6 @@
   inset: 0;
   overflow: hidden;
   background-color: var(--plane);
-  background-image: var(--plane-grad);
 }
 
 .panel:focus-visible {
@@ -286,7 +285,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.04em;
   color: var(--ink-faint);
 }
@@ -307,7 +306,7 @@
   left: calc(var(--u) * 2);
   bottom: calc(var(--u) * 1.5);
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.03em;
   color: var(--ink-faint);
   pointer-events: none;
@@ -327,7 +326,7 @@
   left: 0;
   margin: -7px 0 0 12px;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--text-xxs);
   letter-spacing: 0.01em;
   color: var(--ink);
   white-space: nowrap;
@@ -360,7 +359,7 @@
 }
 
 .egoNode circle {
-  stroke: var(--lit);
+  stroke: var(--hair);
   transition: stroke var(--motion) var(--ease);
 }
 
@@ -379,7 +378,7 @@
 
 .egoNode text {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xxs);
   fill: var(--ink-dim);
   pointer-events: none;
 }
@@ -434,7 +433,7 @@
 
 .modelLabel {
   font-family: var(--font-body);
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;

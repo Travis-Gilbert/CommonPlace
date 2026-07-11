@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { handleOperatorActionForState } from '@/lib/theorem-operator';
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
 
 /**
@@ -100,7 +101,11 @@ const NOW = new Date('2026-07-06T00:00:00.000Z');
 describe('Operator live workGraph mapping (PT-010)', () => {
   it('uses the aggregate workGraph when no run is selected', async () => {
     const spy = graphqlFetch({ ok: true, tasks: TASK_NODES });
-    const state = await buildOperatorStateLive({ THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv, NOW, spy);
+    const state = await buildOperatorStateLive(
+      { THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv,
+      NOW,
+      spy,
+    );
     expect(state).not.toBeNull();
     expect(state!.source.endpoint).toBe('https://commonplace-api.example/graphql · all runs');
 
@@ -180,6 +185,22 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(bayByHead['claude-code'].task?.id).toBe('task-a');
     expect(bayByHead['claude-code'].prLight).toBe('open');
     expect(bayByHead['codex'].task).toBeNull();
+  });
+
+  it('validates actions against the live Operator state, not fixture task ids', async () => {
+    const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
+    expect(state).not.toBeNull();
+
+    const result = handleOperatorActionForState(
+      { action: 'reorder_queue', taskId: 'task-b', priority: 0 },
+      state!,
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      action: 'reorder_queue',
+      message: 'Priority of "OP5 gate" written to 0.',
+    });
   });
 
   it('derives live gate, shift, and drawer state from TaskNodes', async () => {

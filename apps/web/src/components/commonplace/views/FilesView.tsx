@@ -6,6 +6,9 @@ import { useApiData } from '@/lib/commonplace-api';
 import { gqlItems, type ItemGql } from '@/lib/commonplace-graphql';
 import { useCapture } from '@/lib/providers/capture-provider';
 import { useDrawer } from '@/lib/providers/drawer-provider';
+import { useSelection } from '@/lib/providers/selection-provider';
+import FileItemViewer from './FileItemViewer';
+import styles from './FileItemViewer.module.css';
 
 function normalizeObjectPath(path: string | null | undefined): string | null {
   const clean = path?.trim().replace(/^\/+/, '').replace(/\/+$/, '');
@@ -53,8 +56,15 @@ function isoFromMs(ms: number): string | undefined {
   return ms ? new Date(ms).toISOString() : undefined;
 }
 
+function publicUrl(item: ItemGql): string | undefined {
+  if (item.source?.startsWith('http')) return item.source;
+  if (item.path?.startsWith('http')) return item.path;
+  return undefined;
+}
+
 function toFileSystemItem(item: ItemGql): FileSystemItem {
   const path = filePathFor(item);
+  const url = publicUrl(item);
   return {
     kind: 'file',
     id: item.id,
@@ -62,6 +72,8 @@ function toFileSystemItem(item: ItemGql): FileSystemItem {
     path,
     name: item.title || pathName(path),
     contentType: item.mime ?? undefined,
+    url,
+    previewImageUrl: item.mime?.startsWith('image/') ? url ?? null : null,
     createdAt: isoFromMs(item.createdAtMs),
     updatedAt: isoFromMs(item.updatedAtMs),
     metadata: metadataFor(item),
@@ -69,22 +81,41 @@ function toFileSystemItem(item: ItemGql): FileSystemItem {
 }
 
 export default function FilesView() {
-  const { captureVersion } = useCapture();
+  const { captureVersion, notifyCaptured } = useCapture();
   const { openDrawer } = useDrawer();
+  const { selectedItems, selectSingle } = useSelection();
   const { data: items } = useApiData(() => gqlItems(), [captureVersion]);
-  const fileItems = useMemo(() => (items ?? []).map(toFileSystemItem), [items]);
+  const allItems = useMemo(() => items ?? [], [items]);
+  const itemById = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
+  const selectedItem = useMemo(() => {
+    const selectedId = [...selectedItems].find((id) => itemById.has(id));
+    return selectedId ? itemById.get(selectedId) ?? null : allItems[0] ?? null;
+  }, [allItems, itemById, selectedItems]);
+  const fileItems = useMemo(() => allItems.map(toFileSystemItem), [allItems]);
 
   return (
-    <div className="h-full overflow-hidden p-4">
-      <FileSystem
-        items={fileItems}
-        title="Commonplace"
-        defaultView="columns"
-        className="h-full"
-        onFileOpen={(file) => {
-          if (file.id) openDrawer(file.id);
-        }}
-      />
+    <div className={styles.filesSurface}>
+      <div className={styles.treePane}>
+        <FileSystem
+          items={fileItems}
+          title="Commonplace"
+          defaultView="columns"
+          className="h-full"
+          onSelectionChange={(entry) => {
+            if (entry?.kind === 'file' && entry.id) selectSingle(entry.id);
+          }}
+          onFileOpen={(file) => {
+            if (file.id) selectSingle(file.id);
+          }}
+        />
+      </div>
+      <aside className={styles.previewPane} aria-label="Item preview">
+        <FileItemViewer
+          item={selectedItem}
+          onOpenObject={(id) => openDrawer(id)}
+          onSaved={notifyCaptured}
+        />
+      </aside>
     </div>
   );
 }

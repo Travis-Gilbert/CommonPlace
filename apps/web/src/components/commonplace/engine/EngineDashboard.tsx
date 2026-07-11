@@ -193,7 +193,7 @@ export default function EngineDashboard() {
         }
         .ed-row-badge {
           font-family: var(--cp-font-mono);
-          font-size: 9px;
+          font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.06em;
           padding: 2px 8px;

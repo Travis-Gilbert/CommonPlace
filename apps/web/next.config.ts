@@ -2,10 +2,13 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 import { PRODUCT_REDIRECTS } from './src/lib/product-route-matrix';
 
-// Keep Turbopack inside the CommonPlace monorepo while allowing apps/web to
-// resolve the source contracts under packages/. Web scripts run from apps/web,
-// so ../.. is the repository root and avoids unrelated lockfiles above it.
-const projectRoot = path.resolve('../..');
+// Explicit Turbopack workspace root. Set to the monorepo root so Turbopack
+// can resolve workspace packages (e.g. @commonplace/block-view-contracts)
+// that live outside the app directory. Without this, Turbopack walks up the
+// filesystem looking for the nearest lockfile, which may pick the wrong
+// directory and cause PostCSS or module-resolution deadlocks. Web scripts run
+// from apps/web, so ../.. is the repository root.
+const projectRoot = path.resolve('..', '..');
 
 // INDEX_API_PROXY_URL: server-only var for the rewrite destination (not exposed to browser).
 // Falls back to local Index API in development, then Railway production.
@@ -39,7 +42,7 @@ const nextConfig: NextConfig = {
   experimental: {
     viewTransition: true,
   },
-  reactCompiler: true,
+  reactCompiler: false, // ponytail: blocked on babel-plugin-resolution in monorepo, re-enable when fixed
   images: {
     unoptimized: true,
   },

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   allRows,
+  indexRowKey,
   submitRefile,
   useIndexData,
   type IndexRow,
@@ -25,15 +26,20 @@ import styles from './index.module.css';
 interface RefileOverride {
   destination: IndexRowDestination;
   receipt: string;
+  collectionId?: string;
+}
+
+function eventTimestamp(): number {
+  return Date.now();
 }
 
 export function IndexSurface() {
   const data = useIndexData();
   const rows = allRows(data);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, RefileOverride>>({});
 
-  const selected = rows.find((r) => r.id === selectedId) ?? null;
+  const selected = rows.find((r) => indexRowKey(r) === selectedKey) ?? null;
   const destinationFor = (row: IndexRow): IndexRowDestination | null =>
     overrides[row.id]?.destination ?? row.destination;
 
@@ -45,12 +51,26 @@ export function IndexSurface() {
       ...current,
       [selected.id]: { destination: { verb, label }, receipt: `Refiled to ${label}.` },
     }));
-    submitRefile(selected.id, label, selected.title, selected.destinationId);
+    void submitRefile(selected.id, label, selected.title, selected.destinationId).then(
+      (collectionId) => {
+        if (!collectionId) return;
+        setOverrides((current) => {
+          const currentOverride = current[selected.id];
+          if (!currentOverride || currentOverride.destination.label !== label) return current;
+          return {
+            ...current,
+            [selected.id]: { ...currentOverride, collectionId },
+          };
+        });
+      },
+    );
   };
 
   const handleUndo = () => {
     if (!selected) return;
     const original = selected.destination; // the pre-refile destination
+    const current = destinationFor(selected);
+    const currentOverride = overrides[selected.id];
     setOverrides((current) => {
       const next = { ...current };
       delete next[selected.id];
@@ -58,7 +78,15 @@ export function IndexSurface() {
     });
     // Restore the prior edge everywhere: refile back to the original destination
     // so peer surfaces (and the session override) revert too.
-    if (original) submitRefile(selected.id, original.label, selected.title);
+    if (original) {
+      void submitRefile(
+        selected.id,
+        original.label,
+        selected.title,
+        currentOverride?.collectionId,
+        current?.label,
+      );
+    }
   };
 
   // Toolbar actions and composer are observable signals today; the durable
@@ -68,7 +96,7 @@ export function IndexSurface() {
     if (!selected || typeof window === 'undefined') return;
     try {
       window.dispatchEvent(
-        new CustomEvent(type, { detail: { id: selected.id, at: Date.now(), ...extra } }),
+        new CustomEvent(type, { detail: { id: selected.id, at: eventTimestamp(), ...extra } }),
       );
     } catch {
       /* best-effort */
@@ -84,8 +112,8 @@ export function IndexSurface() {
       <Panel order={1} defaultSize={62} minSize={42} className={styles.listPanel}>
         <IndexList
           data={data}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
           destinationFor={destinationFor}
         />
       </Panel>

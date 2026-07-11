@@ -279,7 +279,7 @@ export default function TheseusBar() {
                 borderRadius: '50%',
                 backgroundColor: '#4ADE80',
                 boxShadow: '0 0 6px rgba(74,222,128,0.4)',
-                animation: reduced ? 'none' : 'cpPulse 1.5s ease-in-out infinite',
+                animation: reduced ? 'none' : 'cpPulse 1000ms ease-in-out infinite',
                 flexShrink: 0,
               }}
             />

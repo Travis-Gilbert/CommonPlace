@@ -43,7 +43,7 @@ const FIELDS =
 export const CREATE_ANNOTATION = `mutation CreateAnnotation($input: CreateAnnotationInput!) { createAnnotation(input: $input) { ${FIELDS} } }`;
 export const REPLY_ANNOTATION = `mutation ReplyAnnotation($input: ReplyAnnotationInput!) { replyAnnotation(input: $input) { ${FIELDS} } }`;
 export const RESOLVE_ANNOTATION = `mutation ResolveAnnotation($input: ResolveAnnotationInput!) { resolveAnnotation(input: $input) { ${FIELDS} } }`;
-export const ANNOTATIONS_FOR_TARGET = `query AnnotationsForTarget($targetId: ID!) { annotationsForTarget(targetId: $targetId) { ${FIELDS} } }`;
+export const ANNOTATIONS_FOR_TARGET = `query AnnotationsForTarget($targetId: String!) { annotationsForTarget(targetId: $targetId) { ${FIELDS} } }`;
 
 export function buildCreateAnnotation(input: CreateAnnotationInput): {
   query: string;

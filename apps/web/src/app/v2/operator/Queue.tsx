@@ -6,7 +6,7 @@
    refusal sentences. Row 5 — Icebox and Done stay as collapsed disclosures.
    Drag-to-reorder writes priority (@hello-pangea/dnd); collapsibles are Radix. */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronRight } from 'lucide-react';
@@ -14,6 +14,11 @@ import type { OperatorTask } from '@/lib/theorem-operator';
 import { isBlocked, unmetPrerequisites } from '@/lib/theorem-operator';
 import { Empty, formatAge } from './parts';
 import styles from './operator.module.css';
+
+interface QueueOrderState {
+  signature: string;
+  order: string[];
+}
 
 function QueueCard({
   task,
@@ -64,7 +69,7 @@ export function Queue({
   onReorder,
   blockedOnly,
 }: {
-  tasks: OperatorTask[];
+  tasks: readonly OperatorTask[];
   onOpen: (taskId: string) => void;
   onReorder: (taskId: string, priority: number) => void;
   /** Attention-strip filter: show only blocked rows in Next. */
@@ -82,10 +87,15 @@ export function Queue({
 
   // Optimistic local order for the Next lane so a drag reorders immediately;
   // the reorder action persists the new priority to the substrate.
-  const [order, setOrder] = useState<string[]>(nextFromProps.map((t) => t.id));
-  useEffect(() => {
-    setOrder(nextFromProps.map((t) => t.id));
-  }, [nextFromProps]);
+  const nextSignature = JSON.stringify(nextFromProps.map((t) => [t.id, t.priority] as const));
+  const [orderState, setOrderState] = useState<QueueOrderState>(() => ({
+    signature: nextSignature,
+    order: orderIdsFromSignature(nextSignature),
+  }));
+  const order =
+    orderState.signature === nextSignature
+      ? orderState.order
+      : orderIdsFromSignature(nextSignature);
 
   const nextOrdered = useMemo(() => {
     const byId = new Map(nextFromProps.map((t) => [t.id, t]));
@@ -98,7 +108,7 @@ export function Queue({
     const reordered = Array.from(order);
     const [moved] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, moved);
-    setOrder(reordered);
+    setOrderState({ signature: nextSignature, order: reordered });
     onReorder(moved, result.destination.index);
   }
 
@@ -166,6 +176,10 @@ export function Queue({
       </CollapsibleLane>
     </div>
   );
+}
+
+function orderIdsFromSignature(signature: string): string[] {
+  return (JSON.parse(signature) as Array<readonly [string, number]>).map(([id]) => id);
 }
 
 function CollapsibleLane({
