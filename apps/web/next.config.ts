@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
+import { PRODUCT_REDIRECTS } from './src/lib/product-route-matrix';
 
 // Explicit Turbopack workspace root. The app imports the local
 // packages/block-view-contracts source, so the root must be the common parent
@@ -116,6 +117,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     if (isDesktopExport) return [];
     return [
+      ...PRODUCT_REDIRECTS,
       {
         source: '/investigations',
         destination: '/essays',

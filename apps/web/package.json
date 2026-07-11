@@ -21,6 +21,7 @@
     "start:railway": "node scripts/start-railway.mjs",
     "lint": "eslint src scripts next.config.ts",
     "lint:register": "node scripts/lint-console-register.mjs",
+    "routes:check": "tsx scripts/check-product-route-matrix.ts",
     "export-icons": "node scripts/export-icons.mjs",
     "postbuild": "pagefind",
     "test": "vitest run",
