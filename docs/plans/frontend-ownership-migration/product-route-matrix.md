@@ -74,11 +74,12 @@ Production routing, DNS, and domain attachments do not change in FO-003.
 
 ## Local Candidate Evidence
 
-The July 11 local candidate passed all 23 manifest probes with a host-scoped
-`PRODUCT_HOST`, disposable NextAuth credentials, and no production secrets. A
-separate Host-header check proved that the configured product host returned the
-query-preserving `308` while `travisgilbert.me` still returned its personal-site
-root with `200`.
+The July 11 local candidate passed 100 consecutive iterations of all 23
+manifest probes: 2,300 HTTP samples, zero failures, and a 1,088 ms maximum
+response time. The run used a host-scoped `PRODUCT_HOST`, disposable NextAuth
+credentials, and no production secrets. A separate Host-header check proved
+that the configured product host returned the query-preserving `308` while
+`travisgilbert.me` still returned its personal-site root with `200`.
 
 The web production build also passed after setting Turbopack's root to the
 CommonPlace monorepo root. The prior `apps/web`-only root prevented the app from
