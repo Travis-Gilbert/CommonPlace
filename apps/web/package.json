@@ -19,6 +19,7 @@
     "start": "next start",
     "start:railway": "node scripts/start-railway.mjs",
     "lint": "eslint src scripts next.config.ts",
+    "routes:check": "tsx scripts/check-product-route-matrix.ts",
     "export-icons": "node scripts/export-icons.mjs",
     "postbuild": "pagefind",
     "test": "vitest run",
