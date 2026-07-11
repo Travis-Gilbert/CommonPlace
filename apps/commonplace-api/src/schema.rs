@@ -21,14 +21,9 @@ use async_graphql::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use commonplace::{
-<<<<<<< HEAD
-    BlobStore, Collection, CollectionKind, Commonplace, EmbeddingGraphStore, InMemoryBlobStore,
-    IngestInput, IngestPipeline, Item, ItemBody, ItemKind, Residency, SourceRef, COLLECTION_LABEL,
-=======
     annotation_from_item, Anchor, Annotation, AuthorKind, BlobStore, Collection, CollectionKind,
     Commonplace, EmbeddingGraphStore, InMemoryBlobStore, IngestInput, IngestPipeline, Item,
     ItemBody, ItemKind, Residency, Resolution, SourceRef, COLLECTION_LABEL,
->>>>>>> origin/main
     ITEM_EMBEDDING_PROPERTY,
 };
 use rustyred_thg_core::{DiskObjectStore, InMemoryGraphStore, NodeQuery, RedCoreGraphStore};
