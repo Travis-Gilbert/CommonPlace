@@ -14,6 +14,7 @@
 pub mod auth;
 pub mod briefing;
 pub mod discover;
+pub mod growth;
 pub mod mcp;
 pub mod organize;
 pub mod portability;
@@ -25,6 +26,7 @@ pub mod voice;
 pub use auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 pub use briefing::{briefing, Briefing, BriefingConfig, ConnectedItem};
 pub use discover::{discover, CandidateLink, DiscoverConfig};
+pub use growth::{GrowthSnapshotGql, GrowthSnapshotResultGql};
 pub use organize::{
     organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup, OrganizeItem,
     OrganizeSnapshot, OrganizedToday, Subtask, Timeframe,

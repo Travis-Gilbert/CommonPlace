@@ -26,7 +26,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const styles = (name) => join(here, "..", "src", "styles", name);
 
 /** CSS files that have migrated onto the console register. Add one per surface. */
-const MIGRATED = [styles("console-shell.css")];
+const MIGRATED = [
+  styles("console-shell.css"),
+  join(here, "..", "src", "components", "growth", "growth.module.css"),
+];
 
 const src = (rel) => join(here, "..", "src", rel);
 
@@ -37,7 +40,15 @@ const src = (rel) => join(here, "..", "src", rel);
  * values (bg-[#fff], text-[13px]) and raw Tailwind palette (bg-red-500,
  * text-black/40) — in these files. Add each surface as it converts to utilities.
  */
-const MIGRATED_COMPONENTS = ["app/v2/layout.tsx", "components/v2/V2Shell.tsx"];
+const MIGRATED_COMPONENTS = [
+  "app/v2/layout.tsx",
+  "components/v2/V2Shell.tsx",
+  "components/growth/GrowthCard.tsx",
+  "components/growth/GrowthGraphCanvas.tsx",
+  "components/growth/GrowthMathematics.tsx",
+  "components/growth/GrowthSurface.tsx",
+  "components/growth/GrowthViews.tsx",
+];
 
 const PALETTE = [
   "slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow",

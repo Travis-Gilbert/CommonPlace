@@ -1070,9 +1070,7 @@ where
             .neighbors(NeighborQuery::out(parent).with_edge_type(CONTAINS_EDGE))
             .into_iter()
             .filter_map(|hit| {
-                let edge = self
-                    .store()
-                    .get_edge(&contains_edge_id(parent, &hit.node_id))?;
+                let edge = self.store().get_edge(&contains_edge_id(parent, &hit.node_id))?;
                 if edge
                     .properties
                     .get("detached")
@@ -2110,10 +2108,7 @@ mod tests {
         let vi_chip = create(
             &mut cp,
             "view-instance",
-            &[
-                ("descriptor_id", json!("chip")),
-                ("title", json!("Attention")),
-            ],
+            &[("descriptor_id", json!("chip")), ("title", json!("Attention"))],
         );
         let vi_queue = create(
             &mut cp,
@@ -2133,9 +2128,7 @@ mod tests {
         contains(&mut cp, &region_b, &vi_board, 1.0);
 
         let set = cp
-            .query_object_set(
-                ObjectQuery::new(["surface"]).with_traverse(EdgeWalk::out(CONTAINS_EDGE)),
-            )
+            .query_object_set(ObjectQuery::new(["surface"]).with_traverse(EdgeWalk::out(CONTAINS_EDGE)))
             .unwrap();
         assert_eq!(set.objects.len(), 1);
         let root = &set.objects[0];
@@ -2154,19 +2147,14 @@ mod tests {
         );
 
         // A view-instance's descriptor_id survives the round-trip.
-        let instances = cp
-            .query_object_set(ObjectQuery::new(["view-instance"]))
-            .unwrap();
+        let instances = cp.query_object_set(ObjectQuery::new(["view-instance"])).unwrap();
         let board = instances
             .objects
             .iter()
             .find(|object| object.id == vi_board)
             .unwrap();
         assert_eq!(
-            board
-                .properties
-                .get("descriptor_id")
-                .and_then(Value::as_str),
+            board.properties.get("descriptor_id").and_then(Value::as_str),
             Some("board")
         );
     }
@@ -2176,16 +2164,8 @@ mod tests {
         // OC1 acceptance: Move reorders with a single action.
         let mut cp = fresh();
         let region = create(&mut cp, "region", &[("layout", json!("stack"))]);
-        let a = create(
-            &mut cp,
-            "view-instance",
-            &[("descriptor_id", json!("list"))],
-        );
-        let b = create(
-            &mut cp,
-            "view-instance",
-            &[("descriptor_id", json!("board"))],
-        );
+        let a = create(&mut cp, "view-instance", &[("descriptor_id", json!("list"))]);
+        let b = create(&mut cp, "view-instance", &[("descriptor_id", json!("board"))]);
         contains(&mut cp, &region, &a, 1.0);
         contains(&mut cp, &region, &b, 2.0);
         assert_eq!(cp.ordered_children(&region), vec![a.clone(), b.clone()]);
@@ -2212,11 +2192,7 @@ mod tests {
         let mut cp = fresh();
         let left = create(&mut cp, "region", &[("layout", json!("stack"))]);
         let right = create(&mut cp, "region", &[("layout", json!("stack"))]);
-        let card = create(
-            &mut cp,
-            "view-instance",
-            &[("descriptor_id", json!("card"))],
-        );
+        let card = create(&mut cp, "view-instance", &[("descriptor_id", json!("card"))]);
         contains(&mut cp, &left, &card, 1.0);
         assert_eq!(cp.ordered_children(&left), vec![card.clone()]);
 
@@ -2287,13 +2263,11 @@ mod tests {
         // OC4 acceptance: a Fulltext-ranked query returns scored results and the
         // ObjectSet note channel reports the planner fallback.
         let mut cp = fresh();
-        cp.put_item(Item::note("Alpha", "the quick brown fox"))
-            .unwrap();
+        cp.put_item(Item::note("Alpha", "the quick brown fox")).unwrap();
         let target = cp
             .put_item(Item::note("Beta", "graph graph graph substrate"))
             .unwrap();
-        cp.put_item(Item::note("Gamma", "unrelated content"))
-            .unwrap();
+        cp.put_item(Item::note("Gamma", "unrelated content")).unwrap();
 
         let set = cp
             .query_object_set(ObjectQuery::new(["note"]).with_rank(Ranker::Fulltext {

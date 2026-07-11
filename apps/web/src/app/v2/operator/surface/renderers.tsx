@@ -47,7 +47,7 @@ export function OperatorQueueView({ host }: SurfaceViewRendererProps) {
   const h = host as OperatorHost;
   return (
     <Queue
-      tasks={h.tasks}
+      tasks={[...h.tasks]}
       onOpen={h.callbacks.openRoom}
       onReorder={h.callbacks.reorder}
       blockedOnly={h.blockedOnly}

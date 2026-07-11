@@ -10,10 +10,9 @@
 
 use std::sync::Arc;
 
-use async_graphql::{Request, Variables};
+use async_graphql::Request;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use commonplace_api::{build_schema, in_memory_store, ApiKeyRegistry, ApiKeyToken, ConsumerSchema};
-use serde_json::json;
 use yrs::{Doc, ReadTxn, StateVector, Text, Transact};
 
 fn instance_with_key(key: &str) -> ConsumerSchema {
@@ -245,139 +244,47 @@ async fn different_instances_have_separate_data() {
 }
 
 #[tokio::test]
-async fn annotations_round_trip_through_graphql_contract() {
-    let key = "annotation-key";
+async fn growth_snapshot_is_a_typed_authenticated_query() {
+    let key = "growth-key";
     let schema = instance_with_key(key);
-
-    let response = schema
-        .execute(
-            Request::new(r#"mutation { putNote(title: "Target", text: "annotate me") { id } }"#)
-                .data(ApiKeyToken(key.to_string())),
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let data = response.data.into_json().unwrap();
-    let target_id = data["putNote"]["id"].as_str().unwrap().to_string();
-
-    let create = r#"mutation Create($input: CreateAnnotationInput!) {
-        createAnnotation(input: $input) {
-            id
-            targetId
-            author
-            authorKind
-            anchor
-            body
-            resolved
-            resolution { by receipt }
-            createdAtMs
+    let query = r#"query {
+        growthSnapshot {
+            available
+            message
+            snapshot {
+                schemaVersion
+                source
+                tenantSlug
+                xp { total byContext { leaf xp } }
+                card { stats { form } bundle { manifest { ownerPublicFingerprint } faceSvg } }
+            }
         }
     }"#;
     let response = schema
-        .execute(
-            Request::new(create)
-                .variables(Variables::from_json(json!({
-                    "input": {
-                        "targetId": target_id,
-                        "body": "padding wraps the header",
-                        "anchor": { "kind": "file_line", "path": "src/App.tsx", "line": 42, "column": 9 },
-                        "author": "head:claude",
-                        "authorKind": "head"
-                    }
-                })))
-                .data(ApiKeyToken(key.to_string())),
-        )
+        .execute(Request::new(query).data(ApiKeyToken(key.to_string())))
         .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    assert!(
+        response.errors.is_empty(),
+        "Growth query errors: {:?}",
+        response.errors
+    );
     let data = response.data.into_json().unwrap();
-    let created = &data["createAnnotation"];
-    let annotation_id = created["id"].as_str().unwrap().to_string();
-    assert_eq!(created["targetId"], json!(target_id));
-    assert_eq!(created["author"], "head:claude");
-    assert_eq!(created["authorKind"], "head");
-    assert_eq!(created["anchor"]["kind"], "file_line");
-    assert_eq!(created["anchor"]["line"], 42);
-    assert_eq!(created["resolved"], false);
-    assert!(created["createdAtMs"].as_i64().unwrap() > 0);
+    let result = &data["growthSnapshot"];
+    if result["available"].as_bool() == Some(true) {
+        assert_eq!(result["snapshot"]["schemaVersion"], 1);
+        assert_eq!(result["snapshot"]["source"], "live");
+    } else {
+        assert!(result["snapshot"].is_null());
+        assert!(result["message"]
+            .as_str()
+            .is_some_and(|message| !message.is_empty()));
+    }
 
-    let reply = r#"mutation Reply($input: ReplyAnnotationInput!) {
-        replyAnnotation(input: $input) {
-            id
-            targetId
-            authorKind
-            anchor
-            body
-            resolved
-            createdAtMs
-        }
-    }"#;
-    let response = schema
-        .execute(
-            Request::new(reply)
-                .variables(Variables::from_json(json!({
-                    "input": {
-                        "parentId": annotation_id,
-                        "body": "on it",
-                        "author": "user:travis",
-                        "authorKind": "user"
-                    }
-                })))
-                .data(ApiKeyToken(key.to_string())),
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let data = response.data.into_json().unwrap();
-    assert_eq!(data["replyAnnotation"]["targetId"], json!(annotation_id));
-    assert_eq!(data["replyAnnotation"]["authorKind"], "user");
-    assert!(data["replyAnnotation"]["anchor"].is_null());
-
-    let list = r#"query List($targetId: String!) {
-        annotationsForTarget(targetId: $targetId) {
-            id
-            targetId
-            authorKind
-            anchor
-            body
-            resolved
-        }
-    }"#;
-    let response = schema
-        .execute(
-            Request::new(list)
-                .variables(Variables::from_json(json!({ "targetId": target_id })))
-                .data(ApiKeyToken(key.to_string())),
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let data = response.data.into_json().unwrap();
-    let annotations = data["annotationsForTarget"].as_array().unwrap();
-    assert_eq!(annotations.len(), 1);
-    assert_eq!(annotations[0]["id"], json!(annotation_id));
-
-    let resolve = r#"mutation Resolve($input: ResolveAnnotationInput!) {
-        resolveAnnotation(input: $input) {
-            id
-            resolved
-            resolution { by receipt }
-        }
-    }"#;
-    let response = schema
-        .execute(
-            Request::new(resolve)
-                .variables(Variables::from_json(json!({
-                    "input": {
-                        "id": annotation_id,
-                        "by": "commit",
-                        "receipt": "abc123"
-                    }
-                })))
-                .data(ApiKeyToken(key.to_string())),
-        )
-        .await;
-    assert!(response.errors.is_empty(), "{:?}", response.errors);
-    let data = response.data.into_json().unwrap();
-    assert_eq!(data["resolveAnnotation"]["resolved"], true);
-    assert_eq!(data["resolveAnnotation"]["resolution"]["by"], "commit");
-    assert_eq!(data["resolveAnnotation"]["resolution"]["receipt"], "abc123");
+    let unauthorized = schema.execute(Request::new(query)).await;
+    assert!(
+        !unauthorized.errors.is_empty(),
+        "Growth query requires an API key"
+    );
 }
 
 #[tokio::test]

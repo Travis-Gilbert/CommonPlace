@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-import {
-  buildOperatorState,
-  handleOperatorActionForState,
-  type OperatorActionResult,
-} from '@/lib/theorem-operator';
+import { buildOperatorState, handleOperatorAction } from '@/lib/theorem-operator';
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
 
 // The Operator surface renders substrate state only (Invariant 1). Force-dynamic
@@ -34,33 +30,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const now = new Date();
-  let state = buildOperatorState(process.env, now, globalThis.fetch);
-  try {
-    state = (await buildOperatorStateLive(process.env, now, globalThis.fetch)) ?? state;
-  } catch {
-    // keep fixture state
-  }
-
-  const result = handleOperatorActionForState(body, state);
-  return NextResponse.json(result, { status: statusForOperatorResult(result) });
-}
-
-function statusForOperatorResult(result: OperatorActionResult): number {
-  if (result.ok) return 200;
-  switch (result.error) {
-    case 'invalid_action':
-    case 'missing_required_changes':
-    case 'empty_message':
-      return 400;
-    case 'task_not_found':
-    case 'bay_not_found':
-    case 'not_in_review':
-      return 404;
-    case 'bay_occupied':
-    case 'prerequisite_unmet':
-    case 'evidence_missing':
-    default:
-      return 409;
-  }
+  const result = handleOperatorAction(body, process.env, new Date(), globalThis.fetch);
+  // Structured refusals (bay occupied, prerequisite unmet, evidence missing) are
+  // 409 Conflict; a bad shape is 400; success is 200.
+  const status = result.ok ? 200 : result.error === 'invalid_action' ? 400 : 409;
+  return NextResponse.json(result, { status });
 }

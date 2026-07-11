@@ -30,16 +30,12 @@ pub mod content_core;
 pub mod ingest;
 pub mod item;
 pub mod organize;
-pub mod reconstruction;
 pub mod reminder;
 pub mod renderable;
+pub mod stamp;
 pub mod store;
 pub mod tag;
 
-pub use annotation::{
-    annotation_from_item, Anchor, Annotation, AuthorKind, Rect, Resolution, ANCHOR_KEY,
-    AUTHOR_ID_KEY, AUTHOR_KIND_KEY, RESOLUTION_KEY, RESOLVED_KEY, TARGET_ID_KEY,
-};
 pub use blob::{content_hash, BlobStore, InMemoryBlobStore};
 pub use block_view::{
     ActionKind, AgentTier, BlockHost, CardinalityRequirement, CommonplaceBlockHost, Constraint,
@@ -64,6 +60,10 @@ pub use ingest::{
     IngestReceipt, ResolvedEntity, SimilarityLink, TaskFields, COLLECTION_EMBEDDING_PROPERTY,
     DEFAULT_SOURCE_PRIOR_BOOST, ENTITY_LABEL, ITEM_EMBEDDING_PROPERTY, MENTIONS_ENTITY_EDGE,
 };
+pub use annotation::{
+    annotation_from_item, Anchor, Annotation, AuthorKind, Rect, Resolution, ANCHOR_KEY,
+    AUTHOR_ID_KEY, AUTHOR_KIND_KEY, RESOLUTION_KEY, RESOLVED_KEY, TARGET_ID_KEY,
+};
 pub use item::{Item, ItemBody, ItemKind, Residency, SourceRef};
 pub use organize::{decide, route, NeedsYouReason, OrganizeDecision, OrganizePolicy, RoutingRule};
 pub use reminder::parse_reminder;
@@ -72,12 +72,13 @@ pub use renderable::{
     ObjectTypeIdentity, OrganizeAction, OrganizeActionReceipt, OrganizeActionVerb,
     RenderableObject, OBJECT_TYPE_SLUGS,
 };
+pub use stamp::{build_stamp_snapshot, ExplicitEdge, ExplicitEdgeClass, StampSnapshot};
 pub use store::{
     Commonplace, ABOUT_EDGE, ATTACHED_TO_EDGE, BLOCKS_EDGE, COLLECTION_LABEL, COMMENT_ON_EDGE,
-    CONTAINS_PROJECT_EDGE, DEPENDS_ON_EDGE, DUPLICATE_OF_EDGE, HAS_STATE_EDGE, HAS_TAG_EDGE,
-    IN_COLLECTION_EDGE, IN_CYCLE_EDGE, IN_MODULE_EDGE, IN_PROJECT_EDGE, ITEM_LABEL, LINKS_TO_EDGE,
-    LOGGED_ON_EDGE, MEMBER_OF_EDGE, PART_OF_EPIC_EDGE, RELATES_TO_EDGE, SIMILAR_TO_EDGE,
-    SOURCE_REF_KEY_PROPERTY, SUBTASK_OF_EDGE, TAG_LABEL, TOWARD_MILESTONE_EDGE, WORKED_BY_EDGE,
+    CONTAINS_PROJECT_EDGE, DEPENDS_ON_EDGE, DUPLICATE_OF_EDGE, GROWTH_STAMP_PROPERTY,
+    HAS_STATE_EDGE, HAS_TAG_EDGE, IN_COLLECTION_EDGE, IN_CYCLE_EDGE, IN_MODULE_EDGE,
+    IN_PROJECT_EDGE, ITEM_LABEL, LINKS_TO_EDGE, LOGGED_ON_EDGE, MEMBER_OF_EDGE, PART_OF_EPIC_EDGE,
+    RELATES_TO_EDGE, SIMILAR_TO_EDGE, SOURCE_REF_KEY_PROPERTY, SUBTASK_OF_EDGE, TAG_LABEL,
+    TOWARD_MILESTONE_EDGE, WORKED_BY_EDGE,
 };
-pub use reconstruction::{fact_to_item, facts_to_items_and_collections};
 pub use tag::{tag_id, Tag};
