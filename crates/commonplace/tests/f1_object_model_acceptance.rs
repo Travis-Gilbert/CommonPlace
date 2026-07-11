@@ -9,8 +9,8 @@
 //! and the durable `RedCoreGraphStore` + `DiskObjectStore` across a restart.
 
 use commonplace::{
-    content_hash, Collection, CollectionKind, Commonplace, InMemoryBlobStore, Item, ItemBody,
-    ItemKind, Residency,
+    content_hash, Collection, CollectionKind, Commonplace, ExplicitEdgeClass, InMemoryBlobStore,
+    Item, ItemBody, ItemKind, Residency,
 };
 use rustyred_thg_core::InMemoryGraphStore;
 
@@ -136,6 +136,49 @@ fn tags_are_graph_nodes_deduped_by_slug() {
     let tags = cp.item_tags(&item.id).unwrap();
     assert_eq!(tags.len(), 1, "exact-name dedup via stable slug");
     assert_eq!(tags[0].id, "tag:machine-learning");
+}
+
+#[test]
+fn note_save_and_explicit_edge_changes_refresh_the_growth_stamp() {
+    let mut cp = fresh();
+    let note = cp.put_item(Item::note("Linked note", "body")).unwrap();
+    let empty = cp
+        .growth_stamp(&note.id)
+        .unwrap()
+        .expect("stamp stored on save");
+    assert!(empty.empty_mark);
+
+    let evidence = cp.put_item(Item::note("Evidence", "one")).unwrap();
+    let reference = cp.put_item(Item::note("Reference", "two")).unwrap();
+    let started = std::time::Instant::now();
+    cp.link_about(&note.id, &evidence.id).unwrap();
+    cp.link_explicit(
+        "SUPPORTS",
+        &note.id,
+        &reference.id,
+        "Supports the current claim",
+    )
+    .unwrap();
+    let elapsed = started.elapsed();
+
+    let populated = cp.growth_stamp(&note.id).unwrap().unwrap();
+    assert_eq!(populated.edges.len(), 2);
+    assert!(populated
+        .edges
+        .iter()
+        .any(|edge| edge.class == ExplicitEdgeClass::Epistemic));
+    assert!(populated
+        .edges
+        .iter()
+        .any(|edge| edge.callout.contains("Evidence")));
+    assert!(!populated.empty_mark);
+    assert!(
+        elapsed.as_millis() < 50,
+        "two Stamp refreshes took {elapsed:?}"
+    );
+
+    cp.add_similarity(&note.id, &evidence.id, 0.99).unwrap();
+    assert_eq!(cp.growth_stamp(&note.id).unwrap().unwrap().edges.len(), 2);
 }
 
 #[test]

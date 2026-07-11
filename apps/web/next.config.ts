@@ -2,9 +2,10 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 import { PRODUCT_REDIRECTS } from './src/lib/product-route-matrix';
 
-// Keep Turbopack inside the CommonPlace monorepo while allowing apps/web to
-// resolve the source contracts under packages/. Web scripts run from apps/web,
-// so ../.. is the repository root and avoids unrelated lockfiles above it.
+// Explicit Turbopack workspace root. The app imports the local
+// packages/block-view-contracts source, so the root must be the common parent
+// of apps/web and packages. Resolving from the npm script working directory
+// keeps stray lockfiles above CommonPlace outside the module graph.
 const projectRoot = path.resolve('../..');
 
 // INDEX_API_PROXY_URL: server-only var for the rewrite destination (not exposed to browser).

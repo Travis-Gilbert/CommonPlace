@@ -1,0 +1,74 @@
+/* GENERATED — do not edit by hand.
+   Source: @travis-gilbert/markdown-theory `console` fixture (density: chrome).
+   Regenerate: npm run build:register (after rebuilding markdown-theory, or sweeping /dev/register).
+   Contrast (WCAG AA solved): ink on surface 10.02:1 · ink2 on surface 6.341:1 · ink3 on surface 3.966:1 · signal on surface 4.524:1 · link on surface 4.538:1 */
+:root {
+  --cr-base: 15px;
+  --cr-size-n2: 0.7rem;
+  --cr-size-n1: 0.8333rem;
+  --cr-size-0: 1rem;
+  --cr-size-1: 1.2rem;
+  --cr-size-2: 1.4333rem;
+  --cr-size-3: 1.7333rem;
+  --cr-size-4: 2.0667rem;
+  --cr-size-5: 2.4833rem;
+  --cr-text-body: var(--cr-size-0);
+  --cr-text-small: var(--cr-size-n1);
+  --cr-text-caption: var(--cr-size-n2);
+  --cr-text-h1: var(--cr-size-4);
+  --cr-text-h2: var(--cr-size-3);
+  --cr-text-h3: var(--cr-size-2);
+  --cr-text-h4: var(--cr-size-1);
+  --cr-text-h5: var(--cr-size-0);
+  --cr-text-h6: var(--cr-size-n1);
+  --cr-leading-body: 1.4784;
+  --cr-leading-heading: 1.15;
+  --cr-measure: 68ch;
+  --cr-space-unit: 0.4lh;
+  --cr-space-1: 0.4lh;
+  --cr-space-2: 0.6lh;
+  --cr-space-3: 0.8lh;
+  --cr-space-4: 1.2lh;
+  --cr-space-5: 1.6lh;
+  --cr-space-6: 2.4lh;
+  --cr-rhythm-px: 22.176px;
+  --cr-page-margin-top: 0.2;
+  --cr-page-margin-bottom: 0.4;
+  --cr-page-margin-inner: 0.1333;
+  --cr-page-margin-outer: 0.2667;
+  --cr-control-h: 2lh;
+  --cr-row-h: 2.4lh;
+  --cr-chip-pad-x: 0.6lh;
+  --cr-chip-pad-y: 0.2lh;
+  --cr-radius-sm: 3px;
+  --cr-radius: 6px;
+  --cr-radius-lg: 13px;
+  --cr-border-width: 1px;
+  --cr-ground: oklch(94.5% 0.005 72);
+  --cr-surface: oklch(96.7% 0.005 72);
+  --cr-top: oklch(98.9% 0.005 72);
+  --cr-ink: oklch(34% 0.012 72);
+  --cr-ink-2: oklch(45% 0.012 72);
+  --cr-ink-3: oklch(56% 0.012 72);
+  --cr-hairline: rgba(20, 20, 19, 0.10);
+  --cr-signal: oklch(54.25% 0.12 24);
+  --cr-signal-pressed: oklch(48.25% 0.12 24);
+  --cr-link: oklch(52.25% 0.06 218);
+  --cr-accent-ink: var(--cr-top);
+  --cr-tint: color-mix(in oklab, var(--cr-signal) 12%, transparent);
+  --cr-shadow-transient: 0 6px 24px -8px color-mix(in oklab, var(--cr-ink) 22%, transparent);
+  --cr-motion: 180ms;
+  --cr-motion-doc: 220ms;
+  --cr-ease: cubic-bezier(0.2, 0, 0, 1);
+  --cr-font-prose: 'Vollkorn', Georgia, 'Times New Roman', serif;
+  --cr-font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --cr-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  --cr-feat-prose: 'kern' 1, 'liga' 1, 'calt' 1, 'onum' 1;
+  --cr-feat-ui: 'kern' 1, 'liga' 1, 'calt' 1;
+  --cr-feat-tabular: 'kern' 1, 'tnum' 1, 'lnum' 1;
+  --cr-text-wrap-body: pretty;
+  --cr-text-wrap-heading: balance;
+  --cr-hanging-punctuation: first last;
+  --cr-hyphens: manual;
+  --cr-optical-sizing: auto;
+}
