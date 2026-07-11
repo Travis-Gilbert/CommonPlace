@@ -8,6 +8,13 @@ Status: SUPERSEDED, DO NOT EXECUTE. Author: Claude Code, 2026-07-06. Retained as
 
 > Path note: references below to Theorem crates, apps, and tests are relative to the sibling Theorem repository at the historical snapshot, not to this CommonPlace checkout. The checklist below is archival and must not be used for execution.
 
+> Fixture warning: every fixture-first, fixture-to-live, soft-fail, or fail-open
+> instruction below describes historical behavior and is non-normative. It is
+> prohibited on user-reachable routes by the canonical plan. Production routes
+> must use live contracts and show an honest unavailable or error state when
+> those contracts fail. Fixtures are allowed only in explicitly isolated tests
+> and development previews.
+
 ## Executive summary
 
 `app.theoremharness.com` is served by **CommonPlace `apps/web`** (Next 16, npm, the "Theorem's Harness" operator UI: porcelain tokens, `/v2/*` strangler shell). A second app — **Theorem `apps/harness-console`** (nav Home/Memory/Skills/Canvas/Rooms/Runs) — is a legacy bleed-through site **slated for deletion**. Real product work kept landing there by accident. This plan moves the real surfaces onto CommonPlace, rewires them to the existing backend routes (no backend rebuild), and deletes the legacy app.
@@ -27,11 +34,11 @@ harness-console talks to the harness backend two ways:
 - **HTTP proxy `POST /api/theorem/agent`** → Theorem agent backend (Railway `rustyredcore-theorem-production…/v1/theorem/agent/run`).
 
 CommonPlace already has the seam to consume this:
-- **`/api/theorem/graphql`** proxy (`apps/web/src/app/api/theorem/graphql/route.ts`) → `THEOREM_GRAPHQL_URL` with `x-api-key`, soft-fails in dev so fixtures take over.
+- **Historical `/api/theorem/graphql` behavior:** the proxy (`apps/web/src/app/api/theorem/graphql/route.ts`) used `THEOREM_GRAPHQL_URL` with `x-api-key` and soft-failed in development so fixtures took over. This fallback is not an execution instruction.
 - **`/api/theorem/operator`**, **`/api/theorem/agent`**, **`/api/theorem/control-center`** route handlers already exist.
-- **Fixture→live pattern:** `src/lib/commonplace/index-queries.ts` (`FIXTURE_BANDS`, `useIndexData()`, `fetchLiveIndexData()`, `source.mode: fixture|live|error`). Port surfaces follow this: fixture on first paint, swap to live on mount, fail-open.
+- **Historical fixture-to-live pattern:** `src/lib/commonplace/index-queries.ts` (`FIXTURE_BANDS`, `useIndexData()`, `fetchLiveIndexData()`, `source.mode: fixture|live|error`) rendered a fixture first and failed open. The canonical plan replaces this with live-only production behavior and explicit unavailable/error states.
 
-So the rewire = **wire CommonPlace's fixture→live seam to the harness MCP/GraphQL routes harness-console already proves work.** No new backend.
+Historically, the proposed rewire connected CommonPlace's fixture-to-live seam to the harness MCP/GraphQL routes. For current execution, use those backend contracts without exposing fixture fallback on user-reachable routes.
 
 ## CRITICAL — how surfaces are added in CommonPlace v2 (object-contract-v2)
 
@@ -60,7 +67,9 @@ Consequence: PT-020..PT-050 are re-scoped from "build a route" to "register a vi
 
 ## Surfaces to port (from the audit — the 11 real product features)
 
-Each: re-implement in a `/v2/*` route with porcelain tokens (`.p-*` classes, `porcelain-theme.css`), wire via the fixture→live seam to the harness backend.
+Historical proposal: reimplement each surface in the porcelain system. The
+fixture-to-live wiring described in the original proposal is superseded;
+current execution requires live contracts and honest unavailable/error states.
 
 memory, skills, agent, keys, claim(onboarding), inbox+tasks, rooms, runs, connections, providers, usage.
 
@@ -80,7 +89,7 @@ Order: backend client first (unblocks all), then ports, then reconcile, then tea
 | ID | Item | Acceptance | Route/risk |
 |---|---|---|---|
 | PT-000 | Reconcile the 26-commit inventory into a per-item disposition sheet (this table, ratified with Travis) | Every commit has PORT/RECONCILE/DROP/SKIP + a target; D1–D4 answered | planning; low |
-| PT-010 | Wire the live **Operator task-node read** through `commonplace-api` GraphQL (`THEOREM_GRAPHQL_URL` + `THEOREM_API_KEY`), keeping MCP as the agent/coordination door. apps/web already ships `theorem-operator.ts` + the fixture→live seam; PT-010 = overlay live state when `workGraph` answers | `workGraph(runId?)` returns typed task nodes; `source.mode` flips fixture→live; aggregate board works without `THEOREM_OPERATOR_RUN_ID`; tasks/bays/gate/drawers/shift derive from live nodes; fails open to fixture | `apps/web/src/lib/theorem-operator-live.ts` + `apps/commonplace-api/src/schema.rs`; **med** |
+| PT-010 | Historical task-node wiring item; superseded by FO-010 and the canonical live-only production rule | `workGraph(runId?)` returns typed task nodes; production shows an honest unavailable/error state when live data fails; fixtures remain isolated to tests and development previews | `apps/web/src/lib/theorem-operator-live.ts` + `apps/commonplace-api/src/schema.rs`; **med** |
 | PT-020 | Port **memory** → v2 (list/filter/search/graph/cluster + atom read/edit) | Surface renders live atoms; search works; edit round-trips via `graphql_mutate`/`self_archive`/`forget` | high |
 | PT-021 | Port **skills** (author/publish/apply SKILL.md) | Publish hits `skill_publish`; apply hits `skill_apply` | med |
 | PT-022 | Port **agent/omnibar** (run theorem agent) | Prompt runs via `/api/theorem/agent`; thread renders | med |
@@ -100,14 +109,14 @@ Order: backend client first (unblocks all), then ports, then reconcile, then tea
 
 The plan above was written pre-inspection. Direct evidence changed three things:
 
-1. **PT-010 was mis-framed as greenfield.** `apps/web/src/lib/` ALREADY ships `theorem-agent.ts`, `theorem-operator.ts` (+ `-client`), `theorem-control-center.ts` (+ `-client`), `theorem-gateway.ts`, `commonplace-graphql.ts` — all on the fixture→live seam. `apps/web/src/lib/harness/` does NOT exist and is NOT needed; the transport + DTOs already exist. PT-010 = flip existing fixture builders to live, not mirror harness-console.
+1. **PT-010 was mis-framed as greenfield.** `apps/web/src/lib/` already shipped `theorem-agent.ts`, `theorem-operator.ts` (+ `-client`), `theorem-control-center.ts` (+ `-client`), `theorem-gateway.ts`, and `commonplace-graphql.ts`. The historical adapters used a fixture-to-live seam; the canonical migration keeps the transport and DTOs but removes fixture fallback from production routes.
 2. **The task-node GraphQL schema Operator was "blocked on" EXISTS live.** `graphql_query` introspection of the Theorem harness GraphQL returned exactly the reads `theorem-operator.ts`'s live-wiring map names: `workGraph`, `nextTaskNode`, `taskRef`, `coordinationStream`, `roomDigest`, `openPings`, `relatedEvents`, `harnessRun`, `skillList`/`skillGet`, `memory`/`memoryDoc`. Operator is unblocked on the read side.
 3. **apps/web has TWO backends + two live patterns (verified against `theorem-control-center.ts`).**
    - **Harness MCP GraphQL** remains the agent/coordination transport for memory, skills, rooms, runs, and head-to-head coordination.
    - **commonplace-api GraphQL** is the frontend-facing product door: reached via `THEOREM_GRAPHQL_URL` + server-only `THEOREM_API_KEY` (`x-api-key`), with the browser proxy `/api/theorem/graphql` only used from browser code. The Operator route posts server-to-server directly to the same HTTP GraphQL door.
-   - **PT-010 (Operator) — BUILT + TESTED:** `apps/web/src/lib/theorem-operator-live.ts` `buildOperatorStateLive(env, now, fetch)` queries `workGraph(runId)` on `commonplace-api`. `runId` is optional: present means one run; absent means aggregate Operator board across all `TaskNode` records. `/api/theorem/operator` GET awaits it and falls back to fixtures only on missing/empty/error responses. `theorem-operator.ts` remains the fixture/type contract.
+   - **Historical PT-010 evidence:** `apps/web/src/lib/theorem-operator-live.ts` `buildOperatorStateLive(env, now, fetch)` queried `workGraph(runId)` on `commonplace-api`. `runId` was optional: present meant one run; absent meant an aggregate Operator board across all `TaskNode` records. The route's former missing/empty/error fixture fallback is prohibited for current production execution.
      - **Mapper is faithful to the authoritative `TaskNode` serde shape** (source of truth: `theorem-harness-core/src/work_graph.rs`): `NodeStatus` (open|claimed|patch_proposed|verifying|accepted|rejected) -> Operator status/lane; `ClaimLease.owner` -> head and `granted_at` -> claimedAt; prerequisites are resolved against accepted nodes; `node_type` -> laneChip; `file_scope` -> fileScope. TaskNode has no title/lane/priority/checklist timestamp fields; those are derived or left absent.
-     - **Closed gap review 2026-07-06:** CommonPlace API now exposes typed `workGraph(runId: String)` with optional `runId`; the web adapter no longer requires `THEOREM_OPERATOR_RUN_ID`; live gate, drawer, and shift state derive from live `TaskNode` records rather than fixture sections; `apps/commonplace-api/tests/operator_work_graph_acceptance.rs` proves run-scoped and aggregate reads through the real schema; `theorem-operator-live.test.ts` has 17 cases covering fail-open, request shape, mapping, bays, gate, drawer, and shift derivation.
+     - **Closed gap review 2026-07-06:** CommonPlace API exposed typed `workGraph(runId: String)` with optional `runId`; the web adapter no longer required `THEOREM_OPERATOR_RUN_ID`; live gate, drawer, and shift state derived from live `TaskNode` records rather than fixture sections; `apps/commonplace-api/tests/operator_work_graph_acceptance.rs` proved run-scoped and aggregate reads through the real schema. Historical fail-open tests are not authority for current production behavior.
      - **Remaining enrichment, not a live-blocker:** richer drawer chat/tails and shift urgency should later read typed `coordinationStream`, `roomDigest`, and `openPings` once those JSON surfaces are promoted. The current Operator no longer relies on fixture gate/drawer/shift data after a live `workGraph` answers.
 
 ## Backend result: typed `workGraph.tasks`
