@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CircleUser, Clock3, Database, Frame, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
+import { CircleUser, Clock3, Database, Dna, Frame, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import {
   ChatGlyph,
   CodeGlyph,
@@ -37,6 +37,7 @@ const HARNESS: RailItem[] = [
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
   { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },
   { label: 'Canvas', href: '/v2/canvas', icon: Frame, indent: true },
+  { label: 'Growth', href: '/v2/growth', icon: Dna },
   { label: 'Notes', href: null, icon: NotesGlyph },
   { label: 'Research', href: null, icon: ResearchGlyph },
   { label: 'Code', href: null, icon: CodeGlyph },
