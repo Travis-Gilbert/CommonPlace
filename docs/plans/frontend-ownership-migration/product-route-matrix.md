@@ -31,10 +31,16 @@ values:
 ```bash
 PRODUCT_HOST=candidate.example \
   ROUTE_MATRIX_BASE_URL=https://candidate.example \
+  ROUTE_MATRIX_PERSONAL_BASE_URL=https://travisgilbert.me \
   ROUTE_MATRIX_REPEAT=100 \
   ROUTE_MATRIX_REPORT_PATH=route-matrix-report.json \
   npm --prefix apps/web run routes:check
 ```
+
+For local runs, set `PRODUCT_HOST=127.0.0.1`, use
+`ROUTE_MATRIX_BASE_URL=http://127.0.0.1:<port>`, and use
+`ROUTE_MATRIX_PERSONAL_BASE_URL=http://localhost:<port>`. The distinct
+hostnames exercise the same host boundary without modifying local DNS.
 
 ## July 11 Production Baseline
 
@@ -74,12 +80,18 @@ Production routing, DNS, and domain attachments do not change in FO-003.
 
 ## Local Candidate Evidence
 
-The July 11 local candidate passed 100 consecutive iterations of all 23
-manifest probes: 2,300 HTTP samples, zero failures, and a 1,088 ms maximum
+The July 11 local candidate passed 100 consecutive iterations of the original
+23-probe manifest: 2,300 HTTP samples, zero failures, and a 1,088 ms maximum
 response time. The run used a host-scoped `PRODUCT_HOST`, disposable NextAuth
 credentials, and no production secrets. A separate Host-header check proved
 that the configured product host returned the query-preserving `308` while
 `travisgilbert.me` still returned its personal-site root with `200`.
+
+After review hardened the manifest to 27 probes, a complete local iteration
+also passed. The added probes reject cross-origin redirects, assert auth cookie
+names and method policy, verify API content instead of accepting any `200`, and
+check the personal-site root through a distinct base URL. The deployed
+candidate must repeat this hardened matrix 100 times.
 
 The web production build also passed after setting Turbopack's root to the
 CommonPlace monorepo root. The prior `apps/web`-only root prevented the app from
@@ -87,5 +99,5 @@ resolving the checked-in `packages/block-view-contracts` sources and was a
 candidate deployment blocker. The build retains one pre-existing NFT tracing
 warning for the Anytype filesystem importer.
 
-This local evidence does not satisfy the candidate-host, real callback, or
-100-sample closure gates.
+This local evidence satisfies the local repeat gate only. It does not satisfy
+the deployed-candidate 100-sample gate or the real OAuth callback gate.

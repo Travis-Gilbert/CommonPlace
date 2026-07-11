@@ -27,6 +27,14 @@ function requireBaseUrl(): URL {
   return new URL(value);
 }
 
+function requirePersonalBaseUrl(): URL {
+  const value = process.env.ROUTE_MATRIX_PERSONAL_BASE_URL;
+  if (!value) {
+    throw new Error('ROUTE_MATRIX_PERSONAL_BASE_URL is required');
+  }
+  return new URL(value);
+}
+
 function readRepeatCount(): number {
   const value = process.env.ROUTE_MATRIX_REPEAT ?? '1';
   const repeatCount = Number.parseInt(value, 10);
@@ -43,7 +51,10 @@ function readSetCookieNames(headers: Headers): readonly string[] {
     .filter(Boolean);
 }
 
-async function runProbe(baseUrl: URL, probe: ProductRouteProbe): Promise<ProbeResult> {
+async function runProbe(
+  baseUrl: URL,
+  probe: ProductRouteProbe,
+): Promise<ProbeResult> {
   const startedAt = performance.now();
   const errors: string[] = [];
 
@@ -57,7 +68,15 @@ async function runProbe(baseUrl: URL, probe: ProductRouteProbe): Promise<ProbeRe
       redirect: 'manual',
     });
     const locationHeader = response.headers.get('location');
-    const location = locationHeader ? normalizeLocation(locationHeader, baseUrl) : null;
+    let location: string | null = null;
+    if (locationHeader) {
+      try {
+        location = normalizeLocation(locationHeader, baseUrl);
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    const setCookieNames = readSetCookieNames(response.headers);
 
     if (response.status !== probe.expectedStatus) {
       errors.push(`expected status ${probe.expectedStatus}, received ${response.status}`);
@@ -65,7 +84,23 @@ async function runProbe(baseUrl: URL, probe: ProductRouteProbe): Promise<ProbeRe
     if (probe.expectedLocation && location !== probe.expectedLocation) {
       errors.push(`expected Location ${probe.expectedLocation}, received ${location ?? '<none>'}`);
     }
-    if (probe.bodyIncludes) {
+    if (probe.expectedContentType) {
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.startsWith(probe.expectedContentType)) {
+        errors.push(`expected Content-Type ${probe.expectedContentType}, received ${contentType || '<none>'}`);
+      }
+    }
+    if (probe.expectedAllow && response.headers.get('allow') !== probe.expectedAllow) {
+      errors.push(
+        `expected Allow ${probe.expectedAllow}, received ${response.headers.get('allow') ?? '<none>'}`,
+      );
+    }
+    for (const requiredCookie of probe.requiredSetCookieNames ?? []) {
+      if (!setCookieNames.includes(requiredCookie)) {
+        errors.push(`missing Set-Cookie ${requiredCookie}`);
+      }
+    }
+    if (probe.bodyIncludes && probe.method !== 'HEAD') {
       const body = await response.text();
       if (!body.includes(probe.bodyIncludes)) {
         errors.push(`response body does not include ${JSON.stringify(probe.bodyIncludes)}`);
@@ -82,7 +117,7 @@ async function runProbe(baseUrl: URL, probe: ProductRouteProbe): Promise<ProbeRe
       requestId:
         response.headers.get('x-railway-request-id') ?? response.headers.get('x-request-id'),
       allow: response.headers.get('allow'),
-      setCookieNames: readSetCookieNames(response.headers),
+      setCookieNames,
       passed: errors.length === 0,
       errors,
     };
@@ -105,14 +140,25 @@ async function runProbe(baseUrl: URL, probe: ProductRouteProbe): Promise<ProbeRe
 
 async function main(): Promise<void> {
   const baseUrl = requireBaseUrl();
+  const personalBaseUrl = requirePersonalBaseUrl();
   const repeatCount = readRepeatCount();
   const samples: ProbeResult[][] = [];
   for (let index = 0; index < repeatCount; index += 1) {
-    samples.push(await Promise.all(PRODUCT_ROUTE_PROBES.map((probe) => runProbe(baseUrl, probe))));
+    samples.push(
+      await Promise.all(
+        PRODUCT_ROUTE_PROBES.map((probe) =>
+          runProbe(
+            probe.target === 'personal' ? personalBaseUrl : baseUrl,
+            probe,
+          ),
+        ),
+      ),
+    );
   }
   const results = samples.flat();
   const report = {
     baseUrl: baseUrl.href,
+    personalBaseUrl: personalBaseUrl.href,
     revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? null,
     generatedAt: new Date().toISOString(),
     repeatCount,

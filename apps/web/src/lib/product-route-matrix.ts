@@ -15,17 +15,27 @@ export interface ProductRouteProbe {
   readonly expectedLocation?: string;
   readonly bodyIncludes?: string;
   readonly cookie?: string;
+  readonly target?: 'product' | 'personal';
+  readonly expectedContentType?: string;
+  readonly expectedAllow?: string;
+  readonly requiredSetCookieNames?: readonly string[];
 }
 
-export const PRODUCT_HOST = process.env.PRODUCT_HOST ?? 'app.theoremharness.com';
-const productHostPattern = PRODUCT_HOST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export function normalizeProductHost(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export const PRODUCT_HOST = normalizeProductHost(
+  process.env.PRODUCT_HOST ?? 'app.theoremharness.com',
+);
+export const PRODUCT_HOST_PATTERN = `^${PRODUCT_HOST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`;
 
 export const PRODUCT_REDIRECTS: readonly ProductRedirect[] = [
   {
     source: '/',
     destination: '/v2',
     permanent: true,
-    has: [{ type: 'host', value: productHostPattern }],
+    has: [{ type: 'host', value: PRODUCT_HOST_PATTERN }],
   },
   {
     source: '/commonplace/notebooks',
@@ -92,6 +102,14 @@ export const PRODUCT_ROUTE_PROBES: readonly ProductRouteProbe[] = [
     path: '/v2',
     expectedStatus: 200,
     bodyIncludes: 'Index',
+  },
+  {
+    id: 'personal-root-preserved',
+    method: 'GET',
+    path: '/?fo003=personal',
+    expectedStatus: 200,
+    bodyIncludes: 'Travis Gilbert',
+    target: 'personal',
   },
   {
     id: 'v2-files',
@@ -180,28 +198,61 @@ export const PRODUCT_ROUTE_PROBES: readonly ProductRouteProbe[] = [
     method: 'GET',
     path: '/api/auth/providers',
     expectedStatus: 200,
+    expectedContentType: 'application/json',
+    bodyIncludes: 'github',
   },
   {
     id: 'auth-session',
     method: 'GET',
     path: '/api/auth/session',
     expectedStatus: 200,
+    expectedContentType: 'application/json',
+    requiredSetCookieNames: ['authjs.csrf-token', 'authjs.callback-url'],
   },
   {
     id: 'auth-csrf',
     method: 'GET',
     path: '/api/auth/csrf',
     expectedStatus: 200,
+    expectedContentType: 'application/json',
+    bodyIncludes: 'csrfToken',
+    requiredSetCookieNames: ['authjs.csrf-token', 'authjs.callback-url'],
+  },
+  {
+    id: 'auth-session-methods',
+    method: 'OPTIONS',
+    path: '/api/auth/session',
+    expectedStatus: 204,
+    expectedAllow: 'GET, HEAD, OPTIONS, POST',
+  },
+  {
+    id: 'auth-callback-methods',
+    method: 'OPTIONS',
+    path: '/api/auth/callback/github',
+    expectedStatus: 204,
+    expectedAllow: 'GET, HEAD, OPTIONS, POST',
   },
   {
     id: 'v2-db-api',
     method: 'GET',
     path: '/api/v2/db/movie_database',
     expectedStatus: 200,
+    expectedContentType: 'application/json',
+    bodyIncludes: 'movie_database',
+  },
+  {
+    id: 'v2-db-api-methods',
+    method: 'OPTIONS',
+    path: '/api/v2/db/movie_database',
+    expectedStatus: 204,
+    expectedAllow: 'GET, HEAD, OPTIONS',
   },
 ];
 
 export function normalizeLocation(location: string, baseUrl: URL): string {
   const parsed = new URL(location, baseUrl);
+  if (parsed.origin !== baseUrl.origin) {
+    throw new Error(`cross-origin redirect to ${parsed.origin}`);
+  }
   return `${parsed.pathname}${parsed.search}`;
 }
