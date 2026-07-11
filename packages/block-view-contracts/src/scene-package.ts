@@ -187,12 +187,31 @@ export const DEFAULT_RENDERER_CAPABILITIES: RendererCatalog = {
     'evidence_board',
     ['inspect', 'select'],
   ),
+  patent_diagram: sceneCapability(
+    'patent_diagram',
+    'Patent diagram',
+    ['diagram'],
+    { maxAtoms: 300, maxRelations: 600, maxPayloadBytes: 524_288 },
+    'evidence_board',
+    ['inspect', 'select', 'expand'],
+  ),
   'object.task': objectCapability('object.task', 'Task object', 'task'),
   'object.file': objectCapability('object.file', 'File object', 'file'),
   'object.link': objectCapability('object.link', 'Link object', 'link'),
   'object.note': objectCapability('object.note', 'Note object', 'note'),
   'object.claim': objectCapability('object.claim', 'Claim object', 'claim'),
   'object.source': objectCapability('object.source', 'Source object', 'source'),
+  model_3d: {
+    ...sceneCapability(
+      'model_3d',
+      '3D model',
+      ['freeform'],
+      { maxAtoms: 1, maxRelations: 0, maxPayloadBytes: 262_144 },
+      'evidence_board',
+      ['inspect', 'pan', 'zoom', 'rotate'],
+    ),
+    requires: ['webgl'],
+  },
 };
 
 export function validateScenePackage(

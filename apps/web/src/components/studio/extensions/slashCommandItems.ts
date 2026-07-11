@@ -95,7 +95,7 @@ export const SLASH_COMMAND_ITEMS: SlashCommandItem[] = [
     keywords: ['paragraph', 'text', 'plain'],
     section: 'Basic',
     command: ({ editor, range }: CommandArgs) => {
-      editor.chain().focus().deleteRange(range).setParagraph().run();
+    editor.chain().focus().deleteRange(range).setNode('paragraph').run();
     },
   },
   {

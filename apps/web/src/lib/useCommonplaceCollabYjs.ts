@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { HocuspocusProvider, type WebSocketStatus } from '@hocuspocus/provider';
+import type { Awareness } from 'y-protocols/awareness';
 import { useLocalYjs } from '@/lib/useLocalYjs';
 
 export type CommonplaceCollabStatus =
@@ -21,6 +22,8 @@ export interface UseCommonplaceCollabYjsResult {
   collabSynced: boolean;
   collabStatus: CommonplaceCollabStatus;
   collaboratorCount: number;
+  /** The live provider's awareness instance once connected, for editors (e.g. yCollab) that render remote cursors. Null until connected. */
+  awareness: Awareness | null;
 }
 
 const COLLAB_URL = process.env.NEXT_PUBLIC_COMMONPLACE_COLLAB_URL?.replace(/\/+$/, '') ?? '';
@@ -58,6 +61,7 @@ export function useCommonplaceCollabYjs(
     collabEnabled ? 'connecting' : 'disabled',
   );
   const [collaboratorCount, setCollaboratorCount] = useState(0);
+  const [awareness, setAwareness] = useState<Awareness | null>(null);
 
   useEffect(() => {
     if (!collabEnabled) return;
@@ -111,6 +115,8 @@ export function useCommonplaceCollabYjs(
           color: '#2d5f6b',
           surface: contentType,
         });
+
+        setAwareness(provider.awareness ?? null);
       })
       .catch(() => {
         if (!disposed) {
@@ -121,6 +127,7 @@ export function useCommonplaceCollabYjs(
     return () => {
       disposed = true;
       provider?.destroy();
+      setAwareness(null);
     };
   }, [collabEnabled, contentType, local.doc, name]);
 
@@ -132,5 +139,6 @@ export function useCommonplaceCollabYjs(
     collabSynced,
     collabStatus,
     collaboratorCount,
+    awareness,
   };
 }

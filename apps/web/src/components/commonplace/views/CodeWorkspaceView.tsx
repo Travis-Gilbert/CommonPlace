@@ -25,7 +25,7 @@ export default function CodeWorkspaceView() {
           <h1 style={styles.title}>Code</h1>
         </div>
         <div style={styles.badgeRow}>
-          <span style={styles.badge}>Theorem Agent</span>
+          <span style={styles.badge}>CommonPlace Chat</span>
           <span style={styles.badge}>ACP</span>
         </div>
       </header>

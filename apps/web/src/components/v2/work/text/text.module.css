@@ -1,0 +1,130 @@
+/* WS5 doc/code stage editor. Tokens only, mirrors board.module.css's
+   host/toolbar vocabulary so the three "rich" stage kinds (board/doc/code)
+   read as one family. */
+
+.host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorHost {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding-inline: calc(var(--u) * 2);
+}
+
+.editorHost :global(.cm-editor) {
+  height: 100%;
+}
+
+.editorHost :global(.cm-editor.cm-focused) {
+  outline: none;
+}
+
+/* ---- toolbar, floating over the top-right of the editor ---- */
+.toolbar {
+  position: absolute;
+  top: calc(var(--u) * 1);
+  right: calc(var(--u) * 1);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  padding: calc(var(--u) * 0.75) calc(var(--u) * 1);
+  border-radius: 8px;
+  border: 1px solid var(--hair-soft);
+  background: var(--plane);
+  backdrop-filter: blur(6px) saturate(1.05);
+}
+
+.select {
+  appearance: none;
+  border-radius: 6px;
+  border: 1px solid var(--hair-soft);
+  background: transparent;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: calc(var(--u) * 0.4) calc(var(--u) * 0.75);
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.toggleButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 1);
+  border-radius: 6px;
+  border: 1px solid var(--hair-soft);
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+.toggleButton:hover {
+  color: var(--accent);
+  border-color: var(--hair);
+}
+.toggleButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.toggleButton[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: var(--text-xxs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-inline: calc(var(--u) * 0.5);
+  white-space: nowrap;
+}
+.status[data-tone='ok'] {
+  color: var(--teal);
+}
+.status[data-tone='warn'] {
+  color: var(--amber);
+}
+.status[data-tone='progress'] {
+  color: var(--ink-dim);
+}
+
+/* ---- WS6: transient states while a backing Item is being minted ---- */
+.minting {
+  margin: auto;
+  max-width: 32ch;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}
+
+.mintNotice {
+  position: absolute;
+  left: calc(var(--u) * 2);
+  bottom: calc(var(--u) * 1.5);
+  z-index: 1;
+  max-width: 44ch;
+  margin: 0;
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 1);
+  border-radius: 6px;
+  border: 1px solid var(--hair-soft);
+  background: var(--plane);
+  color: var(--amber);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}

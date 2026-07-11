@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   buildRustyRedDataPayload,
-  fixtureRustyRedDataPayload,
+  emptyRustyRedDataPayload,
   normalizeCommonplaceRustyRedViewId,
   type CommonplaceGraphqlBriefing,
   type CommonplaceGraphqlCandidateLink,
@@ -9,8 +9,9 @@ import {
   type CommonplaceGraphqlItem,
   type CommonplaceRustyRedViewId,
 } from "@/lib/commonplace/rustyred-data-contract";
+import { THEOREM_HARNESS_GRAPHQL_URL } from "@/lib/theorem-hosted";
 
-const DEFAULT_COMMONPLACE_GRAPHQL_URL = "https://rustyredcore-theorem-production.up.railway.app/graphql";
+const DEFAULT_COMMONPLACE_GRAPHQL_URL = THEOREM_HARNESS_GRAPHQL_URL;
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 interface RustyRedRouteRequest {
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     body = (await request.json()) as RustyRedRouteRequest;
   } catch {
     return NextResponse.json(
-      fixtureRustyRedDataPayload("files", "Expected a JSON request body."),
+      emptyRustyRedDataPayload("files", { message: "Expected a JSON request body." }),
       { status: 400 },
     );
   }
@@ -73,7 +74,7 @@ async function rustyRedDataResponse(view: CommonplaceRustyRedViewId) {
 
     if (!upstream.ok || errors?.length || !payload.data) {
       const message = errors?.join("; ") || `CommonPlace GraphQL returned ${upstream.status} ${upstream.statusText || "without JSON data"}.`;
-      return NextResponse.json(fixtureRustyRedDataPayload(view, message), { status: 200 });
+      return NextResponse.json(emptyRustyRedDataPayload(view, { message }), { status: 200 });
     }
 
     return NextResponse.json(
@@ -92,7 +93,7 @@ async function rustyRedDataResponse(view: CommonplaceRustyRedViewId) {
   } catch (error) {
     const aborted = error instanceof Error && error.name === "AbortError";
     const message = aborted ? "CommonPlace GraphQL request timed out." : errorMessage(error);
-    return NextResponse.json(fixtureRustyRedDataPayload(view, message), { status: 200 });
+    return NextResponse.json(emptyRustyRedDataPayload(view, { message }), { status: 200 });
   } finally {
     clearTimeout(timeout);
   }
