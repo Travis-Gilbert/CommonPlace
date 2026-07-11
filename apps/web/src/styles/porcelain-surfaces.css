@@ -19,11 +19,17 @@
   border-radius: 3px;
 }
 
-/* the lit ground: flat white, no gradient — Twenty-proportioned */
+/* the lit ground: bloom, one directional wash, a soft bottom deepening */
 .p-ground {
   min-height: 100dvh;
   display: flex;
   background-color: var(--g0);
+  background-image:
+    radial-gradient(ellipse 72% 52% at 28% -6%, var(--bloom), transparent 55%),
+    linear-gradient(125deg, var(--wash-a) 0%, transparent 40%, var(--wash-b) 100%),
+    radial-gradient(ellipse 130% 120% at 52% 128%, var(--deep), transparent 60%),
+    linear-gradient(180deg, var(--g0), var(--g1));
+  background-attachment: fixed;
 }
 
 /* ============ RAIL: an inset, detached sheet resting on the ground ============
@@ -40,9 +46,10 @@
   flex-direction: column;
   padding: calc(var(--u) * 3) 0 calc(var(--u) * 2);
   background: var(--raised);
-  border: 1px solid var(--hair);
+  background-image: linear-gradient(180deg, var(--lit), transparent 40%);
+  border: 1px solid var(--hair-soft);
   border-left: none;
-  border-radius: 0 var(--r-band) var(--r-band) 0;
+  border-radius: 0 16px 16px 0;
 }
 
 .p-wordmark {
@@ -105,11 +112,12 @@
   background: var(--plane);
 }
 
-/* active state: flat, Twenty-scale — subtle background, border, no gradient */
+/* active state is material: a lifted plane, never a colored edge */
 .p-navitem[data-active='true'] {
   color: var(--ink);
-  background: var(--g1);
-  box-shadow: none;
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent);
+  box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.07), 0 3px 9px rgba(33, 31, 27, 0.05);
 }
 
 .p-navitem.is-soon {
@@ -181,6 +189,7 @@
   padding: calc(var(--u) * 0.9) calc(var(--u) * 1.4);
   box-shadow: var(--edge);
   cursor: text;
+  backdrop-filter: blur(4px);
 }
 
 .p-kbd {
@@ -194,7 +203,7 @@
   background: var(--inset-bg);
 }
 
-/* ============ BANDS: solid white cards with hairline border ============ */
+/* ============ BANDS: translucent planes floating over the ground ============ */
 .p-scroll {
   flex: 1;
   overflow-y: auto;
@@ -211,8 +220,11 @@
 .p-band {
   position: relative;
   border-radius: var(--r-band);
-  background: var(--plane);
-  border: 1px solid var(--hair);
+  background-color: var(--plane);
+  background-image: var(--plane-grad);
+  backdrop-filter: blur(5px) saturate(1.06);
+  border: 1px solid var(--hair-soft);
+  box-shadow: var(--edge), var(--float);
   padding: calc(var(--u) * 2.25) calc(var(--u) * 2.5) calc(var(--u) * 1.5);
 }
 
@@ -250,12 +262,16 @@
 }
 
 .p-row:hover {
-  background: var(--g1);
-  border-color: var(--hair);
+  background: var(--raised);
+  background-image: linear-gradient(180deg, var(--lit), transparent);
+  box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.05), 0 5px 13px rgba(33, 31, 27, 0.05);
+  border-color: var(--hair-soft);
 }
 
 .p-row.is-fresh {
-  background: var(--g1);
+  background: var(--plane);
+  background-image: linear-gradient(180deg, var(--lit), transparent 60%);
+  box-shadow: var(--edge), 0 1px 2px rgba(33, 31, 27, 0.04);
 }
 
 .p-ic {
@@ -488,11 +504,13 @@
 /* ============ RAIL: collapsed (icon) mode ============ */
 .p-rail[data-collapsed] {
   width: 60px;
-  /* sit above the secondary rail in the stack */
+  /* a hair more presence than the transparent secondary rail, so the app rail
+     reads as the primary surface the graph rail nests under -- lifted in the
+     stack and casting a deeper shadow onto the (transparent) graph rail for
+     dimensionality */
   z-index: 5;
-  background: var(--plane);
-  border-right: 1px solid var(--hair);
-  box-shadow: none;
+  background-color: var(--plane);
+  box-shadow: var(--edge), 3px 0 6px rgba(33, 31, 27, 0.06), 14px 0 32px rgba(33, 31, 27, 0.14);
 }
 
 .p-rail[data-collapsed] .p-railtop {

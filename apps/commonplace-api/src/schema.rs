@@ -1287,53 +1287,6 @@ where
     })
 }
 
-fn annotation_gql_from(annotation: Annotation) -> Result<AnnotationGql> {
-    let anchor = annotation
-        .anchor
-        .map(|anchor| serde_json::to_value(anchor).map(GqlJson))
-        .transpose()
-        .map_err(|error| Error::new(format!("invalid annotation anchor JSON: {error}")))?;
-    Ok(AnnotationGql {
-        id: annotation.id,
-        target_id: annotation.target_id,
-        author: annotation.author,
-        author_kind: annotation
-            .author_kind
-            .map(|author_kind| author_kind.as_str().to_string()),
-        anchor,
-        body: annotation.body,
-        resolved: annotation.resolved,
-        resolution: annotation.resolution.map(AnnotationResolutionGql::from),
-        created_at_ms: annotation.created_at_ms,
-    })
-}
-
-impl From<Resolution> for AnnotationResolutionGql {
-    fn from(resolution: Resolution) -> Self {
-        Self {
-            by: resolution.by,
-            receipt: resolution.receipt,
-        }
-    }
-}
-
-fn annotation_item_gql(item: &Item) -> Result<AnnotationGql> {
-    annotation_from_item(item)
-        .ok_or_else(|| Error::new("annotation item did not project"))
-        .and_then(annotation_gql_from)
-}
-
-fn parse_anchor(value: GqlJson<Value>) -> Result<Anchor> {
-    let GqlJson(value) = value;
-    serde_json::from_value(value).map_err(|error| Error::new(format!("invalid anchor: {error}")))
-}
-
-fn parse_author_kind(value: &str) -> Result<AuthorKind> {
-    let normalized = value.trim().to_ascii_lowercase();
-    AuthorKind::parse(&normalized)
-        .ok_or_else(|| Error::new("authorKind must be either 'user' or 'head'"))
-}
-
 fn store_page_crdt_snapshot_bytes<S, B>(
     cp: &mut Commonplace<S, B>,
     page_id: &str,
@@ -1403,6 +1356,53 @@ fn compact_page_crdt_update_v1(update_v1: &[u8]) -> Result<Vec<u8>> {
         .transact()
         .encode_state_as_update_v1(&StateVector::default());
     Ok(compacted)
+}
+
+fn annotation_gql_from(annotation: Annotation) -> Result<AnnotationGql> {
+    let anchor = annotation
+        .anchor
+        .map(|anchor| serde_json::to_value(anchor).map(GqlJson))
+        .transpose()
+        .map_err(|error| Error::new(format!("invalid annotation anchor JSON: {error}")))?;
+    Ok(AnnotationGql {
+        id: annotation.id,
+        target_id: annotation.target_id,
+        author: annotation.author,
+        author_kind: annotation
+            .author_kind
+            .map(|author_kind| author_kind.as_str().to_string()),
+        anchor,
+        body: annotation.body,
+        resolved: annotation.resolved,
+        resolution: annotation.resolution.map(AnnotationResolutionGql::from),
+        created_at_ms: annotation.created_at_ms,
+    })
+}
+
+impl From<Resolution> for AnnotationResolutionGql {
+    fn from(resolution: Resolution) -> Self {
+        Self {
+            by: resolution.by,
+            receipt: resolution.receipt,
+        }
+    }
+}
+
+fn annotation_item_gql(item: &Item) -> Result<AnnotationGql> {
+    annotation_from_item(item)
+        .ok_or_else(|| Error::new("annotation item did not project"))
+        .and_then(annotation_gql_from)
+}
+
+fn parse_anchor(value: GqlJson<Value>) -> Result<Anchor> {
+    let GqlJson(value) = value;
+    serde_json::from_value(value).map_err(|error| Error::new(format!("invalid anchor: {error}")))
+}
+
+fn parse_author_kind(value: &str) -> Result<AuthorKind> {
+    let normalized = value.trim().to_ascii_lowercase();
+    AuthorKind::parse(&normalized)
+        .ok_or_else(|| Error::new("authorKind must be either 'user' or 'head'"))
 }
 
 /// Consumer read API.
@@ -1514,24 +1514,6 @@ where
             .collect())
     }
 
-    /// Top-level co-annotations for a target object, newest first.
-    async fn annotations_for_target(
-        &self,
-        ctx: &Context<'_>,
-        target_id: String,
-    ) -> Result<Vec<AnnotationGql>> {
-        principal(ctx)?;
-        let store = shared::<S, B>(ctx)?;
-        let cp = store
-            .lock()
-            .map_err(|_| Error::new("store lock poisoned"))?;
-        cp.annotations_for(&target_id)
-            .map_err(store_err)?
-            .into_iter()
-            .map(annotation_gql_from)
-            .collect()
-    }
-
     /// Plane-parity PM overview over the CommonPlace graph. Projects are typed
     /// collections; work items are task/epic items; states, labels, comments,
     /// links, worklogs, and stickies remain graph-native nodes/edges.
@@ -1626,6 +1608,24 @@ where
             }
         }
         Ok(results)
+    }
+
+    /// Top-level co-annotations for a target object, newest first.
+    async fn annotations_for_target(
+        &self,
+        ctx: &Context<'_>,
+        target_id: String,
+    ) -> Result<Vec<AnnotationGql>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        cp.annotations_for(&target_id)
+            .map_err(store_err)?
+            .into_iter()
+            .map(annotation_gql_from)
+            .collect()
     }
 
     /// Project stored item embeddings into the `embedding_space` table contract.
