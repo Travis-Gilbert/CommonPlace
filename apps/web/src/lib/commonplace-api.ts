@@ -247,6 +247,15 @@ export async function fetchFeed(params?: {
   return items.map(mapFeedNodeToMockNode);
 }
 
+/**
+ * Fetch the flat item list (the Ledger's rows) from the real ObjectQuery via the
+ * GraphQL read. The caller maps ItemGql to its own row shape. No fixture, no seed:
+ * an empty library returns an empty array and the surface renders an honest empty.
+ */
+export async function fetchItems(kind?: string): Promise<ItemGql[]> {
+  return gqlItems(kind);
+}
+
 /** Fetch graph data (objects + edges), mapped to D3 format */
 export async function fetchGraph(params?: {
   object_type?: string;
