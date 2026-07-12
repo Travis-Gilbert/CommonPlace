@@ -1,5 +1,10 @@
 'use client';
 
+/* Screen archetype: streaming transcript (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). A heterogeneous, streaming
+   conversation: the last item mutates as tokens arrive and the view auto-scrolls to
+   the newest. Not a uniform list, which is why it is not row-virtualized. */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
