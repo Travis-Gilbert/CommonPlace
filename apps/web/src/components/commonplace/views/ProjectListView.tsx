@@ -689,6 +689,9 @@ function SegmentedMode({
           role="tab"
           aria-selected={candidate === mode}
           data-selected={candidate === mode}
+          // Press-down activation (SPEC-UX-PHYSICS D5): the mode switch is idempotent,
+          // so it fires on primary pointer-down; onClick keeps keyboard activation.
+          onPointerDown={(e) => { if (e.button === 0) onChange(candidate); }}
           onClick={() => onChange(candidate)}
         >
           {candidate}
