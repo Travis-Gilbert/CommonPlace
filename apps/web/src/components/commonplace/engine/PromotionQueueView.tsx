@@ -15,6 +15,9 @@ import { useLayout } from '@/lib/providers/layout-provider';
 import type { ApiPromotionItem } from '@/lib/commonplace';
 import EngineShell from './EngineShell';
 import { DISMISS_EXIT, useSpring } from './engine-motion';
+import { deriveViewState, hasData } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 
 /* ─────────────────────────────────────────────────
    Promotion Queue View
@@ -97,93 +100,84 @@ export default function PromotionQueueView() {
     [filteredItems, handleReview],
   );
 
-  if (loading) {
-    return (
-      <EngineShell
-        title="Review Queue"
-        subtitle="Items extracted from artifacts awaiting review."
-        feedbackStats={feedbackStats}
-        onBack={() => navigateToScreen('engine')}
-      >
-        <div style={centeredStyle}>
-          <div style={monoLabelStyle}>LOADING QUEUE...</div>
-        </div>
-      </EngineShell>
-    );
-  }
-
-  if (error) {
-    return (
-      <EngineShell
-        title="Review Queue"
-        subtitle="Items extracted from artifacts awaiting review."
-        feedbackStats={feedbackStats}
-        onBack={() => navigateToScreen('engine')}
-      >
-        <div style={centeredStyle}>
-          <div style={{ color: 'var(--cp-red)', fontSize: 13, marginBottom: 8 }}>{error.message}</div>
-          <button onClick={refetch} style={actionBtnStyle('var(--cp-teal)')}>Retry</button>
-        </div>
-      </EngineShell>
-    );
-  }
+  // Five-state discipline (SPEC-UX-PHYSICS D4): the queue body resolves through
+  // ViewStateView instead of hand-rolled loading/error branches. EngineShell chrome
+  // stays outside the wrapper so the title, subtitle, and back control persist across
+  // every state. No isEmpty here: a settled-but-empty queue still renders the stats
+  // and filter tabs, with EmptyQueue owning the honest "clear vs filtered" copy.
+  const state = deriveViewState<ApiPromotionItem[]>({
+    data: items,
+    loading,
+    error: error?.message ?? null,
+    retry: refetch,
+  });
 
   return (
     <EngineShell
       title="Review Queue"
-      subtitle="Accept to promote, reject to discard."
+      subtitle={
+        hasData(state)
+          ? 'Accept to promote, reject to discard.'
+          : 'Items extracted from artifacts awaiting review.'
+      }
       feedbackStats={feedbackStats}
       onBack={() => navigateToScreen('engine')}
     >
-      {/* Stats bar */}
-      <QueueStats total={totalVisible} typeCounts={typeCounts} />
+      <ViewStateView state={state} label="review queue" narration={narrationFor('reading', 0)}>
+        {() => (
+          <>
+            {/* Stats bar */}
+            <QueueStats total={totalVisible} typeCounts={typeCounts} />
 
-      {/* Filter tabs */}
-      <div style={filterBarStyle}>
-        <FilterTab
-          label="All"
-          count={totalVisible}
-          active={filter === 'all'}
-          onClick={() => setFilter('all')}
-        />
-        {(Object.keys(ITEM_TYPE_STYLES) as ApiPromotionItem['item_type'][]).map((type) => (
-          <FilterTab
-            key={type}
-            label={ITEM_TYPE_STYLES[type].label}
-            count={typeCounts[type] ?? 0}
-            color={ITEM_TYPE_STYLES[type].color}
-            active={filter === type}
-            onClick={() => setFilter(type)}
-          />
-        ))}
-      </div>
-
-      {/* Batch actions */}
-      {filteredItems.length > 1 && (
-        <BatchActions
-          count={filteredItems.length}
-          onAcceptAll={() => handleBatchAction('accept')}
-          onRejectAll={() => handleBatchAction('reject')}
-        />
-      )}
-
-      {/* Queue items with animated dismiss */}
-      {filteredItems.length === 0 ? (
-        <EmptyQueue hasItems={totalVisible > 0} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <AnimatePresence initial={false}>
-            {filteredItems.map((item) => (
-              <QueueItemAnimated
-                key={item.id}
-                item={item}
-                onAccept={() => handleReview(item.id, 'accept')}
-                onReject={() => handleReview(item.id, 'reject')}
+            {/* Filter tabs */}
+            <div style={filterBarStyle}>
+              <FilterTab
+                label="All"
+                count={totalVisible}
+                active={filter === 'all'}
+                onClick={() => setFilter('all')}
               />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+              {(Object.keys(ITEM_TYPE_STYLES) as ApiPromotionItem['item_type'][]).map((type) => (
+                <FilterTab
+                  key={type}
+                  label={ITEM_TYPE_STYLES[type].label}
+                  count={typeCounts[type] ?? 0}
+                  color={ITEM_TYPE_STYLES[type].color}
+                  active={filter === type}
+                  onClick={() => setFilter(type)}
+                />
+              ))}
+            </div>
+
+            {/* Batch actions */}
+            {filteredItems.length > 1 && (
+              <BatchActions
+                count={filteredItems.length}
+                onAcceptAll={() => handleBatchAction('accept')}
+                onRejectAll={() => handleBatchAction('reject')}
+              />
+            )}
+
+            {/* Queue items with animated dismiss */}
+            {filteredItems.length === 0 ? (
+              <EmptyQueue hasItems={totalVisible > 0} />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <AnimatePresence initial={false}>
+                  {filteredItems.map((item) => (
+                    <QueueItemAnimated
+                      key={item.id}
+                      item={item}
+                      onAccept={() => handleReview(item.id, 'accept')}
+                      onReject={() => handleReview(item.id, 'reject')}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </>
+        )}
+      </ViewStateView>
     </EngineShell>
   );
 }
@@ -439,13 +433,6 @@ function EmptyQueue({ hasItems }: { hasItems: boolean }) {
 }
 
 /* ── Styles ── */
-
-const monoLabelStyle: React.CSSProperties = {
-  fontFamily: 'var(--cp-font-mono)',
-  fontSize: 12,
-  color: 'var(--cp-text-faint)',
-  letterSpacing: '0.06em',
-};
 
 const centeredStyle: React.CSSProperties = {
   display: 'flex',

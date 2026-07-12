@@ -12,6 +12,9 @@
  */
 
 import { fetchResurface, useApiData } from '@/lib/commonplace-api';
+import { deriveViewState, hasData } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 import type { ApiResurfaceCard } from '@/lib/commonplace';
 import { useDrawer } from '@/lib/providers/drawer-provider';
 import ObjectRenderer from '../objects/ObjectRenderer';
@@ -53,111 +56,95 @@ export default function ResurfaceView({ onOpenObject }: ResurfaceViewProps) {
       : undefined,
   );
 
-  /* ── Loading state ── */
-  if (loading) {
-    return (
-      <div className="cp-resurface-view cp-scrollbar">
-        <div className="cp-resurface-header">
-          <h2 className="cp-resurface-title">Resurface</h2>
-        </div>
-        <div style={{ padding: '0 16px' }}>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="cp-loading-skeleton"
-              style={{ width: '100%', height: 100, borderRadius: 8, marginBottom: 12 }}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Error state ── */
-  if (error) {
-    return (
-      <div className="cp-resurface-view">
-        <div className="cp-resurface-header">
-          <h2 className="cp-resurface-title">Resurface</h2>
-        </div>
-        <div className="cp-error-banner" style={{ margin: 16 }}>
-          <p>
-            {error.isNetworkError
-              ? 'Could not reach CommonPlace API.'
-              : `Error: ${error.message}`}
-          </p>
-          <button type="button" onClick={refetch}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Empty state ── */
-  if (cards.length === 0) {
-    return (
-      <div className="cp-resurface-view">
-        <div className="cp-resurface-header">
-          <h2 className="cp-resurface-title">Resurface</h2>
-        </div>
-        <div className="cp-empty-state">
-          <span className="cp-empty-state-hint">
-            No suggestions yet. Capture more objects so the engine can find patterns.
-          </span>
-        </div>
-      </div>
-    );
-  }
+  /* Five-state discipline (SPEC-UX-PHYSICS D4): the Resurface read resolves through
+     ViewStateView. The header persists across every state; the Refresh control only
+     appears once suggestions are present. */
+  const state = deriveViewState<ApiResurfaceCard[]>({
+    data: resurfaceData ? cards : null,
+    loading,
+    error: error ? (error.isNetworkError ? 'Could not reach CommonPlace API.' : `Error: ${error.message}`) : null,
+    retry: refetch,
+    isEmpty: (c) => c.length === 0,
+  });
 
   return (
     <div className="cp-resurface-view cp-scrollbar">
       <div className="cp-resurface-header">
         <h2 className="cp-resurface-title">Resurface</h2>
-        <button
-          type="button"
-          className="cp-resurface-refresh"
-          onClick={refetch}
-          title="Refresh suggestions"
-        >
-          Refresh
-        </button>
+        {hasData(state) && (
+          <button
+            type="button"
+            className="cp-resurface-refresh"
+            onClick={refetch}
+            title="Refresh suggestions"
+          >
+            Refresh
+          </button>
+        )}
       </div>
 
-      <p className="cp-resurface-subtitle">
-        Objects you may have forgotten. Click to revisit.
-      </p>
-
-      <div className="cp-resurface-list">
-        {cards.map((card) => {
-          const object = renderableFromResurfaceCard(card);
-          return (
-            <div key={object.id} className="cp-resurface-card">
-              <div className="cp-resurface-card-header">
-                <span className="cp-resurface-card-time">
-                  {relativeTime(card.object.captured_at)}
-                </span>
-              </div>
-              <ObjectRenderer
-                object={object}
-                variant="module"
-                onClick={handleObjectClick}
-                onContextMenu={(e, obj) => openContextMenu(e.clientX, e.clientY, obj)}
+      <ViewStateView
+        state={state}
+        label="resurface suggestions"
+        narration={narrationFor('searching', 0)}
+        skeleton={
+          <div style={{ padding: '0 16px' }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="cp-loading-skeleton"
+                style={{ width: '100%', height: 100, borderRadius: 8, marginBottom: 12 }}
               />
-              <p className="cp-resurface-card-signal">{card.signal_label}</p>
-              {card.explanation && (
-                <p className="cp-resurface-card-why">{card.explanation}</p>
-              )}
-              <div className="cp-resurface-score">
-                <span
-                  className="cp-resurface-score-bar"
-                  style={{ width: `${Math.round(card.score * 100)}%` }}
-                />
-              </div>
+            ))}
+          </div>
+        }
+        empty={
+          <div className="cp-empty-state">
+            <span className="cp-empty-state-hint">
+              No suggestions yet. Capture more objects so the engine can find patterns.
+            </span>
+          </div>
+        }
+      >
+        {(resolvedCards) => (
+          <>
+            <p className="cp-resurface-subtitle">
+              Objects you may have forgotten. Click to revisit.
+            </p>
+
+            <div className="cp-resurface-list">
+              {resolvedCards.map((card) => {
+                const object = renderableFromResurfaceCard(card);
+                return (
+                  <div key={object.id} className="cp-resurface-card">
+                    <div className="cp-resurface-card-header">
+                      <span className="cp-resurface-card-time">
+                        {relativeTime(card.object.captured_at)}
+                      </span>
+                    </div>
+                    <ObjectRenderer
+                      object={object}
+                      variant="module"
+                      onClick={handleObjectClick}
+                      onContextMenu={(e, obj) => openContextMenu(e.clientX, e.clientY, obj)}
+                    />
+                    <p className="cp-resurface-card-signal">{card.signal_label}</p>
+                    {card.explanation && (
+                      <p className="cp-resurface-card-why">{card.explanation}</p>
+                    )}
+                    <div className="cp-resurface-score">
+                      <span
+                        className="cp-resurface-score-bar"
+                        style={{ width: `${Math.round(card.score * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          </>
+        )}
+      </ViewStateView>
     </div>
   );
 }

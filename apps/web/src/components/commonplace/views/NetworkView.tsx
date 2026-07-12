@@ -16,6 +16,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FrameManager from '../shared/FrameManager';
 import type { ViewFrame, GraphNode, GraphLink } from '@/lib/commonplace';
 import { fetchGraph, useApiData } from '@/lib/commonplace-api';
+import { deriveViewState, hasData } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 import { useDrawer } from '@/lib/providers/drawer-provider';
 import { useSelection } from '@/lib/providers/selection-provider';
 import { useIsMobileViewport } from '@/hooks/useIsMobileViewport';
@@ -132,63 +135,17 @@ export default function NetworkView({ onOpenObject, filterTypes }: NetworkViewPr
     setCurrentCenter({ x: frame.centerX, y: frame.centerY });
   }, []);
 
-  /* ── Loading state ── */
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div className="cp-network-toolbar">
-          <NetworkSubViewTabs
-            subViews={subViews}
-            value={effectiveSubView}
-            disabled
-            onChange={() => undefined}
-          />
-        </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="cp-loading-skeleton" style={{ width: '80%', height: '60%', borderRadius: 8 }} />
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Error state ── */
-  if (error) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div className="cp-network-toolbar">
-          <NetworkSubViewTabs
-            subViews={subViews}
-            value={effectiveSubView}
-            disabled
-            onChange={() => undefined}
-          />
-        </div>
-        <div className="cp-error-banner" style={{ margin: 'var(--cp-space-4)' }}>
-          <p>Could not load knowledge graph.</p>
-          <button onClick={refetch}>Retry</button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Empty state ── */
-  if (graphNodes.length === 0) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div className="cp-network-toolbar">
-          <NetworkSubViewTabs
-            subViews={subViews}
-            value={effectiveSubView}
-            disabled
-            onChange={() => undefined}
-          />
-        </div>
-        <div className="cp-empty-state">
-          <p>No objects yet. Capture something to see the knowledge graph.</p>
-        </div>
-      </div>
-    );
-  }
+  /* Five-state discipline (SPEC-UX-PHYSICS D4): the shared graph read resolves
+     through ViewStateView instead of hand-rolled loading/error/empty returns. The
+     toolbar chrome stays outside the wrapper and its tabs disable until data lands. */
+  const state = deriveViewState({
+    data: graphData,
+    loading,
+    error: error ? 'Could not load knowledge graph.' : null,
+    retry: refetch,
+    isEmpty: (d) => (d.nodes?.length ?? 0) === 0,
+  });
+  const dataReady = hasData(state);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -197,12 +154,17 @@ export default function NetworkView({ onOpenObject, filterTypes }: NetworkViewPr
         <NetworkSubViewTabs
           subViews={subViews}
           value={effectiveSubView}
-          onChange={(nextView) => {
-            setHasChosenView(true);
-            setActiveSubView(nextView);
-          }}
+          disabled={!dataReady}
+          onChange={
+            dataReady
+              ? (nextView) => {
+                  setHasChosenView(true);
+                  setActiveSubView(nextView);
+                }
+              : () => undefined
+          }
         />
-        {effectiveSubView === 'ego' && (
+        {dataReady && effectiveSubView === 'ego' && (
           <FrameManager
             currentZoom={currentZoom}
             currentCenterX={currentCenter.x}
@@ -215,48 +177,68 @@ export default function NetworkView({ onOpenObject, filterTypes }: NetworkViewPr
 
       {/* Active sub-view */}
       <div className={styles.canvasFrame}>
-        {effectiveSubView === 'list' && (
-          <NetworkListView
-            graphNodes={visibleGraphNodes}
-            onOpenObject={onOpenObject}
-            onSelectObject={selectSingle}
-          />
-        )}
-        {effectiveSubView === 'global' && (
-          <LazyCosmosGlobalGraph
-            graphNodes={visibleGraphNodes}
-            graphLinks={visibleGraphLinks}
-            selectedItems={selectedItems}
-            onSelectNode={selectSingle}
-          />
-        )}
-        {effectiveSubView === 'ego' && (
-          <LazyKnowledgeMap
-            graphNodes={visibleGraphNodes}
-            graphLinks={visibleGraphLinks}
-            onOpenObject={onOpenObject}
-            onReadObject={openReader}
-            filter={graphFilter}
-            registerSnapshotGetter={effectiveSubView === 'ego' ? handleRegisterSnapshotGetter : undefined}
-          />
-        )}
-        {effectiveSubView === 'model' && (
-          <LazyReactFlowModelCanvas
-            graphNodes={visibleGraphNodes}
-            graphLinks={visibleGraphLinks}
-            selectedItems={selectedItems}
-            onSelectNode={selectSingle}
-          />
-        )}
-        {selectedItems.size > 0 && (
-          <button
-            type="button"
-            className={`${styles.smallButton} ${styles.floatingClear}`}
-            onClick={clearSelection}
-          >
-            Clear selection
-          </button>
-        )}
+        <ViewStateView
+          state={state}
+          label="knowledge graph"
+          narration={narrationFor('searching', 0)}
+          skeleton={
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="cp-loading-skeleton" style={{ width: '80%', height: '60%', borderRadius: 8 }} />
+            </div>
+          }
+          empty={
+            <div className="cp-empty-state">
+              <p>No objects yet. Capture something to see the knowledge graph.</p>
+            </div>
+          }
+        >
+          {() => (
+            <>
+              {effectiveSubView === 'list' && (
+                <NetworkListView
+                  graphNodes={visibleGraphNodes}
+                  onOpenObject={onOpenObject}
+                  onSelectObject={selectSingle}
+                />
+              )}
+              {effectiveSubView === 'global' && (
+                <LazyCosmosGlobalGraph
+                  graphNodes={visibleGraphNodes}
+                  graphLinks={visibleGraphLinks}
+                  selectedItems={selectedItems}
+                  onSelectNode={selectSingle}
+                />
+              )}
+              {effectiveSubView === 'ego' && (
+                <LazyKnowledgeMap
+                  graphNodes={visibleGraphNodes}
+                  graphLinks={visibleGraphLinks}
+                  onOpenObject={onOpenObject}
+                  onReadObject={openReader}
+                  filter={graphFilter}
+                  registerSnapshotGetter={effectiveSubView === 'ego' ? handleRegisterSnapshotGetter : undefined}
+                />
+              )}
+              {effectiveSubView === 'model' && (
+                <LazyReactFlowModelCanvas
+                  graphNodes={visibleGraphNodes}
+                  graphLinks={visibleGraphLinks}
+                  selectedItems={selectedItems}
+                  onSelectNode={selectSingle}
+                />
+              )}
+              {selectedItems.size > 0 && (
+                <button
+                  type="button"
+                  className={`${styles.smallButton} ${styles.floatingClear}`}
+                  onClick={clearSelection}
+                >
+                  Clear selection
+                </button>
+              )}
+            </>
+          )}
+        </ViewStateView>
       </div>
     </div>
   );
