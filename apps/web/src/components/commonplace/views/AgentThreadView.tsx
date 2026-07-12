@@ -31,6 +31,8 @@ import AgentThreadOmnibar from './AgentThreadOmnibar';
 import SceneHost from '../scene-host/SceneHost';
 import styles from './AgentThreadView.module.css';
 import { WeaveSpinner } from './WeaveSpinner';
+import PresenceMark from '../presence/PresenceMark';
+import type { PresenceState } from '../presence/presenceStates';
 
 type ThreadItem =
   | {
@@ -330,11 +332,17 @@ export default function AgentThreadView({
   const displayStatus =
     resolvedMode === 'api' && status !== 'connecting' ? 'connected' : status;
 
+  // The Presence mark is the composing indicator (SPEC-UI-SOURCING-ADDENDUM
+  // Presence D2): the same mark as the co-browse telegraph and the run glyph.
+  const markState: PresenceState =
+    displayStatus === 'connecting' ? 'thinking' : displayStatus === 'offline' ? 'interrupted' : 'idle';
+
   return (
     <section className={`cp-agent-thread ${styles.thread}`} aria-label={`${agentLabel} agent thread`}>
       {resolvedMode === 'acp' ? (
         <header className="cp-agent-thread-header">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PresenceMark state={markState} size={24} label={`${agentLabel} presence`} />
             <h2>{agentLabel}</h2>
             <span className={`cp-agent-thread-status cp-agent-thread-status--${displayStatus}`}>
               {displayStatus}
