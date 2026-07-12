@@ -1,4 +1,4 @@
-import type { LibraryAction } from '@/lib/theorem-libraries';
+import { type LibraryAction, objectValue } from '@/lib/theorem-libraries';
 
 const MCP_URL = process.env.THEOREM_MCP_URL?.trim() || 'http://127.0.0.1:50090/mcp';
 const MCP_TOKEN = process.env.THEOREM_MCP_BEARER_TOKEN?.trim();
