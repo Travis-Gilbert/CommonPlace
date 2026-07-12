@@ -26,6 +26,7 @@ export interface LibraryRecord {
 
 export interface LibraryReceipt {
   receiptId: string;
+  operation?: string;
   pagesFetched?: number;
   changedPages?: number;
   factsDeposited?: number;
@@ -40,6 +41,7 @@ export interface LibraryQueryResult {
 export type LibraryAction =
   | { action: 'list' }
   | { action: 'create'; config: LibraryConfig }
+  | { action: 'crawl'; libraryId: string }
   | { action: 'query'; libraryId: string; query: Record<string, unknown> };
 
 export interface LibraryActionResult {
@@ -96,6 +98,28 @@ export function unwrapGraphqlField(value: unknown, field: string): unknown {
   const envelope = structured ?? result;
   const data = objectValue(envelope?.data);
   return data?.[field] ?? envelope?.[field];
+}
+
+export function libraryReceipt(value: unknown): LibraryReceipt | undefined {
+  const root = objectValue(value);
+  const result = objectValue(root?.result) ?? root;
+  const structured = objectValue(result?.structuredContent) ?? objectValue(result?.structured_content);
+  const payload = structured ?? result;
+  const receipt = objectValue(payload?.receipt);
+  if (!receipt) return undefined;
+  const receiptId = text(receipt.receipt_id);
+  if (!receiptId) return undefined;
+  const meteredCost = objectValue(receipt.metered_cost);
+  const unit = text(meteredCost?.unit);
+  const quantity = optionalNumber(meteredCost?.quantity);
+  return {
+    receiptId,
+    operation: text(receipt.operation) || undefined,
+    pagesFetched: optionalNumber(receipt.pages_fetched),
+    changedPages: optionalNumber(receipt.changed_pages),
+    factsDeposited: optionalNumber(receipt.facts_deposited),
+    meteredCost: unit && quantity !== undefined ? { unit, quantity } : undefined,
+  };
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {

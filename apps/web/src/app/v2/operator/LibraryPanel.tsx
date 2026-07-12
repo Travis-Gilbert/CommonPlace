@@ -5,9 +5,11 @@ import type { FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
   libraryRecords,
+  libraryReceipt,
   runLibraryAction,
   unwrapGraphqlField,
   type LibraryRecord,
+  type LibraryReceipt,
   type LibraryRefreshPolicy,
   type LibraryActionResult,
 } from '@/lib/theorem-libraries';
@@ -21,8 +23,9 @@ export function LibraryPanel() {
   const [queryText, setQueryText] = useState(DEFAULT_QUERY);
   const [refreshPolicy, setRefreshPolicy] = useState<LibraryRefreshPolicy>('none');
   const [queryResult, setQueryResult] = useState<unknown>();
+  const [receipt, setReceipt] = useState<LibraryReceipt>();
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'load' | 'create' | 'query' | null>(null);
+  const [busy, setBusy] = useState<'load' | 'create' | 'crawl' | 'query' | null>(null);
 
   const loadLibraries = useCallback(async () => {
     setBusy('load');
@@ -79,7 +82,31 @@ export function LibraryPanel() {
       return;
     }
     toast.success(`${name} configured`);
+    setReceipt(undefined);
     setSelectedId(slug(name));
+    await loadLibraries();
+  }
+
+  async function handleCrawl() {
+    if (!selectedId) return;
+    setBusy('crawl');
+    setReceipt(undefined);
+    const result = await runLibraryAction({ action: 'crawl', libraryId: selectedId }).catch(
+      (cause: unknown): LibraryActionResult => ({ ok: false, error: cause instanceof Error ? cause.message : String(cause) }),
+    );
+    setBusy(null);
+    if (!result.ok) {
+      setError(result.error ?? 'Library crawl failed.');
+      return;
+    }
+    const nextReceipt = libraryReceipt(result.data);
+    if (!nextReceipt) {
+      setError('Library crawl completed without a readable receipt.');
+      return;
+    }
+    setError('');
+    setReceipt(nextReceipt);
+    toast.success(`${nextReceipt.pagesFetched ?? 0} pages indexed`);
     await loadLibraries();
   }
 
@@ -139,7 +166,7 @@ export function LibraryPanel() {
             {busy === 'load' && libraries.length === 0 && <div className={styles.libraryEmpty}>Reading substrate…</div>}
             {!busy && libraries.length === 0 && !error && <div className={styles.libraryEmpty}>No libraries configured.</div>}
             {libraries.map((library) => (
-              <button key={library.id} type="button" className={styles.libraryRow} data-active={selectedId === library.id || undefined} onClick={() => setSelectedId(library.id)}>
+              <button key={library.id} type="button" className={styles.libraryRow} data-active={selectedId === library.id || undefined} onClick={() => { setSelectedId(library.id); setReceipt(undefined); }}>
                 <span><strong>{library.name}</strong><small>{library.rootUrl}</small></span>
                 <span className={styles.libraryPolicy}>{library.refreshPolicy.replace('_', ' ')}</span>
               </button>
@@ -147,6 +174,16 @@ export function LibraryPanel() {
           </div>
           <div className={styles.libraryQuery}>
             <div className={styles.libraryQueryHead}><span>Query selected library</span><code>{selectedId || 'none'}</code></div>
+            <button type="button" className={styles.librarySecondary} disabled={!selectedId || busy !== null} onClick={() => void handleCrawl()}>{busy === 'crawl' ? 'Crawling…' : 'Crawl now'}</button>
+            {receipt && <div className={styles.libraryReceipt} aria-live="polite">
+              <strong>Latest {receipt.operation?.replace('_', ' ') ?? 'crawl'} receipt</strong>
+              <dl>
+                <div><dt>Pages</dt><dd>{receipt.pagesFetched ?? 0}</dd></div>
+                <div><dt>Changed</dt><dd>{receipt.changedPages ?? 0}</dd></div>
+                <div><dt>Facts</dt><dd>{receipt.factsDeposited ?? 0}</dd></div>
+                <div><dt>Cost</dt><dd>{receipt.meteredCost ? `${receipt.meteredCost.quantity} ${receipt.meteredCost.unit}` : 'Not reported'}</dd></div>
+              </dl>
+            </div>}
             <textarea value={queryText} onChange={(event) => setQueryText(event.target.value)} rows={4} aria-label="Library query JSON" />
             <button type="button" className={styles.librarySecondary} disabled={!selectedId || busy !== null} onClick={() => void handleQuery()}>{busy === 'query' ? 'Querying…' : 'Run query'}</button>
             {queryResult !== undefined && <pre className={styles.libraryOutput}>{JSON.stringify(queryResult, null, 2)}</pre>}
