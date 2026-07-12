@@ -5,10 +5,11 @@
  * drawer (D5).
  */
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchItems } from '@/api/queries';
@@ -20,6 +21,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 
 const LENSES = ['Objects', 'Files', 'Timeline', 'Graph'] as const;
 type Lens = (typeof LENSES)[number];
+type DataRow = { type: 'header'; title: string } | { type: 'item'; item: ItemGql };
 
 export default function DataScreen() {
   const t = useTheme();
@@ -65,6 +67,40 @@ export default function DataScreen() {
     }
     return [];
   }, [items.data, lens, kindFilter]);
+
+  const listData = useMemo<DataRow[]>(() => {
+    const out: DataRow[] = [];
+    for (const section of sections) {
+      if (section.title) out.push({ type: 'header', title: section.title });
+      for (const item of section.data) out.push({ type: 'item', item });
+    }
+    return out;
+  }, [sections]);
+
+  const renderDataItem = ({ item }: ListRenderItemInfo<DataRow>) => {
+    if (item.type === 'header') {
+      return (
+        <View style={styles.sectionHeader}>
+          <AppText variant="caption" tone="faint">
+            {item.title}
+          </AppText>
+        </View>
+      );
+    }
+    const obj = item.item;
+    return (
+      <KindRow
+        data={{
+          id: obj.id,
+          kind: obj.kind,
+          title: obj.title,
+          subtitle: lens === 'Files' ? (obj.path ?? obj.mime) : (obj.classification ?? null),
+          meta: lens === 'Timeline' ? new Date(obj.createdAtMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+        }}
+        onPress={() => router.push({ pathname: '/object/[id]', params: { id: obj.id } })}
+      />
+    );
+  };
 
   async function openGraph() {
     const q = graphQuery.trim();
@@ -162,31 +198,11 @@ export default function DataScreen() {
           ) : null}
         </View>
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(it) => it.id}
-          stickySectionHeadersEnabled={false}
-          renderSectionHeader={({ section }) =>
-            section.title ? (
-              <View style={styles.sectionHeader}>
-                <AppText variant="caption" tone="faint">
-                  {section.title}
-                </AppText>
-              </View>
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <KindRow
-              data={{
-                id: item.id,
-                kind: item.kind,
-                title: item.title,
-                subtitle: lens === 'Files' ? (item.path ?? item.mime) : (item.classification ?? null),
-                meta: lens === 'Timeline' ? new Date(item.createdAtMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
-              }}
-              onPress={() => router.push({ pathname: '/object/[id]', params: { id: item.id } })}
-            />
-          )}
+        <FlashList
+          data={listData}
+          keyExtractor={(row) => (row.type === 'header' ? `header:${row.title}` : row.item.id)}
+          getItemType={(row) => row.type}
+          renderItem={renderDataItem}
           ListEmptyComponent={
             <View style={styles.empty}>
               <AppText variant="sub" tone="muted">
