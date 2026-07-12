@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { getBundle, getCount, subscribeBundle, type SessionBundle } from './bundle-store';
+import { getRailEntries, subscribeRail, type SessionRailEntry } from './session-rail';
 
 /**
  * Live item count for a session's bundle (HANDOFF-CARRY C1.3). Re-reads on every
@@ -56,4 +57,30 @@ export function useBundle(sessionId: string | null): SessionBundle | undefined {
     };
   }, [sessionId]);
   return bundle;
+}
+
+/** Live session rail entries in order (HANDOFF-CARRY C5.1). Re-reads on every
+ *  appended entry so the rail updates as browse, carry, publish, and destination
+ *  events land, and travels because it is keyed by session id. */
+export function useSessionRail(sessionId: string | null): SessionRailEntry[] {
+  const [entries, setEntries] = useState<SessionRailEntry[]>([]);
+  useEffect(() => {
+    if (!sessionId) {
+      setEntries([]);
+      return;
+    }
+    let alive = true;
+    const refresh = () => {
+      void getRailEntries(sessionId).then((next) => {
+        if (alive) setEntries(next);
+      });
+    };
+    refresh();
+    const unsubscribe = subscribeRail(sessionId, refresh);
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [sessionId]);
+  return entries;
 }
