@@ -21,6 +21,7 @@ import { compileBundle } from '@/lib/carry/compile';
 import { seededWriteBody, seededWriteTitle } from '@/lib/carry/seed-write';
 import { appendRailEntry } from '@/lib/carry/session-rail';
 import { SessionRail } from '@/components/commonplace/rail/SessionRail';
+import { PublishAction } from '@/components/commonplace/publish/PublishAction';
 
 interface ProjectPagesViewProps {
   projectId: string;
@@ -331,6 +332,7 @@ function ProjectPageEditor({
               </>
             )}
           </span>
+          <PublishAction originId={page.id} artifactTitle={page.title} />
           <button
             type="button"
             className="cp-pages-button"
