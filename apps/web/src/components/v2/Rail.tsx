@@ -2,15 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  CircleUser,
-  Clock3,
-  Frame,
-  LayoutPanelLeft,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings,
-} from 'lucide-react';
+import { CircleUser, Clock3, Database, Dna, Frame, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import {
   ChatGlyph,
   CodeGlyph,
@@ -41,11 +33,11 @@ type RailItem = {
 
 const HARNESS: RailItem[] = [
   { label: 'Chat', href: '/v2/chat', icon: ChatGlyph },
-  { label: 'Work', href: '/v2/work', icon: LayoutPanelLeft },
   { label: 'Index', href: '/v2', icon: IndexGlyph },
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
   { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },
   { label: 'Canvas', href: '/v2/canvas', icon: Frame, indent: true },
+  { label: 'Growth', href: '/v2/growth', icon: Dna },
   { label: 'Notes', href: null, icon: NotesGlyph },
   { label: 'Research', href: null, icon: ResearchGlyph },
   { label: 'Code', href: null, icon: CodeGlyph },
@@ -55,6 +47,7 @@ const DATA: RailItem[] = [
   { label: 'Files', href: '/v2/files', icon: FilesGlyph },
   { label: 'Graph', href: '/v2/graph', icon: GraphGlyph },
   { label: 'Tables', href: '/v2/ledger', icon: RowsGlyph },
+  { label: 'Databases', href: '/v2/db', icon: Database },
   { label: 'Timeline', href: '/v2/timeline', icon: Clock3 },
 ];
 

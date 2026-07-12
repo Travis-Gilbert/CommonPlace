@@ -21,9 +21,8 @@ use async_graphql::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use commonplace::{
-    annotation_from_item, Anchor, Annotation, AuthorKind, BlobStore, Collection, CollectionKind,
-    Commonplace, EmbeddingGraphStore, InMemoryBlobStore, IngestInput, IngestPipeline, Item,
-    ItemBody, ItemKind, Residency, Resolution, SourceRef, COLLECTION_LABEL,
+    BlobStore, Collection, CollectionKind, Commonplace, EmbeddingGraphStore, InMemoryBlobStore,
+    IngestInput, IngestPipeline, Item, ItemBody, ItemKind, Residency, SourceRef, COLLECTION_LABEL,
     ITEM_EMBEDDING_PROPERTY,
 };
 use rustyred_thg_core::{DiskObjectStore, InMemoryGraphStore, NodeQuery, RedCoreGraphStore};
@@ -39,6 +38,7 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
+use crate::growth::{load_growth_snapshot_from_env, GrowthSnapshotResultGql};
 use crate::organize::{
     organize as run_organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup,
     OrganizeItem, OrganizeSnapshot, OrganizedToday, Subtask, Timeframe,
@@ -245,54 +245,6 @@ pub struct PageCrdtSnapshotGql {
     pub blob_hash: String,
     pub byte_len: i32,
     pub stored_at_ms: i64,
-}
-
-/// A co-annotation thread item in the GraphQL wire shape consumed by
-/// `@commonplace/coannotate`.
-#[derive(SimpleObject)]
-pub struct AnnotationGql {
-    pub id: String,
-    pub target_id: Option<String>,
-    pub author: Option<String>,
-    pub author_kind: Option<String>,
-    pub anchor: Option<GqlJson<Value>>,
-    pub body: String,
-    pub resolved: bool,
-    pub resolution: Option<AnnotationResolutionGql>,
-    pub created_at_ms: i64,
-}
-
-#[derive(SimpleObject)]
-pub struct AnnotationResolutionGql {
-    pub by: String,
-    pub receipt: Option<String>,
-}
-
-#[derive(InputObject)]
-#[graphql(name = "CreateAnnotationInput")]
-pub struct CreateAnnotationInputGql {
-    pub target_id: String,
-    pub body: String,
-    pub anchor: GqlJson<Value>,
-    pub author: Option<String>,
-    pub author_kind: String,
-}
-
-#[derive(InputObject)]
-#[graphql(name = "ReplyAnnotationInput")]
-pub struct ReplyAnnotationInputGql {
-    pub parent_id: String,
-    pub body: String,
-    pub author: Option<String>,
-    pub author_kind: String,
-}
-
-#[derive(InputObject)]
-#[graphql(name = "ResolveAnnotationInput")]
-pub struct ResolveAnnotationInputGql {
-    pub id: String,
-    pub by: String,
-    pub receipt: Option<String>,
 }
 
 /// A similarity-search hit.
@@ -1286,53 +1238,6 @@ where
     })
 }
 
-fn annotation_gql_from(annotation: Annotation) -> Result<AnnotationGql> {
-    let anchor = annotation
-        .anchor
-        .map(|anchor| serde_json::to_value(anchor).map(GqlJson))
-        .transpose()
-        .map_err(|error| Error::new(format!("invalid annotation anchor JSON: {error}")))?;
-    Ok(AnnotationGql {
-        id: annotation.id,
-        target_id: annotation.target_id,
-        author: annotation.author,
-        author_kind: annotation
-            .author_kind
-            .map(|author_kind| author_kind.as_str().to_string()),
-        anchor,
-        body: annotation.body,
-        resolved: annotation.resolved,
-        resolution: annotation.resolution.map(AnnotationResolutionGql::from),
-        created_at_ms: annotation.created_at_ms,
-    })
-}
-
-impl From<Resolution> for AnnotationResolutionGql {
-    fn from(resolution: Resolution) -> Self {
-        Self {
-            by: resolution.by,
-            receipt: resolution.receipt,
-        }
-    }
-}
-
-fn annotation_item_gql(item: &Item) -> Result<AnnotationGql> {
-    annotation_from_item(item)
-        .ok_or_else(|| Error::new("annotation item did not project"))
-        .and_then(annotation_gql_from)
-}
-
-fn parse_anchor(value: GqlJson<Value>) -> Result<Anchor> {
-    let GqlJson(value) = value;
-    serde_json::from_value(value).map_err(|error| Error::new(format!("invalid anchor: {error}")))
-}
-
-fn parse_author_kind(value: &str) -> Result<AuthorKind> {
-    let normalized = value.trim().to_ascii_lowercase();
-    AuthorKind::parse(&normalized)
-        .ok_or_else(|| Error::new("authorKind must be either 'user' or 'head'"))
-}
-
 fn store_page_crdt_snapshot_bytes<S, B>(
     cp: &mut Commonplace<S, B>,
     page_id: &str,
@@ -1442,6 +1347,13 @@ where
         page_crdt_snapshot_from(&cp, page_id, snapshot).map(Some)
     }
 
+    /// The live, validated Growth projection. Unconfigured or invalid sources
+    /// return an explicit unavailable result rather than fixture data.
+    async fn growth_snapshot(&self, ctx: &Context<'_>) -> Result<GrowthSnapshotResultGql> {
+        principal(ctx)?;
+        Ok(load_growth_snapshot_from_env().await)
+    }
+
     /// All items, optionally filtered to a kind.
     async fn items(&self, ctx: &Context<'_>, kind: Option<String>) -> Result<Vec<ItemGql>> {
         principal(ctx)?;
@@ -1504,24 +1416,6 @@ where
             .into_iter()
             .map(ItemGql::from)
             .collect())
-    }
-
-    /// Top-level co-annotations for a target object, newest first.
-    async fn annotations_for_target(
-        &self,
-        ctx: &Context<'_>,
-        target_id: String,
-    ) -> Result<Vec<AnnotationGql>> {
-        principal(ctx)?;
-        let store = shared::<S, B>(ctx)?;
-        let cp = store
-            .lock()
-            .map_err(|_| Error::new("store lock poisoned"))?;
-        cp.annotations_for(&target_id)
-            .map_err(store_err)?
-            .into_iter()
-            .map(annotation_gql_from)
-            .collect()
     }
 
     /// Plane-parity PM overview over the CommonPlace graph. Projects are typed
@@ -1909,72 +1803,6 @@ where
             item = item.with_tags(tags);
         }
         Ok(ItemGql::from(cp.put_item(item).map_err(store_err)?))
-    }
-
-    /// Create a top-level co-annotation against an object/page/file target.
-    async fn create_annotation(
-        &self,
-        ctx: &Context<'_>,
-        input: CreateAnnotationInputGql,
-    ) -> Result<AnnotationGql> {
-        principal(ctx)?;
-        let author_kind = parse_author_kind(&input.author_kind)?;
-        let anchor = parse_anchor(input.anchor)?;
-        let store = shared::<S, B>(ctx)?;
-        let mut cp = store
-            .lock()
-            .map_err(|_| Error::new("store lock poisoned"))?;
-        let item = cp
-            .create_annotation(
-                &input.target_id,
-                input.author.as_deref(),
-                author_kind,
-                input.body,
-                &anchor,
-            )
-            .map_err(store_err)?;
-        annotation_item_gql(&item)
-    }
-
-    /// Reply to an annotation thread.
-    async fn reply_annotation(
-        &self,
-        ctx: &Context<'_>,
-        input: ReplyAnnotationInputGql,
-    ) -> Result<AnnotationGql> {
-        principal(ctx)?;
-        let author_kind = parse_author_kind(&input.author_kind)?;
-        let store = shared::<S, B>(ctx)?;
-        let mut cp = store
-            .lock()
-            .map_err(|_| Error::new("store lock poisoned"))?;
-        let item = cp
-            .reply_to_annotation(
-                &input.parent_id,
-                input.author.as_deref(),
-                author_kind,
-                input.body,
-            )
-            .map_err(store_err)?;
-        annotation_item_gql(&item)
-    }
-
-    /// Resolve an annotation with a head/commit/user receipt.
-    async fn resolve_annotation(
-        &self,
-        ctx: &Context<'_>,
-        input: ResolveAnnotationInputGql,
-    ) -> Result<Option<AnnotationGql>> {
-        principal(ctx)?;
-        let store = shared::<S, B>(ctx)?;
-        let mut cp = store
-            .lock()
-            .map_err(|_| Error::new("store lock poisoned"))?;
-        cp.resolve_annotation(&input.id, &input.by, input.receipt.as_deref())
-            .map_err(store_err)?
-            .as_ref()
-            .map(annotation_item_gql)
-            .transpose()
     }
 
     /// Edit an existing item's title, tags, residency, status, due date, or
