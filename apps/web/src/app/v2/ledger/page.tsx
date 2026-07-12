@@ -1,6 +1,10 @@
 'use client';
 
-/* Ledger (Data): the tabular book on the desk. Every Item is a row; sort by any
+/* Screen archetype: Airtable/Linear table (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). The table is the whole surface; sort
+   by any column; the Glide Data Grid scale engine is reserved for millions of rows.
+
+   Ledger (Data): the tabular book on the desk. Every Item is a row; sort by any
    column. Rendered with TanStack Table (already installed, porcelain-native HTML).
    The IA reserves Glide Data Grid as the production engine for scale (millions of
    rows, canvas, in-cell editing); it is installed and swaps in once the repo's

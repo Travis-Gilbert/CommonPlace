@@ -1,6 +1,10 @@
 'use client';
 
 /**
+ * Screen archetype: Linear row-and-drawer (SPEC-UX-PHYSICS D8, see
+ * docs/plans/ux-physics-accent/archetypes.md). The object list is the surface; a
+ * selected record opens detail without leaving the list.
+ *
  * TW5 RecordSurface: one ObjectQuery, one live ObjectSet, and a one-press flip
  * across the renderers that accept its shape.
  *

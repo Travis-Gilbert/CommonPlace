@@ -3,6 +3,12 @@
 /**
  * Agent Workroom Control Center (app.theoremharness.com).
  *
+ * Screen archetype: Railway/Vercel deploy-log (SPEC-UX-PHYSICS D8, see
+ * docs/plans/ux-physics-accent/archetypes.md). The run stream is the spine and the
+ * newest step carries the most weight; receipts open as Stripe-style drawers and
+ * approvals read as PR-review cards. No invented progress: state comes from real
+ * receipts and each card degrades honestly via its source.mode.
+ *
  * The CommonPlace product control room for durable agent work. One GET to
  * /api/theorem/control-center yields the whole TheoremControlCenterState;
  * typed POST actions return durable receipts. Backend (Codex lane) swaps the
