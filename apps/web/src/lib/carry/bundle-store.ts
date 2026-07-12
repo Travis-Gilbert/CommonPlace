@@ -71,8 +71,9 @@ export interface SessionBundle {
   childSessionIds?: string[];
 }
 
-/** The append payload: everything about an item except the store-assigned id. */
-export type BundleEventInput = Omit<BundleItem, 'id' | 'sessionId'> & { at?: number };
+/** The append payload: everything about an item except the store-assigned id
+ *  and session id; capture time is optional (defaults to now). */
+export type BundleEventInput = Omit<BundleItem, 'id' | 'sessionId' | 'at'> & { at?: number };
 
 const DB_NAME = 'commonplace-carry';
 const STORE_NAME = 'bundles';

@@ -44,6 +44,7 @@ import {
   type ProposedAction,
 } from '@/lib/desktop';
 import { viewState, type ViewState } from '@/lib/commonplace-view-state';
+import { appendEvent } from '@/lib/carry/bundle-store';
 
 export type CoBrowseMode = 'watch' | 'pair' | 'drive';
 
@@ -94,6 +95,8 @@ export interface CoBrowseSession {
   telegraphIntent: string | null;
   entries: RailEntry[];
   keepReceipt: AgentIngestionReceipt | null;
+  /** The co-browse session id, shared with the carry bundle (HANDOFF-CARRY). */
+  sessionId: string | null;
   error: string | null;
   begin: (url: string, task: string) => Promise<void>;
   approve: () => Promise<void>;
@@ -129,6 +132,8 @@ export function useCoBrowseSession(): CoBrowseSession {
   const [telegraphIntent, setTelegraphIntent] = useState<string | null>(null);
   const [entries, setEntries] = useState<RailEntry[]>([]);
   const [keepReceipt, setKeepReceipt] = useState<AgentIngestionReceipt | null>(null);
+  // The co-browse session id, shared with the carry bundle (HANDOFF-CARRY D1/D5).
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const runIdRef = useRef<string | null>(null);
@@ -263,6 +268,7 @@ export function useCoBrowseSession(): CoBrowseSession {
       try {
         const runId = `cobrowse-${Date.now()}`;
         runIdRef.current = runId;
+        setSessionId(runId);
         let tab = tabIdRef.current;
         if (!tab) {
           tab = entryId();
@@ -364,6 +370,23 @@ export function useCoBrowseSession(): CoBrowseSession {
       });
       setKeepReceipt(receipt);
       pushEntry('capture', `Kept ${page.title || page.url}`, receipt);
+      // Accumulate the Kept page into the carry bundle (HANDOFF-CARRY D1): a
+      // real live browse event feeding the session bundle. Other event kinds
+      // (highlight, margin thread, entity intersect) append here too as their
+      // upstream slices land.
+      const carrySession = runIdRef.current;
+      if (carrySession) {
+        void appendEvent(carrySession, {
+          kind: 'page_kept',
+          anchor: {
+            url: page.url,
+            title: page.title,
+            quote: page.text ? page.text.slice(0, 200) : undefined,
+          },
+          receiptIds: [receipt.id],
+          connectionExplanation: receipt.nearestNeighbor ?? undefined,
+        });
+      }
     } catch (err) {
       setError(String(err));
     }
@@ -415,6 +438,7 @@ export function useCoBrowseSession(): CoBrowseSession {
     telegraphIntent,
     entries,
     keepReceipt,
+    sessionId,
     error,
     begin,
     approve,

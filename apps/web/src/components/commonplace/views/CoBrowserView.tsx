@@ -21,6 +21,9 @@ import { KeepToast } from '../cobrowse/KeepToast';
 import { useCoBrowseSession } from '../cobrowse/useCoBrowseSession';
 import PresenceMark from '../presence/PresenceMark';
 import type { PresenceState } from '../presence/presenceStates';
+import { CarryAffordance } from '../carry/CarryAffordance';
+import { SessionRail } from '../rail/SessionRail';
+import { useCarry } from '@/lib/carry/useCarry';
 import styles from '../cobrowse/cobrowse.module.css';
 
 const ACTING_HOLD_MS = 900;
@@ -56,6 +59,9 @@ export default function CoBrowserView() {
 
   const perceptionData = hasData(session.perception) ? session.perception.data : null;
 
+  // Carry the accumulated bundle into Write, Build, or Research (HANDOFF-CARRY).
+  const { carry, busy: carryBusy } = useCarry(session.sessionId);
+
   return (
     <DesktopOnly>
       <div style={{ ...panel.wrap, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -85,6 +91,7 @@ export default function CoBrowserView() {
           >
             Keep
           </button>
+          <CarryAffordance sessionId={session.sessionId} onCarry={carry} busy={carryBusy} />
         </div>
 
         <div className={styles.chrome}>
@@ -143,6 +150,7 @@ export default function CoBrowserView() {
         />
 
         <ReceiptRail entries={session.entries} />
+        <SessionRail sessionId={session.sessionId} title="Carry" />
 
         {session.error ? (
           <div style={{ ...panel.card, color: 'var(--cp-oxblood, crimson)' }}>{session.error}</div>
