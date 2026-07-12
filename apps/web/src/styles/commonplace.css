@@ -891,7 +891,7 @@ select.cp-input {
   font-size: 12px;
   cursor: text;
   text-align: left;
-  transition: border-color 200ms;
+  transition: border-color var(--cp-dur-local);
   min-height: 40px;
 }
 
@@ -1033,7 +1033,7 @@ select.cp-input {
   border: 1px solid color-mix(in srgb, var(--cp-accent) 22%, transparent);
   background: color-mix(in srgb, var(--cp-accent) 12%, transparent);
   backdrop-filter: blur(4px);
-  transition: border-color 200ms, box-shadow 200ms, background 200ms;
+  transition: border-color var(--cp-dur-local), box-shadow var(--cp-dur-local), background var(--cp-dur-local);
   cursor: text;
 }
 
@@ -1069,7 +1069,7 @@ select.cp-input {
   padding: 2px 7px;
   border-radius: 3px;
   cursor: pointer;
-  transition: all 150ms;
+  transition: all var(--cp-dur-hover);
   border: 1px solid var(--cp-border);
   background: rgba(42, 37, 32, 0.06);
   color: var(--cp-text-muted, #5C554D);
@@ -1538,7 +1538,7 @@ select.cp-input {
   border: 2px dashed var(--cp-accent);
   border-radius: 16px;
   background: rgba(var(--cp-accent-rgb), 0.03);
-  transition: background 200ms, border-color 200ms;
+  transition: background var(--cp-dur-local), border-color var(--cp-dur-local);
 }
 
 /* Oxblood action glow in center (drop affordance) */
@@ -1876,7 +1876,7 @@ select.cp-input {
   font-size: 10px;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition: background var(--cp-dur-hover) ease, color var(--cp-dur-hover) ease;
 }
 
 .cp-frame-btn:hover {
@@ -1917,7 +1917,7 @@ select.cp-input {
   font-size: 11px;
   cursor: pointer;
   border-radius: 3px;
-  transition: background 150ms ease;
+  transition: background var(--cp-dur-hover) ease;
 }
 
 .cp-frame-item-btn:hover {
@@ -1966,7 +1966,7 @@ select.cp-input {
   font-size: 10px;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: background var(--cp-dur-hover) ease, color var(--cp-dur-hover) ease, border-color var(--cp-dur-hover) ease;
 }
 
 .cp-network-toggle:hover {
@@ -5976,7 +5976,7 @@ select.cp-input {
   background: var(--cp-terracotta);
   color: #FAF6F1;
   cursor: pointer;
-  transition: opacity 150ms;
+  transition: opacity var(--cp-dur-hover);
 }
 
 .cp-compose-save-btn:hover {
@@ -6256,7 +6256,7 @@ select.cp-input {
   outline: 2px dashed var(--cp-accent);
   outline-offset: 2px;
   background: var(--cp-accent-soft, rgba(var(--cp-accent-rgb), 0.06));
-  transition: outline 150ms, background 150ms;
+  transition: outline var(--cp-dur-hover), background var(--cp-dur-hover);
 }
 
 /* ── Signal pips (epistemic indicators on object cards) ── */
@@ -8495,7 +8495,7 @@ select.cp-input {
   padding: 5px 10px;
   background: rgba(var(--cp-accent-rgb), 0.08);
   color: var(--cp-terracotta);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: background var(--cp-dur-hover) ease, border-color var(--cp-dur-hover) ease;
 }
 
 .cp-info-save-btn:hover:not(:disabled) {
@@ -8588,7 +8588,7 @@ select.cp-input {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color var(--cp-dur-hover), background var(--cp-dur-hover);
   padding: 0;
   color: var(--cp-cream);
 }
@@ -8691,7 +8691,7 @@ select.cp-input {
   background: var(--cp-terracotta);
   color: var(--cp-cream);
   border-radius: 3px;
-  transition: opacity 0.12s;
+  transition: opacity var(--cp-dur-hover);
 }
 
 .cp-task-add-save:disabled {
@@ -9119,7 +9119,7 @@ select.cp-input {
   border-radius: 2px;
   padding: 4px 10px;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background var(--cp-dur-hover) ease;
 }
 
 .cp-tl-retro-save:hover:not(:disabled) {

@@ -23,6 +23,7 @@ if (args.scope === "contrast" || args.scope === "all") {
 if (args.scope === "all") {
   allFindings.push(...auditRawColors(staticFiles, checklist.tokens.definitionFiles))
   allFindings.push(...auditAccentGrammar(staticFiles))
+  allFindings.push(...auditMotionTokens(staticFiles))
   allFindings.push(...auditTypography(staticFiles, thresholds))
   allFindings.push(...auditMotion(staticFiles, thresholds))
   allFindings.push(...auditFocusContract(staticFiles))
@@ -233,6 +234,63 @@ function auditAccentGrammar(files) {
       const hit = body.match(forbiddenRef)
       if (!hit) continue
       findings.push(finding("fail", "accent-grammar", `${rel} :: ${selector.slice(0, 70)}`, `Action selector references burnt-orange (${hit[0]}); action surfaces must use var(--cp-accent) (oxblood).`, {
+        source: body.trim().slice(0, 180),
+      }))
+    }
+  }
+
+  return findings
+}
+
+// Motion tokens (HANDOFF-MOTION-TOKENS MT-2): interactive-role surfaces must
+// spend the shared motion vocabulary, not hand-typed timing. A raw duration
+// literal (200ms, 0.2s) in a transition/animation declaration, or a raw
+// cubic-bezier() easing, on an interactive selector is a token-bypass and fails
+// the build. The fix is var(--cp-dur-press/hover/local/panel/max) for duration
+// and var(--cp-ease-out / --cp-ease-in-out / --cp-ease-exit / --cp-spring-ease)
+// for easing. Scoped to the SAME interactive-selector set as the accent audit:
+// narrative motion (WeaveSpinner and other @keyframes bodies, non-interactive
+// selectors) legitimately carries raw timing and must pass untouched. Keyframe
+// percentage blocks (0%, 100%) are captured as their own "selectors" by the
+// rule splitter and simply never match the interactive set, so they are skipped.
+function auditMotionTokens(files) {
+  const interactiveSelector =
+    /\.cp-btn-accent|\.cp-btn-primary|\.cp-capture-collapsed|\.cp-capture-plus|\.cp-inquiry-input|\.cp-inquiry-web-toggle|\.cp-drop-target|\.cp-dropzone-inner|\.cp-network-toggle|\.cp-frame-btn|\.cp-frame-item-btn|save-btn|add-save|retro-save|-slider|-thumb\b|-checkbox|\[data-active|\[data-checked|--focused\b|--on\b|:checked/
+  const findings = []
+  const rulePattern = /([^{}]+)\{([^{}]*)\}/g
+  const varPattern = /var\((?:[^()]|\([^()]*\))*\)/g
+  const durationDecl = /(?:^|[;{])\s*(transition|transition-duration|animation|animation-duration)\s*:\s*([^;}]*)/gi
+  const rawDuration = /\b\d*\.?\d+(?:ms|s)\b/
+  const rawEase = /cubic-bezier\s*\(/i
+
+  for (const file of files) {
+    if (!file.endsWith(".css")) continue
+    const rel = relative(file)
+    const stripped = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")
+    let match
+    while ((match = rulePattern.exec(stripped)) !== null) {
+      const selector = match[1].trim()
+      const body = match[2]
+      if (!interactiveSelector.test(selector)) continue
+
+      // Strip var(...) references first so token usage cannot be mistaken for a
+      // raw literal, then look for raw timing that bypassed the tokens.
+      const bodyNoVar = body.replace(varPattern, "")
+
+      let hit = null
+      durationDecl.lastIndex = 0
+      let decl
+      while ((decl = durationDecl.exec(bodyNoVar)) !== null) {
+        const durHit = decl[2].match(rawDuration)
+        if (durHit) {
+          hit = `raw duration ${durHit[0]} in ${decl[1]}`
+          break
+        }
+      }
+      if (!hit && rawEase.test(bodyNoVar)) hit = "raw cubic-bezier() easing"
+      if (!hit) continue
+
+      findings.push(finding("fail", "motion-tokens", `${rel} :: ${selector.slice(0, 70)}`, `Interactive selector uses ${hit}; motion on interactive roles must use tokens (var(--cp-dur-*) for duration, var(--cp-ease-*) for easing).`, {
         source: body.trim().slice(0, 180),
       }))
     }
