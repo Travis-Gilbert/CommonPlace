@@ -885,6 +885,7 @@ function PaneViewContent({
       <ComposeView
         prefillText={context?.prefillText as string | undefined}
         prefillType={context?.prefillType as string | undefined}
+        carrySessionId={typeof context?.carrySessionId === 'string' ? context.carrySessionId : null}
         onSaved={
           paneId && onOpenObject
             ? (objectId) => onOpenObject(paneId, objectId)

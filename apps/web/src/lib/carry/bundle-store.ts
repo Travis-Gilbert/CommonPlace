@@ -66,6 +66,9 @@ export interface SessionBundle {
   /** Ancestor bundle for Carry to Research lineage (C4.2), when this session
    *  was seeded from a prior one. */
   parentSessionId?: string;
+  /** Descendant sessions seeded from this one, for both-directions navigation
+   *  of the research lineage (C4.2). */
+  childSessionIds?: string[];
 }
 
 /** The append payload: everything about an item except the store-assigned id. */
@@ -224,7 +227,9 @@ export async function getCount(sessionId: string): Promise<number> {
 
 /**
  * Link a session's bundle to its ancestor (Carry to Research lineage, C4.2).
- * Idempotent; creates the child bundle if it does not exist yet.
+ * Bidirectional: records the parent on the child and the child on the parent, so
+ * the lineage is navigable both ways. Idempotent; creates either bundle if it
+ * does not exist yet.
  */
 export async function linkAncestor(
   sessionId: string,
@@ -238,6 +243,18 @@ export async function linkAncestor(
       : { sessionId, createdAt: at, updatedAt: at, items: [], parentSessionId };
     await writeBundle(bundle);
     notify(sessionId);
+  });
+  // Record the descendant on the parent (separate serialize chain, its own key).
+  await serialize(parentSessionId, async () => {
+    const parent = await readBundle(parentSessionId);
+    const at = nowMs();
+    const children = new Set(parent?.childSessionIds ?? []);
+    children.add(sessionId);
+    const bundle: SessionBundle = parent
+      ? { ...parent, childSessionIds: [...children], updatedAt: at }
+      : { sessionId: parentSessionId, createdAt: at, updatedAt: at, items: [], childSessionIds: [...children] };
+    await writeBundle(bundle);
+    notify(parentSessionId);
   });
 }
 

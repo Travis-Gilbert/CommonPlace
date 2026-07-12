@@ -6,9 +6,10 @@ import type { ViewType } from '@/lib/commonplace';
 import type { PaneNode } from '@/lib/commonplace-layout';
 import { useLayout } from '@/lib/providers/layout-provider';
 
-import { getBundle } from './bundle-store';
+import { getBundle, linkAncestor } from './bundle-store';
 import { CARRY_DESTINATION_LABEL, type CarryDestination, type CarryReceipt } from './carry';
 import { compileBundle } from './compile';
+import { deriveResearchQuery } from './seed-research';
 import { appendRailEntry } from './session-rail';
 
 /** Each carry destination maps to the product view that hosts it. */
@@ -91,6 +92,24 @@ export function useCarry(sessionId: string | null): {
         if (destination === 'write') {
           const slug = openProjectSlug(layout);
           if (slug) context.slug = slug;
+        } else if (destination === 'research') {
+          // Seed a new research session from the bundle's entities and open
+          // questions (C4.1). The new session accumulates its own bundle (C4.3),
+          // linked both ways to the carried one (C4.2).
+          const researchSession = `research-${carryId()}`;
+          await linkAncestor(researchSession, sessionId);
+          context.prefillText = deriveResearchQuery(packet);
+          context.carrySessionId = researchSession;
+          context.ancestorSessionId = sessionId;
+          await appendRailEntry(sessionId, {
+            kind: 'destination',
+            summary: `Seeded Research from ${receipt.itemCount} ${receipt.itemCount === 1 ? 'source' : 'sources'}`,
+            receipt: {
+              researchSession,
+              ancestorSessionId: sessionId,
+              query: context.prefillText,
+            },
+          });
         }
         launchView(DESTINATION_VIEW[destination], context);
 
