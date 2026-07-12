@@ -44,6 +44,7 @@ use crate::organize::{
     OrganizeItem, OrganizeSnapshot, OrganizedToday, Subtask, Timeframe,
 };
 use crate::portability::{self, ExportDocument};
+use crate::publish;
 use crate::retrieve::{
     answer_from_provenance, retrieve_grounding, AnswerKind, AnswerModel, AskConfig, AskResult,
     NoModel, RetrievedItem,
@@ -1747,6 +1748,45 @@ where
         };
         Ok(output)
     }
+
+    /// Resolve a published block by its stable alias for the public host
+    /// (HANDOFF-PUBLISH D2/D3). The API key is the trusted-caller gate; `viewer`
+    /// is the signed-in visitor's principal id, used only for private grants.
+    /// Returns a designed status (`ok`/`gone`/`forbidden`/`not_found`).
+    async fn published_block(
+        &self,
+        ctx: &Context<'_>,
+        alias: String,
+        #[graphql(desc = "Signed-in visitor principal id, for private grants.")] viewer: Option<
+            String,
+        >,
+        #[graphql(desc = "Count this resolution as a view (owner counter).")] count_view: Option<
+            bool,
+        >,
+    ) -> Result<publish::PublishResolution> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::resolve_alias_status(
+            &mut cp,
+            &alias,
+            viewer.as_deref(),
+            count_view.unwrap_or(true),
+        ))
+    }
+
+    /// Resolve a permanent, version-addressed block by its content hash. A
+    /// version URL that was ever public resolves forever (HANDOFF-PUBLISH D1).
+    async fn published_block_version(
+        &self,
+        ctx: &Context<'_>,
+        version_hash: String,
+    ) -> Result<Option<publish::PublishedBlock>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::resolve_version(&cp, &version_hash).ok())
+    }
 }
 
 /// Consumer write API.
@@ -2319,6 +2359,72 @@ where
             imported: summary.items as i32,
             collections: summary.collections as i32,
         })
+    }
+
+    /// Publish (or re-publish) an artifact to a live URL (HANDOFF-PUBLISH D1).
+    /// Runs the L1 shape floor; on refusal the outcome carries the conformance
+    /// result rather than erroring, so the publish moment can name the failure.
+    async fn publish(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The origin artifact item id to publish.")] origin_id: String,
+        #[graphql(desc = "Visibility: PUBLIC, UNLISTED (default), or PRIVATE.")] visibility: Option<
+            publish::Visibility,
+        >,
+    ) -> Result<publish::PublishOutcome> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::publish_block_outcome(
+            &mut cp,
+            &origin_id,
+            visibility.unwrap_or(publish::Visibility::Unlisted),
+            &principal.id,
+        ))
+    }
+
+    /// Unpublish by alias: the alias returns the designed gone state; the block
+    /// survives in the graph (HANDOFF-PUBLISH D1).
+    async fn unpublish(&self, ctx: &Context<'_>, alias: String) -> Result<bool> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        publish::unpublish_block(&mut cp, &alias)
+            .map_err(|_| Error::new("published block not found"))?;
+        Ok(true)
+    }
+
+    /// Change a published block's visibility; takes effect on next request
+    /// (HANDOFF-PUBLISH D3).
+    async fn set_block_visibility(
+        &self,
+        ctx: &Context<'_>,
+        alias: String,
+        visibility: publish::Visibility,
+    ) -> Result<bool> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        publish::set_visibility(&mut cp, &alias, visibility)
+            .map_err(|_| Error::new("published block not found"))?;
+        Ok(true)
+    }
+
+    /// The doorway: reference (or fork) a published block into the caller's
+    /// space, with origin provenance (HANDOFF-PUBLISH D5). Returns the new item id.
+    async fn reference_block(
+        &self,
+        ctx: &Context<'_>,
+        alias: String,
+        #[graphql(desc = "Make an owned divergent copy instead of a reference.")] fork: Option<
+            bool,
+        >,
+    ) -> Result<String> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        publish::reference_block(&mut cp, &alias, &principal.id, fork.unwrap_or(false))
+            .map_err(|_| Error::new("published block not found"))
     }
 }
 

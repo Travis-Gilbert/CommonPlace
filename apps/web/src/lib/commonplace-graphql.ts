@@ -1447,3 +1447,154 @@ export async function gqlOrganize(
   );
   return data.organize;
 }
+
+/* ─────────────────────────────────────────────────
+   Publish pipeline (HANDOFF-PUBLISH). A published artifact is a block
+   hosted at /p/<alias>; these talk to the commonplace-api publish resolvers.
+   ───────────────────────────────────────────────── */
+
+export type PublishVisibility = 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+
+export interface ConformanceCheckGql {
+  level: string;
+  name: string;
+  passed: boolean;
+  detail: string;
+}
+export interface ConformanceReportGql {
+  level: string;
+  passed: boolean;
+  checks: ConformanceCheckGql[];
+}
+/** Ed25519 attestation over a block's content identity (HANDOFF-PUBLISH FD-P1). */
+export interface BlockAttestationGql {
+  algorithm: string;
+  /** 'tenant' (trust rooted) or 'dev' (valid but not trust rooted). */
+  signingMode: string;
+  publicKeyHex: string;
+  signatureHex: string;
+  message: string;
+}
+export interface PublishedBlockGql {
+  blockId: string;
+  alias: string;
+  originId: string;
+  shapeId: string;
+  title: string;
+  payload: unknown;
+  versionHash: string;
+  visibility: PublishVisibility;
+  state: string;
+  viewCount: number;
+  conformance: ConformanceReportGql;
+  attestation: BlockAttestationGql | null;
+  signatureVerified: boolean;
+}
+export interface PublishResolutionGql {
+  status: 'ok' | 'gone' | 'forbidden' | 'not_found';
+  block: PublishedBlockGql | null;
+}
+export interface PublishReceiptGql {
+  url: string;
+  alias: string;
+  blockId: string;
+  versionHash: string;
+  shapeId: string;
+  visibility: PublishVisibility;
+  conformance: ConformanceReportGql;
+  attestation: BlockAttestationGql | null;
+}
+export interface PublishOutcomeGql {
+  ok: boolean;
+  receipt: PublishReceiptGql | null;
+  conformance: ConformanceReportGql;
+  error: string | null;
+}
+
+const ATTESTATION_FIELDS = `attestation { algorithm signingMode publicKeyHex signatureHex message }`;
+const PUBLISHED_BLOCK_FIELDS = `
+  blockId alias originId shapeId title payload versionHash visibility state viewCount
+  conformance { level passed checks { level name passed detail } }
+  signatureVerified ${ATTESTATION_FIELDS}
+`;
+const PUBLISH_RECEIPT_FIELDS = `
+  url alias blockId versionHash shapeId visibility
+  conformance { level passed checks { level name passed detail } }
+  ${ATTESTATION_FIELDS}
+`;
+
+/** Resolve a published block by alias for the public host. Returns the designed
+ *  status (ok / gone / forbidden / not_found) so the page renders the right state. */
+export async function gqlPublishedBlock(
+  alias: string,
+  viewer?: string | null,
+  countView = true,
+): Promise<PublishResolutionGql> {
+  return gqlRead<{ publishedBlock: PublishResolutionGql }>(
+    `query($alias:String!,$viewer:String,$countView:Boolean){
+       publishedBlock(alias:$alias, viewer:$viewer, countView:$countView){
+         status block { ${PUBLISHED_BLOCK_FIELDS} }
+       }
+     }`,
+    { alias, viewer: viewer ?? null, countView },
+    { publishedBlock: { status: 'not_found', block: null } },
+  ).then((d) => d.publishedBlock);
+}
+
+/** Resolve a permanent version-addressed block by content hash. */
+export async function gqlPublishedBlockVersion(
+  versionHash: string,
+): Promise<PublishedBlockGql | null> {
+  return gqlRead<{ publishedBlockVersion: PublishedBlockGql | null }>(
+    `query($h:String!){ publishedBlockVersion(versionHash:$h){ ${PUBLISHED_BLOCK_FIELDS} } }`,
+    { h: versionHash },
+    { publishedBlockVersion: null },
+  ).then((d) => d.publishedBlockVersion);
+}
+
+/** Publish (or re-publish) an artifact. Never throws on refusal: inspect ok. */
+export async function gqlPublish(
+  originId: string,
+  visibility: PublishVisibility = 'UNLISTED',
+): Promise<PublishOutcomeGql> {
+  const data = await gql<{ publish: PublishOutcomeGql }>(
+    `mutation($originId:String!,$visibility:Visibility){
+       publish(originId:$originId, visibility:$visibility){
+         ok error receipt { ${PUBLISH_RECEIPT_FIELDS} }
+         conformance { level passed checks { level name passed detail } }
+       }
+     }`,
+    { originId, visibility },
+  );
+  return data.publish;
+}
+
+/** Unpublish by alias. The alias returns the designed gone state afterward. */
+export async function gqlUnpublish(alias: string): Promise<boolean> {
+  const data = await gql<{ unpublish: boolean }>(
+    `mutation($alias:String!){ unpublish(alias:$alias) }`,
+    { alias },
+  );
+  return data.unpublish;
+}
+
+/** Change a published block's visibility; effective on next request. */
+export async function gqlSetBlockVisibility(
+  alias: string,
+  visibility: PublishVisibility,
+): Promise<boolean> {
+  const data = await gql<{ setBlockVisibility: boolean }>(
+    `mutation($alias:String!,$visibility:Visibility!){ setBlockVisibility(alias:$alias, visibility:$visibility) }`,
+    { alias, visibility },
+  );
+  return data.setBlockVisibility;
+}
+
+/** The doorway: reference (or fork) a published block into the caller's space. */
+export async function gqlReferenceBlock(alias: string, fork = false): Promise<string> {
+  const data = await gql<{ referenceBlock: string }>(
+    `mutation($alias:String!,$fork:Boolean){ referenceBlock(alias:$alias, fork:$fork) }`,
+    { alias, fork },
+  );
+  return data.referenceBlock;
+}
