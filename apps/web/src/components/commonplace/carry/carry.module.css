@@ -1,0 +1,88 @@
+/* Carry affordance (HANDOFF-CARRY C1.3). Gold register, quiet by default: a
+   small count chip in the session chrome that opens the three destinations. */
+
+.carry {
+  position: relative;
+  display: inline-flex;
+}
+
+.carryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--cp-gold, #c49a4a) 40%, transparent);
+  background: color-mix(in oklab, var(--cp-gold, #c49a4a) 12%, transparent);
+  color: var(--cp-ink, #2c2722);
+  font-family: var(--cp-font-mono, ui-monospace, monospace);
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.carryChip:hover {
+  background: color-mix(in oklab, var(--cp-gold, #c49a4a) 20%, transparent);
+}
+
+.carryDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--cp-gold, #c49a4a);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--cp-gold, #c49a4a) 22%, transparent);
+}
+
+.carryCount {
+  min-width: 1.1rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--cp-gold, #c49a4a);
+  color: var(--cp-paper, #f7f0e6);
+  text-align: center;
+  font-weight: 600;
+}
+
+.carryMenu {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.12));
+  background: var(--cp-surface, #fbf6ec);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  z-index: 40;
+}
+
+.carryMenuLabel {
+  padding: 0.25rem 0.5rem;
+  color: var(--cp-ink-soft, #6b6459);
+  font-family: var(--cp-font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.carryDestination {
+  display: flex;
+  align-items: center;
+  padding: 0.45rem 0.5rem;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--cp-ink, #2c2722);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.carryDestination:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--cp-oxblood, #7a2733) 10%, transparent);
+}
+.carryDestination:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
