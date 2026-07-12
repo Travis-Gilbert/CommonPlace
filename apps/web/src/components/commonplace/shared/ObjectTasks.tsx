@@ -2,8 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { Reorder } from 'framer-motion';
+import { toast } from 'sonner';
 import type { ApiComponent } from '@/lib/commonplace';
 import { patchComponent, createObjectComponent, deleteComponent } from '@/lib/commonplace-api';
+import { runOptimistic, undoableDelete } from '@/lib/commonplace-optimistic';
 
 /* ─────────────────────────────────────────────────
    Task value shape stored in component.value (JSON string)
@@ -197,35 +199,41 @@ export default function ObjectTasks({
   const [showAddForm, setShowAddForm] = useState(false);
 
   const handleToggle = useCallback(
-    async (comp: ApiComponent) => {
+    (comp: ApiComponent) => {
       const task = parseTask(comp);
-      const updated: TaskValue = { ...task, completed: !task.completed };
-      const newValue = JSON.stringify(updated);
-
-      // Optimistic update
-      onComponentsChange(
-        components.map((c) => (c.id === comp.id ? { ...c, value: newValue } : c)),
-      );
-
-      try {
-        await patchComponent(comp.id, { value: newValue });
-      } catch {
-        // Revert on failure
-        onComponentsChange(components);
-      }
+      const newValue = JSON.stringify({ ...task, completed: !task.completed });
+      // Apply the toggle in the same frame; roll back to exact prior state with a
+      // reason if the server rejects it (SPEC-UX-PHYSICS D3).
+      void runOptimistic<ApiComponent[]>({
+        applyLocal: () => {
+          const prior = components;
+          onComponentsChange(components.map((c) => (c.id === comp.id ? { ...c, value: newValue } : c)));
+          return prior;
+        },
+        commit: () => patchComponent(comp.id, { value: newValue }),
+        rollback: (prior) => onComponentsChange(prior),
+        onError: () => toast.error('Could not save the task. Restored the previous state.'),
+      });
     },
     [components, onComponentsChange],
   );
 
   const handleDelete = useCallback(
-    async (comp: ApiComponent) => {
-      // Optimistic remove
-      onComponentsChange(components.filter((c) => c.id !== comp.id));
-      try {
-        await deleteComponent(comp.id);
-      } catch {
-        onComponentsChange(components);
-      }
+    (comp: ApiComponent) => {
+      // Destructive: the row leaves at once and an undo toast appears. The server
+      // delete is deferred to the end of the window, so undo never touches it and
+      // restores exact prior state (UX-D3.3, undo over confirm).
+      undoableDelete<ApiComponent[]>({
+        message: 'Task deleted',
+        applyLocal: () => {
+          const prior = components;
+          onComponentsChange(components.filter((c) => c.id !== comp.id));
+          return prior;
+        },
+        rollback: (prior) => onComponentsChange(prior),
+        commit: () => deleteComponent(comp.id),
+        onCommitError: () => toast.error('Could not delete the task. Restored it.'),
+      });
     },
     [components, onComponentsChange],
   );
@@ -264,6 +272,7 @@ export default function ObjectTasks({
         ]);
       } catch {
         onComponentsChange(components.filter((c) => c.id !== tempId));
+        toast.error('Could not add the task. Removed it.');
       }
     },
     [objectId, components, taskComponents.length, onComponentsChange],

@@ -2,12 +2,14 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import {
   useApiData,
   fetchPromotionQueue,
   submitReviewAction,
   fetchFeedbackStats,
 } from '@/lib/commonplace-api';
+import { runOptimistic } from '@/lib/commonplace-optimistic';
 import { useCapture } from '@/lib/providers/capture-provider';
 import { useLayout } from '@/lib/providers/layout-provider';
 import type { ApiPromotionItem } from '@/lib/commonplace';
@@ -68,29 +70,31 @@ export default function PromotionQueueView() {
   );
 
   const handleReview = useCallback(
-    async (itemId: number, action: 'accept' | 'reject') => {
-      try {
-        await submitReviewAction({ promotion_item_id: itemId, action_type: action });
-        setReviewedIds((prev) => new Set(prev).add(itemId));
-      } catch {
-        // Silently fail; user can retry
-      }
+    (itemId: number, action: 'accept' | 'reject') => {
+      // Dismiss the item in the same frame; if the server rejects the decision,
+      // return just that item to the queue with a reason (SPEC-UX-PHYSICS D3).
+      void runOptimistic<void>({
+        applyLocal: () => setReviewedIds((prev) => new Set(prev).add(itemId)),
+        commit: () => submitReviewAction({ promotion_item_id: itemId, action_type: action }),
+        rollback: () =>
+          setReviewedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(itemId);
+            return next;
+          }),
+        onError: () => toast.error(`Could not ${action} the item. Returned it to the queue.`),
+      });
     },
     [],
   );
 
   const handleBatchAction = useCallback(
-    async (action: 'accept' | 'reject') => {
-      for (const item of filteredItems) {
-        try {
-          await submitReviewAction({ promotion_item_id: item.id, action_type: action });
-          setReviewedIds((prev) => new Set(prev).add(item.id));
-        } catch {
-          break;
-        }
-      }
+    (action: 'accept' | 'reject') => {
+      // Each item dismisses optimistically and rolls back on its own failure, so
+      // one server rejection does not strand the rest of the batch.
+      for (const item of filteredItems) handleReview(item.id, action);
     },
-    [filteredItems],
+    [filteredItems, handleReview],
   );
 
   if (loading) {

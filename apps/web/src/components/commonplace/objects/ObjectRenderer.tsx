@@ -5,6 +5,7 @@ import PinnedBadge from './PinnedBadge';
 import StatusBadge from './StatusBadge';
 import SignalPips from './SignalPips';
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { createPin } from '@/lib/commonplace-api';
 import { useWorkspace } from '@/lib/providers/workspace-provider';
 import RoughBorder from '../shared/RoughBorder';
@@ -152,9 +153,15 @@ export default function ObjectRenderer(props: ObjectCardProps) {
       try {
         const data = JSON.parse(raw) as { slug: string };
         if (data.slug === props.object.slug) return;
+        // Optimistic hook for a parent that holds pins in local state; the pin
+        // itself commits below. A failure surfaces a reason (SPEC-UX-PHYSICS D3)
+        // rather than failing silently; the pinned list revalidates on refetch.
         props.onPinCreated?.(props.object.slug, data.slug);
         await createPin(props.object.slug, { target_slug: data.slug });
-      } catch { /* API error: parent view should refetch */ }
+      } catch (err) {
+        if (err instanceof SyntaxError) return; // not a valid pin payload
+        toast.error('Could not pin that. Nothing was changed.');
+      }
     },
     [props],
   );
