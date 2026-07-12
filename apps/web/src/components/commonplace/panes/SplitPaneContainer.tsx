@@ -739,7 +739,11 @@ function PaneViewContent({
 
   /* Code workspace: CommonPlace-native harness absorption surface */
   if (viewType === 'code') {
-    return <CodeWorkspaceView />;
+    return (
+      <CodeWorkspaceView
+        carrySessionId={typeof context?.carrySessionId === 'string' ? context.carrySessionId : null}
+      />
+    );
   }
 
   /* Timeline (3D with 2D fallback) */
