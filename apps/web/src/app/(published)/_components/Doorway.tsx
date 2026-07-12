@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { gqlReferenceBlock } from '@/lib/commonplace-graphql';
 import styles from '../published.module.css';
@@ -8,9 +8,11 @@ import styles from '../published.module.css';
 /**
  * The doorway (HANDOFF-PUBLISH D5): every published page carries an Open in
  * CommonPlace action. Signed-in visitors get the block referenced into their
- * space with origin provenance (not a silent copy). Signed-out visitors are sent
- * to sign-in and return here. Fork (an owned divergent copy) rides the same
- * action where the Grant permits it, labeled distinctly.
+ * space with origin provenance (not a silent copy, P5.1). Signed-out visitors
+ * are sent to sign in; the intent rides through the auth return URL so the block
+ * resolves immediately when they come back, without a second click (P5.2). Fork
+ * (an owned divergent copy) rides the same action where the Grant permits it,
+ * labeled distinctly, and is hidden where the Grant forbids it (P5.3).
  */
 export function Doorway({
   alias,
@@ -25,24 +27,41 @@ export function Doorway({
   const [done, setDone] = useState<{ id: string; fork: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const returnTo = `/p/${alias}`;
+  const act = useCallback(
+    async (fork: boolean) => {
+      if (!signedIn) {
+        // Carry the intent through the auth round trip (P5.2): the block
+        // resolves immediately on return.
+        const returnTo = `/p/${alias}?carry=${fork ? 'fork' : 'reference'}`;
+        window.location.href = `/api/auth/signin?callbackUrl=${encodeURIComponent(returnTo)}`;
+        return;
+      }
+      setError(null);
+      setPending(fork ? 'fork' : 'reference');
+      try {
+        const id = await gqlReferenceBlock(alias, fork);
+        setDone({ id, fork });
+      } catch {
+        setError('Could not open this in CommonPlace. Please try again.');
+      } finally {
+        setPending(null);
+      }
+    },
+    [alias, signedIn],
+  );
 
-  async function act(fork: boolean) {
-    if (!signedIn) {
-      window.location.href = `/api/auth/signin?callbackUrl=${encodeURIComponent(returnTo)}`;
-      return;
-    }
-    setError(null);
-    setPending(fork ? 'fork' : 'reference');
-    try {
-      const id = await gqlReferenceBlock(alias, fork);
-      setDone({ id, fork });
-    } catch {
-      setError('Could not open this in CommonPlace. Please try again.');
-    } finally {
-      setPending(null);
-    }
-  }
+  // On return from sign-in, complete the carried intent once, then clean the URL
+  // so a refresh does not re-carry (P5.2).
+  useEffect(() => {
+    if (!signedIn || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const carry = params.get('carry');
+    if (carry !== 'reference' && carry !== 'fork') return;
+    params.delete('carry');
+    const clean = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    window.history.replaceState(null, '', clean);
+    void act(carry === 'fork');
+  }, [signedIn, act]);
 
   if (done) {
     return (
