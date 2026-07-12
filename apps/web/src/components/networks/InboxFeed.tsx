@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import CaptureBar from './CaptureBar';
 import NodeCard from './NodeCard';
 import QuickFilterPills from './QuickFilterPills';
@@ -14,6 +15,11 @@ import type { NodeListItem } from '@/lib/networks';
  * Composes: CaptureBar (top), QuickFilterPills (below), and a grid of
  * NodeCards. Fetches nodes client-side with the active filter applied.
  */
+/* Above this row count the feed windows itself: only the rows near the viewport
+   mount, so a 10k-node inbox scrolls at a steady frame rate with flat memory.
+   Shorter feeds keep the plain grid so nothing about their layout changes. */
+const VIRTUALIZE_THRESHOLD = 60;
+
 export default function InboxFeed({ compactMobile = false }: { compactMobile?: boolean }) {
   const [nodes, setNodes] = useState<NodeListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,6 +111,8 @@ export default function InboxFeed({ compactMobile = false }: { compactMobile?: b
         </div>
       ) : nodes.length === 0 ? (
         <EmptyState activeFilter={activeFilter} />
+      ) : nodes.length > VIRTUALIZE_THRESHOLD ? (
+        <VirtualizedNodeFeed nodes={nodes} />
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {nodes.map((node) => (
@@ -112,6 +120,63 @@ export default function InboxFeed({ compactMobile = false }: { compactMobile?: b
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────
+   Virtualized feed (windowed for long node lists)
+   ───────────────────────────────────────────────── */
+
+/**
+ * Windowed node feed. Mirrors the studio ContentList idiom: a bounded
+ * scroll parent, a spacer sized to the full list, and absolutely positioned
+ * rows offset by virtualRow.start. measureElement handles the variable card
+ * height; the 12px bottom padding on each row preserves the grid gap.
+ */
+function VirtualizedNodeFeed({ nodes }: { nodes: NodeListItem[] }) {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: nodes.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 84,
+    overscan: 8,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+    >
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const node = nodes[virtualRow.index];
+          return (
+            <div
+              key={node.id}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+                paddingBottom: 12,
+              }}
+            >
+              <NodeCard node={node} />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
