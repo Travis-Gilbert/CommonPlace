@@ -1,0 +1,9 @@
+[
+  {
+    "name": "CommonPlace shared first-load JS (gzip, budget UX-D7.2)",
+    "path": ".next/static/chunks/*.js",
+    "limit": "1500 kB",
+    "gzip": true,
+    "running": false
+  }
+]
