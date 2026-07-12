@@ -78,7 +78,7 @@ export default function ObjectDetailView({
     loading,
     error,
     refetch,
-  } = useApiData(() => fetchObjectById(objectRef), [objectRef]);
+  } = useApiData(() => fetchObjectById(objectRef), [objectRef], { cacheKey: `object:${objectRef}` });
 
   /* Derive type identity from API data */
   const typeIdentity = useMemo(() => {

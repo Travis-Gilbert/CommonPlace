@@ -105,7 +105,9 @@ function Empty({ children }: { children: React.ReactNode }) {
 /* ------------------------------------------------------------------------- */
 
 export default function WorkroomsPage() {
-  const { data, loading, error, refetch } = useApiData(() => fetchControlCenterState(), []);
+  const { data, loading, error, refetch } = useApiData(() => fetchControlCenterState(), [], {
+    cacheKey: 'v2:workrooms',
+  });
   const [section, setSection] = useState<SectionId>('workrooms');
   const [busy, setBusy] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);

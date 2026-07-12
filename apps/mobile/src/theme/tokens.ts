@@ -168,9 +168,24 @@ export const motion = {
   fast: 100,
   base: 150,
   slow: 250,
-  // web --cp-spring-ease / --cp-ease-out parity
+  // Motion scale (HANDOFF-MOTION-TOKENS): mirrors web --cp-dur-* / --cp-ease-* in
+  // apps/web/src/styles/commonplace-tokens.css. Durations in ms. Press feedback fires
+  // on pointer-down (onPressIn) as a state change; the rest tween.
+  durPress: 90,
+  durHover: 120,
+  durLocal: 200,
+  durPanel: 280,
+  durMax: 400,
+  // easeOut was redefined per the handoff. Old value: [0.16, 1, 0.3, 1].
+  easeOut: [0.2, 0, 0, 1] as const,
+  easeInOut: [0.45, 0, 0.55, 1] as const,
+  easeExit: [0.3, 0, 1, 1] as const,
+  // CSS proxy for spring-snappy (the real springs live in theme/springs.ts).
   springEase: [0.34, 1.56, 0.64, 1] as const,
-  easeOut: [0.16, 1, 0.3, 1] as const,
+  // Transform vocabulary: hover lifts, press compresses, entering rises then fades.
+  hoverLift: -1,
+  pressScale: 0.98,
+  enterRise: 8,
 } as const;
 
 /** The single contact shadow (light mode only; dark mode elevates by tone). */

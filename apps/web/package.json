@@ -25,7 +25,9 @@
     "export-icons": "node scripts/export-icons.mjs",
     "postbuild": "pagefind",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "size": "size-limit"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.12.25",
@@ -195,6 +197,7 @@
     "vega": "^6.2.0",
     "vega-embed": "^7.1.0",
     "vega-lite": "^6.4.2",
+    "web-vitals": "^4.2.4",
     "y-codemirror.next": "^0.3.5",
     "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.7",
@@ -236,6 +239,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
+    "@playwright/test": "^1.49.0",
+    "@size-limit/preset-app": "^11.2.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
@@ -248,6 +253,7 @@
     "firecrawl-cli": "^1.12.2",
     "graphology-types": "^0.24.8",
     "pagefind": "^1.5.2",
+    "size-limit": "^11.2.0",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",

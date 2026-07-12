@@ -34,6 +34,7 @@ export default function ScopedTimelinePanel({
   const { data: nodes, loading, error, refetch } = useApiData(
     () => fetchFeed({ per_page: 50, notebook, project }),
     [notebook, project],
+    { cacheKey: `timeline:scoped:${notebook ?? ''}:${project ?? ''}` },
   );
 
   const dateGroups = useMemo(

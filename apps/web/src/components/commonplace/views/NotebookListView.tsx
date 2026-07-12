@@ -10,6 +10,9 @@
 import { useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { fetchNotebooks, createNotebook, useApiData } from '@/lib/commonplace-api';
+import { deriveViewState, hasData } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 import type { ApiNotebookListItem } from '@/lib/commonplace';
 import { useLayout } from '@/lib/providers/layout-provider';
 import FeaturedBook from './notebook-shelf/FeaturedBook';
@@ -52,6 +55,7 @@ export default function NotebookListView() {
   const { data: notebooks, loading, error, refetch } = useApiData(
     () => fetchNotebooks(),
     [],
+    { cacheKey: 'notebooks:list' },
   );
   const { launchView } = useLayout();
   const [showCreate, setShowCreate] = useState(false);
@@ -99,47 +103,16 @@ export default function NotebookListView() {
 
   const groups = useMemo(() => groupNotebooks(unpinned), [unpinned]);
 
-  /* Loading */
-  if (loading) {
-    return (
-      <div className="cp-bookshelf cp-scrollbar">
-        <header className="cp-bookshelf-header">
-          <h2>Notebooks</h2>
-        </header>
-        <div className="cp-bookshelf-skeleton-featured">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="cp-bookshelf-skeleton-card">
-              <div className="cp-bookshelf-skeleton-book cp-loading-skeleton" />
-            </div>
-          ))}
-        </div>
-        <div className="cp-bookshelf-skeleton-shelf">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="cp-bookshelf-skeleton-spine cp-loading-skeleton" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  /* Error */
-  if (error) {
-    return (
-      <div className="cp-bookshelf">
-        <header className="cp-bookshelf-header">
-          <h2>Notebooks</h2>
-        </header>
-        <div className="cp-error-banner" style={{ margin: '0 0 20px' }}>
-          <p>
-            {error.isNetworkError
-              ? 'Could not reach CommonPlace API.'
-              : `Error: ${error.message}`}
-          </p>
-          <button type="button" onClick={refetch}>Retry</button>
-        </div>
-      </div>
-    );
-  }
+  /* Five-state discipline (SPEC-UX-PHYSICS D4): the notebook list read resolves
+     through ViewStateView. The header persists across every state; the empty slot
+     keeps the create-first-notebook affordance. */
+  const state = deriveViewState<ApiNotebookListItem[]>({
+    data: notebooks,
+    loading,
+    error: error ? (error.isNetworkError ? 'Could not reach CommonPlace API.' : `Error: ${error.message}`) : null,
+    retry: refetch,
+    isEmpty: (n) => n.length === 0,
+  });
 
   const createForm = (
     <div className="cp-bookshelf-create-form">
@@ -200,87 +173,104 @@ export default function NotebookListView() {
     </div>
   );
 
-  /* Empty */
-  if (items.length === 0) {
-    return (
-      <div className="cp-bookshelf">
-        <header className="cp-bookshelf-header">
-          <h2>Notebooks</h2>
-        </header>
-        {showCreate ? createForm : (
-          <div className="cp-empty-state">
-            <p>No notebooks yet.</p>
-            <button
-              type="button"
-              className="cp-btn-accent"
-              onClick={() => setShowCreate(true)}
-              style={{ marginTop: 8 }}
-            >
-              <span className="cp-btn-accent-dot" />
-              Create your first notebook
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="cp-bookshelf cp-scrollbar">
       <header className="cp-bookshelf-header">
         <h2>Notebooks</h2>
-        <span>{items.length} volumes</span>
+        {hasData(state) && items.length > 0 && <span>{items.length} volumes</span>}
       </header>
 
-      {showCreate && createForm}
-
-      {/* Featured section (pinned or top 3 by object count) */}
-      {pinned.length > 0 && (
-        <section className="cp-bookshelf-featured-section">
-          <div className="cp-bookshelf-section-label">Pinned</div>
-          <div className="cp-bookshelf-featured-grid">
-            {pinned.map((nb) => (
-              <FeaturedBook
-                key={nb.id}
-                notebook={nb}
-                onClick={handleOpen}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Shelf sections (grouped) */}
-      {groups.map((group) => (
-        <section key={group.label} className="cp-bookshelf-section">
-          <div className="cp-bookshelf-section-label">{group.label}</div>
-          <div className="cp-bookshelf-grid-container">
-            <div className="cp-bookshelf-grid">
-              {group.notebooks.map((nb) => (
-                <ShelfBook
-                  key={nb.id}
-                  notebook={nb}
-                  onClick={handleOpen}
-                />
+      <ViewStateView
+        state={state}
+        label="notebooks"
+        narration={narrationFor('searching', 0)}
+        skeleton={
+          <>
+            <div className="cp-bookshelf-skeleton-featured">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="cp-bookshelf-skeleton-card">
+                  <div className="cp-bookshelf-skeleton-book cp-loading-skeleton" />
+                </div>
               ))}
-              {!showCreate && (
-                <AddBookButton onClick={() => setShowCreate(true)} />
-              )}
             </div>
-          </div>
-        </section>
-      ))}
+            <div className="cp-bookshelf-skeleton-shelf">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="cp-bookshelf-skeleton-spine cp-loading-skeleton" />
+              ))}
+            </div>
+          </>
+        }
+        empty={
+          showCreate ? createForm : (
+            <div className="cp-empty-state">
+              <p>No notebooks yet.</p>
+              <button
+                type="button"
+                className="cp-btn-accent"
+                onClick={() => setShowCreate(true)}
+                style={{ marginTop: 8 }}
+              >
+                <span className="cp-btn-accent-dot" />
+                Create your first notebook
+              </button>
+            </div>
+          )
+        }
+      >
+        {() => (
+          <>
+            {showCreate && createForm}
 
-      {/* If no groups remain (all notebooks are pinned), show a standalone add button */}
-      {groups.length === 0 && !showCreate && (
-        <section className="cp-bookshelf-section">
-          <div className="cp-bookshelf-grid-container">
-            <div className="cp-bookshelf-grid">
-              <AddBookButton onClick={() => setShowCreate(true)} />
-            </div>
-          </div>
-        </section>
-      )}
+            {/* Featured section (pinned or top 3 by object count) */}
+            {pinned.length > 0 && (
+              <section className="cp-bookshelf-featured-section">
+                <div className="cp-bookshelf-section-label">Pinned</div>
+                <div className="cp-bookshelf-featured-grid">
+                  {pinned.map((nb) => (
+                    <FeaturedBook
+                      key={nb.id}
+                      notebook={nb}
+                      onClick={handleOpen}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Shelf sections (grouped) */}
+            {groups.map((group) => (
+              <section key={group.label} className="cp-bookshelf-section">
+                <div className="cp-bookshelf-section-label">{group.label}</div>
+                <div className="cp-bookshelf-grid-container">
+                  <div className="cp-bookshelf-grid">
+                    {group.notebooks.map((nb) => (
+                      <ShelfBook
+                        key={nb.id}
+                        notebook={nb}
+                        onClick={handleOpen}
+                      />
+                    ))}
+                    {!showCreate && (
+                      <AddBookButton onClick={() => setShowCreate(true)} />
+                    )}
+                  </div>
+                </div>
+              </section>
+            ))}
+
+            {/* If no groups remain (all notebooks are pinned), show a standalone add button */}
+            {groups.length === 0 && !showCreate && (
+              <section className="cp-bookshelf-section">
+                <div className="cp-bookshelf-grid-container">
+                  <div className="cp-bookshelf-grid">
+                    <AddBookButton onClick={() => setShowCreate(true)} />
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </ViewStateView>
     </div>
   );
 }

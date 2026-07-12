@@ -14,6 +14,9 @@
 
 import { useState, useMemo } from 'react';
 import { fetchGraph, useApiData } from '@/lib/commonplace-api';
+import { deriveViewState, hasData } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 import { getObjectTypeIdentity } from '@/lib/commonplace';
 import type { GraphNode } from '@/lib/commonplace';
 import { useDrawer } from '@/lib/providers/drawer-provider';
@@ -37,6 +40,7 @@ export default function LooseEndsView({ onOpenObject }: LooseEndsViewProps) {
   const { data: graphData, loading, error, refetch } = useApiData(
     () => fetchGraph(),
     [],
+    { cacheKey: 'looseEnds:graph' },
   );
 
   const threshold = thresholdKey === 'orphaned' ? 0 : 1;
@@ -65,113 +69,106 @@ export default function LooseEndsView({ onOpenObject }: LooseEndsViewProps) {
     return { groups: sorted, totalCount: looseNodes.length };
   }, [graphData, threshold]);
 
-  /* ── Loading state ── */
-  if (loading) {
-    return (
-      <div className="cp-loose-ends-view cp-scrollbar">
-        <div className="cp-loose-ends-header">
-          <h2 className="cp-loose-ends-title">Loose Ends</h2>
-        </div>
-        <div style={{ padding: '0 16px' }}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="cp-loading-skeleton"
-              style={{ width: '100%', height: 56, borderRadius: 8, marginBottom: 8 }}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Error state ── */
-  if (error) {
-    return (
-      <div className="cp-loose-ends-view">
-        <div className="cp-loose-ends-header">
-          <h2 className="cp-loose-ends-title">Loose Ends</h2>
-        </div>
-        <div className="cp-error-banner" style={{ margin: 16 }}>
-          <p>
-            {error.isNetworkError
-              ? 'Could not reach CommonPlace API.'
-              : `Error: ${error.message}`}
-          </p>
-          <button type="button" onClick={refetch}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  /* Five-state discipline (SPEC-UX-PHYSICS D4): the graph read resolves through
+     ViewStateView. The header persists across every state; the sub-tabs and the
+     filter-derived "all connected" empty stay inside the data branch because they
+     depend on a loaded graph, not on the read status. */
+  const state = deriveViewState({
+    data: graphData,
+    loading,
+    error: error ? (error.isNetworkError ? 'Could not reach CommonPlace API.' : `Error: ${error.message}`) : null,
+    retry: refetch,
+  });
 
   return (
     <div className="cp-loose-ends-view cp-scrollbar">
       <div className="cp-loose-ends-header">
         <div>
           <h2 className="cp-loose-ends-title">Loose Ends</h2>
-          <p className="cp-loose-ends-subtitle">
-            Objects with {thresholdKey === 'orphaned' ? 'no' : 'few'} connections.
-            Click to explore and connect them.
-          </p>
+          {hasData(state) && (
+            <p className="cp-loose-ends-subtitle">
+              Objects with {thresholdKey === 'orphaned' ? 'no' : 'few'} connections.
+              Click to explore and connect them.
+            </p>
+          )}
         </div>
-        {totalCount > 0 && (
+        {hasData(state) && totalCount > 0 && (
           <span className="cp-loose-ends-count">{totalCount}</span>
         )}
       </div>
 
-      <div style={{ padding: '0 16px 12px' }}>
-        <ViewSubTabs
-          tabs={THRESHOLD_TABS}
-          active={thresholdKey}
-          onChange={setThresholdKey}
-        />
-      </div>
-
-      {/* Empty state */}
-      {totalCount === 0 && (
-        <div className="cp-empty-state" style={{ padding: '32px 16px' }}>
-          All your objects are connected. Nice work.
-        </div>
-      )}
-
-      {/* Grouped cards */}
-      <div style={{ padding: '0 16px 16px' }}>
-        {groups.map(([objectType, nodes]) => {
-          const typeId = getObjectTypeIdentity(objectType);
-          return (
-            <div key={objectType} className="cp-loose-ends-group">
+      <ViewStateView
+        state={state}
+        label="loose ends"
+        narration={narrationFor('searching', 0)}
+        skeleton={
+          <div style={{ padding: '0 16px' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
               <div
-                className="cp-loose-ends-group-title"
-                style={{ color: typeId.color }}
-              >
-                <span
-                  className="cp-loose-ends-group-dot"
-                  style={{ backgroundColor: typeId.color }}
-                />
-                {typeId.label}
-                <span className="cp-loose-ends-group-count">({nodes.length})</span>
-              </div>
-              <div className="cp-loose-ends-grid">
-                {nodes.map((node) => {
-                  const object = renderableFromGraphNode(node);
-                  return (
-                    <ObjectRenderer
-                      key={node.id}
-                      object={object}
-                      compact
-                      variant="module"
-                      onClick={handleObjectClick}
-                      onContextMenu={(e, obj) => openContextMenu(e.clientX, e.clientY, obj)}
-                    />
-                  );
-                })}
-              </div>
+                key={i}
+                className="cp-loading-skeleton"
+                style={{ width: '100%', height: 56, borderRadius: 8, marginBottom: 8 }}
+              />
+            ))}
+          </div>
+        }
+      >
+        {() => (
+          <>
+            <div style={{ padding: '0 16px 12px' }}>
+              <ViewSubTabs
+                tabs={THRESHOLD_TABS}
+                active={thresholdKey}
+                onChange={setThresholdKey}
+              />
             </div>
-          );
-        })}
-      </div>
+
+            {/* Empty state */}
+            {totalCount === 0 && (
+              <div className="cp-empty-state" style={{ padding: '32px 16px' }}>
+                All your objects are connected. Nice work.
+              </div>
+            )}
+
+            {/* Grouped cards */}
+            <div style={{ padding: '0 16px 16px' }}>
+              {groups.map(([objectType, nodes]) => {
+                const typeId = getObjectTypeIdentity(objectType);
+                return (
+                  <div key={objectType} className="cp-loose-ends-group">
+                    <div
+                      className="cp-loose-ends-group-title"
+                      style={{ color: typeId.color }}
+                    >
+                      <span
+                        className="cp-loose-ends-group-dot"
+                        style={{ backgroundColor: typeId.color }}
+                      />
+                      {typeId.label}
+                      <span className="cp-loose-ends-group-count">({nodes.length})</span>
+                    </div>
+                    <div className="cp-loose-ends-grid">
+                      {nodes.map((node) => {
+                        const object = renderableFromGraphNode(node);
+                        return (
+                          <ObjectRenderer
+                            key={node.id}
+                            object={object}
+                            compact
+                            variant="module"
+                            onClick={handleObjectClick}
+                            onContextMenu={(e, obj) => openContextMenu(e.clientX, e.clientY, obj)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </ViewStateView>
     </div>
   );
 }

@@ -73,9 +73,9 @@ export default function CommonPlaceSidebar({ onCollapse }: { onCollapse?: () => 
   const isMobile = useIsAppShellMobile();
 
   /* Fetch notebooks, projects, and pinned objects */
-  const { data: notebooks } = useApiData(() => fetchNotebooks(), []);
-  const { data: projects } = useApiData(() => fetchProjects(), []);
-  const { data: pinnedObjects } = useApiData(() => fetchPinnedObjects(), []);
+  const { data: notebooks } = useApiData(() => fetchNotebooks(), [], { cacheKey: 'sidebar:notebooks' });
+  const { data: projects } = useApiData(() => fetchProjects(), [], { cacheKey: 'sidebar:projects' });
+  const { data: pinnedObjects } = useApiData(() => fetchPinnedObjects(), [], { cacheKey: 'sidebar:pinnedObjects' });
 
   useEffect(() => {
     if (!isMobile) return;

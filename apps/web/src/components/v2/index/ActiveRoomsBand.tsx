@@ -13,7 +13,7 @@ import { formatAge } from '@/app/v2/operator/parts';
 import styles from '@/app/v2/operator/operator.module.css';
 
 export function ActiveRoomsBand() {
-  const { data } = useApiData(() => fetchOperatorState(), []);
+  const { data } = useApiData(() => fetchOperatorState(), [], { cacheKey: 'v2:operator' });
   const active = (data?.bays ?? []).filter((b) => b.task);
   if (active.length === 0) return null;
 

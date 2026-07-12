@@ -176,7 +176,7 @@ export default function AssumptionRegister({
             <div
               style={{
                 height: 2,
-                background: '#A65324',
+                background: 'var(--cp-accent)',
                 borderRadius: 1,
                 margin: '2px 0',
                 transition: 'opacity 100ms',
@@ -202,7 +202,7 @@ export default function AssumptionRegister({
         <div
           style={{
             height: 2,
-            background: '#A65324',
+            background: 'var(--cp-accent)',
             borderRadius: 1,
             margin: '2px 0',
           }}

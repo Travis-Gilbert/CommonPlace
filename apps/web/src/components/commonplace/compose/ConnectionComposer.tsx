@@ -39,7 +39,7 @@ export default function ConnectionComposer() {
           gap: 10,
           padding: '10px 12px',
           borderRadius: 12,
-          border: '1px solid var(--cp-red-line)',
+          border: '1px solid var(--cp-accent-line)',
           background: 'rgba(16, 18, 22, 0.94)',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.35)',
         }}
@@ -49,7 +49,7 @@ export default function ConnectionComposer() {
             style={{
               fontFamily: 'var(--cp-font-mono)',
               fontSize: 10,
-              color: 'var(--cp-red)',
+              color: 'var(--cp-accent)',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
             }}
@@ -106,7 +106,7 @@ export default function ConnectionComposer() {
               style={{
                 fontFamily: 'var(--cp-font-mono)',
                 fontSize: 10,
-                color: 'var(--cp-red)',
+                color: 'var(--cp-accent)',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
               }}
@@ -256,8 +256,8 @@ export default function ConnectionComposer() {
               }}
               style={{
                 borderRadius: 999,
-                border: '1px solid var(--cp-red-line)',
-                background: 'var(--cp-red)',
+                border: '1px solid var(--cp-accent-line)',
+                background: 'var(--cp-accent)',
                 padding: '8px 12px',
                 fontFamily: 'var(--cp-font-mono)',
                 fontSize: 11,

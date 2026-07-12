@@ -172,7 +172,7 @@ export default function Timeline3DWrapper() {
   const { selectedItems, clearSelection } = useSelection();
 
   // Fetch feed data
-  const { data: feed, loading, error } = useApiData(fetchFeed, [captureVersion]);
+  const { data: feed, loading, error } = useApiData(fetchFeed, [captureVersion], { cacheKey: 'feed' });
   const feedNodes = useMemo(() => feed ?? [], [feed]);
   const timeBounds = useMemo(() => {
     if (feedNodes.length === 0) return null;

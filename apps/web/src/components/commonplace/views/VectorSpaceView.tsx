@@ -55,6 +55,7 @@ export default function VectorSpaceView({
   const { data, loading, error, refetch } = useApiData(
     () => gqlEmbeddingSpace({ limit }),
     [limit],
+    { cacheKey: `vectorspace:embeddings:${limit}` },
   );
   const rows = useMemo(() => data?.rows ?? [], [data]);
   const selectedRowIds = useMemo(

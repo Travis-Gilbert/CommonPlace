@@ -141,6 +141,7 @@ export default function ReaderOverlay() {
   } = useApiData(
     () => fetchObjectById(readerObjectId!),
     [readerObjectId],
+    { cacheKey: `object:${readerObjectId}` },
   );
 
   /* ── Parse paragraphs from body ── */

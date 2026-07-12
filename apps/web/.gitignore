@@ -70,3 +70,9 @@ Essay collage engine/
 
 # Git worktrees
 .worktrees/
+
+# Playwright (SPEC-UX-PHYSICS D7.3 interaction traces)
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/

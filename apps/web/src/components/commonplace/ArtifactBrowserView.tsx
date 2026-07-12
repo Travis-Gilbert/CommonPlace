@@ -53,6 +53,7 @@ export default function ArtifactBrowserView() {
       ingestion_status: statusFilter !== 'all' ? statusFilter : undefined,
     }),
     [captureVersion, kindFilter, statusFilter],
+    { cacheKey: `artifacts:${kindFilter}:${statusFilter}` },
   );
 
   /** Count artifacts per pipeline stage. */
@@ -196,7 +197,7 @@ export default function ArtifactBrowserView() {
           <button
             onClick={() => setActiveStage(activeStage === 'failed' ? null : 'failed')}
             style={{
-              ...actionBtnStyle('var(--cp-red)'),
+              ...actionBtnStyle('var(--cp-accent)'),
               fontSize: 11,
               padding: '2px 8px',
             }}

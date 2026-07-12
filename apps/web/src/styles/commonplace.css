@@ -106,6 +106,10 @@
 .cp-pane-content {
   flex: 1;
   overflow: auto;
+  /* Inner scroll never chains to the page at its ends (MOTION-TOKENS scroll rule);
+     programmatic jumps land clear of the sticky tab chrome. */
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--cp-tab-height);
   /* Transparent: dot-grid canvas shows through between objects */
   background-color: transparent;
 
@@ -342,9 +346,9 @@
   color: var(--cp-text-muted);
 }
 .cp-filter-pill[data-active="true"] {
-  border-color: var(--pill-color, var(--cp-red));
-  background: color-mix(in srgb, var(--pill-color, var(--cp-red)) 7%, transparent);
-  color: var(--pill-color, var(--cp-red));
+  border-color: var(--pill-color, var(--cp-accent));
+  background: color-mix(in srgb, var(--pill-color, var(--cp-accent)) 7%, transparent);
+  color: var(--pill-color, var(--cp-accent));
 }
 .cp-filter-pill-dot {
   width: 6px;
@@ -360,9 +364,9 @@
   gap: 5px;
   padding: 5px 12px;
   border-radius: 5px;
-  border: 1px solid var(--cp-red-line);
-  background: var(--cp-red-soft);
-  color: var(--cp-red);
+  border: 1px solid var(--cp-accent-line);
+  background: var(--cp-accent-soft);
+  color: var(--cp-accent);
   font-family: var(--cp-font-mono);
   font-weight: 700;
   font-size: 10px;
@@ -373,14 +377,14 @@
               border-color var(--cp-transition-fast);
 }
 .cp-btn-accent:hover {
-  background: color-mix(in srgb, var(--cp-red) 12%, transparent);
-  border-color: var(--cp-red);
+  background: color-mix(in srgb, var(--cp-accent) 12%, transparent);
+  border-color: var(--cp-accent);
 }
 .cp-btn-accent-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--cp-red);
+  background: var(--cp-accent);
   flex-shrink: 0;
 }
 .cp-btn-accent:disabled {
@@ -631,7 +635,7 @@ select.cp-input {
 
 .cp-layout-preset[data-active="true"] {
   border-color: var(--cp-terracotta);
-  color: var(--cp-red);
+  color: var(--cp-accent);
   background: var(--cp-terracotta-sidebar-glow);
 }
 
@@ -879,25 +883,25 @@ select.cp-input {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--cp-red) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cp-accent) 24%, transparent);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--cp-red) 14%, transparent);
-  color: var(--cp-red);
+  background: color-mix(in srgb, var(--cp-accent) 14%, transparent);
+  color: var(--cp-accent);
   font-family: var(--cp-font-body);
   font-size: 12px;
   cursor: text;
   text-align: left;
-  transition: border-color 200ms;
+  transition: border-color var(--cp-dur-local);
   min-height: 40px;
 }
 
 .cp-capture-collapsed:hover {
-  border-color: color-mix(in srgb, var(--cp-red) 40%, transparent);
-  background: color-mix(in srgb, var(--cp-red) 20%, transparent);
+  border-color: color-mix(in srgb, var(--cp-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--cp-accent) 20%, transparent);
 }
 
 .cp-capture-plus {
-  color: var(--cp-red);
+  color: var(--cp-accent);
   font-size: 14px;
   line-height: 1.2;
   flex-shrink: 0;
@@ -1026,17 +1030,17 @@ select.cp-input {
   gap: 8px;
   padding: 10px 14px;
   border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--cp-red) 22%, transparent);
-  background: color-mix(in srgb, var(--cp-red) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cp-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--cp-accent) 12%, transparent);
   backdrop-filter: blur(4px);
-  transition: border-color 200ms, box-shadow 200ms, background 200ms;
+  transition: border-color var(--cp-dur-local), box-shadow var(--cp-dur-local), background var(--cp-dur-local);
   cursor: text;
 }
 
 .cp-inquiry-input-row--focused {
-  border-color: var(--cp-red-line);
-  box-shadow: 0 0 0 3px var(--cp-red-soft);
-  background: color-mix(in srgb, var(--cp-red) 18%, var(--cp-card));
+  border-color: var(--cp-accent-line);
+  box-shadow: 0 0 0 3px var(--cp-accent-soft);
+  background: color-mix(in srgb, var(--cp-accent) 18%, var(--cp-card));
   backdrop-filter: none;
 }
 
@@ -1065,7 +1069,7 @@ select.cp-input {
   padding: 2px 7px;
   border-radius: 3px;
   cursor: pointer;
-  transition: all 150ms;
+  transition: all var(--cp-dur-hover);
   border: 1px solid var(--cp-border);
   background: rgba(42, 37, 32, 0.06);
   color: var(--cp-text-muted, #5C554D);
@@ -1073,9 +1077,9 @@ select.cp-input {
 }
 
 .cp-inquiry-web-toggle--on {
-  border-color: var(--cp-red-line);
-  background: var(--cp-red-soft);
-  color: var(--cp-red);
+  border-color: var(--cp-accent-line);
+  background: var(--cp-accent-soft);
+  color: var(--cp-accent);
 }
 
 .cp-inquiry-gap-count {
@@ -1531,20 +1535,20 @@ select.cp-input {
   justify-content: center;
   width: calc(100% - 64px);
   height: calc(100% - 64px);
-  border: 2px dashed var(--cp-red);
+  border: 2px dashed var(--cp-accent);
   border-radius: 16px;
-  background: rgba(var(--cp-red-rgb), 0.03);
-  transition: background 200ms, border-color 200ms;
+  background: rgba(var(--cp-accent-rgb), 0.03);
+  transition: background var(--cp-dur-local), border-color var(--cp-dur-local);
 }
 
-/* Burnt-orange radial glow in center */
+/* Oxblood action glow in center (drop affordance) */
 .cp-dropzone-inner::before {
   content: '';
   position: absolute;
   width: 200px;
   height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--cp-red-rgb), 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--cp-accent-rgb), 0.08) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -1872,11 +1876,11 @@ select.cp-input {
   font-size: 10px;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition: background var(--cp-dur-hover) ease, color var(--cp-dur-hover) ease;
 }
 
 .cp-frame-btn:hover {
-  background: rgba(var(--cp-red-rgb), 0.06);
+  background: rgba(var(--cp-accent-rgb), 0.06);
   color: var(--cp-text);
 }
 
@@ -1913,11 +1917,11 @@ select.cp-input {
   font-size: 11px;
   cursor: pointer;
   border-radius: 3px;
-  transition: background 150ms ease;
+  transition: background var(--cp-dur-hover) ease;
 }
 
 .cp-frame-item-btn:hover {
-  background: rgba(var(--cp-red-rgb), 0.06);
+  background: rgba(var(--cp-accent-rgb), 0.06);
 }
 
 /* Frame delete button */
@@ -1962,18 +1966,18 @@ select.cp-input {
   font-size: 10px;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: background var(--cp-dur-hover) ease, color var(--cp-dur-hover) ease, border-color var(--cp-dur-hover) ease;
 }
 
 .cp-network-toggle:hover {
-  background: rgba(var(--cp-red-rgb), 0.04);
+  background: rgba(var(--cp-accent-rgb), 0.04);
   color: var(--cp-text);
 }
 
 .cp-network-toggle[data-active="true"] {
   border-color: var(--cp-accent);
   color: var(--cp-accent);
-  background: rgba(var(--cp-red-rgb), 0.06);
+  background: rgba(var(--cp-accent-rgb), 0.06);
 }
 
 .cp-network-list {
@@ -2968,7 +2972,7 @@ select.cp-input {
   font-family: var(--cp-font-mono, 'JetBrains Mono', monospace);
   font-weight: 500;
   font-size: 11px;
-  color: var(--cp-red);
+  color: var(--cp-accent);
   min-width: 12px;
   text-align: right;
 }
@@ -2986,7 +2990,7 @@ select.cp-input {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--cp-red);
+  background: var(--cp-accent);
   cursor: pointer;
   border: 2px solid var(--cp-chrome, #1C1C20);
 }
@@ -2994,12 +2998,12 @@ select.cp-input {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--cp-red);
+  background: var(--cp-accent);
   cursor: pointer;
   border: 2px solid var(--cp-chrome, #1C1C20);
 }
 .cp-nb-slider-input:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--cp-red);
+  outline: 2px solid var(--cp-accent);
   outline-offset: 2px;
 }
 
@@ -3098,14 +3102,14 @@ select.cp-input {
   transition: transform 0.15s, background 0.15s;
 }
 .cp-nb-toggle input:checked + .cp-nb-toggle-track {
-  background: var(--cp-red);
+  background: var(--cp-accent);
 }
 .cp-nb-toggle input:checked + .cp-nb-toggle-track::after {
   transform: translateX(14px);
   background: var(--cp-text);
 }
 .cp-nb-toggle input:focus-visible + .cp-nb-toggle-track {
-  outline: 2px solid var(--cp-red);
+  outline: 2px solid var(--cp-accent);
   outline-offset: 2px;
 }
 
@@ -3258,7 +3262,7 @@ select.cp-input {
   transition: border-color 0.15s;
 }
 .cp-nb-visibility-card[data-active='true'] {
-  border-color: var(--cp-red);
+  border-color: var(--cp-accent);
 }
 .cp-nb-visibility-card:hover {
   border-color: var(--cp-chrome-text, #B8B5AD);
@@ -3273,14 +3277,14 @@ select.cp-input {
   position: relative;
 }
 .cp-nb-visibility-radio[data-checked='true'] {
-  border-color: var(--cp-red);
+  border-color: var(--cp-accent);
 }
 .cp-nb-visibility-radio[data-checked='true']::after {
   content: '';
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  background: var(--cp-red);
+  background: var(--cp-accent);
 }
 .cp-nb-visibility-label {
   display: block;
@@ -5972,7 +5976,7 @@ select.cp-input {
   background: var(--cp-terracotta);
   color: #FAF6F1;
   cursor: pointer;
-  transition: opacity 150ms;
+  transition: opacity var(--cp-dur-hover);
 }
 
 .cp-compose-save-btn:hover {
@@ -6249,10 +6253,10 @@ select.cp-input {
 }
 
 .cp-drop-target {
-  outline: 2px dashed var(--cp-red);
+  outline: 2px dashed var(--cp-accent);
   outline-offset: 2px;
-  background: var(--cp-red-soft, rgba(var(--cp-red-rgb), 0.06));
-  transition: outline 150ms, background 150ms;
+  background: var(--cp-accent-soft, rgba(var(--cp-accent-rgb), 0.06));
+  transition: outline var(--cp-dur-hover), background var(--cp-dur-hover);
 }
 
 /* ── Signal pips (epistemic indicators on object cards) ── */
@@ -6527,7 +6531,7 @@ select.cp-input {
 }
 
 .cp-layout-preset[data-active="true"] {
-  background: rgba(var(--cp-red-rgb), 0.18);
+  background: rgba(var(--cp-accent-rgb), 0.18);
 }
 
 
@@ -7772,6 +7776,8 @@ select.cp-input {
 .cp-drawer-tab-content {
   flex: 1;
   overflow-y: auto;
+  /* Drawer scroll never chains to the page behind it (MOTION-TOKENS scroll rule). */
+  overscroll-behavior: contain;
   padding: 24px 24px 24px 28px;
   display: flex;
   flex-direction: column;
@@ -8484,17 +8490,17 @@ select.cp-input {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border: 1px solid rgba(var(--cp-red-rgb), 0.3);
+  border: 1px solid rgba(var(--cp-accent-rgb), 0.3);
   border-radius: 6px;
   padding: 5px 10px;
-  background: rgba(var(--cp-red-rgb), 0.08);
+  background: rgba(var(--cp-accent-rgb), 0.08);
   color: var(--cp-terracotta);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: background var(--cp-dur-hover) ease, border-color var(--cp-dur-hover) ease;
 }
 
 .cp-info-save-btn:hover:not(:disabled) {
-  background: rgba(var(--cp-red-rgb), 0.14);
-  border-color: rgba(var(--cp-red-rgb), 0.45);
+  background: rgba(var(--cp-accent-rgb), 0.14);
+  border-color: rgba(var(--cp-accent-rgb), 0.45);
 }
 
 .cp-info-save-btn:disabled {
@@ -8582,7 +8588,7 @@ select.cp-input {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color var(--cp-dur-hover), background var(--cp-dur-hover);
   padding: 0;
   color: var(--cp-cream);
 }
@@ -8685,7 +8691,7 @@ select.cp-input {
   background: var(--cp-terracotta);
   color: var(--cp-cream);
   border-radius: 3px;
-  transition: opacity 0.12s;
+  transition: opacity var(--cp-dur-hover);
 }
 
 .cp-task-add-save:disabled {
@@ -9108,16 +9114,16 @@ select.cp-input {
   font-size: 10px;
   letter-spacing: 0.08em;
   color: #FAF6F1;
-  background: rgba(var(--cp-red-rgb), 0.85);
+  background: rgba(var(--cp-accent-rgb), 0.85);
   border: none;
   border-radius: 2px;
   padding: 4px 10px;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background var(--cp-dur-hover) ease;
 }
 
 .cp-tl-retro-save:hover:not(:disabled) {
-  background: rgba(var(--cp-red-rgb), 1);
+  background: rgba(var(--cp-accent-rgb), 1);
 }
 
 .cp-tl-retro-save:disabled {
@@ -9399,7 +9405,7 @@ select.cp-input {
 }
 
 .cp-mobile-tab[data-active="true"] {
-  color: var(--cp-red);
+  color: var(--cp-accent);
 }
 
 .cp-mobile-backdrop {
@@ -9480,7 +9486,7 @@ select.cp-input {
 .cp-frame-btn:hover,
 .cp-frame-item-btn:hover,
 .cp-network-toggle:hover {
-  background: var(--cp-red-soft);
+  background: var(--cp-accent-soft);
 }
 
 .cp-node-card:active {
@@ -9498,9 +9504,9 @@ select.cp-input {
 }
 
 .cp-network-toggle[data-active="true"] {
-  border-color: var(--cp-red-line);
-  color: var(--cp-red);
-  background: var(--cp-red-soft);
+  border-color: var(--cp-accent-line);
+  color: var(--cp-accent);
+  background: var(--cp-accent-soft);
 }
 
 .cp-loading-skeleton {
@@ -9524,8 +9530,8 @@ select.cp-input {
 .cp-info-save-btn,
 .cp-task-add-save,
 .cp-tl-retro-save {
-  border-color: var(--cp-red);
-  background: var(--cp-red);
+  border-color: var(--cp-accent);
+  background: var(--cp-accent);
   color: var(--cp-cream);
 }
 
@@ -9533,8 +9539,8 @@ select.cp-input {
 .cp-info-save-btn:hover:not(:disabled),
 .cp-task-add-save:hover:not(:disabled),
 .cp-tl-retro-save:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--cp-red) 88%, black);
-  border-color: color-mix(in srgb, var(--cp-red) 88%, black);
+  background: color-mix(in srgb, var(--cp-accent) 88%, black);
+  border-color: color-mix(in srgb, var(--cp-accent) 88%, black);
 }
 
 .cp-compose-type-bar,
@@ -9612,12 +9618,12 @@ select.cp-input {
 }
 
 .cp-task-checkbox:hover {
-  border-color: var(--cp-red);
+  border-color: var(--cp-accent);
 }
 
 .cp-task-checkbox--done {
-  background: var(--cp-red);
-  border-color: var(--cp-red);
+  background: var(--cp-accent);
+  border-color: var(--cp-accent);
 }
 
 .cp-tl-rail {
