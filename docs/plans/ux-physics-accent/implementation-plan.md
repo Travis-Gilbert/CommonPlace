@@ -387,11 +387,70 @@ Process note: the mobile-persister subagent wrote its files to the sibling paren
 (main) instead of this worktree; the files were relocated here and the parent restored to
 clean. Verify subagent output on disk, never trust the report alone.
 
-### Remaining: Slices D, E, F, G (+ Slice C tails)
-- Slice C tails: WL-4 (streaming + TTFT), UX-D3.2 remaining mutation paths.
-- Slice D: UX-D4.2/.3 adoption (wire ViewStateView across surfaces, remove Ledger SEED mock),
-  UX-D5.1/.2/.3 (press-down, gesture springs, mobile reduced-motion), MT-2 (consumption
-  sweep + motion lint), WL-3 (job card + run-ledger). (MT-4 done early.)
-- Slice E: UX-D6.1 (web virtualization), UX-D6.2 (mobile FlashList).
-- Slice F: UX-D8.1/.2 (IA archetypes), plus the Workrooms receipt-rail overscroll tail.
-- Slice G: UX-D7.1..4 (CI budget), WL-5, MT-5 visual check.
+### Slices C-tails, D, E, F, G: DONE and verified (second execution pass)
+
+Final verification on the integrated branch: web vitest 509 tests pass (59 files); web tsc
+clean (only the pre-existing `ExplorerShell.dblclick.test` `@testing-library/react` devDep
+error, in an untouched file); mobile tsc clean (only the pre-existing `global.css`
+nativewind side-effect shim); accent-grammar lint 0 fails; motion-tokens lint 0 fails.
+
+- **Slice C tails:**
+  - WL-4 streaming + TTFT: DONE. The two real token-streaming surfaces already paint the
+    first token first (left untouched, SSE error-event parsing preserved). Pre-stream
+    tiering (T0/T1/T2) added to the agent surfaces via the existing wait-tier ladder +
+    narration + WeaveSpinner, with the narration step advancing on real pipeline stages.
+    Real `performance.now()` TTFT recorded into a per-route+provider UsageReceipt
+    (`commonplace-usage-receipts.ts`) and surfaced on the finished message; no number is
+    fabricated. NAMED GAPS: the JSON `/api/theorem/agent` path cannot token-stream without
+    a backend SSE agent route; server-side persistence of TTFT into the durable Workrooms
+    receipt ledger is a backend follow-up.
+  - UX-D3.2 remaining mutation paths: DONE. Web edit/approve-deny use `runOptimistic`
+    (apply in-frame, roll back with a reason); delete uses `undoableDelete` (undo toast,
+    deferred commit). Mobile swipes (home feed + object detail) apply optimistically via a
+    local acted-id overlay and surface a reason on failure. Pin drop replaces its silent
+    catch with a reason; the `onPinCreated` optimistic hook has no local-state provider yet
+    (pin revalidates on refetch), a named client-rollback follow-up.
+- **Slice D:**
+  - UX-D4.3 remove Ledger SEED mock: DONE (real ObjectQuery items via `fetchItems`, honest
+    empty, five-state through ViewStateView).
+  - UX-D4.2 adopt the union: DONE across PromotionQueue, NetworkView, ResurfaceView,
+    LooseEndsView, NotebookListView, InboxFeed. LibraryView intentionally left (six-source
+    aggregator, not one read). NAMED GAP: InboxFeed sits on the `(networks)` route which
+    loads only `--nw-*` tokens, so ViewStateView's `--cp-*` error/T2 styling is
+    functional-but-under-styled there (still strictly better than the prior no-error path).
+  - UX-D5.1 press-down: DONE (web capture FAB + record/project tabs; mobile tab bar). The
+    capture FAB stays on release because of its long-press-for-voice branch.
+  - UX-D5.2 / UX-D5.3: no hand-rolled gesture-timing surface exists (physics live inside
+    `ReanimatedSwipeable`), and WeaveSpinner is the only animated mobile component and
+    already gates on `useReducedMotion`. The MT spring presets + reduced-motion gate are in
+    place for future animated surfaces; nothing further to convert on the current codebase.
+  - MT-2 consumption sweep + motion lint: DONE (auditMotionTokens fail-axis, fixture-proven;
+    13 interactive-selector transitions migrated to the motion tokens; axis 0 fails).
+  - MT-4: DONE (panels + drawers earlier; receipt-rail/run-log overscroll this pass).
+  - WL-3 job card: BLOCKED, not faked. There is no client `harness_step` event source (the
+    harness emits run structure server-side only, with no client binding). Building a job
+    card that "streams real step events" without that stream would be fabricated progress
+    theater, which the project forbids. The honest T3 fallback (WeaveSpinner + narrated
+    line) ships and is the spec's own "honest indeterminacy" behavior. Completing WL-3
+    requires the backend event source (same class of hard blocker as UX-D3.0's sibling
+    Rust repo).
+- **Slice E:** UX-D6.1 web virtualization (InboxFeed + ProjectListView list mode; four
+  candidates skipped with documented reasons) and UX-D6.2 mobile FlashList: DONE.
+- **Slice F:** UX-D8.1 archetype registry (`archetypes.md`) + per-screen labels and UX-D8.2
+  labels/hierarchy across the primary screens: DONE. Workrooms receipt-rail overscroll: DONE.
+- **Slice G:** UX-D7.1 web-vitals INP, UX-D7.2 size-limit, UX-D7.3 Playwright traces, UX-D7.4
+  CI workflow, WL-5 (12s-spinner assertion): DONE. All four tooling deps are absent from the
+  warm offline store, so the vitals import is a guarded no-op offline that activates in CI,
+  and the size-limit + Playwright configs run in CI where install has network. The 1500 kB
+  bundle ceiling is an initial value to tighten against the first CI build baseline. MT-5
+  reduced-motion visual check is encoded as the forced-reduced-motion path in the CI trace
+  job (the WeaveSpinner static default is honored).
+
+### Standing named blockers (hard, not scope cuts)
+1. UX-D3.0 crate deletion/tombstone: implemented, not compiler-verified (needs the sibling
+   `Theorem/rustyredcore_THG` repo, absent in this worktree).
+2. WL-3 job card: needs a client `harness_step` event source (backend integration absent).
+3. WL-4 server-side TTFT persistence and streaming for the JSON `/api/theorem/agent` path:
+   backend follow-ups (client TTFT is recorded and displayed today).
+4. Slice G tooling deps install in CI (blocked in the offline worktree store); the vitals
+   reporter no-ops offline and activates automatically once installed.
