@@ -38,6 +38,8 @@ import styles from './AgentThreadView.module.css';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useWaitTier } from '@/lib/commonplace-wait-tier';
 import { narrationFor } from '@/lib/commonplace-wait-narration';
+import PresenceMark from '../presence/PresenceMark';
+import type { PresenceState } from '../presence/presenceStates';
 
 type ThreadItem =
   | {
@@ -341,12 +343,17 @@ export default function AgentThreadView({
   // a pre-stream window. Promote the pending indicator through the wait ladder
   // on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
   const waitTier = useWaitTier(isSending);
+  // The Presence mark is the header presence glyph (SPEC-UI-SOURCING-ADDENDUM
+  // Presence D2): the same mark as the co-browse telegraph and the run glyph.
+  const markState: PresenceState =
+    displayStatus === 'connecting' ? 'thinking' : displayStatus === 'offline' ? 'interrupted' : 'idle';
 
   return (
     <section className={`cp-agent-thread ${styles.thread}`} aria-label={`${agentLabel} agent thread`}>
       {resolvedMode === 'acp' ? (
         <header className="cp-agent-thread-header">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PresenceMark state={markState} size={24} label={`${agentLabel} presence`} />
             <h2>{agentLabel}</h2>
             <span className={`cp-agent-thread-status cp-agent-thread-status--${displayStatus}`}>
               {displayStatus}

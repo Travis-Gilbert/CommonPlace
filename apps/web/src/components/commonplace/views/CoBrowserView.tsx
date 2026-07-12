@@ -1,155 +1,156 @@
 'use client';
 
 /**
- * CoBrowserView (SPEC-9 D5): the human + agent co-browser. Opens pages in the
- * shell's webview (tab_create / tab_set_active), extracts the visible text, and
- * captures the page into the workspace (agent_tab_ingest) as open_web_unverified.
- * The webview itself renders in the Rust shell stage; this panel is its control
- * surface and the capture path.
+ * CoBrowserView (HANDOFF-COBROWSE-PRESENCE): the product co-browse surface.
+ * A shared browsing surface where the agent is a visible participant: control
+ * spectrum (D2), telegraph intent line (D3), interrupt-to-pause chip (D4),
+ * approval card (D5), receipt rail (D6), perception cards (D7), Keep with a
+ * gold-register confirmation (D8), and the Presence mark as the telegraph
+ * indicator. The page stage renders in the shell's tab windows; this panel is
+ * the chrome. Raw JSON never renders here.
  */
 
-import { useCallback, useState } from 'react';
-import {
-  agentTabIngest,
-  browseWithMe,
-  extractVisibleText,
-  tabCreate,
-  tabSetActive,
-  type AgentIngestionReceipt,
-  type PageContext,
-} from '@/lib/desktop';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { hasData } from '@/lib/commonplace-view-state';
 import { DesktopOnly, panel } from './desktopPanel';
+import { ControlSpectrum } from '../cobrowse/ControlSpectrum';
+import { ApprovalCard } from '../cobrowse/ApprovalCard';
+import { ReceiptRail } from '../cobrowse/ReceiptRail';
+import { PerceptionCards } from '../cobrowse/PerceptionCards';
+import { KeepToast } from '../cobrowse/KeepToast';
+import { useCoBrowseSession } from '../cobrowse/useCoBrowseSession';
+import PresenceMark from '../presence/PresenceMark';
+import type { PresenceState } from '../presence/presenceStates';
+import styles from '../cobrowse/cobrowse.module.css';
 
-function newTabId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `tab-${Date.now()}`;
-}
+const ACTING_HOLD_MS = 900;
 
 export default function CoBrowserView() {
+  const session = useCoBrowseSession();
   const [url, setUrl] = useState('https://');
-  const [tabId, setTabId] = useState<string | null>(null);
-  const [page, setPage] = useState<PageContext | null>(null);
-  const [receipt, setReceipt] = useState<AgentIngestionReceipt | null>(null);
-  const [agentTask, setAgentTask] = useState('');
-  const [agentResult, setAgentResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [task, setTask] = useState('');
+  const [actingUntil, setActingUntil] = useState(0);
+  const lastActionCount = useRef(0);
 
-  const open = useCallback(async () => {
-    const target = url.trim();
-    if (!target) return;
-    const id = newTabId();
-    try {
-      await tabCreate(id, target);
-      await tabSetActive(id);
-      setTabId(id);
-      setPage(null);
-      setReceipt(null);
-      setError(null);
-    } catch (err) {
-      setError(String(err));
+  // A new action entry in the rail means a commit just landed: hold the mark's
+  // acting state (with its oxblood flash) briefly, then fall back.
+  const actionCount = session.entries.filter((entry) => entry.kind === 'action').length;
+  useEffect(() => {
+    if (actionCount > lastActionCount.current) {
+      lastActionCount.current = actionCount;
+      setActingUntil(Date.now() + ACTING_HOLD_MS);
+      const timer = setTimeout(() => setActingUntil(0), ACTING_HOLD_MS);
+      return () => clearTimeout(timer);
     }
-  }, [url]);
+    lastActionCount.current = actionCount;
+  }, [actionCount]);
 
-  const extract = useCallback(async () => {
-    if (!tabId) return;
-    try {
-      setPage(await extractVisibleText(tabId));
-      setError(null);
-    } catch (err) {
-      setError(String(err));
-    }
-  }, [tabId]);
+  const markState: PresenceState = useMemo(() => {
+    if (session.paused) return 'interrupted';
+    if (actingUntil > 0) return 'acting';
+    if (session.approval || session.telegraphIntent) return 'telegraphing';
+    if (session.perception.status === 'loading') return 'thinking';
+    if (session.running) return 'moving';
+    return 'idle';
+  }, [session.paused, session.approval, session.telegraphIntent, session.perception.status, session.running, actingUntil]);
 
-  const ingest = useCallback(async () => {
-    if (!tabId || !page) return;
-    try {
-      setReceipt(
-        await agentTabIngest({ tabId, url: page.url, title: page.title, text: page.text }),
-      );
-      setError(null);
-    } catch (err) {
-      setError(String(err));
-    }
-  }, [tabId, page]);
-
-  // Agent-collaborative path (pair co-browsing). HTTP to the local node, so the
-  // node must allow the desktop origin (CORS) — see the file header note.
-  const browseAgent = useCallback(async () => {
-    try {
-      const result = await browseWithMe({
-        url: page?.url ?? url,
-        nextAction: agentTask.trim() || undefined,
-      });
-      setAgentResult(JSON.stringify(result, null, 2));
-      setError(null);
-    } catch (err) {
-      setError(String(err));
-    }
-  }, [page, url, agentTask]);
+  const perceptionData = hasData(session.perception) ? session.perception.data : null;
 
   return (
     <DesktopOnly>
-      <div style={panel.wrap}>
+      <div style={{ ...panel.wrap, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={panel.title}>Co-browser</div>
         <div style={panel.sub}>
-          Browse the web alongside an agent. Pages render in the shell; capture them into the
-          workspace.
+          Browse alongside the agent. Pages render in the shell stage; the agent telegraphs
+          before it acts, and everything it does lands in the receipts rail.
         </div>
-        <div style={panel.row}>
+
+        <div className={styles.chrome}>
+          <PresenceMark state={markState} size={40} label="Co-browse agent" />
           <input
-            style={panel.input}
+            className={styles.urlInput}
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void open();
+            onChange={(event) => setUrl(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && task.trim()) void session.begin(url.trim(), task.trim());
             }}
             placeholder="https://example.com"
+            aria-label="Page address"
           />
-          <button style={panel.button} onClick={() => void open()}>
-            Open
-          </button>
-          <button style={panel.button} onClick={() => void extract()} disabled={!tabId}>
-            Extract
-          </button>
-          <button style={panel.button} onClick={() => void ingest()} disabled={!page}>
-            Ingest
+          <ControlSpectrum mode={session.mode} onChange={session.setMode} />
+          <button
+            style={panel.button}
+            onPointerDown={() => void session.keep()}
+            disabled={!session.tabId}
+          >
+            Keep
           </button>
         </div>
-        <div style={panel.row}>
+
+        <div className={styles.chrome}>
           <input
-            style={panel.input}
-            value={agentTask}
-            onChange={(e) => setAgentTask(e.target.value)}
-            placeholder="ask the agent to act on this page (pair mode)..."
+            className={styles.urlInput}
+            value={task}
+            onChange={(event) => setTask(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && task.trim()) void session.begin(url.trim(), task.trim());
+            }}
+            placeholder="what should we do on this page?"
+            aria-label="Task for the agent"
           />
-          <button style={panel.button} onClick={() => void browseAgent()}>
-            Browse with agent
+          <button
+            style={panel.button}
+            onPointerDown={() => {
+              if (task.trim()) void session.begin(url.trim(), task.trim());
+            }}
+          >
+            Browse together
           </button>
         </div>
-        {error && <div style={{ ...panel.card, color: 'crimson' }}>{error}</div>}
-        {agentResult && (
-          <div style={panel.card}>
-            <div style={{ fontWeight: 600 }}>Agent perception</div>
-            <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', maxHeight: 280, overflow: 'auto', fontSize: 12 }}>
-              {agentResult}
-            </div>
+
+        {session.telegraphIntent && !session.approval ? (
+          <div className={styles.intentLine} role="status">
+            <PresenceMark state="telegraphing" size={22} label="Telegraph" />
+            <span>{session.telegraphIntent}</span>
           </div>
-        )}
-        {receipt && (
-          <div style={panel.card}>
-            Ingested {receipt.url} → {receipt.status} ({receipt.message})
+        ) : null}
+
+        {session.paused ? (
+          <div className={styles.pauseChip} role="status">
+            <span>Paused, you have the wheel</span>
+            <button
+              type="button"
+              className={styles.resumeButton}
+              onPointerDown={session.resume}
+            >
+              Resume
+            </button>
           </div>
-        )}
-        {page && (
-          <div style={panel.card}>
-            <div style={{ fontWeight: 600 }}>{page.title}</div>
-            <div style={panel.dim}>{page.url}</div>
-            <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', maxHeight: 280, overflow: 'auto' }}>
-              {page.text}
-            </div>
-          </div>
-        )}
+        ) : null}
+
+        {session.approval ? (
+          <ApprovalCard
+            proposal={session.approval}
+            perception={perceptionData}
+            onApprove={() => void session.approve()}
+            onDecline={() => void session.decline()}
+          />
+        ) : null}
+
+        <PerceptionCards
+          state={session.perception}
+          onRunSuggested={() => void session.runSuggested()}
+        />
+
+        <ReceiptRail entries={session.entries} />
+
+        {session.error ? (
+          <div style={{ ...panel.card, color: 'var(--cp-oxblood, crimson)' }}>{session.error}</div>
+        ) : null}
+
+        {session.keepReceipt ? (
+          <KeepToast receipt={session.keepReceipt} onDismiss={session.dismissKeep} />
+        ) : null}
       </div>
     </DesktopOnly>
   );
