@@ -28,7 +28,6 @@ function kindClass(kind: SessionRailKind): string {
     case 'decline':
       return `${styles.kind} ${styles.kindApproval}`;
     case 'capture':
-    case 'keep':
       return `${styles.kind} ${styles.kindCapture}`;
     default:
       return styles.kind;
