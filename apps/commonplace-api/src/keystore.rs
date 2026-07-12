@@ -54,7 +54,9 @@ pub struct BlockAttestation {
 /// configured; `dev` otherwise.
 fn mode_and_seed() -> (&'static str, String) {
     match std::env::var("COMMONPLACE_ED25519_SEED") {
-        Ok(seed) if !seed.trim().is_empty() => ("tenant", seed),
+        // Trim before use: leading/trailing whitespace in the env value would
+        // otherwise silently derive different tenant keys across deployments.
+        Ok(seed) if !seed.trim().is_empty() => ("tenant", seed.trim().to_string()),
         _ => ("dev", DEV_SEED.to_string()),
     }
 }

@@ -2575,11 +2575,13 @@ where
     /// Unpublish by alias: the alias returns the designed gone state; the block
     /// survives in the graph (HANDOFF-PUBLISH D1).
     async fn unpublish(&self, ctx: &Context<'_>, alias: String) -> Result<bool> {
-        principal(ctx)?;
+        let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
         let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        publish::unpublish_block(&mut cp, &alias)
-            .map_err(|_| Error::new("published block not found"))?;
+        publish::unpublish_block(&mut cp, &alias, &principal.id).map_err(|e| match e {
+            publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
+            _ => Error::new("published block not found"),
+        })?;
         Ok(true)
     }
 
@@ -2591,11 +2593,13 @@ where
         alias: String,
         visibility: publish::Visibility,
     ) -> Result<bool> {
-        principal(ctx)?;
+        let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
         let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        publish::set_visibility(&mut cp, &alias, visibility)
-            .map_err(|_| Error::new("published block not found"))?;
+        publish::set_visibility(&mut cp, &alias, &principal.id, visibility).map_err(|e| match e {
+            publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
+            _ => Error::new("published block not found"),
+        })?;
         Ok(true)
     }
 

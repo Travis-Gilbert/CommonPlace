@@ -384,6 +384,96 @@ impl StoredConformance {
     }
 }
 
+/// An immutable snapshot of a version that has been superseded at its alias.
+/// Re-publishing freezes the version being replaced here so its version URL
+/// keeps serving that exact content and its own per-version visibility, rather
+/// than whatever the alias now points at (HANDOFF-PUBLISH D1: a version URL that
+/// was ever public "is a frozen snapshot" that "resolves forever").
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct VersionSnapshot {
+    version_hash: String,
+    shape_id: String,
+    origin_id: String,
+    title: String,
+    payload: Value,
+    visibility: String,
+    conformance: Value,
+    attestation: Option<Value>,
+    published_at_ms: i64,
+}
+
+/// Freeze a published record's current version into a snapshot, before its extra
+/// fields are overwritten by the next re-publish.
+fn snapshot_from_record(record: &Item) -> VersionSnapshot {
+    let e = &record.extra;
+    let get_str = |k: &str| e.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let visibility = {
+        let v = get_str("visibility");
+        if v.is_empty() { "unlisted".into() } else { v }
+    };
+    VersionSnapshot {
+        version_hash: get_str("version_hash"),
+        shape_id: get_str("shape_id"),
+        origin_id: get_str("origin_id"),
+        title: record.title.clone(),
+        payload: e.get("payload").cloned().unwrap_or(Value::Null),
+        visibility,
+        conformance: e.get("conformance").cloned().unwrap_or(Value::Null),
+        attestation: e.get("attestation").cloned(),
+        published_at_ms: e.get("published_at_ms").and_then(Value::as_i64).unwrap_or(0),
+    }
+}
+
+/// Build a resolved block from a frozen snapshot. Signature verification runs
+/// against the snapshot's own content identity, so an old version keeps its own
+/// signed provenance independent of the alias's current version.
+fn published_block_from_snapshot(record: &Item, snapshot: &VersionSnapshot) -> PublishedBlock {
+    let conformance = serde_json::from_value::<StoredConformance>(snapshot.conformance.clone())
+        .map(|c| c.into_report())
+        .unwrap_or(ConformanceReport {
+            level: "L1".into(),
+            passed: true,
+            checks: Vec::new(),
+        });
+    let attestation = snapshot
+        .attestation
+        .as_ref()
+        .and_then(|v| serde_json::from_value::<BlockAttestation>(v.clone()).ok());
+    let signature_verified = attestation
+        .as_ref()
+        .map(|a| {
+            keystore::verify_attestation(a, &snapshot.version_hash, &snapshot.shape_id, &snapshot.origin_id)
+        })
+        .unwrap_or(false);
+    PublishedBlock {
+        block_id: record.id.clone(),
+        alias: record.extra.get("alias").and_then(Value::as_str).unwrap_or_default().to_string(),
+        origin_id: snapshot.origin_id.clone(),
+        shape_id: snapshot.shape_id.clone(),
+        title: snapshot.title.clone(),
+        payload: async_graphql::Json(snapshot.payload.clone()),
+        version_hash: snapshot.version_hash.clone(),
+        visibility: Visibility::from_str(&snapshot.visibility),
+        // A frozen snapshot is always the live content of its own hash.
+        state: "published".into(),
+        view_count: 0,
+        conformance,
+        attestation,
+        signature_verified,
+    }
+}
+
+/// Whether `caller` owns this published record. Records carry an `owner` (the
+/// principal that first published them); a record without a recorded owner
+/// (legacy) is treated as unowned and modifiable, but every fresh publish sets
+/// one so this stays closed going forward.
+fn owned_by(record: &Item, caller: &str) -> bool {
+    match record.extra.get("owner").and_then(Value::as_str) {
+        Some(owner) => owner == caller,
+        None => true,
+    }
+}
+
 /// Publish (or re-publish) `origin_id` at `visibility`. Runs the L1 floor; on
 /// refusal returns `PublishError::Refused` with the conformance report.
 pub fn publish_block<S, B>(
@@ -420,22 +510,41 @@ where
     let stored_attestation = serde_json::to_value(&attestation).unwrap_or(Value::Null);
 
     let mut record = match find_by_origin(cp, origin_id).map_err(|_| PublishError::OriginNotFound)? {
-        Some(existing) => existing,
+        Some(existing) => {
+            // Ownership: only the principal that first published this block may
+            // re-publish it. A different caller who knows the origin id cannot
+            // overwrite or re-sign someone else's published block.
+            if !owned_by(&existing, owner_principal) {
+                return Err(PublishError::Forbidden);
+            }
+            existing
+        }
         None => Item::new(published_kind(), origin.title.clone()),
     };
     record.title = origin.title.clone();
 
-    // Re-publish: push the prior version onto history before re-pointing.
-    if let Some(prev) = record.extra.get("version_hash").and_then(Value::as_str) {
+    // Re-publish: freeze the version being replaced as an immutable snapshot so
+    // its version URL keeps serving that exact content and visibility, then
+    // re-point the alias at the new version.
+    let prev_hash = record
+        .extra
+        .get("version_hash")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    if let Some(prev) = prev_hash {
         if prev != version_hash {
+            let snapshot = snapshot_from_record(&record);
             let mut history = record
                 .extra
                 .get("history")
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            if !history.iter().any(|v| v.as_str() == Some(prev)) {
-                history.push(json!(prev));
+            let already = history
+                .iter()
+                .any(|v| v.get("version_hash").and_then(Value::as_str) == Some(prev.as_str()));
+            if !already {
+                history.push(serde_json::to_value(&snapshot).unwrap_or(Value::Null));
             }
             record.extra.insert("history".into(), json!(history));
         }
@@ -455,6 +564,9 @@ where
         .entry("view_count".to_string())
         .or_insert(json!(0));
     record.extra.entry("granted".to_string()).or_insert(json!([owner_principal]));
+    // The first publisher claims ownership; subsequent re-publishes are gated on
+    // this above and never reassign it.
+    record.extra.entry("owner".to_string()).or_insert(json!(owner_principal));
     record
         .extra
         .entry("created_at_ms".to_string())
@@ -530,6 +642,16 @@ where
             },
             error: Some("origin artifact not found".into()),
         },
+        Err(PublishError::Forbidden) => PublishOutcome {
+            ok: false,
+            receipt: None,
+            conformance: ConformanceReport {
+                level: "L0".into(),
+                passed: false,
+                checks: Vec::new(),
+            },
+            error: Some("not authorized to publish over this block".into()),
+        },
         Err(_) => PublishOutcome {
             ok: false,
             receipt: None,
@@ -545,7 +667,11 @@ where
 
 /// Unpublish by alias: flip the alias to a `gone` state and revoke the grant;
 /// the block record survives in the graph.
-pub fn unpublish_block<S, B>(cp: &mut Commonplace<S, B>, alias: &str) -> Result<(), PublishError>
+pub fn unpublish_block<S, B>(
+    cp: &mut Commonplace<S, B>,
+    alias: &str,
+    caller: &str,
+) -> Result<(), PublishError>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
@@ -553,6 +679,9 @@ where
     let mut record = find_by_alias(cp, alias)
         .map_err(|_| PublishError::AliasNotFound)?
         .ok_or(PublishError::AliasNotFound)?;
+    if !owned_by(&record, caller) {
+        return Err(PublishError::Forbidden);
+    }
     record.extra.insert("state".into(), json!("gone"));
     record.extra.insert("granted".into(), json!([] as [String; 0]));
     cp.put_item(record).map_err(|_| PublishError::AliasNotFound)?;
@@ -563,6 +692,7 @@ where
 pub fn set_visibility<S, B>(
     cp: &mut Commonplace<S, B>,
     alias: &str,
+    caller: &str,
     visibility: Visibility,
 ) -> Result<(), PublishError>
 where
@@ -572,6 +702,9 @@ where
     let mut record = find_by_alias(cp, alias)
         .map_err(|_| PublishError::AliasNotFound)?
         .ok_or(PublishError::AliasNotFound)?;
+    if !owned_by(&record, caller) {
+        return Err(PublishError::Forbidden);
+    }
     record.extra.insert("visibility".into(), json!(visibility.as_str()));
     cp.put_item(record).map_err(|_| PublishError::AliasNotFound)?;
     Ok(())
@@ -656,8 +789,11 @@ where
     }
 }
 
-/// Resolve a permanent version-addressed hash (current or historical). Always
-/// public: a version URL that was ever public resolves forever.
+/// Resolve a permanent version-addressed hash (current or historical). A version
+/// URL is the was-ever-public citation surface (HANDOFF-PUBLISH D1): a public or
+/// unlisted version resolves forever as a frozen snapshot, even after the alias
+/// is unpublished or re-pointed. A private version never resolves here, even to
+/// someone holding the hash.
 pub fn resolve_version<S, B>(
     cp: &Commonplace<S, B>,
     version_hash: &str,
@@ -666,21 +802,44 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let record = cp
+    let records = cp
         .items_by_kind(&published_kind())
-        .map_err(|_| PublishError::VersionNotFound)?
-        .into_iter()
-        .find(|it| {
-            it.extra.get("version_hash").and_then(Value::as_str) == Some(version_hash)
-                || it
-                    .extra
-                    .get("history")
-                    .and_then(Value::as_array)
-                    .map(|a| a.iter().any(|v| v.as_str() == Some(version_hash)))
-                    .unwrap_or(false)
-        })
-        .ok_or(PublishError::VersionNotFound)?;
-    Ok(to_published_block(&record))
+        .map_err(|_| PublishError::VersionNotFound)?;
+
+    // The version currently live at an alias: serve it unless it is private.
+    for record in &records {
+        if record.extra.get("version_hash").and_then(Value::as_str) == Some(version_hash) {
+            let visibility = Visibility::from_str(
+                record.extra.get("visibility").and_then(Value::as_str).unwrap_or("unlisted"),
+            );
+            if visibility == Visibility::Private {
+                return Err(PublishError::VersionNotFound);
+            }
+            return Ok(to_published_block(record));
+        }
+    }
+
+    // A frozen historical snapshot, gated on its own per-version visibility so a
+    // version published while public keeps resolving even after the alias flips
+    // private, while a version that was private never resolves.
+    for record in &records {
+        let Some(history) = record.extra.get("history").and_then(Value::as_array) else {
+            continue;
+        };
+        for entry in history {
+            let Ok(snapshot) = serde_json::from_value::<VersionSnapshot>(entry.clone()) else {
+                continue;
+            };
+            if snapshot.version_hash == version_hash {
+                if Visibility::from_str(&snapshot.visibility) == Visibility::Private {
+                    return Err(PublishError::VersionNotFound);
+                }
+                return Ok(published_block_from_snapshot(record, &snapshot));
+            }
+        }
+    }
+
+    Err(PublishError::VersionNotFound)
 }
 
 /// Aliases of all currently-public, live blocks, for the public sitemap (P3.2).
@@ -718,16 +877,17 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let block = find_by_alias(cp, alias)
-        .map_err(|_| PublishError::AliasNotFound)?
-        .ok_or(PublishError::AliasNotFound)?;
-    let origin_id = block.extra.get("origin_id").and_then(Value::as_str).unwrap_or_default();
+    // Authorize through the same resolution the public host uses: a gone block,
+    // or a private block the visitor has no grant for, is refused here too, so a
+    // caller who merely knows the alias cannot reference or fork restricted
+    // content.
+    let block = resolve_alias(cp, alias, Some(visitor_principal), false)?;
+    let origin_id = block.origin_id.clone();
     let title = block.title.clone();
 
     let mut item = if fork {
         // Fork: an owned, divergent copy of the origin's renderable content.
-        let payload = block.extra.get("payload").cloned().unwrap_or(Value::Null);
-        let text = payload.get("text").and_then(Value::as_str).unwrap_or_default();
+        let text = block.payload.0.get("text").and_then(Value::as_str).unwrap_or_default();
         Item::new(ItemKind::from(REFERENCE_KIND.to_string()), format!("Fork of {title}"))
             .with_text(text)
     } else {
@@ -736,7 +896,7 @@ where
     item.extra.insert(
         "provenance".into(),
         json!({
-            "origin_block_id": block.id,
+            "origin_block_id": block.block_id,
             "origin_alias": alias,
             "origin_id": origin_id,
             "kind": if fork { "fork" } else { "reference" },
@@ -744,7 +904,12 @@ where
         }),
     );
     let saved = cp.put_item(item).map_err(|_| PublishError::AliasNotFound)?;
-    let _ = cp.link_explicit(REFERENCES_EDGE, &saved.id, &block.id, if fork { "fork" } else { "reference" });
+    let _ = cp.link_explicit(
+        REFERENCES_EDGE,
+        &saved.id,
+        &block.block_id,
+        if fork { "fork" } else { "reference" },
+    );
     Ok(saved.id)
 }
 
@@ -797,7 +962,7 @@ mod tests {
         let mut cp = store();
         let id = seed_doc(&mut cp);
         let receipt = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
-        unpublish_block(&mut cp, &receipt.alias).unwrap();
+        unpublish_block(&mut cp, &receipt.alias, "owner").unwrap();
         // Alias resolution now yields the gone signal.
         assert!(matches!(
             resolve_alias(&mut cp, &receipt.alias, None, false),
@@ -824,12 +989,22 @@ mod tests {
         let second = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
         assert_ne!(first.version_hash, second.version_hash);
         assert_eq!(first.alias, second.alias); // stable alias
-        // Alias serves the new version.
+        // Alias serves the new version and its new content.
         let at_alias = resolve_alias(&mut cp, &second.alias, None, false).unwrap();
         assert_eq!(at_alias.version_hash, second.version_hash);
-        // Old version still resolves at its hash.
+        assert_eq!(
+            at_alias.payload.0.get("text").and_then(Value::as_str),
+            Some("hello edited")
+        );
+        // The old hash serves the frozen original content, not the current alias
+        // content (D1: a version URL is a frozen snapshot).
         let old = resolve_version(&cp, &first.version_hash).unwrap();
         assert_eq!(old.origin_id, id);
+        assert_eq!(old.version_hash, first.version_hash);
+        assert_eq!(
+            old.payload.0.get("text").and_then(Value::as_str),
+            Some("hello world")
+        );
     }
 
     #[test]
@@ -857,7 +1032,7 @@ mod tests {
         let id = seed_doc(&mut cp);
         let receipt = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
         assert!(resolve_alias(&mut cp, &receipt.alias, None, false).is_ok());
-        set_visibility(&mut cp, &receipt.alias, Visibility::Private).unwrap();
+        set_visibility(&mut cp, &receipt.alias, "owner", Visibility::Private).unwrap();
         assert!(matches!(
             resolve_alias(&mut cp, &receipt.alias, None, false),
             Err(PublishError::Forbidden)
@@ -908,7 +1083,7 @@ mod tests {
         let gone_item = Item::new(ItemKind::Doc, "Gone").with_text("g");
         let gone_id = cp.put_item(gone_item).unwrap().id;
         let gone = publish_block(&mut cp, &gone_id, Visibility::Public, "owner").unwrap();
-        unpublish_block(&mut cp, &gone.alias).unwrap();
+        unpublish_block(&mut cp, &gone.alias, "owner").unwrap();
 
         let aliases = public_aliases(&cp);
         assert!(aliases.contains(&public.alias));
@@ -948,5 +1123,100 @@ mod tests {
         let block = resolve_alias(&mut cp, &receipt.alias, None, false).unwrap();
         assert!(block.attestation.is_some());
         assert!(!block.signature_verified);
+    }
+
+    #[test]
+    fn private_version_hash_does_not_resolve_publicly() {
+        let mut cp = store();
+        let id = seed_doc(&mut cp);
+        let receipt = publish_block(&mut cp, &id, Visibility::Private, "owner").unwrap();
+        // A private block's version hash is not a public citation surface:
+        // holding the hash does not resolve the content.
+        assert!(matches!(
+            resolve_version(&cp, &receipt.version_hash),
+            Err(PublishError::VersionNotFound)
+        ));
+    }
+
+    #[test]
+    fn version_public_when_published_survives_a_later_private_flip() {
+        let mut cp = store();
+        let id = seed_doc(&mut cp);
+        let first = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
+        // Edit + re-publish to push the first (public) version into history.
+        let mut origin = cp.get_item(&id).unwrap().unwrap();
+        origin.body = ItemBody::Inline { text: "v2".into() };
+        cp.put_item(origin).unwrap();
+        let second = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
+        // Flip the alias to private.
+        set_visibility(&mut cp, &second.alias, "owner", Visibility::Private).unwrap();
+        // The historical version that was public still resolves as a frozen
+        // snapshot; the now-private current version does not.
+        assert!(resolve_version(&cp, &first.version_hash).is_ok());
+        assert!(matches!(
+            resolve_version(&cp, &second.version_hash),
+            Err(PublishError::VersionNotFound)
+        ));
+    }
+
+    #[test]
+    fn republish_by_a_non_owner_is_forbidden() {
+        let mut cp = store();
+        let id = seed_doc(&mut cp);
+        publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
+        // A different principal who knows the origin id cannot overwrite it.
+        assert!(matches!(
+            publish_block(&mut cp, &id, Visibility::Public, "stranger"),
+            Err(PublishError::Forbidden)
+        ));
+        // The outcome wrapper reports the refusal without erroring.
+        let outcome = publish_block_outcome(&mut cp, &id, Visibility::Public, "stranger");
+        assert!(!outcome.ok);
+    }
+
+    #[test]
+    fn unpublish_and_set_visibility_require_ownership() {
+        let mut cp = store();
+        let id = seed_doc(&mut cp);
+        let receipt = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
+        assert!(matches!(
+            unpublish_block(&mut cp, &receipt.alias, "stranger"),
+            Err(PublishError::Forbidden)
+        ));
+        assert!(matches!(
+            set_visibility(&mut cp, &receipt.alias, "stranger", Visibility::Private),
+            Err(PublishError::Forbidden)
+        ));
+        // The stranger changed nothing; the owner still controls the block.
+        assert!(resolve_alias(&mut cp, &receipt.alias, None, false).is_ok());
+        assert!(set_visibility(&mut cp, &receipt.alias, "owner", Visibility::Unlisted).is_ok());
+    }
+
+    #[test]
+    fn reference_of_private_block_without_grant_is_forbidden() {
+        let mut cp = store();
+        let id = seed_doc(&mut cp);
+        let receipt = publish_block(&mut cp, &id, Visibility::Private, "owner").unwrap();
+        // A stranger who knows the alias cannot reference or fork a private block.
+        assert!(matches!(
+            reference_block(&mut cp, &receipt.alias, "stranger", false),
+            Err(PublishError::Forbidden)
+        ));
+        assert!(matches!(
+            reference_block(&mut cp, &receipt.alias, "stranger", true),
+            Err(PublishError::Forbidden)
+        ));
+        // The granted owner can reference it.
+        assert!(reference_block(&mut cp, &receipt.alias, "owner", false).is_ok());
+    }
+
+    #[test]
+    fn reference_of_gone_block_is_forbidden() {
+        let mut cp = store();
+        let id = seed_doc(&mut cp);
+        let receipt = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
+        unpublish_block(&mut cp, &receipt.alias, "owner").unwrap();
+        // An unpublished (gone) block cannot be referenced or forked.
+        assert!(reference_block(&mut cp, &receipt.alias, "visitor", false).is_err());
     }
 }
