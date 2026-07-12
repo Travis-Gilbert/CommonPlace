@@ -23,13 +23,16 @@ import { isBlocked } from '@/lib/theorem-operator';
 import { RoomPanel } from './RoomPanel';
 import { GateDrawer } from './GateDrawer';
 import { BootstrapDialog } from './Bootstrap';
+import { LibraryPanel } from './LibraryPanel';
 import { DevModeDot } from './parts';
 import { OperatorBlockHost, type OperatorCallbacks } from './surface/OperatorBlockHost';
 import { buildOperatorSurface, operatorSurfaceId, type OperatorLayout } from './surface/operator-surface';
 import styles from './operator.module.css';
 
 export default function OperatorPage() {
-  const { data, loading, error, refetch } = useApiData(() => fetchOperatorState(), []);
+  const { data, loading, error, refetch } = useApiData(() => fetchOperatorState(), [], {
+    cacheKey: 'v2:operator',
+  });
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [blockedOnly, setBlockedOnly] = useState(false);
@@ -164,6 +167,7 @@ export default function OperatorPage() {
 
         {/* Rows 2–5 — the interpreted surface: attention strip, bays, queue. */}
         {host && <SurfaceRenderer surfaceId={operatorSurfaceId(layout)} host={host} chrome={false} />}
+        <LibraryPanel />
       </div>
 
       <RoomPanel

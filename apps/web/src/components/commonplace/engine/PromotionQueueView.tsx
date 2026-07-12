@@ -2,20 +2,29 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import {
   useApiData,
   fetchPromotionQueue,
   submitReviewAction,
   fetchFeedbackStats,
 } from '@/lib/commonplace-api';
+import { runOptimistic } from '@/lib/commonplace-optimistic';
 import { useCapture } from '@/lib/providers/capture-provider';
 import { useLayout } from '@/lib/providers/layout-provider';
 import type { ApiPromotionItem } from '@/lib/commonplace';
 import EngineShell from './EngineShell';
 import { DISMISS_EXIT, useSpring } from './engine-motion';
+import { deriveViewState, hasData } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 
 /* ─────────────────────────────────────────────────
    Promotion Queue View
+   Screen archetype: PR-review-card (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). Each pending decision is a card you
+   accept or reject with its provenance visible; accept is the oxblood action and the
+   card leaves the queue on decision.
    Triage surface: 5 item types with color-coded
    left borders, inline accept/reject, batch actions.
    ───────────────────────────────────────────────── */
@@ -68,118 +77,111 @@ export default function PromotionQueueView() {
   );
 
   const handleReview = useCallback(
-    async (itemId: number, action: 'accept' | 'reject') => {
-      try {
-        await submitReviewAction({ promotion_item_id: itemId, action_type: action });
-        setReviewedIds((prev) => new Set(prev).add(itemId));
-      } catch {
-        // Silently fail; user can retry
-      }
+    (itemId: number, action: 'accept' | 'reject') => {
+      // Dismiss the item in the same frame; if the server rejects the decision,
+      // return just that item to the queue with a reason (SPEC-UX-PHYSICS D3).
+      void runOptimistic<void>({
+        applyLocal: () => setReviewedIds((prev) => new Set(prev).add(itemId)),
+        commit: () => submitReviewAction({ promotion_item_id: itemId, action_type: action }),
+        rollback: () =>
+          setReviewedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(itemId);
+            return next;
+          }),
+        onError: () => toast.error(`Could not ${action} the item. Returned it to the queue.`),
+      });
     },
     [],
   );
 
   const handleBatchAction = useCallback(
-    async (action: 'accept' | 'reject') => {
-      for (const item of filteredItems) {
-        try {
-          await submitReviewAction({ promotion_item_id: item.id, action_type: action });
-          setReviewedIds((prev) => new Set(prev).add(item.id));
-        } catch {
-          break;
-        }
-      }
+    (action: 'accept' | 'reject') => {
+      // Each item dismisses optimistically and rolls back on its own failure, so
+      // one server rejection does not strand the rest of the batch.
+      for (const item of filteredItems) handleReview(item.id, action);
     },
-    [filteredItems],
+    [filteredItems, handleReview],
   );
 
-  if (loading) {
-    return (
-      <EngineShell
-        title="Review Queue"
-        subtitle="Items extracted from artifacts awaiting review."
-        feedbackStats={feedbackStats}
-        onBack={() => navigateToScreen('engine')}
-      >
-        <div style={centeredStyle}>
-          <div style={monoLabelStyle}>LOADING QUEUE...</div>
-        </div>
-      </EngineShell>
-    );
-  }
-
-  if (error) {
-    return (
-      <EngineShell
-        title="Review Queue"
-        subtitle="Items extracted from artifacts awaiting review."
-        feedbackStats={feedbackStats}
-        onBack={() => navigateToScreen('engine')}
-      >
-        <div style={centeredStyle}>
-          <div style={{ color: 'var(--cp-red)', fontSize: 13, marginBottom: 8 }}>{error.message}</div>
-          <button onClick={refetch} style={actionBtnStyle('var(--cp-teal)')}>Retry</button>
-        </div>
-      </EngineShell>
-    );
-  }
+  // Five-state discipline (SPEC-UX-PHYSICS D4): the queue body resolves through
+  // ViewStateView instead of hand-rolled loading/error branches. EngineShell chrome
+  // stays outside the wrapper so the title, subtitle, and back control persist across
+  // every state. No isEmpty here: a settled-but-empty queue still renders the stats
+  // and filter tabs, with EmptyQueue owning the honest "clear vs filtered" copy.
+  const state = deriveViewState<ApiPromotionItem[]>({
+    data: items,
+    loading,
+    error: error?.message ?? null,
+    retry: refetch,
+  });
 
   return (
     <EngineShell
       title="Review Queue"
-      subtitle="Accept to promote, reject to discard."
+      subtitle={
+        hasData(state)
+          ? 'Accept to promote, reject to discard.'
+          : 'Items extracted from artifacts awaiting review.'
+      }
       feedbackStats={feedbackStats}
       onBack={() => navigateToScreen('engine')}
     >
-      {/* Stats bar */}
-      <QueueStats total={totalVisible} typeCounts={typeCounts} />
+      <ViewStateView state={state} label="review queue" narration={narrationFor('reading', 0)}>
+        {() => (
+          <>
+            {/* Stats bar */}
+            <QueueStats total={totalVisible} typeCounts={typeCounts} />
 
-      {/* Filter tabs */}
-      <div style={filterBarStyle}>
-        <FilterTab
-          label="All"
-          count={totalVisible}
-          active={filter === 'all'}
-          onClick={() => setFilter('all')}
-        />
-        {(Object.keys(ITEM_TYPE_STYLES) as ApiPromotionItem['item_type'][]).map((type) => (
-          <FilterTab
-            key={type}
-            label={ITEM_TYPE_STYLES[type].label}
-            count={typeCounts[type] ?? 0}
-            color={ITEM_TYPE_STYLES[type].color}
-            active={filter === type}
-            onClick={() => setFilter(type)}
-          />
-        ))}
-      </div>
-
-      {/* Batch actions */}
-      {filteredItems.length > 1 && (
-        <BatchActions
-          count={filteredItems.length}
-          onAcceptAll={() => handleBatchAction('accept')}
-          onRejectAll={() => handleBatchAction('reject')}
-        />
-      )}
-
-      {/* Queue items with animated dismiss */}
-      {filteredItems.length === 0 ? (
-        <EmptyQueue hasItems={totalVisible > 0} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <AnimatePresence initial={false}>
-            {filteredItems.map((item) => (
-              <QueueItemAnimated
-                key={item.id}
-                item={item}
-                onAccept={() => handleReview(item.id, 'accept')}
-                onReject={() => handleReview(item.id, 'reject')}
+            {/* Filter tabs */}
+            <div style={filterBarStyle}>
+              <FilterTab
+                label="All"
+                count={totalVisible}
+                active={filter === 'all'}
+                onClick={() => setFilter('all')}
               />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+              {(Object.keys(ITEM_TYPE_STYLES) as ApiPromotionItem['item_type'][]).map((type) => (
+                <FilterTab
+                  key={type}
+                  label={ITEM_TYPE_STYLES[type].label}
+                  count={typeCounts[type] ?? 0}
+                  color={ITEM_TYPE_STYLES[type].color}
+                  active={filter === type}
+                  onClick={() => setFilter(type)}
+                />
+              ))}
+            </div>
+
+            {/* Batch actions */}
+            {filteredItems.length > 1 && (
+              <BatchActions
+                count={filteredItems.length}
+                onAcceptAll={() => handleBatchAction('accept')}
+                onRejectAll={() => handleBatchAction('reject')}
+              />
+            )}
+
+            {/* Queue items with animated dismiss */}
+            {filteredItems.length === 0 ? (
+              <EmptyQueue hasItems={totalVisible > 0} />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <AnimatePresence initial={false}>
+                  {filteredItems.map((item) => (
+                    <QueueItemAnimated
+                      key={item.id}
+                      item={item}
+                      onAccept={() => handleReview(item.id, 'accept')}
+                      onReject={() => handleReview(item.id, 'reject')}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </>
+        )}
+      </ViewStateView>
     </EngineShell>
   );
 }
@@ -435,13 +437,6 @@ function EmptyQueue({ hasItems }: { hasItems: boolean }) {
 }
 
 /* ── Styles ── */
-
-const monoLabelStyle: React.CSSProperties = {
-  fontFamily: 'var(--cp-font-mono)',
-  fontSize: 12,
-  color: 'var(--cp-text-faint)',
-  letterSpacing: '0.06em',
-};
 
 const centeredStyle: React.CSSProperties = {
   display: 'flex',

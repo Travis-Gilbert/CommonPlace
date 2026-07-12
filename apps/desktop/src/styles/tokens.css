@@ -1,21 +1,21 @@
 /*
  * CommonPlace Desktop design tokens. Patent-paper ground: a warm paper field with
- * hairline rules and a faint engineering grid. One accent does the work, the
- * burnt-orange "pencil" (annotation, grounding, primary action, focus). Agent and
- * ingestion are ochre. PCB green is gone. Light is the home; dark is a warm
+ * hairline rules and a faint engineering grid. Two signals do the work: the oxblood
+ * "pencil" owns action, pending-decision, and focus; ochre owns agent and ingestion
+ * (the machine "shows" channel). PCB green is gone. Light is the home; dark is a warm
  * toasted-paper variant, not a cool grey.
  *
  * Direction reference: CommonPlace paper UI and the Theseus
- * Atlas iPhone exemplar (paper #f5ecd6, pencil #A65324, rule #bcae90).
+ * Atlas iPhone exemplar (paper #f5ecd6, oxblood action #7A2733, ochre agent #b09468, rule #bcae90).
  * All accent/neutral hex below is contrast-checked.
  */
 
 :root {
-  /* Accent: the burnt-orange pencil. Primary action, focus, grounding/memory mark.
-     4.96:1 on cream, so it is legible even as body text. */
-  --accent: #A65324;
-  --accent-soft: #A6532426; /* 15% wash for fills/hovers */
-  --accent-strong: #7F3D1A; /* pressed/active */
+  /* Accent: the oxblood pencil. Primary action, focus, pending-decision mark.
+     8.49:1 on cream, so it is legible even as body text. */
+  --accent: #7A2733;
+  --accent-soft: #7A273326; /* 15% wash for fills/hovers */
+  --accent-strong: #66202B; /* pressed/active */
 
   /* Agent and ingestion. Ochre/brass. 2.34:1 on paper, so fills, borders,
      chips, and large text only, never small body text. */
@@ -125,10 +125,10 @@
     --text-dim: #bcae98;
     --text-faint: #8c8070;
 
-    /* Accent brightened for the dark ground (4.40:1, large/UI and bold labels). */
-    --accent: #d2553f;
-    --accent-soft: #d2553f33;
-    --accent-strong: #e0664f;
+    /* Oxblood brightened for the dark ground (4.5:1, large/UI and bold labels). */
+    --accent: #C25E69;
+    --accent-soft: #C25E6933;
+    --accent-strong: #D0707B;
     --accent-agent: #cba56e;
     --accent-agent-soft: #cba56e33;
     --danger: #d76a72;

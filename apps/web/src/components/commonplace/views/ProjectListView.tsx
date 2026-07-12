@@ -1,12 +1,17 @@
 'use client';
 
-import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+/* Screen archetype: Linear row-and-drawer (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). The object list is the surface; the
+   board and planning modes are lateral views over the same set. List mode is windowed. */
+
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   DragDropContext,
   Draggable,
   Droppable,
   type DropResult,
 } from '@hello-pangea/dnd';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   type ColumnDef,
   flexRender,
@@ -107,6 +112,7 @@ export default function ProjectListView() {
   const { data, loading, error, refetch } = useApiData<PmOverviewGql>(
     () => gqlPmOverview(),
     [],
+    { cacheKey: 'projects:list' },
   );
   const [mode, setMode] = useState<ViewMode>('board');
   const [sorting, setSorting] = useState<SortingState>([
@@ -687,6 +693,9 @@ function SegmentedMode({
           role="tab"
           aria-selected={candidate === mode}
           data-selected={candidate === mode}
+          // Press-down activation (SPEC-UX-PHYSICS D5): the mode switch is idempotent,
+          // so it fires on primary pointer-down; onClick keeps keyboard activation.
+          onPointerDown={(e) => { if (e.button === 0) onChange(candidate); }}
           onClick={() => onChange(candidate)}
         >
           {candidate}
@@ -812,45 +821,109 @@ function BoardView({
   );
 }
 
+/* Windowed above this row count: only the rows near the viewport mount, so a
+   10k-item list scrolls at a steady frame rate with flat memory. Shorter tables
+   render in flow exactly as before (no inner scroll, no windowing). */
+const PM_LIST_VIRTUALIZE_THRESHOLD = 60;
+const PM_LIST_ROW_HEIGHT = 44; // matches .cp-pm-table rows (10px padding + single-line cells)
+
 function ListView({
   table,
 }: {
   table: Table<WorkRow>;
 }) {
-  return (
-    <div className="cp-pm-table-wrap">
-      {table.getRowModel().rows.length === 0 ? (
+  const rows = table.getRowModel().rows;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const colCount = table.getVisibleLeafColumns().length;
+
+  // Hook runs unconditionally (rules of hooks); its output is only consumed on
+  // the windowed branch, where the scroll parent is bounded and attached.
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => PM_LIST_ROW_HEIGHT,
+    overscan: 10,
+  });
+
+  if (rows.length === 0) {
+    return (
+      <div className="cp-pm-table-wrap">
         <div className="cp-empty-state">
           <p>No work items yet.</p>
         </div>
-      ) : (
-        <table className="cp-pm-table">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    <button
-                      type="button"
-                      className="cp-pm-th-button"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      <span className="cp-pm-sort-mark">
-                        {header.column.getIsSorted() === 'asc'
-                          ? 'asc'
-                          : header.column.getIsSorted() === 'desc'
-                            ? 'desc'
-                            : ''}
-                      </span>
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
+      </div>
+    );
+  }
+
+  const virtualize = rows.length > PM_LIST_VIRTUALIZE_THRESHOLD;
+
+  const headEl = (
+    <thead>
+      {table.getHeaderGroups().map((headerGroup) => (
+        <tr key={headerGroup.id}>
+          {headerGroup.headers.map((header) => (
+            <th key={header.id}>
+              <button
+                type="button"
+                className="cp-pm-th-button"
+                onClick={header.column.getToggleSortingHandler()}
+              >
+                {flexRender(header.column.columnDef.header, header.getContext())}
+                <span className="cp-pm-sort-mark">
+                  {header.column.getIsSorted() === 'asc'
+                    ? 'asc'
+                    : header.column.getIsSorted() === 'desc'
+                      ? 'desc'
+                      : ''}
+                </span>
+              </button>
+            </th>
+          ))}
+        </tr>
+      ))}
+    </thead>
+  );
+
+  return (
+    <div
+      ref={scrollRef}
+      className="cp-pm-table-wrap"
+      style={virtualize ? { maxHeight: 'calc(100vh - 320px)' } : undefined}
+    >
+      <table className="cp-pm-table">
+        {headEl}
+        {virtualize ? (
+          <tbody style={{ position: 'relative' }}>
+            {/* Spacer sized to the full list so the scroll range stays correct. */}
+            <tr aria-hidden="true" style={{ height: virtualizer.getTotalSize() }}>
+              <td colSpan={colCount} />
+            </tr>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              return (
+                <tr
+                  key={row.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: PM_LIST_ROW_HEIGHT,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        ) : (
           <tbody>
-            {table.getRowModel().rows.map((row) => (
+            {rows.map((row) => (
               <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>
@@ -860,8 +933,8 @@ function ListView({
               </tr>
             ))}
           </tbody>
-        </table>
-      )}
+        )}
+      </table>
     </div>
   );
 }

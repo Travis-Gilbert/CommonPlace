@@ -536,6 +536,18 @@ pub enum ObjectAction {
         new_parent: String,
         order: f64,
     },
+    /// Undo a tombstone written by `Delete` or `Unlink`: clears the
+    /// `{"detached": true}` marker on `node_id` (if any) and on every id in
+    /// `edge_ids`, making the object and/or edge visible again. This is the
+    /// inverse descriptor carried on the `Delete`/`Unlink` receipt's
+    /// `inverse` field, so client undo replays it through the same `emit`
+    /// entry point that applied the forward action.
+    Restore {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        node_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        edge_ids: Vec<String>,
+    },
 }
 
 impl ObjectAction {
@@ -552,6 +564,7 @@ impl ObjectAction {
             Self::Open { .. } => ActionKind::Open,
             Self::Select { .. } => ActionKind::Select,
             Self::Move { .. } => ActionKind::Move,
+            Self::Restore { .. } => ActionKind::Restore,
         }
     }
 }
@@ -570,6 +583,7 @@ pub enum ActionKind {
     Open,
     Select,
     Move,
+    Restore,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -592,6 +606,12 @@ pub struct ObjectActionReceipt {
     pub actor_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// The inverse operation, when the action is reversible. Applying this
+    /// through `emit` restores the exact prior state (e.g. `Delete` and
+    /// `Unlink` carry a `Restore` that clears the tombstone markers they
+    /// wrote). `None` for actions with nothing to undo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inverse: Option<ObjectAction>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -915,6 +935,7 @@ where
                     graph_transform: Some("Item".to_string()),
                     actor_id,
                     note: None,
+                    inverse: None,
                 })
             }
             ObjectAction::Update { id, patch } => {
@@ -933,6 +954,7 @@ where
                     graph_transform: Some("Item.patch".to_string()),
                     actor_id,
                     note: None,
+                    inverse: None,
                 })
             }
             ObjectAction::Link {
@@ -959,24 +981,124 @@ where
                     graph_transform: Some(edge),
                     actor_id,
                     note: None,
+                    inverse: None,
                 })
             }
-            ObjectAction::Delete { id } => Ok(ObjectActionReceipt {
-                action_kind,
-                status: ObjectActionStatus::Deferred,
-                target_ids: vec![id],
-                graph_transform: None,
-                actor_id,
-                note: Some("delete is deferred to the host undo/tombstone layer".to_string()),
-            }),
-            ObjectAction::Unlink { from, edge, to } => Ok(ObjectActionReceipt {
-                action_kind,
-                status: ObjectActionStatus::Deferred,
-                target_ids: vec![from, to],
-                graph_transform: Some(edge),
-                actor_id,
-                note: Some("unlink is deferred to the host undo/tombstone layer".to_string()),
-            }),
+            ObjectAction::Delete { id } => {
+                // The core GraphStore has no hard delete, so a delete is a
+                // soft, reversible tombstone: every currently-live edge
+                // incident to `id` (either direction, any type) is marked
+                // `{"detached": true}` with the same mechanism Move uses on
+                // stale CONTAINS edges, then the object's own node gets the
+                // same marker. Edges that were already detached (e.g. by an
+                // earlier delete/unlink) are left untouched so undo never
+                // resurrects a tombstone this action didn't write.
+                let mut node = self.store().get_node(&id).cloned().ok_or_else(|| {
+                    GraphStoreError::new(
+                        "commonplace_object_missing",
+                        format!("object not found: {id}"),
+                    )
+                })?;
+
+                let mut incident = self.store().neighbors(NeighborQuery::out(&id));
+                incident.extend(self.store().neighbors(NeighborQuery::in_(&id)));
+                let mut seen_edges = BTreeSet::new();
+                let mut detached_edges = Vec::new();
+                for hit in incident {
+                    if !seen_edges.insert(hit.edge_id.clone()) {
+                        continue;
+                    }
+                    let Some(mut edge) = self.store().get_edge(&hit.edge_id).cloned() else {
+                        continue;
+                    };
+                    if is_detached(&edge.properties) {
+                        continue;
+                    }
+                    set_detached(&mut edge.properties, true);
+                    self.store_mut().upsert_edge(edge)?;
+                    detached_edges.push(hit.edge_id);
+                }
+
+                set_detached(&mut node.properties, true);
+                self.store_mut().upsert_node(node)?;
+
+                Ok(ObjectActionReceipt {
+                    action_kind,
+                    status: ObjectActionStatus::Applied,
+                    target_ids: vec![id.clone()],
+                    graph_transform: Some("Item.tombstone".to_string()),
+                    actor_id,
+                    note: None,
+                    inverse: Some(ObjectAction::Restore {
+                        node_id: Some(id),
+                        edge_ids: detached_edges,
+                    }),
+                })
+            }
+            ObjectAction::Unlink { from, edge, to } => {
+                // Same soft-tombstone mechanism as Delete, scoped to the one
+                // edge. The edge id is deterministic from (edge, from, to),
+                // so no traversal is needed to find it.
+                let edge_id = object_edge_id(&edge, &from, &to);
+                let mut edge_record = self.store().get_edge(&edge_id).cloned().ok_or_else(|| {
+                    GraphStoreError::new(
+                        "commonplace_edge_missing",
+                        format!("edge not found: {edge_id}"),
+                    )
+                })?;
+                let already_detached = is_detached(&edge_record.properties);
+                let inverse = if already_detached {
+                    None
+                } else {
+                    set_detached(&mut edge_record.properties, true);
+                    self.store_mut().upsert_edge(edge_record)?;
+                    Some(ObjectAction::Restore {
+                        node_id: None,
+                        edge_ids: vec![edge_id],
+                    })
+                };
+                Ok(ObjectActionReceipt {
+                    action_kind,
+                    status: ObjectActionStatus::Applied,
+                    target_ids: vec![from, to],
+                    graph_transform: Some(edge),
+                    actor_id,
+                    note: already_detached.then(|| "edge already detached".to_string()),
+                    inverse,
+                })
+            }
+            ObjectAction::Restore { node_id, edge_ids } => {
+                let mut target_ids = Vec::new();
+                if let Some(node_id) = &node_id {
+                    if let Some(mut node) = self.store().get_node(node_id).cloned() {
+                        set_detached(&mut node.properties, false);
+                        self.store_mut().upsert_node(node)?;
+                    }
+                    target_ids.push(node_id.clone());
+                }
+                for edge_id in &edge_ids {
+                    if let Some(mut edge) = self.store().get_edge(edge_id).cloned() {
+                        set_detached(&mut edge.properties, false);
+                        let (from, to) = (edge.from_id.clone(), edge.to_id.clone());
+                        self.store_mut().upsert_edge(edge)?;
+                        if !target_ids.contains(&from) {
+                            target_ids.push(from);
+                        }
+                        if !target_ids.contains(&to) {
+                            target_ids.push(to);
+                        }
+                    }
+                }
+                Ok(ObjectActionReceipt {
+                    action_kind,
+                    status: ObjectActionStatus::Applied,
+                    target_ids,
+                    graph_transform: Some("Tombstone.restore".to_string()),
+                    actor_id,
+                    note: None,
+                    inverse: None,
+                })
+            }
             ObjectAction::Move {
                 id,
                 new_parent,
@@ -1015,6 +1137,7 @@ where
                     graph_transform: Some("CONTAINS.move".to_string()),
                     actor_id,
                     note: None,
+                    inverse: None,
                 })
             }
             ObjectAction::RunAgent { .. }
@@ -1028,6 +1151,7 @@ where
                 graph_transform: None,
                 actor_id,
                 note: Some("intent accepted for the shell or harness resolver".to_string()),
+                inverse: None,
             }),
         }
     }
@@ -1073,12 +1197,7 @@ where
                 let edge = self
                     .store()
                     .get_edge(&contains_edge_id(parent, &hit.node_id))?;
-                if edge
-                    .properties
-                    .get("detached")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false)
-                {
+                if is_detached(&edge.properties) {
                     return None;
                 }
                 let order = edge
@@ -1743,6 +1862,33 @@ fn contains_edge_id(parent: &str, child: &str) -> String {
     object_edge_id(CONTAINS_EDGE, parent, child)
 }
 
+/// Whether a node/edge properties blob carries the `Delete`/`Unlink`/`Move`
+/// tombstone marker. Shared by `Delete`, `Unlink`, and `ordered_children`'s
+/// inline check so the property name and shape stay in one place.
+fn is_detached(properties: &Value) -> bool {
+    properties
+        .get("detached")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+/// Set or clear the `detached` tombstone marker on a node/edge properties
+/// blob in place, preserving every other property. Used by `Delete` and
+/// `Unlink` to tombstone, and by their `Restore` inverse to un-tombstone.
+fn set_detached(properties: &mut Value, detached: bool) {
+    if !properties.is_object() {
+        *properties = json!({});
+    }
+    let object = properties
+        .as_object_mut()
+        .expect("properties coerced to an object above");
+    if detached {
+        object.insert("detached".to_string(), json!(true));
+    } else {
+        object.remove("detached");
+    }
+}
+
 /// Midpoint fractional index between two ordered siblings. `before` / `after`
 /// are the `order` values of the neighbours the object is dropped between;
 /// `None` means "past that edge". Dropping between two children never disturbs
@@ -2011,6 +2157,113 @@ mod tests {
             )
             .unwrap();
         assert_eq!(dispatch.status, ObjectActionStatus::Accepted);
+    }
+
+    #[test]
+    fn delete_then_undo_restores_the_object_and_its_edges() {
+        let mut cp = fresh();
+        let region = create(&mut cp, "region", &[("layout", json!("stack"))]);
+        let card = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("card"))],
+        );
+        contains(&mut cp, &region, &card, 1.0);
+        assert_eq!(cp.ordered_children(&region), vec![card.clone()]);
+
+        let task_id = create(&mut cp, "task", &[("title", json!("Investigate"))]);
+        cp.emit_object_action(
+            ObjectAction::Link {
+                from: task_id.clone(),
+                edge: ABOUT_EDGE.to_string(),
+                to: card.clone(),
+                confidence: None,
+            },
+            None,
+        )
+        .unwrap();
+        let about_edge_id = object_edge_id(ABOUT_EDGE, &task_id, &card);
+        assert!(cp.store().get_edge(&about_edge_id).is_some());
+
+        let delete = cp
+            .emit_object_action(
+                ObjectAction::Delete { id: card.clone() },
+                Some("codex".to_string()),
+            )
+            .unwrap();
+        assert_eq!(delete.action_kind, ActionKind::Delete);
+        assert_eq!(delete.status, ObjectActionStatus::Applied);
+
+        // The object node and both its incident edges (CONTAINS in, ABOUT
+        // in) are tombstoned.
+        let node = cp.store().get_node(&card).unwrap();
+        assert_eq!(node.properties.get("detached"), Some(&json!(true)));
+        assert!(cp.ordered_children(&region).is_empty());
+        let about_edge = cp.store().get_edge(&about_edge_id).unwrap();
+        assert_eq!(about_edge.properties.get("detached"), Some(&json!(true)));
+
+        let inverse = delete
+            .inverse
+            .expect("delete carries an inverse descriptor");
+        let undo = cp
+            .emit_object_action(inverse, Some("codex".to_string()))
+            .unwrap();
+        assert_eq!(undo.action_kind, ActionKind::Restore);
+        assert_eq!(undo.status, ObjectActionStatus::Applied);
+
+        // Undo restores the exact prior state: object and both edges are
+        // visible again, and the CONTAINS edge kept its original order.
+        let node = cp.store().get_node(&card).unwrap();
+        assert!(node.properties.get("detached").is_none());
+        assert_eq!(cp.ordered_children(&region), vec![card]);
+        let about_edge = cp.store().get_edge(&about_edge_id).unwrap();
+        assert!(about_edge.properties.get("detached").is_none());
+    }
+
+    #[test]
+    fn unlink_then_undo_restores_the_edge() {
+        let mut cp = fresh();
+        let task_id = create(&mut cp, "task", &[("title", json!("Investigate"))]);
+        let note = cp.put_item(Item::note("Context", "body")).unwrap();
+
+        cp.emit_object_action(
+            ObjectAction::Link {
+                from: task_id.clone(),
+                edge: ABOUT_EDGE.to_string(),
+                to: note.id.clone(),
+                confidence: None,
+            },
+            None,
+        )
+        .unwrap();
+        assert_eq!(cp.task_about(&task_id).unwrap(), vec![note.id.clone()]);
+
+        let edge_id = object_edge_id(ABOUT_EDGE, &task_id, &note.id);
+        let unlink = cp
+            .emit_object_action(
+                ObjectAction::Unlink {
+                    from: task_id.clone(),
+                    edge: ABOUT_EDGE.to_string(),
+                    to: note.id.clone(),
+                },
+                None,
+            )
+            .unwrap();
+        assert_eq!(unlink.action_kind, ActionKind::Unlink);
+        assert_eq!(unlink.status, ObjectActionStatus::Applied);
+        let edge = cp.store().get_edge(&edge_id).unwrap();
+        assert_eq!(edge.properties.get("detached"), Some(&json!(true)));
+
+        let inverse = unlink
+            .inverse
+            .expect("unlink carries an inverse descriptor");
+        let undo = cp.emit_object_action(inverse, None).unwrap();
+        assert_eq!(undo.action_kind, ActionKind::Restore);
+        assert_eq!(undo.status, ObjectActionStatus::Applied);
+
+        // Undo restores the exact prior state: the edge is visible again.
+        let edge = cp.store().get_edge(&edge_id).unwrap();
+        assert!(edge.properties.get("detached").is_none());
     }
 
     #[test]

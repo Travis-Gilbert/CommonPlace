@@ -93,7 +93,7 @@ function PlacedCard({
 
   /* Connect target: pulsing burnt-orange glow */
   const connectShadow = isConnectTarget
-    ? '0 0 0 2px #A65324, 0 0 12px 2px rgba(var(--cp-red-rgb), 0.35)'
+    ? '0 0 0 2px var(--cp-accent), 0 0 12px 2px rgba(var(--cp-accent-rgb), 0.35)'
     : undefined;
 
   return (

@@ -47,6 +47,7 @@ export default function ProjectView({ slug, onOpenObject }: ProjectViewProps) {
   const { data: project, loading, error, refetch } = useApiData(
     () => fetchProjectBySlug(slug),
     [slug],
+    { cacheKey: `project:${slug}` },
   );
 
   const { launchView } = useLayout();

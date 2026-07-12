@@ -13,6 +13,9 @@ import { ToolFallback } from '@/components/assistant-ui/tool-fallback';
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button';
 import { Reasoning, ReasoningGroup } from '@/components/assistant-ui/reasoning';
 import { cn } from '@/lib/utils';
+import { useWaitTier } from '@/lib/commonplace-wait-tier';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { WeaveSpinner } from '@/components/WeaveSpinner';
 import {
   CheckIcon,
   CopyIcon,
@@ -98,11 +101,94 @@ const AssistantMessage: FC = () => {
   );
 };
 
+/**
+ * Streaming footer, refined through the wait-tier ladder (WL-4).
+ *
+ *   streaming, no token yet  -> PreStreamWait (T0 nothing, T1 micro stage
+ *                               label, T2 WeaveSpinner + narrated line at 2s)
+ *   streaming, tokens flowing -> the stage label, as before
+ *   finished                  -> the client-observed TTFT usage receipt, if one
+ *                               was measured for this request (WL-4c)
+ */
 function StreamingFooter() {
   const metadata = useMessage((m) => m.metadata);
   const custom = (metadata?.custom ?? {}) as Partial<TheseusMessageMetadata>;
-  if (!custom.isStreaming) return null;
-  return <StageLabel label={custom.stageLabel ?? 'Composing'} />;
+
+  if (custom.isStreaming) {
+    if (custom.hasStreamedText) {
+      return <StageLabel label={custom.stageLabel ?? 'Composing'} />;
+    }
+    return (
+      <PreStreamWait
+        startedAt={custom.startedAt}
+        stageLabel={custom.stageLabel}
+        narrationStep={custom.narrationStep ?? 0}
+      />
+    );
+  }
+
+  return <UsageReceiptLine receipt={custom.usageReceipt ?? null} />;
+}
+
+/**
+ * Pre-first-token wait state. The tier promotes on real elapsed time via
+ * useWaitTier (no fabricated activity): T1 shows the same Courier stage label
+ * as a micro-state, T2 escalates to the WeaveSpinner plus one narrated line
+ * pulled from the WL-2 inventory at the current pipeline step.
+ */
+function PreStreamWait({
+  startedAt,
+  stageLabel,
+  narrationStep,
+}: {
+  startedAt?: number;
+  stageLabel?: string;
+  narrationStep: number;
+}) {
+  const tier = useWaitTier(true, startedAt);
+  if (tier === 'T0') return null;
+  if (tier === 'T1') return <StageLabel label={stageLabel || 'Working'} />;
+  return (
+    <div
+      className="aui-prestream-wait"
+      role="status"
+      aria-label={stageLabel || 'Thinking'}
+      style={{
+        marginTop: 8,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 10,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: 'var(--color-ink-light)',
+      }}
+    >
+      <WeaveSpinner size="compact" />
+      <span>{narrationFor('thinking', narrationStep)}</span>
+    </div>
+  );
+}
+
+/** The finished request's client-observed TTFT, keyed by provider route. */
+function UsageReceiptLine({ receipt }: { receipt: TheseusMessageMetadata['usageReceipt'] }) {
+  if (!receipt) return null;
+  return (
+    <div
+      className="aui-usage-receipt"
+      title={`${receipt.provider} via ${receipt.route}`}
+      style={{
+        marginTop: 6,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 10,
+        letterSpacing: '0.08em',
+        color: 'var(--color-ink-light)',
+      }}
+    >
+      {`first token ${Math.round(receipt.ttftMs)} ms`}
+    </div>
+  );
 }
 
 const MessageError: FC = () => {

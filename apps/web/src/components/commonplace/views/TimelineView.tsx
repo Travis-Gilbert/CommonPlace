@@ -474,7 +474,7 @@ export default function TimelineView({ feedOverride, toolbarExtra }: TimelineVie
   const { captureVersion } = useCapture();
   const handleObjectClick = useRenderableObjectAction((obj) => openDrawer(obj.slug));
 
-  const { data: feed, loading, error, refetch } = useApiData(fetchFeed, [captureVersion]);
+  const { data: feed, loading, error, refetch } = useApiData(fetchFeed, [captureVersion], { cacheKey: 'feed' });
 
   // Full unfiltered node list kept for connection lookups within ConnectionPill
   const allNodes: MockNode[] = useMemo(

@@ -8,7 +8,9 @@
  * multi-line growth chart, and a snapshot table. Window/step controls
  * let the user adjust the analysis window.
  *
- * Screen archetype: Monitoring. Chart gets the most visual weight.
+ * Screen archetype: Monitoring dashboard (SPEC-UX-PHYSICS D8, see
+ * docs/plans/ux-physics-accent/archetypes.md). Chart gets the most visual weight;
+ * controls are chrome.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -46,6 +48,7 @@ export default function TemporalEvolutionView({
         ? fetchTemporalEvolution(notebookSlug, windowDays, stepDays)
         : Promise.resolve({ snapshots: [], trajectory: [], summary: '' }),
     [notebookSlug, windowDays, stepDays],
+    { cacheKey: `temporal:${notebookSlug ?? 'root'}:${windowDays}:${stepDays}` },
   );
 
   /* ── Loading ── */

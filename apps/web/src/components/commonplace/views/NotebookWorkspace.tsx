@@ -83,10 +83,12 @@ export default function NotebookWorkspace({ slug, onOpenObject }: NotebookWorksp
   const { data: notebook, loading, error, refetch } = useApiData(
     () => fetchNotebookBySlug(slug),
     [slug],
+    { cacheKey: `notebook:${slug}` },
   );
   const { data: health } = useApiData(
     () => fetchNotebookHealth(slug),
     [slug],
+    { cacheKey: `notebook:health:${slug}` },
   );
 
   const [activeTab, setActiveTab] = useState('objects');
@@ -325,6 +327,7 @@ function GraphTab({
   const { data: graphData, loading, error } = useApiData(
     () => fetchGraph({ notebook: slug }),
     [slug],
+    { cacheKey: `notebook:graph:${slug}` },
   );
 
   if (loading) {

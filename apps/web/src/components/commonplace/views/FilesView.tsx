@@ -84,7 +84,7 @@ export default function FilesView() {
   const { captureVersion, notifyCaptured } = useCapture();
   const { openDrawer } = useDrawer();
   const { selectedItems, selectSingle } = useSelection();
-  const { data: items } = useApiData(() => gqlItems(), [captureVersion]);
+  const { data: items } = useApiData(() => gqlItems(), [captureVersion], { cacheKey: 'files:items' });
   const allItems = useMemo(() => items ?? [], [items]);
   const itemById = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
   const selectedItem = useMemo(() => {

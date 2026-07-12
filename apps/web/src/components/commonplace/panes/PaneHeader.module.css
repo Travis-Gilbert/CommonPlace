@@ -45,7 +45,7 @@
 .tab[data-active="true"] {
   color: var(--cp-chrome-text);
   background-color: transparent;
-  border-bottom: 2px solid var(--cp-red);
+  border-bottom: 2px solid var(--cp-accent);
   margin-bottom: 0;
   box-shadow: none;
 }
@@ -59,7 +59,7 @@
 }
 
 .tab[data-active="true"] .tabPip {
-  background: var(--cp-red);
+  background: var(--cp-accent);
 }
 
 .tabClose {

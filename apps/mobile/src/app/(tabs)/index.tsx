@@ -6,10 +6,11 @@
  * queue drains. Search is a pull-down (header sits above the fold).
  */
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Pressable, RefreshControl, SectionList, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +26,8 @@ type Row =
   | { type: 'pending'; row: CaptureRow }
   | { type: 'needs-you'; item: { id: string; kind: string; title: string; preview: string; label?: string | null } }
   | { type: 'item'; item: ItemGql };
+
+type ListRow = { type: 'header'; id: string; title: string } | Row;
 
 function usePendingCaptures(): CaptureRow[] {
   return useSyncExternalStore(subscribeQueue, listPending, listPending);
@@ -43,6 +46,9 @@ export default function IndexScreen() {
   const pending = usePendingCaptures();
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<ItemGql[] | null>(null);
+  // Optimistic overlay for swipe actions (D3.2): an acted row leaves the feed in
+  // the same frame; on a failed sync it rolls back into place with a reason.
+  const [actedIds, setActedIds] = useState<Set<string>>(new Set());
 
   const organize = useQuery({ queryKey: ['organize'], queryFn: () => fetchOrganize('day') });
   const briefing = useQuery({ queryKey: ['briefing'], queryFn: fetchBriefing });
@@ -119,17 +125,42 @@ export default function IndexScreen() {
     return out;
   }, [pending, organize.data, briefing.data, items.data, searchResults]);
 
+  const listData = useMemo<ListRow[]>(() => {
+    const out: ListRow[] = [];
+    for (const section of sections) {
+      const rows =
+        actedIds.size === 0
+          ? section.data
+          : section.data.filter((r) =>
+              r.type === 'item' || r.type === 'needs-you' ? !actedIds.has(r.item.id) : true,
+            );
+      if (rows.length === 0) continue; // an emptied section drops its header too
+      out.push({ type: 'header', id: `header:${section.title}`, title: section.title });
+      out.push(...rows);
+    }
+    return out;
+  }, [sections, actedIds]);
+
   const refetchAll = () => {
     void drainQueue();
     void qc.invalidateQueries();
   };
 
   async function act(item: ItemGql, action: 'done' | 'park') {
+    // The row leaves the feed immediately; the server call settles in the
+    // background. Success reconciles via invalidation, failure restores the row.
+    setActedIds((prev) => new Set(prev).add(item.id));
     try {
       if (action === 'done') await editItem({ id: item.id, status: 'done' });
       else await editItem({ id: item.id, residency: 'parked' });
-    } finally {
       void qc.invalidateQueries();
+    } catch {
+      setActedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+      Alert.alert('Could not save', `That ${action} did not go through. The item is back in your feed.`);
     }
   }
 
@@ -202,6 +233,17 @@ export default function IndexScreen() {
     );
   };
 
+  const renderListItem = ({ item }: ListRenderItemInfo<ListRow>) => {
+    if (item.type === 'header') {
+      return (
+        <View style={styles.sectionHeader}>
+          <AppText variant="display2">{item.title}</AppText>
+        </View>
+      );
+    }
+    return renderRow({ item });
+  };
+
   return (
     <GestureHandlerRootView style={[styles.root, { backgroundColor: t.c.bg }]}>
       <View style={[styles.topbar, { paddingTop: insets.top + 6 }]}>
@@ -217,11 +259,13 @@ export default function IndexScreen() {
           <Ionicons name="person-outline" size={18} color={t.c.textMuted} />
         </Pressable>
       </View>
-      <SectionList
-        sections={sections}
-        keyExtractor={(row) => (row.type === 'pending' ? row.row.id : row.item.id)}
-        renderItem={renderRow}
-        stickySectionHeadersEnabled={false}
+      <FlashList
+        data={listData}
+        keyExtractor={(row) =>
+          row.type === 'header' ? row.id : row.type === 'pending' ? row.row.id : row.item.id
+        }
+        renderItem={renderListItem}
+        getItemType={(row) => row.type}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetchAll} tintColor={t.c.textMuted} />}
         ListHeaderComponent={
           <View style={[styles.search, { backgroundColor: t.c.muted, borderCurve: 'continuous' }]}>
@@ -236,11 +280,6 @@ export default function IndexScreen() {
             />
           </View>
         }
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeader}>
-            <AppText variant="display2">{section.title}</AppText>
-          </View>
-        )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <AppText variant="sub" tone="muted">

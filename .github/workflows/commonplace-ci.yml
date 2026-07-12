@@ -1,0 +1,126 @@
+name: CommonPlace web CI
+
+# SPEC-UX-PHYSICS D7.4 latency budget in CI (+ HANDOFF-WAIT-LADDER WL-5).
+# Runs on pull requests that touch the web app. Encodes the D7 acceptance:
+#   - the bundle size budget (size-limit) must pass;
+#   - a synthetic 250ms handler regression fails CI (Playwright INP budget gate);
+#   - a synthetic 12s indeterminate spinner fails CI (Playwright wait-ladder gate).
+# The lint + quality audit steps also carry the UX-D1.4 accent lint and the MT-2
+# motion lint (both live inside `lint` and `quality:commonplace`).
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/commonplace-ci.yml"
+
+permissions:
+  contents: read
+
+env:
+  # apps/web changed package.json without a regenerated lockfile in this offline
+  # worktree; let pnpm reconcile the lockfile on first networked install.
+  PNPM_FLAGS: "--no-frozen-lockfile"
+
+jobs:
+  quality:
+    name: Lint, unit tests, quality, a11y
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install (pnpm)
+        run: pnpm install ${{ env.PNPM_FLAGS }}
+
+      - name: Lint (includes UX-D1.4 accent + MT-2 motion lints)
+        run: pnpm --filter @commonplace/web run lint
+
+      - name: Unit tests (vitest)
+        run: pnpm --filter @commonplace/web run test
+
+      - name: Quality audit
+        run: pnpm --filter @commonplace/web run quality:commonplace
+
+      - name: Accessibility contrast audit
+        run: pnpm --filter @commonplace/web run a11y:commonplace
+
+  bundle-budget:
+    name: Bundle size budget (size-limit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install (pnpm)
+        run: pnpm install ${{ env.PNPM_FLAGS }}
+
+      - name: Build web
+        run: pnpm --filter @commonplace/web run build
+
+      # UX-D7.2: the bundle budget in .size-limit.json must pass.
+      - name: Size budget
+        run: pnpm --filter @commonplace/web run size
+
+  e2e-traces:
+    name: Playwright interaction traces (D7.3 + WL-5)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install (pnpm)
+        run: pnpm install ${{ env.PNPM_FLAGS }}
+
+      - name: Install Playwright browser (chromium)
+        run: pnpm --filter @commonplace/web exec playwright install --with-deps chromium
+
+      # UX-D7.3 traces on the three headline flows + the 250ms INP budget gate,
+      # plus WL-5 (no indeterminate spinner beyond 10s; 12s spinner fails). The
+      # Playwright config starts `npm run dev` as its webServer.
+      - name: Run interaction traces
+        run: pnpm --filter @commonplace/web run test:e2e
+
+      - name: Upload traces
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: commonplace-playwright-traces
+          path: |
+            apps/web/test-results/**
+            apps/web/playwright-report/**
+          if-no-files-found: ignore
+          retention-days: 14

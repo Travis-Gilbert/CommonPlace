@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { readCacheSync, writeCache } from './commonplace-read-cache';
 import type {
   MockNode,
   GraphNode,
@@ -244,6 +245,15 @@ export async function fetchFeed(params?: {
   // Flatten day-grouped response into a flat node array
   const items: ApiFeedNode[] = data.days.flatMap((day) => day.nodes);
   return items.map(mapFeedNodeToMockNode);
+}
+
+/**
+ * Fetch the flat item list (the Ledger's rows) from the real ObjectQuery via the
+ * GraphQL read. The caller maps ItemGql to its own row shape. No fixture, no seed:
+ * an empty library returns an empty array and the surface renders an honest empty.
+ */
+export async function fetchItems(kind?: string): Promise<ItemGql[]> {
+  return gqlItems(kind);
 }
 
 /** Fetch graph data (objects + edges), mapped to D3 format */
@@ -979,17 +989,37 @@ export interface UseApiDataResult<T> {
   refetch: () => void;
 }
 
+export interface UseApiDataOptions {
+  /**
+   * Stable cache key for local-first reads (SPEC-UX-PHYSICS D2). When set, the
+   * hook seeds synchronously from the last cached value (loading stays false while
+   * a cached value is shown) and revalidates in the background, so the surface is
+   * interactive in the first frame and a refresh does not clear or jump.
+   */
+  cacheKey?: string;
+}
+
 /**
  * Lightweight data fetching hook for client components.
  * Calls the fetcher on mount and whenever deps change.
  * Handles loading, error, and refetch without external deps.
+ *
+ * With options.cacheKey it becomes stale-while-revalidate: it seeds from the
+ * persisted read cache (commonplace-read-cache) in the same frame it mounts and
+ * revalidates in the background without flipping back to a loading state.
  */
 export function useApiData<T>(
   fetcher: () => Promise<T>,
   deps: unknown[] = [],
+  options?: UseApiDataOptions,
 ): UseApiDataResult<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = options?.cacheKey;
+  const [data, setData] = useState<T | null>(() =>
+    cacheKey ? readCacheSync<T>(cacheKey) ?? null : null,
+  );
+  const [loading, setLoading] = useState<boolean>(() =>
+    cacheKey ? readCacheSync<T>(cacheKey) === undefined : true,
+  );
   const [error, setError] = useState<ApiError | null>(null);
   const [tick, setTick] = useState(0);
 
@@ -1000,13 +1030,19 @@ export function useApiData<T>(
     fetcherRef.current = fetcher;
   }, [fetcher]);
 
+  /* Track whether we currently have data to show, so a background revalidation
+     never flips a populated surface back to a loading state (no clear, no jump). */
+  const dataRef = useRef<T | null>(data);
+  dataRef.current = data;
+
   const refetch = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled) return;
-      setLoading(true);
+      // Only show the loading state when there is nothing cached to show yet.
+      if (dataRef.current === null) setLoading(true);
       setError(null);
 
       fetcherRef
@@ -1015,6 +1051,7 @@ export function useApiData<T>(
           if (!cancelled) {
             setData(result);
             setLoading(false);
+            if (cacheKey) writeCache(cacheKey, result);
           }
         })
         .catch((err) => {
@@ -1034,7 +1071,7 @@ export function useApiData<T>(
       window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, ...deps]);
+  }, [tick, cacheKey, ...deps]);
 
   return { data, loading, error, refetch };
 }

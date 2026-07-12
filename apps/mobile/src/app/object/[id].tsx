@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addToCollection, editItem, fetchCollections, fetchItem, putNote } from '@/api/queries';
@@ -36,6 +36,13 @@ export default function ObjectDrawer() {
   const collections = useQuery({ queryKey: ['collections'], queryFn: fetchCollections });
 
   const invalidate = () => void qc.invalidateQueries();
+
+  // Apply a status change and reconcile; surface a reason if the sync fails
+  // instead of dropping the rejection silently (D3.2).
+  const applyStatus = (patch: Parameters<typeof editItem>[0], verb: string) =>
+    void editItem(patch)
+      .then(invalidate)
+      .catch(() => Alert.alert('Could not save', `That ${verb} did not go through. Nothing was changed.`));
 
   async function refileTo(collectionId: string) {
     await addToCollection(itemId, collectionId);
@@ -181,14 +188,14 @@ export default function ObjectDrawer() {
             {/* Actions */}
             <View style={styles.actionsRow}>
               <Pressable
-                onPress={() => void editItem({ id: itemId, status: 'done' }).then(invalidate)}
+                onPress={() => applyStatus({ id: itemId, status: 'done' }, 'done')}
                 style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
               >
                 <Ionicons name="checkmark" size={16} color={t.c.text} />
                 <AppText variant="caption">Done</AppText>
               </Pressable>
               <Pressable
-                onPress={() => void editItem({ id: itemId, residency: 'parked' }).then(invalidate)}
+                onPress={() => applyStatus({ id: itemId, residency: 'parked' }, 'park')}
                 style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
               >
                 <Ionicons name="pause" size={16} color={t.c.text} />

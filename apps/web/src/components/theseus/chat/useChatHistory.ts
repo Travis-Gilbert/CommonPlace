@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { askTheseusAsyncStream } from '@/lib/theseus-api';
 import type { AsyncStreamHandlers, StageEvent } from '@/lib/theseus-api';
+import type { UsageReceipt } from '@/lib/commonplace-usage-receipts';
 import type { TheseusResponse, EvidenceNode, EvidenceEdge } from '@/lib/theseus-types';
 
 export type ChatRole = 'user' | 'theseus';
@@ -17,9 +18,17 @@ export interface ChatMessage {
   isStreaming?: boolean;
   /** Current pipeline stage label */
   stageLabel?: string;
+  /**
+   * WL-2 narration step for the pre-first-token wait ladder. Advances only
+   * when a real pipeline stage changes (never on a timer), so the T2 spinner
+   * shows the honest current line via narrationFor('thinking', narrationStep).
+   */
+  narrationStep?: number;
+  /** WL-4c client-observed usage receipt (TTFT) once the first token arrives. */
+  usageReceipt?: UsageReceipt;
   /** Error message if the response failed */
   error?: string;
-  /** Timestamp */
+  /** Timestamp: also the request-start epoch the wait ladder measures from. */
   timestamp: number;
 }
 
@@ -45,6 +54,24 @@ function stageToLabel(event: StageEvent): string {
     case 'expression_start': return 'Composing answer\u2026';
     case 'expression_complete': return '';
     default: return '';
+  }
+}
+
+/**
+ * Map a real pipeline stage to a WL-2 'thinking' narration step (0 read, 1
+ * weigh, 2 compose). The step advances only on genuine stage changes, so the
+ * pre-first-token spinner narrates the honest current phase, never a timer.
+ */
+function stageToStep(event: StageEvent): number {
+  switch (event.name) {
+    case 'objects_loaded':
+    case 'simulation_assembling':
+      return 1;
+    case 'expression_start':
+    case 'expression_complete':
+      return 2;
+    default:
+      return 0;
   }
 }
 
@@ -84,8 +111,17 @@ export function useChatHistory() {
     const handlers: AsyncStreamHandlers = {
       onStage(event: StageEvent) {
         const label = stageToLabel(event);
+        const step = stageToStep(event);
         setMessages((prev) =>
-          prev.map((m) => (m.id === theseusId ? { ...m, stageLabel: label } : m)),
+          prev.map((m) =>
+            m.id === theseusId ? { ...m, stageLabel: label, narrationStep: step } : m,
+          ),
+        );
+      },
+
+      onTtft(receipt) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === theseusId ? { ...m, usageReceipt: receipt } : m)),
         );
       },
 
