@@ -1598,3 +1598,12 @@ export async function gqlReferenceBlock(alias: string, fork = false): Promise<st
   );
   return data.referenceBlock;
 }
+
+/** Aliases of currently-public, live blocks for the public sitemap (P3.2). */
+export async function gqlPublicAliases(): Promise<string[]> {
+  return gqlRead<{ publicAliases: string[] }>(
+    `query { publicAliases }`,
+    {},
+    { publicAliases: [] },
+  ).then((d) => d.publicAliases);
+}

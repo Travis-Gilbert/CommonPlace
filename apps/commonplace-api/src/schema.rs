@@ -1901,6 +1901,15 @@ where
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::resolve_version(&cp, &version_hash).ok())
     }
+
+    /// Aliases of currently-public, live blocks for the public sitemap (P3.2).
+    /// Unlisted and private blocks are excluded.
+    async fn public_aliases(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::public_aliases(&cp))
+    }
 }
 
 /// Consumer write API.

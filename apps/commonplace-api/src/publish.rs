@@ -683,6 +683,28 @@ where
     Ok(to_published_block(&record))
 }
 
+/// Aliases of all currently-public, live blocks, for the public sitemap (P3.2).
+/// Unlisted and private blocks are excluded (they carry noindex and never enter
+/// the sitemap); gone blocks are excluded too.
+pub fn public_aliases<S, B>(cp: &Commonplace<S, B>) -> Vec<String>
+where
+    S: EmbeddingGraphStore,
+    B: BlobStore,
+{
+    cp.items_by_kind(&published_kind())
+        .into_iter()
+        .flatten()
+        .filter(|it| {
+            let live = it.extra.get("state").and_then(Value::as_str).unwrap_or("published") != "gone";
+            let public = Visibility::from_str(
+                it.extra.get("visibility").and_then(Value::as_str).unwrap_or("unlisted"),
+            ) == Visibility::Public;
+            live && public
+        })
+        .filter_map(|it| it.extra.get("alias").and_then(Value::as_str).map(str::to_string))
+        .collect()
+}
+
 /// Doorway: reference a published block into a visitor's space (not a copy).
 /// Returns the new reference item id. `fork` makes an owned divergent copy where
 /// the grant permits it.
@@ -869,6 +891,29 @@ mod tests {
             fork.extra.get("provenance").and_then(|p| p.get("kind")).and_then(Value::as_str),
             Some("fork")
         );
+    }
+
+    #[test]
+    fn public_aliases_lists_only_public_live_blocks() {
+        let mut cp = store();
+        let pub_id = seed_doc(&mut cp);
+        let public = publish_block(&mut cp, &pub_id, Visibility::Public, "owner").unwrap();
+
+        // An unlisted block: excluded from the sitemap.
+        let unlisted_item = Item::new(ItemKind::Doc, "Unlisted").with_text("u");
+        let unlisted_id = cp.put_item(unlisted_item).unwrap().id;
+        publish_block(&mut cp, &unlisted_id, Visibility::Unlisted, "owner").unwrap();
+
+        // A public-then-unpublished block: gone, excluded.
+        let gone_item = Item::new(ItemKind::Doc, "Gone").with_text("g");
+        let gone_id = cp.put_item(gone_item).unwrap().id;
+        let gone = publish_block(&mut cp, &gone_id, Visibility::Public, "owner").unwrap();
+        unpublish_block(&mut cp, &gone.alias).unwrap();
+
+        let aliases = public_aliases(&cp);
+        assert!(aliases.contains(&public.alias));
+        assert!(!aliases.iter().any(|a| a == &gone.alias));
+        assert_eq!(aliases.len(), 1);
     }
 
     #[test]
