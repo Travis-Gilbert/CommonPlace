@@ -21,6 +21,10 @@ import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 
 /* ─────────────────────────────────────────────────
    Promotion Queue View
+   Screen archetype: PR-review-card (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). Each pending decision is a card you
+   accept or reject with its provenance visible; accept is the oxblood action and the
+   card leaves the queue on decision.
    Triage surface: 5 item types with color-coded
    left borders, inline accept/reject, batch actions.
    ───────────────────────────────────────────────── */

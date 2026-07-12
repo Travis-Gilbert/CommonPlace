@@ -1,5 +1,9 @@
 'use client';
 
+/* Screen archetype: activity feed (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). A reverse-chronological stream of
+   uniform node rows, newest at top, windowed for length. */
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import CaptureBar from './CaptureBar';

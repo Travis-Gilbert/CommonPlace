@@ -1,5 +1,9 @@
 'use client';
 
+/* Screen archetype: Linear row-and-drawer (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). The object list is the surface; the
+   board and planning modes are lateral views over the same set. List mode is windowed. */
+
 import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   DragDropContext,
