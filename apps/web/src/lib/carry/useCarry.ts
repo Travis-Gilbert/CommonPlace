@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 
 import type { ViewType } from '@/lib/commonplace';
+import type { PaneNode } from '@/lib/commonplace-layout';
 import { useLayout } from '@/lib/providers/layout-provider';
 
 import { getBundle } from './bundle-store';
@@ -22,6 +23,19 @@ function carryId(): string {
   return `carry-${Date.now().toString(36)}`;
 }
 
+/** Find the slug of an open `project` pane, so Carry to Write seeds into the
+ *  project the user already has open. Returns null when none is open. */
+function openProjectSlug(node: PaneNode): string | null {
+  if (node.type === 'leaf') {
+    if (node.viewId === 'project') {
+      const slug = node.context?.slug;
+      if (typeof slug === 'string' && slug) return slug;
+    }
+    return null;
+  }
+  return openProjectSlug(node.first) ?? openProjectSlug(node.second);
+}
+
 /**
  * The one Carry action (HANDOFF-CARRY D2 to D5). Compiles the session bundle,
  * records the carry event and the destination action on the traveling session
@@ -36,7 +50,7 @@ export function useCarry(sessionId: string | null): {
   carry: (destination: CarryDestination) => Promise<CarryReceipt | null>;
   busy: boolean;
 } {
-  const { launchView } = useLayout();
+  const { launchView, layout } = useLayout();
   const [busy, setBusy] = useState(false);
 
   const carry = useCallback(
@@ -70,14 +84,15 @@ export function useCarry(sessionId: string | null): {
           },
         });
 
-        // Open the destination, seeded from the carried session id.
-        launchView(DESTINATION_VIEW[destination], { carrySessionId: sessionId });
-
-        // Record the destination action so the rail reads pre and post carry.
-        await appendRailEntry(sessionId, {
-          kind: 'destination',
-          summary: `Seeded ${label} from the bundle`,
-        });
+        // Open the destination, seeded from the carried session id. Write seeds
+        // into the project the user has open; each destination view records its
+        // own real seed on the rail (with the concrete target id).
+        const context: Record<string, unknown> = { carrySessionId: sessionId };
+        if (destination === 'write') {
+          const slug = openProjectSlug(layout);
+          if (slug) context.slug = slug;
+        }
+        launchView(DESTINATION_VIEW[destination], context);
 
         return receipt;
       } finally {

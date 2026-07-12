@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { toast } from 'sonner';
 import NotebookTiptapEditor from '@/components/theseus/notebook/NotebookTiptapEditor';
@@ -16,9 +16,17 @@ import {
   type PmWorkItemGql,
 } from '@/lib/commonplace-graphql';
 import { useCommonplaceCollabYjs } from '@/lib/useCommonplaceCollabYjs';
+import { getBundle } from '@/lib/carry/bundle-store';
+import { compileBundle } from '@/lib/carry/compile';
+import { seededWriteBody, seededWriteTitle } from '@/lib/carry/seed-write';
+import { appendRailEntry } from '@/lib/carry/session-rail';
+import { SessionRail } from '@/components/commonplace/rail/SessionRail';
 
 interface ProjectPagesViewProps {
   projectId: string;
+  /** Present when reached via Carry to Write: seed a page from this session's
+   *  bundle (HANDOFF-CARRY D2). */
+  carrySessionId?: string | null;
 }
 
 const EMPTY_OVERVIEW: PmOverviewGql = {
@@ -50,7 +58,7 @@ function htmlToStoredText(html: string): string {
   return html === '<p></p>' ? '' : html;
 }
 
-export default function ProjectPagesView({ projectId }: ProjectPagesViewProps) {
+export default function ProjectPagesView({ projectId, carrySessionId }: ProjectPagesViewProps) {
   const { data, loading, error, refetch } = useApiData<PmOverviewGql>(
     () => gqlPmOverview(projectId),
     [projectId],
@@ -99,6 +107,43 @@ export default function ProjectPagesView({ projectId }: ProjectPagesViewProps) {
       setCreating(false);
     }
   }, [aboutItemId, newTitle, projectId, refetch]);
+
+  // Carry to Write (C2.1/C2.4): when reached with a carry session, compile its
+  // bundle and seed a new page of citation blocks, once per session id.
+  const seededRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!carrySessionId || seededRef.current === carrySessionId) return;
+    seededRef.current = carrySessionId;
+    let cancelled = false;
+    void (async () => {
+      const bundle = await getBundle(carrySessionId);
+      if (!bundle || bundle.items.length === 0 || cancelled) return;
+      const packet = await compileBundle(bundle);
+      try {
+        const page = await gqlCreatePage({
+          projectId,
+          title: seededWriteTitle(packet),
+          body: seededWriteBody(packet),
+        });
+        if (cancelled) return;
+        // Record the real seed on the traveling rail (the page id ties the
+        // document back to the bundle, C2.4).
+        await appendRailEntry(carrySessionId, {
+          kind: 'destination',
+          summary: `Seeded page with ${packet.records.length} cited ${packet.records.length === 1 ? 'source' : 'sources'}`,
+          receipt: { pageId: page.id, projectId, bundleId: carrySessionId },
+        });
+        setActivePageId(page.id);
+        await refetch();
+        toast.success('Carried sources into a new page');
+      } catch (caught) {
+        toast.error(caught instanceof Error ? caught.message : 'Could not seed carried page');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [carrySessionId, projectId, refetch]);
 
   if (loading) {
     return (
@@ -168,6 +213,12 @@ export default function ProjectPagesView({ projectId }: ProjectPagesViewProps) {
           </button>
         </form>
       </div>
+
+      {carrySessionId ? (
+        <div className="cp-pages-carry-rail" style={{ padding: '0 1rem 0.75rem' }}>
+          <SessionRail sessionId={carrySessionId} title="Carried into this page" defaultOpen />
+        </div>
+      ) : null}
 
       <div className="cp-pages-shell">
         <aside className="cp-pages-list" aria-label="Project pages">

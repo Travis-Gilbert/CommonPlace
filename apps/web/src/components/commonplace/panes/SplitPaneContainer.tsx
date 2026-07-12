@@ -837,6 +837,7 @@ function PaneViewContent({
       return (
         <ProjectView
           slug={context.slug as string}
+          carrySessionId={typeof context.carrySessionId === 'string' ? context.carrySessionId : null}
           onOpenObject={
             paneId && onOpenObject
               ? (ref, title) => onOpenObject(paneId, ref, title)
