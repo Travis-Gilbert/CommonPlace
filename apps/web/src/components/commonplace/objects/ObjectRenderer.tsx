@@ -197,7 +197,7 @@ export default function ObjectRenderer(props: ObjectCardProps) {
         <div className="cp-drop-label">Drop to attach component</div>
       )}
       {dragOver && (
-        <div className="cp-drop-label" style={{ color: 'var(--cp-red, #A65324)' }}>Pin</div>
+        <div className="cp-drop-label" style={{ color: 'var(--cp-accent)' }}>Pin</div>
       )}
       {props.object.tag_summary?.badge && (
         <div className="cp-tag-footer">

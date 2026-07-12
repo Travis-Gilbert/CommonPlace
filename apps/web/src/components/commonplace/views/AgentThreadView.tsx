@@ -30,7 +30,7 @@ import type { RenderScenePayload } from '@/lib/scene-package';
 import AgentThreadOmnibar from './AgentThreadOmnibar';
 import SceneHost from '../scene-host/SceneHost';
 import styles from './AgentThreadView.module.css';
-import { WeaveSpinner } from './WeaveSpinner';
+import { WeaveSpinner } from '@/components/WeaveSpinner';
 
 type ThreadItem =
   | {

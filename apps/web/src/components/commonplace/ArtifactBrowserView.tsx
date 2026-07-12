@@ -196,7 +196,7 @@ export default function ArtifactBrowserView() {
           <button
             onClick={() => setActiveStage(activeStage === 'failed' ? null : 'failed')}
             style={{
-              ...actionBtnStyle('var(--cp-red)'),
+              ...actionBtnStyle('var(--cp-accent)'),
               fontSize: 11,
               padding: '2px 8px',
             }}

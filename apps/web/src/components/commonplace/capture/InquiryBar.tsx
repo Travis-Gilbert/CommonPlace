@@ -244,7 +244,7 @@ export default function InquiryBar({
           viewBox="0 0 24 24"
           fill="none"
           className="cp-inquiry-search-icon"
-          stroke={isFocused ? 'var(--cp-red)' : '#5A544D'}
+          stroke={isFocused ? 'var(--cp-accent)' : '#5A544D'}
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"

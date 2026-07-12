@@ -502,7 +502,7 @@ export default function CommandBar({
             viewBox="0 0 24 24"
             fill="none"
             className="cp-inquiry-search-icon"
-            stroke={isFocused ? 'var(--cp-red)' : 'var(--cp-text-faint)'}
+            stroke={isFocused ? 'var(--cp-accent)' : 'var(--cp-text-faint)'}
             strokeWidth={1.5}
             strokeLinecap="round"
             strokeLinejoin="round"

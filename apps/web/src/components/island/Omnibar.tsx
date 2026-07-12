@@ -16,7 +16,7 @@ import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { PlugZap } from 'lucide-react';
 import { AiInputBar, type AiInputMode, type AiInputSize } from './AiInputBar';
-import { WeaveSpinner } from './WeaveSpinner';
+import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { gqlIngest } from '@/lib/commonplace-graphql';
 import {
   searchRustyWeb,

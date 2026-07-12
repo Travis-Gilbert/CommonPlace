@@ -22,6 +22,7 @@ if (args.scope === "contrast" || args.scope === "all") {
 
 if (args.scope === "all") {
   allFindings.push(...auditRawColors(staticFiles, checklist.tokens.definitionFiles))
+  allFindings.push(...auditAccentGrammar(staticFiles))
   allFindings.push(...auditTypography(staticFiles, thresholds))
   allFindings.push(...auditMotion(staticFiles, thresholds))
   allFindings.push(...auditFocusContract(staticFiles))
@@ -202,6 +203,39 @@ function auditRawColors(files, definitionFiles) {
         }))
       }
     })
+  }
+
+  return findings
+}
+
+// Accent grammar (SPEC-UX-PHYSICS D1): oxblood owns action / pending-decision
+// surfaces; burnt-orange (--cp-red / --cp-burnt-orange / #A65324) is machine
+// signal only. An action-role selector that reaches for the burnt-orange family
+// is a two-color-grammar violation and fails the build. Scoped to CSS selectors
+// on purpose: component canvas code needs literal hex that CSS vars cannot supply.
+function auditAccentGrammar(files) {
+  const interactiveSelector =
+    /\.cp-btn-accent|\.cp-btn-primary|\.cp-capture-collapsed|\.cp-capture-plus|\.cp-inquiry-input|\.cp-inquiry-web-toggle|\.cp-drop-target|\.cp-dropzone-inner|\.cp-network-toggle|\.cp-frame-btn|\.cp-frame-item-btn|save-btn|add-save|retro-save|-slider|-thumb\b|-checkbox|\[data-active|\[data-checked|--focused\b|--on\b|:checked/
+  const forbiddenRef =
+    /var\(\s*--cp-red(?:-rgb|-line|-soft|-glow)?\s*\)|var\(\s*--cp-burnt-orange\s*\)|#[Aa]65324\b/
+  const findings = []
+  const rulePattern = /([^{}]+)\{([^{}]*)\}/g
+
+  for (const file of files) {
+    if (!file.endsWith(".css")) continue
+    const rel = relative(file)
+    const stripped = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")
+    let match
+    while ((match = rulePattern.exec(stripped)) !== null) {
+      const selector = match[1].trim()
+      const body = match[2]
+      if (!interactiveSelector.test(selector)) continue
+      const hit = body.match(forbiddenRef)
+      if (!hit) continue
+      findings.push(finding("fail", "accent-grammar", `${rel} :: ${selector.slice(0, 70)}`, `Action selector references burnt-orange (${hit[0]}); action surfaces must use var(--cp-accent) (oxblood).`, {
+        source: body.trim().slice(0, 180),
+      }))
+    }
   }
 
   return findings

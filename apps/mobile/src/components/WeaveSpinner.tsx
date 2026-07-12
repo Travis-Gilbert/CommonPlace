@@ -19,6 +19,7 @@ import Animated, {
   useReducedMotion,
   type CSSAnimationKeyframes,
 } from 'react-native-reanimated';
+import { cssEaseInOut } from '@/theme/springs';
 
 type Props = {
   size?: number;
@@ -65,8 +66,13 @@ export function WeaveSpinner({ size = 160, color = '#E0BC60' }: Props) {
     };
   };
 
+  // Thread 1's ease matches theme/springs.ts easeInOut exactly and is de-inlined below.
+  // Threads 2-4 and the node pulse (cubicBezier(0.68, -0.55, 0.27, 1.55), (0.23, 1, 0.32, 1),
+  // (0.36, 0, 0.66, -0.56)) have no named equivalent among easeOut/easeInOut/easeExit
+  // (all three have y1 or y2 outside [0, 1], an overshoot/anticipation shape the named
+  // set doesn't cover) and stay inline unchanged.
   const threads = [
-    { kf: weave('y', 40, 60, 20),   dur: 2000, ease: cubicBezier(0.45, 0, 0.55, 1),      style: { width: size, height: 2, top: size * 0.3, left: 0 },  horiz: true },
+    { kf: weave('y', 40, 60, 20),   dur: 2000, ease: cssEaseInOut,                       style: { width: size, height: 2, top: size * 0.3, left: 0 },  horiz: true },
     { kf: weave('x', -40, 60, -20), dur: 2200, ease: cubicBezier(0.68, -0.55, 0.27, 1.55), style: { width: 2, height: size, top: 0, left: size * 0.7 }, horiz: false },
     { kf: weave('y', -40, -60, 15), dur: 2400, ease: cubicBezier(0.23, 1, 0.32, 1),       style: { width: size, height: 2, bottom: size * 0.3, left: 0 }, horiz: true },
     { kf: weave('x', 40, -60, -15), dur: 2600, ease: cubicBezier(0.36, 0, 0.66, -0.56),   style: { width: 2, height: size, top: 0, left: size * 0.3 },  horiz: false },

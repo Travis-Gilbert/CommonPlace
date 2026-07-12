@@ -67,7 +67,7 @@
 }
 
 .segment[data-active] {
-  background: var(--cp-red-soft);
+  background: var(--cp-accent-soft);
   color: var(--cp-text);
 }
 
