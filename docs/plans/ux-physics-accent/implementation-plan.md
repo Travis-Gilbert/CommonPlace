@@ -357,16 +357,41 @@ tests run in CI / after an install.
   cross-checked against a same-version copy on disk. Needs the sibling repo to get a real
   pass/fail.
 
-### Remaining (not started): Slices C, D, E, F, G
-- Slice C: UX-D2.1..5 (local-first reads), UX-D3.1..3 (optimistic + undo, builds on UX-D3.0),
-  WL-2 (narration inventory), WL-4 (streaming discipline + TTFT).
-- Slice D: UX-D4.2/.3 adoption, UX-D5.1/.2/.3, MT-2 (consumption sweep + motion lint),
-  MT-4 (scroll conformance), WL-3 (job card + run-ledger).
-- Slice E: UX-D6.1 (web virtualization), UX-D6.2 (mobile FlashList).
-- Slice F: UX-D8.1/.2 (IA archetypes).
-- Slice G: UX-D7.1..4 (CI budget), WL-5, MT-5 visual check.
+### Slice C: local-first + optimistic + narration: DONE (foundations), PARTIAL (adoption)
+- UX-D2.1 persisted read cache + SWR in useApiData: done. commonplace-read-cache.ts
+  (in-memory + size-guarded localStorage) seeds synchronously; useApiData revalidates in
+  the background without clearing/jumping. Deviation from IndexedDB recorded (localStorage
+  seeds the first post-refresh paint synchronously; IndexedDB cannot).
+- UX-D2.2/2.4/2.5 cacheKey adoption: done for every product read surface (sidebar, feed,
+  library lenses, lists, room, workrooms, operator, object detail, and more), keyed by
+  entity id, bump counters excluded. Nine engine job/queue-status views intentionally left
+  live (a stale one-frame count could cause a double approve/reject).
+- UX-D2.3 mobile react-query persister: done, mobile typecheck clean. Built on
+  dehydrate/hydrate (persister packages absent), hydrates under the splash screen.
+- UX-D3.1 optimistic helper + UX-D3.3 undo toast: done. commonplace-optimistic.ts
+  (runOptimistic, undoableDelete). Server-backed undo on the crate inverse is a named
+  backend follow-up.
+- UX-D3.2 mutation-path adoption: PARTIAL. The capture path already surfaces sync failure
+  with a reason and preserves content for retry (a hard rollback there would delete user
+  content on a transient failure, so it is deliberately left as-is). Remaining paths (edit,
+  approve/deny, pin/forget, mobile swipes) still to adopt runOptimistic.
+- WL-2 narration inventory: done, verified. commonplace-wait-narration.ts + parity test +
+  documented mobile mirror. Voice-linter is a stub for HANDOFF-AGENT-VOICE (not provided).
+- WL-4 streaming discipline + TTFT: NOT started.
+- UX-D4.1 + WL-1 mobile mirror: done, mobile typecheck clean (viewState.ts, waitTier.ts,
+  RN ViewStateView.tsx).
+- MT-4 scroll conformance (web): done for panels + drawers (overscroll-behavior contain +
+  scroll-padding). Workrooms receipt rail pending (component-level, lands with Slice F).
 
-### Immediate next steps
-1. Mirror UX-D4.1 union + WL-1 tier helper into `apps/mobile` (same semantics).
-2. Slice C: persisted read cache + SWR in `useApiData` (UX-D2.1), then the optimistic +
-   undo path (UX-D3.1..3) on top of the crate inverse ops.
+Process note: the mobile-persister subagent wrote its files to the sibling parent checkout
+(main) instead of this worktree; the files were relocated here and the parent restored to
+clean. Verify subagent output on disk, never trust the report alone.
+
+### Remaining: Slices D, E, F, G (+ Slice C tails)
+- Slice C tails: WL-4 (streaming + TTFT), UX-D3.2 remaining mutation paths.
+- Slice D: UX-D4.2/.3 adoption (wire ViewStateView across surfaces, remove Ledger SEED mock),
+  UX-D5.1/.2/.3 (press-down, gesture springs, mobile reduced-motion), MT-2 (consumption
+  sweep + motion lint), WL-3 (job card + run-ledger). (MT-4 done early.)
+- Slice E: UX-D6.1 (web virtualization), UX-D6.2 (mobile FlashList).
+- Slice F: UX-D8.1/.2 (IA archetypes), plus the Workrooms receipt-rail overscroll tail.
+- Slice G: UX-D7.1..4 (CI budget), WL-5, MT-5 visual check.
