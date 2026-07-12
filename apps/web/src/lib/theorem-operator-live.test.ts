@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { handleOperatorActionForState } from '@/lib/theorem-operator';
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
 
 /**
@@ -74,40 +75,44 @@ const TASK_NODES = [
   },
 ];
 
-/**
- * A mock commonplace-api GraphQL endpoint. The Operator live source now posts
- * server-to-server directly to `THEOREM_GRAPHQL_URL` and reads a STANDARD
- * GraphQL response envelope (`{ data: { workGraph } }`) — no MCP JSON-RPC
- * `result.content[].text` wrapping. The returned spy lets tests assert the
- * request shape (endpoint, x-api-key, query, variables).
- */
 function graphqlFetch(workGraph: unknown): typeof fetch {
-  return vi.fn(async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({ data: { workGraph } }),
-  })) as unknown as typeof fetch;
+  const view = workGraph && typeof workGraph === 'object' && !Array.isArray(workGraph)
+    ? {
+        run: { tenant_slug: 'Travis-Gilbert', run_id: 'run-1' },
+        ...(workGraph as Record<string, unknown>),
+      }
+    : workGraph;
+  return vi.fn(async () => new Response(JSON.stringify({
+    jsonrpc: '2.0',
+    id: 'operator-test',
+    result: { structuredContent: { data: { workGraph: view } } },
+  }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch;
 }
 
 const LIVE_ENV = {
   THEOREM_OPERATOR_RUN_ID: 'run-1',
-  THEOREM_GRAPHQL_URL: 'https://commonplace-api.example',
-  THEOREM_API_KEY: 'instance-key',
+  THEOREM_MCP_URL: 'https://harness.example/mcp',
+  THEOREM_MCP_AUTH_TOKEN: 'tenant-bound-token',
+  THEOREM_TENANT_SLUG: 'Travis-Gilbert',
+  THEOREM_OPERATOR_HEADS: 'claude-code,codex',
 } as unknown as NodeJS.ProcessEnv;
 
 const NOW = new Date('2026-07-06T00:00:00.000Z');
 
 describe('Operator live workGraph mapping (PT-010)', () => {
-  it('uses the aggregate workGraph when no run is selected', async () => {
+  it('requires the run-scoped workGraph contract', async () => {
     const spy = graphqlFetch({ ok: true, tasks: TASK_NODES });
-    const state = await buildOperatorStateLive({ THEOREM_GRAPHQL_URL: 'https://commonplace-api.example' } as unknown as NodeJS.ProcessEnv, NOW, spy);
-    expect(state).not.toBeNull();
-    expect(state!.source.endpoint).toBe('https://commonplace-api.example/graphql · all runs');
-
-    const [, init] = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { query: string; variables: Record<string, unknown> };
-    expect(body.variables).toEqual({});
-    expect(body.query).toContain('query OperatorWorkGraph($runId:String)');
+    const state = await buildOperatorStateLive(
+      {
+        THEOREM_MCP_URL: 'https://harness.example/mcp',
+        THEOREM_MCP_AUTH_TOKEN: 'tenant-bound-token',
+        THEOREM_TENANT_SLUG: 'Travis-Gilbert',
+      } as unknown as NodeJS.ProcessEnv,
+      NOW,
+      spy,
+    );
+    expect(state).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('returns null and fails open when the backend returns non-2xx', async () => {
@@ -124,36 +129,89 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(state).toBeNull();
   });
 
-  it('posts the workGraph query to the commonplace-api GraphQL door with the server key', async () => {
+  it('posts the typed workGraph query through the tenant-bound MCP GraphQL door', async () => {
     const spy = graphqlFetch({ ok: true, tasks: TASK_NODES });
     await buildOperatorStateLive(LIVE_ENV, NOW, spy);
 
     expect(spy).toHaveBeenCalledTimes(1);
     const [endpoint, init] = (spy as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    // Canonical HTTP door, NOT the harness MCP; normalized to end in /graphql.
-    expect(endpoint).toBe('https://commonplace-api.example/graphql');
+    expect(endpoint).toBe('https://harness.example/mcp');
     expect(init.method).toBe('POST');
-    expect((init.headers as Record<string, string>)['x-api-key']).toBe('instance-key');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tenant-bound-token');
 
-    const body = JSON.parse(init.body as string) as { query: string; variables: { runId: string } };
-    expect(body.variables).toEqual({ runId: 'run-1' });
-    expect(body.query).toContain('workGraph(runId:$runId)');
-    expect(body.query).toContain('query OperatorWorkGraph($runId:String)');
+    const body = JSON.parse(init.body as string) as {
+      params: { name: string; arguments: { query: string; variables: { runId: string } } };
+    };
+    expect(body.params.name).toBe('graphql_query');
+    expect(body.params.arguments.variables).toEqual({ runId: 'run-1' });
+    expect(body.params.arguments.query).toContain('workGraph(runId:$runId)');
+    expect(body.params.arguments.query).toContain('query OperatorWorkGraph($runId:String!)');
     // The opaque `graph` blob is retired — tasks IS the graph, typed.
-    expect(body.query).not.toMatch(/^\s*graph\s*$/m);
+    expect(body.params.arguments.query).not.toMatch(/^\s*graph\s*$/m);
   });
 
   it('maps TaskNode status → Operator status/lane faithfully', async () => {
     const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
     expect(state).not.toBeNull();
     expect(state!.source.mode).toBe('live');
-    expect(state!.source.label).toBe('commonplace-api workGraph');
+    expect(state!.source.label).toBe('Harness MCP workGraph');
 
     const byId = Object.fromEntries(state!.tasks.map((t) => [t.id, t]));
     expect(byId['task-a']).toMatchObject({ status: 'claimed', lane: 'now', laneChip: 'implement' });
+    expect(byId['task-a'].claimEpoch).toBe(3);
     expect(byId['task-b']).toMatchObject({ status: 'queued', lane: 'next' });
     expect(byId['task-c']).toMatchObject({ status: 'done', lane: 'done' });
     expect(byId['task-d']).toMatchObject({ status: 'review', lane: 'now', laneChip: 'verify' });
+  });
+
+  it('rejects malformed and cross-run task payloads instead of producing a live empty board', async () => {
+    const wrongRun = await buildOperatorStateLive(
+      LIVE_ENV,
+      NOW,
+      graphqlFetch({
+        ok: true,
+        run: { tenant_slug: 'Travis-Gilbert', run_id: 'run-1' },
+        tasks: [{ ...TASK_NODES[0], run_id: 'run-2' }],
+      }),
+    );
+    const malformed = await buildOperatorStateLive(
+      LIVE_ENV,
+      NOW,
+      graphqlFetch({ ok: true, tasks: {} }),
+    );
+    const partial = await buildOperatorStateLive(
+      LIVE_ENV,
+      NOW,
+      graphqlFetch({ ok: true, tasks: [{ id: 'task-partial', runId: 'run-1' }] }),
+    );
+    const malformedReceipt = await buildOperatorStateLive(
+      LIVE_ENV,
+      NOW,
+      graphqlFetch({
+        ok: true,
+        tasks: [{
+          ...TASK_NODES[3],
+          receipts: [{ claimed_status: 'pass', verified_status: 'pass' }],
+        }],
+      }),
+    );
+    const unsafeEpoch = await buildOperatorStateLive(
+      LIVE_ENV,
+      NOW,
+      graphqlFetch({ ok: true, tasks: [{ ...TASK_NODES[1], claim_epoch: -1 }] }),
+    );
+    const coercedEpoch = await buildOperatorStateLive(
+      LIVE_ENV,
+      NOW,
+      graphqlFetch({ ok: true, tasks: [{ ...TASK_NODES[1], claim_epoch: '0' }] }),
+    );
+
+    expect(wrongRun).toBeNull();
+    expect(malformed).toBeNull();
+    expect(partial).toBeNull();
+    expect(malformedReceipt).toBeNull();
+    expect(unsafeEpoch).toBeNull();
+    expect(coercedEpoch).toBeNull();
   });
 
   it('binds claim.owner → head and granted_at → claimedAt', async () => {
@@ -180,6 +238,22 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(bayByHead['claude-code'].task?.id).toBe('task-a');
     expect(bayByHead['claude-code'].prLight).toBe('open');
     expect(bayByHead['codex'].task).toBeNull();
+  });
+
+  it('validates actions against the live Operator state, not fixture task ids', async () => {
+    const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
+    expect(state).not.toBeNull();
+
+    const result = handleOperatorActionForState(
+      { action: 'reorder_queue', taskId: 'task-b', priority: 0 },
+      state!,
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      action: 'reorder_queue',
+      message: 'Priority of "OP5 gate" written to 0.',
+    });
   });
 
   it('derives live gate, shift, and drawer state from TaskNodes', async () => {
@@ -217,12 +291,12 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(state!.shiftSummary.since).toBe(new Date(NOW.getTime() - 12 * 60 * 60 * 1000).toISOString());
   });
 
-  it('fails open to fixtures when the GraphQL response carries errors (no data.workGraph)', async () => {
-    const errored = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ errors: [{ message: 'Cannot query field "workGraph"' }] }),
-    })) as unknown as typeof fetch;
+  it('returns null when the MCP GraphQL response carries errors', async () => {
+    const errored = vi.fn(async () => new Response(JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'operator-test',
+      result: { structuredContent: { errors: [{ message: 'Cannot query field "workGraph"' }] } },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch;
     const state = await buildOperatorStateLive(LIVE_ENV, NOW, errored);
     expect(state).toBeNull();
   });

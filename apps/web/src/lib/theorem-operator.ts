@@ -116,6 +116,8 @@ export interface OperatorTask {
   prerequisites: Prerequisite[];
   /** Present when claimed -> occupies a bay. */
   claim?: TaskClaim;
+  /** Optimistic-concurrency epoch from the durable TaskNode. */
+  claimEpoch?: number;
   /** Age in ms, for age display and the 7-day icebox sweep. */
   ageMs: number;
   fileScope?: string[];
@@ -380,6 +382,15 @@ export interface OperatorState {
   shiftSummary: ShiftSummary;
   /** Run drawers keyed by taskId, for claimed/done tasks. Live mode may lazy-fetch. */
   drawers: Record<string, RunDrawer>;
+  /** Present only when the state came from the tenant-bound live contract. */
+  contract?: OperatorLiveContract;
+}
+
+export interface OperatorLiveContract {
+  endpoint: string;
+  tenant: string;
+  runId: string;
+  requestId: string;
 }
 
 export type OperatorAction =
@@ -402,7 +413,21 @@ export type OperatorErrorCode =
   | 'not_in_review'
   | 'invalid_action'
   | 'missing_required_changes'
-  | 'empty_message';
+  | 'empty_message'
+  | 'mutation_not_implemented'
+  | 'mutation_failed'
+  | 'tenant_mismatch';
+
+export interface OperatorMutationReceipt {
+  id: string;
+  mutation: 'claimTaskNode' | 'publishCoordinationEvent';
+  tenant: string;
+  requestId: string;
+  acknowledgedAt: string;
+  verified: boolean;
+  verifiedAt?: string;
+  auditId?: string;
+}
 
 export interface OperatorActionResult {
   ok: boolean;
@@ -415,6 +440,8 @@ export interface OperatorActionResult {
   gateRecordId?: string;
   /** Returned by gate_bounce — the head the task returns to. */
   bouncedTo?: HeadId;
+  /** Durable backend acknowledgement for live writes. */
+  receipt?: OperatorMutationReceipt;
 }
 
 // ---------------------------------------------------------------------------
@@ -755,15 +782,31 @@ export function buildOperatorState(
 
 function isOperatorAction(body: unknown): body is OperatorAction {
   if (!body || typeof body !== 'object') return false;
-  const a = (body as { action?: unknown }).action;
-  return (
-    a === 'send_to_bay' ||
-    a === 'reorder_queue' ||
-    a === 'gate_pass' ||
-    a === 'gate_bounce' ||
-    a === 'refresh_drawer' ||
-    a === 'send_room_message'
-  );
+  const action = body as Record<string, unknown>;
+  switch (action.action) {
+    case 'send_to_bay':
+      return isString(action.taskId) && isString(action.head);
+    case 'reorder_queue':
+      return isString(action.taskId) && typeof action.priority === 'number' && Number.isFinite(action.priority);
+    case 'gate_pass':
+      return isString(action.taskId) && isOptionalString(action.note);
+    case 'gate_bounce':
+      return isString(action.taskId) && isString(action.requiredChanges);
+    case 'refresh_drawer':
+      return isString(action.taskId);
+    case 'send_room_message':
+      return isString(action.taskId) && isString(action.text) && isOptionalString(action.mention);
+    default:
+      return false;
+  }
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
 }
 
 export function handleOperatorAction(
@@ -772,10 +815,16 @@ export function handleOperatorAction(
   now: Date = new Date(),
   fetchImpl: typeof fetch = globalThis.fetch,
 ): OperatorActionResult {
+  return handleOperatorActionForState(body, buildOperatorState(env, now, fetchImpl));
+}
+
+export function handleOperatorActionForState(
+  body: unknown,
+  state: OperatorState,
+): OperatorActionResult {
   if (!isOperatorAction(body)) {
     return { ok: false, action: 'unknown', error: 'invalid_action', message: 'Unrecognized operator action.' };
   }
-  const state = buildOperatorState(env, now, fetchImpl);
   const action = body;
 
   switch (action.action) {

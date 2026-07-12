@@ -38,7 +38,12 @@
       "@luma.gl/engine": "9.2.6",
       "@luma.gl/webgl": "9.2.6",
       "@luma.gl/shadertools": "9.2.6",
-      "@luma.gl/constants": "9.2.6"
+      "@luma.gl/constants": "9.2.6",
+      "@travis-gilbert/document-types": "0.1.0",
+      "@travis-gilbert/markdown-spine": "0.1.0"
+    },
+    "patchedDependencies": {
+      "@travis-gilbert/markdown-theory@0.1.1": "patches/@travis-gilbert__markdown-theory@0.1.1.patch"
     }
   }
 }

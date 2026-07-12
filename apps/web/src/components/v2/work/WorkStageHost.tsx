@@ -59,4 +59,3 @@ export function WorkStageHost({ stage, onClose }: { stage: WorkStage; onClose: (
     </motion.div>
   );
 }
-
