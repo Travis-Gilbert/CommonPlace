@@ -10,7 +10,7 @@ import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +46,9 @@ export default function IndexScreen() {
   const pending = usePendingCaptures();
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<ItemGql[] | null>(null);
+  // Optimistic overlay for swipe actions (D3.2): an acted row leaves the feed in
+  // the same frame; on a failed sync it rolls back into place with a reason.
+  const [actedIds, setActedIds] = useState<Set<string>>(new Set());
 
   const organize = useQuery({ queryKey: ['organize'], queryFn: () => fetchOrganize('day') });
   const briefing = useQuery({ queryKey: ['briefing'], queryFn: fetchBriefing });
@@ -125,11 +128,18 @@ export default function IndexScreen() {
   const listData = useMemo<ListRow[]>(() => {
     const out: ListRow[] = [];
     for (const section of sections) {
+      const rows =
+        actedIds.size === 0
+          ? section.data
+          : section.data.filter((r) =>
+              r.type === 'item' || r.type === 'needs-you' ? !actedIds.has(r.item.id) : true,
+            );
+      if (rows.length === 0) continue; // an emptied section drops its header too
       out.push({ type: 'header', id: `header:${section.title}`, title: section.title });
-      out.push(...section.data);
+      out.push(...rows);
     }
     return out;
-  }, [sections]);
+  }, [sections, actedIds]);
 
   const refetchAll = () => {
     void drainQueue();
@@ -137,11 +147,20 @@ export default function IndexScreen() {
   };
 
   async function act(item: ItemGql, action: 'done' | 'park') {
+    // The row leaves the feed immediately; the server call settles in the
+    // background. Success reconciles via invalidation, failure restores the row.
+    setActedIds((prev) => new Set(prev).add(item.id));
     try {
       if (action === 'done') await editItem({ id: item.id, status: 'done' });
       else await editItem({ id: item.id, residency: 'parked' });
-    } finally {
       void qc.invalidateQueries();
+    } catch {
+      setActedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+      Alert.alert('Could not save', `That ${action} did not go through. The item is back in your feed.`);
     }
   }
 
