@@ -111,7 +111,9 @@ export default function NetworkView({ onOpenObject, filterTypes }: NetworkViewPr
       : (!isMobile && activeSubView === 'list' ? 'global' : activeSubView);
 
   /* ── Fetch graph data once, shared by all sub-views ── */
-  const { data: graphData, loading, error, refetch } = useApiData(() => fetchGraph(), []);
+  const { data: graphData, loading, error, refetch } = useApiData(() => fetchGraph(), [], {
+    cacheKey: 'network:graph',
+  });
   const graphNodes: GraphNode[] = useMemo(() => graphData?.nodes ?? [], [graphData]);
   const graphLinks: GraphLink[] = useMemo(() => graphData?.links ?? [], [graphData]);
   const scopedGraph = useMemo(

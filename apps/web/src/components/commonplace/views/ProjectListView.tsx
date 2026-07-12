@@ -107,6 +107,7 @@ export default function ProjectListView() {
   const { data, loading, error, refetch } = useApiData<PmOverviewGql>(
     () => gqlPmOverview(),
     [],
+    { cacheKey: 'projects:list' },
   );
   const [mode, setMode] = useState<ViewMode>('board');
   const [sorting, setSorting] = useState<SortingState>([

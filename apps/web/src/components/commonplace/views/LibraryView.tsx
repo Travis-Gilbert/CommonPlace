@@ -61,16 +61,24 @@ export default function LibraryView({ onOpenObject }: LibraryViewProps) {
   const { data: nodes, error } = useApiData(
     () => fetchFeed({ per_page: 100 }),
     [captureVersion],
+    { cacheKey: 'library:nodes' },
   );
-  const { data: resurfaceData } = useApiData(() => fetchResurface({ count: 3 }), []);
-  const { data: clustersData } = useApiData(() => fetchClusters(), [captureVersion]);
-  const { data: graphData } = useApiData(() => fetchGraph(), [captureVersion]);
-  const { data: projects } = useApiData(() => fetchProjects(), []);
+  const { data: resurfaceData } = useApiData(() => fetchResurface({ count: 3 }), [], {
+    cacheKey: 'library:resurface',
+  });
+  const { data: clustersData } = useApiData(() => fetchClusters(), [captureVersion], {
+    cacheKey: 'library:clusters',
+  });
+  const { data: graphData } = useApiData(() => fetchGraph(), [captureVersion], {
+    cacheKey: 'library:graph',
+  });
+  const { data: projects } = useApiData(() => fetchProjects(), [], { cacheKey: 'library:projects' });
 
   const firstSlug = nodes?.[0]?.objectSlug ?? '';
   const { data: lineageData } = useApiData(
     () => (firstSlug ? fetchLineage(firstSlug) : Promise.resolve(null)),
     [firstSlug],
+    { cacheKey: `library:lineage:${firstSlug}` },
   );
 
   /* Mark the next refetched feed head as just-landed after a push capture. */

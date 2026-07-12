@@ -15,7 +15,9 @@ const DEFAULT_ROOM = 'room:ungrouped';
 
 export default function CoordinationView() {
   const [roomId, setRoomId] = useState(DEFAULT_ROOM);
-  const { data: ctx, error, refetch } = useApiData(() => roomContext(roomId), [roomId]);
+  const { data: ctx, error, refetch } = useApiData(() => roomContext(roomId), [roomId], {
+    cacheKey: `room:${roomId}`,
+  });
   const [draft, setDraft] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 

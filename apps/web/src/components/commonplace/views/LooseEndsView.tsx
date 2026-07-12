@@ -37,6 +37,7 @@ export default function LooseEndsView({ onOpenObject }: LooseEndsViewProps) {
   const { data: graphData, loading, error, refetch } = useApiData(
     () => fetchGraph(),
     [],
+    { cacheKey: 'looseEnds:graph' },
   );
 
   const threshold = thresholdKey === 'orphaned' ? 0 : 1;

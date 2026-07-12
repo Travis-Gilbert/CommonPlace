@@ -44,7 +44,7 @@ export default function ResurfaceView({ onOpenObject }: ResurfaceViewProps) {
     loading,
     error,
     refetch,
-  } = useApiData(() => fetchResurface({ count: 5 }), []);
+  } = useApiData(() => fetchResurface({ count: 5 }), [], { cacheKey: 'resurface' });
 
   const cards: ApiResurfaceCard[] = resurfaceData?.cards ?? [];
   const handleObjectClick = useRenderableObjectAction(

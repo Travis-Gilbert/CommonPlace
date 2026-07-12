@@ -46,6 +46,7 @@ export default function TemporalEvolutionView({
         ? fetchTemporalEvolution(notebookSlug, windowDays, stepDays)
         : Promise.resolve({ snapshots: [], trajectory: [], summary: '' }),
     [notebookSlug, windowDays, stepDays],
+    { cacheKey: `temporal:${notebookSlug ?? 'root'}:${windowDays}:${stepDays}` },
   );
 
   /* ── Loading ── */

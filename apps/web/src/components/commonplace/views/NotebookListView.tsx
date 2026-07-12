@@ -52,6 +52,7 @@ export default function NotebookListView() {
   const { data: notebooks, loading, error, refetch } = useApiData(
     () => fetchNotebooks(),
     [],
+    { cacheKey: 'notebooks:list' },
   );
   const { launchView } = useLayout();
   const [showCreate, setShowCreate] = useState(false);

@@ -29,7 +29,9 @@ import { buildOperatorSurface, operatorSurfaceId, type OperatorLayout } from './
 import styles from './operator.module.css';
 
 export default function OperatorPage() {
-  const { data, loading, error, refetch } = useApiData(() => fetchOperatorState(), []);
+  const { data, loading, error, refetch } = useApiData(() => fetchOperatorState(), [], {
+    cacheKey: 'v2:operator',
+  });
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [blockedOnly, setBlockedOnly] = useState(false);

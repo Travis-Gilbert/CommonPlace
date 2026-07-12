@@ -139,6 +139,7 @@ export default function AgentWorkroomControlCenter() {
   const { data, loading, error, refetch } = useApiData(
     () => fetchControlCenterState(),
     [],
+    { cacheKey: 'v2:workrooms' },
   );
   const [section, setSection] = useState<SectionId>('workrooms');
   const [busy, setBusy] = useState<string | null>(null);

@@ -53,6 +53,7 @@ export default function ArtifactBrowserView() {
       ingestion_status: statusFilter !== 'all' ? statusFilter : undefined,
     }),
     [captureVersion, kindFilter, statusFilter],
+    { cacheKey: `artifacts:${kindFilter}:${statusFilter}` },
   );
 
   /** Count artifacts per pipeline stage. */
