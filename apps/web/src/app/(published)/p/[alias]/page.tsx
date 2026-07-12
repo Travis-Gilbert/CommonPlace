@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { gqlPublishedBlock, type PublishedBlockGql } from '@/lib/commonplace-graphql';
 import { Doorway } from '../../_components/Doorway';
-import { GalleyContent } from '../../_components/GalleyContent';
+import { PublishedBody } from '../../_components/PublishedBody';
 import { VerifiedBlock } from '../../_components/VerifiedBlock';
 import styles from '../../published.module.css';
 
@@ -102,13 +102,7 @@ export default async function PublishedAliasPage({ params }: Params) {
     <article className={styles.page}>
       <div className={styles.kicker}>{block.shapeId}</div>
       <h1 className={styles.title}>{block.title}</h1>
-      {text ? (
-        <GalleyContent markdown={text} kind={block.shapeId} />
-      ) : (
-        <div className={`${styles.body} ${styles.bodyEmpty}`}>
-          This block has no text content to display.
-        </div>
-      )}
+      <PublishedBody payload={block.payload} text={text} kind={block.shapeId} />
       <VerifiedBlock
         blockId={block.blockId}
         versionHash={block.versionHash}
