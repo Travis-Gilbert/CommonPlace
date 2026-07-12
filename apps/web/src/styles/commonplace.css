@@ -106,6 +106,10 @@
 .cp-pane-content {
   flex: 1;
   overflow: auto;
+  /* Inner scroll never chains to the page at its ends (MOTION-TOKENS scroll rule);
+     programmatic jumps land clear of the sticky tab chrome. */
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--cp-tab-height);
   /* Transparent: dot-grid canvas shows through between objects */
   background-color: transparent;
 
@@ -7772,6 +7776,8 @@ select.cp-input {
 .cp-drawer-tab-content {
   flex: 1;
   overflow-y: auto;
+  /* Drawer scroll never chains to the page behind it (MOTION-TOKENS scroll rule). */
+  overscroll-behavior: contain;
   padding: 24px 24px 24px 28px;
   display: flex;
   flex-direction: column;
