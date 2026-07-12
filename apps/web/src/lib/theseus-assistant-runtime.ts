@@ -19,6 +19,7 @@ import {
   type ThreadMessageLike,
 } from '@assistant-ui/react';
 import type { ChatMessage } from '@/components/theseus/chat/useChatHistory';
+import type { UsageReceipt } from './commonplace-usage-receipts';
 import type { TheseusResponse } from './theseus-types';
 
 export interface TheseusMessageMetadata {
@@ -26,6 +27,14 @@ export interface TheseusMessageMetadata {
   response?: TheseusResponse | null;
   isStreaming?: boolean;
   error?: string;
+  /** Request-start epoch the pre-first-token wait ladder measures from (WL-4b). */
+  startedAt?: number;
+  /** True once any token has streamed in, so the ladder yields to the answer. */
+  hasStreamedText?: boolean;
+  /** WL-2 narration step for the pre-first-token spinner. */
+  narrationStep?: number;
+  /** WL-4c client-observed usage receipt (TTFT) for this request. */
+  usageReceipt?: UsageReceipt | null;
 }
 
 /**
@@ -53,6 +62,10 @@ function convertMessage(msg: ChatMessage): ThreadMessageLike {
           response: msg.response ?? null,
           isStreaming: msg.isStreaming ?? false,
           error: msg.error ?? '',
+          startedAt: msg.timestamp,
+          hasStreamedText: msg.text.length > 0,
+          narrationStep: msg.narrationStep ?? 0,
+          usageReceipt: msg.usageReceipt ?? null,
         },
       },
     };

@@ -31,6 +31,8 @@ import AgentThreadOmnibar from './AgentThreadOmnibar';
 import SceneHost from '../scene-host/SceneHost';
 import styles from './AgentThreadView.module.css';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
+import { useWaitTier } from '@/lib/commonplace-wait-tier';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
 
 type ThreadItem =
   | {
@@ -330,6 +332,11 @@ export default function AgentThreadView({
   const displayStatus =
     resolvedMode === 'api' && status !== 'connecting' ? 'connected' : status;
 
+  // WL-4b: this API agent path is non-streaming, so the send-to-answer wait is
+  // a pre-stream window. Promote the pending indicator through the wait ladder
+  // on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
+  const waitTier = useWaitTier(isSending);
+
   return (
     <section className={`cp-agent-thread ${styles.thread}`} aria-label={`${agentLabel} agent thread`}>
       {resolvedMode === 'acp' ? (
@@ -363,9 +370,37 @@ export default function AgentThreadView({
             }
           />
         ))}
-        {isSending ? (
-          <article className={`cp-agent-message cp-agent-message--agent ${styles.pendingMessage}`}>
-            <WeaveSpinner size="compact" />
+        {isSending && waitTier !== 'T0' ? (
+          <article
+            className={`cp-agent-message cp-agent-message--agent ${styles.pendingMessage}`}
+            role="status"
+            aria-label={narrationFor('agentRun', 0)}
+          >
+            {waitTier === 'T1' ? (
+              <span
+                style={{
+                  fontFamily: 'var(--cp-font-mono)',
+                  fontSize: 12,
+                  opacity: 0.7,
+                  color: 'var(--cp-text-muted)',
+                }}
+              >
+                {narrationFor('agentRun', 0)}
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <WeaveSpinner size="compact" />
+                <span
+                  style={{
+                    fontFamily: 'var(--cp-font-mono)',
+                    fontSize: 12,
+                    color: 'var(--cp-text-muted)',
+                  }}
+                >
+                  {narrationFor('agentRun', 0)}
+                </span>
+              </span>
+            )}
           </article>
         ) : null}
       </div>

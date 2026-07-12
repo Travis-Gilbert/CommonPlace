@@ -35,6 +35,7 @@ import type {
   VisualizationSection,
   WhatIfResult,
 } from './theseus-types';
+import { buildTtftReceipt, type UsageReceipt } from './commonplace-usage-receipts';
 
 // Phase B: typed stage events for the async SSE pipeline.
 // See Index-API commit 968a226 for the backend contract.
@@ -88,6 +89,12 @@ export interface AsyncStreamHandlers {
   onVisualComplete?: (payload: ProgressiveVisualPayload) => void;
   onComplete: (result: TheseusResponse) => void;
   onError: (error: { message: string; transient: boolean }) => void;
+  /**
+   * Fires once, when the first streamed token is observed, carrying a usage
+   * receipt whose ttftMs is the real client-measured time from request start
+   * to that token (WL-4c). Optional so existing callers are unaffected.
+   */
+  onTtft?: (receipt: UsageReceipt) => void;
 }
 
 export type ApiErrorReason = 'timeout' | 'network' | 'http' | 'aborted';
@@ -1189,6 +1196,10 @@ async function askTheseusStream(
  * called progressively as the backend emits them. `complete` remains
  * the source of truth; earlier events are partial render hints.
  */
+/** Provider route served by the async ask pipeline, for the WL-4c usage receipt. */
+const ASK_ASYNC_ROUTE = '/api/v2/theseus/ask/async/';
+const ASK_ASYNC_PROVIDER = 'theseus-ask';
+
 export async function askTheseusAsyncStream(
   query: string,
   options: {
@@ -1198,6 +1209,8 @@ export async function askTheseusAsyncStream(
   },
   handlers: AsyncStreamHandlers,
 ): Promise<() => void> {
+  // WL-4c: TTFT is the real elapsed time from request start to the first token.
+  const requestStart = performance.now();
   let response: Response;
   try {
     response = await fetch('/api/v2/theseus/ask/async/', {
@@ -1245,6 +1258,15 @@ export async function askTheseusAsyncStream(
 
   const es = new EventSource(streamUrl);
 
+  // Fires exactly once, at the first token, with the real measured TTFT.
+  let firstTokenSeen = false;
+  const markFirstToken = () => {
+    if (firstTokenSeen) return;
+    firstTokenSeen = true;
+    const ttftMs = performance.now() - requestStart;
+    handlers.onTtft?.(buildTtftReceipt(ASK_ASYNC_ROUTE, ASK_ASYNC_PROVIDER, ttftMs));
+  };
+
   const safeParse = <T,>(raw: string, label: string): T | null => {
     try {
       return JSON.parse(raw) as T;
@@ -1261,7 +1283,10 @@ export async function askTheseusAsyncStream(
 
   es.addEventListener('token', (e) => {
     const data = safeParse<{ text: string }>((e as MessageEvent).data, 'token');
-    if (data?.text) handlers.onToken(data.text);
+    if (data?.text) {
+      markFirstToken();
+      handlers.onToken(data.text);
+    }
   });
 
   es.addEventListener('visual_delta', (e) => {

@@ -17,6 +17,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { PlugZap } from 'lucide-react';
 import { AiInputBar, type AiInputMode, type AiInputSize } from './AiInputBar';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
+import { useWaitTier } from '@/lib/commonplace-wait-tier';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
 import { gqlIngest } from '@/lib/commonplace-graphql';
 import {
   searchRustyWeb,
@@ -106,16 +108,18 @@ export default function Omnibar({
     }
   }
 
+  // WL-4b: this agent path is non-streaming, so the whole wait is a pre-stream
+  // window. Promote it through the wait ladder on real elapsed time instead of
+  // slamming a spinner up at 0ms (an indicator inside 300ms reads as slower),
+  // and narrate from the WL-2 inventory rather than a hardcoded line.
+  const waitTier = useWaitTier(busy);
+  const showBusy = busy && waitTier !== 'T0';
   const showPanel =
-    busy || agentResult !== null || searchResult !== null || researchResult !== null || error !== null;
-  const busyText =
-    mode === 'ask'
-      ? 'Asking the Theorem agent...'
-      : mode === 'research'
-        ? 'Searching, then asking Theorem...'
-      : mode === 'fractal'
-        ? 'Expanding from graph to web...'
-        : 'Searching the web...';
+    showBusy || agentResult !== null || searchResult !== null || researchResult !== null || error !== null;
+  const waitNarration =
+    mode === 'web' || mode === 'fractal'
+      ? narrationFor('searching', 1)
+      : narrationFor('thinking', 0);
 
   return (
     /* Fixed in the bottom third so it never shifts page content; results grow
@@ -134,13 +138,21 @@ export default function Omnibar({
               transition={{ duration: 0.18 }}
               className="mb-4 max-h-[58vh] overflow-y-auto px-1"
             >
-              {busy ? (
-                <div className="flex flex-col items-center gap-3 py-2">
-                  <WeaveSpinner size={64} />
-                  <p className="font-mono text-[13px]" style={{ color: 'var(--cp-text-muted)' }}>
-                    {busyText}
-                  </p>
-                </div>
+              {showBusy ? (
+                waitTier === 'T1' ? (
+                  <div className="flex items-center justify-center py-2">
+                    <p className="font-mono text-[13px] opacity-70" style={{ color: 'var(--cp-text-muted)' }}>
+                      {waitNarration}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <WeaveSpinner size={64} />
+                    <p className="font-mono text-[13px]" style={{ color: 'var(--cp-text-muted)' }}>
+                      {waitNarration}
+                    </p>
+                  </div>
+                )
               ) : error ? (
                 <FailureView message={error} onRetry={submit} />
               ) : agentResult ? (
