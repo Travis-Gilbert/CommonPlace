@@ -12,10 +12,16 @@ overrides:
   '@luma.gl/webgl': 9.2.6
   '@luma.gl/shadertools': 9.2.6
   '@luma.gl/constants': 9.2.6
+  '@travis-gilbert/document-types': 0.1.0
+  '@travis-gilbert/markdown-spine': 0.1.0
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      '@travis-gilbert/markdown-theory':
+        specifier: 0.1.2
+        version: 0.1.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
 
   apps/commonplace-collab:
     dependencies:
@@ -517,7 +523,7 @@ importers:
         specifier: ^3.0.2
         version: 3.0.6(prosemirror-model@1.25.10)(prosemirror-state@1.4.4)(prosemirror-view@1.42.0)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@travis-gilbert/markdown-theory':
-        specifier: ^0.1.2
+        specifier: ^0.1.1
         version: 0.1.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/d3':
         specifier: ^7.4.3
@@ -684,6 +690,12 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.6.0
+      textmode.export.js:
+        specifier: ^1.5.2
+        version: 1.5.2(textmode.js@0.17.0)
+      textmode.js:
+        specifier: ^0.17.0
+        version: 0.17.0
       three:
         specifier: ^0.183.2
         version: 0.183.2
@@ -4672,6 +4684,12 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
+
   '@types/draco3d@1.4.10':
     resolution: {integrity: sha512-AX22jp8Y7wwaBgAixaSvkoG4M/+PlAcm3Qs4OW8yT9DM4xUpWKeFhLueTAyZF39pviAdcDdeJoACapiAceqNcw==}
 
@@ -7130,6 +7148,9 @@ packages:
     resolution: {integrity: sha512-VilgtJj/ALgGY77fiLam5iD336eSWi96Q15JSAG1zi8NRBysm3LXKdGnHb4m5cuyxvOLQQKWpBZAT6ni4FI2iQ==}
     engines: {node: '>=6'}
 
+  gifenc@1.0.3:
+    resolution: {integrity: sha512-xdr6AdrfGBcfzncONUOlXMBuc5wJDtOueE3c5rdG0oNgtINLD+f2iFZltrBRZYzACRbKr+mSVU/x98zv2u3jmw==}
+
   github-from-package@0.0.0:
     resolution: {integrity: sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw==}
 
@@ -8227,6 +8248,9 @@ packages:
 
   mdast-util-to-string@4.0.0:
     resolution: {integrity: sha512-0H44vDimn51F0YwvxSJSm0eCDOJTRlmN0R1yBh4HLj9wiV1Dn0QoXGbvFAWj2hSItVTlCmBF1hqKlIyUBVFLPg==}
+
+  mediabunny@1.50.8:
+    resolution: {integrity: sha512-LgykLyQzhdpo0V2yw3UXmOpj+b4JAGdpHBwsPE6kjSt8Za0d1VllD+FV7EGHBcdV4+oHUAo+yrqbVAWxNSDCPQ==}
 
   memoize-one@5.2.1:
     resolution: {integrity: sha512-zYiwtZUcYyXKo/np96AGZAckk+FWWsUdJ3cHGGmld7+AhvcWmQyGCYUh1hc4Q/pkOhb65dQR/pqCyK0cOaHz4Q==}
@@ -10191,6 +10215,15 @@ packages:
 
   text-segmentation@1.0.3:
     resolution: {integrity: sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==}
+
+  textmode.export.js@1.5.2:
+    resolution: {integrity: sha512-MFFVLpOppMR3p8qWJ4Fas1/wzjx4kEnAl3XB4ZWfhBtuuohGzuOILX9ig/ReRMQwLhta9ogZKDJw4iU8zseWkQ==}
+    peerDependencies:
+      textmode.js: '>=0.13.0'
+
+  textmode.js@0.17.0:
+    resolution: {integrity: sha512-Y56+MR6LfgF0Dso2Z0qc1rociOnKiAJidzYh17TGh9jkgX0sr/Aw4UtKlmlV6lmjm3yVfjZTl8PWmROzcLgN5w==}
+    engines: {node: '>=20.8.1'}
 
   thenify-all@1.6.0:
     resolution: {integrity: sha512-RNxQH/qI8/t3thXJDwcstUO4zeqo64+Uy/+sNVRBx4Xn2OX+OZ9oP+iJnNFqplFra2ZUVeKCSa2oVWi3T4uVmA==}
@@ -16202,6 +16235,12 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.13
+
+  '@types/dom-webcodecs@0.1.13': {}
+
   '@types/draco3d@1.4.10': {}
 
   '@types/emscripten@0.0.34': {}
@@ -19165,6 +19204,8 @@ snapshots:
 
   getenv@2.0.0: {}
 
+  gifenc@1.0.3: {}
+
   github-from-package@0.0.0: {}
 
   gl-bench@1.0.42: {}
@@ -20398,6 +20439,11 @@ snapshots:
   mdast-util-to-string@4.0.0:
     dependencies:
       '@types/mdast': 4.0.4
+
+  mediabunny@1.50.8:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
 
   memoize-one@5.2.1: {}
 
@@ -23235,6 +23281,14 @@ snapshots:
   text-segmentation@1.0.3:
     dependencies:
       utrie: 1.0.2
+
+  textmode.export.js@1.5.2(textmode.js@0.17.0):
+    dependencies:
+      gifenc: 1.0.3
+      mediabunny: 1.50.8
+      textmode.js: 0.17.0
+
+  textmode.js@0.17.0: {}
 
   thenify-all@1.6.0:
     dependencies:

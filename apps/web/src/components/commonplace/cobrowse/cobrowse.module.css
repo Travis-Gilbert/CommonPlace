@@ -1,0 +1,352 @@
+/* Co-browse surface (HANDOFF-COBROWSE-PRESENCE). Accent grammar per
+ * SPEC-UX-PHYSICS-AND-ACCENT: oxblood owns actions and pending decisions,
+ * gold owns the harness showing something learned. Tokens come from
+ * commonplace-tokens.css; oxblood and gold are referenced directly so this
+ * surface does not depend on the (currently mispointed) --cp-accent alias. */
+
+.chrome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cp-border, rgba(0, 0, 0, 0.1));
+}
+
+.urlInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--cp-border, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: 13px var(--cp-font-body, sans-serif);
+  background: var(--cp-surface, #fff);
+  color: var(--cp-text, #221a10);
+}
+
+.urlInput:focus-visible {
+  outline: 2px solid var(--cp-oxblood, #7a2733);
+  outline-offset: 1px;
+}
+
+/* D2: the control spectrum. Persistent segmented control, one press each. */
+.spectrum {
+  display: inline-flex;
+  border: 1px solid var(--cp-border, rgba(0, 0, 0, 0.15));
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+}
+
+.segment {
+  appearance: none;
+  border: none;
+  background: var(--cp-surface, #fff);
+  color: var(--cp-text-muted, #6b6156);
+  font: 600 12px var(--cp-font-body, sans-serif);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.segment + .segment {
+  border-left: 1px solid var(--cp-border, rgba(0, 0, 0, 0.12));
+}
+
+.segmentActive {
+  background: var(--cp-oxblood, #7a2733);
+  color: var(--cp-cream, #f6efe3);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--cp-oxblood, #7a2733);
+  outline-offset: -2px;
+}
+
+/* D3: intent line anchored by the stage controls. */
+.intentLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font: italic 13px var(--cp-font-body, serif);
+  color: var(--cp-text, #221a10);
+  border-bottom: 1px solid var(--cp-border, rgba(0, 0, 0, 0.08));
+}
+
+/* D4: pause chip. Quiet, one-press resume, no dialog. */
+.pauseChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px 5px 12px;
+  border: 1px solid var(--cp-border, rgba(0, 0, 0, 0.15));
+  border-radius: 999px;
+  background: var(--cp-surface, #fff);
+  font: 12px var(--cp-font-body, sans-serif);
+  color: var(--cp-text, #221a10);
+}
+
+.resumeButton {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--cp-oxblood, #7a2733);
+  color: var(--cp-cream, #f6efe3);
+  font: 600 12px var(--cp-font-body, sans-serif);
+  cursor: pointer;
+}
+
+/* D5: approval card. Oxblood register; keyboard-first. */
+.approvalCard {
+  border: 1px solid var(--cp-oxblood, #7a2733);
+  border-radius: 10px;
+  background: var(--cp-oxblood-wash, #f6e6e5);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.approvalHeading {
+  font: 700 13px var(--cp-font-body, sans-serif);
+  color: var(--cp-oxblood, #7a2733);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.approvalSection {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 4px 12px;
+  font: 13px var(--cp-font-body, sans-serif);
+  color: var(--cp-text, #221a10);
+}
+
+.approvalKey {
+  color: var(--cp-text-muted, #6b6156);
+  font-size: 12px;
+}
+
+.approvalActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.approveButton {
+  appearance: none;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 14px;
+  background: var(--cp-oxblood, #7a2733);
+  color: var(--cp-cream, #f6efe3);
+  font: 600 13px var(--cp-font-body, sans-serif);
+  cursor: pointer;
+}
+
+.approveButton:active {
+  background: var(--cp-oxblood-pressed, #66202b);
+}
+
+.declineButton {
+  appearance: none;
+  border: 1px solid var(--cp-oxblood, #7a2733);
+  border-radius: 7px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--cp-oxblood, #7a2733);
+  font: 600 13px var(--cp-font-body, sans-serif);
+  cursor: pointer;
+}
+
+.keyHint {
+  font: 11px var(--cp-font-mono, monospace);
+  color: var(--cp-text-muted, #6b6156);
+}
+
+/* D6: receipt rail. Collapsed quiet timeline, never a modal. */
+.rail {
+  border: 1px solid var(--cp-border, rgba(0, 0, 0, 0.1));
+  border-radius: 10px;
+  background: var(--cp-surface, #fff);
+  overflow: hidden;
+}
+
+.railToggle {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  font: 600 12px var(--cp-font-body, sans-serif);
+  color: var(--cp-text-muted, #6b6156);
+  cursor: pointer;
+}
+
+.railBody {
+  max-height: 300px;
+  overflow-y: auto;
+  border-top: 1px solid var(--cp-border, rgba(0, 0, 0, 0.08));
+}
+
+.railEntry {
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  text-align: left;
+  padding: 6px 12px;
+  font: 12px var(--cp-font-body, sans-serif);
+  color: var(--cp-text, #221a10);
+  cursor: pointer;
+}
+
+.railEntry:hover {
+  background: var(--cp-hover, rgba(0, 0, 0, 0.03));
+}
+
+.railKind {
+  flex: none;
+  font: 10px var(--cp-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cp-text-muted, #6b6156);
+  min-width: 64px;
+}
+
+.railKindApproval {
+  color: var(--cp-oxblood, #7a2733);
+}
+
+.railKindCapture {
+  color: var(--cp-gold, #c49a4a);
+}
+
+.railReceipt {
+  margin: 0 12px 8px 84px;
+  padding: 8px 10px;
+  border-left: 1px solid var(--cp-border, rgba(0, 0, 0, 0.12));
+  font: 11px var(--cp-font-mono, monospace);
+  color: var(--cp-text-muted, #6b6156);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* D7: perception cards. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid var(--cp-border, rgba(0, 0, 0, 0.1));
+  border-radius: 10px;
+  background: var(--cp-surface, #fff);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.cardTitle {
+  font: 600 11px var(--cp-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cp-text-muted, #6b6156);
+}
+
+.cardRow {
+  font: 13px var(--cp-font-body, sans-serif);
+  color: var(--cp-text, #221a10);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.cardDim {
+  color: var(--cp-text-muted, #6b6156);
+  font-size: 12px;
+}
+
+.doItButton {
+  align-self: flex-start;
+  appearance: none;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 12px;
+  background: var(--cp-oxblood, #7a2733);
+  color: var(--cp-cream, #f6efe3);
+  font: 600 12px var(--cp-font-body, sans-serif);
+  cursor: pointer;
+}
+
+/* D8: Keep toast. Gold register: the harness showing where it learned. */
+.keepToast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 340px;
+  border: 1px solid var(--cp-gold, #c49a4a);
+  border-radius: 10px;
+  background: var(--cp-surface, #fff);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  padding: 12px 14px;
+  font: 13px var(--cp-font-body, sans-serif);
+  color: var(--cp-text, #221a10);
+  animation: keep-rise 180ms ease-out;
+}
+
+.keepHeading {
+  font: 700 11px var(--cp-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cp-gold, #c49a4a);
+}
+
+.keepLink {
+  color: var(--cp-gold, #c49a4a);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  text-align: left;
+}
+
+@keyframes keep-rise {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keepToast {
+    animation: none;
+  }
+}
+
+.keepMeta {
+  font: 11px var(--cp-font-mono, monospace);
+  color: var(--cp-text-muted, #6b6156);
+}

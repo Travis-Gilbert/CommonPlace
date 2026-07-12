@@ -395,13 +395,13 @@ where
     // Voice captures: transcribe server-side when a provider is configured, then
     // fold the transcript into the body so it embeds/searches like any capture.
     // Fail-open: a transcription error keeps the audio blob, just untranscribed.
-    let is_audio = mime.as_deref().is_some_and(|mime| mime.starts_with("audio/"))
+    let is_audio = mime
+        .as_deref()
+        .is_some_and(|mime| mime.starts_with("audio/"))
         || matches!(&kind, ItemKind::Other(name) if name.as_str() == "audio");
     let transcriber = Transcriber::from_env();
     let caption = if is_audio && transcriber.is_enabled() {
-        // ponytail: clone the (<=32MB) audio for the STT call; a streaming split
-        // only matters if voice captures get large enough to double-buffer badly.
-        match transcriber.transcribe(bytes.clone(), mime.as_deref()).await {
+        match transcriber.transcribe(&bytes, mime.as_deref()).await {
             Ok(Some(transcript)) => Some(merge_caption(caption, &transcript)),
             Ok(None) => caption,
             Err(error) => {
@@ -496,8 +496,7 @@ where
     if trimmed.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "text is required".to_string()));
     }
-    // ponytail: cap read-back length so a runaway answer can't fan out a huge
-    // TTS bill; raise the ceiling if long-form narration becomes a feature.
+    // Cap read-back length so a runaway answer cannot fan out a large TTS bill.
     let text: String = trimmed.chars().take(5000).collect();
 
     let voice = Voice::from_env().map_err(|error| (StatusCode::SERVICE_UNAVAILABLE, error))?;

@@ -1,0 +1,41 @@
+diff --git a/package.json b/package.json
+index 738150a160d8f62cc4fb0e322bcc3edbc4012e36..e88474de39e9293597de29e945a671ea606ccdd3 100644
+--- a/package.json	
++++ b/package.json	
+@@ -42,25 +42,25 @@
+   ],
+   "exports": {
+     "./tokens": {
+-      "types": "./src/tokens/index.ts",
+-      "default": "./src/tokens/index.ts"
++      "types": "./dist/tokens/index.d.ts",
++      "default": "./dist/tokens/index.js"
+     },
+-    "./css": "./src/css/galley.css",
++    "./css": "./dist/galley.css",
+     "./react": {
+-      "types": "./src/react/index.ts",
+-      "default": "./src/react/index.ts"
++      "types": "./dist/react/index.d.ts",
++      "default": "./dist/react/index.js"
+     },
+     "./templates": {
+-      "types": "./src/templates/index.ts",
+-      "default": "./src/templates/index.ts"
++      "types": "./dist/templates/index.d.ts",
++      "default": "./dist/templates/index.js"
+     },
+     "./shelf": {
+-      "types": "./src/shelf/index.ts",
+-      "default": "./src/shelf/index.ts"
++      "types": "./dist/shelf/index.d.ts",
++      "default": "./dist/shelf/index.js"
+     },
+     "./mdx": {
+-      "types": "./src/mdx/index.ts",
+-      "default": "./src/mdx/index.ts"
++      "types": "./dist/mdx/index.d.ts",
++      "default": "./dist/mdx/index.js"
+     }
+   },
+   "files": [

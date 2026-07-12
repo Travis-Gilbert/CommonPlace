@@ -99,7 +99,43 @@ export async function tabSetBounds(rect: Rect): Promise<void> {
   if (isTauri()) return invoke("tab_set_bounds", { rect });
 }
 
-// --- Page extraction (D4) -- Rust injects JS into the webview, text only.
+// --- Co-browse telegraph + shell events (HANDOFF-COBROWSE-PRESENCE D3/D4/D6).
+// Implemented in crates/commonplace-desktop-runtime/src/lib.rs; consumed by the
+// shipped web bridge (apps/web/src/lib/desktop.ts).
+
+/**
+ * Rust: `tab_highlight(tab_id, x, y, width, height, label: Option<String>)`.
+ * Evals a pointer-events-none outline overlay (gold register) into the tab's
+ * page at the element bbox the agent is about to act on. `tab_clear_highlight`
+ * removes it.
+ */
+export async function tabHighlight(
+  tabId: TabId,
+  rect: Rect,
+  label?: string,
+): Promise<void> {
+  if (isTauri())
+    return invoke("tab_highlight", { tabId, ...rect, label: label ?? null });
+}
+
+/** Rust: `tab_clear_highlight(tab_id)`. */
+export async function tabClearHighlight(tabId: TabId): Promise<void> {
+  if (isTauri()) return invoke("tab_clear_highlight", { tabId });
+}
+
+/**
+ * Shell events emitted by the runtime (subscribe via the tauri event plugin):
+ *
+ *   `cobrowse://stage-focus`  { tabId }        a tab window gained OS focus:
+ *     the user-input-into-the-stage signal for interrupt-to-pause. External-URL
+ *     webviews cannot report in-page keystrokes; the first click or keystroke
+ *     into the stage necessarily focuses its window.
+ *   `cobrowse://navigation`   { tabId, url }   a tab committed a navigation
+ *     (receipt-rail timing, telegraph clearing).
+ */
+export type CoBrowseShellEvent = "cobrowse://stage-focus" | "cobrowse://navigation";
+
+// --- Page extraction (D4) -- Rust re-fetches the tab's URL server-side, text only.
 
 /** Rust: `extract_visible_text(tab_id: String) -> PageContext`. */
 export async function extractVisibleText(tabId: TabId): Promise<PageContext> {

@@ -2,11 +2,13 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 import { PRODUCT_REDIRECTS } from './src/lib/product-route-matrix';
 
-// Explicit Turbopack workspace root. The app imports the local
-// packages/block-view-contracts source, so the root must be the common parent
-// of apps/web and packages. Resolving from the npm script working directory
-// keeps stray lockfiles above CommonPlace outside the module graph.
-const projectRoot = path.resolve('../..');
+// Explicit Turbopack workspace root. Set to the monorepo root so Turbopack
+// can resolve workspace packages (e.g. @commonplace/block-view-contracts)
+// that live outside the app directory. Without this, Turbopack walks up the
+// filesystem looking for the nearest lockfile, which may pick the wrong
+// directory and cause PostCSS or module-resolution deadlocks. Web scripts run
+// from apps/web, so ../.. is the repository root.
+const projectRoot = path.resolve('..', '..');
 
 // INDEX_API_PROXY_URL: server-only var for the rewrite destination (not exposed to browser).
 // Falls back to local Index API in development, then Railway production.
