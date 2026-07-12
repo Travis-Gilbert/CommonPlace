@@ -28,7 +28,9 @@ interface ObjectSetToolUIProps {
 export function ObjectSetToolUI({ query, host }: ObjectSetToolUIProps) {
   const resolvedHost = host ?? getWorkBlockHost();
   const fetchSet = useCallback(() => Promise.resolve(resolvedHost.query(query)), [resolvedHost, query]);
-  const { data: set, loading, error } = useApiData(fetchSet, [fetchSet]);
+  const { data: set, loading, error } = useApiData(fetchSet, [fetchSet], {
+    cacheKey: `objectSet:${JSON.stringify(query)}`,
+  });
 
   if (loading && !set) {
     return <div className={styles.toolLoading}>Loading objects&hellip;</div>;

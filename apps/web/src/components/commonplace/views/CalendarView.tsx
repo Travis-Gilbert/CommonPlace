@@ -64,6 +64,7 @@ export default function CalendarView({ onOpenObject }: CalendarViewProps) {
   const { data: logs, loading, error, refetch } = useApiData(
     () => fetchDailyLogs(),
     [],
+    { cacheKey: 'calendar:logs' },
   );
 
   /* Build activity map: date -> total activity count */

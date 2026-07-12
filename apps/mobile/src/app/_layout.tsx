@@ -11,7 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { respondToApproval } from '@/api/harness';
@@ -26,6 +26,7 @@ import {
   setupNotificationCategories,
   snoozeReminder,
 } from '@/notifications';
+import { restoreQueryCache, startPersistingQueryCache } from '@/query/persistCache';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 
 SplashScreen.preventAutoHideAsync();
@@ -134,10 +135,22 @@ function ThemedStack() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold });
+  // Cache restore (D2.3): hydrate the query cache from disk before the splash
+  // screen drops, so a cold launch paints the last-known feed on the first
+  // frame instead of a blank/loading state. Queries revalidate afterward per
+  // their normal staleTime.
+  const [cacheRestored, setCacheRestored] = useState(false);
   useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded]);
-  if (!fontsLoaded) return null;
+    restoreQueryCache(queryClient).finally(() => setCacheRestored(true));
+  }, []);
+  useEffect(() => {
+    const stopPersisting = startPersistingQueryCache(queryClient);
+    return stopPersisting;
+  }, []);
+  useEffect(() => {
+    if (fontsLoaded && cacheRestored) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded, cacheRestored]);
+  if (!fontsLoaded || !cacheRestored) return null;
   return (
     <ShareIntentProvider>
       <ThemeProvider>

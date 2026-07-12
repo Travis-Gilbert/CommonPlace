@@ -22,7 +22,11 @@
 
 .tab {
   font-family: var(--font-body);
+<<<<<<< HEAD
   font-size: var(--text-xs);
+=======
+  font-size: 0.86rem;
+>>>>>>> origin/main
   color: var(--ink-dim);
   padding: calc(var(--u) * 0.6) calc(var(--u) * 1.4);
   border-radius: var(--r-control);
@@ -36,7 +40,11 @@
 .tabActive,
 .tabActive:hover {
   background: var(--raised);
+<<<<<<< HEAD
   background-image: none;
+=======
+  background-image: linear-gradient(180deg, var(--lit), transparent);
+>>>>>>> origin/main
   color: var(--ink);
 }
 
@@ -64,22 +72,35 @@
 }
 
 .cardIcon {
+<<<<<<< HEAD
   width: var(--icon-lg);
   height: var(--icon-lg);
+=======
+  width: 18px;
+  height: 18px;
+>>>>>>> origin/main
   color: var(--ink-dim);
   flex-shrink: 0;
 }
 
 .cardTitle {
   font-family: var(--font-body);
+<<<<<<< HEAD
   font-size: var(--text-sm);
+=======
+  font-size: 0.95rem;
+>>>>>>> origin/main
   font-weight: 600;
   color: var(--ink);
 }
 
 .cardHint {
   font-family: var(--font-body);
+<<<<<<< HEAD
   font-size: var(--text-xs);
+=======
+  font-size: 0.82rem;
+>>>>>>> origin/main
   color: var(--ink-dim);
   line-height: 1.5;
   margin: 0;
@@ -88,7 +109,11 @@
 /* honest status marker for a surface whose data is not wired yet */
 .soon {
   font-family: var(--font-mono);
+<<<<<<< HEAD
   font-size: var(--text-xxs);
+=======
+  font-size: 0.6rem;
+>>>>>>> origin/main
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -98,7 +123,11 @@
 .cardLink {
   align-self: flex-start;
   font-family: var(--font-body);
+<<<<<<< HEAD
   font-size: var(--text-xs);
+=======
+  font-size: 0.82rem;
+>>>>>>> origin/main
   color: var(--accent);
   text-decoration: none;
   border-bottom: 1px solid var(--accent-soft);

@@ -54,6 +54,7 @@ export default function ProjectPagesView({ projectId }: ProjectPagesViewProps) {
   const { data, loading, error, refetch } = useApiData<PmOverviewGql>(
     () => gqlPmOverview(projectId),
     [projectId],
+    { cacheKey: `project:pages:${projectId}` },
   );
   const overview = data ?? EMPTY_OVERVIEW;
   const pages = overview.pages;

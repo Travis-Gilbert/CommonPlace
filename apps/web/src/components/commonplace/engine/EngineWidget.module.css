@@ -42,8 +42,8 @@
 }
 
 .topToggle[data-active='true'] {
-  color: var(--cp-red);
-  border-color: color-mix(in srgb, var(--cp-red) 32%, transparent);
+  color: var(--cp-accent);
+  border-color: color-mix(in srgb, var(--cp-accent) 32%, transparent);
 }
 
 .topToggleStatus {

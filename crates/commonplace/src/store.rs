@@ -26,6 +26,7 @@ use serde_json::{json, Value};
 use crate::blob::BlobStore;
 use crate::collection::{Collection, CollectionKind};
 use crate::item::{Item, ItemBody, ItemKind};
+use crate::stamp::{build_stamp_snapshot, ExplicitEdge, ExplicitEdgeClass, StampSnapshot};
 use crate::tag::{tag_id, Tag};
 
 /// Node label for items.
@@ -92,6 +93,8 @@ pub const LABEL_EMBEDDING_PROPERTY: &str = "label_embedding";
 pub const EMBEDDING_PROPERTY: &str = "embedding";
 /// Derived property holding `"{source}:{external_id}"` for exact-match lookup (A3).
 pub const SOURCE_REF_KEY_PROPERTY: &str = "source_ref_key";
+/// Item extra property containing the write-time Growth Stamp projection.
+pub const GROWTH_STAMP_PROPERTY: &str = "growth_stamp";
 
 static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -159,6 +162,18 @@ where
         }
 
         item.collections = self.read_member_collections(&item.id);
+        if item.kind == ItemKind::Note {
+            let stamp = self.build_growth_stamp(&item.id, now)?;
+            item.extra.insert(
+                GROWTH_STAMP_PROPERTY.to_string(),
+                serde_json::to_value(stamp).map_err(serde_err)?,
+            );
+            self.store.upsert_node(NodeRecord::new(
+                item.id.clone(),
+                [ITEM_LABEL],
+                item_props(&item)?,
+            ))?;
+        }
         Ok(item)
     }
 
@@ -214,30 +229,6 @@ where
             .store
             .query_nodes(NodeQuery::label(ITEM_LABEL).with_limit(usize::MAX));
         nodes.iter().map(|node| self.hydrate_item(node)).collect()
-    }
-
-    /// Query all nodes with the given label. Returns raw [`NodeRecord`]s — callers
-    /// that know the expected label (e.g. `ITEM_LABEL`) can hydrate via
-    /// [`hydrate_item`](Self::hydrate_item).
-    pub fn query_by_label(&self, label: &str) -> GraphStoreResult<Vec<NodeRecord>> {
-        Ok(self
-            .store
-            .query_nodes(NodeQuery::label(label).with_limit(usize::MAX)))
-    }
-
-    /// Query nodes matching a label + property filter. Returns raw
-    /// [`NodeRecord`]s for callers to hydrate as needed.
-    pub fn query_by_property(
-        &self,
-        label: &str,
-        key: &str,
-        value: &Value,
-    ) -> GraphStoreResult<Vec<NodeRecord>> {
-        Ok(self.store.query_nodes(
-            NodeQuery::label(label)
-                .with_property(key, value.clone())
-                .with_limit(usize::MAX),
-        ))
     }
 
     /// The item that came from this exact source record, if one exists (A3). A
@@ -340,6 +331,7 @@ where
             json!({}),
         );
         self.store.upsert_edge(edge)?;
+        self.refresh_growth_stamp_if_note(item_id, now_ms())?;
         Ok(())
     }
 
@@ -365,6 +357,22 @@ where
         .with_confidence(score as f64);
         self.store.upsert_edge(edge)?;
         Ok(())
+    }
+
+    /// Write an explicit typed relationship that may appear in a note Stamp.
+    pub fn link_explicit(
+        &mut self,
+        edge_type: &str,
+        from_item_id: &str,
+        to_item_id: &str,
+        callout: impl Into<String>,
+    ) -> GraphStoreResult<()> {
+        self.upsert_link_with_props(
+            edge_type,
+            from_item_id,
+            to_item_id,
+            json!({ "callout": callout.into() }),
+        )
     }
 
     /// All items that belong to a collection.
@@ -646,7 +654,11 @@ where
         body: impl Into<String>,
         anchor: &crate::annotation::Anchor,
     ) -> GraphStoreResult<Item> {
+<<<<<<< HEAD
         let anchor_value = serde_json::to_value(anchor).map_err(serde_err)?;
+=======
+        let anchor_value = serde_json::to_value(anchor).unwrap_or(serde_json::Value::Null);
+>>>>>>> origin/main
         let mut comment = Item::new(ItemKind::Comment, "Annotation")
             .with_text(body.into())
             .with_extra(crate::annotation::TARGET_ID_KEY, json!(target_id))
@@ -863,7 +875,9 @@ where
 
     /// Attach a tag (create-or-get by stable slug) to an item.
     pub fn tag_item(&mut self, item_id: &str, name: &str) -> GraphStoreResult<Tag> {
-        self.write_tag_projection(item_id, name)
+        let tag = self.write_tag_projection(item_id, name)?;
+        self.refresh_growth_stamp_if_note(item_id, now_ms())?;
+        Ok(tag)
     }
 
     /// All tags attached to an item, as graph nodes.
@@ -984,7 +998,107 @@ where
             properties,
         );
         self.store.upsert_edge(edge)?;
+        if edge_type != SIMILAR_TO_EDGE {
+            self.refresh_growth_stamp_if_note(from, now_ms())?;
+            self.refresh_growth_stamp_if_note(to, now_ms())?;
+        }
         Ok(())
+    }
+
+    /// Read the precomputed Growth Stamp stored with a note.
+    pub fn growth_stamp(&self, note_id: &str) -> GraphStoreResult<Option<StampSnapshot>> {
+        let Some(item) = self.get_item(note_id)? else {
+            return Ok(None);
+        };
+        if item.kind != ItemKind::Note {
+            return Ok(None);
+        }
+        item.extra
+            .get(GROWTH_STAMP_PROPERTY)
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(serde_err)
+    }
+
+    fn refresh_growth_stamp_if_note(
+        &mut self,
+        item_id: &str,
+        saved_at_ms: i64,
+    ) -> GraphStoreResult<()> {
+        let Some(mut item) = self.get_item(item_id)? else {
+            return Ok(());
+        };
+        if item.kind != ItemKind::Note {
+            return Ok(());
+        }
+        let stamp = self.build_growth_stamp(item_id, saved_at_ms)?;
+        item.extra.insert(
+            GROWTH_STAMP_PROPERTY.to_string(),
+            serde_json::to_value(stamp).map_err(serde_err)?,
+        );
+        self.store.upsert_node(NodeRecord::new(
+            item.id.clone(),
+            [ITEM_LABEL],
+            item_props(&item)?,
+        ))?;
+        Ok(())
+    }
+
+    fn build_growth_stamp(
+        &self,
+        note_id: &str,
+        saved_at_ms: i64,
+    ) -> GraphStoreResult<StampSnapshot> {
+        let hits = self
+            .store
+            .neighbors(NeighborQuery::out(note_id))
+            .into_iter()
+            .chain(self.store.neighbors(NeighborQuery::in_(note_id)));
+        let mut explicit_edges = Vec::new();
+        for hit in hits {
+            let Some(edge) = self.store.get_edge(&hit.edge_id) else {
+                continue;
+            };
+            if edge.edge_type == SIMILAR_TO_EDGE {
+                continue;
+            }
+            let other_id = if edge.from_id == note_id {
+                &edge.to_id
+            } else {
+                &edge.from_id
+            };
+            let other_label = self
+                .get_item(other_id)?
+                .map(|item| item.title)
+                .filter(|title| !title.trim().is_empty())
+                .unwrap_or_else(|| other_id.clone());
+            let callout = edge
+                .properties
+                .get("callout")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("{}: {other_label}", edge.edge_type));
+            let edge_type_lower = edge.edge_type.to_ascii_lowercase();
+            let class = if edge_type_lower.contains("support")
+                || edge_type_lower.contains("contradict")
+                || edge_type_lower.contains("refute")
+                || edge_type_lower.contains("evidence")
+            {
+                ExplicitEdgeClass::Epistemic
+            } else {
+                ExplicitEdgeClass::Reference
+            };
+            explicit_edges.push(ExplicitEdge {
+                edge_id: edge.id.clone(),
+                from_id: edge.from_id.clone(),
+                to_id: edge.to_id.clone(),
+                edge_type: edge.edge_type.clone(),
+                class,
+                callout,
+            });
+        }
+        Ok(build_stamp_snapshot(note_id, saved_at_ms, explicit_edges))
     }
 
     fn items_for(&self, query: NeighborQuery) -> GraphStoreResult<Vec<Item>> {

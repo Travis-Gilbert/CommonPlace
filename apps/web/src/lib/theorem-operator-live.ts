@@ -97,7 +97,10 @@ export async function buildOperatorStateLive(
   if (!view || view.ok === false) return null;
 
   const src = liveSource('commonplace-api workGraph', runId ? `${endpoint} · run ${runId}` : `${endpoint} · all runs`);
-  const liveNodes = parseWorkGraphTasks(view.tasks);
+  // Nodes without a stable `id` cannot be keyed by drawers/gate/shift lookups
+  // downstream, so drop them at the boundary instead of coining a synthetic id
+  // that would silently diverge from the harness contract.
+  const liveNodes = parseWorkGraphTasks(view.tasks).filter((node) => node.id);
   const liveTasks = mapTaskNodes(liveNodes, now.getTime(), src);
   if (liveTasks.length === 0) return null; // empty live board → fixtures
 
@@ -176,10 +179,10 @@ function workGraphView(value: unknown): WorkGraphView | null {
 function mapTaskNodes(nodes: TaskNode[], nowMs: number, source: OperatorSource): OperatorTask[] {
   // A prerequisite is "met" once its referenced node reaches the terminal
   // accepted status. Cross-reference within the same work graph.
-  const acceptedIds = new Set(nodes.filter((n) => n.status === 'accepted').map((n) => n.id).filter(Boolean));
+  const acceptedIds = new Set(nodes.filter((n) => n.status === 'accepted').map((n) => n.id));
   const goalById = new Map<string, string>();
   for (const n of nodes) {
-    if (n.id) goalById.set(n.id, taskGoal(n, n.id));
+    goalById.set(n.id, taskGoal(n, n.id));
   }
   return nodes.map((node, index) => operatorTaskFromNode(node, index, nowMs, source, acceptedIds, goalById));
 }
@@ -192,7 +195,7 @@ function operatorTaskFromNode(
   acceptedIds: Set<string>,
   goalById: Map<string, string>,
 ): OperatorTask {
-  const id = node.id || `task_${index}`;
+  const id = node.id;
   const claim = claimFrom(node.claim, nowMs);
 
   const prerequisites: Prerequisite[] = node.prerequisites.map((prereqId) => ({
@@ -262,8 +265,11 @@ function gateFromNodes(nodes: TaskNode[], tasks: OperatorTask[], source: Operato
 
 function shiftFromTasks(nodes: TaskNode[], tasks: OperatorTask[], now: Date, source: OperatorSource): ShiftSummary {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  // Match the fixture rollup window ("Since you last looked" ≈ last 12 hours);
+  // pinning `since` to `now` would collapse the window to zero width.
+  const since = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
   return {
-    since: now.toISOString(),
+    since,
     completed: tasks
       .filter((task) => task.lane === 'done')
       .map((task) => ({
@@ -279,7 +285,8 @@ function shiftFromTasks(nodes: TaskNode[], tasks: OperatorTask[], now: Date, sou
         blockers: task.prerequisites.filter((prereq) => !prereq.met).map((prereq) => prereq.goal),
       })),
     reviewReadyCount: tasks.filter((task) => task.status === 'review').length,
-    queueDepth: tasks.filter((task) => task.lane === 'now' || task.lane === 'next').length,
+    // Fixture contract: queue depth is the `next` lane only (see fixtureShiftSummary).
+    queueDepth: tasks.filter((task) => task.lane === 'next').length,
     iceboxMovements: tasks.filter((task) => task.lane === 'icebox').map((task) => ({ taskId: task.id, goal: task.goal })),
     urgentMessages: [],
     source,

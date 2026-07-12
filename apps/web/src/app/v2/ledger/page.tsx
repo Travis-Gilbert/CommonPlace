@@ -1,17 +1,21 @@
 'use client';
 
-/* Ledger (Data): the tabular book on the desk. Every Item is a row; sort by any
-   column. Rendered with TanStack Table (already installed, porcelain-native
-   HTML) for this seed cut. The IA reserves Glide Data Grid as the production
-   engine for scale (millions of rows, canvas, in-cell editing); it is installed
-   and swaps in once the repo's workspace module-resolution is sorted.
+/* Screen archetype: Airtable/Linear table (SPEC-UX-PHYSICS D8, see
+   docs/plans/ux-physics-accent/archetypes.md). The table is the whole surface; sort
+   by any column; the Glide Data Grid scale engine is reserved for millions of rows.
 
-   Strangler discipline (as with /v2 Index): static seed rows so the surface can
-   be judged against the porcelain north-star before wiring the real ObjectQuery.
-   Replace SEED with commonplace-api items (Query.items / itemsAsOf); sorting and
-   the porcelain skin carry over unchanged. */
+   Ledger (Data): the tabular book on the desk. Every Item is a row; sort by any
+   column. Rendered with TanStack Table (already installed, porcelain-native HTML).
+   The IA reserves Glide Data Grid as the production engine for scale (millions of
+   rows, canvas, in-cell editing); it is installed and swaps in once the repo's
+   workspace module-resolution is sorted.
 
-import { useState } from 'react';
+   Data is the real ObjectQuery item list via commonplace-api.fetchItems (local-first
+   through useApiData's persisted cache, SPEC-UX-PHYSICS D2). The five-state discipline
+   (D4) runs through ViewStateView: a cold, empty library renders an honest empty, not
+   a populated-looking seed. Sorting and the porcelain skin are data-agnostic. */
+
+import { useMemo, useState } from 'react';
 import {
   createColumnHelper,
   flexRender,
@@ -20,6 +24,11 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
+import { fetchItems, useApiData } from '@/lib/commonplace-api';
+import type { ItemGql } from '@/lib/commonplace-graphql';
+import { deriveViewState } from '@/lib/commonplace-view-state';
+import { narrationFor } from '@/lib/commonplace-wait-narration';
+import { ViewStateView } from '@/components/commonplace/shared/ViewStateView';
 import { refiledLabel, useRefileSignal } from '@/lib/commonplace/index-queries';
 import styles from './ledger.module.css';
 
@@ -33,17 +42,23 @@ type Row = {
   validFrom: string;
 };
 
-// Seed set: shape mirrors commonplace-api ItemGql. Swap for live items next.
-const SEED: Row[] = [
-  { id: 'itm_9f2a', kind: 'file', title: 'Ordinance 24-113, porch lighting and setbacks.pdf', tags: 'porch, setback', collection: 'Zoning', created: '2026-07-02', validFrom: '2026-06-18' },
-  { id: 'itm_7c11', kind: 'link', title: 'How ADHD brains use external memory systems', tags: 'adhd, pkm', collection: 'Reading', created: '2026-07-02', validFrom: '—' },
-  { id: 'itm_5b83', kind: 'note', title: 'Voice note, 47 seconds (transcribed)', tags: 'transcribed', collection: 'PorchFest 2026', created: '2026-07-01', validFrom: '—' },
-  { id: 'itm_44de', kind: 'task', title: 'Send GCLBA compliance report, week 27', tags: 'compliance, gclba', collection: 'PorchFest 2026', created: '2026-07-01', validFrom: '2026-07-06' },
-  { id: 'itm_2a90', kind: 'claim', title: 'Required setback distance is 15 feet on corner lots', tags: 'zoning, contested', collection: 'Zoning', created: '2026-06-30', validFrom: '2026-06-18' },
-  { id: 'itm_1f57', kind: 'note', title: 'Pairformer scatter-add kernel notes', tags: 'theseus, kernel', collection: 'Engine', created: '2026-06-29', validFrom: '—' },
-  { id: 'itm_0c3b', kind: 'source', title: '2019 zoning map, Genesee County', tags: 'zoning, map', collection: 'Zoning', created: '2026-06-28', validFrom: '2019-01-01' },
-  { id: 'itm_e81d', kind: 'link', title: 'Elicit corpus-table extraction pattern', tags: 'research, ux', collection: 'Reading', created: '2026-06-27', validFrom: '—' },
-];
+/** One epoch-ms field to a YYYY-MM-DD cell, blank (not a dash) when absent. */
+function isoDay(ms?: number | null): string {
+  return ms ? new Date(ms).toISOString().slice(0, 10) : '';
+}
+
+/** Map a real ObjectQuery item to a Ledger row. */
+function itemToRow(item: ItemGql): Row {
+  return {
+    id: item.id,
+    kind: item.kind,
+    title: item.title || 'Untitled',
+    tags: item.tags.join(', '),
+    collection: item.collections[0] ?? '',
+    created: isoDay(item.createdAtMs),
+    validFrom: isoDay(item.validFromMs),
+  };
+}
 
 const col = createColumnHelper<Row>();
 
@@ -71,29 +86,43 @@ const CARET: Record<string, string> = { asc: ' ↑', desc: ' ↓' };
 
 export default function LedgerPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
-  // Fold in any refile corrections already made this session (a surface opened
-  // after the correction), then keep listening for live ones below.
-  const [data, setData] = useState<Row[]>(() =>
-    SEED.map((row) => {
-      const label = refiledLabel(row.id, row.title);
-      return label ? { ...row, collection: label } : row;
-    }),
+  const { data: items, loading, error, refetch } = useApiData<ItemGql[]>(
+    () => fetchItems(),
+    [],
+    { cacheKey: 'v2:ledger:items' },
   );
 
-  // A refile correction from any surface (e.g. the Index) moves the item's
-  // Collection cell here immediately. Match by id (live) or title (fixture).
+  // Live refile corrections from any surface (e.g. the Index) move an item's
+  // Collection cell here immediately, matched by id or title. Overlaid on the
+  // fetched rows so a correction survives a background revalidation.
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
   useRefileSignal((signal) => {
-    setData((rows) =>
-      rows.map((row) =>
-        row.id === signal.id || row.title === signal.title
-          ? { ...row, collection: signal.label }
-          : row,
-      ),
-    );
+    setOverrides((prev) => {
+      const next = { ...prev, [signal.id]: signal.label };
+      if (signal.title) next[signal.title] = signal.label;
+      return next;
+    });
+  });
+
+  const rows = useMemo<Row[]>(() => {
+    if (!items) return [];
+    return items.map((item) => {
+      const base = itemToRow(item);
+      const label = overrides[base.id] ?? overrides[base.title] ?? refiledLabel(base.id, base.title);
+      return label ? { ...base, collection: label } : base;
+    });
+  }, [items, overrides]);
+
+  const state = deriveViewState<Row[]>({
+    data: items ? rows : null,
+    loading,
+    error: error?.message ?? null,
+    retry: refetch,
+    isEmpty: (r) => r.length === 0,
   });
 
   const table = useReactTable({
-    data,
+    data: rows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -116,36 +145,40 @@ export default function LedgerPage() {
 
       <div className={styles.wrap}>
         <div className={styles.frame}>
-          <table className={styles.table}>
-            <thead>
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id}>
-                  {hg.headers.map((h) => (
-                    <th
-                      key={h.id}
-                      className={styles.th}
-                      onClick={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
-                      style={{ cursor: h.column.getCanSort() ? 'pointer' : 'default' }}
-                    >
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                      <span className={styles.caret}>{CARET[h.column.getIsSorted() as string] ?? ''}</span>
-                    </th>
+          <ViewStateView state={state} label="ledger items" narration={narrationFor('reading', 0)}>
+            {() => (
+              <table className={styles.table}>
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id}>
+                      {hg.headers.map((h) => (
+                        <th
+                          key={h.id}
+                          className={styles.th}
+                          onClick={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
+                          style={{ cursor: h.column.getCanSort() ? 'pointer' : 'default' }}
+                        >
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                          <span className={styles.caret}>{CARET[h.column.getIsSorted() as string] ?? ''}</span>
+                        </th>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((r) => (
-                <tr key={r.id} className={styles.row}>
-                  {r.getVisibleCells().map((c) => (
-                    <td key={c.id} className={styles.td}>
-                      {flexRender(c.column.columnDef.cell, c.getContext())}
-                    </td>
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((r) => (
+                    <tr key={r.id} className={styles.row}>
+                      {r.getVisibleCells().map((c) => (
+                        <td key={c.id} className={styles.td}>
+                          {flexRender(c.column.columnDef.cell, c.getContext())}
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            )}
+          </ViewStateView>
         </div>
       </div>
     </>

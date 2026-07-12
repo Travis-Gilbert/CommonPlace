@@ -34,7 +34,9 @@ export interface ReconstructedItem {
  * Uses the same `useApiData` fetcher pattern as the rest of CommonPlace.
  */
 export function useReconstructedFacts(limit: number = 50): UseApiDataResult<ReconstructedItem[]> {
-  const result = useApiData(() => gqlReconstructedFacts(limit), [limit]);
+  const result = useApiData(() => gqlReconstructedFacts(limit), [limit], {
+    cacheKey: `reconstruction:facts:${limit}`,
+  });
 
   const items = useMemo(() => reconstructItems(result.data), [result.data]);
 
@@ -54,6 +56,7 @@ export function useReconstructedFactsByModality(
   const result = useApiData(
     () => gqlReconstructedFactsByModality(modality, limit),
     [modality, limit],
+    { cacheKey: `reconstruction:facts:${modality}:${limit}` },
   );
 
   const items = useMemo(() => reconstructItems(result.data), [result.data]);

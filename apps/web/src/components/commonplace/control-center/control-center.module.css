@@ -153,6 +153,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Receipt rail + run log scroll (MT-4): contain the scroll so reaching the end
+     of the control-center body never chains into the page behind it. */
+  overscroll-behavior: contain;
   padding: var(--cp-space-5) var(--cp-space-6) var(--cp-space-16);
 }
 

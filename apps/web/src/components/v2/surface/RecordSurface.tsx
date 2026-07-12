@@ -1,6 +1,10 @@
 'use client';
 
 /**
+ * Screen archetype: Linear row-and-drawer (SPEC-UX-PHYSICS D8, see
+ * docs/plans/ux-physics-accent/archetypes.md). The object list is the surface; a
+ * selected record opens detail without leaving the list.
+ *
  * TW5 RecordSurface: one ObjectQuery, one live ObjectSet, and a one-press flip
  * across the renderers that accept its shape.
  *
@@ -135,6 +139,10 @@ export const RecordSurface: FC<RecordSurfaceProps> = ({ query }) => {
               tabIndex={selected ? 0 : -1}
               className={styles.tab}
               data-selected={selected || undefined}
+              // Press-down activation (SPEC-UX-PHYSICS D5): a tab switch is idempotent,
+              // so it fires on primary pointer-down for a crisp flip; onClick keeps
+              // keyboard activation (roving tabindex handles arrow navigation).
+              onPointerDown={(e) => { if (e.button === 0) setActiveId(view.id); }}
               onClick={() => setActiveId(view.id)}
             >
               {view.name}

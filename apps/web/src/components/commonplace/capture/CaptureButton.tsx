@@ -93,6 +93,10 @@ export default function CaptureButton({ onCapture }: CaptureButtonProps) {
     return (
       <button
         type="button"
+        // Press-down activation (SPEC-UX-PHYSICS D5): opening the capture panel is
+        // idempotent, so firing on primary pointer-down feels instant while onClick
+        // still opens it from the keyboard (Enter/Space).
+        onPointerDown={(e) => { if (e.button === 0) setIsOpen(true); }}
         onClick={() => setIsOpen(true)}
         className="cp-capture-collapsed"
       >

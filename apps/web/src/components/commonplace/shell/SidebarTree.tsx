@@ -69,7 +69,7 @@ function folderNodes(folders: StoredFolder[]): FileNode[] {
 export default function SidebarTree({ isOpen, isActive, onToggle, onOpenFiles }: SidebarTreeProps) {
   const { captureVersion } = useCapture();
   const { openDrawer } = useDrawer();
-  const { data: items } = useApiData(() => gqlItems(), [captureVersion]);
+  const { data: items } = useApiData(() => gqlItems(), [captureVersion], { cacheKey: 'sidebar:files' });
   const [folders, setFolders] = useState<StoredFolder[]>([]);
   const [foldersLoaded, setFoldersLoaded] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);

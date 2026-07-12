@@ -23,6 +23,7 @@ export default function DailyLogPanel({ date, onOpenObject }: DailyLogPanelProps
   const { data: log, loading, error } = useApiData(
     () => fetchDailyLogByDate(date),
     [date],
+    { cacheKey: `dailyLog:${date}` },
   );
 
   /* ── Loading ── */

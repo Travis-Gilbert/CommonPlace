@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   buildOperatorState,
-  handleOperatorActionForState,
+  handleOperatorAction,
   type OperatorActionResult,
 } from '@/lib/theorem-operator';
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
@@ -34,6 +34,7 @@ export async function POST(req: Request) {
     );
   }
 
+<<<<<<< HEAD
   const now = new Date();
   let state = buildOperatorState(process.env, now, globalThis.fetch);
   try {
@@ -43,11 +44,15 @@ export async function POST(req: Request) {
   }
 
   const result = handleOperatorActionForState(body, state);
+=======
+  const result = handleOperatorAction(body, process.env, new Date(), globalThis.fetch);
+>>>>>>> origin/main
   return NextResponse.json(result, { status: statusForOperatorResult(result) });
 }
 
 function statusForOperatorResult(result: OperatorActionResult): number {
   if (result.ok) return 200;
+
   switch (result.error) {
     case 'invalid_action':
     case 'missing_required_changes':

@@ -53,16 +53,22 @@ export function TabBarWithFab({ state, navigation }: TabBarProps) {
       {state.routes.map((route, i) => {
         const focused = state.index === i;
         const name = route.name;
+        // Press-down activation (SPEC-UX-PHYSICS D5): a tab switch is idempotent, so
+        // it fires on press-in for a crisp flip. onPress keeps assistive-tech
+        // activation working; navigating to the same route is a no-op, so the two
+        // paths cannot double-switch.
+        const activate = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+        };
         return (
           <Pressable
             key={route.key}
             accessibilityRole="tab"
             accessibilityState={{ selected: focused }}
             accessibilityLabel={TAB_LABEL[name] ?? name}
-            onPress={() => {
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-            }}
+            onPressIn={activate}
+            onPress={activate}
             style={styles.tab}
           >
             <Ionicons

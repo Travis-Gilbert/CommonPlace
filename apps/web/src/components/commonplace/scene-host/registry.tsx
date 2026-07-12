@@ -38,6 +38,10 @@ export const SCENE_RENDERER_REGISTRY: Record<string, SceneRendererEntry> = {
     lazy(() => import('./renderers/Model3dRenderer')),
     { requiresWebGL: true },
   ),
+  patent_diagram: rendererEntry(
+    'patent_diagram',
+    lazy(() => import('./renderers/PatentDiagramRenderer')),
+  ),
 };
 
 export const SCENE_RENDERER_CATALOG: RendererCatalog = Object.fromEntries(

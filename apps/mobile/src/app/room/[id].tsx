@@ -6,11 +6,11 @@
  * spawning UI in v1 (D4).
  */
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -229,7 +229,7 @@ export default function RoomScreen() {
           <WeaveSpinner size={120} color={t.accents.goldLight} />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={feed}
           keyExtractor={(e, i) => `${e.job_id ?? 'e'}-${i}`}
           renderItem={renderEntry}

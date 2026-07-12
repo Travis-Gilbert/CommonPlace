@@ -56,7 +56,20 @@
   --cp-red-soft: #2A171D;
   --cp-red-line: rgba(166, 83, 36, 0.28);
   --cp-red-glow: rgba(166, 83, 36, 0.18);
-  --cp-accent: var(--cp-red);
+
+  /* Action / pending-decision signal: oxblood owns the red channel.
+     Dark register fills with the -light value so the accent stays visible on
+     the dark ground; --cp-red stays burnt-orange (machine signal). */
+  --cp-accent:           var(--cp-oxblood-light);
+  --cp-accent-rgb:       var(--cp-oxblood-light-rgb);
+  --cp-accent-pressed:   var(--cp-oxblood);
+  --cp-accent-wash:      var(--cp-oxblood-wash-dark);
+  --cp-accent-wash-dark: var(--cp-oxblood-wash-dark);
+  /* Soft action variants (parallel to --cp-red-soft/line/glow, oxblood-based).
+     Built from --cp-accent-rgb so the dark register fills them automatically. */
+  --cp-accent-soft:      rgba(var(--cp-accent-rgb), 0.10);
+  --cp-accent-line:      rgba(var(--cp-accent-rgb), 0.28);
+  --cp-accent-glow:      rgba(var(--cp-accent-rgb), 0.18);
 
   --cp-terracotta: var(--cp-red);
   --cp-terracotta-light: var(--cp-oxblood);
@@ -177,21 +190,39 @@
   --mobile-shell-text-muted: var(--cp-text-muted);
 
   /* Interaction tokens */
-  --cp-focus-ring: var(--cp-red);
+  --cp-focus-ring: var(--cp-accent);
   --cp-focus-ring-offset: 2px;
   --cp-focus-ring-width: 2px;
   --cp-focus-ring-sidebar: rgba(225, 224, 218, 0.62);
 
-  /* Timing tokens */
+  /* Timing tokens (legacy; retained for existing consumers) */
   --cp-transition-fast: 100ms;
   --cp-transition-base: 150ms;
   --cp-transition-slow: 250ms;
+
+  /* Motion scale (HANDOFF-MOTION-TOKENS: one scale, three targets. Mobile mirrors
+     these in apps/mobile/src/theme/tokens.ts). Motion animates transform and opacity
+     only. Press feedback fires on pointer-down (state change); the rest tween.
+     Note: --cp-ease-out was redefined here. Old value: cubic-bezier(0.16, 1, 0.3, 1). */
+  --cp-dur-press: 90ms;
+  --cp-dur-hover: 120ms;
+  --cp-dur-local: 200ms;
+  --cp-dur-panel: 280ms;
+  --cp-dur-max: 400ms;
+  --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --cp-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --cp-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  /* CSS proxy for the spring-snappy preset (real springs live in Reanimated on
+     mobile). Kept as an alias so existing --cp-spring-ease consumers still resolve. */
   --cp-spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --cp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Transform vocabulary: hover lifts, press compresses, entering rises then fades. */
+  --cp-hover-lift: -1px;
+  --cp-press-scale: 0.98;
+  --cp-enter-rise: 8px;
 
   /* Skeleton tokens */
   --cp-skeleton-base: var(--cp-surface);
-  --cp-skeleton-shine: color-mix(in srgb, var(--cp-red) 6%, var(--cp-surface));
+  --cp-skeleton-shine: color-mix(in srgb, var(--cp-accent) 6%, var(--cp-surface));
 
   /* Discovery edge */
   --cp-discovery-score-bg: var(--cp-red);
@@ -200,19 +231,19 @@
   /* Search bar */
   --cp-search-bg: rgba(255,255,255,0.015);
   --cp-search-border: var(--cp-border-faint);
-  --cp-search-focus-border: rgba(166, 83, 36, 0.3);
+  --cp-search-focus-border: color-mix(in srgb, var(--cp-accent) 40%, transparent);
   --cp-search-placeholder: var(--cp-text-faint);
 
   /* Ask Theseus */
   --cp-ask-bg: var(--cp-card);
   --cp-ask-border: var(--cp-border);
-  --cp-ask-glyph: var(--cp-terra, var(--cp-red));
+  --cp-ask-glyph: var(--cp-accent);
   --cp-ask-positive: #5A7A4A;
   --cp-ask-positive-bg: rgba(90, 122, 74, 0.08);
   --cp-ask-negative: #C0504D;
   --cp-ask-negative-bg: rgba(192, 80, 77, 0.08);
-  --cp-ask-save: var(--cp-terra, var(--cp-red));
-  --cp-ask-save-bg: rgba(166, 83, 36, 0.10);
+  --cp-ask-save: var(--cp-accent);
+  --cp-ask-save-bg: var(--cp-accent-wash);
 
   /* State tokens */
   --cp-disabled-opacity: 0.35;

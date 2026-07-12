@@ -23,6 +23,7 @@ export default function InquirySuggestions({ onSelectQuery }: InquirySuggestions
   const { data } = useApiData<InquirySuggestionData>(
     () => fetchInquirySuggestions(),
     [],
+    { cacheKey: 'inquiry:suggestions' },
   );
 
   const items: SuggestionItem[] = [];

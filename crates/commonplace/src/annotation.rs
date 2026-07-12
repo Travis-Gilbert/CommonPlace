@@ -171,9 +171,13 @@ mod tests {
     fn annotation_carries_anchor_provenance_and_threads_then_resolves() {
         let mut cp = store();
         // The target: a file object (dev-mode anchoring).
+<<<<<<< HEAD
         let file = cp
             .put_item(Item::new(ItemKind::File, "src/App.tsx"))
             .unwrap();
+=======
+        let file = cp.put_item(Item::new(ItemKind::File, "src/App.tsx")).unwrap();
+>>>>>>> origin/main
 
         // A head annotates a source line.
         let anchor = Anchor::FileLine {
@@ -182,6 +186,7 @@ mod tests {
             column: Some(9),
         };
         let ann = cp
+<<<<<<< HEAD
             .create_annotation(
                 &file.id,
                 Some("head:claude"),
@@ -189,21 +194,29 @@ mod tests {
                 "this padding wraps the header",
                 &anchor,
             )
+=======
+            .create_annotation(&file.id, Some("head:claude"), AuthorKind::Head, "this padding wraps the header", &anchor)
+>>>>>>> origin/main
             .unwrap();
 
         // It is discoverable from the file's drawer, with full provenance + anchor.
         let list = cp.annotations_for(&file.id).unwrap();
+<<<<<<< HEAD
         assert_eq!(
             list.len(),
             1,
             "the annotation is found from the file object"
         );
+=======
+        assert_eq!(list.len(), 1, "the annotation is found from the file object");
+>>>>>>> origin/main
         let got = &list[0];
         assert_eq!(got.id, ann.id);
         assert_eq!(got.author.as_deref(), Some("head:claude"));
         assert_eq!(got.author_kind, Some(AuthorKind::Head));
         assert_eq!(got.target_id.as_deref(), Some(file.id.as_str()));
         assert_eq!(got.body, "this padding wraps the header");
+<<<<<<< HEAD
         assert_eq!(
             got.anchor,
             Some(anchor),
@@ -226,6 +239,18 @@ mod tests {
             thread[0].anchor, None,
             "a reply carries no anchor of its own"
         );
+=======
+        assert_eq!(got.anchor, Some(anchor), "the file:line:col anchor round-trips");
+        assert!(!got.resolved);
+
+        // A human replies in-thread; the thread reads under the annotation.
+        cp.reply_to_annotation(&ann.id, Some("user:travis"), AuthorKind::User, "agreed, drop it to 8px")
+            .unwrap();
+        let thread = cp.thread_for(&ann.id).unwrap();
+        assert_eq!(thread.len(), 1, "the reply is in the annotation's thread");
+        assert_eq!(thread[0].author_kind, Some(AuthorKind::User));
+        assert_eq!(thread[0].anchor, None, "a reply carries no anchor of its own");
+>>>>>>> origin/main
 
         // Resolving folds the pin with a receipt (D6).
         let resolved = cp
@@ -249,13 +274,18 @@ mod tests {
     #[test]
     fn selector_and_page_anchors_round_trip() {
         let mut cp = store();
+<<<<<<< HEAD
         let page = cp
             .put_item(Item::new(ItemKind::Link, "competitor pricing"))
             .unwrap();
+=======
+        let page = cp.put_item(Item::new(ItemKind::Link, "competitor pricing")).unwrap();
+>>>>>>> origin/main
 
         // General-page anchoring: selector + rect fallback.
         let selector = Anchor::Selector {
             selector: "main > .pricing .tier:nth-child(2)".to_string(),
+<<<<<<< HEAD
             rect: Some(Rect {
                 x: 12.0,
                 y: 340.0,
@@ -282,6 +312,15 @@ mod tests {
             },
         )
         .unwrap();
+=======
+            rect: Some(Rect { x: 12.0, y: 340.0, width: 220.0, height: 96.0 }),
+        };
+        cp.create_annotation(&page.id, None, AuthorKind::User, "this tier is buried", &selector)
+            .unwrap();
+        // Whole-page anchor (a Keep).
+        cp.create_annotation(&page.id, None, AuthorKind::User, "keep this page", &Anchor::Page { url: "https://ex.com/pricing".to_string() })
+            .unwrap();
+>>>>>>> origin/main
 
         let anchors: Vec<_> = cp
             .annotations_for(&page.id)

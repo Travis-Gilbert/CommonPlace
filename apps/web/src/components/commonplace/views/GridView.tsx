@@ -66,7 +66,7 @@ export default function GridView({ onOpenObject }: GridViewProps) {
   const { selectedItems, selectSingle, clearSelection } = useSelection();
   const [mode, setMode] = useState<ViewMode>('table');
   const [editingTitle, setEditingTitle] = useState<Record<string, string>>({});
-  const { data: items } = useApiData(() => gqlItems(), [captureVersion]);
+  const { data: items } = useApiData(() => gqlItems(), [captureVersion], { cacheKey: 'grid:items' });
   const allItems = useMemo(() => items ?? [], [items]);
   const visibleItems = useMemo(
     () => selectedItemsOnly(allItems, selectedItems),
