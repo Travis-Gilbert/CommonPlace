@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildOperatorStateLive } from '@/lib/theorem-operator-live';
-<<<<<<< HEAD
-import { handleOperatorActionForState } from '@/lib/theorem-operator';
-=======
->>>>>>> origin/main
 
 /**
  * Task-node payloads mirror the authoritative serde shape of
@@ -186,25 +182,6 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(bayByHead['codex'].task).toBeNull();
   });
 
-<<<<<<< HEAD
-  it('validates actions against the live Operator state, not fixture task ids', async () => {
-    const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
-    expect(state).not.toBeNull();
-
-    const result = handleOperatorActionForState(
-      { action: 'reorder_queue', taskId: 'task-b', priority: 0 },
-      state!,
-    );
-
-    expect(result).toMatchObject({
-      ok: true,
-      action: 'reorder_queue',
-      message: 'Priority of "OP5 gate" written to 0.',
-    });
-  });
-
-=======
->>>>>>> origin/main
   it('derives live gate, shift, and drawer state from TaskNodes', async () => {
     const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
     expect(state!.gate).toHaveLength(1);

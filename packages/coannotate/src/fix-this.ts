@@ -13,12 +13,6 @@
 import type { Annotation, Anchor, Resolution } from './types.ts';
 import { anchorLabel } from './types.ts';
 
-<<<<<<< HEAD
-const MISSING_ANCHOR_URL = 'about:blank#missing-annotation-anchor';
-const MISSING_ANCHOR_LABEL = 'missing annotation anchor';
-
-=======
->>>>>>> origin/main
 /** A scoped Fix-this dispatch: everything the head needs, nothing it does not. */
 export interface FixThisRequest {
   annotationId: string;
@@ -49,25 +43,13 @@ export function buildFixThisRequest(
     .join('\n');
   return {
     annotationId: annotation.id,
-<<<<<<< HEAD
-    anchor: annotation.anchor ?? missingAnchor(),
-    anchorLabel: annotation.anchor ? anchorLabel(annotation.anchor) : MISSING_ANCHOR_LABEL,
-=======
     anchor: annotation.anchor ?? { kind: 'page', url: '' },
     anchorLabel: annotation.anchor ? anchorLabel(annotation.anchor) : '',
->>>>>>> origin/main
     thread,
     ...(screenshotRef ? { screenshotRef } : {}),
   };
 }
 
-<<<<<<< HEAD
-function missingAnchor(): Anchor {
-  return { kind: 'page', url: MISSING_ANCHOR_URL };
-}
-
-=======
->>>>>>> origin/main
 /** A range of lines a commit touched in one file. */
 export interface TouchedRange {
   path: string;

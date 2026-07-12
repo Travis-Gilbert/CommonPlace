@@ -34,19 +34,7 @@ export async function POST(req: Request) {
     );
   }
 
-<<<<<<< HEAD
-  const now = new Date();
-  let state = buildOperatorState(process.env, now, globalThis.fetch);
-  try {
-    state = (await buildOperatorStateLive(process.env, now, globalThis.fetch)) ?? state;
-  } catch {
-    // keep fixture state
-  }
-
-  const result = handleOperatorActionForState(body, state);
-=======
   const result = handleOperatorAction(body, process.env, new Date(), globalThis.fetch);
->>>>>>> origin/main
   return NextResponse.json(result, { status: statusForOperatorResult(result) });
 }
 

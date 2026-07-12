@@ -43,16 +43,6 @@
 
   /* status */
   --ok: #3D7A4A;
-<<<<<<< HEAD
-  --teal: #2E6F69;
-  --teal-soft: rgba(46, 111, 105, 0.1);
-  --teal-line: rgba(46, 111, 105, 0.28);
-  --amber: #9A6A14;
-  --amber-soft: rgba(154, 106, 20, 0.12);
-  --amber-line: rgba(154, 106, 20, 0.34);
-  --navy: #33455C;
-  --navy-soft: rgba(51, 69, 92, 0.12);
-=======
   /* teal: the calm baseline for categories/tags. Red stays reserved for pending
      decisions and genuine urgency, so the surface does not read as all-alarm. */
   --teal: #2E6F69;
@@ -80,7 +70,6 @@
   --tag-sky: #2E6A8A;    --tag-sky-bg: rgba(46, 106, 138, 0.12);    --tag-sky-line: rgba(46, 106, 138, 0.28);
   --tag-teal: #2E6F69;   --tag-teal-bg: rgba(46, 111, 105, 0.11);   --tag-teal-line: rgba(46, 111, 105, 0.28);
   --tag-green: #3D7A4A;  --tag-green-bg: rgba(61, 122, 74, 0.11);   --tag-green-line: rgba(61, 122, 74, 0.28);
->>>>>>> origin/main
 
   /* light model: every surface is a sheet, a float, or a well */
   --edge: inset 0 1px 0 var(--lit);
@@ -93,63 +82,6 @@
   --font-body: 'IBM Plex Sans Condensed', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-<<<<<<< HEAD
-  --text-xxs: 0.625rem;
-  --text-xs:  0.85rem;
-  --text-sm:  0.92rem;
-  --text-md:  1rem;
-  --text-lg:  1.23rem;
-  --text-xl:  1.54rem;
-  --text-xxl: 1.85rem;
-
-  --weight-regular:  400;
-  --weight-medium:   500;
-  --weight-semibold: 600;
-
-  --leading-body:    1.5;
-  --leading-heading: 1.1;
-
-/* icon size tokens */
-
-  --icon-sm:  14px;
-  --icon-md:  16px;
-  --icon-lg:  20px;
-  --icon-xl:  24px;
-  --icon-stroke-sm: 1.6;
-  --icon-stroke-md: 2;
-  --icon-stroke-lg: 2.5;
-
-/* geometry: 4px grid unit */
-
-  --u: 8px;
-  --grid: 4px;
-  --space-0: 0;
-  --space-1: calc(var(--grid) * 1);
-  --space-2: calc(var(--grid) * 2);
-  --space-3: calc(var(--grid) * 3);
-  --space-4: calc(var(--grid) * 4);
-  --space-5: calc(var(--grid) * 5);
-  --space-6: calc(var(--grid) * 6);
-  --space-8: calc(var(--grid) * 8);
-  --space-10: calc(var(--grid) * 10);
-  --space-12: calc(var(--grid) * 12);
-  --space-16: calc(var(--grid) * 16);
-
-/* radii: tuned to measured proportions */
-
-  --r-chip:   4px;
-  --r-control: 8px;
-  --r-row:     8px;
-  --r-band:   16px;
-  --r-pill: 999px;
-
-/* motion */
-
-  --motion-instant: 75ms;
-  --motion-fast:   150ms;
-  --motion:        300ms;
-  --motion-slow:   1.5s;
-=======
   /* geometry and motion. Radius tiers, smallest to largest: chip (pills/tags),
      control (buttons/tabs), row (list rows), band (cards/panels), pill (fully
      rounded). Pick the tier by element role so sibling elements share a radius. */
@@ -160,7 +92,6 @@
   --r-band: 15px;
   --r-pill: 20px;
   --motion: 220ms;
->>>>>>> origin/main
   --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -201,8 +132,6 @@
   --amber-line: rgba(217, 168, 78, 0.36);
   --navy: #9DB2C7;
   --navy-soft: rgba(157, 178, 199, 0.16);
-<<<<<<< HEAD
-=======
 
   --tag-grey: #B4AB98;   --tag-grey-bg: rgba(180, 171, 152, 0.14);  --tag-grey-line: rgba(180, 171, 152, 0.28);
   --tag-yellow: #D9A84E; --tag-yellow-bg: rgba(217, 168, 78, 0.16); --tag-yellow-line: rgba(217, 168, 78, 0.34);
@@ -214,7 +143,6 @@
   --tag-sky: #86BBD8;    --tag-sky-bg: rgba(134, 187, 216, 0.16);   --tag-sky-line: rgba(134, 187, 216, 0.32);
   --tag-teal: #6FB3AB;   --tag-teal-bg: rgba(111, 179, 171, 0.16);  --tag-teal-line: rgba(111, 179, 171, 0.32);
   --tag-green: #6FBE81;  --tag-green-bg: rgba(111, 190, 129, 0.16); --tag-green-line: rgba(111, 190, 129, 0.32);
->>>>>>> origin/main
 
   --edge: inset 0 1px 0 var(--lit);
   --raise: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.35);
