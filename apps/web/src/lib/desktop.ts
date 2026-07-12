@@ -421,8 +421,17 @@ export interface BrowseWithMeInput {
  * `preview_pending`) until a follow-up call with `confirm: true` on the same
  * run_id.
  */
+/**
+ * The tenant live browser traffic is scoped to. The site authenticates exactly
+ * one owner (see auth.ts, which rejects every GitHub login but the owner's), so
+ * the owner handle is the honest single-tenant default; a deploy can still
+ * override it via env without a code change rather than sending traffic to a
+ * hardcoded identity.
+ */
+const DEFAULT_TENANT = process.env.NEXT_PUBLIC_COMMONPLACE_TENANT?.trim() || 'Travis-Gilbert';
+
 export async function browseWithMe(input: BrowseWithMeInput): Promise<BrowsePerception> {
-  const tenant = input.tenant ?? 'Travis-Gilbert';
+  const tenant = input.tenant ?? DEFAULT_TENANT;
   const res = await fetch(
     `${LOCAL_NODE_URL}/v1/tenants/${tenant}/browser/browse-with-me`,
     {

@@ -187,6 +187,9 @@ export function useCoBrowseSession(): CoBrowseSession {
         controlMode: MODE_TO_CONTROL[modeRef.current],
         confirm: true,
       });
+      // A newer run may have started while the confirm was in flight; never
+      // apply a confirmation that no longer belongs to the captured run.
+      if (runIdRef.current !== runId) return;
       setPerception(viewState.success(result));
       const intent = result.live_browser?.intent;
       pushEntry('action', intent || 'Applied the held action', result.live_browser);
@@ -226,8 +229,13 @@ export function useCoBrowseSession(): CoBrowseSession {
         return;
       }
       if (modeRef.current === 'drive' || pausedRef.current) return;
+      const dwellRun = runIdRef.current;
       dwellTimer.current = setTimeout(() => {
-        if (!pausedRef.current && modeRef.current !== 'drive') void confirmHeld();
+        // Only auto-confirm while the run that telegraphed this proposal is
+        // still the active one; a new run must not inherit the held action.
+        if (!pausedRef.current && modeRef.current !== 'drive' && runIdRef.current === dwellRun) {
+          void confirmHeld();
+        }
       }, TELEGRAPH_DWELL_MS[modeRef.current]);
     },
     [pushEntry, confirmHeld],
@@ -242,12 +250,16 @@ export function useCoBrowseSession(): CoBrowseSession {
         runId,
         controlMode: MODE_TO_CONTROL[modeRef.current],
       });
+      // Discard results from a superseded run: a poll in flight when a new run
+      // (or a stop) started must not telegraph the stale proposal.
+      if (runIdRef.current !== runId) return;
       setPerception((prev) =>
         prev.status === 'loading' ? viewState.success(result) : viewState.success(result),
       );
       telegraph(result);
       setError(null);
     } catch (err) {
+      if (runIdRef.current !== runId) return;
       setError(String(err));
     } finally {
       const interval = POLL_MS[modeRef.current];
@@ -289,6 +301,9 @@ export function useCoBrowseSession(): CoBrowseSession {
           runId,
           controlMode: MODE_TO_CONTROL[modeRef.current],
         });
+        // A second begin() may have superseded this run while it was starting;
+        // do not paint or telegraph a run that is no longer active.
+        if (runIdRef.current !== runId) return;
         setPerception(viewState.success(result));
         telegraph(result);
         const interval = POLL_MS[modeRef.current];
@@ -322,6 +337,8 @@ export function useCoBrowseSession(): CoBrowseSession {
         controlMode: MODE_TO_CONTROL[modeRef.current],
         veto: true,
       });
+      // Drop the veto result if a newer run superseded this one mid-flight.
+      if (runIdRef.current !== runId) return;
       setPerception(viewState.success(result));
       pushEntry('decline', 'Declined; the agent will propose a different step', result.live_browser);
     } catch (err) {

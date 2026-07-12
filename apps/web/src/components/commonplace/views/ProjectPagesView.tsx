@@ -249,6 +249,7 @@ export default function ProjectPagesView({ projectId, carrySessionId }: ProjectP
               key={`${activePage.id}:${activePage.updatedAtMs}`}
               page={activePage}
               aboutItems={activeAboutItems}
+              carrySessionId={carrySessionId}
               onSaved={(id) => {
                 setActivePageId(id);
                 void refetch();
@@ -268,10 +269,12 @@ export default function ProjectPagesView({ projectId, carrySessionId }: ProjectP
 function ProjectPageEditor({
   page,
   aboutItems,
+  carrySessionId,
   onSaved,
 }: {
   page: ItemGql;
   aboutItems: PmWorkItemGql[];
+  carrySessionId?: string | null;
   onSaved: (id: string) => void;
 }) {
   const [draftTitle, setDraftTitle] = useState(page.title);
@@ -332,7 +335,11 @@ function ProjectPageEditor({
               </>
             )}
           </span>
-          <PublishAction originId={page.id} artifactTitle={page.title} />
+          <PublishAction
+            originId={page.id}
+            artifactTitle={page.title}
+            sessionId={carrySessionId}
+          />
           <button
             type="button"
             className="cp-pages-button"

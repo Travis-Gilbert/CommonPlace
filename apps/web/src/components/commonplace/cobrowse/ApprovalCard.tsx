@@ -42,7 +42,16 @@ export function ApprovalCard({
   }, [onApprove, onDecline]);
 
   const page = perception?.live_browser?.page;
-  const site = page ? new URL(page.url).hostname : 'this page';
+  const site = ((): string => {
+    // The engine can return a malformed or empty url; a bad parse must not crash
+    // the approval UI, so it falls back to a generic label.
+    if (!page?.url) return 'this page';
+    try {
+      return new URL(page.url).hostname;
+    } catch {
+      return 'this page';
+    }
+  })();
   const writesData = WRITE_VERBS.has(proposal.verb);
   const affordance = perception?.action_rail.actions.find(
     (action) => action.status === 'needs_confirmation',

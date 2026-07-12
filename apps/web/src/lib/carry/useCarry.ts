@@ -118,7 +118,7 @@ export function useCarry(sessionId: string | null): {
         setBusy(false);
       }
     },
-    [sessionId, launchView],
+    [sessionId, launchView, layout],
   );
 
   return { carry, busy };

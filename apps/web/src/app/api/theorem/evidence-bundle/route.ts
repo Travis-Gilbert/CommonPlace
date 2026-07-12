@@ -133,9 +133,14 @@ function normalizeMcpResult(result: unknown): Record<string, unknown> {
   if (structured && Object.keys(structured).length > 0) return structured;
   for (const item of asArray(record.content)) {
     const value = asRecord(item)?.text;
-    if (typeof value === 'string') {
+    if (typeof value !== 'string') continue;
+    try {
       const parsed = asRecord(JSON.parse(value));
       if (parsed) return parsed;
+    } catch {
+      // A non-JSON content item (a diagnostic or plain-text message) is not the
+      // structured payload; keep scanning later items instead of throwing, so a
+      // valid payload in a subsequent item is not lost to a false degrade.
     }
   }
   throw new Error('MCP result had no structured payload');

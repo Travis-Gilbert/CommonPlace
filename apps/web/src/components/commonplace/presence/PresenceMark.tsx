@@ -88,7 +88,7 @@ export function PresenceMark({ state, size = 64, label = 'Agent presence' }: Pre
     // Re-applied whenever the state prop changes (see the effect below).
     applyLoopDisciplineRef.current = applyLoopDiscipline;
 
-    void (async () => {
+    (async () => {
       const { textmode } = await import('textmode.js');
       if (disposed) return;
       const t = textmode.create({
@@ -208,7 +208,11 @@ export function PresenceMark({ state, size = 64, label = 'Agent presence' }: Pre
       });
 
       applyLoopDiscipline();
-    })();
+    })().catch(() => {
+      // textmode.js is WebGL2-only; if the dynamic import or context creation
+      // fails the presence mark stays blank, matching the header contract
+      // rather than surfacing an unhandled rejection.
+    });
 
     return () => {
       disposed = true;
