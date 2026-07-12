@@ -14,6 +14,8 @@ import {
   receiverStatus,
 } from '@/lib/desktop';
 import { DesktopOnly, panel } from './desktopPanel';
+import PresenceMark from '../presence/PresenceMark';
+import type { PresenceState } from '../presence/presenceStates';
 
 export default function ReceiverView() {
   const { data: status, error, refetch } = useApiData(() => receiverStatus(), []);
@@ -36,10 +38,23 @@ export default function ReceiverView() {
 
   const errorMessage = actionError ?? error?.message ?? null;
 
+  // Run-activity glyph (SPEC-UI-SOURCING-ADDENDUM Presence D2): the same
+  // Presence mark as the co-browse telegraph and the chat composing indicator.
+  const markState: PresenceState = !status
+    ? 'thinking'
+    : !status.enabled
+      ? 'interrupted'
+      : status.state === 'idle'
+        ? 'idle'
+        : 'moving';
+
   return (
     <DesktopOnly>
       <div style={panel.wrap}>
-        <div style={panel.title}>Receiver</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <PresenceMark state={markState} size={28} label="Receiver activity" />
+          <div style={panel.title}>Receiver</div>
+        </div>
         <div style={panel.sub}>
           Local agent execution. Claims jobs and spawns the installed claude / codex CLI in a
           mapped worktree.

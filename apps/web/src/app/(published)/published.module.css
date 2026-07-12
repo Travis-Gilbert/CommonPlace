@@ -1,0 +1,181 @@
+/* Public projection host styling (HANDOFF-PUBLISH D2).
+   Uses CommonPlace tokens (--cp-*) so a published page matches the product
+   register without importing the product shell. No dashes per project rules. */
+
+.host {
+  min-height: 100vh;
+  background: var(--cp-surface, #f7f4ee);
+  color: var(--cp-ink, #23201b);
+  font-family: var(--cp-font-body, ui-serif, Georgia, serif);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page {
+  width: 100%;
+  max-width: 46rem;
+  padding: clamp(2rem, 6vw, 5rem) clamp(1.25rem, 5vw, 2.5rem) 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.kicker {
+  font-family: var(--cp-font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cp-ink-soft, #6b6459);
+}
+
+.title {
+  font-family: var(--cp-font-title, var(--cp-font-body, serif));
+  font-size: clamp(1.9rem, 5vw, 2.8rem);
+  line-height: 1.1;
+  font-weight: 600;
+  margin: 0;
+}
+
+.body {
+  font-size: 1.075rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bodyEmpty {
+  color: var(--cp-ink-soft, #6b6459);
+  font-style: italic;
+}
+
+.sceneWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Verified block affordance: quiet provenance beneath the content. */
+.provenance {
+  border-top: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.1));
+  padding-top: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--cp-ink-soft, #6b6459);
+}
+
+.provenanceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.verifiedDot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--cp-gold, #c49a4a);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--cp-gold, #c49a4a) 22%, transparent);
+}
+/* A cryptographically verified signature earns a stronger ring than the plain
+   identity dot, so a signed block reads as signed at a glance. */
+.verifiedDotSigned {
+  background: var(--cp-positive, #3f7d52);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--cp-positive, #3f7d52) 24%, transparent);
+}
+.provenanceSub {
+  display: block;
+  color: var(--cp-ink-soft, #6b6459);
+  font-size: 0.68rem;
+}
+
+.provenanceDetail {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+  font-family: var(--cp-font-mono, ui-monospace, monospace);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.provenanceRow {
+  display: flex;
+  gap: 0.6rem;
+}
+.provenanceKey {
+  color: var(--cp-ink-soft, #6b6459);
+  min-width: 6.5rem;
+}
+.provenanceVal {
+  overflow-wrap: anywhere;
+}
+.checkPass {
+  color: var(--cp-positive, #3f7d52);
+}
+.checkFail {
+  color: var(--cp-oxblood, #7a2733);
+}
+
+/* Doorway: Open in CommonPlace. */
+.doorway {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  border-top: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.1));
+  padding-top: 1.5rem;
+}
+
+.doorwayPrimary,
+.doorwaySecondary {
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.doorwayPrimary {
+  background: var(--cp-oxblood, #7a2733);
+  color: #fff;
+}
+.doorwayPrimary:hover {
+  background: var(--cp-oxblood-pressed, #5f1e28);
+}
+.doorwaySecondary {
+  background: transparent;
+  border-color: var(--cp-hairline, rgba(0, 0, 0, 0.18));
+  color: var(--cp-ink, #23201b);
+}
+.doorwayNote {
+  font-size: 0.82rem;
+  color: var(--cp-ink-soft, #6b6459);
+  flex-basis: 100%;
+}
+
+/* Empty states: gone / forbidden / not found. */
+.state {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+.stateTitle {
+  font-family: var(--cp-font-title, serif);
+  font-size: 1.6rem;
+  margin: 0;
+}
+.stateBody {
+  color: var(--cp-ink-soft, #6b6459);
+  line-height: 1.6;
+}

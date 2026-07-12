@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
+import { CarryLineage } from '@/components/commonplace/carry/CarryLineage';
 import type { Editor } from '@tiptap/react';
 import type { TiptapUpdatePayload } from '@/components/studio/TiptapEditor';
 import {
@@ -197,10 +198,14 @@ export default function ComposeView({
   prefillText,
   prefillType,
   onSaved,
+  carrySessionId,
 }: {
   prefillText?: string;
   prefillType?: string;
   onSaved?: (objectId: number) => void;
+  /** Present when reached via Carry to Research: the research session, whose
+   *  lineage links back to the carried session (HANDOFF-CARRY D4). */
+  carrySessionId?: string | null;
 }) {
   const { openContextMenu, openDrawer } = useDrawer();
   const { clearStash, stashedObjects, unstashObject } = useWorkspace();
@@ -491,6 +496,11 @@ export default function ComposeView({
           <div className="cp-compose-editor-shell">
             <div className="cp-compose-writing-scroll">
               <div className="cp-compose-writing-column">
+                {carrySessionId ? (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <CarryLineage sessionId={carrySessionId} />
+                  </div>
+                ) : null}
                 <div className="cp-compose-toolbar">
                   <div className="cp-compose-toolbar-group">
                     <button

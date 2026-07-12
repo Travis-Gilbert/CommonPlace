@@ -1,0 +1,102 @@
+/* Session receipt rail (HANDOFF-CARRY C5.1 / HANDOFF-PUBLISH P4.4). Quiet,
+   collapsible, never a modal. Register matches the co-browse receipt rail so the
+   whole session reads as one timeline. */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.12));
+  border-radius: 0.6rem;
+  background: var(--cp-surface, #fbf6ec);
+  overflow: hidden;
+  font-family: var(--cp-font-mono, ui-monospace, monospace);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  background: transparent;
+  color: var(--cp-ink, #2c2722);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.count {
+  color: var(--cp-ink-soft, #6b6459);
+}
+
+.body {
+  max-height: 18rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.1));
+}
+
+.row {
+  border-bottom: 1px solid color-mix(in oklab, var(--cp-hairline, rgba(0, 0, 0, 0.1)) 60%, transparent);
+}
+
+.entry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.7rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: var(--cp-ink, #2c2722);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.entry:hover {
+  background: color-mix(in oklab, var(--cp-gold, #c49a4a) 8%, transparent);
+}
+
+.summary {
+  overflow-wrap: anywhere;
+}
+
+.kind {
+  flex-shrink: 0;
+  min-width: 4.6rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--cp-ink-soft, #6b6459) 16%, transparent);
+  color: var(--cp-ink-soft, #6b6459);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.kindCarry {
+  background: color-mix(in oklab, var(--cp-gold, #c49a4a) 26%, transparent);
+  color: var(--cp-oxblood, #7a2733);
+}
+.kindPublish {
+  background: color-mix(in oklab, var(--cp-oxblood, #7a2733) 18%, transparent);
+  color: var(--cp-oxblood, #7a2733);
+}
+.kindDestination {
+  background: color-mix(in oklab, var(--cp-positive, #3f7d52) 18%, transparent);
+  color: var(--cp-positive, #3f7d52);
+}
+.kindApproval {
+  background: color-mix(in oklab, var(--cp-oxblood, #7a2733) 14%, transparent);
+  color: var(--cp-oxblood, #7a2733);
+}
+.kindCapture {
+  background: color-mix(in oklab, var(--cp-gold, #c49a4a) 20%, transparent);
+  color: var(--cp-ink, #2c2722);
+}
+
+.receipt {
+  margin: 0;
+  padding: 0.4rem 0.7rem 0.6rem 5.8rem;
+  color: var(--cp-ink-soft, #6b6459);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

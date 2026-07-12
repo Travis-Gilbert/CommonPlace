@@ -19,6 +19,8 @@ export function isTauri(): boolean {
 
 interface TauriInternals {
   invoke(cmd: string, args?: Record<string, unknown>): Promise<unknown>;
+  /** Registers a JS callback with the shell and returns its channel id. */
+  transformCallback?<T>(callback: (response: T) => void): number;
 }
 
 function internals(): TauriInternals | null {
@@ -117,8 +119,67 @@ export interface AgentIngestionReceipt {
   status: string;
   url: string;
   title?: string | null;
+  capturedAt?: string;
+  /** Destination space: 'local' or 'hosted' harness store. */
+  storeTarget?: string;
+  trustTier?: string;
   message: string;
+  /** Store-assigned id of the written note, when the store names one. */
+  objectId?: string | null;
+  /** Title of the nearest existing memory (best-effort recall), for the Keep toast. */
+  nearestNeighbor?: string | null;
 }
+
+/* ── Shell events (dependency-free tauri event bridge) ──────────────
+ *
+ * The runtime emits these to the chrome webview (see
+ * crates/commonplace-desktop-runtime/src/lib.rs and the contract doc in
+ * apps/desktop/src/lib/commands.ts):
+ *
+ *   cobrowse://stage-focus   { tabId }  a tab window gained OS focus. This is
+ *                            the user-input-into-the-stage signal: external-URL
+ *                            webviews cannot report in-page keystrokes, but the
+ *                            first click or keystroke into the stage necessarily
+ *                            focuses its window.
+ *   cobrowse://navigation    { tabId, url }  a tab committed a navigation.
+ */
+export type CoBrowseShellEvent = 'cobrowse://stage-focus' | 'cobrowse://navigation';
+
+export async function listenDesktopEvent<T = unknown>(
+  event: CoBrowseShellEvent,
+  handler: (payload: T) => void,
+): Promise<() => void> {
+  const bridge = internals();
+  if (!bridge || typeof bridge.transformCallback !== 'function') {
+    throw new Error(`desktop event "${event}" subscribed outside the desktop runtime`);
+  }
+  const callbackId = bridge.transformCallback<{ payload: T }>((raw) => handler(raw.payload));
+  const eventId = (await bridge.invoke('plugin:event|listen', {
+    event,
+    target: { kind: 'Any' },
+    handler: callbackId,
+  })) as number;
+  return () => {
+    void bridge.invoke('plugin:event|unlisten', { event, eventId });
+  };
+}
+
+/** Draw or clear the telegraph highlight overlay inside a tab's page (D3). */
+export const tabHighlight = (
+  tabId: string,
+  bbox: { x: number; y: number; width: number; height: number },
+  label?: string,
+) =>
+  invoke<void>('tab_highlight', {
+    tabId,
+    x: bbox.x,
+    y: bbox.y,
+    width: bbox.width,
+    height: bbox.height,
+    label: label ?? null,
+  });
+export const tabClearHighlight = (tabId: string) =>
+  invoke<void>('tab_clear_highlight', { tabId });
 
 export const tabCreate = (tabId: string, url?: string) =>
   invoke<void>('tab_create', { tabId, url: url ?? null });
@@ -135,34 +196,262 @@ export const agentTabIngest = (input: {
   text: string;
 }) => invoke<AgentIngestionReceipt>('agent_tab_ingest', { input });
 
-/**
- * Agent-collaborative browsing (SPEC-9 D5): the engine's pair co-browsing route
- * on the local rustyred-thg node (:17888), control mode `pair`. This is an HTTP
- * call (not invoke), so the node must allow the desktop origin (CORS) — see the
- * note in CoBrowserView. Returns the raw perception/action bundle.
+/* ── Co-browse perception contract (HANDOFF-COBROWSE-PRESENCE D1) ──────────
+ *
+ * Typed mirror of the rustyred-thg node's browse-with-me response. Grounded in
+ * the engine source (rustyred-thg-server/src/router.rs `execute_browser_use` /
+ * `execute_live_browser_use`, theorem-browser-agent/src/lib.rs bundles); the
+ * contract test deserializes a response captured from the real handler
+ * (src/lib/__fixtures__/browse-with-me.captured.json).
  */
-export async function browseWithMe(input: {
+
+/** UI names map onto engine control modes: Watch=agent_drive, Pair=pair, Drive=human_drive. */
+export type CoBrowseControlMode = 'agent_drive' | 'pair' | 'human_drive';
+
+export interface PerceptionCandidate {
+  id: string;
+  kind: string;
+  status: string;
+  label: string;
   url?: string;
-  nextAction?: string;
+  confidence: number;
+  metadata: unknown;
+}
+
+export interface CoverageDiagnosis {
+  has_known_context: boolean;
+  has_browser_context: boolean;
+  needs_web: boolean;
+  needs_counterevidence: boolean;
+  needs_freshness: boolean;
+  confidence: number;
+}
+
+/** An affordance from the engine's action rail. `label` is the human one-liner. */
+export interface RailAction {
+  id: string;
+  action_type: string;
+  category: string;
+  risk:
+    | 'read_only'
+    | 'external_web'
+    | 'hot_graph_write'
+    | 'canonical_write'
+    | 'remember'
+    | 'state_changing';
+  status: 'ready' | 'needs_confirmation' | 'blocked_policy' | 'not_implemented';
+  execution_route: string;
+  label: string;
+  target: unknown;
+}
+
+export interface PerceptionBundle {
+  mode: string;
+  candidates: PerceptionCandidate[];
+  coverage: CoverageDiagnosis;
+  actions: RailAction[];
+}
+
+export interface ActionRailBundle {
+  actions: RailAction[];
+  groups: Record<string, string[]>;
+}
+
+export interface ObservedPageElement {
+  element_id: string;
+  role: string;
+  name: string;
+  value?: string | null;
+  test_id?: string | null;
+  bbox?: { x: number; y: number; width: number; height: number } | null;
+  visible?: boolean;
+  enabled?: boolean;
+  editable?: boolean;
+}
+
+export interface LivePageState {
+  url: string;
+  title: string;
+  distilled_text: string;
+  active_tab_id?: string | null;
+  interactive_elements: ObservedPageElement[];
+  fetch?: unknown;
+}
+
+/** The action JSON the engine accepts (selector + verb + optional value). */
+export interface BrowserActionInput {
+  selector: { element_id: string } | string;
+  action: string;
+  value?: string;
+  options?: Record<string, unknown>;
+}
+
+export interface LiveBrowserState {
+  status: 'preview_pending' | 'actuated' | 'session_ready' | 'vetoed';
+  transport: string;
+  session_id: string;
+  pending_action?: BrowserActionInput | null;
+  /** Present-tense one-liner resolved by the node (never client-templated). */
+  intent?: string | null;
+  demonstration_count?: number;
+  action_receipt?: { applied: boolean; selector: string } | null;
+  page: LivePageState;
+}
+
+export interface BrowsingRunReceipt {
+  run_id: string;
+  surface: string;
+  context_command_id: string;
+  pages_reached: string[];
+  actions_applied: RailAction[];
+  data_extracted: { candidate_count: number; coverage: CoverageDiagnosis };
+  playbooks_used: string[];
+  playbooks_created: string[];
+  confidence_ceiling: number;
+  quarantine_layer: string;
+  events: string[];
+  live_browser?: LiveBrowserState | null;
+}
+
+export interface BrowsePerception {
+  tenant: string;
+  run_id: string;
+  tool: string;
+  surface: string;
+  control_mode: string;
+  task: string;
+  context_command: Record<string, unknown>;
+  perception: PerceptionBundle;
+  action_rail: ActionRailBundle;
+  browsing_run: BrowsingRunReceipt;
+  browsing_run_node: unknown;
+  playbook_pack_ids: string[];
+  web_consume: unknown;
+  live_browser: LiveBrowserState | null;
+  pages_reached: string[];
+  mode: string;
+}
+
+/** D1's proposed_action view: verb, target descriptor, intent line, confirm flag. */
+export interface ProposedAction {
+  verb: string;
+  targetDescriptor: string;
+  intent: string;
+  confirm: boolean;
+  raw: BrowserActionInput;
+}
+
+/** Verbs that write into the page; these always route through the approval card. */
+const WRITE_VERBS = new Set(['fill', 'select_option', 'set_checked', 'check', 'set_input_files']);
+
+/**
+ * Normalize the engine's held preview into D1's proposed_action shape. Returns
+ * null when nothing is pending. The confirm flag is set for write verbs and for
+ * any rail action the engine marked needs_confirmation.
+ */
+export function proposedActionOf(perception: BrowsePerception): ProposedAction | null {
+  const live = perception.live_browser;
+  if (!live || live.status !== 'preview_pending' || !live.pending_action) return null;
+  const raw = live.pending_action;
+  const verb = raw.action;
+  const elementId = typeof raw.selector === 'string' ? raw.selector : raw.selector.element_id;
+  const element = live.page.interactive_elements.find((el) => el.element_id === elementId);
+  const railNeedsConfirmation = perception.action_rail.actions.some(
+    (action) => action.status === 'needs_confirmation',
+  );
+  return {
+    verb,
+    targetDescriptor: element ? element.name || element.element_id : elementId,
+    intent: live.intent ?? '',
+    confirm: WRITE_VERBS.has(verb) || railNeedsConfirmation,
+    raw,
+  };
+}
+
+function invalid(field: string): never {
+  throw new Error(`browse-with-me response missing ${field}`);
+}
+
+/**
+ * Runtime guard at the fetch boundary: verifies the discriminants the UI relies
+ * on so a drifted node contract fails loudly instead of rendering nonsense.
+ */
+export function parseBrowsePerception(json: unknown): BrowsePerception {
+  const value = json as BrowsePerception;
+  if (typeof value !== 'object' || value === null) invalid('body');
+  if (typeof value.run_id !== 'string') invalid('run_id');
+  if (typeof value.control_mode !== 'string') invalid('control_mode');
+  if (!value.perception || !Array.isArray(value.perception.candidates)) {
+    invalid('perception.candidates');
+  }
+  if (!Array.isArray(value.perception.actions)) invalid('perception.actions');
+  if (!value.action_rail || !Array.isArray(value.action_rail.actions)) {
+    invalid('action_rail.actions');
+  }
+  if (!value.browsing_run || !Array.isArray(value.browsing_run.events)) {
+    invalid('browsing_run.events');
+  }
+  if (value.live_browser) {
+    const live = value.live_browser;
+    if (typeof live.status !== 'string') invalid('live_browser.status');
+    if (!live.page || !Array.isArray(live.page.interactive_elements)) {
+      invalid('live_browser.page.interactive_elements');
+    }
+  }
+  return value;
+}
+
+export interface BrowseWithMeInput {
+  url?: string;
+  task?: string;
+  runId?: string;
+  sessionId?: string;
+  controlMode?: CoBrowseControlMode;
+  action?: BrowserActionInput;
   confirm?: boolean;
+  veto?: boolean;
   tenant?: string;
-}): Promise<unknown> {
-  const tenant = input.tenant ?? 'Travis-Gilbert';
+}
+
+/**
+ * Agent-collaborative browsing: the engine's co-browsing route on the local
+ * rustyred-thg node (:17888). HTTP, not invoke, so the node must allow the
+ * desktop origin (CORS). `wait: true` requests the synchronous perception
+ * payload; the engine holds confirm-gated actions server-side (status
+ * `preview_pending`) until a follow-up call with `confirm: true` on the same
+ * run_id.
+ */
+/**
+ * The tenant live browser traffic is scoped to. The site authenticates exactly
+ * one owner (see auth.ts, which rejects every GitHub login but the owner's), so
+ * the owner handle is the honest single-tenant default; a deploy can still
+ * override it via env without a code change rather than sending traffic to a
+ * hardcoded identity.
+ */
+const DEFAULT_TENANT = process.env.NEXT_PUBLIC_COMMONPLACE_TENANT?.trim() || 'Travis-Gilbert';
+
+export async function browseWithMe(input: BrowseWithMeInput): Promise<BrowsePerception> {
+  const tenant = input.tenant ?? DEFAULT_TENANT;
   const res = await fetch(
     `${LOCAL_NODE_URL}/v1/tenants/${tenant}/browser/browse-with-me`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        control_mode: 'pair',
+        control_mode: input.controlMode ?? 'pair',
         url: input.url,
-        next_action: input.nextAction,
+        task: input.task,
+        run_id: input.runId,
+        session_id: input.sessionId,
+        action: input.action,
         confirm: input.confirm ?? false,
+        veto: input.veto ?? false,
+        wait: true,
       }),
     },
   );
   if (!res.ok) throw new Error(`browse-with-me ${res.status}`);
-  return res.json();
+  return parseBrowsePerception(await res.json());
 }
 
 /* ── Native status / keychain / harness / sync (full D4 client) ─────────── */

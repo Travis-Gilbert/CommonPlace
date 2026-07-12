@@ -1,13 +1,25 @@
 import type { MetadataRoute } from 'next';
 import { getCollection } from '@/lib/content';
 import type { Essay, FieldNote, Project, ShelfEntry } from '@/lib/content';
+import { gqlPublicAliases } from '@/lib/commonplace-graphql';
 import { slugifyTag } from '@/lib/slugify';
 
-export const dynamic = 'force-static';
+// Regenerate hourly so newly-published public blocks enter the sitemap
+// (HANDOFF-PUBLISH P3.2). Unlisted and private blocks never appear: the API
+// enumerates public aliases only, and those pages also carry noindex.
+export const revalidate = 3600;
 
 const BASE_URL = 'https://travisgilbert.me';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Public published blocks (best effort: an unreachable API omits them rather
+  // than failing the sitemap).
+  const publicAliases = await gqlPublicAliases().catch(() => [] as string[]);
+  const publishedEntries: MetadataRoute.Sitemap = publicAliases.map((alias) => ({
+    url: `${BASE_URL}/p/${alias}`,
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
   const essays = getCollection<Essay>('essays').filter(
     (i) => !i.data.draft
   );
@@ -69,5 +81,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly' as const,
       priority: 0.4,
     })),
+
+    // Public published blocks (HANDOFF-PUBLISH P3.2).
+    ...publishedEntries,
   ];
 }

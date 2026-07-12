@@ -1,6 +1,12 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+
+import { getBundle } from '@/lib/carry/bundle-store';
+import { compileBundle, type CitedPacket, type CitedRecord } from '@/lib/carry/compile';
+import { buildContextPrelude, citedReference } from '@/lib/carry/seed-build';
+import { appendRailEntry } from '@/lib/carry/session-rail';
+import { SessionRail } from '@/components/commonplace/rail/SessionRail';
 import AgentThreadView from './AgentThreadView';
 
 const trackedScopes = [
@@ -10,13 +16,47 @@ const trackedScopes = [
   { label: 'Rust substrate', path: 'crates/commonplace-*', state: 'indexed' },
 ];
 
-const workQueue = [
-  { label: 'Plan', value: 'CommonPlace sink' },
-  { label: 'Patch', value: 'product shell' },
-  { label: 'Verify', value: 'local app' },
-];
+function recordTitle(record: CitedRecord): string {
+  return (record.metadata.sourceTitle as string | undefined) ?? String(record.metadata.sourceUrl ?? 'source');
+}
 
-export default function CodeWorkspaceView() {
+export default function CodeWorkspaceView({
+  carrySessionId,
+}: {
+  /** Present when reached via Carry to Build (HANDOFF-CARRY D3). */
+  carrySessionId?: string | null;
+}) {
+  const [packet, setPacket] = useState<CitedPacket | null>(null);
+  const [insertText, setInsertText] = useState<{ text: string; nonce: number } | null>(null);
+
+  // Carry to Build (C3.1/C3.3): compile the carried bundle once, then load its
+  // cited context into the agent. No generation happens here (C3.4).
+  useEffect(() => {
+    if (!carrySessionId) return;
+    let cancelled = false;
+    void (async () => {
+      const bundle = await getBundle(carrySessionId);
+      if (!bundle || bundle.items.length === 0 || cancelled) return;
+      const compiled = await compileBundle(bundle);
+      if (cancelled) return;
+      setPacket(compiled);
+      await appendRailEntry(carrySessionId, {
+        kind: 'destination',
+        summary: `Loaded ${compiled.records.length} cited ${compiled.records.length === 1 ? 'source' : 'sources'} into the coding agent`,
+        receipt: { bundleId: carrySessionId, records: compiled.records.length },
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [carrySessionId]);
+
+  const seedContext = useMemo(() => (packet ? buildContextPrelude(packet) : undefined), [packet]);
+
+  const insertRecord = (record: CitedRecord) => {
+    setInsertText({ text: citedReference(record), nonce: Date.now() });
+  };
+
   return (
     <section style={styles.shell} aria-label="CommonPlace code workspace">
       <header style={styles.header}>
@@ -47,28 +87,44 @@ export default function CodeWorkspaceView() {
         </aside>
 
         <main style={styles.agentPanel} aria-label="Code agent">
-          <AgentThreadView agentId="theorem" agentMode="api" />
+          <AgentThreadView
+            agentId="theorem"
+            agentMode="api"
+            seedContext={seedContext}
+            insertText={insertText}
+          />
         </main>
 
-        <aside style={styles.runPanel} aria-label="Run state">
-          <div style={styles.panelHeader}>Run</div>
-          <div style={styles.queueList}>
-            {workQueue.map((item) => (
-              <div key={item.label} style={styles.queueItem}>
-                <span style={styles.queueLabel}>{item.label}</span>
-                <span style={styles.queueValue}>{item.value}</span>
+        <aside style={styles.runPanel} aria-label="Carried bundle">
+          <div style={styles.panelHeader}>Bundle</div>
+          {packet && packet.records.length > 0 ? (
+            <>
+              <div style={styles.bundleList}>
+                {packet.records.map((record) => (
+                  <article key={record.id} style={styles.bundleItem}>
+                    <div style={styles.bundleTitle}>{recordTitle(record)}</div>
+                    {record.metadata.sourceUrl ? (
+                      <code style={styles.scopePath}>{String(record.metadata.sourceUrl)}</code>
+                    ) : null}
+                    {record.content ? <p style={styles.bundleQuote}>{record.content}</p> : null}
+                    <button type="button" style={styles.insertButton} onClick={() => insertRecord(record)}>
+                      Insert as cited reference
+                    </button>
+                  </article>
+                ))}
               </div>
-            ))}
-          </div>
-
-          <div style={styles.divider} />
-
-          <div style={styles.panelHeader}>Diffs</div>
-          <div style={styles.diffBox}>
-            <span style={styles.diffLine}>+ CommonPlace-native code surface</span>
-            <span style={styles.diffLine}>+ Account-scoped agent controls</span>
-            <span style={styles.diffLine}>+ Harness route absorption map</span>
-          </div>
+              {carrySessionId ? (
+                <div style={{ marginTop: 14 }}>
+                  <SessionRail sessionId={carrySessionId} title="Session" />
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p style={styles.emptyState}>
+              No bundle carried into this workspace. Carry a browsing session here to cite its
+              sources.
+            </p>
+          )}
         </aside>
       </div>
     </section>
@@ -193,48 +249,46 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--cp-teal-light)',
     background: 'var(--cp-bg)',
   },
-  queueList: {
+  bundleList: {
     display: 'grid',
     gap: 8,
   },
-  queueItem: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    padding: '9px 0',
-    borderBottom: '1px solid var(--cp-border)',
-  },
-  queueLabel: {
-    fontFamily: 'var(--cp-font-mono)',
-    fontSize: 11,
-    color: 'var(--cp-text-faint)',
-  },
-  queueValue: {
-    fontFamily: 'var(--cp-font-body)',
-    fontSize: 13,
-    color: 'var(--cp-text)',
-    textAlign: 'right',
-    overflowWrap: 'anywhere',
-  },
-  divider: {
-    height: 1,
-    margin: '18px 0 14px',
-    background: 'var(--cp-border)',
-  },
-  diffBox: {
+  bundleItem: {
     display: 'grid',
-    gap: 7,
+    gap: 4,
+    padding: 10,
     border: '1px solid var(--cp-border)',
     borderRadius: 8,
-    padding: 10,
-    background: 'var(--cp-bg)',
+    background: 'var(--cp-surface)',
   },
-  diffLine: {
+  bundleTitle: {
+    fontFamily: 'var(--cp-font-title)',
+    fontSize: 13,
+    color: 'var(--cp-text)',
+  },
+  bundleQuote: {
+    margin: '2px 0 4px',
+    fontFamily: 'var(--cp-font-body)',
+    fontSize: 12,
+    color: 'var(--cp-text-muted)',
+    overflowWrap: 'anywhere',
+  },
+  insertButton: {
+    justifySelf: 'start',
+    border: '1px solid var(--cp-border)',
+    borderRadius: 6,
+    padding: '4px 8px',
     fontFamily: 'var(--cp-font-mono)',
     fontSize: 11,
-    color: 'var(--cp-green)',
-    overflowWrap: 'anywhere',
+    color: 'var(--cp-text)',
+    background: 'var(--cp-bg)',
+    cursor: 'pointer',
+  },
+  emptyState: {
+    margin: 0,
+    fontFamily: 'var(--cp-font-body)',
+    fontSize: 12,
+    color: 'var(--cp-text-faint)',
+    lineHeight: 1.5,
   },
 };

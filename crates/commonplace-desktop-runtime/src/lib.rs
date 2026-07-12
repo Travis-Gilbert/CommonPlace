@@ -13,7 +13,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{path::BaseDirectory, Manager, WebviewUrl};
+use tauri::{path::BaseDirectory, Emitter, Manager, WebviewUrl};
 use tokio::sync::oneshot;
 
 const HOSTED_ENDPOINT: &str = "https://rustyredcore-theorem-production.up.railway.app/mcp";
@@ -306,6 +306,11 @@ struct AgentIngestionReceipt {
     store_target: String,
     trust_tier: String,
     message: String,
+    /// Store-assigned id of the written note, when the remember payload names one.
+    object_id: Option<String>,
+    /// Title of the nearest existing memory (best-effort recall by title), for
+    /// the Keep confirmation toast (HANDOFF-COBROWSE-PRESENCE D8).
+    nearest_neighbor: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -654,6 +659,92 @@ fn tab_set_bounds(
 ) -> Result<(), String> {
     state.lock().map_err(|error| error.to_string())?.bounds = rect;
     Ok(())
+}
+
+/// Draw the co-browse telegraph highlight inside a tab's page
+/// (HANDOFF-COBROWSE-PRESENCE D3). Evals a pointer-events-none outline overlay
+/// at the element bbox the agent is about to act on, gold register per the
+/// accent grammar. Contract doc: apps/desktop/src/lib/commands.ts.
+#[tauri::command]
+fn tab_highlight(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DesktopBackendState>>,
+    tab_id: String,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    label: Option<String>,
+) -> Result<(), String> {
+    let tab_label = {
+        let backend = state.lock().map_err(|error| error.to_string())?;
+        backend
+            .tabs
+            .get(&tab_id)
+            .map(|tab| tab.label.clone())
+            .ok_or_else(|| format!("unknown tab {tab_id}"))?
+    };
+    let window = app
+        .get_webview_window(&tab_label)
+        .ok_or_else(|| format!("tab window {tab_label} missing"))?;
+    let label_json =
+        serde_json::to_string(&label.unwrap_or_default()).map_err(|error| error.to_string())?;
+    let tag_y = (y - 24).max(0);
+    let script = format!(
+        r#"(function() {{
+  var id = '__cp_telegraph';
+  var box = document.getElementById(id);
+  if (!box) {{
+    box = document.createElement('div');
+    box.id = id;
+    box.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483646;border:2px solid #C49A4A;border-radius:4px;box-shadow:0 0 0 4px rgba(196,154,74,0.25);transition:left 120ms ease,top 120ms ease,width 120ms ease,height 120ms ease;';
+    document.documentElement.appendChild(box);
+    var tag = document.createElement('div');
+    tag.id = id + '-label';
+    tag.style.cssText = 'position:fixed;pointer-events:none;z-index:2147483647;font:12px ui-monospace,monospace;background:#C49A4A;color:#221A10;padding:2px 6px;border-radius:3px;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    document.documentElement.appendChild(tag);
+  }}
+  box.style.left = '{x}px';
+  box.style.top = '{y}px';
+  box.style.width = '{width}px';
+  box.style.height = '{height}px';
+  box.style.display = 'block';
+  var tag = document.getElementById(id + '-label');
+  var text = {label_json};
+  if (tag) {{
+    tag.textContent = text;
+    tag.style.display = text ? 'block' : 'none';
+    tag.style.left = '{x}px';
+    tag.style.top = '{tag_y}px';
+  }}
+}})();"#
+    );
+    window.eval(&script).map_err(|error| error.to_string())
+}
+
+/// Remove the telegraph highlight overlay from a tab's page.
+#[tauri::command]
+fn tab_clear_highlight(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<DesktopBackendState>>,
+    tab_id: String,
+) -> Result<(), String> {
+    let tab_label = {
+        let backend = state.lock().map_err(|error| error.to_string())?;
+        backend
+            .tabs
+            .get(&tab_id)
+            .map(|tab| tab.label.clone())
+            .ok_or_else(|| format!("unknown tab {tab_id}"))?
+    };
+    let window = app
+        .get_webview_window(&tab_label)
+        .ok_or_else(|| format!("tab window {tab_label} missing"))?;
+    window
+        .eval(
+            "(function(){var box=document.getElementById('__cp_telegraph');if(box)box.style.display='none';var tag=document.getElementById('__cp_telegraph-label');if(tag)tag.style.display='none';})();",
+        )
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -1103,12 +1194,13 @@ fn agent_tab_ingest(
         .harness
         .clone();
     let captured_at = now_string();
-    let message = call_selected_tool(
+    let title = input.title.clone().unwrap_or_else(|| input.url.clone());
+    let remember_result = call_selected_tool(
         &settings,
         "remember",
         json!({
             "kind": "open_web_unverified",
-            "title": input.title.clone().unwrap_or_else(|| input.url.clone()),
+            "title": title,
             "content": input.text,
             "tags": ["desktop-agent-tab", "open_web_unverified", domain_tag(&input.url)],
             "links": [input.url.clone()],
@@ -1120,9 +1212,24 @@ fn agent_tab_ingest(
                 "capture_time": captured_at,
             },
         }),
-    )
-    .map(|_| "Ingestion receipt written to the target store.".to_string())
-    .unwrap_or_else(|error| format!("Ingestion failed: {error}"));
+    );
+    let (message, object_id) = match &remember_result {
+        Ok(payload) => (
+            "Ingestion receipt written to the target store.".to_string(),
+            first_string_field(payload, &["id", "node_id", "memory_id", "object_id"]),
+        ),
+        Err(error) => (format!("Ingestion failed: {error}"), None),
+    };
+    // Best-effort nearest neighbor for the Keep toast: recall by title and take
+    // the top hit that is not the note just written. None on any failure; the
+    // toast renders only real fields.
+    let nearest_neighbor = if remember_result.is_ok() {
+        call_selected_tool(&settings, "recall", json!({ "query": title, "limit": 3 }))
+            .ok()
+            .and_then(|payload| nearest_memory_title(&payload, object_id.as_deref(), &title))
+    } else {
+        None
+    };
 
     Ok(AgentIngestionReceipt {
         id: format!("ingest-{}", now_millis()),
@@ -1137,6 +1244,8 @@ fn agent_tab_ingest(
         store_target: settings.active_target,
         trust_tier: "open_web_unverified".to_string(),
         message,
+        object_id,
+        nearest_neighbor,
     })
 }
 
@@ -1506,9 +1615,20 @@ fn ensure_tab_window(
     let label = tab_label(tab_id);
     if app.get_webview_window(&label).is_none() {
         let parsed = tauri::Url::parse(url).map_err(|error| error.to_string())?;
+        let nav_app = app.clone();
+        let nav_tab_id = tab_id.to_string();
         let window = WebviewWindowBuilder::new(app, label.clone(), WebviewUrl::External(parsed))
             .title(url)
             .visible(false)
+            // Tab lifecycle to the chrome webview (HANDOFF-COBROWSE-PRESENCE D6):
+            // the receipt rail and telegraph clear on committed navigations.
+            .on_navigation(move |nav_url| {
+                let _ = nav_app.emit(
+                    "cobrowse://navigation",
+                    json!({ "tabId": nav_tab_id, "url": nav_url.to_string() }),
+                );
+                true
+            })
             .build()
             .map_err(|error| error.to_string())?;
         let _ = window.hide();
@@ -1578,6 +1698,50 @@ fn secret_delete(account: &str) -> Result<(), String> {
 fn bearer_token() -> Result<String, String> {
     secret_get("harness_bearer")
         .or_else(|_| std::env::var("THEOREM_HARNESS_TOKEN").map_err(|error| error.to_string()))
+}
+
+/// First string value under any of `keys`, looking at the payload root and one
+/// level down through the common envelope keys tool responses use.
+fn first_string_field(payload: &Value, keys: &[&str]) -> Option<String> {
+    let candidates = std::iter::once(payload).chain(
+        ["result", "data", "memory", "note", "record"]
+            .iter()
+            .filter_map(|envelope| payload.get(envelope)),
+    );
+    for value in candidates {
+        for key in keys {
+            if let Some(found) = value.get(key).and_then(Value::as_str) {
+                return Some(found.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Title of the top recall hit that is not the note just written. Tolerant of
+/// the envelope and list key varying across store versions; None when nothing
+/// usable comes back.
+fn nearest_memory_title(
+    payload: &Value,
+    written_id: Option<&str>,
+    written_title: &str,
+) -> Option<String> {
+    let list = ["results", "memories", "items", "hits", "records"]
+        .iter()
+        .find_map(|key| {
+            payload
+                .get(key)
+                .or_else(|| payload.get("result").and_then(|result| result.get(key)))
+                .and_then(Value::as_array)
+        })?;
+    list.iter().find_map(|hit| {
+        let id = first_string_field(hit, &["id", "node_id", "memory_id"]);
+        if id.is_some() && id.as_deref() == written_id {
+            return None;
+        }
+        first_string_field(hit, &["title", "label", "name"])
+            .filter(|candidate| candidate != written_title)
+    })
 }
 
 fn call_selected_tool(
@@ -2234,6 +2398,30 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
                 let state = window.state::<Mutex<DesktopBackendState>>();
                 stop_local_node(&state);
             }
+            // A tab window gaining OS focus is the user-input-into-the-stage
+            // signal (HANDOFF-COBROWSE-PRESENCE D4): external-URL webviews
+            // cannot report in-page pointer or key events, but the first click
+            // or keystroke into the stage necessarily focuses its window.
+            if matches!(event, tauri::WindowEvent::Focused(true))
+                && window.label().starts_with("tab-")
+            {
+                let tab_id = {
+                    let state = window.state::<Mutex<DesktopBackendState>>();
+                    let backend = state.lock().ok();
+                    backend.and_then(|backend| {
+                        backend
+                            .tabs
+                            .iter()
+                            .find(|(_, tab)| tab.label == window.label())
+                            .map(|(id, _)| id.clone())
+                    })
+                };
+                if let Some(tab_id) = tab_id {
+                    let _ = window
+                        .app_handle()
+                        .emit("cobrowse://stage-focus", json!({ "tabId": tab_id }));
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             harness_settings_get,
@@ -2255,6 +2443,8 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             tab_close,
             tab_set_active,
             tab_set_bounds,
+            tab_highlight,
+            tab_clear_highlight,
             extract_visible_text,
             session_load,
             session_save,
