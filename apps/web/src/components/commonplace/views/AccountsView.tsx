@@ -102,10 +102,10 @@ export default function AccountsView() {
         <main style={styles.agentColumn}>
           <div style={styles.columnHeader}>
             <span>CommonPlace Chat</span>
-            <code style={styles.endpoint}>/api/theorem/agent</code>
+            <code style={styles.endpoint}>/v1/commonplace/acp/ws</code>
           </div>
           <div style={styles.agentFrame}>
-            <AgentThreadView agentId="theorem" agentMode="api" />
+            <AgentThreadView agentId="theorem" agentMode="acp" />
           </div>
         </main>
 

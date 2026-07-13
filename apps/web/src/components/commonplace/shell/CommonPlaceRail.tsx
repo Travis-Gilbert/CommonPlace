@@ -17,7 +17,7 @@ interface RailItem {
 
 const RAIL_ITEMS: RailItem[] = [
   { icon: 'cellar', label: 'Index', screenType: 'daily' },
-  { icon: 'chat', label: 'Chat', viewType: 'agent-thread', viewContext: { agentId: 'theorem', agentMode: 'api' } },
+  { icon: 'chat', label: 'Chat', viewType: 'agent-thread', viewContext: { agentId: 'theorem', agentMode: 'acp' } },
   { icon: 'grid', label: 'Library', screenType: 'library' },
   { icon: 'graph', label: 'Map', screenType: 'models' },
   { icon: 'book', label: 'Notebooks', screenType: 'notebooks' },

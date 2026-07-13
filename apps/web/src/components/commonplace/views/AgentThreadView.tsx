@@ -93,12 +93,21 @@ export default function AgentThreadView({
   seedContext,
   insertText,
 }: AgentThreadViewProps) {
-  const resolvedMode = agentMode ?? (agentId === 'theorem' || agentId === 'agent' ? 'api' : 'acp');
+  const preferredMode = agentMode ?? (agentId === 'agent' ? 'api' : 'acp');
+  const [apiFallback, setApiFallback] = useState(false);
+  const resolvedMode = apiFallback ? 'api' : preferredMode;
   const agentLabel = useMemo(
-    () => (resolvedMode === 'api' ? 'CommonPlace' : acpAgentLabel(agentId)),
+    () =>
+      agentId === 'theorem' || agentId === 'composed'
+        ? acpAgentLabel(agentId)
+        : resolvedMode === 'api'
+          ? 'CommonPlace'
+          : acpAgentLabel(agentId),
     [agentId, resolvedMode],
   );
   const wsRef = useRef<WebSocket | null>(null);
+  const sessionStartedRef = useRef(false);
+  const fallbackStartedRef = useRef(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<AcpConnectionStatus>(
     resolvedMode === 'api' ? 'connected' : 'connecting',
@@ -131,6 +140,22 @@ export default function AgentThreadView({
     setItems((prev) => [...prev, item]);
   }, []);
 
+  const activateApiFallback = useCallback(
+    (reason: string) => {
+      if (fallbackStartedRef.current) return;
+      fallbackStartedRef.current = true;
+      setStatus('connected');
+      setApiFallback(true);
+      addItem({
+        id: `fallback-${Date.now()}`,
+        kind: 'message',
+        role: 'system',
+        markdown: `${reason} Continuing through Theorem's JSON compatibility route.`,
+      });
+    },
+    [addItem],
+  );
+
   const send = useCallback((payload: unknown) => {
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -141,6 +166,7 @@ export default function AgentThreadView({
   const handleEvent = useCallback(
     (event: AcpFrontendEvent) => {
       if (event.type === 'session_started') {
+        sessionStartedRef.current = true;
         setSessionId(event.session_id);
         setStatus('connected');
         addItem({
@@ -240,6 +266,10 @@ export default function AgentThreadView({
       }
 
       if (event.type === 'error') {
+        if (agentId === 'theorem' && !sessionStartedRef.current) {
+          activateApiFallback(`The real-time Theorem session could not start: ${event.message}`);
+          return;
+        }
         addItem({
           id: `error-${Date.now()}`,
           kind: 'message',
@@ -248,7 +278,7 @@ export default function AgentThreadView({
         });
       }
     },
-    [addItem],
+    [activateApiFallback, addItem, agentId],
   );
 
   useEffect(() => {
@@ -261,7 +291,6 @@ export default function AgentThreadView({
     wsRef.current = socket;
 
     socket.onopen = () => {
-      setStatus('connected');
       socket.send(
         JSON.stringify({
           type: 'start_session',
@@ -283,9 +312,17 @@ export default function AgentThreadView({
       }
     };
     socket.onerror = () => {
+      if (agentId === 'theorem' && !sessionStartedRef.current) {
+        activateApiFallback('The real-time Theorem session is unavailable.');
+        return;
+      }
       setStatus('offline');
     };
     socket.onclose = () => {
+      if (agentId === 'theorem' && !sessionStartedRef.current) {
+        activateApiFallback('The real-time Theorem session closed during startup.');
+        return;
+      }
       setStatus((current) => (current === 'connected' ? 'offline' : current));
     };
 
@@ -293,7 +330,7 @@ export default function AgentThreadView({
       wsRef.current = null;
       socket.close();
     };
-  }, [addItem, agentId, handleEvent, resolvedMode]);
+  }, [activateApiFallback, addItem, agentId, handleEvent, resolvedMode]);
 
   useEffect(() => {
     listRef.current?.scrollTo({
@@ -317,7 +354,12 @@ export default function AgentThreadView({
       markdown: promptText,
     });
     setComposer('');
-    if (resolvedMode === 'api') {
+    const useCompatibilityRoute =
+      resolvedMode === 'api' || (agentId === 'theorem' && !sessionId);
+    if (useCompatibilityRoute) {
+      if (resolvedMode === 'acp') {
+        activateApiFallback('The real-time Theorem session was not ready for this message.');
+      }
       setStatus('connecting');
       setIsSending(true);
       try {
@@ -360,19 +402,19 @@ export default function AgentThreadView({
         markdown: 'ACP host is offline.',
       });
     }
-  }, [addItem, composer, isSending, resolvedMode, send, sessionId]);
+  }, [activateApiFallback, addItem, agentId, composer, isSending, resolvedMode, send, sessionId]);
 
   const displayStatus =
     resolvedMode === 'api' && status !== 'connecting' ? 'connected' : status;
 
-  // WL-4b: this API agent path is non-streaming, so the send-to-answer wait is
-  // a pre-stream window. Promote the pending indicator through the wait ladder
-  // on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
+  // WL-4b: the compatibility route is non-streaming, so its send-to-answer wait
+  // is a pre-stream window. Promote the pending indicator through the wait
+  // ladder on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
   const waitTier = useWaitTier(isSending);
 
   return (
     <section className={`cp-agent-thread ${styles.thread}`} aria-label={`${agentLabel} agent thread`}>
-      {resolvedMode === 'acp' ? (
+      {preferredMode === 'acp' ? (
         <header className="cp-agent-thread-header">
           <div>
             <h2>{agentLabel}</h2>
