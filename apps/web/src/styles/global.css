@@ -31,6 +31,55 @@
   --color-cr-accent-ink: var(--cr-accent-ink);
   --color-cr-tint: var(--cr-tint);
 
+  /* Status + tag scales (raw --cr-* values in console-register-status.css). Each
+     role exposes a solid base plus a -soft chip fill and a -line border, both
+     derived with color-mix so they always track their base hue. Red is not a
+     status here on purpose: --cr-signal owns pending/urgent. Generates
+     bg-cr-ok / text-cr-attention / bg-cr-tag-red-soft / border-cr-tag-red-line. */
+  --color-cr-ok: var(--cr-ok);
+  --color-cr-ok-soft: color-mix(in srgb, var(--cr-ok) 12%, transparent);
+  --color-cr-ok-line: color-mix(in srgb, var(--cr-ok) 28%, transparent);
+  --color-cr-progress: var(--cr-progress);
+  --color-cr-progress-soft: color-mix(in srgb, var(--cr-progress) 12%, transparent);
+  --color-cr-progress-line: color-mix(in srgb, var(--cr-progress) 28%, transparent);
+  --color-cr-attention: var(--cr-attention);
+  --color-cr-attention-soft: color-mix(in srgb, var(--cr-attention) 12%, transparent);
+  --color-cr-attention-line: color-mix(in srgb, var(--cr-attention) 28%, transparent);
+  --color-cr-waiting: var(--cr-waiting);
+  --color-cr-waiting-soft: color-mix(in srgb, var(--cr-waiting) 12%, transparent);
+  --color-cr-waiting-line: color-mix(in srgb, var(--cr-waiting) 28%, transparent);
+
+  --color-cr-tag-grey: var(--cr-tag-grey);
+  --color-cr-tag-grey-soft: color-mix(in srgb, var(--cr-tag-grey) 12%, transparent);
+  --color-cr-tag-grey-line: color-mix(in srgb, var(--cr-tag-grey) 28%, transparent);
+  --color-cr-tag-yellow: var(--cr-tag-yellow);
+  --color-cr-tag-yellow-soft: color-mix(in srgb, var(--cr-tag-yellow) 12%, transparent);
+  --color-cr-tag-yellow-line: color-mix(in srgb, var(--cr-tag-yellow) 28%, transparent);
+  --color-cr-tag-orange: var(--cr-tag-orange);
+  --color-cr-tag-orange-soft: color-mix(in srgb, var(--cr-tag-orange) 12%, transparent);
+  --color-cr-tag-orange-line: color-mix(in srgb, var(--cr-tag-orange) 28%, transparent);
+  --color-cr-tag-red: var(--cr-tag-red);
+  --color-cr-tag-red-soft: color-mix(in srgb, var(--cr-tag-red) 12%, transparent);
+  --color-cr-tag-red-line: color-mix(in srgb, var(--cr-tag-red) 28%, transparent);
+  --color-cr-tag-pink: var(--cr-tag-pink);
+  --color-cr-tag-pink-soft: color-mix(in srgb, var(--cr-tag-pink) 12%, transparent);
+  --color-cr-tag-pink-line: color-mix(in srgb, var(--cr-tag-pink) 28%, transparent);
+  --color-cr-tag-purple: var(--cr-tag-purple);
+  --color-cr-tag-purple-soft: color-mix(in srgb, var(--cr-tag-purple) 12%, transparent);
+  --color-cr-tag-purple-line: color-mix(in srgb, var(--cr-tag-purple) 28%, transparent);
+  --color-cr-tag-blue: var(--cr-tag-blue);
+  --color-cr-tag-blue-soft: color-mix(in srgb, var(--cr-tag-blue) 12%, transparent);
+  --color-cr-tag-blue-line: color-mix(in srgb, var(--cr-tag-blue) 28%, transparent);
+  --color-cr-tag-sky: var(--cr-tag-sky);
+  --color-cr-tag-sky-soft: color-mix(in srgb, var(--cr-tag-sky) 12%, transparent);
+  --color-cr-tag-sky-line: color-mix(in srgb, var(--cr-tag-sky) 28%, transparent);
+  --color-cr-tag-teal: var(--cr-tag-teal);
+  --color-cr-tag-teal-soft: color-mix(in srgb, var(--cr-tag-teal) 12%, transparent);
+  --color-cr-tag-teal-line: color-mix(in srgb, var(--cr-tag-teal) 28%, transparent);
+  --color-cr-tag-green: var(--cr-tag-green);
+  --color-cr-tag-green-soft: color-mix(in srgb, var(--cr-tag-green) 12%, transparent);
+  --color-cr-tag-green-line: color-mix(in srgb, var(--cr-tag-green) 28%, transparent);
+
   --radius-cr-sm: var(--cr-radius-sm);
   --radius-cr: var(--cr-radius);
   --radius-cr-lg: var(--cr-radius-lg);
@@ -53,6 +102,16 @@
   --leading-cr-heading: var(--cr-leading-heading);
 
   --ease-cr: var(--cr-ease);
+
+  /* Register spacing scale (lh-based). Feeding the Tailwind --spacing namespace
+     generates the full directional set (p/px/py/pt/pb/m/mx/gap/gap-x/w/h-cr-N)
+     from one source, so register-native surfaces never reach for a raw value. */
+  --spacing-cr-1: var(--cr-space-1);
+  --spacing-cr-2: var(--cr-space-2);
+  --spacing-cr-3: var(--cr-space-3);
+  --spacing-cr-4: var(--cr-space-4);
+  --spacing-cr-5: var(--cr-space-5);
+  --spacing-cr-6: var(--cr-space-6);
 }
 
 @utility h-control {
@@ -75,27 +134,6 @@
 }
 @utility duration-chrome {
   transition-duration: var(--cr-motion);
-}
-@utility gap-cr-1 {
-  gap: var(--cr-space-1);
-}
-@utility gap-cr-2 {
-  gap: var(--cr-space-2);
-}
-@utility gap-cr-3 {
-  gap: var(--cr-space-3);
-}
-@utility gap-cr-4 {
-  gap: var(--cr-space-4);
-}
-@utility p-cr-2 {
-  padding: var(--cr-space-2);
-}
-@utility p-cr-3 {
-  padding: var(--cr-space-3);
-}
-@utility p-cr-4 {
-  padding: var(--cr-space-4);
 }
 
 /* ─────────────────────────────────────────────────

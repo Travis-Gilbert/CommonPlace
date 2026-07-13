@@ -1,48 +1,57 @@
 'use client';
 
-/* The Index gains a row per active room (SPEC-OPERATOR-SURFACE-V2): each
-   claimed task in a bay is one quiet row here; clicking opens the same Room
-   Panel via the Operator's ?room= deep link. The Operator page is the
-   aggregate view, the panel is the unit view — one component serves both.
-   Renders nothing while loading or when no room is active. */
+/* The Index gains a row per active room (SPEC-OPERATOR-SURFACE-V2): each claimed
+   task in a bay is one quiet row here; clicking opens the same Room Panel via the
+   Operator's ?room= deep link. On the console register now (its own cr-* styles,
+   decoupled from operator.module.css). Renders nothing while loading or when no
+   room is active. */
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useApiData } from '@/lib/commonplace-api';
 import { fetchOperatorState } from '@/lib/theorem-operator-client';
 import { formatAge } from '@/app/v2/operator/parts';
-import styles from '@/app/v2/operator/operator.module.css';
 
 export function ActiveRoomsBand() {
   const { data } = useApiData(() => fetchOperatorState(), [], { cacheKey: 'v2:operator' });
+  // Snapshot "now" once at mount so the elapsed labels are a pure render.
+  const [now] = useState(() => Date.now());
   const active = (data?.bays ?? []).filter((b) => b.task);
   if (active.length === 0) return null;
 
   return (
-    <section aria-label="Active rooms" style={{ padding: '0 40px 16px' }}>
-      <div className={styles.laneHead}>
-        <h2 className={styles.laneTitle}>Active rooms</h2>
+    <section aria-label="Active rooms" className="px-cr-4 pb-cr-2 pt-cr-1">
+      <div className="mb-cr-1">
+        <h2 className="font-cr-mono text-cr-caption uppercase tracking-[0.08em] text-cr-ink-3">
+          Active rooms
+        </h2>
       </div>
-      <div className={styles.queueList}>
+      <div className="flex flex-col gap-[2px]">
         {active.map((bay) => {
           const task = bay.task!;
           const elapsed = task.claim
-            ? formatAge(Date.now() - new Date(task.claim.claimedAt).getTime())
+            ? formatAge(now - new Date(task.claim.claimedAt).getTime())
             : null;
           return (
             <Link
               key={bay.head}
-              className={styles.qRow}
               href={`/v2/operator?room=${encodeURIComponent(task.id)}`}
-              style={{ textDecoration: 'none' }}
+              className="flex items-center gap-cr-2 rounded-cr px-cr-2 py-cr-1 no-underline transition-colors duration-chrome ease-cr hover:bg-cr-top focus-visible:[outline:2px_solid_var(--cr-signal)] focus-visible:outline-offset-1"
             >
               <span
-                className={styles.bayLiveDot}
-                data-streaming={bay.streaming || undefined}
+                className="size-[7px] shrink-0 rounded-full bg-cr-ink-3 data-[streaming=true]:bg-cr-signal"
+                data-streaming={bay.streaming ? 'true' : undefined}
                 aria-hidden="true"
               />
-              <span className={styles.qTitle}>{task.goal}</span>
-              <span className={styles.qChip}>{bay.label}</span>
-              {elapsed && <span className={styles.qAge}>{elapsed}</span>}
+              <span className="min-w-0 flex-1 truncate text-cr-small text-cr-ink">{task.goal}</span>
+              <span className="shrink-0 rounded-cr-sm bg-cr-ground px-cr-1 py-[1px] font-cr-mono text-cr-caption text-cr-ink-3">
+                {bay.label}
+              </span>
+              {elapsed && (
+                <span className="shrink-0 font-cr-mono text-cr-caption tabular-nums text-cr-ink-3">
+                  {elapsed}
+                </span>
+              )}
             </Link>
           );
         })}

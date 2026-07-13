@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ObjectQuery } from "@/lib/block-view/types";
 import type { CommonplaceRustyRedDataSource } from "@/lib/commonplace/rustyred-data-contract";
 import {
@@ -524,4 +524,173 @@ export function useRefileSignal(handler: (signal: RefileSignal) => void): void {
     window.addEventListener("commonplace:refile", onRefile);
     return () => window.removeEventListener("commonplace:refile", onRefile);
   }, []);
+}
+
+/* ── Destinations (IX7 destination rail) ──────────────────────────────────────
+   The rail is derived from the loaded rows, not a separate fetch: every
+   destination shown has at least one real item and an exact count, so clicking
+   it filters the stream to those items. Deriving from data already in hand keeps
+   the count honest (it reflects the live stream) and avoids a rail full of
+   zero-count collections. */
+
+export interface IndexDestination {
+  /** Stable key: the collection id when live, else the label. */
+  readonly key: string;
+  readonly label: string;
+  /** How many loaded rows are filed to this destination. */
+  readonly count: number;
+}
+
+/** The destination key a row files to, or null when it is not filed (an open
+ *  question, an unresolved tension). Uses the collection id when present so a
+ *  rename does not split a destination in two. */
+export function rowDestinationKey(row: IndexRow): string | null {
+  if (!row.destination) return null;
+  return row.destinationId ?? row.destination.label;
+}
+
+/** Destinations present in the data, most-populated first. */
+export function destinationsFromData(data: IndexData): readonly IndexDestination[] {
+  const byKey = new Map<string, { label: string; count: number }>();
+  for (const row of allRows(data)) {
+    const key = rowDestinationKey(row);
+    if (!key || !row.destination) continue;
+    const entry = byKey.get(key);
+    if (entry) entry.count += 1;
+    else byKey.set(key, { label: row.destination.label, count: 1 });
+  }
+  return [...byKey.entries()]
+    .map(([key, { label, count }]) => ({ key, label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/* ── Watch queries (IX6 saved-search destinations) ────────────────────────────
+   A watch query is a saved search that behaves as a destination: it re-runs a
+   real filter over the real rows and shows its live match count. This is the
+   surface half of IX6, fully real client-side (localStorage). The engine half --
+   a watch query participating in filing scores like an anchor -- is backend work
+   that this seam does not fake. */
+
+export interface WatchQuery {
+  readonly id: string;
+  readonly label: string;
+  readonly query: string;
+}
+
+const WATCH_QUERIES_KEY = "v2:index:watch-queries";
+
+function readWatchQueries(): WatchQuery[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(WATCH_QUERIES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (q): q is WatchQuery =>
+        !!q &&
+        typeof (q as WatchQuery).id === "string" &&
+        typeof (q as WatchQuery).label === "string" &&
+        typeof (q as WatchQuery).query === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeWatchQueries(queries: readonly WatchQuery[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(WATCH_QUERIES_KEY, JSON.stringify(queries));
+  } catch {
+    /* storage full or blocked: the in-memory list still holds for the session */
+  }
+}
+
+/** True when a row matches a free-text query (title, tags, destination, meta) --
+ *  the same haystack the list search uses, so a saved query and a typed one
+ *  select the same rows. */
+export function rowMatchesQuery(row: IndexRow, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [row.title, ...row.tags, row.destination?.label ?? "", row.meta ?? ""]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(q);
+}
+
+/** Live match count for a saved query over the loaded rows. */
+export function watchQueryCount(data: IndexData, query: string): number {
+  return allRows(data).filter((row) => rowMatchesQuery(row, query)).length;
+}
+
+/* Watch queries live in a tiny external store (localStorage is the source of
+   truth) read through useSyncExternalStore. That is the SSR-safe, lint-clean way
+   to subscribe to browser storage: the server snapshot is empty so first paint
+   matches, the client snapshot is a cached array (stable ref, so no render loop),
+   and a cross-tab `storage` event refreshes it. */
+
+const EMPTY_WATCH_QUERIES: readonly WatchQuery[] = [];
+let watchSnapshot: readonly WatchQuery[] | null = null;
+const watchListeners = new Set<() => void>();
+
+function watchStoreSnapshot(): readonly WatchQuery[] {
+  if (watchSnapshot === null) watchSnapshot = readWatchQueries();
+  return watchSnapshot;
+}
+
+function commitWatchQueries(next: readonly WatchQuery[]): void {
+  watchSnapshot = next;
+  writeWatchQueries(next);
+  watchListeners.forEach((notify) => notify());
+}
+
+function subscribeWatchStore(onChange: () => void): () => void {
+  watchListeners.add(onChange);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === WATCH_QUERIES_KEY) {
+      watchSnapshot = readWatchQueries();
+      onChange();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    watchListeners.delete(onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/** Saved watch queries + mutators, backed by localStorage. SSR-safe: the server
+ *  snapshot is empty so first paint matches, then the client snapshot hydrates
+ *  from storage without a setState-in-effect. */
+export function useWatchQueries(): {
+  queries: readonly WatchQuery[];
+  save: (label: string, query: string) => void;
+  remove: (id: string) => void;
+} {
+  const queries = useSyncExternalStore(
+    subscribeWatchStore,
+    watchStoreSnapshot,
+    () => EMPTY_WATCH_QUERIES,
+  );
+
+  const save = (label: string, query: string) => {
+    const trimmedLabel = label.trim();
+    const trimmedQuery = query.trim();
+    if (!trimmedLabel || !trimmedQuery) return;
+    // Replace an existing query with the same label rather than duplicating it.
+    const withoutDupe = watchStoreSnapshot().filter(
+      (q) => q.label.toLowerCase() !== trimmedLabel.toLowerCase(),
+    );
+    commitWatchQueries([
+      ...withoutDupe,
+      { id: `wq-${Date.now()}`, label: trimmedLabel, query: trimmedQuery },
+    ]);
+  };
+
+  const remove = (id: string) => {
+    commitWatchQueries(watchStoreSnapshot().filter((q) => q.id !== id));
+  };
+
+  return { queries, save, remove };
 }
