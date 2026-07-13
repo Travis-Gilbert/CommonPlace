@@ -22,7 +22,7 @@ export function useV2Shell(): V2ShellContextValue {
 }
 
 // Surfaces that ship their own secondary rail want the app rail collapsed.
-const AUTO_COLLAPSE = ['/v2/graph'];
+const AUTO_COLLAPSE = ['/graph'];
 
 // The user's deliberate collapse preference survives reloads; the graph
 // force-collapse is transient and never written to it.

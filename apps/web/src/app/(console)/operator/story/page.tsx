@@ -2,7 +2,7 @@
 
 /* BayCard story — every state on one screen, fixture-only. Not in the rail;
    exists so the card can be critiqued in isolation (spec process step 2) and
-   revisited when states change. Route: /v2/operator/story */
+   revisited when states change. Route: /operator/story */
 
 import type { Bay, OperatorTask } from '@/lib/theorem-operator';
 import { fixtureSource } from '@/lib/theorem-operator';

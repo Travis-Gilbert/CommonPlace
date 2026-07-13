@@ -15,7 +15,7 @@ export default function DbIndexPage() {
       </header>
       <div className={styles.grid}>
         {DATABASES.map((d) => (
-          <Link key={d.space} href={`/v2/db/${d.space}`} className={styles.card}>
+          <Link key={d.space} href={`/databases/${d.space}`} className={styles.card}>
             <span className={styles.cardEmoji}>{d.emoji}</span>
             <span className={styles.cardName}>{d.name}</span>
             <span className={styles.cardDesc}>{d.desc}</span>

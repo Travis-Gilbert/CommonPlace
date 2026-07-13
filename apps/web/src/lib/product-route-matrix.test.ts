@@ -13,7 +13,7 @@ describe('product route matrix', () => {
 
     expect(rootRedirect).toEqual({
       source: '/',
-      destination: '/v2',
+      destination: '/index',
       permanent: true,
       has: [{ type: 'host', value: PRODUCT_HOST_PATTERN }],
     });
@@ -38,15 +38,15 @@ describe('product route matrix', () => {
   it('normalizes relative and absolute Location headers', () => {
     const baseUrl = new URL('https://candidate.example');
 
-    expect(normalizeLocation('/v2?query=1', baseUrl)).toBe('/v2?query=1');
-    expect(normalizeLocation('https://candidate.example/v2/files?query=1', baseUrl)).toBe(
-      '/v2/files?query=1',
+    expect(normalizeLocation('/index?query=1', baseUrl)).toBe('/index?query=1');
+    expect(normalizeLocation('https://candidate.example/files?query=1', baseUrl)).toBe(
+      '/files?query=1',
     );
   });
 
   it('rejects cross-origin redirects', () => {
     expect(() =>
-      normalizeLocation('https://travisgilbert.me/v2', new URL('https://app.theoremharness.com')),
+      normalizeLocation('https://travisgilbert.me/index', new URL('https://app.theoremharness.com')),
     ).toThrow('cross-origin redirect');
   });
 

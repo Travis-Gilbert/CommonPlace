@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApiData } from '@/lib/commonplace-api';
 import { fetchOperatorState } from '@/lib/theorem-operator-client';
-import { formatAge } from '@/app/v2/operator/parts';
+import { formatAge } from '@/app/(console)/operator/parts';
 
 export function ActiveRoomsBand() {
   const { data } = useApiData(() => fetchOperatorState(), [], { cacheKey: 'v2:operator' });
@@ -40,7 +40,7 @@ export function ActiveRoomsBand() {
           return (
             <Link
               key={bay.head}
-              href={`/v2/operator?room=${encodeURIComponent(task.id)}`}
+              href={`/operator?room=${encodeURIComponent(task.id)}`}
               className="flex items-center gap-cr-2 rounded-cr px-cr-2 py-cr-1 no-underline transition-colors duration-chrome ease-cr hover:bg-cr-top focus-visible:[outline:2px_solid_var(--cr-signal)] focus-visible:outline-offset-1"
             >
               <span

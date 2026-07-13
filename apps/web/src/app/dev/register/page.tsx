@@ -10,7 +10,7 @@
  * CSS into CONSOLE_AXES upstream (or copy the sheet) and rebuild. No color is
  * ever hand-picked; you move an axis and the whole console re-derives.
  *
- * Isolated by design: this route is outside the /v2 group, so it carries no
+ * Isolated by design: this route is outside the console route group, so it carries no
  * porcelain. The preview panel is the only thing --cr-* styles; the playground
  * chrome stays on neutral system defaults.
  */

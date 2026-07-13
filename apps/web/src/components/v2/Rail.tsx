@@ -42,24 +42,24 @@ type RailItem = {
 };
 
 const HARNESS: RailItem[] = [
-  { label: 'Chat', href: '/v2/chat', icon: ChatGlyph },
-  { label: 'Work', href: '/v2/work', icon: LayoutPanelLeft },
-  { label: 'Index', href: '/v2', icon: IndexGlyph },
+  { label: 'Chat', href: '/chat', icon: ChatGlyph },
+  { label: 'Work', href: '/work', icon: LayoutPanelLeft },
+  { label: 'Index', href: '/index', icon: IndexGlyph },
   { label: 'Commonplaces', href: null, icon: CommonplacesGlyph },
-  { label: 'Workrooms', href: '/v2/workrooms', icon: WorkroomsGlyph, indent: true },
-  { label: 'Canvas', href: '/v2/canvas', icon: Frame, indent: true },
-  { label: 'Growth', href: '/v2/growth', icon: Dna },
+  { label: 'Workrooms', href: '/workrooms', icon: WorkroomsGlyph, indent: true },
+  { label: 'Canvas', href: '/canvas', icon: Frame, indent: true },
+  { label: 'Growth', href: '/growth', icon: Dna },
   { label: 'Notes', href: null, icon: NotesGlyph },
   { label: 'Research', href: null, icon: ResearchGlyph },
   { label: 'Code', href: null, icon: CodeGlyph },
 ];
 
 const DATA: RailItem[] = [
-  { label: 'Files', href: '/v2/files', icon: FilesGlyph },
-  { label: 'Graph', href: '/v2/graph', icon: GraphGlyph },
-  { label: 'Tables', href: '/v2/ledger', icon: RowsGlyph },
-  { label: 'Databases', href: '/v2/db', icon: Database },
-  { label: 'Timeline', href: '/v2/timeline', icon: Clock3 },
+  { label: 'Files', href: '/files', icon: FilesGlyph },
+  { label: 'Graph', href: '/graph', icon: GraphGlyph },
+  { label: 'Tables', href: '/tables', icon: RowsGlyph },
+  { label: 'Databases', href: '/databases', icon: Database },
+  { label: 'Timeline', href: '/timeline', icon: Clock3 },
 ];
 
 /* Account chrome, pinned to the foot of the rail. Settings sits one above
@@ -67,8 +67,8 @@ const DATA: RailItem[] = [
    (memory / skills / runs / inbox / keys / providers / usage) live under
    Account -> Agents. */
 const FOOTER: RailItem[] = [
-  { label: 'Settings', href: '/v2/settings', icon: Settings },
-  { label: 'Account', href: '/v2/account', icon: CircleUser },
+  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Account', href: '/account', icon: CircleUser },
 ];
 
 function NavItem({ item, active, collapsed }: { item: RailItem; active: boolean; collapsed: boolean }) {

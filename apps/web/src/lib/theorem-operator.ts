@@ -464,17 +464,17 @@ function fixtureTasks(now: number): OperatorTask[] {
   const opDoc: SourceDocRef = {
     id: 'HANDOFF-OPERATOR-SURFACE',
     label: 'HANDOFF-OPERATOR-SURFACE.md',
-    href: '/v2/files?doc=HANDOFF-OPERATOR-SURFACE',
+    href: '/files?doc=HANDOFF-OPERATOR-SURFACE',
   };
   const glDoc: SourceDocRef = {
     id: 'HANDOFF-GROWTH-LAYER-V1',
     label: 'HANDOFF-GROWTH-LAYER-V1.md',
-    href: '/v2/files?doc=HANDOFF-GROWTH-LAYER-V1',
+    href: '/files?doc=HANDOFF-GROWTH-LAYER-V1',
   };
   const hcDoc: SourceDocRef = {
     id: 'HANDOFF-HEAD-CALLS',
     label: 'HANDOFF-HEAD-CALLS.md',
-    href: '/v2/files?doc=HANDOFF-HEAD-CALLS',
+    href: '/files?doc=HANDOFF-HEAD-CALLS',
   };
 
   return [
@@ -490,7 +490,7 @@ function fixtureTasks(now: number): OperatorTask[] {
       prerequisites: [{ taskId: 'task_op2_queue', goal: 'OP2 queue + bays', met: true }],
       claim: { head: 'claude-code', claimedAt: iso(now, 42 * 60 * 1000) },
       ageMs: 3 * HOUR,
-      fileScope: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
+      fileScope: ['apps/web/src/app/(console)/operator/RunDrawer.tsx'],
       runId: 'run_op4',
       checklist: { done: 4, total: 6 },
       source: fixtureSource('workGraph claim'),
@@ -506,7 +506,7 @@ function fixtureTasks(now: number): OperatorTask[] {
       laneChip: 'frontend',
       prerequisites: [{ taskId: 'task_op4_drawer', goal: 'OP4 run drawer', met: false }],
       ageMs: 2 * HOUR,
-      fileScope: ['apps/web/src/app/v2/operator/Gate.tsx'],
+      fileScope: ['apps/web/src/app/(console)/operator/Gate.tsx'],
       checklist: { done: 0, total: 5 },
       source: fixtureSource('nextTaskNode'),
     },
@@ -636,11 +636,11 @@ function fixtureDrawers(now: number): Record<string, RunDrawer> {
       '| [-] | porcelain accent decision |',
       '| [-] | cursor-tail degrade-to-poll pass |',
       '',
-      'Scope: `apps/web/src/app/v2/operator/**`. The drawer must reconstruct cold',
+      'Scope: `apps/web/src/app/(console)/operator/**`. The drawer must reconstruct cold',
       'from the substrate when the stream is quiet.',
     ].join('\n'),
     footprint: [
-      'apps/web/src/app/v2/operator/RunDrawer.tsx',
+      'apps/web/src/app/(console)/operator/RunDrawer.tsx',
       'apps/web/src/lib/theorem-operator.ts',
       'apps/web/src/app/api/theorem/operator/route.ts',
     ],
@@ -652,12 +652,12 @@ function fixtureDrawers(now: number): Record<string, RunDrawer> {
       { id: 'v1', label: 'graphql_introspect task-node + stream shapes', done: true, evidence: 'schema probe: workGraph, coordinationStream present; mutations in write server' },
       { id: 'v2', label: 'read harness-console fixtures for task/queue shapes', done: true, evidence: 'apps/harness-console/src/lib/harness/fixtures.ts' },
       { id: 'v3', label: 'read .harness/checklists schema for acceptance marks', done: true, evidence: 'agent-workroom-control-center-parity.json' },
-      { id: 'v4', label: 'confirm CommonPlace workroom mount point', done: true, evidence: 'apps/web/src/app/v2/workrooms' },
+      { id: 'v4', label: 'confirm CommonPlace workroom mount point', done: true, evidence: 'apps/web/src/app/(console)/workrooms' },
       { id: 'v5', label: 'porcelain accent decision (oxblood vs amber)', done: false },
     ],
     events: [
       { id: 'e1', at: iso(now, 42 * 60 * 1000), actor: 'claude-code', kind: 'claim', summary: 'claimed task_op4_drawer', payload: 'multihead_claim lease acquired; bay: claude-code' },
-      { id: 'e2', at: iso(now, 40 * 60 * 1000), actor: 'claude-code', kind: 'intent', summary: 'announced footprint: RunDrawer.tsx + contract', payload: 'coordination_intent status=working footprint=[apps/web/src/app/v2/operator/**]' },
+      { id: 'e2', at: iso(now, 40 * 60 * 1000), actor: 'claude-code', kind: 'intent', summary: 'announced footprint: RunDrawer.tsx + contract', payload: 'coordination_intent status=working footprint=[apps/web/src/app/(console)/operator/**]' },
       { id: 'e3', at: iso(now, 33 * 60 * 1000), actor: 'claude-code', kind: 'record', summary: 'decision: single-GET + force-dynamic, fixtures server-side only', payload: 'coordination_decision: no hydration drift; drawers keyed by taskId in state' },
       { id: 'e4', at: iso(now, 22 * 60 * 1000), actor: 'claude-code', kind: 'checklist', summary: 'Verify First v1-v4 checked with evidence', payload: '4/5 verify-first items resolved' },
       { id: 'e5', at: iso(now, 14 * 60 * 1000), actor: 'codex', kind: 'contribution', summary: 'wired workGraph read behind fixtureBays', payload: 'source.mode flip fixture->live pending endpoint verification' },
@@ -705,8 +705,8 @@ function fixtureGate(now: number): GateCard[] {
         at: iso(now, 4.6 * HOUR),
       },
       changedFiles: [
-        { path: 'apps/web/src/app/v2/operator/page.tsx', added: 210, removed: 0 },
-        { path: 'apps/web/src/app/v2/operator/Queue.tsx', added: 180, removed: 0 },
+        { path: 'apps/web/src/app/(console)/operator/page.tsx', added: 210, removed: 0 },
+        { path: 'apps/web/src/app/(console)/operator/Queue.tsx', added: 180, removed: 0 },
         { path: 'apps/web/src/components/v2/Rail.tsx', added: 4, removed: 0 },
       ],
       commits: [{ sha: 'a1b2c3d', message: 'feat(operator): OP2 queue + bays', href: '#a1b2c3d' }],
