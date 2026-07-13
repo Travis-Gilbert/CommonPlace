@@ -29,7 +29,7 @@ export default function SettingsPage() {
               Connect a coding agent to the graph-native memory + coordination substrate. An agent
               provisions its own key before there is an account; you claim it to your account later.
             </p>
-            <Link className={styles.cardLink} href="/v2/account/agents">
+            <Link className={styles.cardLink} href="/account/agents">
               Provision an agent key &rarr;
             </Link>
             <span className={styles.soon}>Full flow porting from console</span>
@@ -43,7 +43,7 @@ export default function SettingsPage() {
             <p className={styles.cardHint}>
               API keys and model-provider credentials live under your agents.
             </p>
-            <Link className={styles.cardLink} href="/v2/account/agents">
+            <Link className={styles.cardLink} href="/account/agents">
               Open Account / Agents &rarr;
             </Link>
           </div>
@@ -54,7 +54,7 @@ export default function SettingsPage() {
               <span className={styles.cardTitle}>Access &amp; identity</span>
             </div>
             <p className={styles.cardHint}>Your profile and connected accounts live under your user.</p>
-            <Link className={styles.cardLink} href="/v2/account/user">
+            <Link className={styles.cardLink} href="/account/user">
               Open Account / User &rarr;
             </Link>
           </div>

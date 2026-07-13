@@ -45,7 +45,7 @@ export default function OperatorPage() {
     if (new URLSearchParams(window.location.search).get('layout') === 'alt') setLayout('alt');
   }, []);
 
-  // Deep link from the Index: /v2/operator?room=<taskId> opens the Room Panel.
+  // Deep link from the Index: /operator?room=<taskId> opens the Room Panel.
   const [roomApplied, setRoomApplied] = useState(false);
   useEffect(() => {
     if (roomApplied || !data) return;

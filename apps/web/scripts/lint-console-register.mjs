@@ -41,7 +41,7 @@ const src = (rel) => join(here, "..", "src", rel);
  * text-black/40) — in these files. Add each surface as it converts to utilities.
  */
 const MIGRATED_COMPONENTS = [
-  "app/v2/layout.tsx",
+  "app/(console)/layout.tsx",
   "components/v2/V2Shell.tsx",
   "components/growth/GrowthCard.tsx",
   "components/growth/GrowthGraphCanvas.tsx",

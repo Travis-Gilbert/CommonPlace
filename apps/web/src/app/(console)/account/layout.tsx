@@ -11,8 +11,8 @@ import { usePathname } from 'next/navigation';
 import styles from '../surface.module.css';
 
 const TABS = [
-  { href: '/v2/account/user', label: 'User' },
-  { href: '/v2/account/agents', label: 'Agents' },
+  { href: '/account/user', label: 'User' },
+  { href: '/account/agents', label: 'Agents' },
 ];
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {

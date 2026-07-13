@@ -134,8 +134,8 @@ export default function LedgerPage() {
     <>
       <header className="p-top">
         <div className="p-toph">
-          <div className="p-kicker">Data / Ledger</div>
-          <h1 className="p-h1">Ledger</h1>
+          <div className="p-kicker">Data / Tables</div>
+          <h1 className="p-h1">Tables</h1>
         </div>
         <div className="p-cmd">
           <span>Search or command</span>
@@ -145,7 +145,7 @@ export default function LedgerPage() {
 
       <div className={styles.wrap}>
         <div className={styles.frame}>
-          <ViewStateView state={state} label="ledger items" narration={narrationFor('reading', 0)}>
+          <ViewStateView state={state} label="table items" narration={narrationFor('reading', 0)}>
             {() => (
               <table className={styles.table}>
                 <thead>

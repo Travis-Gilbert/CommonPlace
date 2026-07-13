@@ -39,19 +39,19 @@ const DatabaseSurfaceView = dynamic<SurfaceViewRendererProps>(
 );
 // The Operator surface (OC5): each view-instance wraps a live operator component.
 const OperatorAttentionView = dynamic<SurfaceViewRendererProps>(
-  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorAttentionView),
+  () => import('@/app/(console)/operator/surface/renderers').then((module) => module.OperatorAttentionView),
   { ssr: false },
 );
 const OperatorBaysView = dynamic<SurfaceViewRendererProps>(
-  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorBaysView),
+  () => import('@/app/(console)/operator/surface/renderers').then((module) => module.OperatorBaysView),
   { ssr: false },
 );
 const OperatorBayTableView = dynamic<SurfaceViewRendererProps>(
-  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorBayTableView),
+  () => import('@/app/(console)/operator/surface/renderers').then((module) => module.OperatorBayTableView),
   { ssr: false },
 );
 const OperatorQueueView = dynamic<SurfaceViewRendererProps>(
-  () => import('@/app/v2/operator/surface/renderers').then((module) => module.OperatorQueueView),
+  () => import('@/app/(console)/operator/surface/renderers').then((module) => module.OperatorQueueView),
   { ssr: false },
 );
 
