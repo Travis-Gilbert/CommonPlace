@@ -33,6 +33,25 @@ export const CONSOLE_THEME_TOKENS: ThemeTokens = {
     // Backward-compatible aliases so hosts migrating off porcelain keep working
     // (accent maps to the register signal — both oxblood).
     accent: 'var(--cr-signal)',
+    // Status scale (raw values in console-register-status.css). A four-step
+    // escalation beneath the reserved red signal: waiting -> progress ->
+    // attention -> signal, with ok off the ladder for success.
+    ok: 'var(--cr-ok)',
+    progress: 'var(--cr-progress)',
+    attention: 'var(--cr-attention)',
+    waiting: 'var(--cr-waiting)',
+    // Tag scale: ten muted object-relation hues, rendered as filled chips. Soft
+    // fills and line borders derive from these via color-mix at the utility layer.
+    tagGrey: 'var(--cr-tag-grey)',
+    tagYellow: 'var(--cr-tag-yellow)',
+    tagOrange: 'var(--cr-tag-orange)',
+    tagRed: 'var(--cr-tag-red)',
+    tagPink: 'var(--cr-tag-pink)',
+    tagPurple: 'var(--cr-tag-purple)',
+    tagBlue: 'var(--cr-tag-blue)',
+    tagSky: 'var(--cr-tag-sky)',
+    tagTeal: 'var(--cr-tag-teal)',
+    tagGreen: 'var(--cr-tag-green)',
   },
   space: {
     unit: 'var(--cr-space-unit)',

@@ -17,7 +17,7 @@ export default function ProjectsPage() {
         </span>
         <h1 className="font-title text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
           <DrawOnIcon name="briefcase" size={44} color="var(--color-gold)" />
-          Things I've built, organized, and investigated.
+          Things I&apos;ve built, organized, and investigated.
         </h1>
         <p className="text-ink-secondary mb-8 max-w-xl font-light leading-relaxed">
           Software systems, housing developments, documentaries, community festivals, ML pipelines.
