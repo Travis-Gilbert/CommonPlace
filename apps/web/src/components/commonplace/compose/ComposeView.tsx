@@ -739,7 +739,7 @@ export default function ComposeView({
                   <div className="cp-compose-terminal-tension">
                     {!enableNli ? (
                       <div className="cp-compose-terminal-empty">
-                        NLI pass inactive. Click "Check Tension" below the editor to enable.
+                        NLI pass inactive. Click &quot;Check Tension&quot; below the editor to enable.
                       </div>
                     ) : results.filter((r) => r.signal === 'nli').length === 0 ? (
                       <div className="cp-compose-terminal-empty">
@@ -769,7 +769,7 @@ export default function ComposeView({
                   <div className="cp-compose-terminal-stash">
                     {stashedObjects.length === 0 ? (
                       <div className="cp-compose-terminal-empty">
-                        Right-click any object and choose "Stash for Later" to collect fragments here.
+                        Right-click any object and choose &quot;Stash for Later&quot; to collect fragments here.
                       </div>
                     ) : (
                       <>
@@ -883,7 +883,7 @@ export default function ComposeView({
               <div className="cp-compose-dock-section-title">Stash</div>
               {stashedObjects.length === 0 ? (
                 <div className="cp-compose-results-empty">
-                  Right-click selected text and choose "Stash for Later" to save fragments here.
+                  Right-click selected text and choose &quot;Stash for Later&quot; to save fragments here.
                 </div>
               ) : (
                 <div className="cp-compose-stash-chip-list">
