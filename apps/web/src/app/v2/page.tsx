@@ -2,7 +2,7 @@ import { IndexSurface } from '@/components/v2/index/IndexSurface';
 import { ActiveRoomsBand } from '@/components/v2/index/ActiveRoomsBand';
 
 /* Index: the daily driver. Everything is filed; this surface reviews what
-   landed, what is open, and what today holds -- it never demands. The header is
+   landed, what is open, and what today holds; it never demands. The header is
    server-rendered; the list|detail chassis below is a client island
    (IndexSurface) bound to the contract-first band seam (lib/index-queries). */
 

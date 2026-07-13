@@ -189,8 +189,15 @@ export function TableLens({ rows, selectedKey, onSelect, destinationFor }: LensP
               <tr
                 key={r.id}
                 aria-selected={selected}
+                tabIndex={0}
                 onClick={() => onSelect(key)}
-                className="cursor-pointer border-b border-cr-hairline transition-colors duration-chrome ease-cr hover:bg-cr-top aria-selected:bg-cr-top"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelect(key);
+                  }
+                }}
+                className="cursor-pointer border-b border-cr-hairline transition-colors duration-chrome ease-cr hover:bg-cr-top aria-selected:bg-cr-top focus-visible:[outline:2px_solid_var(--cr-signal)] focus-visible:outline-offset-[-2px]"
               >
                 {r.getVisibleCells().map((cell) => (
                   <td

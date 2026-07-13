@@ -11,7 +11,7 @@ and the hand-rolled-surface deletion ride along as consequences.
 | Layer | What it is | Status |
 |---|---|---|
 | **Substrate** | RustyRed / THG: typed objects + edges + algorithms (PPR, similarity, communities). Provides the *scoring primitives*. | exists |
-| **Intake** | Connectors + the filing engine: email/tasks/GitHub/etc. become *typed objects, filed*. Orchestrates RustyRed's scorer (routing-with-abstention) into destinations + zones + a feedback loop. | HANDOFF-INDEX IX1–IX6 (backend track, separate) |
+| **Intake** | Connectors + the filing engine: email/tasks/GitHub/etc. become *typed objects, filed*. Orchestrates RustyRed's scorer (routing-with-abstention) into destinations + zones + a feedback loop. | HANDOFF-INDEX IX1-IX6 (backend track, separate) |
 | **Lens front-end** | The Index: a user-assembled composition of lens-widgets over the filtered substrate. Where the component libraries live. | this plan |
 
 Key seam: RustyRed is **not** the CRM/task/email app; it is what those are built
@@ -29,7 +29,7 @@ the lens layer that makes them usable.
   the bound query's objects carry the fields it needs:
   `status → Kanban`, `dates → Calendar`, `xy/graph → Canvas`,
   `rows → Table`, `thread → Mail`, anything → Stream.
-- **Presets are seed assemblies.** "Data", "Board", the daily-driver triage —
+- **Presets are seed assemblies.** "Data", "Board", the daily-driver triage:
   each is a default composition the user can duplicate and edit. Never a blank
   Index.
 - **Suggested widgets.** The system proposes lenses the current data can fill
@@ -39,7 +39,9 @@ the lens layer that makes them usable.
 
 - **Composition primitive:** nested `react-resizable-panels` (tiling tree), the
   layout serialized as the index document. Already the v2 layout lib; no
-  hand-rolled grid engine. (Bento grid is a later option if tiling constrains.)
+  hand-rolled grid engine. v1 that landed is a flat horizontal row; nested tiling
+  and orientation are the planned extension, not yet shipped. (Bento grid is a
+  later option if tiling constrains.)
 - **Cross-linking (linked widgets):** deferred to a fast-follow, but the widget
   contract exposes an optional `selection` publish/subscribe from day one.
   Mechanisms already in-repo: the `commonplace:*` CustomEvent bus + the Mosaic
@@ -51,11 +53,11 @@ the lens layer that makes them usable.
 
 ## Reuse, don't rebuild (existing in-repo primitives)
 
-- **Layout / composition:** `react-resizable-panels` (nested groups) — the
+- **Layout / composition:** `react-resizable-panels` (nested groups): the
   tiling tree. Prior art: CommonPlace's JSON-serializable split-pane binary tree.
 - **Query binding:** `block-view` / `objectQueryForView` (contract-first fetch,
   shared cache → widget fetch dedupe).
-- **Canvas substrate:** existing `data-canvas` (xyflow) — becomes the Canvas lens.
+- **Canvas substrate:** existing `data-canvas` (xyflow) becomes the Canvas lens.
 - **Index data seam:** `lib/commonplace/index-queries.ts` (already built:
   bands, destinations, watch queries, refile-as-training-signal, fixture→live
   fail-open). Watch queries become the widget `query`.
@@ -72,7 +74,7 @@ the lens layer that makes them usable.
 | **Chat** | assistant-ui | npm | all chat surfaces |
 | **Toasts** | `goey-toast` | repo, vet | confirmations / errors |
 | Primitives / blocks | `ephraimduncan/blocks`, `coss.com/ui` | copy-in, pre-green-lit | grab-bag |
-| ~~Timeline~~ | — | — | skipped |
+| ~~Timeline~~ | n/a | n/a | skipped |
 
 ## v1 vertical slice (proves the whole model on one screen)
 
@@ -83,7 +85,8 @@ Ship the Index as the **lens-composition shell** with three real lenses:
    mail base; register-themed.
 2. **Stream lens:** the IX7 triage work, reskinned porcelain → `cr-*`.
 3. **Table lens:** `tnks-data-table` bound to a query, register-themed.
-4. **Compose:** `maily.to` / mail compose as the Mail lens seed.
+4. **Compose (planned, not in the landed slice):** `maily.to` / mail compose as
+   the Mail lens seed; needs the `maily` install.
 5. **Composition:** add/remove/resize widgets in a tiling tree; layout persists;
    the add-widget picker only offers lenses the bound data can fill; ship one
    default assembly (the daily-driver triage) so first run is never blank.
@@ -169,5 +172,6 @@ the global-rail collapse-to-icons on the Index; composition nesting/orientation.
   by query.
 - **License vetting** on each GitHub source at adoption (kanban, eternal,
   goey-toast, maily); shadcn/coss/blocks are copy-in and pre-green-lit.
-- **Mono reface** decision (keep JetBrains vs alias to IBM Plex Mono).
+- **Mono:** settled as JetBrains (the register default); no reface. Kept here only
+  as the record of a closed decision.
 - Non-v2 surfaces (main-site parchment) are out of scope.

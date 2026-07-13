@@ -66,8 +66,8 @@ function provenanceLine(row: IndexRow): string | null {
 
 /* Filing rationale (IX7): why this landed where it did, in plain language, with
    the raw signals behind one disclosure. Everything is derived from fields the
-   row already carries -- destination edge, classification confidence,
-   provenance, tags -- so nothing is invented. The IX3 filing record (per-decision
+   row already carries (destination edge, classification confidence,
+   provenance, tags), so nothing is invented. The IX3 filing record (per-decision
    margin + scored signals) is the backend upgrade this reads into unchanged. */
 
 interface FilingSignal {
@@ -153,7 +153,7 @@ export function IndexDetail({
   const destInputRef = useRef<HTMLInputElement>(null);
 
   // The parent remounts this pane per selection (key), so the editors reset on
-  // their own -- no reset effect needed.
+  // their own; no reset effect needed.
   useEffect(() => {
     if (editing) destInputRef.current?.focus();
   }, [editing]);

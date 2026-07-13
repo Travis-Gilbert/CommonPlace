@@ -4,7 +4,7 @@ import { Plus, X } from 'lucide-react';
 import type { IndexDestination, WatchQuery } from '@/lib/commonplace/index-queries';
 
 /* Destination rail (HANDOFF-INDEX IX7): the pane left of the stream, on the
-   console register. Destinations are derived from the loaded rows -- every one
+   console register. Destinations are derived from the loaded rows: every one
    shown has real items and an exact count, and selecting it filters the stream.
    Watch queries are saved searches that behave the same way. Flat register:
    state is tone (bg-cr-top + hairline), never relief. */

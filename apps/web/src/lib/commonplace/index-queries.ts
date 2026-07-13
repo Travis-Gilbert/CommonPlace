@@ -13,7 +13,7 @@ import {
 /* Index band queries (HANDOFF-INDEX-SURFACE D4).
  *
  * The Index is the daily driver: everything is already filed, so the surface
- * reviews three bands -- what landed, what is open, what today holds. This
+ * reviews three bands: what landed, what is open, what today holds. This
  * module is the contract-first seam between those bands and the substrate:
  *
  *   - `useIndexData()` returns typed bands with a `source.mode` (live/fixture/
@@ -96,7 +96,7 @@ export const INDEX_EPISTEMIC_M3 = false;
  *  tasks) only once M1 lands, with no UI change. */
 export const INDEX_TEMPORAL_M1 = false;
 
-/** A row exposes a decision -- the Needs-you filter. Refile candidates below the
+/** A row exposes a decision, the Needs-you filter. Refile candidates below the
  *  confidence threshold, open questions, tensions, and due-today tasks. */
 export function isNeedsYou(row: IndexRow): boolean {
   if (row.isTension) return true;
@@ -378,7 +378,7 @@ async function fetchLiveIndexData(): Promise<IndexData | null> {
 
 /** The Index data hook. Contract-first: fixture on first paint (server + first
  *  client render, so hydration matches), then swaps to live briefing on mount if
- *  reachable. A down backend keeps the fixture -- callers never change. */
+ *  reachable. A down backend keeps the fixture; callers never change. */
 export function useIndexData(): IndexData {
   const [data, setData] = useState<IndexData>(fixtureIndexData);
 
@@ -463,7 +463,7 @@ export function submitRefile(
   }
   // 2. Durable write (best-effort, fail-open): resolve the destination label to
   //    a collection (create if new). When the item's current collection id is
-  //    known (live), MOVE -- add the new membership and tombstone the old with
+  //    known (live), MOVE: add the new membership and tombstone the old with
   //    provenance retained (commonplace-api moveToCollection). Otherwise add.
   return persistRefile(id, label, currentCollectionId, currentCollectionLabel).then((collectionId) => {
     if (collectionId) recordRefileOverride(id, label, title, collectionId);
@@ -576,7 +576,7 @@ export function destinationsFromData(
    A watch query is a saved search that behaves as a destination: it re-runs a
    real filter over the real rows and shows its live match count. This is the
    surface half of IX6, fully real client-side (localStorage). The engine half --
-   a watch query participating in filing scores like an anchor -- is backend work
+   a watch query participating in filing scores like an anchor, is backend work
    that this seam does not fake. */
 
 export interface WatchQuery {
@@ -655,6 +655,9 @@ function commitWatchQueries(next: readonly WatchQuery[]): void {
 
 function subscribeWatchStore(onChange: () => void): () => void {
   watchListeners.add(onChange);
+  // Refresh on (re)subscribe: a change made while nothing was mounted (so no
+  // storage listener was active) would otherwise leave the cached snapshot stale.
+  watchSnapshot = readWatchQueries();
   const onStorage = (event: StorageEvent) => {
     if (event.key === WATCH_QUERIES_KEY) {
       watchSnapshot = readWatchQueries();

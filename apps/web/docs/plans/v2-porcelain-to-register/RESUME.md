@@ -1,4 +1,4 @@
-# RESUME — v2 porcelain→register migration
+# RESUME: v2 porcelain to register migration
 
 Start here after a context reset. Full plan: `implementation-plan.md` (same dir).
 
@@ -119,12 +119,12 @@ on the Index; composition nesting/orientation (v1 is a flat horizontal row).
 
 - Live briefing returns the same item in multiple bands → `allRows` has dup ids.
   Stream keys by `indexRowKey` (band:id); Table dedupes by id + TanStack `getRowId`.
-- localStorage stores use `useSyncExternalStore` (SSR-safe, lint-clean) — NOT
+- localStorage stores use `useSyncExternalStore` (SSR-safe, lint-clean), NOT
   `useEffect(setState)` (React-Compiler error `set-state-in-effect`).
 - No `Date.now()`/impure calls in render (React-Compiler error). Snapshot via
   `useState(() => Date.now())` or an effect.
 - Reset component state on selection via a remount `key`, not a reset effect.
-- Live data is currently thin (publish-state atoms, no destinations) — the
+- Live data is currently thin (publish-state atoms, no destinations): the
   destination rail shows only "All" live; per-destination rows appear when items
   carry collections. Don't fabricate (repo rule: No Fake UI).
 - Verify: dev server `web` (port 3000) via preview_start; `/v2` at 1440×900;

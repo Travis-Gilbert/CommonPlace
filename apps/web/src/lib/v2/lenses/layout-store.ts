@@ -45,6 +45,8 @@ function writeLayout(widgets: readonly Widget[]): void {
 }
 
 let snapshot: readonly Widget[] | null = null;
+// Monotonic suffix so two adds within the same millisecond cannot collide on id.
+let widgetSeq = 0;
 const listeners = new Set<() => void>();
 
 function currentLayout(): readonly Widget[] {
@@ -60,6 +62,8 @@ function commit(next: readonly Widget[]): void {
 
 function subscribe(onChange: () => void): () => void {
   listeners.add(onChange);
+  // Refresh on (re)subscribe: storage may have changed while nothing was mounted.
+  snapshot = readLayout();
   const onStorage = (event: StorageEvent) => {
     if (event.key === LAYOUT_KEY) {
       snapshot = readLayout();
@@ -82,7 +86,7 @@ export function useIndexLayout(): {
   const widgets = useSyncExternalStore(subscribe, currentLayout, () => DEFAULT_WIDGETS);
 
   const addWidget = (lensId: string) => {
-    commit([...currentLayout(), { id: `w-${Date.now()}`, lensId }]);
+    commit([...currentLayout(), { id: `w-${Date.now().toString(36)}-${widgetSeq++}`, lensId }]);
   };
   const removeWidget = (id: string) => {
     const next = currentLayout().filter((w) => w.id !== id);

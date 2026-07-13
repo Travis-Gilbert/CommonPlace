@@ -59,35 +59,40 @@ function RowSubtitle({
   row: IndexRow;
   destination: IndexRowDestination | null;
 }) {
+  // Tags render on every row that carries them, not only landed/filed ones.
+  const tags = row.tags.map((tag) => <TagChip key={tag} tag={tag} />);
+  const wrap =
+    'mt-[2px] flex flex-wrap items-center gap-x-cr-2 gap-y-[2px] text-cr-caption text-cr-ink-3';
+
   if (row.isTension) {
     return (
-      <span className="mt-[2px] flex flex-wrap items-center gap-x-cr-2 gap-y-[2px] text-cr-caption text-cr-ink-3">
+      <span className={wrap}>
         <span className="inline-flex items-center gap-cr-1 text-cr-signal">
           <span className="size-[5px] rounded-full bg-cr-signal" />
           tension
         </span>
         {row.meta && <span className="text-cr-ink-3">{row.meta}</span>}
+        {tags}
       </span>
     );
   }
   if (row.band === 'landed' && destination) {
     return (
-      <span className="mt-[2px] flex flex-wrap items-center gap-x-cr-2 gap-y-[2px] text-cr-caption text-cr-ink-3">
+      <span className={wrap}>
         <span className="text-cr-ink-3/70">{destination.verb}</span>
         <span className="text-cr-ink-2">{destination.label}</span>
-        {row.tags.map((tag) => (
-          <TagChip key={tag} tag={tag} />
-        ))}
+        {tags}
       </span>
     );
   }
   const word = KIND_WORD[row.kind];
   const showWord = word && row.band === 'open';
-  if (!showWord && !row.meta) return null;
+  if (!showWord && !row.meta && tags.length === 0) return null;
   return (
-    <span className="mt-[2px] flex flex-wrap items-center gap-x-cr-2 gap-y-[2px] text-cr-caption text-cr-ink-3">
+    <span className={wrap}>
       {showWord && <span>{word}</span>}
       {row.meta && <span>{row.meta}</span>}
+      {tags}
     </span>
   );
 }
