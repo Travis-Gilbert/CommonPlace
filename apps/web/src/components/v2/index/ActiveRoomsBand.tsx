@@ -6,7 +6,7 @@
    decoupled from operator.module.css). Renders nothing while loading or when no
    room is active. */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApiData } from '@/lib/commonplace-api';
 import { fetchOperatorState } from '@/lib/theorem-operator-client';
@@ -14,8 +14,13 @@ import { formatAge } from '@/app/v2/operator/parts';
 
 export function ActiveRoomsBand() {
   const { data } = useApiData(() => fetchOperatorState(), [], { cacheKey: 'v2:operator' });
-  // Snapshot "now" once at mount so the elapsed labels are a pure render.
-  const [now] = useState(() => Date.now());
+  // "now" is state, not Date.now() in render (which the render-purity rule flags),
+  // and it ticks on an interval so the elapsed labels stay live while mounted.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const active = (data?.bays ?? []).filter((b) => b.task);
   if (active.length === 0) return null;
 

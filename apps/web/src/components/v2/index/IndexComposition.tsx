@@ -83,7 +83,7 @@ function LensHost({
 export function IndexComposition(lensProps: LensProps) {
   const { widgets, addWidget, removeWidget, setWidgetLens } = useIndexLayout();
   const [addOpen, setAddOpen] = useState(false);
-  const available = availableLenses(fieldPresenceOf(lensProps.rows));
+  const available = availableLenses(fieldPresenceOf(lensProps.rows, lensProps.destinationFor));
   const availableIds = available.map((l) => ({ id: l.id, label: l.label }));
 
   return (

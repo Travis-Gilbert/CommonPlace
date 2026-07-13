@@ -549,15 +549,23 @@ export function rowDestinationKey(row: IndexRow): string | null {
   return row.destinationId ?? row.destination.label;
 }
 
-/** Destinations present in the data, most-populated first. */
-export function destinationsFromData(data: IndexData): readonly IndexDestination[] {
+/** Destinations present in the data, most-populated first. `destinationOf` /
+ *  `keyOf` default to the row's own destination, but a surface holding optimistic
+ *  refile overrides passes override-aware versions so the rail buckets + counts
+ *  follow an edit before a refetch lands. */
+export function destinationsFromData(
+  data: IndexData,
+  destinationOf: (row: IndexRow) => IndexRowDestination | null = (row) => row.destination,
+  keyOf: (row: IndexRow) => string | null = rowDestinationKey,
+): readonly IndexDestination[] {
   const byKey = new Map<string, { label: string; count: number }>();
   for (const row of allRows(data)) {
-    const key = rowDestinationKey(row);
-    if (!key || !row.destination) continue;
+    const key = keyOf(row);
+    const dest = destinationOf(row);
+    if (!key || !dest) continue;
     const entry = byKey.get(key);
     if (entry) entry.count += 1;
-    else byKey.set(key, { label: row.destination.label, count: 1 });
+    else byKey.set(key, { label: dest.label, count: 1 });
   }
   return [...byKey.entries()]
     .map(([key, { label, count }]) => ({ key, label, count }))

@@ -45,8 +45,8 @@ const TH =
   'border-b border-cr-hairline bg-cr-ground px-cr-2 py-cr-1 text-left font-cr-mono text-cr-caption ' +
   'uppercase tracking-[0.06em] text-cr-ink-3';
 
-export function TableLens({ rows, selectedKey, onSelect }: LensProps) {
-  const fields = useMemo(() => fieldPresenceOf(rows), [rows]);
+export function TableLens({ rows, selectedKey, onSelect, destinationFor }: LensProps) {
+  const fields = useMemo(() => fieldPresenceOf(rows, destinationFor), [rows, destinationFor]);
 
   const columns = useMemo<ColumnDef<IndexRow>[]>(() => {
     const cols: ColumnDef<IndexRow>[] = [
@@ -81,7 +81,9 @@ export function TableLens({ rows, selectedKey, onSelect }: LensProps) {
       cols.push({
         id: 'destination',
         header: 'Filed to',
-        accessorFn: (r) => r.destination?.label ?? '',
+        // Override-aware: an inspector Refile or a Board drag updates this column
+        // immediately, so the Table agrees with the rest of the composition.
+        accessorFn: (r) => destinationFor(r)?.label ?? '',
         cell: (info) => <span className="text-cr-ink-2">{info.getValue<string>()}</span>,
       });
     }
@@ -118,7 +120,7 @@ export function TableLens({ rows, selectedKey, onSelect }: LensProps) {
       });
     }
     return cols;
-  }, [fields]);
+  }, [fields, destinationFor]);
 
   // The same item can land in more than one band (recent and open both); a table
   // of items shows it once, so dedupe by id here (the Stream keeps it per band).

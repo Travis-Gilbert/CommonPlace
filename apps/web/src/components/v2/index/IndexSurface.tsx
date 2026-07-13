@@ -63,15 +63,28 @@ export function IndexSurface() {
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<'all' | 'needs'>('all');
   const [activeDestination, setActiveDestination] = useState<string | null>(null);
-  const destinations = destinationsFromData(data);
   const watch = useWatchQueries();
+
+  // The effective destination of a row, applying an optimistic refile override so
+  // the rail filter, the rail counts, and every lens agree with the edit before a
+  // refetch lands. destinationKeyFor mirrors rowDestinationKey but prefers the
+  // override's resolved collection id (else its label), so a refiled row moves
+  // between rail buckets immediately.
+  const destinationFor = (row: IndexRow): IndexRowDestination | null =>
+    overrides[row.id]?.destination ?? row.destination;
+  const destinationKeyFor = (row: IndexRow): string | null => {
+    const override = overrides[row.id];
+    if (override) return override.collectionId ?? override.destination.label;
+    return rowDestinationKey(row);
+  };
+  const destinations = destinationsFromData(data, destinationFor, destinationKeyFor);
 
   // The shell owns the filters; every lens in the composition renders the same
   // filtered rows. (Per-widget queries join this when widgets bind to their own
   // scope; v1 binds them all to the Index query.)
   const filteredRows = rows.filter((row) => {
     if (tab === 'needs' && !isNeedsYou(row)) return false;
-    if (activeDestination !== null && rowDestinationKey(row) !== activeDestination) return false;
+    if (activeDestination !== null && destinationKeyFor(row) !== activeDestination) return false;
     return rowMatchesQuery(row, query);
   });
 
@@ -84,8 +97,6 @@ export function IndexSurface() {
   };
 
   const selected = rows.find((r) => indexRowKey(r) === selectedKey) ?? null;
-  const destinationFor = (row: IndexRow): IndexRowDestination | null =>
-    overrides[row.id]?.destination ?? row.destination;
 
   const handleRefile = (label: string) => {
     if (!selected) return;

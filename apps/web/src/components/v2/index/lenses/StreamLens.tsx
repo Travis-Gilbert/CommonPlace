@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   FileText,
   Link2,
@@ -172,6 +173,12 @@ function Band({
 
 export function StreamLens({ rows, selectedKey, onSelect, destinationFor }: LensProps) {
   const total = rows.length;
+  // Group by band in one pass rather than filtering the whole list once per band.
+  const byBand = useMemo(() => {
+    const groups: Record<IndexBandId, IndexRow[]> = { landed: [], open: [], today: [] };
+    for (const row of rows) groups[row.band]?.push(row);
+    return groups;
+  }, [rows]);
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-cr-surface">
       {total === 0 ? (
@@ -184,7 +191,7 @@ export function StreamLens({ rows, selectedKey, onSelect, destinationFor }: Lens
             <Band
               key={band}
               band={band}
-              rows={rows.filter((r) => r.band === band)}
+              rows={byBand[band]}
               selectedKey={selectedKey}
               onSelect={onSelect}
               destinationFor={destinationFor}

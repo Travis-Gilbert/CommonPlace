@@ -29,10 +29,15 @@ export interface FieldPresence {
   readonly hasTags: boolean;
 }
 
-export function fieldPresenceOf(rows: readonly IndexRow[]): FieldPresence {
+export function fieldPresenceOf(
+  rows: readonly IndexRow[],
+  destinationOf: (row: IndexRow) => IndexRowDestination | null = (row) => row.destination,
+): FieldPresence {
   return {
     count: rows.length,
-    hasDestination: rows.some((r) => r.destination !== null),
+    // Override-aware, so a refiled row keeps the destination-bearing lenses
+    // (Table, Board) available even when its original destination was null.
+    hasDestination: rows.some((r) => destinationOf(r) !== null),
     hasDate: rows.some((r) => r.when !== undefined),
     // IndexRow carries no status field yet, so status-only lenses (Kanban) stay
     // unavailable until the substrate adds one. This flips to a real check then.
