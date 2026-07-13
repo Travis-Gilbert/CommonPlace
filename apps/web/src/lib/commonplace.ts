@@ -215,7 +215,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         icon: 'chat',
         mode: 'view',
         viewType: 'agent-thread',
-        viewContext: { agentId: 'theorem', agentMode: 'api' },
+        viewContext: { agentId: 'theorem', agentMode: 'acp' },
       },
       { label: 'Library', href: '#library', icon: 'grid', mode: 'screen', screenType: 'library' },
       {
@@ -320,7 +320,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
             icon: 'sparkle',
             mode: 'view',
             viewType: 'agent-thread',
-            viewContext: { agentId: 'theorem', agentMode: 'api' },
+            viewContext: { agentId: 'theorem', agentMode: 'acp' },
           },
           {
             label: 'Providers',

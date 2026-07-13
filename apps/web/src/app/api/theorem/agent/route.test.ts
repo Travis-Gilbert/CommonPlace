@@ -330,7 +330,7 @@ describe('POST /api/theorem/agent', () => {
 
     expect(response.status).toBe(200);
     expect(calls).toEqual([
-      'https://app.theoremharness.com/v1/theorem/agent/run',
+      'https://rustyredcore-theorem-production.up.railway.app/v1/theorem/agent/run',
     ]);
   });
 

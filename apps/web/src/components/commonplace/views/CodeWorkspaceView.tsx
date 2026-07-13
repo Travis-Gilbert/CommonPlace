@@ -5,8 +5,8 @@ import AgentThreadView from './AgentThreadView';
 
 const trackedScopes = [
   { label: 'CommonPlace app', path: 'apps/web', state: 'active' },
-  { label: 'Agent route', path: '/api/theorem/agent', state: 'wired' },
-  { label: 'ACP dock', path: '/api/commonplace/acp/ws', state: 'available' },
+  { label: 'Agent route', path: '/v1/commonplace/acp/ws', state: 'wired' },
+  { label: 'JSON fallback', path: '/api/theorem/agent', state: 'available' },
   { label: 'Rust substrate', path: 'crates/commonplace-*', state: 'indexed' },
 ];
 
@@ -47,7 +47,7 @@ export default function CodeWorkspaceView() {
         </aside>
 
         <main style={styles.agentPanel} aria-label="Code agent">
-          <AgentThreadView agentId="theorem" agentMode="api" />
+          <AgentThreadView agentId="theorem" agentMode="acp" />
         </main>
 
         <aside style={styles.runPanel} aria-label="Run state">
