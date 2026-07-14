@@ -70,7 +70,7 @@ describe('POST /api/rustyweb/search', () => {
     expect(response.status).toBe(200);
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(
-      'https://app.theoremharness.com/v1/rustyweb/search',
+      'https://api.theoremharness.com/v1/rustyweb/search',
     );
     expect(calls[0].body).toMatchObject({
       query: 'testing',
