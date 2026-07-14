@@ -12,7 +12,7 @@
    The IA names @pierre/trees for the production tree (drag, reorder, virtualize);
    it is installed and swaps in when those affordances are needed. */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChevronRight,
   Folder,
@@ -174,7 +174,7 @@ function TreeRows({
 }
 
 export default function FilesPage() {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['zoning']));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['zoning', 'harness-memory']));
   const [selected, setSelected] = useState<Node | null>(null);
   // Fold in refile corrections already made this session, then listen live.
   const [tree, setTree] = useState<Node[]>(() =>
@@ -200,6 +200,34 @@ export default function FilesPage() {
     setTree(next);
     if (folderId) setExpanded((prev) => new Set(prev).add(folderId));
   });
+
+  // Forward OKF bridge: real RustyRed harness memory documents surface here as
+  // OKF files, grouped by kind under a "Harness Memory" folder. Fetched from the
+  // same /api/theorem/harness/memory-files route the commonplace Files view uses;
+  // an unavailable harness leaves the seeded tree untouched.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/theorem/harness/memory-files', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (cancelled || !body || !Array.isArray(body.files) || body.files.length === 0) return;
+        const byKind = new Map<string, Node[]>();
+        for (const file of body.files as Array<{ docId: string; kind: string; title: string }>) {
+          const kind = file.kind || 'memory';
+          const leaf: Node = { id: `mem:${file.docId}`, name: file.title || file.docId, kind: 'note' };
+          byKind.set(kind, [...(byKind.get(kind) ?? []), leaf]);
+        }
+        const kindFolders: Node[] = [...byKind.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([kind, leaves]) => ({ id: `hm:${kind}`, name: kind, children: leaves }));
+        const root: Node = { id: 'harness-memory', name: 'Harness Memory', children: kindFolders };
+        setTree((prev) => [root, ...prev.filter((node) => node.id !== 'harness-memory')]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggle = (id: string) =>
     setExpanded((prev) => {

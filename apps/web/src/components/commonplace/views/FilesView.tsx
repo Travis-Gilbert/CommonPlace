@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { FileSystem, type FileSystemItem } from '@/components/ui/file-system';
 import { useApiData } from '@/lib/commonplace-api';
 import { gqlItems, type ItemGql } from '@/lib/commonplace-graphql';
+import { fetchHarnessMemoryFiles } from '@/lib/harness-memory-files';
 import { useCapture } from '@/lib/providers/capture-provider';
 import { useDrawer } from '@/lib/providers/drawer-provider';
 import { useSelection } from '@/lib/providers/selection-provider';
@@ -85,7 +86,16 @@ export default function FilesView() {
   const { openDrawer } = useDrawer();
   const { selectedItems, selectSingle } = useSelection();
   const { data: items } = useApiData(() => gqlItems(), [captureVersion], { cacheKey: 'files:items' });
-  const allItems = useMemo(() => items ?? [], [items]);
+  // Forward OKF bridge: RustyRed harness memory documents surface here as
+  // read-through OKF files, grouped under a "Harness Memory" folder. Theorem
+  // stays the source of truth; an unavailable harness degrades to an empty set.
+  const { data: memoryFiles } = useApiData(() => fetchHarnessMemoryFiles(), [], {
+    cacheKey: 'files:harness-memory',
+  });
+  const allItems = useMemo(
+    () => [...(items ?? []), ...(memoryFiles ?? [])],
+    [items, memoryFiles],
+  );
   const itemById = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
   const selectedItem = useMemo(() => {
     const selectedId = [...selectedItems].find((id) => itemById.has(id));
