@@ -134,9 +134,11 @@ Spec: HP2. The ground to surface step is 2.2 OKLCH L, below perceptual threshold
 - Consumes: from `@travis-gilbert/markdown-theory/tokens`: `console`, `emitCss`, `CONSOLE_AXES`, `resolveAxes`, `defaultBands`, `buildPalette`, `generateRegister`, `DEFAULT_TARGETS`, `wcagContrast`, `oklchCss`. `wcagContrast(a: Oklch, b: Oklch): number`. `Oklch` is `{ l: number; c: number; h: number }` with `l` in `[0,1]`.
 - Produces: a regenerated `console-register.css` with a wider `--cr-ground` step and a green on-ground contrast gate in the build.
 
-- [ ] **Step 1: Confirm the band override entry point**
+**Shipped approach (verified 2026-07-14, supersedes the band route below):** `defaultBands(axes)` returns the ink and accent lightness *search* bands (`{ ink: {lo,hi}, accent: {lo,hi} }`), not the plane anchors; the ground/surface/top steps are fixed inside `buildPalette` and are not caller-overridable. Since the ground plane does not feed ink solving (ink is solved against surface), the clean move is to post-process the ground on the stock register: parse `stock.palette.ground` OKLCH, subtract `GROUND_DROP = 0.03` L, spread into a new palette, and emit. On-ground AA is then asserted with `wcagContrast(role, ground)` at targets ink 4.5, ink2 4.5, ink3 3, signal 3, link 3 (ink and ink2 carry the small nav text; ink3/signal/link are faint apparatus or the large wordmark accent, matching the register's own ink3 target of 3). Measured result: ground 91.5%, delta 0.052 OKLCH L, all pairs AA on both planes. See the shipped `apps/web/scripts/build-register.mjs` for the exact code.
 
-Read `node_modules/.pnpm/@travis-gilbert+markdown-theory@0.1.2*/node_modules/@travis-gilbert/markdown-theory/dist/tokens/index.d.ts` and confirm the exact way to supply widened bands to the full register: either `generateRegister(partial, opts)` accepting a bands override in `GenerateOptions`, or `buildPalette(axes, DEFAULT_TARGETS, bands)` composed into the register. Use whichever the package exposes; the reference implementation below uses `defaultBands` plus `buildPalette` and falls back to composing the palette into the register the same way `console()` does.
+- [ ] **Step 1: Confirm the plane widening mechanism**
+
+Confirm the above against the package d.ts and the running generator. The stock on-surface pairs are unchanged by darkening the ground; only the new on-ground pairs are added.
 
 - [ ] **Step 2: Write the failing plane oracle**
 
