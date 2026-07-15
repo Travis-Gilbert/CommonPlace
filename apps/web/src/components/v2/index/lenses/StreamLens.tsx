@@ -114,7 +114,7 @@ function Row({
       type="button"
       aria-current={selected ? 'true' : undefined}
       onClick={() => onSelect(indexRowKey(row))}
-      className="group flex min-h-row w-full items-center gap-cr-2 rounded-cr border border-transparent px-cr-2 py-cr-2 text-left transition-colors duration-chrome ease-cr hover:bg-cr-top aria-[current=true]:border-cr-hairline aria-[current=true]:bg-cr-top focus-visible:[outline:2px_solid_var(--cr-signal)] focus-visible:outline-offset-[-2px]"
+      className="group flex min-h-row w-full items-center gap-cr-2 rounded-cr border border-transparent px-cr-2 py-cr-1 text-left transition-colors duration-chrome ease-cr hover:bg-cr-top aria-[current=true]:border-cr-hairline aria-[current=true]:bg-cr-top focus-visible:[outline:2px_solid_var(--cr-signal)] focus-visible:outline-offset-[-2px]"
     >
       {row.band === 'today' ? (
         <span
@@ -191,7 +191,7 @@ export function StreamLens({ rows, selectedKey, onSelect, destinationFor }: Lens
           Nothing matches. Clear the filter, or widen the search.
         </p>
       ) : (
-        <div className="flex flex-col gap-cr-3 px-cr-3 py-cr-2">
+        <div className="flex flex-col gap-cr-2 px-cr-3 py-cr-2">
           {BAND_ORDER.map((band) => (
             <Band
               key={band}

@@ -80,3 +80,40 @@ test.describe('HP2 plane separation', () => {
     expect(Math.abs(surfaceL! - groundL!)).toBeGreaterThanOrEqual(PLANE_MIN_DELTA);
   });
 });
+
+test.describe('HP4 divider subordination', () => {
+  test('a section divider label is smaller than a row title and no heavier', async ({ page }) => {
+    await gotoIndex(page);
+    const r = await page.evaluate(() => {
+      const divider = [...document.querySelectorAll('.font-cr-mono')]
+        .find((e) => (e.textContent || '').trim().toLowerCase() === 'landed');
+      const rowTitle = [...document.querySelectorAll('.font-cr-ui')]
+        .find((e) => /Ordinance 24-113/.test(e.textContent || ''));
+      const cs = (el: Element | null | undefined) => (el ? getComputedStyle(el) : null);
+      const d = cs(divider), t = cs(rowTitle);
+      return d && t ? { dPx: parseFloat(d.fontSize), tPx: parseFloat(t.fontSize), dW: parseInt(d.fontWeight, 10), tW: parseInt(t.fontWeight, 10) } : null;
+    });
+    expect(r, 'divider and row title present').toBeTruthy();
+    expect(r!.dPx).toBeLessThan(r!.tPx);
+    expect(r!.dW).toBeLessThanOrEqual(r!.tW);
+  });
+});
+
+test.describe('HP5 empty-state restraint', () => {
+  test('the inspector empty state renders at most body size', async ({ page }) => {
+    await gotoIndex(page);
+    // With nothing selected, the inspector shows its empty message.
+    const info = await page.evaluate(() => {
+      // Target the element that actually renders the text (a <p>), not an
+      // ancestor: an ancestor inherits the console base (15px) and would mask a
+      // regression that bumped the message itself to body size.
+      const el = [...document.querySelectorAll('p')]
+        .find((e) => (e.textContent || '').startsWith('Select something to see how it was filed'));
+      if (!el) return null;
+      return { px: parseFloat(getComputedStyle(el).fontSize) };
+    });
+    expect(info, 'inspector empty state present').toBeTruthy();
+    // Body size at the console 15px base is 15px; empty states must not exceed it.
+    expect(info!.px).toBeLessThanOrEqual(15);
+  });
+});
