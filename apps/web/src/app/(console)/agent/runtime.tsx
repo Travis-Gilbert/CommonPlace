@@ -110,5 +110,5 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function toSerializableState(state: TheoremAgentState) {
-  return JSON.parse(JSON.stringify(state));
+  return structuredClone(state) as any;
 }

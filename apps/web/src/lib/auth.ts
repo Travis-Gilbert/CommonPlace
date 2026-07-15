@@ -4,10 +4,10 @@ import GitHub from 'next-auth/providers/github';
 // Only allow Travis's GitHub account to authenticate.
 // All other GitHub users are rejected at sign-in.
 const ALLOWED_GITHUB_USERNAME = 'Travis-Gilbert';
-const LOCAL_AUTH_SECRET = 'commonplace-local-dev-only-change-me';
+const LOCAL_DEV_ONLY_AUTH_SECRET = 'UNSAFE_LOCAL_DEV_ONLY_CHANGE_ME';
 const authSecret =
   process.env.AUTH_SECRET
-  ?? (process.env.NODE_ENV === 'production' ? undefined : LOCAL_AUTH_SECRET);
+  ?? (process.env.NODE_ENV === 'production' ? undefined : LOCAL_DEV_ONLY_AUTH_SECRET);
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   secret: authSecret,
