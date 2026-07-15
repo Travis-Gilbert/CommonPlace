@@ -26,6 +26,18 @@
   font-size: var(--cr-base);
 }
 
+/* Console chrome headings resolve to the UI face. The site-wide unlayered
+   h1..h6 { font-family: var(--font-title) } rule (global.css) outranks Tailwind's
+   layered .font-cr-ui utility on every semantic heading, because unlayered wins
+   over layered regardless of specificity; that is why StreamLens h2 titles
+   render serif even though they carry font-cr-ui. This console-scoped, higher
+   specificity, unlayered rule reclaims them. `inherit` means chrome headings
+   follow .porcelain (the UI face) while a Galley document body, which sets its
+   own font-family, keeps its prose serif automatically. */
+.porcelain :is(h1, h2, h3, h4, h5, h6) {
+  font-family: inherit;
+}
+
 /* Selection + focus speak in the register's signal. */
 .porcelain ::selection {
   background: var(--cr-tint);
