@@ -12,7 +12,7 @@
    The IA names @pierre/trees for the production tree (drag, reorder, virtualize);
    it is installed and swaps in when those affordances are needed. */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronRight,
   Folder,
@@ -24,9 +24,12 @@ import {
   StickyNote,
 } from 'lucide-react';
 import { refileOverrideList, useRefileSignal } from '@/lib/commonplace/index-queries';
+import { useHarnessMemoryDeltas } from '@/lib/harness-changefeed';
+import type { HarnessMemoryFile, HarnessMemoryFilesResponse } from '@/lib/harness-memory-files';
+import { MemoryReader } from './reader';
 import styles from './files.module.css';
 
-type Node = { id: string; name: string; kind?: string; children?: Node[] };
+type Node = { id: string; name: string; kind?: string; docId?: string; children?: Node[] };
 
 /** Move the first leaf matching `matches` into a top-level folder named
  *  `folderName` (created if absent). Returns the new tree and the destination
@@ -173,9 +176,41 @@ function TreeRows({
   );
 }
 
+/* Build the "Harness Memory" subtree from the lean listing, grouping by the
+   pinned projection path (SPEC-HARNESS-MEMORY-PROJECTION D5). The path is
+   `Harness Memory/{slug(kind)}/{doc_id}.md`, so splitting on "/" yields the kind
+   folder segment and the leaf. Leaf identity is the doc_id (via projectionPath),
+   never the title: a retitle changes the display name but not the tree position.
+   Returns null when there are no memory files, so an unavailable or unset harness
+   leaves the seeded tree untouched. */
+function buildHarnessTree(files: HarnessMemoryFile[]): Node | null {
+  if (files.length === 0) return null;
+  const folders = new Map<string, Node[]>();
+  for (const file of files) {
+    const parts = file.projectionPath.split('/');
+    const kindSegment = parts.length >= 2 ? parts[1] : file.kind || 'memory';
+    const leaf: Node = {
+      id: `mem:${file.docId}`,
+      name: file.title || file.docId,
+      kind: 'note',
+      docId: file.docId,
+    };
+    folders.set(kindSegment, [...(folders.get(kindSegment) ?? []), leaf]);
+  }
+  const kindFolders: Node[] = [...folders.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([segment, leaves]) => ({
+      id: `hm:${segment}`,
+      name: segment,
+      children: leaves.sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+  return { id: 'harness-memory', name: 'Harness Memory', children: kindFolders };
+}
+
 export default function FilesPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['zoning', 'harness-memory']));
   const [selected, setSelected] = useState<Node | null>(null);
+  const [memoryFiles, setMemoryFiles] = useState<HarnessMemoryFile[]>([]);
   // Fold in refile corrections already made this session, then listen live.
   const [tree, setTree] = useState<Node[]>(() =>
     refileOverrideList().reduce(
@@ -202,32 +237,41 @@ export default function FilesPage() {
   });
 
   // Forward OKF bridge: real RustyRed harness memory documents surface here as
-  // OKF files, grouped by kind under a "Harness Memory" folder. Fetched from the
-  // same /api/theorem/harness/memory-files route the commonplace Files view uses;
-  // an unavailable harness leaves the seeded tree untouched.
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/theorem/harness/memory-files', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => {
-        if (cancelled || !body || !Array.isArray(body.files) || body.files.length === 0) return;
-        const byKind = new Map<string, Node[]>();
-        for (const file of body.files as Array<{ docId: string; kind: string; title: string }>) {
-          const kind = file.kind || 'memory';
-          const leaf: Node = { id: `mem:${file.docId}`, name: file.title || file.docId, kind: 'note' };
-          byKind.set(kind, [...(byKind.get(kind) ?? []), leaf]);
-        }
-        const kindFolders: Node[] = [...byKind.entries()]
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([kind, leaves]) => ({ id: `hm:${kind}`, name: kind, children: leaves }));
-        const root: Node = { id: 'harness-memory', name: 'Harness Memory', children: kindFolders };
-        setTree((prev) => [root, ...prev.filter((node) => node.id !== 'harness-memory')]);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+  // OKF files under a "Harness Memory" folder, grouped by their pinned projection
+  // path. This listing read is the authoritative convergence floor: an
+  // unavailable or unset harness leaves the seeded tree untouched.
+  const loadMemoryFiles = useCallback(async () => {
+    try {
+      const response = await fetch('/api/theorem/harness/memory-files', { cache: 'no-store' });
+      if (!response.ok) return;
+      const body = (await response.json()) as HarnessMemoryFilesResponse;
+      setMemoryFiles(body.source === 'live' ? body.files : []);
+    } catch {
+      /* leave the last known listing in place; the next read reconverges */
+    }
   }, []);
+
+  useEffect(() => {
+    // The mount read is the convergence floor. loadMemoryFiles setStates only
+    // after its fetch resolves (async), not synchronously, so this is not the
+    // render cascade the rule guards against; it is shared with the delta
+    // refetch below, so inlining it here would duplicate the fetch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadMemoryFiles();
+  }, [loadMemoryFiles]);
+
+  // A memory delta (rememberMemory / forgetMemory from Claude Code) is an
+  // invalidation, not a patch: re-read the authoritative listing, debounced so a
+  // burst of deltas coalesces into one read. Live deltas require the deployed
+  // harness to enable its changefeed flags; absent them the mount read still
+  // converges.
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useHarnessMemoryDeltas(
+    useCallback(() => {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+      refetchTimer.current = setTimeout(() => void loadMemoryFiles(), 500);
+    }, [loadMemoryFiles]),
+  );
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -236,6 +280,13 @@ export default function FilesPage() {
       else next.add(id);
       return next;
     });
+
+  // The harness memory folder (live, listing-derived) leads; the seeded tree
+  // follows. Keyed separately so a refile on the seed tree never disturbs it.
+  const harnessRoot = useMemo(() => buildHarnessTree(memoryFiles), [memoryFiles]);
+  const displayTree = harnessRoot
+    ? [harnessRoot, ...tree.filter((node) => node.id !== 'harness-memory')]
+    : tree;
 
   return (
     <>
@@ -255,7 +306,7 @@ export default function FilesPage() {
           <div className={styles.wellTitle}>Tree</div>
           <div className={styles.tree}>
             <TreeRows
-              nodes={tree}
+              nodes={displayTree}
               depth={0}
               expanded={expanded}
               toggle={toggle}
@@ -266,7 +317,9 @@ export default function FilesPage() {
         </aside>
 
         <section className={styles.reader}>
-          {selected ? (
+          {selected?.docId ? (
+            <MemoryReader key={selected.docId} docId={selected.docId} />
+          ) : selected ? (
             <>
               <div className={styles.readerName}>{selected.name}</div>
               <div className={styles.readerHint}>
