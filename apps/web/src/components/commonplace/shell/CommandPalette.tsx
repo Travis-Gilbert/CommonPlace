@@ -52,8 +52,8 @@ const AGENT_LAUNCH_ITEMS: AgentLaunchItem[] = [
     agentId: 'theorem',
     command: '/agent',
     label: 'CommonPlace Chat',
-    hint: 'Open the API-backed chat surface',
-    mode: 'api',
+    hint: 'Open Theorem through its ACP chat runtime',
+    mode: 'acp',
   },
   ...ACP_AGENTS.map((agent) => ({
     ...agent,
@@ -185,7 +185,7 @@ export default function CommandPalette() {
   const handleAction = useCallback(
     (viewType: ViewType) => {
       if (viewType === 'agent-thread') {
-        launchView(viewType, { agentId: 'theorem', agentMode: 'api' });
+        launchView(viewType, { agentId: 'theorem', agentMode: 'acp' });
       } else {
         launchView(viewType);
       }

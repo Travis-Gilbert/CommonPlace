@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { SCENE_PACKAGE_V2_FIXTURE } from '@/lib/scene-package';
-import { sceneFromAcpUpdate } from './commonplace-acp';
+import { acpAgentLabel, sceneFromAcpUpdate } from './commonplace-acp';
+
+describe('acpAgentLabel', () => {
+  it('names the composed product agent Theorem', () => {
+    expect(acpAgentLabel('theorem')).toBe('Theorem');
+    expect(acpAgentLabel('composed')).toBe('Theorem');
+  });
+});
 
 describe('sceneFromAcpUpdate', () => {
   it('extracts render_scene raw_output from ACP tool-call updates', () => {

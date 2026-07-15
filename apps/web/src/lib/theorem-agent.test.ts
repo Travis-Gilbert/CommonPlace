@@ -12,6 +12,7 @@ describe('runTheoremAgent', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
     vi.restoreAllMocks();
   });
 
@@ -87,5 +88,37 @@ describe('runTheoremAgent', () => {
       }),
       expect.any(AbortSignal),
     );
+  });
+
+  it('falls back to GraphQL when the product route exceeds its response window', async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          error: 'theorem_agent_timeout',
+          message: 'Theorem agent run exceeded the HTTP response window.',
+        }),
+        {
+          status: 504,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }) as typeof fetch;
+    vi.mocked(gqlTheoremAgent).mockResolvedValue({
+      answer: 'GraphQL completed the slow turn.',
+      answerKind: 'MODEL',
+      bindingId: 'agent:theorem:slow',
+      runId: 'run:slow',
+      heads: ['theorem'],
+      claims: [],
+      evidenceCount: 0,
+    });
+
+    const result = await runTheoremAgent({
+      task: 'Complete a slow composed turn.',
+      bindingId: 'agent:theorem:slow',
+    });
+
+    expect(result.answer).toBe('GraphQL completed the slow turn.');
+    expect(gqlTheoremAgent).toHaveBeenCalledOnce();
   });
 });
