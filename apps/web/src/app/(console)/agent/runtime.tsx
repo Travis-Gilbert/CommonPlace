@@ -110,13 +110,5 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function toSerializableState(state: TheoremAgentState) {
-  return {
-    ...state,
-    messages: state.messages.map((message) => ({
-      ...message,
-      contributions: message.contributions.map((contribution) => ({ ...contribution })),
-      toolCalls: message.toolCalls.map((toolCall) => ({ ...toolCall })),
-    })),
-    pendingPermission: state.pendingPermission ? { ...state.pendingPermission } : null,
-  };
+  return JSON.parse(JSON.stringify(state));
 }
