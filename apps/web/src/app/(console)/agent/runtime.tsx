@@ -4,7 +4,8 @@ import { useMemo } from 'react';
 import {
   useAssistantTransportRuntime,
   type AssistantRuntime,
-  type ThreadMessageLike,
+  type ThreadAssistantMessage,
+  type ThreadMessage,
 } from '@assistant-ui/react';
 
 import type { TheoremAgentState } from '@/server/acp/state';
@@ -43,7 +44,7 @@ function createConverter() {
         toThreadMessage(message, state.turnStatus, index === activeAssistantIndex),
       ),
       isRunning: state.turnStatus === 'running',
-      state,
+      state: toSerializableState(state),
     };
   };
 }
@@ -52,41 +53,45 @@ function toThreadMessage(
   message: TheoremAgentState['messages'][number],
   turnStatus: TheoremAgentState['turnStatus'],
   isLatestAssistant: boolean,
-): ThreadMessageLike {
+): ThreadMessage {
   if (message.role === 'user') {
     return {
       id: message.id,
+      createdAt: new Date(message.createdAt),
       role: 'user',
       content: [{ type: 'text', text: message.text }],
+      attachments: [],
+      metadata: { custom: {} },
     };
   }
-  const dataParts = message.contributions.map((contribution) => ({
-    type: 'data-head-contribution',
-    data: {
-      headId: contribution.headId,
-      summary: contribution.summary,
-      at: contribution.at,
-    },
-  }));
   const toolParts = message.toolCalls.map((toolCall) => ({
     type: 'tool-call' as const,
     toolCallId: toolCall.callId,
     toolName: toolCall.name,
     args: asRecord(toolCall.rawInput),
+    argsText: JSON.stringify(asRecord(toolCall.rawInput)),
     ...(toolCall.rawOutput === undefined ? {} : { result: toolCall.rawOutput }),
   }));
   const textParts = message.text ? [{ type: 'text' as const, text: message.text }] : [];
   const status = messageStatus(isLatestAssistant ? turnStatus : 'complete');
   return {
     id: message.id,
+    createdAt: new Date(message.createdAt),
     role: 'assistant',
-    content: [...dataParts, ...toolParts, ...textParts] as unknown as ThreadMessageLike['content'],
+    content: [...toolParts, ...textParts] as ThreadAssistantMessage['content'],
     status:
       status === 'running'
         ? { type: 'running' }
         : status === 'complete'
           ? { type: 'complete', reason: 'stop' }
           : { type: 'incomplete', reason: 'error' },
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
   };
 }
 
@@ -102,4 +107,16 @@ function messageStatus(turnStatus: TheoremAgentState['turnStatus']): 'running' |
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function toSerializableState(state: TheoremAgentState) {
+  return {
+    ...state,
+    messages: state.messages.map((message) => ({
+      ...message,
+      contributions: message.contributions.map((contribution) => ({ ...contribution })),
+      toolCalls: message.toolCalls.map((toolCall) => ({ ...toolCall })),
+    })),
+    pendingPermission: state.pendingPermission ? { ...state.pendingPermission } : null,
+  };
 }

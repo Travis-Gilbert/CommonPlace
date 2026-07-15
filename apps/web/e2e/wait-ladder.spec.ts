@@ -67,6 +67,8 @@ test.describe('WL-5 wait ladder: no indeterminate spinner beyond 10s', () => {
       el.setAttribute('role', 'status');
       el.setAttribute('aria-label', 'Thinking');
       el.id = 'cp-e2e-synthetic-spinner';
+      el.textContent = 'Thinking';
+      el.style.cssText = 'position:fixed;left:8px;top:8px;display:block;min-width:1px;min-height:1px;z-index:2147483647;';
       document.body.appendChild(el);
       window.setTimeout(() => el.remove(), 12_000);
     });

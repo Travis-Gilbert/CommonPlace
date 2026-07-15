@@ -27,6 +27,7 @@ export type PendingPermission = {
 export type TheoremAgentMessage = {
   id: string;
   role: 'user' | 'assistant';
+  createdAt: number;
   text: string;
   contributions: HeadContribution[];
   toolCalls: BridgeToolCall[];
@@ -52,7 +53,7 @@ export type AcpSessionUpdate = {
   status?: string;
 };
 
-const thoughtPrefix = /^\[([^\]]+)\]\s*(.*)$/s;
+const thoughtPrefix = /^\[([^\]]+)\]\s*([\s\S]*)$/;
 
 export function createTheoremAgentState(
   key: Pick<AgentProcessKey, 'mode' | 'bindingId'>,
@@ -217,6 +218,7 @@ function createMessage(role: 'user' | 'assistant', text: string): TheoremAgentMe
   return {
     id: `${role}-${crypto.randomUUID()}`,
     role,
+    createdAt: Date.now(),
     text,
     contributions: [],
     toolCalls: [],
