@@ -1,18 +1,16 @@
-/* Chat — Theorem's real-time CommonPlace surface.
+/* Chat: Theorem's realtime CommonPlace surface.
 
-   Theorem runs through the product ACP WebSocket so chat and coding share one
-   transcript contract: streamed text, tool updates, reviewed file writes, and
-   command approvals. AgentThreadView retains the JSON agent route as a startup
-   fallback while a backend deployment is unavailable. */
+   A persistent Node bridge owns the ACP child process. The browser receives
+   projected state snapshots for text, tool activity, and permission approval. */
 
-import AgentThreadView from '@/components/commonplace/views/AgentThreadView';
+import { TheoremAgentThread } from '@/components/agent/theorem-agent-thread';
 import styles from './chat.module.css';
 
 export default function ChatPage() {
   return (
     <div className={styles.wrap}>
       <div className={`${styles.bridge} ${styles.threadFrame}`}>
-        <AgentThreadView agentId="theorem" agentMode="acp" />
+        <TheoremAgentThread />
       </div>
     </div>
   );
