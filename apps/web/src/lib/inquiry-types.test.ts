@@ -15,7 +15,6 @@ function minimalSnapshot(overrides: Partial<InquirySnapshot> = {}): InquirySnaps
     surface: 'index',
     scope_refs: [],
     effective_web_policy: 'enabled',
-    query_variants: [],
     evidence: [],
     result_lanes: [],
     retrieval_status: 'ready',

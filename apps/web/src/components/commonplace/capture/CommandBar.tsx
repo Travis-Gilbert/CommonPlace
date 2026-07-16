@@ -15,7 +15,7 @@ import {
   type InquiryResultData,
 } from '@/lib/commonplace-api';
 import InquiryModelActions from '@/components/inquiry/InquiryModelActions';
-import InquiryProgress from '@/components/inquiry/InquiryProgress';
+import InquiryProgressView from '@/components/inquiry/InquiryProgress';
 import InquiryResultView from '@/components/inquiry/InquiryResultView';
 import { useInquiryRuntime } from '@/components/inquiry/useInquiryRuntime';
 import {
@@ -764,7 +764,7 @@ export default function CommandBar({
       )}
 
       {inquiry.loading ? (
-        <InquiryProgress query={trimmed || query} status="running" />
+        <InquiryProgressView query={trimmed || query} status="running" />
       ) : null}
 
       {inquiry.error && !inquiry.snapshot ? (
