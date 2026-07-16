@@ -1,16 +1,13 @@
 'use client';
 
-import {
-  useAssistantTransportSendCommand,
-  useAssistantTransportState,
-} from '@assistant-ui/react';
+import { useAssistantTransportSendCommand } from '@assistant-ui/react';
 
-import type { TheoremAgentState } from '@/server/acp/state';
+import { useTheoremAgentState } from './use-theorem-agent-state';
 
 export function PermissionPrompt() {
-  const permission = useAssistantTransportState(
-    (state) => (state as TheoremAgentState).pendingPermission,
-  );
+  /* Defensive read: the stock transport-state hook throws while the runtime is
+     unbound (SSR, mode-switch remount). undefined reads as no pending ask. */
+  const permission = useTheoremAgentState((state) => state.pendingPermission) ?? null;
   const sendCommand = useAssistantTransportSendCommand();
   if (!permission) return null;
   const respond = (decision: 'allow' | 'reject') => {
