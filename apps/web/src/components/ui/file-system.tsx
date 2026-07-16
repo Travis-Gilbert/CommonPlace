@@ -2,23 +2,46 @@
 
 import * as React from "react"
 import {
-  ArrowDown01Icon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  ArrowUp01Icon,
-  ArrowUpDownIcon,
-  Calendar03Icon,
-  Cancel01Icon,
-  File01Icon,
-  FilterIcon,
-  GalleryThumbnailsIcon,
-  GridViewIcon,
-  LayoutThreeColumnIcon,
-  LeftToRightListBulletIcon,
-  Search01Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Columns3,
+  FileText,
+  LayoutGrid,
+  List,
+  Search,
+  X,
+} from "@/lib/icons"
+
+/** Local stand-in for HugeiconsIcon (HANDOFF-CANON icons cut). */
+function HugeiconsIcon({
+  icon: Icon,
+  className,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  className?: string
+}) {
+  return <Icon className={className} />
+}
+
+const ArrowDown01Icon = ChevronDown
+const ArrowLeft01Icon = ArrowLeft
+const ArrowRight01Icon = ArrowRight
+const ArrowUp01Icon = ChevronUp
+const ArrowUpDownIcon = ChevronDown
+const Calendar03Icon = CalendarClock
+const Cancel01Icon = X
+const File01Icon = FileText
+const FilterIcon = Search
+const GalleryThumbnailsIcon = LayoutGrid
+const GridViewIcon = LayoutGrid
+const LayoutThreeColumnIcon = Columns3
+const LeftToRightListBulletIcon = List
+const Search01Icon = Search
+const Tick02Icon = Check
 import {
   createFileTreeIconResolver,
   getBuiltInSpriteSheet,
@@ -1367,7 +1390,7 @@ function FileVisual({
 }
 
 const VIEW_OPTIONS: Array<{
-  icon: React.ComponentProps<typeof HugeiconsIcon>["icon"]
+  icon: React.ComponentType<{ className?: string }>
   label: string
   value: FileSystemView
 }> = [

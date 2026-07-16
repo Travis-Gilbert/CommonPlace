@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'iconoir-react';
+import { ArrowRight } from '@/lib/icons/iconoir';
 import RoughLine from '@/components/rough/RoughLine';
 import type { ThreadListItem } from '@/lib/research';
 import { fetchActiveThreads } from '@/lib/research';

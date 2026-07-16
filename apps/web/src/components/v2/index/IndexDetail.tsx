@@ -10,7 +10,7 @@ import {
   TriangleAlert,
   CalendarClock,
   NotebookPen,
-} from 'lucide-react';
+} from '@/lib/icons';
 import type { IndexRow, IndexRowDestination, IndexRowKind } from '@/lib/commonplace/index-queries';
 import styles from './index.module.css';
 

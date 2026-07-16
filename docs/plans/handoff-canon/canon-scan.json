@@ -1,0 +1,1110 @@
+{
+  "generatedAt": "2026-07-16T15:56:03.023Z",
+  "canonVersion": 1,
+  "summary": {
+    "unused": 68,
+    "legacy": 6,
+    "live": 41
+  },
+  "packages": [
+    {
+      "package": "@assistant-ui/react-ink-markdown",
+      "job": "markdown-render",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@assistant-ui/react-markdown",
+      "job": "markdown-render",
+      "status": "undecided",
+      "importers": [
+        "src/components/assistant-ui/markdown-text.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@base-ui/react",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/ui/input.tsx",
+        "src/components/ui/select.tsx",
+        "src/components/ui/dropdown-menu.tsx",
+        "src/components/ui/collapsible.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/dialog.tsx",
+        "src/components/ui/avatar.tsx",
+        "src/components/ui/popover.tsx",
+        "src/components/ui/tooltip.tsx",
+        "src/components/ui/scroll-area.tsx",
+        "src/components/ui/tabs.tsx",
+        "src/app/v2/operator/TaskDialComposer.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@blocksuite/presets",
+      "job": "rich-text",
+      "status": "banned",
+      "reason": "Second rich-text stack; Tiptap is canonical unless C2 finds live load.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@blocksuite/store",
+      "job": "rich-text",
+      "status": "banned",
+      "reason": "BlockSuite store; cut with presets unless C2 finds live load.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@capacitor/core",
+      "job": "wrong-runtime",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@capacitor/ios",
+      "job": "wrong-runtime",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@chenglou/pretext",
+      "job": "sketch",
+      "status": "undecided",
+      "importers": [
+        "src/lib/theseus/pretext/canvas.ts",
+        "src/lib/theseus/pretext/inline.ts"
+      ],
+      "verdict": "used-in-legacy-surface"
+    },
+    {
+      "package": "@dagrejs/dagre",
+      "job": "graph-edit",
+      "status": "undecided",
+      "importers": [
+        "src/components/v2/data-canvas/canvas-logic.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@dagrejs/graphlib",
+      "job": "graph-edit",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@duckdb/duckdb-wasm",
+      "job": "spatial-data",
+      "status": "undecided",
+      "importers": [
+        "src/lib/commonplace-embedding-space.ts",
+        "src/lib/theseus/cosmograph/duckdb.ts",
+        "src/lib/theseus-data/DataLoader.ts",
+        "src/lib/theseus-data/DuckDBEngine.ts",
+        "src/lib/theseus/mosaic/ingestSimulationPrimitives.ts",
+        "src/lib/theseus/mosaic/ingestExplorerData.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@floating-ui/react",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/studio/SlashCommandPopup.tsx",
+        "src/components/studio/WikiLinkPopup.tsx",
+        "src/components/studio/MentionPopup.tsx",
+        "src/components/commonplace/shared/ObjectContextMenu.tsx",
+        "src/components/commonplace/views/KnowledgeMap.tsx",
+        "src/components/commonplace/shared/GroupContextMenu.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@floating-ui/react-dom",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@floating-ui/utils",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@glideapps/glide-data-grid",
+      "job": "data-grid",
+      "status": "banned",
+      "reason": "TW2 table engine is TanStack; Glide is a second grid.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@hello-pangea/dnd",
+      "job": "dnd",
+      "status": "banned",
+      "reason": "Second drag-and-drop system; dnd-kit is canonical.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@hugeicons/core-free-icons",
+      "job": "icons",
+      "status": "banned",
+      "reason": "Hugeicons icon data; cut with @hugeicons/react.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@hugeicons/react",
+      "job": "icons",
+      "status": "banned",
+      "reason": "Third icon kit; Noun set is canonical.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@huggingface/transformers",
+      "job": "browser-ml",
+      "status": "undecided",
+      "importers": [
+        "src/lib/theseus-viz/model/FoundationEncoder.ts"
+      ],
+      "verdict": "used-in-legacy-surface"
+    },
+    {
+      "package": "@inkjs/ui",
+      "job": "wrong-runtime",
+      "status": "banned",
+      "reason": "CLI Ink UI surface; not a web runtime.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@linaria/react",
+      "job": "framework",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@luma.gl/core",
+      "job": "graph-render",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@luma.gl/engine",
+      "job": "graph-render",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@luma.gl/shadertools",
+      "job": "graph-render",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@luma.gl/webgl",
+      "job": "graph-render",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@mediapipe/face_mesh",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut; MediaPipe is not canonical.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@mediapipe/selfie_segmentation",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut; MediaPipe is not canonical.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@mlc-ai/web-llm",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser LLM runtime; not a committed product path.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@pierre/trees",
+      "job": "code-editor",
+      "status": "undecided",
+      "importers": [
+        "src/components/ui/file-system.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@radix-ui/react-accordion",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/ToolkitAccordion.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@radix-ui/react-collapsible",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/SourcesCollapsible.tsx",
+        "src/app/v2/operator/Queue.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@radix-ui/react-dialog",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/app/v2/operator/RoomPanel.tsx",
+        "src/app/v2/operator/Bootstrap.tsx",
+        "src/app/v2/operator/GateDrawer.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@radix-ui/react-dropdown-menu",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@radix-ui/react-popover",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/chat/parts/CitationPart.tsx"
+      ],
+      "verdict": "used-in-legacy-surface"
+    },
+    {
+      "package": "@radix-ui/react-scroll-area",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@radix-ui/react-select",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@radix-ui/react-tabs",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/research/ResearchTrail.tsx",
+        "src/components/commonplace/shared/ObjectDrawer.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@radix-ui/react-toggle-group",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/ShelfFilter.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@radix-ui/react-tooltip",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@react-sigma/core",
+      "job": "graph-render",
+      "status": "banned",
+      "reason": "Sigma React wrapper; cut with sigma.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@rneui/base",
+      "job": "wrong-runtime",
+      "status": "banned",
+      "reason": "React Native UI kit inside Next web; mobile is apps/mobile.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@rneui/themed",
+      "job": "wrong-runtime",
+      "status": "banned",
+      "reason": "React Native themed kit inside Next web.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@sigma/edge-curve",
+      "job": "graph-render",
+      "status": "banned",
+      "reason": "Sigma edge plugin; cut with sigma.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/body-segmentation",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/coco-ssd",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/depth-estimation",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/face-landmarks-detection",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/knn-classifier",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/mobilenet",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/pose-detection",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow-models/universal-sentence-encoder",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut with tfjs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tensorflow/tfjs",
+      "job": "browser-ml",
+      "status": "banned",
+      "reason": "Browser ML cut; substrate owns scoring.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "@tiptap/extension-character-count",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-code-block-lowlight",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-collaboration",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-highlight",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-image",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/studio/extensions/ResizableImage.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-link",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-placeholder",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-subscript",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-superscript",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-task-item",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-task-list",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-typography",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/extension-underline",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/markdown",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@tiptap/suggestion",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/studio/extensions/SlashCommand.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "@types/d3",
+      "job": "utility",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@types/three",
+      "job": "3d",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@types/topojson-client",
+      "job": "spatial-data",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@types/uuid",
+      "job": "utility",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@uwdata/mosaic-core",
+      "job": "charts",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/explorer/GraphLegend.tsx"
+      ],
+      "verdict": "used-in-legacy-surface"
+    },
+    {
+      "package": "@uwdata/mosaic-spec",
+      "job": "charts",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/intelligence/widgets/MosaicWidget.tsx",
+        "src/components/theseus/chat/parts/MosaicPart.tsx"
+      ],
+      "verdict": "used-in-legacy-surface"
+    },
+    {
+      "package": "@uwdata/mosaic-sql",
+      "job": "charts",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "@uwdata/vgplot",
+      "job": "charts",
+      "status": "undecided",
+      "importers": [
+        "src/lib/theseus/mosaic/coordinator.ts",
+        "src/lib/theseus/mosaic/simulationSpecs.ts",
+        "src/components/theseus/explorer/charts/CommunityStrip.tsx",
+        "src/components/theseus/explorer/charts/TimelineBrush.tsx",
+        "src/components/theseus/explorer/charts/EdgeTypeHistogram.tsx"
+      ],
+      "verdict": "used-in-legacy-surface"
+    },
+    {
+      "package": "class-variance-authority",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/assistant-ui/reasoning.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/tabs.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "clsx",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/lib/utils.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "cmdk",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/studio/CommandPalette.tsx",
+        "src/components/ui/command.tsx",
+        "src/components/v2/work/WorkOmnibar.tsx",
+        "src/components/commonplace/shell/CommandPalette.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "d3",
+      "job": "charts",
+      "status": "undecided",
+      "importers": [
+        "src/lib/charts/wealthHealth.ts",
+        "src/lib/graph/simulation.ts",
+        "src/components/analytics/WritingTimeline.tsx",
+        "src/components/analytics/TopicDistribution.tsx",
+        "src/components/spacetime/Globe.tsx",
+        "src/lib/commonplace-graph.ts",
+        "src/lib/timeline-3d-layout.ts",
+        "src/components/ConnectionMap.tsx",
+        "src/components/studio/LiveResearchGraph.tsx",
+        "src/components/research/ResearchSummary.tsx",
+        "src/components/studio/ConnectionConstellation.tsx",
+        "src/components/research/SourceConstellation.tsx",
+        "src/components/research/ResearchTimeline.tsx",
+        "src/components/studio/RelationshipMap.tsx",
+        "src/components/research/SourceGraph.tsx",
+        "src/components/projects/visuals/CommonPlaceVisual3D.tsx",
+        "src/components/studio/TimelineGraph.tsx",
+        "src/components/research/SourceSankey.tsx",
+        "src/components/research/ActivityHeatmap.tsx",
+        "src/components/commonplace/lenses/ClusterLens.tsx",
+        "src/components/studio/ForceTree.tsx",
+        "src/components/commonplace/views/LiveResearchGraph.tsx",
+        "src/components/commonplace/views/TimelineViz.tsx",
+        "src/components/commonplace/views/library/ClusterSection.tsx",
+        "src/components/commonplace/views/KnowledgeMap.tsx",
+        "src/components/theseus/code/ImpactCanvas.tsx",
+        "src/app/(main)/projects/theseus/ForceTree.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "d3-delaunay",
+      "job": "charts",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "d3-force-3d",
+      "job": "graph-render",
+      "status": "banned",
+      "reason": "Force sim for react-force-graph-3d; cut with that stack.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "embedding-atlas",
+      "job": "graph-render",
+      "status": "undecided",
+      "importers": [
+        "src/lib/commonplace-embedding-space.ts",
+        "src/components/commonplace/views/VectorSpaceAtlasCanvas.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "framer-motion",
+      "job": "motion",
+      "status": "banned",
+      "reason": "Same library as motion installed twice; SL0 picks motion.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "graphology",
+      "job": "graph-render",
+      "status": "undecided",
+      "importers": [
+        "src/lib/graph-projections.ts",
+        "src/components/theseus/explorer/useInvestigationView.ts",
+        "src/components/theseus/explorer/ArtifactExporter.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "graphology-communities-louvain",
+      "job": "graph-algorithms",
+      "status": "banned",
+      "reason": "Client Louvain duplicates substrate partitions.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "graphology-layout-forceatlas2",
+      "job": "graph-algorithms",
+      "status": "banned",
+      "reason": "Client ForceAtlas2 duplicates cosmos layout.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "graphology-metrics",
+      "job": "graph-algorithms",
+      "status": "banned",
+      "reason": "Client metrics duplicate RustyRed graph metrics.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "gsap",
+      "job": "motion",
+      "status": "banned",
+      "reason": "Second motion engine; SL0 is motion plus animejs.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "highlight.js",
+      "job": "markdown-render",
+      "status": "banned",
+      "reason": "markdown-theory carries Shiki; highlight.js is duplicate.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "iconoir-react",
+      "job": "icons",
+      "status": "banned",
+      "reason": "Second icon kit; Noun set is canonical.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "jotai",
+      "job": "state",
+      "status": "undecided",
+      "importers": [
+        "src/__tests__/record-table-store.test.ts",
+        "src/components/v2/record-table/record-table-store.ts",
+        "src/components/v2/record-table/RecordTableBody.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "jspdf",
+      "job": "pdf-generate",
+      "status": "banned",
+      "reason": "PDF generation is Typst (D9); jspdf is the wrong runtime.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "lowlight",
+      "job": "rich-text",
+      "status": "undecided",
+      "importers": [
+        "src/components/theseus/notebook/NotebookTiptapEditor.tsx",
+        "src/components/studio/TiptapEditor.tsx",
+        "src/components/theseus/code/codeHighlight.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "lucide-react",
+      "job": "icons",
+      "status": "banned",
+      "reason": "Noun export is canonical; migrate StreamLens and cut.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "react-force-graph-3d",
+      "job": "graph-render",
+      "status": "banned",
+      "reason": "Third graph canvas; cosmos.gl is canonical.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "react-markdown",
+      "job": "markdown-render",
+      "status": "banned",
+      "reason": "markdown-theory is canonical and carries Shiki.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "react-native-vector-icons",
+      "job": "icons",
+      "status": "banned",
+      "reason": "RN icon kit inside Next web; mobile lives in apps/mobile.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "react-resizable-panels",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/app/v2/work/page.tsx",
+        "src/components/v2/index/IndexSurface.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "react-responsive-carousel",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "remark",
+      "job": "markdown-render",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "remark-gfm",
+      "job": "markdown-render",
+      "status": "undecided",
+      "importers": [
+        "src/app/v2/operator/RoomPanel.tsx",
+        "src/components/assistant-ui/markdown-text.tsx",
+        "src/components/commonplace/views/AgentThreadView.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "remark-html",
+      "job": "markdown-render",
+      "status": "banned",
+      "reason": "markdown-theory is canonical for HTML render.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "sigma",
+      "job": "graph-render",
+      "status": "banned",
+      "reason": "Overlaps cosmos.gl graph render; cut per C3.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "sonner",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/lib/commonplace-optimistic.ts",
+        "src/app/v2/workrooms/page.tsx",
+        "src/app/v2/operator/page.tsx",
+        "src/app/v2/operator/LibraryPanel.tsx",
+        "src/app/(commonplace)/layout.tsx",
+        "src/app/(studio)/layout.tsx",
+        "src/components/studio/ContentList.tsx",
+        "src/components/studio/ContentCardStandard.tsx",
+        "src/components/studio/Editor.tsx",
+        "src/components/commonplace/models/ModelListPane.tsx",
+        "src/components/commonplace/shared/ObjectContextMenu.tsx",
+        "src/components/commonplace/shell/CommonPlaceSidebar.tsx",
+        "src/components/commonplace/shared/ObjectTasks.tsx",
+        "src/components/commonplace/shell/CommandPalette.tsx",
+        "src/components/commonplace/models/ModelHeader.tsx",
+        "src/components/theseus/panels/PluginsPanel.tsx",
+        "src/components/commonplace/models/ModelWorkbench.tsx",
+        "src/components/commonplace/board/BoardView.tsx",
+        "src/components/commonplace/engine/PromotionQueueView.tsx",
+        "src/components/commonplace/capture/CommandBar.tsx",
+        "src/components/commonplace/views/ProjectListView.tsx",
+        "src/components/commonplace/views/ProjectPagesView.tsx",
+        "src/components/commonplace/views/GridView.tsx",
+        "src/components/commonplace/views/FileItemViewer.tsx",
+        "src/components/commonplace/objects/ObjectRenderer.tsx",
+        "src/components/commonplace/views/NotebookListView.tsx",
+        "src/components/commonplace/compose/ConnectionComposer.tsx",
+        "src/components/commonplace/control-center/AgentWorkroomControlCenter.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "source-map-js",
+      "job": "framework",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "tailwind-merge",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/lib/utils.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "textmode.export.js",
+      "job": "sketch",
+      "status": "undecided",
+      "importers": [
+        "src/components/commonplace/presence/presenceExport.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "textmode.js",
+      "job": "sketch",
+      "status": "undecided",
+      "importers": [
+        "src/components/commonplace/presence/PresenceMark.tsx",
+        "src/components/commonplace/presence/presenceExport.ts"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "tslib",
+      "job": "framework",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "tw-animate-css",
+      "job": "motion",
+      "status": "undecided",
+      "importers": [],
+      "verdict": "unused"
+    },
+    {
+      "package": "update-notifier",
+      "job": "wrong-runtime",
+      "status": "banned",
+      "reason": "CLI notifier; not a web runtime dependency.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "vaul",
+      "job": "ui-primitives",
+      "status": "undecided",
+      "importers": [
+        "src/components/mobile-shell/MobileDrawer.tsx",
+        "src/components/mobile-shell/MobileSheet.tsx",
+        "src/components/commonplace/shared/ObjectDrawer.tsx",
+        "src/components/theseus/capture/CaptureModal.tsx"
+      ],
+      "verdict": "used-in-live-surface"
+    },
+    {
+      "package": "vega",
+      "job": "charts",
+      "status": "banned",
+      "reason": "Same job as Observable Plot; trio is three packages for one job.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "vega-embed",
+      "job": "charts",
+      "status": "banned",
+      "reason": "Same job as Observable Plot.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    },
+    {
+      "package": "vega-lite",
+      "job": "charts",
+      "status": "banned",
+      "reason": "Same job as Observable Plot.",
+      "importers": [],
+      "verdict": "unused",
+      "migration": "deletable immediately"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import {
 import { useTheseusAssistantRuntime } from '@/lib/theseus-assistant-runtime';
 import type { ChatMessage as ChatMessageType } from './useChatHistory';
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button';
-import { ArrowDownIcon } from 'lucide-react';
+import { ArrowDownIcon } from '@/lib/icons';
 import AskIdleHero from './AskIdleHero';
 import ChatComposer from './ChatComposer';
 import ChatMessageList from './ChatMessageList';

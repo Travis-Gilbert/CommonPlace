@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Xmark } from 'iconoir-react';
+import { Xmark } from '@/lib/icons/iconoir';
 import rough from 'roughjs';
 import { readCssVar, useThemeVersion } from '@/hooks/useThemeColor';
 

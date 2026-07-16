@@ -1,8 +1,15 @@
 [
   {
-    "name": "CommonPlace shared first-load JS (gzip, budget UX-D7.2)",
+    "name": "CommonPlace shared first-load JS (gzip, budget UX-D7.2 / HANDOFF-CANON C5)",
     "path": ".next/static/chunks/*.js",
     "limit": "1500 kB",
+    "gzip": true,
+    "running": false
+  },
+  {
+    "name": "CommonPlace console entry (post-cut ratchet; tighten after C3 groups)",
+    "path": ".next/static/chunks/app/v2/**/*.js",
+    "limit": "900 kB",
     "gzip": true,
     "running": false
   }

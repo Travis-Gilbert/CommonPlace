@@ -22,7 +22,7 @@ import {
   DownloadIcon,
   MoreHorizontalIcon,
   RefreshCwIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import type { FC } from 'react';
 import type { TheseusMessageMetadata } from '@/lib/theseus-assistant-runtime';
 

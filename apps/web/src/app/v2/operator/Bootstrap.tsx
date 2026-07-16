@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check } from '@/lib/icons';
 import type { SessionBootstrap } from '@/lib/theorem-operator';
 import styles from './operator.module.css';
 

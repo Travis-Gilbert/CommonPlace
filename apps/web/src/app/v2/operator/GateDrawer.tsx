@@ -5,7 +5,7 @@
    monitoring screen a single surface; the evening ritual opens on demand. */
 
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X } from '@/lib/icons';
 import type { GateCard } from '@/lib/theorem-operator';
 import { Gate } from './Gate';
 import styles from './operator.module.css';

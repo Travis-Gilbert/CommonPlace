@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { CheckCircle, Xmark, FlashOff } from 'iconoir-react';
+import { CheckCircle, Xmark, FlashOff } from '@/lib/icons/iconoir';
 import {
   fetchReviewQueue,
   submitConnectionFeedback,

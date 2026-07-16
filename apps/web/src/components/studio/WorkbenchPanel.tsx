@@ -52,7 +52,7 @@ import {
   ClockRotateRight,
   CollageFrame,
   Link as LinkIcon,
-} from 'iconoir-react';
+} from '@/lib/icons/iconoir';
 import type { SVGProps, FC } from 'react';
 
 type IconoirIconType = FC<SVGProps<SVGSVGElement> & { width?: number; height?: number; strokeWidth?: number; color?: string }>;

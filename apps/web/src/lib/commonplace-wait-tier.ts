@@ -45,32 +45,26 @@ export function useWaitTier(active: boolean, startedAt?: number): WaitTier {
   useEffect(() => {
     if (!active) {
       startRef.current = null;
-      setTier('T0');
       return;
     }
 
     const start = startedAt ?? Date.now();
     startRef.current = start;
     const timers: ReturnType<typeof setTimeout>[] = [];
+    const apply = () => setTier(tierForElapsed(Date.now() - start));
 
-    const scheduleBoundary = (boundMs: number, next: WaitTier) => {
-      const delay = boundMs - (Date.now() - start);
-      if (delay <= 0) {
-        setTier(next);
-        return;
-      }
-      timers.push(setTimeout(() => setTier(next), delay));
-    };
-
-    setTier(tierForElapsed(Date.now() - start));
-    scheduleBoundary(WAIT_TIER_BOUNDS.t1, 'T1');
-    scheduleBoundary(WAIT_TIER_BOUNDS.t2, 'T2');
-    scheduleBoundary(WAIT_TIER_BOUNDS.t3, 'T3');
+    // All updates go through timers (a zero-delay one covers boundaries that
+    // already passed), so the effect body never sets state synchronously.
+    timers.push(setTimeout(apply, 0));
+    for (const bound of [WAIT_TIER_BOUNDS.t1, WAIT_TIER_BOUNDS.t2, WAIT_TIER_BOUNDS.t3]) {
+      timers.push(setTimeout(apply, Math.max(bound - (Date.now() - start), 0)));
+    }
 
     return () => {
       for (const timer of timers) clearTimeout(timer);
     };
   }, [active, startedAt]);
 
-  return tier;
+  // Inactive reads derive to T0 rather than resetting state in the effect.
+  return active ? tier : 'T0';
 }

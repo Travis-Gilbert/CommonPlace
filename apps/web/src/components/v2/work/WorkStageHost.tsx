@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X } from '@/lib/icons';
 import { motion } from 'motion/react';
 import type { WorkStage } from '@/lib/work-surface/omnibar';
 import { useSpring } from '@/lib/work-surface/work-motion';

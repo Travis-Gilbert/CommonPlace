@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 /**
  * Public descriptor for the /act WebLLM artifact.
  *
- * Browser code (`@mlc-ai/web-llm` via src/lib/act/mlc-runner.ts) reads
+ * Browser code (`web-llm (cut)` via src/lib/act/mlc-runner.ts) reads
  * this JSON to discover where to fetch the model. The actual large
  * artifacts (params shards, tokenizer, .wasm) live on the public
  * bucket pointed at by NEXT_PUBLIC_ACT_MODEL_BASE_URL — Next.js cannot

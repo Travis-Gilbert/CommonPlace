@@ -1,9 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { remark } from 'remark';
-import remarkHtml from 'remark-html';
-import remarkGfm from 'remark-gfm';
+import { markdownToHtml } from '@/lib/markdown/toHtml';
 import { z } from 'zod';
 import type { PositionedConnection } from './connectionEngine';
 
@@ -196,11 +194,7 @@ export function getEntry<T>(name: CollectionName, slug: string): ContentEntry<T>
 }
 
 export async function renderMarkdown(body: string): Promise<string> {
-  const result = await remark()
-    .use(remarkGfm)
-    .use(remarkHtml, { sanitize: false })
-    .process(body);
-  return result.toString();
+  return markdownToHtml(body);
 }
 
 // ─────────────────────────────────────────────────

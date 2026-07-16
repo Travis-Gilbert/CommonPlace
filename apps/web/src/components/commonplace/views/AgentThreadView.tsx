@@ -6,7 +6,7 @@
    the newest. Not a uniform list, which is why it is not row-virtualized. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import Markdown from '@/lib/markdown/Markdown';
 import remarkGfm from 'remark-gfm';
 import {
   acpAgentLabel,
@@ -22,15 +22,13 @@ import {
   type AcpFileWriteReview,
   type AcpFrontendEvent,
 } from '@/lib/commonplace-acp';
+import { createInquiry } from '@/lib/inquiry-api';
 import {
-  searchRustyWeb,
-  type RustyWebSearchHit,
-} from '@/lib/rustyweb-search';
-import {
-  runTheoremAgent,
-  type TheoremAgentClaim,
-  type TheoremAgentRunResult,
-} from '@/lib/theorem-agent';
+  claimsFromInquirySnapshot,
+  groundedChatPrompt,
+} from '@/lib/inquiry-agent-bridge';
+import type { InquirySnapshot } from '@/lib/inquiry-types';
+import { runTheoremAgent } from '@/lib/theorem-agent';
 import type { RenderScenePayload } from '@/lib/scene-package';
 import AgentThreadOmnibar from './AgentThreadOmnibar';
 import SceneHost from '../scene-host/SceneHost';
@@ -38,6 +36,8 @@ import styles from './AgentThreadView.module.css';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useWaitTier } from '@/lib/commonplace-wait-tier';
 import { narrationFor } from '@/lib/commonplace-wait-narration';
+import PresenceMark from '../presence/PresenceMark';
+import type { PresenceState } from '../presence/presenceStates';
 
 type ThreadItem =
   | {
@@ -84,12 +84,21 @@ export default function AgentThreadView({
   agentId = 'theorem',
   agentMode,
 }: AgentThreadViewProps) {
-  const resolvedMode = agentMode ?? (agentId === 'theorem' || agentId === 'agent' ? 'api' : 'acp');
+  const preferredMode = agentMode ?? (agentId === 'agent' ? 'api' : 'acp');
+  const [apiFallback, setApiFallback] = useState(false);
+  const resolvedMode = apiFallback ? 'api' : preferredMode;
   const agentLabel = useMemo(
-    () => (resolvedMode === 'api' ? 'CommonPlace' : acpAgentLabel(agentId)),
+    () =>
+      agentId === 'theorem' || agentId === 'composed'
+        ? acpAgentLabel(agentId)
+        : resolvedMode === 'api'
+          ? 'CommonPlace'
+          : acpAgentLabel(agentId),
     [agentId, resolvedMode],
   );
   const wsRef = useRef<WebSocket | null>(null);
+  const sessionStartedRef = useRef(false);
+  const fallbackStartedRef = useRef(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<AcpConnectionStatus>(
     resolvedMode === 'api' ? 'connected' : 'connecting',
@@ -103,6 +112,22 @@ export default function AgentThreadView({
     setItems((prev) => [...prev, item]);
   }, []);
 
+  const activateApiFallback = useCallback(
+    (reason: string) => {
+      if (fallbackStartedRef.current) return;
+      fallbackStartedRef.current = true;
+      setStatus('connected');
+      setApiFallback(true);
+      addItem({
+        id: `fallback-${Date.now()}`,
+        kind: 'message',
+        role: 'system',
+        markdown: `${reason} Continuing through Theorem's JSON compatibility route.`,
+      });
+    },
+    [addItem],
+  );
+
   const send = useCallback((payload: unknown) => {
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -113,6 +138,7 @@ export default function AgentThreadView({
   const handleEvent = useCallback(
     (event: AcpFrontendEvent) => {
       if (event.type === 'session_started') {
+        sessionStartedRef.current = true;
         setSessionId(event.session_id);
         setStatus('connected');
         addItem({
@@ -212,6 +238,10 @@ export default function AgentThreadView({
       }
 
       if (event.type === 'error') {
+        if (agentId === 'theorem' && !sessionStartedRef.current) {
+          activateApiFallback(`The real-time Theorem session could not start: ${event.message}`);
+          return;
+        }
         addItem({
           id: `error-${Date.now()}`,
           kind: 'message',
@@ -220,7 +250,7 @@ export default function AgentThreadView({
         });
       }
     },
-    [addItem],
+    [activateApiFallback, addItem, agentId],
   );
 
   useEffect(() => {
@@ -233,7 +263,6 @@ export default function AgentThreadView({
     wsRef.current = socket;
 
     socket.onopen = () => {
-      setStatus('connected');
       socket.send(
         JSON.stringify({
           type: 'start_session',
@@ -255,9 +284,17 @@ export default function AgentThreadView({
       }
     };
     socket.onerror = () => {
+      if (agentId === 'theorem' && !sessionStartedRef.current) {
+        activateApiFallback('The real-time Theorem session is unavailable.');
+        return;
+      }
       setStatus('offline');
     };
     socket.onclose = () => {
+      if (agentId === 'theorem' && !sessionStartedRef.current) {
+        activateApiFallback('The real-time Theorem session closed during startup.');
+        return;
+      }
       setStatus((current) => (current === 'connected' ? 'offline' : current));
     };
 
@@ -265,7 +302,7 @@ export default function AgentThreadView({
       wsRef.current = null;
       socket.close();
     };
-  }, [addItem, agentId, handleEvent, resolvedMode]);
+  }, [activateApiFallback, addItem, agentId, handleEvent, resolvedMode]);
 
   useEffect(() => {
     listRef.current?.scrollTo({
@@ -274,7 +311,7 @@ export default function AgentThreadView({
     });
   }, [items]);
 
-  const sendPrompt = useCallback(async (options: { webSearch?: boolean; file?: File } = {}) => {
+  const sendPrompt = useCallback(async (options: { file?: File } = {}) => {
     if (isSending) return;
     const text = composer.trim();
     if (!text) return;
@@ -289,13 +326,50 @@ export default function AgentThreadView({
       markdown: promptText,
     });
     setComposer('');
-    if (resolvedMode === 'api') {
+
+    let snapshot: InquirySnapshot | null = null;
+    try {
+      const inquiry = await createInquiry({
+        query: promptText,
+        surface: 'chat',
+        retrieval_budget: 'standard',
+      });
+      snapshot = inquiry.snapshot;
+      const evidenceCount = snapshot.evidence.length;
+      if (evidenceCount > 0) {
+        addItem({
+          id: `retrieve-${Date.now()}`,
+          kind: 'message',
+          role: 'system',
+          markdown: `Retrieved ${evidenceCount} source${evidenceCount === 1 ? '' : 's'}.`,
+        });
+      }
+    } catch {
+      addItem({
+        id: `retrieve-fail-${Date.now()}`,
+        kind: 'message',
+        role: 'system',
+        markdown: 'Inquiry retrieval failed; continuing with your message to Theorem.',
+      });
+    }
+
+    const claims = snapshot ? claimsFromInquirySnapshot(snapshot) : [];
+    const agentPrompt = snapshot ? groundedChatPrompt(promptText, snapshot) : promptText;
+
+    const useCompatibilityRoute =
+      resolvedMode === 'api' || (agentId === 'theorem' && !sessionId);
+    if (useCompatibilityRoute) {
+      if (resolvedMode === 'acp') {
+        activateApiFallback('The real-time Theorem session was not ready for this message.');
+      }
       setStatus('connecting');
       setIsSending(true);
       try {
-        const result = options.webSearch
-          ? await runResearchPrompt(promptText)
-          : await runTheoremAgent({ task: promptText, mode: 'ask' });
+        const result = await runTheoremAgent({
+          task: promptText,
+          mode: 'ask',
+          claims: claims.length > 0 ? claims : undefined,
+        });
         addItem({
           id: `agent-${Date.now()}`,
           kind: 'message',
@@ -322,7 +396,7 @@ export default function AgentThreadView({
     const delivered = send({
       type: 'prompt',
       session_id: activeSession,
-      text: options.webSearch ? `Search the web if available, then answer:\n\n${promptText}` : promptText,
+      text: agentPrompt,
     });
     if (!delivered) {
       addItem({
@@ -332,21 +406,26 @@ export default function AgentThreadView({
         markdown: 'ACP host is offline.',
       });
     }
-  }, [addItem, composer, isSending, resolvedMode, send, sessionId]);
+  }, [activateApiFallback, addItem, agentId, composer, isSending, resolvedMode, send, sessionId]);
 
   const displayStatus =
     resolvedMode === 'api' && status !== 'connecting' ? 'connected' : status;
 
-  // WL-4b: this API agent path is non-streaming, so the send-to-answer wait is
-  // a pre-stream window. Promote the pending indicator through the wait ladder
-  // on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
+  // WL-4b: the compatibility route is non-streaming, so its send-to-answer wait
+  // is a pre-stream window. Promote the pending indicator through the wait
+  // ladder on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
   const waitTier = useWaitTier(isSending);
+  // The Presence mark is the header presence glyph (SPEC-UI-SOURCING-ADDENDUM
+  // Presence D2): the same mark as the co-browse telegraph and the run glyph.
+  const markState: PresenceState =
+    displayStatus === 'connecting' ? 'thinking' : displayStatus === 'offline' ? 'interrupted' : 'idle';
 
   return (
     <section className={`cp-agent-thread ${styles.thread}`} aria-label={`${agentLabel} agent thread`}>
-      {resolvedMode === 'acp' ? (
+      {preferredMode === 'acp' ? (
         <header className="cp-agent-thread-header">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PresenceMark state={markState} size={24} label={`${agentLabel} presence`} />
             <h2>{agentLabel}</h2>
             <span className={`cp-agent-thread-status cp-agent-thread-status--${displayStatus}`}>
               {displayStatus}
@@ -422,29 +501,6 @@ export default function AgentThreadView({
   );
 }
 
-async function runResearchPrompt(task: string): Promise<TheoremAgentRunResult> {
-  const search = await searchRustyWeb(task, {
-    mode: 'web',
-    limit: 8,
-    providerLimit: 4,
-    providerTimeoutMs: 4_000,
-    requestTimeoutMs: 12_000,
-  });
-  return runTheoremAgent({
-    mode: 'research',
-    task: `Answer this question using the attached search evidence where it is useful. Question: ${task}`,
-    claims: searchHitsToClaims(search.hits),
-    requestTimeoutMs: 75_000,
-  });
-}
-
-function searchHitsToClaims(hits: RustyWebSearchHit[]): TheoremAgentClaim[] {
-  return hits.slice(0, 8).map((hit, index) => ({
-    text: [hit.title, hit.snippet].filter(Boolean).join(': '),
-    provenance: hit.url || hit.id || `search:${index + 1}`,
-  }));
-}
-
 function ThreadCard({
   item,
   onApproveCommand,
@@ -461,7 +517,7 @@ function ThreadCard({
   if (item.kind === 'message') {
     return (
       <article className={`cp-agent-message cp-agent-message--${item.role}`}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.markdown}</ReactMarkdown>
+        <Markdown remarkPlugins={[remarkGfm]}>{item.markdown}</Markdown>
       </article>
     );
   }

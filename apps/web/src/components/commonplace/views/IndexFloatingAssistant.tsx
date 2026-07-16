@@ -11,7 +11,7 @@ import {
   Send,
   Sparkles,
   X,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { gqlIngest } from '@/lib/commonplace-graphql';
 import {

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { OpenNewWindow } from 'iconoir-react';
+import { OpenNewWindow } from '@/lib/icons/iconoir';
 import TagList from './TagList';
 import RoughBox from './rough/RoughBox';
 

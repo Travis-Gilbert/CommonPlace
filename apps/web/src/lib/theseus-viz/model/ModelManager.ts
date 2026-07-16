@@ -20,7 +20,7 @@ import { composeCamera } from '../intelligence/CameraComposer';
 import { interpretTopology } from '../intelligence/TopologyInterpreter';
 import { buildRenderTargetSpecs } from '../data-viz/buildRenderTargetSpecs';
 
-type TFModule = typeof import('@tensorflow/tfjs');
+type TFModule = import('./tf-stub').TFModule;
 
 class ModelManager {
   private weights: ModelWeightsBundle | null = null;
@@ -29,7 +29,7 @@ class ModelManager {
   async initialize(): Promise<void> {
     this.weights = await loadWeights();
     try {
-      this.tf = await import('@tensorflow/tfjs');
+      this.tf = (await Promise.reject(new Error('tfjs cut (HANDOFF-CANON browser-ml); rule path only'))) as never;
     } catch {
       this.tf = null;
     }

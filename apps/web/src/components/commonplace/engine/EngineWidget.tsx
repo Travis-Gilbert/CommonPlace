@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { PanelBottomClose, PanelBottomOpen } from 'lucide-react';
+import { PanelBottomClose, PanelBottomOpen } from '@/lib/icons';
 import type {
   EngineLogEntry,
   EngineCandidate,

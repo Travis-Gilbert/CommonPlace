@@ -1,0 +1,910 @@
+{
+  "preview": {
+    "tenant": "default",
+    "run_id": "live-run",
+    "tool": "browse_with_me",
+    "surface": "browse_with_me",
+    "control_mode": "pair",
+    "task": "fill the name field",
+    "context_command": {
+      "command_id": "context-command:sha256:341c3462d0091a47e34eff94fbc1ff63355c280f20c93748b9c262a74ae395b4",
+      "raw_request": "fill the name field",
+      "surface": "browse_with_me",
+      "goal": "fill the name field",
+      "query": "fill the name field",
+      "user_id": null,
+      "session_id": null,
+      "folio_id": null,
+      "notebook_id": null,
+      "project_id": null,
+      "current_page": null,
+      "selected_text": null,
+      "working_set": [],
+      "exclusions": [],
+      "hot_context": [],
+      "canonical_context": [],
+      "memory_scope": "session",
+      "permission_policy": {
+        "allow_read": true,
+        "allow_write_hot_graph": true,
+        "allow_write_canonical": false,
+        "allow_remember": false,
+        "allow_external_web": true,
+        "allow_disclosure": true,
+        "allow_agent_execution": true,
+        "require_confirmation_for_write": true,
+        "require_receipt": true
+      },
+      "retrieval_policy": {
+        "mode": "web_allowed",
+        "max_known_objects": 40,
+        "max_hot_context": 30,
+        "max_web_candidates": 20,
+        "freshness_required": false,
+        "include_counterevidence": true,
+        "include_tensions": true,
+        "include_user_priors": true,
+        "include_browser_hot_graph": true
+      },
+      "risk_mode": "supervised_action",
+      "output_target": "harness_receipt",
+      "graph_layers": [
+        "rustyred_hot",
+        "redis_hot",
+        "local_webdocs",
+        "memgraph_canonical"
+      ],
+      "tool_scope": [
+        "ask",
+        "browser",
+        "capture",
+        "web_research",
+        "theorem"
+      ],
+      "trace_policy": {
+        "include_graph_trace": true,
+        "include_receipts": true,
+        "include_context_preview": true,
+        "include_excluded_refs": true,
+        "include_permission_explanations": true
+      },
+      "warnings": [],
+      "metadata": {}
+    },
+    "perception": {
+      "mode": "browse",
+      "candidates": [
+        {
+          "id": "tab:sha256:ef84f504e9cb8f2a71904372d326d076cf1821bd3df3eae3c0de97fb9a4fd228",
+          "kind": "tab",
+          "status": "fetched_unadmitted",
+          "label": "Example Form",
+          "url": "https://example.test/form",
+          "confidence": 0.5,
+          "metadata": {
+            "interactive_elements": 1,
+            "text_bytes": 12
+          }
+        },
+        {
+          "id": "element:name",
+          "kind": "action",
+          "status": "fetched_unadmitted",
+          "label": "Name",
+          "confidence": 0.4000000059604645,
+          "metadata": {
+            "role": "textbox",
+            "visible": true,
+            "degraded": false,
+            "bbox": {
+              "x": 10,
+              "y": 20,
+              "width": 100,
+              "height": 20
+            },
+            "metadata": {
+              "test_id": "name-input"
+            }
+          }
+        },
+        {
+          "id": "url:sha256:ef84f504e9cb8f2a71904372d326d076cf1821bd3df3eae3c0de97fb9a4fd228",
+          "kind": "url",
+          "status": "external_unfetched",
+          "label": "https://example.test/form",
+          "url": "https://example.test/form",
+          "confidence": 0.25,
+          "metadata": {
+            "source": "seed_url"
+          }
+        }
+      ],
+      "coverage": {
+        "has_known_context": false,
+        "has_browser_context": true,
+        "needs_web": false,
+        "needs_counterevidence": false,
+        "needs_freshness": false,
+        "confidence": 0.5
+      },
+      "actions": [
+        {
+          "id": "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad",
+          "action_type": "ask_with_context",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Answer with current context",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:791a5fbd16e667bb4e4c1525fd70b4020f247fc4162e251363095965ba097149",
+          "action_type": "compare_to_graph",
+          "category": "compare",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "context_command_api",
+          "label": "Compare page context to the graph",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action_type": "summarize_page",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Summarize the current page",
+          "target": {
+            "url": "https://example.test/form"
+          }
+        }
+      ]
+    },
+    "action_rail": {
+      "actions": [
+        {
+          "id": "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action_type": "summarize_page",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Summarize the current page",
+          "target": {
+            "url": "https://example.test/form"
+          }
+        },
+        {
+          "id": "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad",
+          "action_type": "ask_with_context",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Answer with current context",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:399e9375f2c29d56912eeaed598ac1184a926038b1d4970ad59f9f6ea38f6013",
+          "action_type": "extract_claims",
+          "category": "extract",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Extract claims from the observed page",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:791a5fbd16e667bb4e4c1525fd70b4020f247fc4162e251363095965ba097149",
+          "action_type": "compare_to_graph",
+          "category": "compare",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "context_command_api",
+          "label": "Compare page context to the graph",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:3c2d0ecc91b1aef4c6972fca07ddc7751076511c424fcb71818f29a0bf280547",
+          "action_type": "inspect_permissions",
+          "category": "permission",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "frontend_only",
+          "label": "Inspect active browsing permissions",
+          "target": {
+            "command_id": "context-command:sha256:341c3462d0091a47e34eff94fbc1ff63355c280f20c93748b9c262a74ae395b4"
+          }
+        },
+        {
+          "id": "action:sha256:265de3ae21594fcf423b09f881edccec2998c93d177bd5731b0e832764e57f34",
+          "action_type": "capture_page",
+          "category": "writeback",
+          "risk": "hot_graph_write",
+          "status": "needs_confirmation",
+          "execution_route": "capture_api",
+          "label": "Capture page into the quarantined web graph",
+          "target": {
+            "graph_layer": "open_web_unverified"
+          }
+        }
+      ],
+      "groups": {
+        "compare": [
+          "action:sha256:791a5fbd16e667bb4e4c1525fd70b4020f247fc4162e251363095965ba097149"
+        ],
+        "extract": [
+          "action:sha256:399e9375f2c29d56912eeaed598ac1184a926038b1d4970ad59f9f6ea38f6013"
+        ],
+        "permission": [
+          "action:sha256:3c2d0ecc91b1aef4c6972fca07ddc7751076511c424fcb71818f29a0bf280547"
+        ],
+        "read": [
+          "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad"
+        ],
+        "writeback": [
+          "action:sha256:265de3ae21594fcf423b09f881edccec2998c93d177bd5731b0e832764e57f34"
+        ]
+      }
+    },
+    "browsing_run": {
+      "run_id": "live-run",
+      "surface": "browse_with_me",
+      "context_command_id": "context-command:sha256:341c3462d0091a47e34eff94fbc1ff63355c280f20c93748b9c262a74ae395b4",
+      "pages_reached": [
+        "https://example.test/form"
+      ],
+      "actions_applied": [
+        {
+          "id": "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action_type": "summarize_page",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Summarize the current page",
+          "target": {
+            "url": "https://example.test/form"
+          }
+        },
+        {
+          "id": "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad",
+          "action_type": "ask_with_context",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Answer with current context",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:399e9375f2c29d56912eeaed598ac1184a926038b1d4970ad59f9f6ea38f6013",
+          "action_type": "extract_claims",
+          "category": "extract",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Extract claims from the observed page",
+          "target": {}
+        }
+      ],
+      "data_extracted": {
+        "candidate_count": 3,
+        "coverage": {
+          "has_known_context": false,
+          "has_browser_context": true,
+          "needs_web": false,
+          "needs_counterevidence": false,
+          "needs_freshness": false,
+          "confidence": 0.5
+        }
+      },
+      "playbooks_used": [
+        "source_verification"
+      ],
+      "playbooks_created": [],
+      "confidence_ceiling": 0.3499999940395355,
+      "quarantine_layer": "open_web_unverified",
+      "events": [
+        "context_command.resolved",
+        "perception.bundle.created",
+        "action_rail.bundle.created",
+        "browsing_run.receipt.emitted"
+      ],
+      "live_browser": {
+        "status": "preview_pending",
+        "transport": "scripted_test",
+        "session_id": "session:live-run",
+        "pending_action": {
+          "selector": {
+            "element_id": "name"
+          },
+          "action": "fill",
+          "value": "Travis",
+          "options": {
+            "timeout_ms": 1
+          }
+        },
+        "intent": "Filling \"Name\" with \"Travis\"",
+        "page": {
+          "url": "https://example.test/form",
+          "title": "Example Form",
+          "distilled_text": "Example Form",
+          "active_tab_id": "tab-1",
+          "interactive_elements": [
+            {
+              "element_id": "name",
+              "role": "textbox",
+              "name": "Name",
+              "test_id": "name-input",
+              "bbox": {
+                "x": 10,
+                "y": 20,
+                "width": 100,
+                "height": 20
+              },
+              "visible": true,
+              "editable": true,
+              "degraded": false
+            }
+          ],
+          "fetch": null
+        }
+      }
+    },
+    "browsing_run_node": "browsing-run:default:sha256:b7ea0260cfeb592570d0db54ae725978abf35f0313e2124872656ac740065168",
+    "playbook_pack_ids": [
+      "browser-playbook-deep_research",
+      "browser-playbook-docs_search",
+      "browser-playbook-paper_search",
+      "browser-playbook-pricing_tracker",
+      "browser-playbook-product_research",
+      "browser-playbook-source_verification"
+    ],
+    "web_consume": null,
+    "live_browser": {
+      "status": "preview_pending",
+      "transport": "scripted_test",
+      "session_id": "session:live-run",
+      "pending_action": {
+        "selector": {
+          "element_id": "name"
+        },
+        "action": "fill",
+        "value": "Travis",
+        "options": {
+          "timeout_ms": 1
+        }
+      },
+      "intent": "Filling \"Name\" with \"Travis\"",
+      "page": {
+        "url": "https://example.test/form",
+        "title": "Example Form",
+        "distilled_text": "Example Form",
+        "active_tab_id": "tab-1",
+        "interactive_elements": [
+          {
+            "element_id": "name",
+            "role": "textbox",
+            "name": "Name",
+            "test_id": "name-input",
+            "bbox": {
+              "x": 10,
+              "y": 20,
+              "width": 100,
+              "height": 20
+            },
+            "visible": true,
+            "editable": true,
+            "degraded": false
+          }
+        ],
+        "fetch": null
+      }
+    },
+    "pages_reached": [
+      "https://example.test/form"
+    ],
+    "mode": "sync"
+  },
+  "actuated": {
+    "tenant": "default",
+    "run_id": "live-run",
+    "tool": "browse_with_me",
+    "surface": "browse_with_me",
+    "control_mode": "pair",
+    "task": "fill the name field",
+    "context_command": {
+      "command_id": "context-command:sha256:341c3462d0091a47e34eff94fbc1ff63355c280f20c93748b9c262a74ae395b4",
+      "raw_request": "fill the name field",
+      "surface": "browse_with_me",
+      "goal": "fill the name field",
+      "query": "fill the name field",
+      "user_id": null,
+      "session_id": null,
+      "folio_id": null,
+      "notebook_id": null,
+      "project_id": null,
+      "current_page": null,
+      "selected_text": null,
+      "working_set": [],
+      "exclusions": [],
+      "hot_context": [],
+      "canonical_context": [],
+      "memory_scope": "session",
+      "permission_policy": {
+        "allow_read": true,
+        "allow_write_hot_graph": true,
+        "allow_write_canonical": false,
+        "allow_remember": false,
+        "allow_external_web": true,
+        "allow_disclosure": true,
+        "allow_agent_execution": true,
+        "require_confirmation_for_write": true,
+        "require_receipt": true
+      },
+      "retrieval_policy": {
+        "mode": "web_allowed",
+        "max_known_objects": 40,
+        "max_hot_context": 30,
+        "max_web_candidates": 20,
+        "freshness_required": false,
+        "include_counterevidence": true,
+        "include_tensions": true,
+        "include_user_priors": true,
+        "include_browser_hot_graph": true
+      },
+      "risk_mode": "supervised_action",
+      "output_target": "harness_receipt",
+      "graph_layers": [
+        "rustyred_hot",
+        "redis_hot",
+        "local_webdocs",
+        "memgraph_canonical"
+      ],
+      "tool_scope": [
+        "ask",
+        "browser",
+        "capture",
+        "web_research",
+        "theorem"
+      ],
+      "trace_policy": {
+        "include_graph_trace": true,
+        "include_receipts": true,
+        "include_context_preview": true,
+        "include_excluded_refs": true,
+        "include_permission_explanations": true
+      },
+      "warnings": [],
+      "metadata": {}
+    },
+    "perception": {
+      "mode": "browse",
+      "candidates": [
+        {
+          "id": "tab:sha256:ef84f504e9cb8f2a71904372d326d076cf1821bd3df3eae3c0de97fb9a4fd228",
+          "kind": "tab",
+          "status": "fetched_unadmitted",
+          "label": "Example Form",
+          "url": "https://example.test/form",
+          "confidence": 0.5,
+          "metadata": {
+            "interactive_elements": 1,
+            "text_bytes": 19
+          }
+        },
+        {
+          "id": "element:name",
+          "kind": "action",
+          "status": "fetched_unadmitted",
+          "label": "Name",
+          "confidence": 0.4000000059604645,
+          "metadata": {
+            "role": "textbox",
+            "visible": true,
+            "degraded": false,
+            "bbox": {
+              "x": 10,
+              "y": 20,
+              "width": 100,
+              "height": 20
+            },
+            "metadata": {
+              "test_id": "name-input"
+            }
+          }
+        },
+        {
+          "id": "url:sha256:ef84f504e9cb8f2a71904372d326d076cf1821bd3df3eae3c0de97fb9a4fd228",
+          "kind": "url",
+          "status": "external_unfetched",
+          "label": "https://example.test/form",
+          "url": "https://example.test/form",
+          "confidence": 0.25,
+          "metadata": {
+            "source": "seed_url"
+          }
+        }
+      ],
+      "coverage": {
+        "has_known_context": false,
+        "has_browser_context": true,
+        "needs_web": false,
+        "needs_counterevidence": false,
+        "needs_freshness": false,
+        "confidence": 0.5
+      },
+      "actions": [
+        {
+          "id": "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad",
+          "action_type": "ask_with_context",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Answer with current context",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:791a5fbd16e667bb4e4c1525fd70b4020f247fc4162e251363095965ba097149",
+          "action_type": "compare_to_graph",
+          "category": "compare",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "context_command_api",
+          "label": "Compare page context to the graph",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action_type": "summarize_page",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Summarize the current page",
+          "target": {
+            "url": "https://example.test/form"
+          }
+        }
+      ]
+    },
+    "action_rail": {
+      "actions": [
+        {
+          "id": "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action_type": "summarize_page",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Summarize the current page",
+          "target": {
+            "url": "https://example.test/form"
+          }
+        },
+        {
+          "id": "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad",
+          "action_type": "ask_with_context",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Answer with current context",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:399e9375f2c29d56912eeaed598ac1184a926038b1d4970ad59f9f6ea38f6013",
+          "action_type": "extract_claims",
+          "category": "extract",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Extract claims from the observed page",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:791a5fbd16e667bb4e4c1525fd70b4020f247fc4162e251363095965ba097149",
+          "action_type": "compare_to_graph",
+          "category": "compare",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "context_command_api",
+          "label": "Compare page context to the graph",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:3c2d0ecc91b1aef4c6972fca07ddc7751076511c424fcb71818f29a0bf280547",
+          "action_type": "inspect_permissions",
+          "category": "permission",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "frontend_only",
+          "label": "Inspect active browsing permissions",
+          "target": {
+            "command_id": "context-command:sha256:341c3462d0091a47e34eff94fbc1ff63355c280f20c93748b9c262a74ae395b4"
+          }
+        },
+        {
+          "id": "action:sha256:265de3ae21594fcf423b09f881edccec2998c93d177bd5731b0e832764e57f34",
+          "action_type": "capture_page",
+          "category": "writeback",
+          "risk": "hot_graph_write",
+          "status": "needs_confirmation",
+          "execution_route": "capture_api",
+          "label": "Capture page into the quarantined web graph",
+          "target": {
+            "graph_layer": "open_web_unverified"
+          }
+        }
+      ],
+      "groups": {
+        "compare": [
+          "action:sha256:791a5fbd16e667bb4e4c1525fd70b4020f247fc4162e251363095965ba097149"
+        ],
+        "extract": [
+          "action:sha256:399e9375f2c29d56912eeaed598ac1184a926038b1d4970ad59f9f6ea38f6013"
+        ],
+        "permission": [
+          "action:sha256:3c2d0ecc91b1aef4c6972fca07ddc7751076511c424fcb71818f29a0bf280547"
+        ],
+        "read": [
+          "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad"
+        ],
+        "writeback": [
+          "action:sha256:265de3ae21594fcf423b09f881edccec2998c93d177bd5731b0e832764e57f34"
+        ]
+      }
+    },
+    "browsing_run": {
+      "run_id": "live-run",
+      "surface": "browse_with_me",
+      "context_command_id": "context-command:sha256:341c3462d0091a47e34eff94fbc1ff63355c280f20c93748b9c262a74ae395b4",
+      "pages_reached": [
+        "https://example.test/form"
+      ],
+      "actions_applied": [
+        {
+          "id": "action:sha256:61565c6cc4b4a6584f8e00f6452a20d5b5a7765d277db72b8288438fc5df5539",
+          "action_type": "summarize_page",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Summarize the current page",
+          "target": {
+            "url": "https://example.test/form"
+          }
+        },
+        {
+          "id": "action:sha256:9f520555a07c82df0817a4a433bd10bd4ec089776049298d008a81a5506528ad",
+          "action_type": "ask_with_context",
+          "category": "read",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Answer with current context",
+          "target": {}
+        },
+        {
+          "id": "action:sha256:399e9375f2c29d56912eeaed598ac1184a926038b1d4970ad59f9f6ea38f6013",
+          "action_type": "extract_claims",
+          "category": "extract",
+          "risk": "read_only",
+          "status": "ready",
+          "execution_route": "ask_pipeline",
+          "label": "Extract claims from the observed page",
+          "target": {}
+        }
+      ],
+      "data_extracted": {
+        "candidate_count": 3,
+        "coverage": {
+          "has_known_context": false,
+          "has_browser_context": true,
+          "needs_web": false,
+          "needs_counterevidence": false,
+          "needs_freshness": false,
+          "confidence": 0.5
+        }
+      },
+      "playbooks_used": [
+        "source_verification"
+      ],
+      "playbooks_created": [],
+      "confidence_ceiling": 0.3499999940395355,
+      "quarantine_layer": "open_web_unverified",
+      "events": [
+        "context_command.resolved",
+        "perception.bundle.created",
+        "action_rail.bundle.created",
+        "browsing_run.receipt.emitted"
+      ],
+      "live_browser": {
+        "status": "actuated",
+        "transport": "scripted_test",
+        "session_id": "session:live-run",
+        "pending_action": null,
+        "intent": "Filling \"Name\" with \"Travis\"",
+        "demonstration_count": 0,
+        "action_receipt": {
+          "action": {
+            "kind": "fill",
+            "value": "Travis"
+          },
+          "selector": "test_id=name",
+          "handle": {
+            "handle": "name",
+            "role": "textbox",
+            "name": "Name",
+            "test_id": "name-input",
+            "rect": {
+              "x": 10,
+              "y": 20,
+              "width": 100,
+              "height": 20
+            },
+            "visible": true,
+            "enabled": true,
+            "editable": true,
+            "degraded": false
+          },
+          "actionability": {
+            "passed": true,
+            "attempts": 1,
+            "checks": {
+              "attached": true,
+              "visible": true,
+              "stable": true,
+              "enabled": true,
+              "editable": true,
+              "receives_events": true
+            }
+          },
+          "applied": true,
+          "engine_receipt": {
+            "mechanism": "scripted_test_driver",
+            "detail": {
+              "target": "name",
+              "kind": {
+                "mechanism": "keyboard",
+                "point": {
+                  "x": 60.0,
+                  "y": 30.0
+                },
+                "text": "Travis"
+              }
+            }
+          }
+        },
+        "page": {
+          "url": "https://example.test/form",
+          "title": "Example Form",
+          "distilled_text": "Example Form Travis",
+          "active_tab_id": "tab-1",
+          "interactive_elements": [
+            {
+              "element_id": "name",
+              "role": "textbox",
+              "name": "Name",
+              "value": "Travis",
+              "test_id": "name-input",
+              "bbox": {
+                "x": 10,
+                "y": 20,
+                "width": 100,
+                "height": 20
+              },
+              "visible": true,
+              "editable": true,
+              "degraded": false
+            }
+          ],
+          "fetch": null
+        }
+      }
+    },
+    "browsing_run_node": "browsing-run:default:sha256:72b9fab310de94301ce98f4bc93ef0ed90a76b94ee264ac01b4a6c607a031ce9",
+    "playbook_pack_ids": [
+      "browser-playbook-deep_research",
+      "browser-playbook-docs_search",
+      "browser-playbook-paper_search",
+      "browser-playbook-pricing_tracker",
+      "browser-playbook-product_research",
+      "browser-playbook-source_verification"
+    ],
+    "web_consume": null,
+    "live_browser": {
+      "status": "actuated",
+      "transport": "scripted_test",
+      "session_id": "session:live-run",
+      "pending_action": null,
+      "intent": "Filling \"Name\" with \"Travis\"",
+      "demonstration_count": 0,
+      "action_receipt": {
+        "action": {
+          "kind": "fill",
+          "value": "Travis"
+        },
+        "selector": "test_id=name",
+        "handle": {
+          "handle": "name",
+          "role": "textbox",
+          "name": "Name",
+          "test_id": "name-input",
+          "rect": {
+            "x": 10,
+            "y": 20,
+            "width": 100,
+            "height": 20
+          },
+          "visible": true,
+          "enabled": true,
+          "editable": true,
+          "degraded": false
+        },
+        "actionability": {
+          "passed": true,
+          "attempts": 1,
+          "checks": {
+            "attached": true,
+            "visible": true,
+            "stable": true,
+            "enabled": true,
+            "editable": true,
+            "receives_events": true
+          }
+        },
+        "applied": true,
+        "engine_receipt": {
+          "mechanism": "scripted_test_driver",
+          "detail": {
+            "target": "name",
+            "kind": {
+              "mechanism": "keyboard",
+              "point": {
+                "x": 60.0,
+                "y": 30.0
+              },
+              "text": "Travis"
+            }
+          }
+        }
+      },
+      "page": {
+        "url": "https://example.test/form",
+        "title": "Example Form",
+        "distilled_text": "Example Form Travis",
+        "active_tab_id": "tab-1",
+        "interactive_elements": [
+          {
+            "element_id": "name",
+            "role": "textbox",
+            "name": "Name",
+            "value": "Travis",
+            "test_id": "name-input",
+            "bbox": {
+              "x": 10,
+              "y": 20,
+              "width": 100,
+              "height": 20
+            },
+            "visible": true,
+            "editable": true,
+            "degraded": false
+          }
+        ],
+        "fetch": null
+      }
+    },
+    "pages_reached": [
+      "https://example.test/form"
+    ],
+    "mode": "sync"
+  }
+}

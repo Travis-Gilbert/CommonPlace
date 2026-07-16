@@ -262,6 +262,7 @@ export function Omnibar() {
                       key={chip.id}
                       onPress={() => void onChip(chip)}
                       accessibilityLabel={chip.label}
+                      hitSlop={6}
                       style={({ pressed }) => [
                         styles.chip,
                         {

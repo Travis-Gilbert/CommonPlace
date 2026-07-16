@@ -12,7 +12,7 @@
 
 import type { ModelWeightsBundle } from '../SceneDirective';
 
-type TFModule = typeof import('@tensorflow/tfjs');
+type TFModule = import('./tf-stub').TFModule;
 
 const NODE_DIM = 20;
 const HIDDEN_DIM = 64;

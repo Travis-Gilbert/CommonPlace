@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { PlugZap } from 'lucide-react';
+import { PlugZap } from '@/lib/icons';
 import { AiInputBar, type AiInputMode, type AiInputSize } from './AiInputBar';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useWaitTier } from '@/lib/commonplace-wait-tier';

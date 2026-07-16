@@ -13,7 +13,7 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp } from '@/lib/icons';
 import { NetworkGlyph } from './NetworkGlyph';
 import { WebGlyph } from './WebGlyph';
 import { AiGlyph } from './AiGlyph';

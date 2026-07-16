@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.30.1",
   "scripts": {
     "sync:rustyred": "node scripts/update-rustyred-source.mjs",
     "install:railway": "npm --prefix apps/web ci --legacy-peer-deps --workspaces=false && mkdir -p node_modules && touch node_modules/.railpack-keep",
@@ -30,20 +29,7 @@
   "engines": {
     "node": ">=22"
   },
-  "pnpm": {
-    "overrides": {
-      "@blocksuite/icons": "2.1.75",
-      "@duckdb/duckdb-wasm": "1.32.0",
-      "@luma.gl/core": "9.2.6",
-      "@luma.gl/engine": "9.2.6",
-      "@luma.gl/webgl": "9.2.6",
-      "@luma.gl/shadertools": "9.2.6",
-      "@luma.gl/constants": "9.2.6",
-      "@travis-gilbert/document-types": "0.1.0",
-      "@travis-gilbert/markdown-spine": "0.1.0"
-    },
-    "patchedDependencies": {
-      "@travis-gilbert/markdown-theory@0.1.1": "patches/@travis-gilbert__markdown-theory@0.1.1.patch"
-    }
+  "dependencies": {
+    "@travis-gilbert/markdown-theory": "^0.1.2"
   }
 }

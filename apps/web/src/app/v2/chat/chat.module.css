@@ -59,3 +59,15 @@
   width: 100%;
   max-width: 42rem;
 }
+
+.threadFrame {
+  align-items: stretch;
+  justify-content: stretch;
+  padding-bottom: 0;
+}
+
+.threadFrame > section {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}

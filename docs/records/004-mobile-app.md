@@ -103,6 +103,34 @@ reconciled there at session close.
 - **Voice transcription deferred** (no transcription service exists server-side);
   voice records and files as an audio capture. Surfaced, not hidden.
 
+## Voice seam (2026-07-04, V2)
+
+The transcription deferral above is now closed server-side. New:
+
+- **Server voice seam** `apps/commonplace-api/src/voice.rs`: `Transcriber`
+  (Whisper node | ElevenLabs Scribe, env-selected, OFF by default) and `Voice`
+  (ElevenLabs | self-hosted Kokoro node), both built from env. `POST /tts`
+  (`serve.rs`) synthesizes read-back; the provider key stays server-side
+  (`ELEVENLABS_API_KEY` by name; never in the app bundle). STT is wired into
+  `/ingest/blob` for audio captures (fail-open: keeps the blob if STT fails).
+  Isolated unit tests pass (`voice::tests`, 3/3); the full `cargo test` was
+  blocked at the time by an unrelated in-flight break in the sibling Theorem
+  checkout's `theorem-harness-runtime` (Codex gepa edits) that this crate
+  path-deps.
+- **Mobile read-back** `apps/mobile/src/voice/readback.ts` + a "Listen" control
+  on thread answers: POST `/tts`, play via `expo-audio`. `tsc` + `expo export`
+  green.
+- **Voice -> text works end-to-end today via record -> `/ingest/blob` -> server
+  STT.** On-device Apple live-dictation (SFSpeechRecognizer) is NOT wired:
+  `expo-speech-recognition` ships only an SDK-56 build (peer-conflicts with the
+  SDK-57 tree); `@react-native-voice/voice` is a stale bridge-era module. Pending
+  a SDK-57-compatible on-device module.
+- **Kokoro placement**: ~330MB fp32 (~80MB int8) on disk; the ~2GB figure is
+  inference RAM. Runs server-side behind the `Voice` seam (needs a phonemizer;
+  espeak-ng is GPL). One env swap from ElevenLabs; zero mobile change.
+- **Publish**: `eas.json` profiles added; `app.json` -> 2.0.0 / buildNumber 1;
+  `.env.example` (server voice env, placeholders) + `.env` gitignored.
+
 ## Non-goals (spec-stated)
 
 Home-screen quick-capture widget ("later" in spec), run-spawning UI beyond

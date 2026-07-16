@@ -35,14 +35,8 @@ let _remarkProcessor: ((md: string) => Promise<string>) | null = null;
 async function getRemarkProcessor(): Promise<(md: string) => Promise<string>> {
   if (_remarkProcessor) return _remarkProcessor;
   try {
-    const { remark } = await import('remark');
-    const remarkGfm = (await import('remark-gfm')).default;
-    const remarkHtml = (await import('remark-html')).default;
-    const processor = remark().use(remarkGfm).use(remarkHtml);
-    _remarkProcessor = async (md: string) => {
-      const file = await processor.process(md);
-      return String(file);
-    };
+    const { markdownToHtml } = await import('@/lib/markdown/toHtml');
+    _remarkProcessor = markdownToHtml;
     return _remarkProcessor;
   } catch {
     // Fallback if remark fails to load

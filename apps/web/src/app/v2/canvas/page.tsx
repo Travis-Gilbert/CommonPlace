@@ -4,7 +4,7 @@
    text/file/link/group; edges with sides + labels) renders here in porcelain.
    Renderer wiring (parse `.canvas` JSON → node/edge layout) lands next. */
 
-import { Frame, FileText, Link2, Group, Spline } from 'lucide-react';
+import { Frame, FileText, Link2, Group, Spline } from '@/lib/icons';
 import styles from '../surface.module.css';
 
 const NODE_KINDS = [

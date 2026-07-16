@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Xmark } from 'iconoir-react';
+import { Xmark } from '@/lib/icons/iconoir';
 import rough from 'roughjs';
 import { readCssVar, hexToRgb as hexToRgbUtil, useThemeVersion } from '@/hooks/useThemeColor';
 import { mulberry32, wobblePath } from '@/lib/prng';

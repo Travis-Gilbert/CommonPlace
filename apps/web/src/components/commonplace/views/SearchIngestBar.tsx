@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Globe } from 'iconoir-react';
+import { Globe } from '@/lib/icons/iconoir';
 import styles from './SearchIngestBar.module.css';
 
 interface SearchIngestBarProps {

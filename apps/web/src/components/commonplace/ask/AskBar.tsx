@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { SearchWindow } from 'iconoir-react';
+import { SearchWindow } from '@/lib/icons/iconoir';
 import styles from './AskBar.module.css';
 
 interface AskBarProps {

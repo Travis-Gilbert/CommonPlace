@@ -12,7 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-} from 'lucide-react';
+} from '@/lib/icons';
 import {
   ChatGlyph,
   CodeGlyph,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, OpenNewWindow } from 'iconoir-react';
+import { Download, OpenNewWindow } from '@/lib/icons/iconoir';
 import { THEOREM_RELEASES_API_URL, THEOREM_RELEASES_URL } from '@/lib/install-surfaces';
 
 type Platform = 'macos' | 'windows' | 'linux';

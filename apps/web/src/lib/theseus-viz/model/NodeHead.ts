@@ -9,7 +9,7 @@
 
 import type { NodeLayout, ModelWeightsBundle } from '../SceneSpec';
 
-type TFModule = typeof import('@tensorflow/tfjs');
+type TFModule = import('./tf-stub').TFModule;
 
 export async function predictNodeLayouts(
   tf: TFModule,

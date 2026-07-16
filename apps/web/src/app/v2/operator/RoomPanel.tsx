@@ -16,8 +16,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, RefreshCw } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { X, RefreshCw } from '@/lib/icons';
+import Markdown from '@/lib/markdown/Markdown';
 import remarkGfm from 'remark-gfm';
 import type { Bay, HeadId, OperatorTask, RegisteredHead, RoomMessage, RunDrawer } from '@/lib/theorem-operator';
 import { isBlocked, unmetPrerequisites } from '@/lib/theorem-operator';
@@ -135,7 +135,7 @@ export function RoomPanel({
 
                   {run?.specMarkdown ? (
                     <div className={styles.specProse}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{run.specMarkdown}</ReactMarkdown>
+                      <Markdown remarkPlugins={[remarkGfm]}>{run.specMarkdown}</Markdown>
                     </div>
                   ) : (
                     <>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
-import { BadgeCheck, Fingerprint, RotateCcw } from 'lucide-react';
+import { BadgeCheck, Fingerprint, RotateCcw } from '@/lib/icons';
 import type { GrowthSnapshot } from '@/lib/growth';
 import styles from './growth.module.css';
 

@@ -1,0 +1,13 @@
+{
+  "name": "@commonplace/canon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "One system per job: canonical, banned, and undecided package registry for apps/web.",
+  "exports": {
+    "./canon.json": "./canon.json"
+  },
+  "files": [
+    "canon.json"
+  ]
+}

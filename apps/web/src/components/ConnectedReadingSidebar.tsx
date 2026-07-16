@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { NavArrowLeft, NavArrowRight } from 'iconoir-react';
+import { NavArrowLeft, NavArrowRight } from '@/lib/icons/iconoir';
 import type { Connection } from '@/lib/connectionEngine';
 
 const TYPE_URL_PREFIX: Record<string, string> = {

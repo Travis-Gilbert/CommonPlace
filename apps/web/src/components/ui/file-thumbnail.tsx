@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileIcon } from "lucide-react"
+import { FileIcon } from '@/lib/icons'
 
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/spinner"

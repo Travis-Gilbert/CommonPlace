@@ -22,7 +22,7 @@ import {
   Link2,
   Mic,
   StickyNote,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { refileOverrideList, useRefileSignal } from '@/lib/commonplace/index-queries';
 import styles from './files.module.css';
 

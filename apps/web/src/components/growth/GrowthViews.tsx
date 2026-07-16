@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, GitBranch, History, Link2, LockKeyhole } from 'lucide-react';
+import { Eye, GitBranch, History, Link2, LockKeyhole } from '@/lib/icons';
 import type { GrowthListing, GrowthStamp, GrowthStats, GrowthTimelinePoint } from '@/lib/growth';
 import styles from './growth.module.css';
 

@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
-import { FolderPlus } from 'iconoir-react';
+import { FolderPlus } from '@/lib/icons/iconoir';
 import { FileTree, buildItemTree, type FileNode } from '@/components/ui/file-tree';
 import { useApiData } from '@/lib/commonplace-api';
 import { gqlItems } from '@/lib/commonplace-graphql';

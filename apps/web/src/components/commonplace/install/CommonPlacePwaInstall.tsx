@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download } from 'iconoir-react';
+import { Download } from '@/lib/icons/iconoir';
 
 type InstallSurface = 'page' | 'commonplace-shell';
 

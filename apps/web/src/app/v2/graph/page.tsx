@@ -9,7 +9,7 @@
 
 import { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Share2, Target, Workflow, Grid2x2 } from 'lucide-react';
+import { Share2, Target, Workflow, Grid2x2 } from '@/lib/icons';
 import { communityCss, useV2GraphData } from '@/lib/commonplace/v2-graph';
 import styles from './graph.module.css';
 

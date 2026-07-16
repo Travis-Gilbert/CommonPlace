@@ -1,6 +1,6 @@
 'use client';
 
-import { BadgeCheck, Dna, LineChart, Network, ScanLine, Store } from 'lucide-react';
+import { BadgeCheck, Dna, LineChart, Network, ScanLine, Store } from '@/lib/icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGrowthSnapshot } from '@/lib/growth';
 import { GrowthCard } from './GrowthCard';

@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useRef, useEffect } from 'react';
-import { ArrowRight } from 'iconoir-react';
+import { ArrowRight } from '@/lib/icons/iconoir';
 import { fetchFeedbackStats, fetchReviewQueue, useApiData } from '@/lib/commonplace-api';
 import type { FeedbackStats } from '@/lib/commonplace-api';
 import { useLayout } from '@/lib/providers/layout-provider';
@@ -321,14 +321,12 @@ function TrainingProgressBar({ stats }: { stats: FeedbackStats }) {
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return;
+    bar.style.transition = 'none';
     bar.style.width = '0%';
-    import('gsap').then(({ gsap }) => {
-      gsap.to(bar, {
-        width: `${pct}%`,
-        duration: 1.2,
-        ease: 'power2.out',
-      });
-    });
+    // Force reflow, then CSS ease (HANDOFF-CANON: gsap cut).
+    void bar.offsetWidth;
+    bar.style.transition = 'width 1.2s ease-out';
+    bar.style.width = `${pct}%`;
   }, [pct]);
 
   return (

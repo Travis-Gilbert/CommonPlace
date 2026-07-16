@@ -1,7 +1,7 @@
 'use client';
 
 import * as Accordion from '@radix-ui/react-accordion';
-import { NavArrowDown } from 'iconoir-react';
+import { NavArrowDown } from '@/lib/icons/iconoir';
 import RoughBox from './rough/RoughBox';
 
 interface ToolkitItem {

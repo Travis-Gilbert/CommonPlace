@@ -106,6 +106,7 @@ export type AcpFrontendEvent =
   | AcpErrorEvent;
 
 export function acpAgentLabel(agentId: string): string {
+  if (agentId === 'theorem' || agentId === 'composed') return 'Theorem';
   return ACP_AGENTS.find((agent) => agent.agentId === agentId)?.label ?? agentId;
 }
 

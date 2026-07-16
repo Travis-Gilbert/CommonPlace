@@ -1,0 +1,5 @@
+{
+  "description": "Grandfathered banned-package importers from HANDOFF-CANON C2 scan. Shrink as C3 lands. Regenerated after C3 live migrations (2026-07-16).",
+  "generatedFrom": "docs/plans/handoff-canon/canon-scan.json",
+  "packages": {}
+}

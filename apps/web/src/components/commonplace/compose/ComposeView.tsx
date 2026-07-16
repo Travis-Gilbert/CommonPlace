@@ -30,7 +30,7 @@ import {
   NumberedListLeft,
   QuoteMessage,
   Strikethrough,
-} from 'iconoir-react';
+} from '@/lib/icons/iconoir';
 import TerminalBlock from '../engine/TerminalBlock';
 import ComposeDiscoveryDock from './ComposeDiscoveryDock';
 import ObjectRenderer from '../objects/ObjectRenderer';

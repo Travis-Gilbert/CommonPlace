@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Reorder } from 'framer-motion';
+import { Reorder } from 'motion/react';
 import { toast } from 'sonner';
 import type { ApiComponent } from '@/lib/commonplace';
 import { patchComponent, createObjectComponent, deleteComponent } from '@/lib/commonplace-api';

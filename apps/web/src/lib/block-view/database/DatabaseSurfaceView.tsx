@@ -10,5 +10,5 @@ import { DatabaseView } from './DatabaseView';
 export function DatabaseSurfaceView({ host }: SurfaceViewRendererProps) {
   const dbHost = host as DbHost;
   if (!dbHost.graph) return null;
-  return <DatabaseView graph={dbHost.graph} />;
+  return <DatabaseView host={dbHost} />;
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight } from 'iconoir-react';
+import { ArrowRight } from '@/lib/icons/iconoir';
 import SectionLabel from '@/components/SectionLabel';
 import ScrollReveal from '@/components/ScrollReveal';
 import TheseusHero from './TheseusHero';

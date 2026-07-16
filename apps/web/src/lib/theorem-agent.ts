@@ -44,6 +44,16 @@ const DEFAULT_BINDING_PREFIX = 'agent:theorem';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const THEOREM_AGENT_PROXY_PATH = '/api/theorem/agent';
 
+class TheoremAgentHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'TheoremAgentHttpError';
+  }
+}
+
 export async function runTheoremAgent(input: TheoremAgentRunInput): Promise<TheoremAgentRunResult> {
   const normalized = normalizeInput(input);
   try {
@@ -95,7 +105,9 @@ export async function callTheoremAgentEndpoint(endpoint: string, input: TheoremA
       cache: 'no-store',
       signal: timeout.signal,
     });
-    if (!res.ok) throw new Error(await responseErrorMessage(res));
+    if (!res.ok) {
+      throw new TheoremAgentHttpError(res.status, await responseErrorMessage(res));
+    }
     return res.json();
   } catch (err) {
     if (isAbortError(err)) {
@@ -270,6 +282,9 @@ function isAbortError(err: unknown): boolean {
 }
 
 function isProductRouteFallbackEligible(err: unknown): boolean {
+  if (err instanceof TheoremAgentHttpError) {
+    return [404, 502, 503, 504].includes(err.status);
+  }
   if (!(err instanceof Error)) return false;
   return [
     'Failed to parse URL',

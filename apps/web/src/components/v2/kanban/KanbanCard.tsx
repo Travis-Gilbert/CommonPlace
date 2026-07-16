@@ -6,7 +6,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical } from '@/lib/icons';
 import type { ObjectRef } from '@/lib/block-view/types';
 import { renderCardField, selectCardFields } from './kanban-recipe';
 import styles from './kanban.module.css';

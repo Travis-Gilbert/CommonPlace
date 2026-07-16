@@ -11,7 +11,7 @@
 
 import { Combobox } from '@base-ui/react/combobox';
 import { PreviewCard } from '@base-ui/react/preview-card';
-import { ChevronDown, Send } from 'lucide-react';
+import { ChevronDown, Send } from '@/lib/icons';
 import { useMemo, useState } from 'react';
 import type { Bay, HeadId, RunDrawer } from '@/lib/theorem-operator';
 import { formatAge } from './parts';

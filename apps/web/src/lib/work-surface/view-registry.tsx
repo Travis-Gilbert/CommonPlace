@@ -26,10 +26,12 @@ import type {
 import { matchesShape } from './shape-match';
 import { RecordTable } from '@/components/v2/record-table';
 import { KanbanBoard } from '@/components/v2/kanban';
+import { PathGraphView } from '@/components/v2/path/PathGraphView';
 
 // Declared ActionKinds each renderer is allowed to emit (provenance contract).
 const TABLE_EMITS: readonly ActionKind[] = ['update', 'select', 'open', 'delete'];
 const BOARD_EMITS: readonly ActionKind[] = ['update', 'create'];
+const PATH_EMITS: readonly ActionKind[] = ['select', 'open'];
 
 function TableRender({ set, host }: ViewRenderProps) {
   return <RecordTable objectSet={set} host={host} />;
@@ -37,6 +39,10 @@ function TableRender({ set, host }: ViewRenderProps) {
 
 function BoardRender({ set, host }: ViewRenderProps) {
   return <KanbanBoard objectSet={set} host={host} />;
+}
+
+function PathRender({ set, host }: ViewRenderProps) {
+  return <PathGraphView set={set} host={host} />;
 }
 
 const TABLE_VIEW: ViewDescriptor = {
@@ -73,8 +79,26 @@ const BOARD_VIEW: ViewDescriptor = {
   render: BoardRender,
 };
 
+/** PL2 Path lens: any relation-bearing ObjectSet inherits Path via views_for(shape). */
+const PATH_VIEW: ViewDescriptor = {
+  id: 'path',
+  name: 'Path',
+  accepts: { requires_relation: true },
+  emits: PATH_EMITS,
+  renderer: 'path',
+  source: {
+    package: '@/components/v2/path/PathGraphView',
+    component: 'PathGraphView',
+    mode: 'bespoke',
+    regime: 'scene',
+    allowedBespokeReason:
+      'HANDOFF-CANON Path lens over @cosmos.gl/graph; Clew interaction on Theorem substrate.',
+  },
+  render: PathRender,
+};
+
 /** All client-side record renderers, in switcher order. */
-export const V2_VIEW_REGISTRY: readonly ViewDescriptor[] = [TABLE_VIEW, BOARD_VIEW];
+export const V2_VIEW_REGISTRY: readonly ViewDescriptor[] = [TABLE_VIEW, BOARD_VIEW, PATH_VIEW];
 
 /** The registry views whose `accepts` clause matches the given shape, in order. */
 export function matchingViews(shape: ObjectShape): readonly ViewDescriptor[] {

@@ -6,14 +6,18 @@ import type { CapturedObject } from '@/lib/commonplace';
 import {
   searchObjects,
   fetchInquiryPlan,
-  startInquiry,
   fetchInquiryProgress,
   fetchInquiryResult,
+  startInquiry as startLegacyInquiry,
   type ObjectSearchResult,
   type InquiryPlanResult,
   type InquiryProgress,
   type InquiryResultData,
 } from '@/lib/commonplace-api';
+import InquiryModelActions from '@/components/inquiry/InquiryModelActions';
+import InquiryProgress from '@/components/inquiry/InquiryProgress';
+import InquiryResultView from '@/components/inquiry/InquiryResultView';
+import { useInquiryRuntime } from '@/components/inquiry/useInquiryRuntime';
 import {
   createCapturedObject,
   isUrl,
@@ -25,6 +29,7 @@ import { useWorkspace } from '@/lib/providers/workspace-provider';
 import { toast } from 'sonner';
 import type { RenderableObject } from '../objects/ObjectRenderer';
 import TerminalBlock from '../engine/TerminalBlock';
+import { answerFromDelegateResult } from '@/lib/inquiry-agent-bridge';
 
 /* ─────────────────────────────────────────────────
    Slash commands
@@ -71,6 +76,10 @@ const INQUIRY_PHASES: InquiryPhase[] = [
   'linking',
   'synthesis',
 ];
+
+
+/** Legacy Index-API inquiry path; kept until theorem path is fully verified. */
+const LEGACY_INQUIRY_ENABLED = false;
 
 function resultToRenderable(result: ObjectSearchResult): RenderableObject {
   const identity =
@@ -137,10 +146,11 @@ export default function CommandBar({
   const { notifyCaptured } = useCapture();
   const { launchView } = useLayout();
   const { stashObject } = useWorkspace();
+  const inquiry = useInquiryRuntime();
+  const [pinningArtifactId, setPinningArtifactId] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [webEnabled, setWebEnabled] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const [selectedTarget, setSelectedTarget] = useState<ObjectSearchResult | null>(null);
 
@@ -160,8 +170,8 @@ export default function CommandBar({
   const trimmed = query.trim();
   const isCommandMode = trimmed.startsWith('/');
   const isCaptureInput = !isCommandMode && trimmed.length > 0;
-  const isExpanded = isFocused && trimmed.length > 0;
-  const isRunning = runningInquiry !== null && !inquiryResult;
+  const isExpanded = isFocused && trimmed.length > 0 && !inquiry.loading && !inquiry.snapshot;
+  const isRunning = inquiry.loading || (LEGACY_INQUIRY_ENABLED && runningInquiry !== null && !inquiryResult);
 
   const commandFilter = isCommandMode ? trimmed.slice(1).toLowerCase() : '';
   const commandName = commandFilter.split(/\s+/)[0] ?? '';
@@ -242,7 +252,7 @@ export default function CommandBar({
 
   /* ─── Poll inquiry progress ─── */
   useEffect(() => {
-    if (!runningInquiry || inquiryResult) return;
+    if (!LEGACY_INQUIRY_ENABLED || !runningInquiry || inquiryResult) return;
     const poll = async () => {
       try {
         const progress = await fetchInquiryProgress(runningInquiry.id);
@@ -308,12 +318,25 @@ export default function CommandBar({
     [trimmed, onCapture, notifyCaptured],
   );
 
-  /* ─── Web inquiry ─── */
-  const handleSearchWeb = useCallback(async (force = false) => {
-    if (!trimmed || (!force && !webEnabled)) return;
+  /* ─── Stateful inquiry (Theorem) ─── */
+  const handleStartInquiry = useCallback(async () => {
+    if (!trimmed || isCommandMode) return;
+    setIsFocused(false);
+    setRunningInquiry(null);
+    setInquiryResult(null);
+    try {
+      await inquiry.startInquiry({ query: trimmed, surface: 'index' });
+    } catch {
+      toast.error(inquiry.error ?? 'Inquiry could not start');
+    }
+  }, [trimmed, isCommandMode, inquiry]);
+
+  /* ─── Legacy web inquiry (Index-API) ─── */
+  const handleLegacySearchWeb = useCallback(async () => {
+    if (!LEGACY_INQUIRY_ENABLED || !trimmed) return;
     setIsFocused(false);
     try {
-      const resp = await startInquiry({ query: trimmed, external_search: true });
+      const resp = await startLegacyInquiry({ query: trimmed, external_search: true });
       setRunningInquiry({
         id: resp.inquiry_id,
         status: resp.status,
@@ -324,7 +347,21 @@ export default function CommandBar({
     } catch {
       toast.error('Inquiry could not start');
     }
-  }, [trimmed, webEnabled]);
+  }, [trimmed]);
+
+  const handlePinArtifact = useCallback(
+    async (artifactId: string) => {
+      setPinningArtifactId(artifactId);
+      try {
+        await inquiry.pinArtifact(artifactId);
+      } catch {
+        toast.error('Could not pin evidence');
+      } finally {
+        setPinningArtifactId(null);
+      }
+    },
+    [inquiry],
+  );
 
   const closeBar = useCallback(() => {
     setQuery('');
@@ -426,12 +463,9 @@ export default function CommandBar({
           setSelectedIdx(-1);
           return;
         }
-        if (!isCommandMode && trimmed.endsWith('?')) {
-          handleSearchWeb(true);
+        if (!isCommandMode && isCaptureInput) {
+          void handleStartInquiry();
           return;
-        }
-        if (isCaptureInput) {
-          handleCapture();
         }
       }
     },
@@ -443,7 +477,7 @@ export default function CommandBar({
       isCaptureInput,
       handleCapture,
       handleCommand,
-      handleSearchWeb,
+      handleStartInquiry,
       onOpenObject,
       trimmed,
       commandName,
@@ -529,16 +563,13 @@ export default function CommandBar({
             if (!val.trim().startsWith('/')) {
               setSelectedTarget(null);
             }
-            if (val.trim().length > 0 && !val.startsWith('/') && !webEnabled) {
-              setWebEnabled(true);
-            }
           }}
           onFocus={() => setIsFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder={
             isCommandMode
               ? 'file, delegate, draft, develop...'
-              : 'Search, capture, or / for commands'
+              : 'Ask, search, or / for commands'
           }
           className="cp-inquiry-input"
         />
@@ -551,20 +582,21 @@ export default function CommandBar({
           <span className="cp-cmdbar-mode-tag cp-cmdbar-mode-tag--capture">CAPTURE</span>
         )}
 
-        {/* Web toggle */}
-        {webEnabled && !isCommandMode && (
+        {!isCommandMode ? (
           <button
             type="button"
+            title="Capture to CommonPlace"
+            aria-label="Capture"
+            className="cp-inquiry-action-btn"
+            style={{ padding: '2px 8px', minWidth: 28 }}
             onClick={(e) => {
               e.stopPropagation();
-              setWebEnabled(false);
+              void handleCapture();
             }}
-            title="Web search on (click to disable)"
-            className="cp-inquiry-web-toggle cp-inquiry-web-toggle--on"
           >
-            WEB ON
+            +
           </button>
-        )}
+        ) : null}
 
         {gapCount > 0 && (
           <span
@@ -728,32 +760,82 @@ export default function CommandBar({
               ))}
             </>
           )}
-
-          {/* Action buttons */}
-          {!isCommandMode && (
-            <div className="cp-inquiry-actions">
-              <button
-                type="button"
-                onClick={() => setIsFocused(false)}
-                className="cp-inquiry-action-btn"
-              >
-                SEARCH GRAPH
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSearchWeb()}
-                disabled={!webEnabled}
-                className={`cp-inquiry-action-btn${webEnabled ? ' cp-inquiry-action-btn--web' : ''}`}
-              >
-                SEARCH WEB
-              </button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── Terminal block (running inquiry) ── */}
-      {isRunning && (
+      {inquiry.loading ? (
+        <InquiryProgress query={trimmed || query} status="running" />
+      ) : null}
+
+      {inquiry.error && !inquiry.snapshot ? (
+        <div className="cp-inquiry-result-gaps" style={{ marginTop: 10 }}>
+          <div className="cp-inquiry-result-gap-item">{inquiry.error}</div>
+        </div>
+      ) : null}
+
+      {inquiry.snapshot ? (
+        <TerminalBlock title="Inquiry evidence" status="complete" style={{ marginTop: 10 }}>
+          <InquiryResultView
+            snapshot={inquiry.snapshot}
+            onPinArtifact={(artifactId) => {
+              void handlePinArtifact(artifactId);
+            }}
+            pinningArtifactId={pinningArtifactId}
+          />
+          <InquiryModelActions
+            disabled={!inquiry.inquiryId}
+            interpretLoading={inquiry.actionLoading === 'interpret'}
+            delegateLoading={inquiry.actionLoading === 'delegate'}
+            onAskTheorem={() => {
+              void inquiry.delegate(
+                `Investigate further and propose the next concrete action for: ${inquiry.snapshot?.query ?? trimmed}`,
+              );
+            }}
+            onInterpretTheorem={() => {
+              void inquiry.interpret({ kind: 'head', head_id: 'theorem' });
+            }}
+            onInterpretBestAvailable={() => {
+              void inquiry.interpret({ kind: 'best_available', capability: 'summarize' });
+            }}
+          />
+          {inquiry.interpretation ? (
+            <div className="cp-inquiry-result-answer" style={{ marginTop: 10 }}>
+              <div className="cp-inquiry-result-label">Interpretation</div>
+              <div>{inquiry.interpretation.answer_text}</div>
+            </div>
+          ) : null}
+          {inquiry.agentResult ? (
+            (() => {
+              const delegateAnswer = answerFromDelegateResult(inquiry.agentResult?.result);
+              return delegateAnswer ? (
+                <div className="cp-inquiry-result-answer" style={{ marginTop: 10 }}>
+                  <div className="cp-inquiry-result-label">Theorem</div>
+                  <div>{delegateAnswer}</div>
+                </div>
+              ) : (
+                <div className="cp-inquiry-result-summary" style={{ marginTop: 8 }}>
+                  Theorem agent run {inquiry.agentResult.agent_run.agent_run_id}
+                </div>
+              );
+            })()
+          ) : null}
+          <div className="cp-inquiry-dismiss-row">
+            <button
+              type="button"
+              onClick={() => {
+                inquiry.reset();
+                setRunningInquiry(null);
+                setInquiryResult(null);
+              }}
+              className="cp-inquiry-dismiss-btn"
+            >
+              DISMISS
+            </button>
+          </div>
+        </TerminalBlock>
+      ) : null}
+
+      {LEGACY_INQUIRY_ENABLED && isRunning && (
         <TerminalBlock
           title={`Inquiry: ${query}`}
           status="running"
@@ -776,8 +858,7 @@ export default function CommandBar({
         </TerminalBlock>
       )}
 
-      {/* ── Inquiry result ── */}
-      {inquiryResult && (
+      {LEGACY_INQUIRY_ENABLED && inquiryResult && (
         <TerminalBlock title="Inquiry Results" status="complete" style={{ marginTop: 10 }}>
           {inquiryResult.answer.answer_text && (
             <div className="cp-inquiry-result-answer">

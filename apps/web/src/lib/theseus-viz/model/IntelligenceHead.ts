@@ -24,7 +24,7 @@
 
 import type { ModelWeightsBundle } from '../SceneDirective';
 
-type TFModule = typeof import('@tensorflow/tfjs');
+type TFModule = import('./tf-stub').TFModule;
 type Tensor2D = ReturnType<TFModule['tensor2d']>;
 
 export interface HeadOutputs {

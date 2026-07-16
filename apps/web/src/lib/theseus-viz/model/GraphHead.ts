@@ -14,7 +14,7 @@
 import type { GraphDecision, ModelWeightsBundle, TopologyType } from '../SceneSpec';
 import { RENDER_TARGETS, LAYOUT_TYPES, DATA_VIZ_TYPES } from '../SceneSpec';
 
-type TFModule = typeof import('@tensorflow/tfjs');
+type TFModule = import('./tf-stub').TFModule;
 
 export async function classifyGraph(
   tf: TFModule,

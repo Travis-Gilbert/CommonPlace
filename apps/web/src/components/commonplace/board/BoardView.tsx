@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { Plus, Xmark } from 'iconoir-react';
+import { Plus, Xmark } from '@/lib/icons/iconoir';
 import type { PlacedItem, BoardConnection, ViewportState, BoardFrame } from '@/lib/commonplace-board';
 import { DEMO_BOARD } from '@/lib/commonplace-board';
 import { getObjectTypeIdentity } from '@/lib/commonplace';

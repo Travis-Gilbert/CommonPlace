@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useRef, useState } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { BrainIcon, ChevronDownIcon } from '@/lib/icons';
 import {
   useScrollLock,
   useAuiState,

@@ -6,7 +6,7 @@
 
 import { memo, useCallback, useState, type FC, type KeyboardEvent } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from '@/lib/icons';
 import type { PropertyDef } from '@/lib/block-view/types';
 import styles from './data-canvas.module.css';
 

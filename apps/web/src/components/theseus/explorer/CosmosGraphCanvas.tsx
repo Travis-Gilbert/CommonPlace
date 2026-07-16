@@ -102,6 +102,7 @@ import {
   focusSizeMultFor,
   linkTierFor,
 } from './focusDimming';
+import { pathOpacityFor, pathSizeMultFor } from '@/lib/path/pathLens';
 
 /** Tier-1 focus dimming surface added on top of the GraphAdapter base.
  *  Stage 5 ports the three-tier opacity / halo scheme from
@@ -119,6 +120,11 @@ export interface CosmosFocusDimmingSurface {
    *  `distance` as a multiplier on the bounding circle; passing
    *  `1 / 1.2` (~0.833) yields a 1.2x zoom-in. */
   focusNode(id: string): void;
+  /**
+   * PL2 Path lens: replace 1-hop neighbors with the ancestor/blocker chain.
+   * Pass null to leave Path mode and restore adjacency-based dimming.
+   */
+  setPathChain(chainIds: readonly string[] | null): void;
 }
 
 export type CosmosGraphCanvasHandle = GraphAdapter & CosmosFocusDimmingSurface;
@@ -326,12 +332,22 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
     hoverIdRef.current = hoverId;
 
     // Tier-1 dimming: 1-hop neighbor set and incident-link set, derived
-    // from `focusedId` + current links. Both empty when no focus is set,
-    // which the per-tier resolvers interpret as "no dimming". The
-    // string-keyed Sets allow O(1) lookup in the per-point and per-link
-    // encoding loops.
+    // from `focusedId` + current links. When Path lens is active
+    // (`pathChainRef`), the neighbor set is the ancestor/blocker chain
+    // instead of adjacency. Both empty when no focus is set.
+    const pathChainRef = useRef<readonly string[] | null>(null);
+    const [pathEpoch, setPathEpoch] = useState(0);
+
     const neighborIds = useMemo(() => {
       if (!focusedId) return new Set<string>();
+      const path = pathChainRef.current;
+      if (path && path.length > 0) {
+        const set = new Set<string>();
+        for (const id of path) {
+          if (id !== focusedId) set.add(id);
+        }
+        return set;
+      }
       const set = new Set<string>();
       for (const link of links) {
         const s = String(link.source);
@@ -340,10 +356,22 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
         if (t === focusedId) set.add(s);
       }
       return set;
-    }, [focusedId, links]);
+    }, [focusedId, links, pathEpoch]);
 
     const incidentLinks = useMemo(() => {
       if (!focusedId) return new Set<string>();
+      const path = pathChainRef.current;
+      if (path && path.length > 1) {
+        const set = new Set<string>();
+        for (let i = 0; i < path.length - 1; i += 1) {
+          const a = path[i];
+          const b = path[i + 1];
+          if (!a || !b) continue;
+          set.add(`${a}|${b}`);
+          set.add(`${b}|${a}`);
+        }
+        return set;
+      }
       const set = new Set<string>();
       for (const link of links) {
         const s = String(link.source);
@@ -353,7 +381,7 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
         }
       }
       return set;
-    }, [focusedId, links]);
+    }, [focusedId, links, pathEpoch]);
 
     // Mirror into refs so the imperative encoding pass (which is not
     // re-run on every render via React state) sees the latest sets.
@@ -1148,11 +1176,17 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
         pool.colors[off] = srcColors[off];
         pool.colors[off + 1] = srcColors[off + 1];
         pool.colors[off + 2] = srcColors[off + 2];
-        pool.colors[off + 3] = focusOpacityFor(id, fid, hid, nbrs);
+        const pathMode = Boolean(pathChainRef.current && pathChainRef.current.length > 0);
+        pool.colors[off + 3] = pathMode
+          ? pathOpacityFor(id, fid, new Set([...(pathChainRef.current ?? []), ...nbrs]))
+          : focusOpacityFor(id, fid, hid, nbrs);
         // Size multiplier (Task 5.4): scale the source size by the
         // tier multiplier. Capped at 1px floor below.
         const baseSize = srcSizes[i] || 1;
-        pool.sizes[i] = Math.max(1, baseSize * focusSizeMultFor(id, fid, hid, nbrs));
+        const sizeMult = pathMode
+          ? pathSizeMultFor(id, fid, new Set([...(pathChainRef.current ?? []), ...nbrs]))
+          : focusSizeMultFor(id, fid, hid, nbrs);
+        pool.sizes[i] = Math.max(1, baseSize * sizeMult);
       }
 
       // Per-edge tier coloring (Task 5.8). When focus is set, the
@@ -2274,6 +2308,68 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
           if (id) {
             const nbrs = new Set<string>();
             const incident = new Set<string>();
+            const path = pathChainRef.current;
+            if (path && path.length > 0) {
+              for (const nodeId of path) {
+                if (nodeId !== id) nbrs.add(nodeId);
+              }
+              for (let i = 0; i < path.length - 1; i += 1) {
+                const a = path[i];
+                const b = path[i + 1];
+                if (!a || !b) continue;
+                incident.add(`${a}|${b}`);
+                incident.add(`${b}|${a}`);
+              }
+            } else {
+              const { links: lks } = latestDataRef.current;
+              for (const link of lks) {
+                const s = String(link.source);
+                const t = String(link.target);
+                if (s === id) {
+                  nbrs.add(t);
+                  incident.add(`${s}|${t}`);
+                }
+                if (t === id) {
+                  nbrs.add(s);
+                  incident.add(`${s}|${t}`);
+                }
+              }
+            }
+            neighborIdsRef.current = nbrs;
+            incidentLinksRef.current = incident;
+          } else {
+            pathChainRef.current = null;
+            neighborIdsRef.current = new Set<string>();
+            incidentLinksRef.current = new Set<string>();
+          }
+          applyFocusDimming();
+        },
+        getFocusedId() {
+          return focusedIdRef.current;
+        },
+        setPathChain(chainIds: readonly string[] | null) {
+          pathChainRef.current = chainIds && chainIds.length > 0 ? [...chainIds] : null;
+          setPathEpoch((n) => n + 1);
+          const id = focusedIdRef.current;
+          if (id && pathChainRef.current) {
+            const nbrs = new Set<string>();
+            const incident = new Set<string>();
+            const path = pathChainRef.current;
+            for (const nodeId of path) {
+              if (nodeId !== id) nbrs.add(nodeId);
+            }
+            for (let i = 0; i < path.length - 1; i += 1) {
+              const a = path[i];
+              const b = path[i + 1];
+              if (!a || !b) continue;
+              incident.add(`${a}|${b}`);
+              incident.add(`${b}|${a}`);
+            }
+            neighborIdsRef.current = nbrs;
+            incidentLinksRef.current = incident;
+          } else if (!pathChainRef.current && id) {
+            const nbrs = new Set<string>();
+            const incident = new Set<string>();
             const { links: lks } = latestDataRef.current;
             for (const link of lks) {
               const s = String(link.source);
@@ -2289,14 +2385,11 @@ const CosmosGraphCanvas = forwardRef<CosmosGraphCanvasHandle, CosmosGraphCanvasP
             }
             neighborIdsRef.current = nbrs;
             incidentLinksRef.current = incident;
-          } else {
+          } else if (!id) {
             neighborIdsRef.current = new Set<string>();
             incidentLinksRef.current = new Set<string>();
           }
           applyFocusDimming();
-        },
-        getFocusedId() {
-          return focusedIdRef.current;
         },
         focusNode(id: string) {
           // Compose: set the dimming focus AND zoom in 1.2x. The

@@ -4,8 +4,9 @@
    active kind (gallery/grid/list/board); search + count in the toolbar; clicking
    an object opens the detail. Pure over an ObjectGraph — the same component
    renders movies, plants, or anything else the object model holds. */
-import { useMemo, useState } from 'react';
-import { LayoutGrid, Table as TableIcon, List as ListIcon, Columns3, Search } from 'lucide-react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
+import { LayoutGrid, Table as TableIcon, List as ListIcon, Columns3, Search } from '@/lib/icons';
+import type { DbHost } from '../host/MemoryBlockHost';
 import type { ObjectGraph, ViewKind } from './model';
 import { selectObjects } from './model';
 import type { DbViewProps } from './view-types';
@@ -30,15 +31,26 @@ const RENDERER: Record<ViewKind, (props: DbViewProps) => React.JSX.Element> = {
   board: BoardView,
 };
 
-export function DatabaseView({ graph }: { graph: ObjectGraph }) {
+/** `host` is the live seam: reading objects from `host.list()` (not the frozen
+ *  `graph.objects`) and subscribing to `host.onChange` makes the surface reflect
+ *  real `emit` mutations. `graph` is still passed for back-compat / callers that
+ *  only hold the immutable graph; the host takes precedence when present. */
+export function DatabaseView({ host, graph: graphProp }: { host?: DbHost; graph?: ObjectGraph }) {
+  const graph = (host?.graph ?? graphProp)!;
+  const liveObjects = useSyncExternalStore(
+    (cb) => (host ? host.onChange(cb) : () => {}),
+    () => (host ? host.list() : graph.objects),
+    () => (host ? host.list() : graph.objects),
+  );
+
   const views = graph.set.views.length ? graph.set.views : [{ id: 'all', name: 'All', kind: 'gallery' as ViewKind, visibleRelations: Object.keys(graph.relations), filters: [], sorts: [] }];
   const [activeId, setActiveId] = useState(views[0].id);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const view = views.find((v) => v.id === activeId) ?? views[0];
-  const objects = useMemo(() => selectObjects(graph.objects, view, search), [graph.objects, view, search]);
-  const selected = selectedId ? graph.objects.find((o) => o.id === selectedId) : undefined;
+  const objects = useMemo(() => selectObjects(liveObjects, view, search), [liveObjects, view, search]);
+  const selected = selectedId ? liveObjects.find((o) => o.id === selectedId) : undefined;
 
   if (selected) {
     return (
@@ -87,7 +99,7 @@ export function DatabaseView({ graph }: { graph: ObjectGraph }) {
         </div>
       </div>
 
-      <Renderer graph={graph} objects={objects} view={view} onOpen={setSelectedId} />
+      <Renderer graph={graph} objects={objects} view={view} onOpen={setSelectedId} host={host} />
     </div>
   );
 }

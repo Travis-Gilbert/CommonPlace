@@ -23,8 +23,8 @@ import {
   SquarePen,
   Star,
   X,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import type { ScreenType, ViewType } from '@/lib/commonplace';
 import {
   clearCommonPlaceInstanceSettings,

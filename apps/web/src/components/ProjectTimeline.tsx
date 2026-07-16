@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { OpenNewWindow, NavArrowDown } from 'iconoir-react';
+import { OpenNewWindow, NavArrowDown } from '@/lib/icons/iconoir';
 import TagList from './TagList';
 
 interface ProjectUrl {

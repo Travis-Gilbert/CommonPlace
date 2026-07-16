@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import { HelpCircle, WarningCircle, Compass, WarningTriangle } from 'iconoir-react';
+import { HelpCircle, WarningCircle, Compass, WarningTriangle } from '@/lib/icons/iconoir';
 import {
   fetchInquirySuggestions,
   useApiData,
