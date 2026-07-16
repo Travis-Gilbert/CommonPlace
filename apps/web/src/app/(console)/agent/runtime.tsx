@@ -37,7 +37,7 @@ export function useTheoremAgentRuntime(opts: {
 }
 
 function createConverter() {
-  return (state: TheoremAgentState) => {
+  return (state: TheoremAgentState, _connectionMetadata: unknown) => {
     const activeAssistantIndex = lastAssistantIndex(state);
     const likes = state.messages.map((message, index) =>
       toThreadMessage(message, state.turnStatus, index === activeAssistantIndex),
@@ -55,7 +55,6 @@ function createConverter() {
         );
       }),
       isRunning: state.turnStatus === 'running',
-      state,
     };
   };
 }
