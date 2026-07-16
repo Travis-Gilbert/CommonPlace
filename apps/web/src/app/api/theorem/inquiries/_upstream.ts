@@ -2,11 +2,23 @@
 
 export const dynamic = 'force-dynamic';
 
-const LOCAL_NODE_URL =
-  process.env.NEXT_PUBLIC_LOCAL_NODE_URL ?? 'http://127.0.0.1:17888';
+function resolveInquiryUpstreamBase(): string {
+  const configured =
+    process.env.THEOREM_NODE_URL?.trim() ||
+    process.env.INQUIRY_UPSTREAM_URL?.trim() ||
+    process.env.NEXT_PUBLIC_LOCAL_NODE_URL?.trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+  // Railway / hosted CommonPlace must not default to the desktop loopback node.
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+    return 'https://api.theoremharness.com';
+  }
+  return 'http://127.0.0.1:17888';
+}
 
 export function localInquiryUrl(path: string): string {
-  const base = LOCAL_NODE_URL.replace(/\/+$/, '');
+  const base = resolveInquiryUpstreamBase();
   const suffix = path.startsWith('/') ? path : `/${path}`;
   return `${base}${suffix}`;
 }
