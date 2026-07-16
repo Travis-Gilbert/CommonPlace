@@ -3,6 +3,8 @@
 
 'use client';
 
+import { useAuiState } from '@assistant-ui/react';
+
 import type { TheoremAgentState } from '@/server/acp/state';
 
 import { useTheoremAgentState } from './use-theorem-agent-state';
@@ -38,8 +40,13 @@ export function AgentModeRow({
   onModeChange: (mode: AgentMode) => void;
 }) {
   /* undefined = transport not bound yet (SSR or the first render after a
-     mode-switch remount); treat it as a fresh, empty thread. */
-  const started = useTheoremAgentState((state) => state.messages.length > 0) ?? false;
+     mode-switch remount); treat it as a fresh, empty thread. The client-side
+     thread state is checked too: an optimistic first message lands there
+     before the server's first state snapshot, and a mode switch in that window
+     would remount the runtime and discard the in-flight turn. */
+  const transportStarted = useTheoremAgentState((state) => state.messages.length > 0) ?? false;
+  const clientStarted = useAuiState((s) => !s.thread.isEmpty || s.thread.isRunning);
+  const started = transportStarted || clientStarted;
   const sessionId = useTheoremAgentState((state) => state.sessionId) ?? null;
   const blockedReason = useTheoremAgentState((state) => state.blockedReason) ?? null;
 
