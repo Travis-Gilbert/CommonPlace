@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ConsoleGroundCanvas } from '@/components/v2/ConsoleGroundCanvas';
 import { V2Shell } from '@/components/v2/V2Shell';
 // The console register (--cr-* + Tailwind @theme) loads globally via global.css
 // so utilities and vars resolve app-wide. These porcelain sheets stay per-v2.
@@ -30,7 +31,11 @@ export const metadata: Metadata = {
    cascade cannot restyle it. React 19 hoists the link tags below into head. */
 export default function V2Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="porcelain flex min-h-dvh bg-cr-ground">
+    /* relative + isolate form the stacking context the ground canvas needs:
+       it paints at z-index -1, above this div's bg-cr-ground fill but below
+       the rail and the opaque content sheet (HP3). */
+    <div className="porcelain relative isolate flex min-h-dvh bg-cr-ground">
+      <ConsoleGroundCanvas />
       <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="anonymous" />
       <link
         rel="stylesheet"
