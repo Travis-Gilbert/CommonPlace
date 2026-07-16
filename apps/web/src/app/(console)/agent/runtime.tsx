@@ -6,6 +6,7 @@ import {
   type AssistantRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
+import { fromThreadMessageLike } from '@assistant-ui/core/internal';
 
 import type { TheoremAgentState } from '@/server/acp/state';
 
@@ -38,10 +39,21 @@ export function useTheoremAgentRuntime(opts: {
 function createConverter() {
   return (state: TheoremAgentState) => {
     const activeAssistantIndex = lastAssistantIndex(state);
+    const likes = state.messages.map((message, index) =>
+      toThreadMessage(message, state.turnStatus, index === activeAssistantIndex),
+    );
     return {
-      messages: state.messages.map((message, index) =>
-        toThreadMessage(message, state.turnStatus, index === activeAssistantIndex),
-      ),
+      messages: likes.map((like, index) => {
+        const fallbackStatus =
+          like.role === 'assistant' && like.status
+            ? like.status
+            : ({ type: 'complete', reason: 'stop' } as const);
+        return fromThreadMessageLike(
+          like,
+          state.messages[index]?.id ?? `msg-${index}`,
+          fallbackStatus,
+        );
+      }),
       isRunning: state.turnStatus === 'running',
       state,
     };
