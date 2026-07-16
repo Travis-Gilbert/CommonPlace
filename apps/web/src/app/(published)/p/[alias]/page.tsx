@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { auth } from '@/lib/auth';
@@ -68,9 +69,9 @@ export default async function PublishedAliasPage({ params }: Params) {
           The author took this block down. Its content is no longer served here, though the block
           still exists in its origin space.
         </p>
-        <a className={styles.doorwaySecondary} href="/">
+        <Link className={styles.doorwaySecondary} href="/">
           Go to CommonPlace
-        </a>
+        </Link>
       </div>
     );
   }
