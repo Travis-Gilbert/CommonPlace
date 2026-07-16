@@ -52,7 +52,7 @@ export type AcpSessionUpdate = {
   status?: string;
 };
 
-const thoughtPrefix = /^\[([^\]]+)\]\s*(.*)$/s;
+const thoughtPrefix = /^\[([^\]]+)\]\s*([\s\S]*)$/;
 
 export function createTheoremAgentState(
   key: Pick<AgentProcessKey, 'mode' | 'bindingId'>,
