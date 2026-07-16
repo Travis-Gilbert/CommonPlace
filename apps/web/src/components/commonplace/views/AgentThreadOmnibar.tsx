@@ -3,8 +3,7 @@
 import Image from 'next/image';
 import type { ChangeEvent, MouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Globe, Paperclip, Plus, Send } from 'lucide-react';
+import { Paperclip, Plus, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import styles from './AgentThreadOmnibar.module.css';
 
@@ -18,7 +17,7 @@ interface AgentThreadOmnibarProps {
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (options: { webSearch: boolean; file?: File }) => void | Promise<void>;
+  onSubmit: (options: { file?: File }) => void | Promise<void>;
 }
 
 const MIN_HEIGHT = 48;
@@ -57,38 +56,13 @@ function useAutoResizeTextarea({ minHeight, maxHeight }: UseAutoResizeTextareaPr
   return { textareaRef, adjustHeight };
 }
 
-function AnimatedPlaceholder({
-  placeholder,
-  showSearch,
-}: {
-  placeholder: string;
-  showSearch: boolean;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <AnimatePresence mode="wait">
-      <motion.p
-        key={showSearch ? 'search' : 'ask'}
-        initial={reduced ? false : { opacity: 0, y: 5 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={reduced ? undefined : { opacity: 0, y: -5 }}
-        transition={{ duration: 0.1 }}
-        className={styles.placeholder}
-      >
-        {showSearch ? 'Search the web...' : placeholder}
-      </motion.p>
-    </AnimatePresence>
-  );
-}
-
 export default function AgentThreadOmnibar({
   busy = false,
-  placeholder = 'Ask CommonPlace...',
+  placeholder = 'Message Theorem',
   value,
   onChange,
   onSubmit,
 }: AgentThreadOmnibarProps) {
-  const [showSearch, setShowSearch] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [attachedFile, setAttachedFile] = useState<File | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,7 +100,7 @@ export default function AgentThreadOmnibar({
 
   async function handleSubmit() {
     if (!value.trim() || busy) return;
-    await onSubmit({ webSearch: showSearch, file: attachedFile });
+    await onSubmit({ file: attachedFile });
     adjustHeight(true);
     clearAttachment();
   }
@@ -141,10 +115,10 @@ export default function AgentThreadOmnibar({
                 ref={textareaRef}
                 id="commonplace-agent-input"
                 value={value}
-                placeholder=""
+                placeholder={placeholder}
                 className={styles.textarea}
                 rows={1}
-                aria-label="Message CommonPlace"
+                aria-label="Message Theorem"
                 disabled={busy}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
@@ -157,11 +131,6 @@ export default function AgentThreadOmnibar({
                   adjustHeight();
                 }}
               />
-              {!value ? (
-                <div className={styles.placeholderWrap}>
-                  <AnimatedPlaceholder placeholder={placeholder} showSearch={showSearch} />
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -205,38 +174,6 @@ export default function AgentThreadOmnibar({
                   </span>
                 ) : null}
               </label>
-
-              <button
-                type="button"
-                onClick={() => setShowSearch((current) => !current)}
-                className={cn(styles.searchTool, showSearch && styles.searchToolActive)}
-                aria-label="Search the web"
-                aria-pressed={showSearch}
-                title="Search the web"
-                disabled={busy}
-              >
-                <motion.span
-                  className={styles.searchIcon}
-                  animate={{ rotate: showSearch ? 180 : 0, scale: showSearch ? 1.08 : 1 }}
-                  whileHover={{ rotate: showSearch ? 180 : 15, scale: 1.08 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 25 }}
-                >
-                  <Globe size={16} />
-                </motion.span>
-                <AnimatePresence>
-                  {showSearch ? (
-                    <motion.span
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 'auto', opacity: 1 }}
-                      exit={{ width: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className={styles.searchLabel}
-                    >
-                      Search
-                    </motion.span>
-                  ) : null}
-                </AnimatePresence>
-              </button>
             </div>
 
             <button

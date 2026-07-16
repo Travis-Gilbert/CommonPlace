@@ -22,15 +22,13 @@ import {
   type AcpFileWriteReview,
   type AcpFrontendEvent,
 } from '@/lib/commonplace-acp';
+import { createInquiry } from '@/lib/inquiry-api';
 import {
-  searchRustyWeb,
-  type RustyWebSearchHit,
-} from '@/lib/rustyweb-search';
-import {
-  runTheoremAgent,
-  type TheoremAgentClaim,
-  type TheoremAgentRunResult,
-} from '@/lib/theorem-agent';
+  claimsFromInquirySnapshot,
+  groundedChatPrompt,
+} from '@/lib/inquiry-agent-bridge';
+import type { InquirySnapshot } from '@/lib/inquiry-types';
+import { runTheoremAgent } from '@/lib/theorem-agent';
 import type { RenderScenePayload } from '@/lib/scene-package';
 import AgentThreadOmnibar from './AgentThreadOmnibar';
 import SceneHost from '../scene-host/SceneHost';
@@ -38,6 +36,8 @@ import styles from './AgentThreadView.module.css';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useWaitTier } from '@/lib/commonplace-wait-tier';
 import { narrationFor } from '@/lib/commonplace-wait-narration';
+import PresenceMark from '../presence/PresenceMark';
+import type { PresenceState } from '../presence/presenceStates';
 
 type ThreadItem =
   | {
@@ -78,20 +78,11 @@ type ThreadItem =
 interface AgentThreadViewProps {
   agentId?: AcpAgentId | string;
   agentMode?: 'api' | 'acp';
-  /** Cited context loaded into the composer once on mount (HANDOFF-CARRY D3
-   *  C3.3): the carried sources, so the agent answers from them on the first
-   *  turn. Never auto-sent. */
-  seedContext?: string;
-  /** A request to append a cited reference to the composer (C3.2). The nonce
-   *  makes repeated inserts of the same text distinct. */
-  insertText?: { text: string; nonce: number } | null;
 }
 
 export default function AgentThreadView({
   agentId = 'theorem',
   agentMode,
-  seedContext,
-  insertText,
 }: AgentThreadViewProps) {
   const preferredMode = agentMode ?? (agentId === 'agent' ? 'api' : 'acp');
   const [apiFallback, setApiFallback] = useState(false);
@@ -116,25 +107,6 @@ export default function AgentThreadView({
   const [items, setItems] = useState<ThreadItem[]>([]);
   const [composer, setComposer] = useState('');
   const [isSending, setIsSending] = useState(false);
-
-  // Seed the composer once with carried cited context (HANDOFF-CARRY C3.3), so
-  // the agent answers from a carried source on the first turn. Never auto-sent.
-  const seededComposerRef = useRef(false);
-  useEffect(() => {
-    if (seedContext && !seededComposerRef.current) {
-      seededComposerRef.current = true;
-      setComposer((prev) => (prev.trim() ? prev : seedContext));
-    }
-  }, [seedContext]);
-
-  // Append a cited reference to the composer on request (C3.2).
-  const lastInsertNonceRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (insertText && insertText.nonce !== lastInsertNonceRef.current) {
-      lastInsertNonceRef.current = insertText.nonce;
-      setComposer((prev) => (prev.trim() ? `${prev}\n\n${insertText.text}` : insertText.text));
-    }
-  }, [insertText]);
 
   const addItem = useCallback((item: ThreadItem) => {
     setItems((prev) => [...prev, item]);
@@ -339,7 +311,7 @@ export default function AgentThreadView({
     });
   }, [items]);
 
-  const sendPrompt = useCallback(async (options: { webSearch?: boolean; file?: File } = {}) => {
+  const sendPrompt = useCallback(async (options: { file?: File } = {}) => {
     if (isSending) return;
     const text = composer.trim();
     if (!text) return;
@@ -354,6 +326,36 @@ export default function AgentThreadView({
       markdown: promptText,
     });
     setComposer('');
+
+    let snapshot: InquirySnapshot | null = null;
+    try {
+      const inquiry = await createInquiry({
+        query: promptText,
+        surface: 'chat',
+        retrieval_budget: 'standard',
+      });
+      snapshot = inquiry.snapshot;
+      const evidenceCount = snapshot.evidence.length;
+      if (evidenceCount > 0) {
+        addItem({
+          id: `retrieve-${Date.now()}`,
+          kind: 'message',
+          role: 'system',
+          markdown: `Retrieved ${evidenceCount} source${evidenceCount === 1 ? '' : 's'}.`,
+        });
+      }
+    } catch {
+      addItem({
+        id: `retrieve-fail-${Date.now()}`,
+        kind: 'message',
+        role: 'system',
+        markdown: 'Inquiry retrieval failed; continuing with your message to Theorem.',
+      });
+    }
+
+    const claims = snapshot ? claimsFromInquirySnapshot(snapshot) : [];
+    const agentPrompt = snapshot ? groundedChatPrompt(promptText, snapshot) : promptText;
+
     const useCompatibilityRoute =
       resolvedMode === 'api' || (agentId === 'theorem' && !sessionId);
     if (useCompatibilityRoute) {
@@ -363,9 +365,11 @@ export default function AgentThreadView({
       setStatus('connecting');
       setIsSending(true);
       try {
-        const result = options.webSearch
-          ? await runResearchPrompt(promptText)
-          : await runTheoremAgent({ task: promptText, mode: 'ask' });
+        const result = await runTheoremAgent({
+          task: promptText,
+          mode: 'ask',
+          claims: claims.length > 0 ? claims : undefined,
+        });
         addItem({
           id: `agent-${Date.now()}`,
           kind: 'message',
@@ -392,7 +396,7 @@ export default function AgentThreadView({
     const delivered = send({
       type: 'prompt',
       session_id: activeSession,
-      text: options.webSearch ? `Search the web if available, then answer:\n\n${promptText}` : promptText,
+      text: agentPrompt,
     });
     if (!delivered) {
       addItem({
@@ -411,12 +415,17 @@ export default function AgentThreadView({
   // is a pre-stream window. Promote the pending indicator through the wait
   // ladder on real elapsed time (T0 nothing, T1 micro line, T2 spinner + narration).
   const waitTier = useWaitTier(isSending);
+  // The Presence mark is the header presence glyph (SPEC-UI-SOURCING-ADDENDUM
+  // Presence D2): the same mark as the co-browse telegraph and the run glyph.
+  const markState: PresenceState =
+    displayStatus === 'connecting' ? 'thinking' : displayStatus === 'offline' ? 'interrupted' : 'idle';
 
   return (
     <section className={`cp-agent-thread ${styles.thread}`} aria-label={`${agentLabel} agent thread`}>
       {preferredMode === 'acp' ? (
         <header className="cp-agent-thread-header">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PresenceMark state={markState} size={24} label={`${agentLabel} presence`} />
             <h2>{agentLabel}</h2>
             <span className={`cp-agent-thread-status cp-agent-thread-status--${displayStatus}`}>
               {displayStatus}
@@ -490,29 +499,6 @@ export default function AgentThreadView({
       </div>
     </section>
   );
-}
-
-async function runResearchPrompt(task: string): Promise<TheoremAgentRunResult> {
-  const search = await searchRustyWeb(task, {
-    mode: 'web',
-    limit: 8,
-    providerLimit: 4,
-    providerTimeoutMs: 4_000,
-    requestTimeoutMs: 12_000,
-  });
-  return runTheoremAgent({
-    mode: 'research',
-    task: `Answer this question using the attached search evidence where it is useful. Question: ${task}`,
-    claims: searchHitsToClaims(search.hits),
-    requestTimeoutMs: 75_000,
-  });
-}
-
-function searchHitsToClaims(hits: RustyWebSearchHit[]): TheoremAgentClaim[] {
-  return hits.slice(0, 8).map((hit, index) => ({
-    text: [hit.title, hit.snippet].filter(Boolean).join(': '),
-    provenance: hit.url || hit.id || `search:${index + 1}`,
-  }));
 }
 
 function ThreadCard({
