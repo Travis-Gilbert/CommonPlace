@@ -99,6 +99,72 @@ test.describe('HP4 divider subordination', () => {
   });
 });
 
+test.describe('HP3 ground canvas', () => {
+  test('the ground texture drifts when motion is allowed and stays decorative', async ({ page }) => {
+    await gotoIndex(page);
+    const probe = async () =>
+      page.evaluate(() => {
+        const canvas = document.querySelector('.porcelain > canvas') as HTMLCanvasElement | null;
+        if (!canvas || canvas.width <= 1) return null;
+        const ctx = canvas.getContext('2d')!;
+        const cs = getComputedStyle(canvas);
+        return {
+          sample: Array.from(ctx.getImageData(0, 0, 240, 240).data.filter((_, i) => i % 4 === 3)).join(','),
+          ariaHidden: canvas.getAttribute('aria-hidden'),
+          pointerEvents: cs.pointerEvents,
+          zIndex: cs.zIndex,
+        };
+      });
+    const first = await probe();
+    expect(first, 'ground canvas painted').toBeTruthy();
+    // Decoration contract: hidden from AT, no hit-testing, behind the chrome.
+    expect(first!.ariaHidden).toBe('true');
+    expect(first!.pointerEvents).toBe('none');
+    expect(first!.zIndex).toBe('-1');
+    // Opacity drift: a later frame must differ (period 9s, sampled 700ms apart).
+    await page.waitForTimeout(700);
+    const second = await probe();
+    expect(second!.sample).not.toBe(first!.sample);
+  });
+});
+
+test.describe('HP3 ground canvas under reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+  test('renders a single static frame', async ({ page }) => {
+    await gotoIndex(page);
+    const sample = async () =>
+      page.evaluate(() => {
+        const canvas = document.querySelector('.porcelain > canvas') as HTMLCanvasElement | null;
+        if (!canvas || canvas.width <= 1) return null;
+        const ctx = canvas.getContext('2d')!;
+        return Array.from(ctx.getImageData(0, 0, 240, 240).data.filter((_, i) => i % 4 === 3)).join(',');
+      });
+    const first = await sample();
+    expect(first, 'ground canvas painted').toBeTruthy();
+    await page.waitForTimeout(700);
+    const second = await sample();
+    expect(second).toBe(first);
+  });
+});
+
+test.describe('HP5 chat surface', () => {
+  test('the chat empty state is quiet and the affordance row is real', async ({ page }) => {
+    await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+    const empty = page.getByText('No thread yet', { exact: false });
+    await empty.waitFor({ state: 'visible' });
+    const px = await empty.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
+    // Empty states must not exceed body size (15px at the console base).
+    expect(px).toBeLessThanOrEqual(15);
+    // HP5 structure above the composer: the agent mode row is present and both
+    // real mode controls are live on an empty thread (they select the ACP
+    // process mode; see agent-mode-row.tsx).
+    const row = page.getByRole('group', { name: 'Agent mode' });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole('button', { name: 'Composed' })).toBeEnabled();
+    await expect(row.getByRole('button', { name: 'Single' })).toBeEnabled();
+  });
+});
+
 test.describe('HP5 empty-state restraint', () => {
   test('the inspector empty state renders at most body size', async ({ page }) => {
     await gotoIndex(page);

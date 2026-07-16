@@ -1,12 +1,16 @@
 name: CommonPlace web CI
 
-# SPEC-UX-PHYSICS D7.4 latency budget in CI (+ HANDOFF-WAIT-LADDER WL-5).
-# Runs on pull requests that touch the web app. Encodes the D7 acceptance:
+# SPEC-UX-PHYSICS D7.4 latency budget in CI (+ HANDOFF-WAIT-LADDER WL-5,
+# + HANDOFF-CONSOLE-PAINT HP4). Runs on pull requests that touch the web app.
+# Encodes the D7 acceptance:
 #   - the bundle size budget (size-limit) must pass;
 #   - a synthetic 250ms handler regression fails CI (Playwright INP budget gate);
 #   - a synthetic 12s indeterminate spinner fails CI (Playwright wait-ladder gate).
 # The lint + quality audit steps also carry the UX-D1.4 accent lint and the MT-2
-# motion lint (both live inside `lint` and `quality:commonplace`).
+# motion lint (both live inside `lint` and `quality:commonplace`), plus the
+# console-register CR1/CR2 lint. The Playwright job also runs the console-paint
+# oracles (e2e/console-paint.spec.ts): font resolution, plane separation,
+# divider subordination, and empty-state restraint are merge-blocking (HP4).
 
 on:
   pull_request:
@@ -46,6 +50,11 @@ jobs:
 
       - name: Lint (includes UX-D1.4 accent + MT-2 motion lints)
         run: pnpm --filter @commonplace/web run lint
+
+      # HP4: the console-register CR1 literal + CR2 depth lint over the
+      # migrated console surfaces (was previously not wired into CI).
+      - name: Console register lint (CR1 + CR2)
+        run: pnpm --filter @commonplace/web run lint:register
 
       - name: Unit tests (vitest)
         run: pnpm --filter @commonplace/web run test
@@ -109,9 +118,11 @@ jobs:
         run: pnpm --filter @commonplace/web exec playwright install --with-deps chromium
 
       # UX-D7.3 traces on the three headline flows + the 250ms INP budget gate,
-      # plus WL-5 (no indeterminate spinner beyond 10s; 12s spinner fails). The
-      # Playwright config starts `npm run dev` as its webServer.
-      - name: Run interaction traces
+      # plus WL-5 (no indeterminate spinner beyond 10s; 12s spinner fails),
+      # plus the HP4 console-paint oracles (testDir ./e2e picks up
+      # console-paint.spec.ts in the same run). The Playwright config starts
+      # `npm run dev` as its webServer.
+      - name: Run interaction traces + console paint oracles (HP4, merge-blocking)
         run: pnpm --filter @commonplace/web run test:e2e
 
       - name: Upload traces
