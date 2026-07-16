@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 
 import { gqlReferenceBlock } from '@/lib/commonplace-graphql';
 import styles from '../published.module.css';
@@ -69,9 +70,9 @@ export function Doorway({
         <span>
           {done.fork ? 'Forked into your CommonPlace.' : 'Referenced into your CommonPlace.'}
         </span>
-        <a className={styles.doorwaySecondary} href="/">
+        <Link className={styles.doorwaySecondary} href="/">
           Go to CommonPlace
-        </a>
+        </Link>
       </div>
     );
   }

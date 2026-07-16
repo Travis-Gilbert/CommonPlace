@@ -94,8 +94,9 @@ Every Growth view implements loading, empty, unavailable, error, stale, and popu
 
 - Use `--cr-motion`, `--cr-motion-doc`, and `--cr-ease`
 - Motion communicates feedback, orientation, or relationship only
-- No ambient motion in the monitoring shell
-- `prefers-reduced-motion` removes spatial movement, shimmer, and graph interpolation
+- Ambient motion is limited to the ground layer, a quiet canvas texture behind the console chrome
+- The foreground chrome carries no ambient motion
+- `prefers-reduced-motion` renders a single static ground frame and removes spatial movement, shimmer, and graph interpolation
 
 ## Accessibility
 

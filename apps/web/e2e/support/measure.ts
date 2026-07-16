@@ -13,8 +13,11 @@ export const FIRST_FEEDBACK_TIER_MS = 2000;
 /** Accessible name of the one true indeterminate spinner (WeaveSpinner). */
 export const THINKING_SPINNER = { role: 'status' as const, name: 'Thinking' };
 
-/** CommandBar capture input placeholder (the real capture affordance on /commonplace). */
-export const CAPTURE_PLACEHOLDER = 'Search, capture, or / for commands';
+/** CommandBar capture input placeholder (the real capture affordance on
+    /commonplace). The inquiry-layer rebuild renamed it from "Search, capture,
+    or / for commands"; all D7/WL-5 specs gate on this locator first, so a
+    placeholder drift reads as six element-not-found failures. */
+export const CAPTURE_PLACEHOLDER = 'Ask, search, or / for commands';
 
 interface DurationWindow {
   __cpDurations?: number[];

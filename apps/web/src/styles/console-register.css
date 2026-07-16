@@ -1,7 +1,7 @@
-/* GENERATED — do not edit by hand.
-   Source: @travis-gilbert/markdown-theory `console` fixture (density: chrome).
-   Regenerate: npm run build:register (after rebuilding markdown-theory, or sweeping /dev/register).
-   Contrast (WCAG AA solved): ink on surface 10.02:1 · ink2 on surface 6.341:1 · ink3 on surface 3.966:1 · signal on surface 4.524:1 · link on surface 4.538:1 */
+/* GENERATED: do not edit by hand.
+   Source: @travis-gilbert/markdown-theory `console` fixture (density: chrome); ground widened +0.03 OKLCH L (HP2).
+   Regenerate: npm run build:register.
+   Contrast (WCAG AA solved, both planes): ink on surface 10.02:1 · ink2 on surface 6.341:1 · ink3 on surface 3.966:1 · signal on surface 4.524:1 · link on surface 4.538:1 · ink on ground 9.147:1 · ink2 on ground 5.789:1 · ink3 on ground 3.621:1 · signal on ground 4.13:1 · link on ground 4.142:1 */
 :root {
   --cr-base: 15px;
   --cr-size-n2: 0.7rem;
@@ -44,7 +44,7 @@
   --cr-radius: 6px;
   --cr-radius-lg: 13px;
   --cr-border-width: 1px;
-  --cr-ground: oklch(94.5% 0.005 72);
+  --cr-ground: oklch(91.5% 0.005 72);
   --cr-surface: oklch(96.7% 0.005 72);
   --cr-top: oklch(98.9% 0.005 72);
   --cr-ink: oklch(34% 0.012 72);

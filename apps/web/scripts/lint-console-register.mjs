@@ -42,6 +42,8 @@ const src = (rel) => join(here, "..", "src", rel);
  */
 const MIGRATED_COMPONENTS = [
   "app/(console)/layout.tsx",
+  "components/agent/agent-mode-row.tsx",
+  "components/v2/ConsoleGroundCanvas.tsx",
   "components/v2/V2Shell.tsx",
   "components/growth/GrowthCard.tsx",
   "components/growth/GrowthGraphCanvas.tsx",
