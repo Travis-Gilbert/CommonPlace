@@ -78,11 +78,20 @@ type ThreadItem =
 interface AgentThreadViewProps {
   agentId?: AcpAgentId | string;
   agentMode?: 'api' | 'acp';
+  /** Cited context loaded into the composer once on mount (HANDOFF-CARRY):
+   *  the carried sources, so the agent answers from them on the first turn.
+   *  Never auto-sent. */
+  seedContext?: string;
+  /** A request to append a cited reference to the composer. The nonce makes
+   *  repeated inserts of the same text distinct. */
+  insertText?: { text: string; nonce: number } | null;
 }
 
 export default function AgentThreadView({
   agentId = 'theorem',
   agentMode,
+  seedContext,
+  insertText,
 }: AgentThreadViewProps) {
   const preferredMode = agentMode ?? (agentId === 'agent' ? 'api' : 'acp');
   const [apiFallback, setApiFallback] = useState(false);
@@ -107,6 +116,25 @@ export default function AgentThreadView({
   const [items, setItems] = useState<ThreadItem[]>([]);
   const [composer, setComposer] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Seed the composer once with carried cited context (HANDOFF-CARRY), so the
+  // agent answers from a carried source on the first turn. Never auto-sent.
+  const seededComposerRef = useRef(false);
+  useEffect(() => {
+    if (seedContext && !seededComposerRef.current) {
+      seededComposerRef.current = true;
+      setComposer((prev) => (prev.trim() ? prev : seedContext));
+    }
+  }, [seedContext]);
+
+  // Append a cited reference to the composer on request.
+  const lastInsertNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (insertText && insertText.nonce !== lastInsertNonceRef.current) {
+      lastInsertNonceRef.current = insertText.nonce;
+      setComposer((prev) => (prev.trim() ? `${prev}\n\n${insertText.text}` : insertText.text));
+    }
+  }, [insertText]);
 
   const addItem = useCallback((item: ThreadItem) => {
     setItems((prev) => [...prev, item]);
