@@ -2,7 +2,7 @@
   "expo": {
     "name": "CommonPlace",
     "slug": "commonplace-mobile",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "commonplace",
@@ -10,6 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.travisgilbert.commonplace",
+      "buildNumber": "2",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Voice capture records audio so it can be kept in your commonplace."
       }

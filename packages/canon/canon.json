@@ -1,0 +1,323 @@
+{
+  "version": 1,
+  "description": "HANDOFF-CANON C1: one system per job. Source of truth for lint-canon. Every apps/web runtime dependency must appear under exactly one job as canonical, banned, or undecided.",
+  "jobs": {
+    "graph-render": {
+      "canonical": ["@cosmos.gl/graph"],
+      "banned": [
+        { "package": "sigma", "reason": "Overlaps cosmos.gl graph render; cut per C3." },
+        { "package": "@react-sigma/core", "reason": "Sigma React wrapper; cut with sigma." },
+        { "package": "@sigma/edge-curve", "reason": "Sigma edge plugin; cut with sigma." },
+        { "package": "react-force-graph-3d", "reason": "Third graph canvas; cosmos.gl is canonical." },
+        { "package": "d3-force-3d", "reason": "Force sim for react-force-graph-3d; cut with that stack." }
+      ],
+      "undecided": [
+        "embedding-atlas",
+        "graphology",
+        "@luma.gl/core",
+        "@luma.gl/engine",
+        "@luma.gl/shadertools",
+        "@luma.gl/webgl"
+      ]
+    },
+    "graph-edit": {
+      "canonical": ["@xyflow/react"],
+      "banned": [],
+      "undecided": ["@dagrejs/dagre", "@dagrejs/graphlib"]
+    },
+    "graph-algorithms": {
+      "canonical": [],
+      "notes": "Canonical algorithms run server-side in RustyRed (PPR, communities). No client package is canonical for this job.",
+      "banned": [
+        {
+          "package": "graphology-communities-louvain",
+          "reason": "Client Louvain duplicates substrate partitions."
+        },
+        {
+          "package": "graphology-metrics",
+          "reason": "Client metrics duplicate RustyRed graph metrics."
+        },
+        {
+          "package": "graphology-layout-forceatlas2",
+          "reason": "Client ForceAtlas2 duplicates cosmos layout."
+        }
+      ],
+      "undecided": []
+    },
+    "charts": {
+      "canonical": ["@observablehq/plot"],
+      "banned": [
+        { "package": "vega", "reason": "Same job as Observable Plot; trio is three packages for one job." },
+        { "package": "vega-lite", "reason": "Same job as Observable Plot." },
+        { "package": "vega-embed", "reason": "Same job as Observable Plot." }
+      ],
+      "undecided": ["@uwdata/mosaic-core", "@uwdata/mosaic-spec", "@uwdata/mosaic-sql", "@uwdata/vgplot", "d3", "d3-delaunay"]
+    },
+    "data-grid": {
+      "canonical": ["@tanstack/react-table", "@tanstack/react-virtual"],
+      "banned": [
+        {
+          "package": "@glideapps/glide-data-grid",
+          "reason": "TW2 table engine is TanStack; Glide is a second grid."
+        }
+      ],
+      "undecided": []
+    },
+    "motion": {
+      "canonical": ["motion"],
+      "banned": [
+        { "package": "framer-motion", "reason": "Same library as motion installed twice; SL0 picks motion." },
+        { "package": "gsap", "reason": "Second motion engine; SL0 is motion plus animejs." }
+      ],
+      "undecided": ["tw-animate-css"]
+    },
+    "icons": {
+      "canonical": [],
+      "notes": "Canonical icons are the Noun set via scripts/export-icons.mjs, not an npm icon kit.",
+      "banned": [
+        { "package": "lucide-react", "reason": "Noun export is canonical; migrate StreamLens and cut." },
+        { "package": "iconoir-react", "reason": "Second icon kit; Noun set is canonical." },
+        { "package": "@hugeicons/react", "reason": "Third icon kit; Noun set is canonical." },
+        { "package": "@hugeicons/core-free-icons", "reason": "Hugeicons icon data; cut with @hugeicons/react." },
+        {
+          "package": "react-native-vector-icons",
+          "reason": "RN icon kit inside Next web; mobile lives in apps/mobile."
+        }
+      ],
+      "undecided": []
+    },
+    "dnd": {
+      "canonical": ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+      "banned": [
+        { "package": "@hello-pangea/dnd", "reason": "Second drag-and-drop system; dnd-kit is canonical." }
+      ],
+      "undecided": []
+    },
+    "ui-primitives": {
+      "canonical": ["radix-ui"],
+      "banned": [],
+      "undecided": [
+        "@base-ui/react",
+        "@radix-ui/react-accordion",
+        "@radix-ui/react-collapsible",
+        "@radix-ui/react-dialog",
+        "@radix-ui/react-dropdown-menu",
+        "@radix-ui/react-popover",
+        "@radix-ui/react-scroll-area",
+        "@radix-ui/react-select",
+        "@radix-ui/react-tabs",
+        "@radix-ui/react-toggle-group",
+        "@radix-ui/react-tooltip",
+        "@floating-ui/react",
+        "@floating-ui/react-dom",
+        "@floating-ui/utils",
+        "vaul",
+        "cmdk",
+        "sonner",
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge",
+        "react-resizable-panels",
+        "react-responsive-carousel"
+      ]
+    },
+    "rich-text": {
+      "canonical": [
+        "@tiptap/react",
+        "@tiptap/pm",
+        "@tiptap/starter-kit",
+        "@tiptap/y-tiptap",
+        "@tiptap/extension-mention",
+        "@tiptap/extension-table",
+        "@tiptap/extension-table-cell",
+        "@tiptap/extension-table-header",
+        "@tiptap/extension-table-row"
+      ],
+      "banned": [
+        {
+          "package": "@blocksuite/presets",
+          "reason": "Second rich-text stack; Tiptap is canonical unless C2 finds live load."
+        },
+        {
+          "package": "@blocksuite/store",
+          "reason": "BlockSuite store; cut with presets unless C2 finds live load."
+        }
+      ],
+      "undecided": [
+        "@tiptap/extension-character-count",
+        "@tiptap/extension-code-block-lowlight",
+        "@tiptap/extension-collaboration",
+        "@tiptap/extension-highlight",
+        "@tiptap/extension-image",
+        "@tiptap/extension-link",
+        "@tiptap/extension-placeholder",
+        "@tiptap/extension-subscript",
+        "@tiptap/extension-superscript",
+        "@tiptap/extension-task-item",
+        "@tiptap/extension-task-list",
+        "@tiptap/extension-typography",
+        "@tiptap/extension-underline",
+        "@tiptap/markdown",
+        "@tiptap/suggestion",
+        "lowlight"
+      ]
+    },
+    "code-editor": {
+      "canonical": [
+        "codemirror",
+        "@codemirror/state",
+        "@codemirror/view",
+        "@codemirror/language",
+        "@codemirror/commands",
+        "@codemirror/search",
+        "@codemirror/merge",
+        "@codemirror/collab",
+        "@codemirror/lang-javascript",
+        "@codemirror/lang-json",
+        "@codemirror/lang-markdown",
+        "@codemirror/lang-python",
+        "@lezer/highlight",
+        "y-codemirror.next"
+      ],
+      "banned": [],
+      "undecided": ["@pierre/trees"]
+    },
+    "markdown-render": {
+      "canonical": ["@travis-gilbert/markdown-theory"],
+      "banned": [
+        { "package": "react-markdown", "reason": "markdown-theory is canonical and carries Shiki." },
+        { "package": "remark-html", "reason": "markdown-theory is canonical for HTML render." },
+        { "package": "highlight.js", "reason": "markdown-theory carries Shiki; highlight.js is duplicate." }
+      ],
+      "undecided": ["remark", "remark-gfm", "@assistant-ui/react-markdown", "@assistant-ui/react-ink-markdown"]
+    },
+    "pdf-generate": {
+      "canonical": [],
+      "notes": "Generation is the D9 Typst path, not an npm PDF writer.",
+      "banned": [
+        { "package": "jspdf", "reason": "PDF generation is Typst (D9); jspdf is the wrong runtime." }
+      ],
+      "undecided": []
+    },
+    "pdf-read": {
+      "canonical": ["pdfjs-dist"],
+      "banned": [],
+      "undecided": []
+    },
+    "browser-ml": {
+      "canonical": [],
+      "notes": "No on-device ML stack is canonical until product commits; cut TF/MediaPipe/WebLLM on evidence.",
+      "banned": [
+        { "package": "@tensorflow/tfjs", "reason": "Browser ML cut; substrate owns scoring." },
+        {
+          "package": "@tensorflow-models/body-segmentation",
+          "reason": "Browser ML cut with tfjs."
+        },
+        { "package": "@tensorflow-models/coco-ssd", "reason": "Browser ML cut with tfjs." },
+        {
+          "package": "@tensorflow-models/depth-estimation",
+          "reason": "Browser ML cut with tfjs."
+        },
+        {
+          "package": "@tensorflow-models/face-landmarks-detection",
+          "reason": "Browser ML cut with tfjs."
+        },
+        {
+          "package": "@tensorflow-models/knn-classifier",
+          "reason": "Browser ML cut with tfjs."
+        },
+        { "package": "@tensorflow-models/mobilenet", "reason": "Browser ML cut with tfjs." },
+        {
+          "package": "@tensorflow-models/pose-detection",
+          "reason": "Browser ML cut with tfjs."
+        },
+        {
+          "package": "@tensorflow-models/universal-sentence-encoder",
+          "reason": "Browser ML cut with tfjs."
+        },
+        { "package": "@mediapipe/face_mesh", "reason": "Browser ML cut; MediaPipe is not canonical." },
+        {
+          "package": "@mediapipe/selfie_segmentation",
+          "reason": "Browser ML cut; MediaPipe is not canonical."
+        },
+        { "package": "@mlc-ai/web-llm", "reason": "Browser LLM runtime; not a committed product path." }
+      ],
+      "undecided": ["@huggingface/transformers"]
+    },
+    "state": {
+      "canonical": ["zustand"],
+      "banned": [],
+      "undecided": ["jotai"]
+    },
+    "framework": {
+      "canonical": ["next", "react", "react-dom"],
+      "banned": [],
+      "undecided": ["tslib", "source-map-js", "@linaria/react"]
+    },
+    "auth": {
+      "canonical": ["next-auth"],
+      "banned": [],
+      "undecided": []
+    },
+    "collab": {
+      "canonical": ["yjs", "y-protocols", "y-indexeddb", "@hocuspocus/provider"],
+      "banned": [],
+      "undecided": []
+    },
+    "wrong-runtime": {
+      "canonical": [],
+      "notes": "Packages that belong in apps/mobile or CLI, not apps/web.",
+      "banned": [
+        {
+          "package": "@rneui/base",
+          "reason": "React Native UI kit inside Next web; mobile is apps/mobile."
+        },
+        {
+          "package": "@rneui/themed",
+          "reason": "React Native themed kit inside Next web."
+        },
+        { "package": "@inkjs/ui", "reason": "CLI Ink UI surface; not a web runtime." },
+        {
+          "package": "update-notifier",
+          "reason": "CLI notifier; not a web runtime dependency."
+        }
+      ],
+      "undecided": ["@capacitor/core", "@capacitor/ios"]
+    },
+    "assistant-ui": {
+      "canonical": ["@assistant-ui/react", "@assistant-ui/store"],
+      "banned": [],
+      "undecided": []
+    },
+    "3d": {
+      "canonical": ["three", "@react-three/fiber", "@react-three/drei"],
+      "banned": [],
+      "undecided": ["@types/three"]
+    },
+    "sketch": {
+      "canonical": ["roughjs", "rough-notation"],
+      "banned": [],
+      "undecided": ["textmode.js", "textmode.export.js", "@chenglou/pretext"]
+    },
+    "content": {
+      "canonical": ["gray-matter", "zod", "feed"],
+      "banned": [],
+      "undecided": []
+    },
+    "spatial-data": {
+      "canonical": ["topojson-client"],
+      "banned": [],
+      "undecided": ["@types/topojson-client", "@duckdb/duckdb-wasm"]
+    },
+    "workspace-local": {
+      "canonical": ["@commonplace/block-view-contracts"],
+      "banned": [],
+      "undecided": []
+    },
+    "utility": {
+      "canonical": ["uuid", "lodash", "react-hotkeys-hook", "web-vitals", "@vercel/analytics"],
+      "banned": [],
+      "undecided": ["@types/uuid", "@types/d3"]
+    }
+  }
+}

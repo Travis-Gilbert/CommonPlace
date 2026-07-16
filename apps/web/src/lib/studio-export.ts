@@ -60,42 +60,8 @@ function exportText(markdown: string, title: string, slug: string): void {
   downloadBlob(blob, `${fileBaseName(title, slug)}.txt`);
 }
 
-async function exportPdf(markdown: string, title: string, slug: string): Promise<void> {
-  const { jsPDF } = await import('jspdf');
-  const text = plainTextFromMarkdown(markdown);
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'pt',
-    format: 'letter',
-  });
-
-  const marginX = 54;
-  const marginTop = 56;
-  const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const lineHeight = 18;
-
-  let y = marginTop;
-  doc.setFont('times', 'bold');
-  doc.setFontSize(18);
-  const heading = title.trim() || 'Untitled';
-  doc.text(heading, marginX, y);
-  y += 28;
-
-  doc.setFont('times', 'normal');
-  doc.setFontSize(12);
-  const lines = doc.splitTextToSize(text || '(Empty document)', maxWidth) as string[];
-
-  for (const line of lines) {
-    if (y > pageHeight - 54) {
-      doc.addPage();
-      y = marginTop;
-    }
-    doc.text(line, marginX, y);
-    y += lineHeight;
-  }
-
-  doc.save(`${fileBaseName(title, slug)}.pdf`);
+async function exportPdf(_markdown: string, _title: string, _slug: string): Promise<void> {
+  throw new Error('PDF generation is the Typst path (HANDOFF-CANON / D9); jspdf is cut.');
 }
 
 export async function exportStudioDocument(params: {

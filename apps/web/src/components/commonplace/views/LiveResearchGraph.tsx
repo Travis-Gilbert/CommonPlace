@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import * as d3 from 'd3';
 import type { ComposeLiveResult } from '@/lib/commonplace-api';
 

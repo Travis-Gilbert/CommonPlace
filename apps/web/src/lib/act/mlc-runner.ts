@@ -171,7 +171,8 @@ export class MLCRunner {
     this.loadProgress = reportInit;
     onProgress?.(reportInit);
 
-    const webllm = await import('@mlc-ai/web-llm');
+    throw new Error('On-device web-llm is cut (HANDOFF-CANON browser-ml); use harness heads.');
+    const webllm = null as never;
 
     const appConfig = {
       model_list: [

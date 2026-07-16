@@ -33,7 +33,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
-} from "lucide-react";
+} from '@/lib/icons';
 import type { FC } from "react";
 
 export const Thread: FC = () => {

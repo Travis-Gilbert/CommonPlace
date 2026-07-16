@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Search } from 'iconoir-react';
+import { Search } from '@/lib/icons/iconoir';
 import type { EngineLogEntry } from '@/lib/commonplace-models';
 import { fetchEngineLog } from '@/lib/commonplace-models';
 import { apiFetch } from '@/lib/commonplace-api';

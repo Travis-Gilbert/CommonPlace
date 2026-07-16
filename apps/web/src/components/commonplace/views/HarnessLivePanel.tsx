@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/lib/icons';
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import {
   fetchHarnessLiveSummary,

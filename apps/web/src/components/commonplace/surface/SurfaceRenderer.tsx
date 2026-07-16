@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, DragEvent } from 'react';
-import { GripVertical, Plus, Save, Settings, X } from 'lucide-react';
+import { GripVertical, Plus, Save, Settings, X } from '@/lib/icons';
 import type {
   BlockHost,
   JsonValue,

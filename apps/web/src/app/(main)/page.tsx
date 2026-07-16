@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight } from 'iconoir-react';
+import { ArrowRight } from '@/lib/icons/iconoir';
 import { getCollection } from '@/lib/content';
 import type { Essay, FieldNote, Project } from '@/lib/content';
 import DateStamp from '@/components/DateStamp';

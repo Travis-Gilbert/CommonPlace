@@ -6,11 +6,17 @@
 
 import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult,
-} from '@hello-pangea/dnd';
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   type ColumnDef,
@@ -329,11 +335,8 @@ export default function ProjectListView() {
     workItemTitle,
   ]);
 
-  const handleDragEnd = useCallback((result: DropResult) => {
-    if (!activeProject || !result.destination) return;
-    const itemId = result.draggableId;
-    const stateId = result.destination.droppableId;
-    if (result.source.droppableId === stateId) return;
+  const handleDragEnd = useCallback((itemId: string, stateId: string) => {
+    if (!activeProject) return;
     const state = activeProject.states.find((candidate) => candidate.id === stateId);
     if (!state) return;
     runAction(`state-${itemId}`, async () => {
@@ -750,6 +753,77 @@ function SummaryValue({ value, label }: { value: number; label: string }) {
   );
 }
 
+function PmBoardCard({
+  row,
+  selected,
+  onSelect,
+}: {
+  row: WorkRow;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.item.id,
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className="cp-pm-board-card"
+      data-selected={selected || undefined}
+      data-dragging={isDragging || undefined}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      } as CSSProperties}
+      onClick={() => onSelect(row.item.id)}
+      {...attributes}
+      {...listeners}
+    >
+      <span className="cp-pm-sequence">{row.sequenceId ?? 'TASK'}</span>
+      <span className="cp-pm-board-card-title">{row.item.title}</span>
+      <span className="cp-pm-board-card-meta">
+        {row.item.priority ?? 'none'} / {row.estimatePoint ?? 0} pt / {row.commentCount} comments
+      </span>
+    </button>
+  );
+}
+
+function PmBoardColumn({
+  state,
+  rows,
+  selectedWorkItemId,
+  onSelect,
+}: {
+  state: PmStateGql;
+  rows: WorkRow[];
+  selectedWorkItemId?: string;
+  onSelect: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: state.id });
+  const ids = rows.map((r) => r.item.id);
+  return (
+    <section ref={setNodeRef} className="cp-pm-board-column" data-over={isOver || undefined}>
+      <header className="cp-pm-board-column-header">
+        <span>{state.name}</span>
+        <span>{rows.length}</span>
+      </header>
+      <div className="cp-pm-board-stack">
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {rows.map((row) => (
+            <PmBoardCard
+              key={row.item.id}
+              row={row}
+              selected={row.item.id === selectedWorkItemId}
+              onSelect={onSelect}
+            />
+          ))}
+        </SortableContext>
+      </div>
+    </section>
+  );
+}
+
 function BoardView({
   project,
   rows,
@@ -761,63 +835,48 @@ function BoardView({
   rows: WorkRow[];
   selectedWorkItemId?: string;
   onSelect: (id: string) => void;
-  onDragEnd: (result: DropResult) => void;
+  onDragEnd: (itemId: string, stateId: string) => void;
 }) {
   const states = project.states.length > 0
     ? project.states
-    : [{ id: 'unassigned', name: 'Unassigned', group: 'unstarted', sortOrder: 0 }];
+    : [{ id: 'unassigned', name: 'Unassigned', group: 'unstarted', sortOrder: 0 } as PmStateGql];
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const columnByCard = new Map<string, string>();
+  for (const state of states) {
+    for (const row of rows.filter((r) => r.state?.id === state.id)) {
+      columnByCard.set(row.item.id, state.id);
+    }
+  }
+
+  const handleEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const itemId = String(active.id);
+    const from = columnByCard.get(itemId);
+    let to = columnByCard.get(String(over.id));
+    if (!to) to = String(over.id);
+    if (!from || !to || from === to) return;
+    onDragEnd(itemId, to);
+  };
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleEnd}>
       <div className="cp-pm-board" style={{ gridTemplateColumns: `repeat(${states.length}, minmax(230px, 1fr))` }}>
         {states.map((state) => {
           const stateRows = rows.filter((row) => row.state?.id === state.id);
           return (
-            <Droppable key={state.id} droppableId={state.id}>
-              {(provided, snapshot) => (
-                <section
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="cp-pm-board-column"
-                  data-over={snapshot.isDraggingOver}
-                >
-                  <header className="cp-pm-board-column-header">
-                    <span>{state.name}</span>
-                    <span>{stateRows.length}</span>
-                  </header>
-                  <div className="cp-pm-board-stack">
-                    {stateRows.map((row, index) => (
-                      <Draggable key={row.item.id} draggableId={row.item.id} index={index}>
-                        {(dragProvided, dragSnapshot) => (
-                          <button
-                            ref={dragProvided.innerRef}
-                            {...dragProvided.draggableProps}
-                            {...dragProvided.dragHandleProps}
-                            type="button"
-                            className="cp-pm-board-card"
-                            data-selected={row.item.id === selectedWorkItemId}
-                            data-dragging={dragSnapshot.isDragging}
-                            style={dragProvided.draggableProps.style as CSSProperties | undefined}
-                            onClick={() => onSelect(row.item.id)}
-                          >
-                            <span className="cp-pm-sequence">{row.sequenceId ?? 'TASK'}</span>
-                            <span className="cp-pm-board-card-title">{row.item.title}</span>
-                            <span className="cp-pm-board-card-meta">
-                              {row.item.priority ?? 'none'} / {row.estimatePoint ?? 0} pt / {row.commentCount} comments
-                            </span>
-                          </button>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                </section>
-              )}
-            </Droppable>
+            <PmBoardColumn
+              key={state.id}
+              state={state}
+              rows={stateRows}
+              selectedWorkItemId={selectedWorkItemId}
+              onSelect={onSelect}
+            />
           );
         })}
       </div>
-    </DragDropContext>
+      <DragOverlay />
+    </DndContext>
   );
 }
 

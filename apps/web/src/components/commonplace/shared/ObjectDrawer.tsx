@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import rough from 'roughjs';
-import { Reorder } from 'framer-motion';
+import { Reorder } from 'motion/react';
 import { Drawer } from 'vaul';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useDrawer } from '@/lib/providers/drawer-provider';

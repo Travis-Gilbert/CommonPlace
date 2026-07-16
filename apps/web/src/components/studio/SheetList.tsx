@@ -1,8 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import type { DropResult } from '@hello-pangea/dnd';
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useStudioWorkbench } from './WorkbenchContext';
 import type { Sheet } from '@/lib/studio-api';
 
@@ -44,13 +57,15 @@ export default function SheetList({ fullPanel = false }: { fullPanel?: boolean }
     onUpdateSheetTarget,
   } = editorState;
 
-  function handleDragEnd(result: DropResult) {
-    if (!result.destination) return;
-    if (result.destination.index === result.source.index) return;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
-    const reordered = Array.from(sheets);
-    const [moved] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, moved);
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sheets.findIndex((s) => s.id === String(active.id));
+    const newIndex = sheets.findIndex((s) => s.id === String(over.id));
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+    const reordered = arrayMove(sheets, oldIndex, newIndex);
     onReorderSheets?.(reordered.map((s) => s.id));
   }
 
@@ -82,30 +97,22 @@ export default function SheetList({ fullPanel = false }: { fullPanel?: boolean }
         </button>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="sheet-list">
-          {(droppableProvided) => (
-            <div
-              ref={droppableProvided.innerRef}
-              {...droppableProvided.droppableProps}
-              style={{ padding: '0 12px' }}
-            >
-              {sheets.map((sheet, index) => (
-                <SheetItem
-                  key={sheet.id}
-                  sheet={sheet}
-                  index={index}
-                  isActive={sheet.id === activeSheetId}
-                  onSelect={() => onSetActiveSheet?.(sheet.id)}
-                  onDelete={() => onDeleteSheet?.(sheet.id)}
-                  onUpdateTarget={onUpdateSheetTarget}
-                />
-              ))}
-              {droppableProvided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sheets.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+          <div style={{ padding: '0 12px' }}>
+            {sheets.map((sheet) => (
+              <SheetItem
+                key={sheet.id}
+                sheet={sheet}
+                isActive={sheet.id === activeSheetId}
+                onSelect={() => onSetActiveSheet?.(sheet.id)}
+                onDelete={() => onDeleteSheet?.(sheet.id)}
+                onUpdateTarget={onUpdateSheetTarget}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Footer: aggregate progress */}
       <div className="studio-sheet-footer" style={{
@@ -156,14 +163,12 @@ export default function SheetList({ fullPanel = false }: { fullPanel?: boolean }
 
 function SheetItem({
   sheet,
-  index,
   isActive,
   onSelect,
   onDelete,
   onUpdateTarget,
 }: {
   sheet: Sheet;
-  index: number;
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
@@ -171,6 +176,9 @@ function SheetItem({
 }) {
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState('');
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: sheet.id,
+  });
 
   const label = sheet.title.trim() || null;
   const progress = sheet.wordCountTarget
@@ -195,16 +203,14 @@ function SheetItem({
   };
 
   return (
-    <Draggable draggableId={sheet.id} index={index}>
-      {(draggableProvided, snapshot) => (
         <div
-          ref={draggableProvided.innerRef}
-          {...draggableProvided.draggableProps}
+          ref={setNodeRef}
           className={`studio-sheet-paper ${isActive ? 'studio-sheet-paper--active' : ''}`}
-          data-dragging={snapshot.isDragging ? 'true' : undefined}
+          data-dragging={isDragging ? 'true' : undefined}
           onClick={onSelect}
           style={{
-            ...draggableProvided.draggableProps.style,
+            transform: CSS.Transform.toString(transform),
+            transition,
           }}
         >
           {/* Active indicator bar */}
@@ -212,7 +218,8 @@ function SheetItem({
 
           <div className="studio-sheet-paper-content">
             <span
-              {...draggableProvided.dragHandleProps}
+              {...attributes}
+              {...listeners}
               className="studio-sheet-drag-handle"
               onClick={(e) => e.stopPropagation()}
             >
@@ -290,7 +297,5 @@ function SheetItem({
             <div className="studio-sheet-paper-line" style={{ width: label ? '60%' : '75%', borderStyle: label ? 'solid' : 'dashed' }} />
           </div>
         </div>
-      )}
-    </Draggable>
   );
 }

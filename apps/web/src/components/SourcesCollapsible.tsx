@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import { NavArrowDown } from 'iconoir-react';
+import { NavArrowDown } from '@/lib/icons/iconoir';
 import Link from 'next/link';
 
 interface Source {

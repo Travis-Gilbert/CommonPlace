@@ -6,7 +6,7 @@
    the newest. Not a uniform list, which is why it is not row-virtualized. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import Markdown from '@/lib/markdown/Markdown';
 import remarkGfm from 'remark-gfm';
 import {
   acpAgentLabel,
@@ -22,15 +22,13 @@ import {
   type AcpFileWriteReview,
   type AcpFrontendEvent,
 } from '@/lib/commonplace-acp';
+import { createInquiry } from '@/lib/inquiry-api';
 import {
-  searchRustyWeb,
-  type RustyWebSearchHit,
-} from '@/lib/rustyweb-search';
-import {
-  runTheoremAgent,
-  type TheoremAgentClaim,
-  type TheoremAgentRunResult,
-} from '@/lib/theorem-agent';
+  claimsFromInquirySnapshot,
+  groundedChatPrompt,
+} from '@/lib/inquiry-agent-bridge';
+import type { InquirySnapshot } from '@/lib/inquiry-types';
+import { runTheoremAgent } from '@/lib/theorem-agent';
 import type { RenderScenePayload } from '@/lib/scene-package';
 import AgentThreadOmnibar from './AgentThreadOmnibar';
 import SceneHost from '../scene-host/SceneHost';
@@ -313,7 +311,7 @@ export default function AgentThreadView({
     });
   }, [items]);
 
-  const sendPrompt = useCallback(async (options: { webSearch?: boolean; file?: File } = {}) => {
+  const sendPrompt = useCallback(async (options: { file?: File } = {}) => {
     if (isSending) return;
     const text = composer.trim();
     if (!text) return;
@@ -328,6 +326,36 @@ export default function AgentThreadView({
       markdown: promptText,
     });
     setComposer('');
+
+    let snapshot: InquirySnapshot | null = null;
+    try {
+      const inquiry = await createInquiry({
+        query: promptText,
+        surface: 'chat',
+        retrieval_budget: 'standard',
+      });
+      snapshot = inquiry.snapshot;
+      const evidenceCount = snapshot.evidence.length;
+      if (evidenceCount > 0) {
+        addItem({
+          id: `retrieve-${Date.now()}`,
+          kind: 'message',
+          role: 'system',
+          markdown: `Retrieved ${evidenceCount} source${evidenceCount === 1 ? '' : 's'}.`,
+        });
+      }
+    } catch {
+      addItem({
+        id: `retrieve-fail-${Date.now()}`,
+        kind: 'message',
+        role: 'system',
+        markdown: 'Inquiry retrieval failed; continuing with your message to Theorem.',
+      });
+    }
+
+    const claims = snapshot ? claimsFromInquirySnapshot(snapshot) : [];
+    const agentPrompt = snapshot ? groundedChatPrompt(promptText, snapshot) : promptText;
+
     const useCompatibilityRoute =
       resolvedMode === 'api' || (agentId === 'theorem' && !sessionId);
     if (useCompatibilityRoute) {
@@ -337,9 +365,11 @@ export default function AgentThreadView({
       setStatus('connecting');
       setIsSending(true);
       try {
-        const result = options.webSearch
-          ? await runResearchPrompt(promptText)
-          : await runTheoremAgent({ task: promptText, mode: 'ask' });
+        const result = await runTheoremAgent({
+          task: promptText,
+          mode: 'ask',
+          claims: claims.length > 0 ? claims : undefined,
+        });
         addItem({
           id: `agent-${Date.now()}`,
           kind: 'message',
@@ -366,7 +396,7 @@ export default function AgentThreadView({
     const delivered = send({
       type: 'prompt',
       session_id: activeSession,
-      text: options.webSearch ? `Search the web if available, then answer:\n\n${promptText}` : promptText,
+      text: agentPrompt,
     });
     if (!delivered) {
       addItem({
@@ -471,29 +501,6 @@ export default function AgentThreadView({
   );
 }
 
-async function runResearchPrompt(task: string): Promise<TheoremAgentRunResult> {
-  const search = await searchRustyWeb(task, {
-    mode: 'web',
-    limit: 8,
-    providerLimit: 4,
-    providerTimeoutMs: 4_000,
-    requestTimeoutMs: 12_000,
-  });
-  return runTheoremAgent({
-    mode: 'research',
-    task: `Answer this question using the attached search evidence where it is useful. Question: ${task}`,
-    claims: searchHitsToClaims(search.hits),
-    requestTimeoutMs: 75_000,
-  });
-}
-
-function searchHitsToClaims(hits: RustyWebSearchHit[]): TheoremAgentClaim[] {
-  return hits.slice(0, 8).map((hit, index) => ({
-    text: [hit.title, hit.snippet].filter(Boolean).join(': '),
-    provenance: hit.url || hit.id || `search:${index + 1}`,
-  }));
-}
-
 function ThreadCard({
   item,
   onApproveCommand,
@@ -510,7 +517,7 @@ function ThreadCard({
   if (item.kind === 'message') {
     return (
       <article className={`cp-agent-message cp-agent-message--${item.role}`}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.markdown}</ReactMarkdown>
+        <Markdown remarkPlugins={[remarkGfm]}>{item.markdown}</Markdown>
       </article>
     );
   }

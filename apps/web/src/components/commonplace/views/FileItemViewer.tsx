@@ -18,7 +18,6 @@ interface FileItemViewerProps {
   onSaved?: () => void;
 }
 
-let blockSuiteEffectsReady = false;
 
 function itemUrl(item: ItemGql | null, resolvedUrl?: string | null): string | null {
   if (resolvedUrl) return resolvedUrl;
@@ -161,49 +160,15 @@ function TiptapItemEditor({
 }
 
 function BlockSuiteCanvasViewer({ item }: { item: ItemGql }) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return undefined;
-    let disposed = false;
-    let disposeDoc: (() => void) | null = null;
-
-    Promise.all([
-      import('@blocksuite/presets'),
-      import('@blocksuite/presets/effects'),
-    ]).then(([presets, effectsModule]) => {
-      if (disposed || !host) return;
-      if (!blockSuiteEffectsReady && !customElements.get('page-editor')) {
-        effectsModule.effects();
-        blockSuiteEffectsReady = true;
-      }
-      const { init } = presets.createEmptyDoc();
-      const initialized = init();
-      const paragraph = initialized.getBlockByFlavour('affine:paragraph')[0];
-      if (paragraph) {
-        initialized.updateBlock(paragraph, {
-          text: new initialized.Text(item.bodyText || item.title),
-        });
-      }
-      const editorElement = document.createElement('page-editor') as HTMLElement & { doc?: unknown };
-      editorElement.doc = initialized;
-      editorElement.className = styles.blocksuiteHost;
-      host.replaceChildren(editorElement);
-      disposeDoc = () => {
-        editorElement.remove();
-        initialized.dispose();
-      };
-    });
-
-    return () => {
-      disposed = true;
-      disposeDoc?.();
-      host.replaceChildren();
-    };
-  }, [item.bodyText, item.id, item.title]);
-
-  return <div ref={hostRef} className={styles.blocksuiteFrame} />;
+  // HANDOFF-CANON C3: @blocksuite/presets cut. TipTap is the rich-text canon.
+  return (
+    <div className={styles.blocksuiteFrame} role="status">
+      <p>
+        Canvas Items no longer open in BlockSuite. Open as a doc in TipTap, or recreate the
+        content there. Title: {item.title || item.id}
+      </p>
+    </div>
+  );
 }
 
 function PdfViewer({ url }: { url: string | null }) {

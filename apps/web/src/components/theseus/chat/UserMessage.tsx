@@ -3,7 +3,7 @@
 import { MessagePrimitive, ActionBarPrimitive } from '@assistant-ui/react';
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button';
 import { UserMessageAttachments } from '@/components/assistant-ui/attachment';
-import { PencilIcon } from 'lucide-react';
+import { PencilIcon } from '@/lib/icons';
 import type { FC } from 'react';
 
 /**

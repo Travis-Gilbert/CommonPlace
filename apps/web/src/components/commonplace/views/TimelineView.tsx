@@ -502,51 +502,42 @@ export default function TimelineView({ feedOverride, toolbarExtra }: TimelineVie
   // Group filtered nodes by calendar date for the date-section layout
   const dateGroups = useMemo(() => groupNodesByDate(filteredNodes), [filteredNodes]);
 
-  // GSAP ScrollTrigger: fade + rise each card as it enters the scroll container.
-  // Dynamic import keeps GSAP out of the SSR bundle (window access on import).
+  // CSS + IntersectionObserver reveal (HANDOFF-CANON: gsap cut).
   useEffect(() => {
     const container = scrollRef.current;
     if (!container || dateGroups.length === 0) return;
 
-    // Honor prefers-reduced-motion: show cards immediately, skip animations
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
+    const cards = Array.from(container.querySelectorAll<HTMLElement>('.cp-timeline-card'));
+    if (prefersReduced) {
+      cards.forEach((card) => {
+        card.style.opacity = '1';
+        card.style.transform = 'none';
+      });
+      return;
+    }
 
-    // Guard against the effect re-running before the previous Promise resolves
-    let killed = false;
-    const triggers: { kill: () => void }[] = [];
+    cards.forEach((card) => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(16px)';
+      card.style.transition = 'opacity 0.42s ease-out, transform 0.42s ease-out';
+    });
 
-    Promise.all([import('gsap'), import('gsap/ScrollTrigger')]).then(
-      ([{ gsap }, { ScrollTrigger }]) => {
-        if (killed) return;
-
-        gsap.registerPlugin(ScrollTrigger);
-
-        const cards = Array.from(
-          container.querySelectorAll<HTMLElement>('.cp-timeline-card'),
-        );
-
-        cards.forEach((card) => {
-          gsap.set(card, { opacity: 0, y: 16 });
-
-          const trigger = ScrollTrigger.create({
-            trigger: card,
-            scroller: container,
-            start: 'top 92%',
-            onEnter: () => {
-              gsap.to(card, { opacity: 1, y: 0, duration: 0.42, ease: 'power2.out' });
-            },
-          });
-
-          triggers.push(trigger);
-        });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const card = entry.target as HTMLElement;
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0)';
+          observer.unobserve(card);
+        }
       },
+      { root: container, rootMargin: '0px 0px -8% 0px', threshold: 0.05 },
     );
+    cards.forEach((card) => observer.observe(card));
 
-    return () => {
-      killed = true;
-      triggers.forEach((t) => t.kill());
-    };
+    return () => observer.disconnect();
   }, [dateGroups]);
 
   /* Loading */

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import RoughBox from '@/components/rough/RoughBox';
 import SectionLabel from '@/components/SectionLabel';
 import DrawOnIcon from '@/components/rough/DrawOnIcon';
-import { ArrowRight } from 'iconoir-react';
+import { ArrowRight } from '@/lib/icons/iconoir';
 
 export const metadata: Metadata = {
   title: 'Experiments',

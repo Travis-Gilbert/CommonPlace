@@ -8,7 +8,7 @@
    (rustyred-thg-mcp/src/graphql), then a fixture->live seam per surface. Each
    card below is a real surface target; its data binds as that lands. */
 
-import { Brain, Sparkles, History, KeyRound, Cpu, Gauge } from 'lucide-react';
+import { Brain, Sparkles, History, KeyRound, Cpu, Gauge } from '@/lib/icons';
 import styles from '../../surface.module.css';
 
 const AGENT_SURFACES = [

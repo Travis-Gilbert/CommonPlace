@@ -11,7 +11,7 @@ import {
   TriangleAlert,
   CalendarClock,
   NotebookPen,
-} from 'lucide-react';
+} from '@/lib/icons';
 import {
   allRows,
   indexRowKey,

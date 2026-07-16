@@ -44,8 +44,11 @@ jobs:
       - name: Install (pnpm)
         run: pnpm install ${{ env.PNPM_FLAGS }}
 
-      - name: Lint (includes UX-D1.4 accent + MT-2 motion lints)
+      - name: Lint (includes UX-D1.4 accent + MT-2 motion + console-register + canon)
         run: pnpm --filter @commonplace/web run lint
+
+      - name: Canon lint self-test (banned import must fail)
+        run: pnpm --filter @commonplace/web run lint:canon:self-test
 
       - name: Unit tests (vitest)
         run: pnpm --filter @commonplace/web run test

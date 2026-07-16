@@ -8,7 +8,7 @@
  */
 
 import { useRef, useEffect } from 'react';
-import { ArrowLeft } from 'iconoir-react';
+import { ArrowLeft } from '@/lib/icons/iconoir';
 import type { FeedbackStats } from '@/lib/commonplace-api';
 
 interface EngineShellProps {
@@ -144,14 +144,12 @@ function TrainingPill({ stats }: { stats: FeedbackStats }) {
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return;
+    bar.style.transition = 'none';
     bar.style.width = '0%';
-    import('gsap').then(({ gsap }) => {
-      gsap.to(bar, {
-        width: `${pct}%`,
-        duration: 1.2,
-        ease: 'power2.out',
-      });
-    });
+    // Force reflow, then CSS ease (HANDOFF-CANON: gsap cut).
+    void bar.offsetWidth;
+    bar.style.transition = 'width 1.2s ease-out';
+    bar.style.width = `${pct}%`;
   }, [pct]);
 
   return (

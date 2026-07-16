@@ -9,7 +9,7 @@ import {
   Notes,
   KanbanBoard,
   Tools,
-} from 'iconoir-react';
+} from '@/lib/icons/iconoir';
 import MobileTabs from '@/components/mobile-shell/MobileTabs';
 
 interface StudioMobileDockProps {

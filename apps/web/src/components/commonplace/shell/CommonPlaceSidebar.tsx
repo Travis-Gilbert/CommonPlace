@@ -21,7 +21,7 @@ import {
   RoundFlask,
   Settings,
   UserStar,
-} from 'iconoir-react';
+} from '@/lib/icons/iconoir';
 import { toast } from 'sonner';
 import { SIDEBAR_SECTIONS } from '@/lib/commonplace';
 import type { CapturedObject, ViewType } from '@/lib/commonplace';

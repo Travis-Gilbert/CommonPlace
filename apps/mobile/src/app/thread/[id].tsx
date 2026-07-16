@@ -32,6 +32,7 @@ import { AppText } from '@/components/AppText';
 import { useOmnibar } from '@/components/omnibar/OmnibarContext';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useTheme } from '@/theme/ThemeProvider';
+import { speak, stopSpeaking } from '@/voice/readback';
 
 export default function ThreadScreen() {
   const t = useTheme();
@@ -46,8 +47,29 @@ export default function ThreadScreen() {
   const [text, setText] = useState('');
   const [mentions, setMentions] = useState<ItemGql[]>([]);
   const [sceneLoading, setSceneLoading] = useState<string | null>(null);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [speakLoadingId, setSpeakLoadingId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
   const { open: openOmnibar } = useOmnibar();
+
+  useEffect(() => () => stopSpeaking(), []);
+
+  async function onSpeak(msg: ChatMessage) {
+    if (speakingId === msg.id) {
+      stopSpeaking();
+      setSpeakingId(null);
+      return;
+    }
+    setSpeakLoadingId(msg.id); // fetch + synthesis latency before audio starts
+    try {
+      await speak(msg.text);
+      setSpeakingId(msg.id);
+    } catch {
+      // No voice configured or node unreachable: the text answer stands alone.
+    } finally {
+      setSpeakLoadingId(null);
+    }
+  }
 
   const mentionQuery = useMemo(() => {
     const m = text.match(/@([\w-]{2,})$/);
@@ -137,19 +159,41 @@ export default function ThreadScreen() {
                   {m.text}
                 </AppText>
                 {m.role === 'agent' && !m.pending ? (
-                  <Pressable
-                    onPress={() => void openScene(m)}
-                    style={[styles.sceneBtn, { borderColor: t.machine.line, borderCurve: 'continuous' }]}
-                  >
-                    <Ionicons
-                      name={sceneLoading === m.id ? 'hourglass-outline' : 'planet-outline'}
-                      size={14}
-                      color={t.accents.goldLight}
-                    />
-                    <AppText variant="micro" style={{ color: t.accents.goldLight }}>
-                      {m.sceneUrl ? 'Open scene' : sceneLoading === m.id ? 'Composing scene...' : 'View as scene'}
-                    </AppText>
-                  </Pressable>
+                  <View style={styles.answerActions}>
+                    <Pressable
+                      onPress={() => void openScene(m)}
+                      style={[styles.sceneBtn, { borderColor: t.machine.line, borderCurve: 'continuous' }]}
+                    >
+                      <Ionicons
+                        name={sceneLoading === m.id ? 'hourglass-outline' : 'planet-outline'}
+                        size={14}
+                        color={t.accents.goldLight}
+                      />
+                      <AppText variant="micro" style={{ color: t.accents.goldLight }}>
+                        {m.sceneUrl ? 'Open scene' : sceneLoading === m.id ? 'Composing scene...' : 'View as scene'}
+                      </AppText>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => void onSpeak(m)}
+                      accessibilityLabel={speakingId === m.id ? 'Stop reading' : 'Listen'}
+                      style={[styles.sceneBtn, { borderColor: t.machine.line, borderCurve: 'continuous' }]}
+                    >
+                      <Ionicons
+                        name={
+                          speakLoadingId === m.id
+                            ? 'hourglass-outline'
+                            : speakingId === m.id
+                              ? 'stop-circle-outline'
+                              : 'volume-high-outline'
+                        }
+                        size={14}
+                        color={t.accents.goldLight}
+                      />
+                      <AppText variant="micro" style={{ color: t.accents.goldLight }}>
+                        {speakLoadingId === m.id ? 'Loading...' : speakingId === m.id ? 'Stop' : 'Listen'}
+                      </AppText>
+                    </Pressable>
+                  </View>
                 ) : null}
               </>
             )}
@@ -235,6 +279,7 @@ const styles = StyleSheet.create({
   },
   list: { padding: 16, gap: 10 },
   bubble: { maxWidth: '84%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  answerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   sceneBtn: {
     flexDirection: 'row',
     alignItems: 'center',

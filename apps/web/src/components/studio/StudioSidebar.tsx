@@ -18,7 +18,7 @@ import {
   VideoCamera,
   NavArrowLeft,
   NavArrowRight,
-} from 'iconoir-react';
+} from '@/lib/icons/iconoir';
 import { SIDEBAR_SECTIONS, SIDEBAR_TIMELINE_ITEM } from '@/lib/studio';
 import { fetchContentList } from '@/lib/studio-api';
 import { useStudioView } from './StudioViewContext';

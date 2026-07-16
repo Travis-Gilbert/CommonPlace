@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { LENS_REGISTRY } from '@/lib/commonplace-lenses';
 import type { LensDef } from '@/lib/commonplace-lenses';
 import { useApplyLens, type LensTarget } from '../lenses/use-apply-lens';

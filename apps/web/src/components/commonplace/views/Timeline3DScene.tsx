@@ -82,69 +82,50 @@ interface CameraControllerProps {
   paused: boolean;
 }
 
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 function CameraController({ layout, scrollProgress, paused }: CameraControllerProps) {
   const { camera } = useThree();
-  const gsapTimelineRef = useRef<gsap.core.Timeline | null>(null);
-  const gsapLoadedRef = useRef(false);
 
-  // Build GSAP master timeline when layout data is available
-  useEffect(() => {
-    if (layout.phases.length === 0) return;
-
-    let cancelled = false;
-
-    Promise.all([import('gsap')]).then(([{ gsap }]) => {
-      if (cancelled) return;
-      gsapLoadedRef.current = true;
-
-      const tl = gsap.timeline({ paused: true });
-
-      // Position the camera at the entry point
-      const firstPhase = layout.phases[0];
-      if (firstPhase) {
-        camera.position.set(...firstPhase.cameraPosition);
-        camera.lookAt(...firstPhase.cameraTarget);
-      }
-
-      // Chain camera movements through each phase
-      for (const phase of layout.phases) {
-        const duration = (phase.end - phase.start);
-        tl.to(
-          camera.position,
-          {
-            x: phase.cameraPosition[0],
-            y: phase.cameraPosition[1],
-            z: phase.cameraPosition[2],
-            duration,
-            ease: 'power2.inOut',
-            onUpdate: () => {
-              camera.lookAt(
-                phase.cameraTarget[0],
-                phase.cameraTarget[1],
-                phase.cameraTarget[2],
-              );
-            },
-          },
-          phase.start, // position on timeline = scroll progress
-        );
-      }
-
-      gsapTimelineRef.current = tl;
-    });
-
-    return () => {
-      cancelled = true;
-      gsapTimelineRef.current?.kill();
-      gsapTimelineRef.current = null;
-    };
-  }, [layout.phases, camera]);
-
-  // Seek the timeline to the current scroll progress each frame
+  // Seek camera along phase keyframes from scroll progress (HANDOFF-CANON: gsap cut).
   useFrame(() => {
-    if (paused) return;
-    if (gsapTimelineRef.current) {
-      gsapTimelineRef.current.progress(scrollProgress);
+    if (paused || layout.phases.length === 0) return;
+    const phases = layout.phases;
+    const p = Math.min(1, Math.max(0, scrollProgress));
+
+    let from = phases[0]!;
+    let to = phases[phases.length - 1]!;
+    for (let i = 0; i < phases.length - 1; i += 1) {
+      const a = phases[i]!;
+      const b = phases[i + 1]!;
+      if (p >= a.start && p <= b.start) {
+        from = a;
+        to = b;
+        break;
+      }
+      if (p > b.start) {
+        from = b;
+        to = b;
+      }
     }
+
+    const span = Math.max(1e-6, to.start - from.start);
+    const t = from === to ? 1 : Math.min(1, Math.max(0, (p - from.start) / span));
+    // Smoothstep
+    const s = t * t * (3 - 2 * t);
+
+    camera.position.set(
+      lerp(from.cameraPosition[0], to.cameraPosition[0], s),
+      lerp(from.cameraPosition[1], to.cameraPosition[1], s),
+      lerp(from.cameraPosition[2], to.cameraPosition[2], s),
+    );
+    camera.lookAt(
+      lerp(from.cameraTarget[0], to.cameraTarget[0], s),
+      lerp(from.cameraTarget[1], to.cameraTarget[1], s),
+      lerp(from.cameraTarget[2], to.cameraTarget[2], s),
+    );
   });
 
   return null;

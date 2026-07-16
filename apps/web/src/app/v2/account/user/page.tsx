@@ -2,7 +2,7 @@
    surfaces (memory, skills, runs, inbox, keys, providers, usage) live under the
    Agents subpage instead. Content wires to the account backend next. */
 
-import { UserCircle, Link2, Bell } from 'lucide-react';
+import { UserCircle, Link2, Bell } from '@/lib/icons';
 import styles from '../../surface.module.css';
 
 const USER_SURFACES = [

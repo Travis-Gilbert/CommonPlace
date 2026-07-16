@@ -18,8 +18,8 @@
  *   does not push them toward zero on every update.
  */
 
-type TFModule = typeof import('@tensorflow/tfjs');
-type LayersModel = import('@tensorflow/tfjs').LayersModel;
+type TFModule = import('../theseus-viz/model/tf-stub').TFModule;
+type LayersModel = import('../theseus-viz/model/tf-stub').LayersModel;
 
 /* ─────────────────────────────────────────────────
    Action catalog (extensible)
@@ -96,7 +96,7 @@ let lastPredictionState: ScreenState | null = null;
 
 async function loadTf(): Promise<TFModule> {
   if (!tfModule) {
-    tfModule = await import('@tensorflow/tfjs');
+    tfModule = (await Promise.reject(new Error('tfjs cut (HANDOFF-CANON browser-ml); rule path only'))) as never;
   }
   return tfModule;
 }
@@ -219,7 +219,7 @@ export async function predictNav(state: ScreenState): Promise<NavPrediction> {
 
   const probs = tf.tidy(() => {
     const input = tf.tensor2d(features, [1, FEATURE_DIM]);
-    const output = model!.predict(input) as import('@tensorflow/tfjs').Tensor;
+    const output = model!.predict(input) as import('../theseus-viz/model/tf-stub').Tensor;
     return output.dataSync() as Float32Array;
   });
 

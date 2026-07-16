@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Copy, CursorPointer, OpenNewWindow } from 'iconoir-react';
+import { Check, Copy, CursorPointer, OpenNewWindow } from '@/lib/icons/iconoir';
 import {
   agentInstallSnippet,
   cursorInstallUrl,

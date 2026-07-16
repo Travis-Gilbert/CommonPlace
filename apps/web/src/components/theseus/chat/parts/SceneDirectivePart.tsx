@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUpRightIcon } from 'lucide-react';
+import { ArrowUpRightIcon } from '@/lib/icons';
 import type { FC } from 'react';
 import type { SceneDirective } from '@/lib/theseus-viz/SceneDirective';
 import { dispatchTheseusEvent } from '@/lib/theseus/events';

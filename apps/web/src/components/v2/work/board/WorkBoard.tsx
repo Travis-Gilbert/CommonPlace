@@ -27,7 +27,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import debounce from 'lodash/debounce';
-import { FileText, Link2, Plus } from 'lucide-react';
+import { FileText, Link2, Plus } from '@/lib/icons';
 import {
   addTextNode,
   applyNodePositions,

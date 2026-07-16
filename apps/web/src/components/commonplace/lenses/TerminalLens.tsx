@@ -17,7 +17,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import TerminalBlock from '../engine/TerminalBlock';
 import {
   askObject,

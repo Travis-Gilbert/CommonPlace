@@ -2,7 +2,7 @@
 
 /* Object detail — cover hero, featured line, poster + relations, body.
    Mirrors the Anytype object page (2001: A Space Odyssey). */
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/lib/icons';
 import type { DbObject, ObjectGraph } from './model';
 import { RelationCell } from './cells';
 import styles from './database.module.css';

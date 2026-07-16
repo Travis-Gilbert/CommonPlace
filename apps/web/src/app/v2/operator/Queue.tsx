@@ -4,12 +4,26 @@
    status dot, title, one lane chip maximum, age right-aligned. A blocked row
    shows the amber dot and carries its reason as the dot's tooltip — no inline
    refusal sentences. Row 5 — Icebox and Done stay as collapsed disclosures.
-   Drag-to-reorder writes priority (@hello-pangea/dnd); collapsibles are Radix. */
+   Drag-to-reorder writes priority (@dnd-kit); collapsibles are Radix. */
 
 import { useMemo, useState } from 'react';
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/lib/icons';
 import type { OperatorTask } from '@/lib/theorem-operator';
 import { isBlocked, unmetPrerequisites } from '@/lib/theorem-operator';
 import { Empty, formatAge } from './parts';
@@ -63,6 +77,37 @@ function QueueCard({
   );
 }
 
+function SortableQueueCard({
+  task,
+  onOpen,
+  disabled,
+}: {
+  task: OperatorTask;
+  onOpen: (taskId: string) => void;
+  disabled?: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    disabled,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      <QueueCard
+        task={task}
+        onOpen={onOpen}
+        dragging={isDragging}
+        handleProps={disabled ? undefined : { ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
 export function Queue({
   tasks,
   onOpen,
@@ -85,8 +130,6 @@ export function Queue({
     [tasks],
   );
 
-  // Optimistic local order for the Next lane so a drag reorders immediately;
-  // the reorder action persists the new priority to the substrate.
   const nextSignature = JSON.stringify(nextFromProps.map((t) => [t.id, t.priority] as const));
   const [orderState, setOrderState] = useState<QueueOrderState>(() => ({
     signature: nextSignature,
@@ -103,13 +146,17 @@ export function Queue({
     return blockedOnly ? rows.filter(isBlocked) : rows;
   }, [order, nextFromProps, blockedOnly]);
 
-  function onDragEnd(result: DropResult) {
-    if (!result.destination || result.destination.index === result.source.index) return;
-    const reordered = Array.from(order);
-    const [moved] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, moved);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = order.indexOf(String(active.id));
+    const newIndex = order.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const reordered = arrayMove(order, oldIndex, newIndex);
     setOrderState({ signature: nextSignature, order: reordered });
-    onReorder(moved, result.destination.index);
+    onReorder(String(active.id), newIndex);
   }
 
   return (
@@ -122,32 +169,23 @@ export function Queue({
         {nextOrdered.length === 0 ? (
           <Empty>{blockedOnly ? 'Nothing blocked.' : 'Queue empty.'}</Empty>
         ) : (
-          <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="next" direction="horizontal">
-              {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className={styles.qCardRow}>
-                  {nextOrdered.map((task, index) => (
-                    <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={blockedOnly}>
-                      {(prov, snapshot) => (
-                        <div
-                          ref={prov.innerRef as unknown as React.Ref<HTMLDivElement>}
-                          {...(prov.draggableProps as React.HTMLAttributes<HTMLDivElement>)}
-                        >
-                          <QueueCard
-                            task={task}
-                            onOpen={onOpen}
-                            dragging={snapshot.isDragging}
-                            handleProps={(prov.dragHandleProps as React.HTMLAttributes<HTMLElement>) ?? undefined}
-                          />
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext
+              items={nextOrdered.map((t) => t.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              <div className={styles.qCardRow}>
+                {nextOrdered.map((task) => (
+                  <SortableQueueCard
+                    key={task.id}
+                    task={task}
+                    onOpen={onOpen}
+                    disabled={blockedOnly}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </section>
 

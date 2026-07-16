@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GitBranch } from 'iconoir-react';
+import { GitBranch } from '@/lib/icons/iconoir';
 import { getSiteConfig } from '@/lib/siteConfig';
 
 export default function Footer() {

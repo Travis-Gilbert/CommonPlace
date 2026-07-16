@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, ServerConnection } from 'iconoir-react';
+import { ArrowRight, ServerConnection } from '@/lib/icons/iconoir';
 import RoughBox from '@/components/rough/RoughBox';
 import RoughLine from '@/components/rough/RoughLine';
 import CommonPlacePwaInstall from '@/components/commonplace/install/CommonPlacePwaInstall';

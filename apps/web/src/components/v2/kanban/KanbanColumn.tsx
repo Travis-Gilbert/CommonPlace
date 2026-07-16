@@ -6,7 +6,7 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus } from 'lucide-react';
+import { Plus } from '@/lib/icons';
 import type { ObjectRef } from '@/lib/block-view/types';
 import { KanbanCard } from './KanbanCard';
 import styles from './kanban.module.css';

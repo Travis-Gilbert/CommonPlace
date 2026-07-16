@@ -3,9 +3,10 @@
 /* Grid — dense table. Columns = visible relations, first column the title. */
 import type { DbViewProps } from './view-types';
 import { RelationCell } from './cells';
+import { StatusSelectCell } from './StatusSelectCell';
 import styles from './database.module.css';
 
-export function GridView({ graph, objects, view, onOpen }: DbViewProps) {
+export function GridView({ graph, objects, view, onOpen, host }: DbViewProps) {
   const cols = view.visibleRelations.filter((k) => graph.relations[k]);
   if (objects.length === 0) return <div className={styles.empty}>No objects.</div>;
   return (
@@ -28,9 +29,18 @@ export function GridView({ graph, objects, view, onOpen }: DbViewProps) {
                   {o.title}
                 </span>
               </td>
-              {cols.map((k) => (
-                <td key={k}>{o.cells[k] ? <RelationCell cell={o.cells[k]} density="inline" /> : <span className={styles.cellEmpty}>—</span>}</td>
-              ))}
+              {cols.map((k) => {
+                if (host && graph.relations[k]?.format === 'status') {
+                  return (
+                    <td key={k}>
+                      <StatusSelectCell host={host} objectId={o.id} relationKey={k} cell={o.cells[k]} />
+                    </td>
+                  );
+                }
+                return (
+                  <td key={k}>{o.cells[k] ? <RelationCell cell={o.cells[k]} density="inline" /> : <span className={styles.cellEmpty}>—</span>}</td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

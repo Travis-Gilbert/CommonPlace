@@ -5,7 +5,7 @@ import type { ToolkitEntry } from '@/lib/content';
 import SectionLabel from '@/components/SectionLabel';
 import ToolkitAccordion from '@/components/ToolkitAccordion';
 import DrawOnIcon from '@/components/rough/DrawOnIcon';
-import { ArrowRight } from 'iconoir-react';
+import { ArrowRight } from '@/lib/icons/iconoir';
 
 export const metadata: Metadata = {
   title: 'Toolkit',

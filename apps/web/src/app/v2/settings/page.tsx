@@ -5,7 +5,7 @@
    apps/harness-console/(onboarding)/claim into a porcelain surface next. */
 
 import Link from 'next/link';
-import { Sparkles, KeyRound, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, KeyRound, ShieldCheck, SlidersHorizontal } from '@/lib/icons';
 import styles from '../surface.module.css';
 
 export default function SettingsPage() {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { readCssVar, hexToRgb, useThemeVersion } from '@/hooks/useThemeColor';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 

@@ -1,6 +1,10 @@
-import { compile, type TopLevelSpec } from 'vega-lite';
+// SOURCING: none — structural gate for chart specs; Observable Plot is canonical render (HANDOFF-CANON C3)
+/**
+ * Validates chart projection specs without pulling vega-lite.
+ * Specs may still use a Vega-Lite-shaped JSON for migration; Plot renders them.
+ */
 
-export const ALLOWED_VEGA_LITE_MARKS = new Set([
+export const ALLOWED_CHART_MARKS = new Set([
   'area',
   'bar',
   'circle',
@@ -16,25 +20,22 @@ export interface ChartGateResult {
   reason?: string;
 }
 
+/** @deprecated Prefer validateChartSpec; name kept for existing call sites. */
 export function validateVegaLiteChartSpec(spec: unknown): ChartGateResult {
+  return validateChartSpec(spec);
+}
+
+export function validateChartSpec(spec: unknown): ChartGateResult {
   if (!isRecord(spec)) return { ok: false, reason: 'chart spec must be an object' };
-  const structuralReason = inspectVegaLiteSpec(spec);
+  const structuralReason = inspectChartSpec(spec);
   if (structuralReason) return { ok: false, reason: structuralReason };
-  try {
-    compile(spec as unknown as TopLevelSpec);
-  } catch (error) {
-    return {
-      ok: false,
-      reason: error instanceof Error ? `vega-lite schema validation failed: ${error.message}` : 'vega-lite schema validation failed',
-    };
-  }
   return { ok: true };
 }
 
-function inspectVegaLiteSpec(value: unknown): string | undefined {
+function inspectChartSpec(value: unknown): string | undefined {
   if (Array.isArray(value)) {
     for (const item of value) {
-      const reason = inspectVegaLiteSpec(item);
+      const reason = inspectChartSpec(item);
       if (reason) return reason;
     }
     return undefined;
@@ -48,17 +49,17 @@ function inspectVegaLiteSpec(value: unknown): string | undefined {
   }
 
   const mark = value.mark;
-  if (typeof mark === 'string' && !ALLOWED_VEGA_LITE_MARKS.has(mark)) {
+  if (typeof mark === 'string' && !ALLOWED_CHART_MARKS.has(mark)) {
     return `mark ${mark} is not allowed`;
   }
   if (isRecord(mark)) {
     const markType = mark.type;
     if (typeof markType !== 'string') return 'mark type is required';
-    if (!ALLOWED_VEGA_LITE_MARKS.has(markType)) return `mark ${markType} is not allowed`;
+    if (!ALLOWED_CHART_MARKS.has(markType)) return `mark ${markType} is not allowed`;
   }
 
   for (const child of Object.values(value)) {
-    const reason = inspectVegaLiteSpec(child);
+    const reason = inspectChartSpec(child);
     if (reason) return reason;
   }
   return undefined;
