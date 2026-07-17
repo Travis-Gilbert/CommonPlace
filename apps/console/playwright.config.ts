@@ -19,10 +19,25 @@ export default defineConfig({
       maxDiffPixelRatio: 0.002,
     },
   },
-  webServer: {
-    command: 'npm run dev',
-    port: 3010,
-    reuseExistingServer: true,
-    timeout: 120000,
-  },
+  webServer: [
+    {
+      // The stub object-seam upstream (e2e fixture; R2.1 keeps the record
+      // fixture in tests). The console proxy points at it via env below, so
+      // e2e exercises the real browser -> proxy -> upstream wire.
+      command: 'node e2e/stub-data-api.mjs',
+      port: 50591,
+      reuseExistingServer: true,
+      timeout: 30000,
+    },
+    {
+      command: 'npm run dev',
+      port: 3010,
+      reuseExistingServer: true,
+      timeout: 120000,
+      env: {
+        CONSOLE_DATA_API_URL: 'http://localhost:50591',
+        CONSOLE_DATA_API_KEY: 'dev-key',
+      },
+    },
+  ],
 });

@@ -14,6 +14,7 @@ on:
     paths:
       - "apps/console/**"
       - "packages/block-view/**"
+      - "packages/theorem-acp/**"
       - ".github/workflows/console-ci.yml"
 
 permissions:
@@ -46,6 +47,9 @@ jobs:
 
       - name: Contract package typecheck
         run: pnpm --filter @commonplace/block-view run check
+
+      - name: ACP package typecheck
+        run: pnpm --filter @commonplace/theorem-acp run check
 
       - name: Import fence (gate 1, with probe self-test)
         run: node scripts/check-import-fence.mjs --self-test

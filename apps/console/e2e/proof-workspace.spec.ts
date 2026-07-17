@@ -27,9 +27,15 @@ test.describe('proof workspace', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.reload();
     await settled(page);
-    // The record set renders 12+ rows in the tool window at 1440x900.
+    // The record set renders 12+ rows in the tool window at 1440x900, served
+    // over the LIVE wire: browser -> console proxy -> object-seam upstream.
     const rows = page.locator('tbody tr');
     expect(await rows.count()).toBeGreaterThanOrEqual(12);
+    // Transport health is real (R2.3): the proxied upstream answers, so the
+    // status bar reads Connected; presence is absent because no harness
+    // transport reports it, and it may never contradict the connection (R2.4).
+    await expect(page.locator('[data-connection]')).toHaveAttribute('data-connection', 'connected');
+    await expect(page.locator('[data-presence]')).toHaveCount(0);
     // Editor tabs host the brief and the code file by descriptor.
     await expect(page.getByRole('tab', { name: 'Console brief' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'surface-tree.ts' })).toBeVisible();
@@ -76,6 +82,25 @@ test.describe('proof workspace', () => {
     expect(underlineHeight).toBe('4px');
     // 4. The run widget exists and is bound to run state (not running here).
     await expect(page.locator('[data-run-widget][data-running="false"]')).toBeVisible();
+    // 4b. Stripe fidelity (R4 punch list): a stripe lights solid accent only
+    //     while ITS tool window is open; opening the record inspector does
+    //     not light the thread button (or any stripe).
+    const threadStripe = page.locator('nav button[aria-label="Thread tool window"]');
+    await expect(threadStripe).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('tbody tr').first().click();
+    await expect(page.getByLabel('Record inspector')).toBeVisible();
+    await expect(threadStripe).toHaveAttribute('aria-pressed', 'true');
+    const pressedStripes = await page.locator('nav button[aria-pressed="true"]').count();
+    expect(pressedStripes).toBe(2);
+    // 4c. Escape closes the inspector and returns focus to the stream row
+    //     (R4.4).
+    await page.getByLabel('Close inspector').focus();
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('Record inspector')).toHaveCount(0);
+    const focusedRecordId = await page.evaluate(
+      () => document.activeElement?.getAttribute('data-record-id') ?? document.activeElement?.getAttribute('data-records-state'),
+    );
+    expect(focusedRecordId).not.toBeNull();
     // 5. Inter 13 and JetBrains Mono, 24px rows, 28px controls, arc 8.
     const fontSize = await page.locator('[data-register="intui"]').evaluate((el) => getComputedStyle(el).fontSize);
     expect(fontSize).toBe('13px');
@@ -121,6 +146,34 @@ test.describe('proof workspace', () => {
       window.localStorage.getItem('commonplace.console.surface.v1'),
     );
     expect(after).toContain('"open":false');
+
+    // Reopening after a drag must not mangle the arrangement: persisted
+    // sizes are absolute shares that always sum to 100 across the surface's
+    // regions, so the panel library never normalizes anything away (the
+    // marriage-requirement regression this round fixed).
+    const warnings: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'warning' && message.text().includes('Invalid layout')) {
+        warnings.push(message.text());
+      }
+    });
+    await page.keyboard.press('Alt+1');
+    await expect(page.locator('nav button[aria-label="Records tool window"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.waitForTimeout(400);
+    const sizes = await page.evaluate(() => {
+      const raw = window.localStorage.getItem('commonplace.console.surface.v1');
+      if (!raw) return null;
+      const objects = JSON.parse(raw) as { id: string; type: string; properties: { size?: number } }[];
+      return objects
+        .filter((object) => object.type === 'region' && object.id.startsWith('region-'))
+        .reduce((sum, object) => sum + (object.properties.size ?? 0), 0);
+    });
+    expect(sizes).not.toBeNull();
+    expect(Math.abs((sizes as number) - 100)).toBeLessThan(1);
+    expect(warnings).toEqual([]);
   });
 
   test('an unknown descriptor renders the fallback card, never a crash', async ({ page }) => {
