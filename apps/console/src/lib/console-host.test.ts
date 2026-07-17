@@ -5,12 +5,17 @@
 // rides the live data API and never serves fixture records.
 
 import { describe, expect, it } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ConsoleBlockHost } from './console-host';
 import { RECORD_COUNT, SURFACE_ID, seedRecords } from './workspace-seed';
 
 const NO_VIEWS = { matchingViews: () => [] };
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /** A host with the test-only record pool (the app passes no pool). */
 function fixtureHost() {
@@ -39,6 +44,7 @@ describe('ConsoleBlockHost', () => {
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
       'console-docs',
       'console-index',
+      'console-review',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
@@ -109,5 +115,30 @@ describe('ConsoleBlockHost', () => {
     expect(receipt.ok).toBe(true);
     expect(notified).toBe(1);
     unsubscribe();
+  });
+
+  it('routes typed Hunk queries and named executor actions through the object seam', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { types?: string[]; tool?: string };
+      if (body.types?.includes('hunk')) {
+        return new Response(JSON.stringify({
+          objects: [],
+          shape: { types: ['hunk'], fields: [], relations: [], axes: {}, cardinality: 'empty' },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ action_kind: 'invoke_tool', status: 'accepted' }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    await Promise.resolve(host.query({ types: ['hunk'], live: true }));
+    const receipt = await host.emit({
+      kind: 'invoke_tool',
+      tool: 'hunk.accept',
+      args: { hunk_ids: ['hunk:1'] },
+    });
+    expect(receipt.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
   });
 });

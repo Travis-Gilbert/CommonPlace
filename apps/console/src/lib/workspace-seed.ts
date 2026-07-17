@@ -3,8 +3,9 @@
  * The proof workspace seed (HANDOFF-GREENFIELD-CONSOLE G8): one surface object
  * composing the product sentence. Left tool window: a record set. Editor: a
  * markdown brief through Galley and a read-only code file. Right tool window:
- * the thread. The arrangement is data; the shell renders whatever the surface
- * object says. A second arrangement is a second seed, zero code.
+ * the thread. Review is another named surface whose typed HunkSet rides the
+ * same object seam. The arrangement is data; the shell renders whatever the
+ * surface object says. A second arrangement is a second seed, zero code.
  *
  * Records are generated with the repo's deterministic PRNG convention
  * (djb2 + LCG, no Math.random) so builds and snapshots are stable.
@@ -148,6 +149,24 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'chat.thread',
       title: 'Thread',
       query: { types: ['thread'] } as unknown as JsonValue,
+    }),
+
+    // Review: the Hunk handoff re-scoped to the Greenfield shell. The route is
+    // arrangement data (a named surface and registered view), while the typed
+    // values and action receipts remain substrate-owned.
+    layoutObject('console-review', 'surface', { name: 'Review', kind: 'review', active: false }, [
+      'review.region-editor',
+    ]),
+    layoutObject(
+      'review.region-editor',
+      'region',
+      { kind: 'editor', size: 100, active_tab: 'review.vi-hunks' },
+      ['review.vi-hunks'],
+    ),
+    layoutObject('review.vi-hunks', 'view-instance', {
+      descriptor_id: 'hunk.review',
+      title: 'Hunk review',
+      query: { types: ['hunk'], live: true } as unknown as JsonValue,
     }),
   ];
 }
