@@ -5,8 +5,10 @@
 
 @import 'tailwindcss';
 @import './int-ui-register.css';
+@import './int-ui-register-light.css';
 @import './rec-structural.css';
 @import './register-bridge.css';
+@import './primer-register.css';
 @import '@travis-gilbert/markdown-theory/css';
 @import './gy-bridge.css';
 @import '../motion/motion.css';

@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import type { JsonValue, ObjectRef, ViewRenderProps } from '@commonplace/block-view/types';
 import { surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ViewState } from './ViewStates';
+import { IconDoc, KindDot } from '@/components/shell/icons';
 
 export function DocListView({ set, host }: ViewRenderProps) {
   const docs = useMemo(
@@ -58,9 +59,11 @@ export function DocListView({ set, host }: ViewRenderProps) {
             type="button"
             data-doc-id={doc.id}
             onClick={() => void openDoc(doc)}
-            className="flex h-8 w-full items-center overflow-hidden border-b border-ij-seam px-rec-cell-pad text-left text-ij-ink hover:bg-ij-hover-surface"
+            className="flex h-8 w-full items-center gap-2 overflow-hidden border-b border-ij-seam px-rec-cell-pad text-left text-ij-ink hover:bg-ij-hover-surface"
             style={{ transition: 'var(--rec-clickable-transition)' }}
           >
+            <IconDoc size={14} className="shrink-0 text-ij-ink-info" />
+            <KindDot kind="doc" />
             <span className="truncate">{String(doc.properties.title ?? doc.id)}</span>
           </button>
         </li>

@@ -6,7 +6,8 @@ name: CommonPlace console CI
 #   2. the register lint,
 #   3. the contrast gate (markdown-theory WCAG solving over the pinned pairs),
 #   4. the motion inventory scan,
-#   5. the Playwright captures at 1280 and 1440 dark (the visual baseline).
+#   5. the Noun icon currentColor paint gate,
+#   6. the Playwright captures at 1280 and 1440 (the visual baseline).
 # The unit suite, typecheck, eslint fence, and production build ride along.
 
 on:
@@ -67,6 +68,10 @@ jobs:
         run: node scripts/check-motion-inventory.mjs
         working-directory: apps/console
 
+      - name: Noun icon paint scan (gate 5, with hostile fill probe)
+        run: node scripts/check-icon-svg.mjs
+        working-directory: apps/console
+
       - name: ESLint (fence in the editor)
         run: pnpm --filter @commonplace/console run lint
 
@@ -81,8 +86,10 @@ jobs:
         run: pnpm --filter @commonplace/console run build
 
   visual:
-    name: Playwright visual baseline (gate 5)
-    runs-on: ubuntu-latest
+    name: Playwright visual baseline (gate 6)
+    # Visual references are captured on the design workstation; run the merge
+    # gate on the matching renderer so light and dark baselines both execute.
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4

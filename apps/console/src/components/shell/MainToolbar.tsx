@@ -121,7 +121,7 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
           className="flex h-ij-control items-center gap-1 rounded-ij-arc px-3 disabled:opacity-75"
           style={{
             background: isRunning ? 'var(--ij-running)' : 'var(--ij-raised)',
-            color: isRunning ? 'var(--ij-ink-bright)' : 'var(--ij-ink)',
+            color: isRunning ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
             transition: 'var(--rec-clickable-transition)',
           }}
         >

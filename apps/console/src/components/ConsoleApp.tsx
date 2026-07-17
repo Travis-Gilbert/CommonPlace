@@ -20,6 +20,7 @@ import { useShellStore } from '@/lib/shell-store';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { GroundCanvas } from '@/components/ground/GroundCanvas';
 import { IntuiShell } from '@/components/shell/IntuiShell';
+import { startAppearanceStore } from '@/lib/appearance-store';
 
 function convertMessage(message: ThreadMessage): ThreadMessageLike {
   return {
@@ -90,6 +91,10 @@ export function ConsoleApp() {
         : null,
     [mounted],
   );
+
+  useEffect(() => {
+    return startAppearanceStore();
+  }, []);
 
   useEffect(() => {
     if (!host) return;

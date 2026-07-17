@@ -76,7 +76,7 @@ test.describe('proof workspace', () => {
       .evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(stripeBg).toBe('rgb(53, 116, 240)');
     // 3. Underlined active tab: the 4px accent underline exists.
-    const underline = page.locator('[role="tab"][aria-selected="true"] span[aria-hidden]');
+    const underline = page.locator('[role="tab"][aria-selected="true"] .h-ij-underline');
     await expect(underline).toBeVisible();
     const underlineHeight = await underline.evaluate((el) => getComputedStyle(el).height);
     expect(underlineHeight).toBe('4px');

@@ -2,6 +2,7 @@
   "name": "@commonplace/console",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --port 3010",
     "build": "next build",
@@ -15,8 +16,10 @@
     "gate:register": "node scripts/check-register-lint.mjs",
     "gate:contrast": "node scripts/check-contrast.mjs",
     "gate:motion": "node scripts/check-motion-inventory.mjs",
+    "gate:icons": "node scripts/check-icon-svg.mjs",
+    "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion",
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion && npm run gate:icons",
     "test:e2e": "playwright test"
   },
   "dependencies": {

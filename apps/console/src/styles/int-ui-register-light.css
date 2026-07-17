@@ -1,0 +1,79 @@
+/* Int UI Light coloration register for the CommonPlace console.
+   Source of truth: JetBrains/intellij-community
+   platform/platform-resources/src/themes/expUI/expUI_light.theme.json
+   commit 0db751c0cd8ce1f778d64d6fea7662305ab3e6a0
+   source SHA-256 411be97aed281d557a14c7f2d03b364e41299658fc7d377ae39950bec5ca8ff1.
+   The dark register remains untouched. Components consume the same semantic
+   --ij-* slots in both modes; this file changes only their light resolution. */
+
+[data-register="intui"][data-theme="light"] {
+  /* Palette ramps (Int UI Light, verbatim). */
+  --ij-gray-1: #000000;  --ij-gray-2: #27282E;  --ij-gray-3: #383A42;
+  --ij-gray-4: #494B57;  --ij-gray-5: #5A5D6B;  --ij-gray-6: #6C707E;
+  --ij-gray-7: #818594;  --ij-gray-8: #A8ADBD;  --ij-gray-9: #C9CCD6;
+  --ij-gray-10: #D3D5DB; --ij-gray-11: #DFE1E5; --ij-gray-12: #EBECF0;
+  --ij-gray-13: #F7F8FA; --ij-gray-14: #FFFFFF;
+
+  --ij-blue-1: #2E55A3;  --ij-blue-2: #315FBD;  --ij-blue-3: #3369D6;
+  --ij-blue-4: #3574F0;  --ij-blue-5: #4682FA;  --ij-blue-6: #588CF3;
+  --ij-blue-7: #709CF5;  --ij-blue-8: #88ADF7;  --ij-blue-9: #A0BDF8;
+  --ij-blue-10: #C2D6FC; --ij-blue-11: #D4E2FF; --ij-blue-12: #EDF3FF;
+  --ij-blue-13: #F5F8FE;
+
+  --ij-green-1: #1E6B33; --ij-green-2: #1F7536; --ij-green-3: #1F8039;
+  --ij-green-5: #369650; --ij-green-6: #55A76A; --ij-green-7: #89C398;
+  --ij-yellow-1: #A46704; --ij-yellow-2: #C27D04; --ij-yellow-4: #FFAF0F;
+  --ij-yellow-5: #FDBD3D; --ij-yellow-6: #FED277;
+  --ij-red-1: #AD2B38;  --ij-red-3: #CC3645;  --ij-red-5: #E55765;
+  --ij-red-6: #E46A76;  --ij-red-7: #ED99A1;
+  --ij-orange-1: #A14916; --ij-orange-6: #F2B181;
+  --ij-purple-2: #643CB8; --ij-purple-7: #DCCBFB; --ij-purple-9: #F5EDFF;
+  --ij-teal-2: #077A7F; --ij-teal-7: #B6E4E5;
+
+  /* Light preserves the structural inversion: seams are darker than their
+     adjacent surfaces, while the editor is the brightest plane. */
+  --ij-frame: var(--ij-gray-12);
+  --ij-editor: var(--ij-gray-14);
+  --ij-chrome: var(--ij-gray-13);
+  --ij-raised: var(--ij-gray-14);
+  --ij-seam: var(--ij-gray-12);
+  --ij-seam-raised: var(--ij-gray-10);
+  --ij-divider: var(--ij-gray-12);
+  --ij-control-border: var(--ij-gray-9);
+
+  --ij-ink: var(--ij-gray-2);
+  --ij-ink-info: var(--ij-gray-6);
+  --ij-ink-disabled: var(--ij-gray-7);
+  --ij-ink-bright: var(--ij-gray-14);
+
+  --ij-accent: var(--ij-blue-4);
+  --ij-accent-hover: var(--ij-blue-3);
+  --ij-selection: var(--ij-blue-11);
+  --ij-selection-inactive: var(--ij-gray-11);
+  --ij-link: var(--ij-blue-3);
+  --ij-modified: var(--ij-blue-3);
+  --ij-hover-overlay: #0000000D;
+  --ij-pressed-overlay: #0000001A;
+  --ij-hover-surface: var(--ij-gray-12);
+
+  --ij-error: var(--ij-red-1);      --ij-error-bg: #FFEBEC;
+  --ij-warn: var(--ij-yellow-1);    --ij-warn-bg: #FFF5DB;
+  --ij-ok: var(--ij-green-1);       --ij-ok-bg: #E3F7E7;
+  --ij-running: var(--ij-green-2);
+
+  --ij-memory: var(--ij-green-2);   --ij-memory-tint: #E3F7E7;
+  --ij-agent: var(--ij-yellow-1);   --ij-agent-tint: #FFF5DB;
+  --ij-room: var(--ij-purple-2);    --ij-room-tint: var(--ij-purple-9);
+  --ij-graph: var(--ij-teal-2);     --ij-graph-tint: #DAF4F5;
+
+  --ij-row-yellow: #FFF5DB; --ij-row-green: #E3F7E7; --ij-row-orange: #FFEFE3;
+  --ij-row-rose: #FFEBEC;   --ij-row-violet: var(--ij-purple-9); --ij-row-blue: #DAF4F5;
+  --ij-row-gray: var(--ij-gray-12);
+
+  --ij-progress: var(--ij-blue-4);
+  --ij-progress-a: var(--ij-blue-3);
+  --ij-progress-b: var(--ij-blue-7);
+  --ij-progress-track: var(--ij-gray-11);
+
+  color-scheme: light;
+}

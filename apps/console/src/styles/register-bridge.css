@@ -34,6 +34,9 @@
   --color-ij-selection-inactive: var(--ij-selection-inactive);
   --color-ij-link: var(--ij-link);
   --color-ij-modified: var(--ij-modified);
+  --color-ij-editor-line: var(--ij-editor-line);
+  --color-ij-search-match: var(--ij-search-match);
+  --color-ij-text-selection: var(--ij-text-selection);
 
   /* State overlays */
   --color-ij-hover-overlay: var(--ij-hover-overlay);
@@ -107,6 +110,16 @@
 [data-register="intui"] {
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
+  --ij-editor-line: var(--ij-hover-overlay);
+  --ij-search-match: var(--ij-selection-inactive);
+  --ij-text-selection: var(--ij-selection);
+}
+
+[data-register="intui"][data-theme="light"] {
+  /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
+     this is the runtime gate's light-mode clamp, kept outside the pin. */
+  --ij-gold: #9A6000;
+  --ij-gold-tint: #FFF5DB;
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink
@@ -116,6 +129,10 @@
    (3.98:1 on chrome), the same override pattern the gold pair uses. */
 [data-register="intui"] {
   --ij-ink-info: var(--ij-gray-8);
+}
+
+[data-register="intui"][data-theme="light"] {
+  --ij-ink-info: var(--ij-gray-6);
 }
 
 /* Self-hosted font bridge: next/font/local-style variables from layout.tsx

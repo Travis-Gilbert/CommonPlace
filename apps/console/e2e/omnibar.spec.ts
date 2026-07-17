@@ -114,6 +114,12 @@ test.describe('omnibar island', () => {
     await page.locator('[data-omnibar-island] input').fill('Recall trace');
     await expect(page.getByRole('button', { name: 'Records', exact: true })).toBeVisible();
     await expect(page.locator('[data-omnibar-island] [cmdk-item]').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Commands', exact: true }).click();
+    await page.locator('[data-omnibar-island] input').fill('Set theme: GitHub Light');
+    await page.getByText('Set theme: GitHub Light', { exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme-preset', 'github-light');
+    await page.keyboard.press('Shift');
+    await page.keyboard.press('Shift');
     // The Runs scope is honest about its missing wire in this environment.
     await page.getByRole('button', { name: 'Runs', exact: true }).click();
     await expect(page.getByText('CONSOLE_HARNESS_URL')).toBeVisible();
@@ -155,6 +161,7 @@ test.describe('omnibar island', () => {
     await page.locator('[data-layout-option="console-docs"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-docs');
     await expect(page.locator('[data-doc-id]').first()).toBeVisible();
+    await expect(page.locator('[data-doc-id] svg').first()).toHaveCSS('color', 'rgb(134, 138, 145)');
     await expect(page.locator('.galley').first()).toBeVisible();
     // Back to Workspace: the closed thread window survived the round trip
     // and a reload (per-surface arrangement snapshots, R3.3).

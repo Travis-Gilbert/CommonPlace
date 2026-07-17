@@ -23,6 +23,12 @@ import { seconds, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-toke
 import { PresenceMark } from '@/components/mark/PresenceMark';
 import { SURFACE_ID } from '@/lib/workspace-seed';
 import { dispatchHunkReviewAction, HUNK_REVIEW_ACTIONS } from '@/views/hunks/hunk-actions';
+import {
+  APPEARANCE_PRESETS,
+  selectAppearancePreset,
+  setAppearancePreference,
+  type ThemeMode,
+} from '@/lib/appearance-store';
 
 const DOUBLE_SHIFT_MS = 400;
 
@@ -33,11 +39,12 @@ const MODES: readonly { id: OmnibarMode; label: string; hint: string }[] = [
   { id: 'objects', label: 'Objects', hint: '@' },
 ];
 
-type SearchScope = 'all' | 'records' | 'views' | 'runs' | 'memory' | 'rooms';
+type SearchScope = 'all' | 'records' | 'views' | 'commands' | 'runs' | 'memory' | 'rooms';
 const SEARCH_SCOPES: readonly { id: SearchScope; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'records', label: 'Records' },
   { id: 'views', label: 'Views' },
+  { id: 'commands', label: 'Commands' },
   { id: 'runs', label: 'Runs' },
   { id: 'memory', label: 'Memory' },
   { id: 'rooms', label: 'Rooms' },
@@ -356,10 +363,32 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
           run: () => dispatchHunkReviewAction(command.action),
         }))
       : [];
+    const switchSurface = (surfaceId: string) => {
+      if (!surfaces.some((candidate) => candidate.id === surfaceId)) return;
+      for (const candidate of surfaces) {
+        void host.emit({
+          kind: 'update',
+          id: candidate.id,
+          patch: { active: candidate.id === surfaceId },
+        });
+      }
+    };
+    const themeCommands: ConsoleCommand[] = APPEARANCE_PRESETS.map((preset) => ({
+      id: `appearance:preset:${preset.id}`,
+      label: `Set theme: ${preset.label}`,
+      run: () => selectAppearancePreset(preset.id),
+    }));
+    const modeCommands: ConsoleCommand[] = (['auto', 'dark', 'light'] as const).map((mode: ThemeMode) => ({
+      id: `appearance:mode:${mode}`,
+      label: `Set appearance mode: ${mode}`,
+      run: () => setAppearancePreference({ mode }),
+    }));
     return [
       ...toggles,
       ...layoutSwitches,
       ...hunkActions,
+      ...themeCommands,
+      ...modeCommands,
       isRunning
         ? { id: 'run:stop', label: 'Stop the live run', run: () => cancel() }
         : {
@@ -369,8 +398,8 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
           },
       {
         id: 'settings',
-        label: 'Open settings',
-        unavailable: 'no settings surface is seeded this round',
+        label: 'Open Appearance settings',
+        run: () => switchSurface('console-appearance'),
       },
       {
         id: 'motion:preview',
@@ -575,6 +604,25 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
                 {mode === 'search' ? (
                   <>
                     <Command.Empty className="p-3 text-ij-ink-info">No matches.</Command.Empty>
+                    {(scope === 'all' || scope === 'commands') && filteredCommands.length > 0 ? (
+                      <Command.Group heading="Commands" className="text-ij-ink-info">
+                        {filteredCommands.map((command) =>
+                          command.unavailable ? null : (
+                            <Command.Item
+                              key={`search:${command.id}`}
+                              value={`search:${command.id}`}
+                              onSelect={() => {
+                                command.run?.();
+                                close();
+                              }}
+                              className={itemClass}
+                            >
+                              {command.label}
+                            </Command.Item>
+                          ),
+                        )}
+                      </Command.Group>
+                    ) : null}
                     {(scope === 'all' || scope === 'views') && (
                       <Command.Group heading="Views" className="text-ij-ink-info">
                         {filteredViews.map((descriptor) => (

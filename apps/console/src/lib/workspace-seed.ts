@@ -31,7 +31,7 @@ function layoutObject(
 }
 
 /** Screens are seeded surfaces (HANDOFF-CONSOLE-ROUND-2 R3): the proof
- *  workspace, the Index skeleton, and the Documents reading screen, each with
+ *  workspace, Index, Documents, and Appearance, each with
  *  its own namespaced regions so every screen remembers its own arrangement.
  *  The switcher flips the `active` flag; nothing else moves. */
 export function seedLayout(): ObjectRef[] {
@@ -167,6 +167,23 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'hunk.review',
       title: 'Hunk review',
       query: { types: ['hunk'], live: true } as unknown as JsonValue,
+    }),
+
+    // Appearance: one descriptor-backed editor surface. The controls mutate
+    // the root register, so this screen is both configuration and live proof.
+    layoutObject('console-appearance', 'surface', { name: 'Appearance', kind: 'settings', active: false }, [
+      'appearance.region-editor',
+    ]),
+    layoutObject(
+      'appearance.region-editor',
+      'region',
+      { kind: 'editor', size: 100, active_tab: 'appearance.vi-theme' },
+      ['appearance.vi-theme'],
+    ),
+    layoutObject('appearance.vi-theme', 'view-instance', {
+      descriptor_id: 'settings.appearance',
+      title: 'Appearance',
+      query: { types: ['surface'] } as unknown as JsonValue,
     }),
   ];
 }

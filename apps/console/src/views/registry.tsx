@@ -13,6 +13,7 @@ import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
 import { DocListView, IndexRailView } from './DocListView';
 import { HunkReviewView } from './HunkReviewView';
+import { AppearanceView } from './AppearanceView';
 
 function ThreadRender(_props: ViewRenderProps) {
   return <ThreadView />;
@@ -124,6 +125,21 @@ const HUNK_REVIEW: ViewDescriptor = {
   render: HunkReviewView,
 };
 
+const APPEARANCE: ViewDescriptor = {
+  id: 'settings.appearance',
+  name: 'Appearance',
+  accepts: {},
+  emits: ['update'],
+  renderer: 'settings.appearance',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+  },
+  render: AppearanceView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -132,6 +148,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   DOC_LIST,
   INDEX_RAIL,
   HUNK_REVIEW,
+  APPEARANCE,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

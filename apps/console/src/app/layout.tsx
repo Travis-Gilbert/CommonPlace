@@ -10,6 +10,31 @@ import { fontVariableClasses } from './fonts';
 import '../styles/galley-register.css';
 import '../styles/app.css';
 
+const appearanceBootstrap = `(() => {
+  const key = 'commonplace.console.appearance.v1';
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+  const candidate = saved?.preference;
+  const validMode = ['auto', 'dark', 'light'].includes(candidate?.mode);
+  const validFamily = ['intellij', 'github', 'navy'].includes(candidate?.family);
+  const preference = validMode && validFamily
+    ? candidate
+    : { mode: 'auto', family: 'intellij' };
+  const mode = preference.mode === 'auto'
+    ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : preference.mode;
+  const preset = preference.family === 'navy' ? 'navy' : preference.family + '-' + mode;
+  root.dataset.theme = mode;
+  root.dataset.themeMode = preference.mode;
+  root.dataset.themeFamily = preference.family;
+  root.dataset.themePreset = preset;
+  root.dataset.themeDerived = preference.family === 'navy' ? 'true' : 'false';
+  if (preference.family === 'navy' && saved?.resolvedMode === mode && saved?.variables) {
+    for (const [name, value] of Object.entries(saved.variables)) root.style.setProperty(name, String(value));
+  }
+})();`;
+
 export const metadata: Metadata = {
   title: 'CommonPlace Console',
   description: 'The harness console: IntelliJ chrome outside, the block-view object contract inside every pane.',
@@ -17,8 +42,21 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-register="intui" className={fontVariableClasses}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      data-register="intui"
+      data-theme="dark"
+      data-theme-mode="auto"
+      data-theme-family="intellij"
+      data-theme-preset="intellij-dark"
+      data-theme-derived="false"
+      suppressHydrationWarning
+      className={fontVariableClasses}
+    >
+      <body>
+        <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
+        {children}
+      </body>
     </html>
   );
 }
