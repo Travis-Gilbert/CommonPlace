@@ -8,7 +8,7 @@
 // thread runtime), Command (">" prefix), Search (the absorbed Search
 // Everywhere), Objects ("@" inserts typed reference chips resolved through
 // the block-view host). Double Shift opens Search (JetBrains muscle memory);
-// Ctrl or Cmd L opens Ask (Cursor muscle memory); Escape collapses and
+// Ctrl or Cmd L/K opens Ask (Cursor muscle memory); Escape collapses and
 // restores focus to the prior element.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -84,13 +84,13 @@ export function OmnibarField() {
     <button
       type="button"
       data-omnibar-field
-      aria-label="Ask, or press Shift Shift"
-      aria-keyshortcuts="Control+L Meta+L"
+      aria-label="Ask with Ctrl+K or Cmd+K; desktop also Ctrl+L or Cmd+L; Shift Shift opens Search"
+      aria-keyshortcuts="Meta+K Control+K Meta+L Control+L"
       onClick={() => openOmnibar('ask')}
       className="flex h-ij-control w-full max-w-144 items-center rounded-ij-arc border border-ij-control-border bg-ij-chrome px-3 text-left text-ij-ink-disabled hover:border-ij-seam-raised hover:text-ij-ink-info"
       style={{ transition: 'var(--rec-clickable-transition)' }}
     >
-      Ask, or press Shift Shift
+      Ask, Ctrl+K or Cmd+K, Shift Shift searches
     </button>
   );
 }
@@ -127,10 +127,16 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
     if (target && document.contains(target)) target.focus();
   }, [closeOmnibar]);
 
-  // Global keys: double Shift opens Search; Ctrl or Cmd L opens Ask.
+  // Global keys: double Shift opens Search; Ctrl or Cmd L/K opens Ask.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && (event.key === 'l' || event.key === 'L')) {
+      const askKey = event.key === 'l' || event.key === 'L' || event.key === 'k' || event.key === 'K';
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        askKey &&
+        !event.altKey &&
+        !event.shiftKey
+      ) {
         event.preventDefault();
         if (!open) prevFocus.current = document.activeElement as HTMLElement | null;
         openOmnibar('ask');
