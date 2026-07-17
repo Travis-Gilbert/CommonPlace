@@ -20,7 +20,7 @@ test.describe('omnibar island', () => {
     await settled(page);
   });
 
-  test('reachable in one action: field click, Ctrl+L, double Shift', async ({ page }) => {
+  test('reachable in one action: field click, Ctrl+K, double Shift', async ({ page }) => {
     // Pointer path: the collapsed toolbar field.
     await page.locator('[data-omnibar-field]').click();
     await expect(page.locator('[data-omnibar-island]')).toBeVisible();
@@ -41,6 +41,7 @@ test.describe('omnibar island', () => {
     await expect(page.locator('[data-omnibar-island]')).toBeVisible();
     await expect(page.locator('[data-omnibar-mode="ask"]')).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
+    await expect(page.locator('[data-omnibar-island]')).toHaveCount(0);
 
     // JetBrains muscle memory: double Shift opens Search.
     await page.keyboard.press('Shift');
