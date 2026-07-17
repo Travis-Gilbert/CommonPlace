@@ -35,6 +35,9 @@ import {
   type LocalAgentSettings,
 } from '@/lib/local-agent';
 import { DesktopOnly, panel } from './desktopPanel';
+import { RecallDial } from '../margin/RecallDial';
+import { readRecallDial, writeRecallDial } from '@/lib/margin-recall/recall-dial-store';
+import { recallBehavior, type RecallPolicy } from '@/lib/margin-recall/recall-dial';
 
 const PROVIDERS = ['anthropic', 'openai', 'deepseek', 'gemini', 'ollama'];
 
@@ -55,6 +58,7 @@ export default function DesktopSettingsView() {
   const [localAgent, setLocalAgent] = useState<LocalAgentSettings>(() =>
     readLocalAgentSettings(),
   );
+  const [recallDial, setRecallDial] = useState<RecallPolicy>(() => readRecallDial());
   const [provider, setProvider] = useState(PROVIDERS[0]);
   const [key, setKey] = useState('');
   const [bearer, setBearer] = useState('');
@@ -177,6 +181,11 @@ export default function DesktopSettingsView() {
     setError(null);
   }, [localAgent]);
 
+  const changeRecallDial = useCallback((policy: RecallPolicy) => {
+    setRecallDial(policy);
+    writeRecallDial(policy);
+  }, []);
+
   return (
     <DesktopOnly>
       <div style={panel.wrap}>
@@ -280,6 +289,39 @@ export default function DesktopSettingsView() {
             >
               Save
             </button>
+          </div>
+        </div>
+
+        <div style={panel.card}>
+          <SectionTitle title="Recall" />
+          <div style={panel.dim}>
+            How loudly margin-recall surfaces connections to your library while co-browsing.
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <RecallDial policy={recallDial} onChange={changeRecallDial} />
+          </div>
+          {(() => {
+            const recall = recallBehavior(recallDial);
+            if (!recall.run) {
+              return (
+                <div style={{ ...panel.dim, marginTop: 6 }}>
+                  Now: recall is off on every page.
+                </div>
+              );
+            }
+            const tiers = recall.exactOnly
+              ? 'exact connections only'
+              : 'exact and related connections';
+            const proactive = recall.proactive ? ', with one proactive note' : '';
+            return (
+              <div style={{ ...panel.dim, marginTop: 6 }}>
+                {`Now: ${tiers}${proactive}.`}
+              </div>
+            );
+          })()}
+          <div style={{ ...panel.dim, marginTop: 6 }}>
+            Per-site overrides are set from the co-browse bar; a site pinned Off stays off
+            regardless of this dial.
           </div>
         </div>
 

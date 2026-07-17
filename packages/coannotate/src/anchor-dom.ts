@@ -142,6 +142,10 @@ export function resolveAnchorEl(anchor: Anchor, root: AnchorRoot): AnchorEl | nu
       return safeQuery(root, anchor.selector);
     case 'page':
       return null;
+    case 'text_quote':
+      // A text-quote anchor resolves to a range, not a single element; its rects
+      // come from quote-dom (resolveQuoteRectsInRoot), not element resolution.
+      return null;
   }
 }
 

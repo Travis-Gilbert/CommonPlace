@@ -1661,6 +1661,126 @@ fn app_store_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| error.to_string())
 }
 
+mod site_policy;
+mod margin_recall;
+
+/// D1 pageIdentity (MR-D1-4): the co-browsed page's url and title plus its BLAKE3 content
+/// hash, over the same server-side text source `extract_visible_text` uses. Stable across an
+/// unchanged revisit; the shared key for the D2 result cache and D3 anchor.
+#[tauri::command]
+fn page_identity(
+    tab_id: String,
+    state: tauri::State<'_, Mutex<DesktopBackendState>>,
+) -> Result<margin_recall::PageIdentity, String> {
+    let tab = state
+        .lock()
+        .map_err(|error| error.to_string())?
+        .tabs
+        .get(&tab_id)
+        .cloned();
+    let Some(tab) = tab else {
+        return Ok(margin_recall::page_identity(String::new(), String::new(), ""));
+    };
+    let text = if tab.url.starts_with("http://") || tab.url.starts_with("https://") {
+        fetch_text(&tab.url).unwrap_or_default()
+    } else {
+        String::new()
+    };
+    Ok(margin_recall::page_identity(tab.url, tab.title, &text))
+}
+
+/// D1 resolveTextTargets (MR-D1-1): inject the resolver that finds `target` in the page and
+/// posts its rects back through the Tauri IPC. Fire-and-forget: the rects arrive via the
+/// `margin_recall_targets` postback, re-emitted on `marginrecall://targets`.
+#[tauri::command]
+fn resolve_text_targets(
+    app: tauri::AppHandle,
+    tab_id: String,
+    request_id: String,
+    target: margin_recall::TextTarget,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&tab_label(&tab_id))
+        .ok_or_else(|| format!("tab window for {tab_id} missing"))?;
+    window
+        .eval(&margin_recall::resolve_script(&request_id, &target))
+        .map_err(|error| error.to_string())
+}
+
+/// D1 scrollToTarget (MR-D1-3): scroll the resolved passage into view.
+#[tauri::command]
+fn scroll_to_target(
+    app: tauri::AppHandle,
+    tab_id: String,
+    target: margin_recall::TextTarget,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&tab_label(&tab_id))
+        .ok_or_else(|| format!("tab window for {tab_id} missing"))?;
+    window
+        .eval(&margin_recall::scroll_script(&target))
+        .map_err(|error| error.to_string())
+}
+
+/// Postback sink for the injected resolver (MR-D1-1): parse the rects it posts back and
+/// re-emit them to the web layer on `marginrecall://targets`, tagged with the request id.
+#[tauri::command]
+fn margin_recall_targets(app: tauri::AppHandle, payload: String) -> Result<(), String> {
+    let parsed = margin_recall::parse_targets_payload(&payload)?;
+    app.emit(margin_recall::TARGETS_EVENT, parsed)
+        .map_err(|error| error.to_string())
+}
+
+/// D4-5 external-page tint: paint a faint, click-through tint over the D1-resolved rects on an
+/// external co-browse page, extending `tab_highlight` from an element bbox to a text range.
+#[tauri::command]
+fn tab_tint_targets(
+    app: tauri::AppHandle,
+    tab_id: String,
+    targets: Vec<margin_recall::RectSet>,
+    tier: String,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&tab_label(&tab_id))
+        .ok_or_else(|| format!("tab window for {tab_id} missing"))?;
+    window
+        .eval(&margin_recall::tint_script(&targets, &tier))
+        .map_err(|error| error.to_string())
+}
+
+/// Clear the external-page margin tint (MR-D4-5).
+#[tauri::command]
+fn tab_clear_tint(app: tauri::AppHandle, tab_id: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&tab_label(&tab_id))
+        .ok_or_else(|| format!("tab window for {tab_id} missing"))?;
+    window
+        .eval(&margin_recall::clear_tint_script())
+        .map_err(|error| error.to_string())
+}
+
+/// D7: the per-site recall override for `origin` (`"off"`|`"quiet"`|`"active"`), or
+/// `None` when the site inherits the dial. Contract doc: apps/desktop/src/lib/commands.ts.
+#[tauri::command]
+fn site_policy_get(app: tauri::AppHandle, origin: String) -> Result<Option<String>, String> {
+    let db = open_db(&app)?;
+    site_policy::ensure_table(&db).map_err(|error| error.to_string())?;
+    Ok(site_policy::get_policy(&db, &origin)
+        .map_err(|error| error.to_string())?
+        .map(|policy| policy.as_str().to_string()))
+}
+
+/// D7: pin `origin` to a recall policy. A site set to `"off"` suppresses the salience
+/// pipeline for that origin whatever the dial says.
+#[tauri::command]
+fn site_policy_set(app: tauri::AppHandle, origin: String, policy: String) -> Result<(), String> {
+    let parsed = site_policy::RecallPolicy::parse(&policy)
+        .ok_or_else(|| format!("unknown recall policy {policy}"))?;
+    let db = open_db(&app)?;
+    site_policy::ensure_table(&db).map_err(|error| error.to_string())?;
+    site_policy::set_policy(&db, &origin, parsed).map_err(|error| error.to_string())
+}
+
 fn open_db(app: &tauri::AppHandle) -> Result<Connection, String> {
     let store = app_store_path(app)?;
     std::fs::create_dir_all(&store).map_err(|error| error.to_string())?;
@@ -2426,6 +2546,14 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
         .invoke_handler(tauri::generate_handler![
             harness_settings_get,
             harness_settings_set,
+            site_policy_get,
+            site_policy_set,
+            page_identity,
+            resolve_text_targets,
+            scroll_to_target,
+            margin_recall_targets,
+            tab_tint_targets,
+            tab_clear_tint,
             harness_bearer_set,
             harness_bearer_clear,
             local_node_status,

@@ -30,6 +30,7 @@ pub mod content_core;
 pub mod ingest;
 pub mod item;
 pub mod organize;
+pub mod page;
 pub mod reconstruction;
 pub mod reminder;
 pub mod renderable;

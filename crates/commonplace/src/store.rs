@@ -79,6 +79,10 @@ pub const RELATES_TO_EDGE: &str = "RELATES_TO";
 pub const LINKS_TO_EDGE: &str = "LINKS_TO";
 /// Edge: a comment item annotates an item.
 pub const COMMENT_ON_EDGE: &str = "COMMENT_ON";
+/// Append-only annotation lifecycle event edge (D3-5): one immutable, timestamped
+/// self-loop per transition on the annotation comment, so its history replays even
+/// though the comment item itself upserts to its latest state.
+pub const ANNOTATION_EVENT_EDGE: &str = "ANNOTATION_EVENT";
 /// Edge: a file item is attached to another item.
 pub const ATTACHED_TO_EDGE: &str = "ATTACHED_TO";
 /// Edge: a worklog item records time against a task.
@@ -678,6 +682,23 @@ where
         body: impl Into<String>,
         anchor: &crate::annotation::Anchor,
     ) -> GraphStoreResult<Item> {
+        self.create_typed_annotation(target_id, author, author_kind, body, anchor, None, None)
+    }
+
+    /// Like [`create_annotation`](Self::create_annotation) with a typed body (D3): the
+    /// [`BodyKind`](crate::annotation::BodyKind) and W3C motivation ride `extra`. D2
+    /// salience creates its connection explanations through this.
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_typed_annotation(
+        &mut self,
+        target_id: &str,
+        author: Option<&str>,
+        author_kind: crate::annotation::AuthorKind,
+        body: impl Into<String>,
+        anchor: &crate::annotation::Anchor,
+        body_kind: Option<crate::annotation::BodyKind>,
+        motivation: Option<&str>,
+    ) -> GraphStoreResult<Item> {
         let anchor_value = serde_json::to_value(anchor).map_err(serde_err)?;
         let mut comment = Item::new(ItemKind::Comment, "Annotation")
             .with_text(body.into())
@@ -690,8 +711,20 @@ where
         if let Some(author) = author {
             comment = comment.with_extra(crate::annotation::AUTHOR_ID_KEY, json!(author));
         }
+        if let Some(kind) = body_kind {
+            comment = comment.with_extra(crate::annotation::BODY_KIND_KEY, json!(kind.as_str()));
+        }
+        if let Some(motivation) = motivation {
+            comment = comment.with_extra(crate::annotation::MOTIVATION_KEY, json!(motivation));
+        }
         let comment = self.put_item(comment)?;
         self.upsert_link(COMMENT_ON_EDGE, &comment.id, target_id)?;
+        self.record_annotation_event(
+            &comment.id,
+            crate::annotation::AnnotationEventKind::Created,
+            author,
+            None,
+        )?;
         Ok(comment)
     }
 
@@ -717,6 +750,12 @@ where
         }
         let reply = self.put_item(reply)?;
         self.upsert_link(COMMENT_ON_EDGE, &reply.id, parent_comment_id)?;
+        self.record_annotation_event(
+            parent_comment_id,
+            crate::annotation::AnnotationEventKind::Replied,
+            author,
+            None,
+        )?;
         Ok(reply)
     }
 
@@ -739,7 +778,36 @@ where
                 crate::annotation::RESOLUTION_KEY,
                 json!({ "by": resolved_by, "receipt": receipt }),
             );
-        Ok(Some(self.put_item(item)?))
+        let stored = self.put_item(item)?;
+        self.record_annotation_event(
+            comment_id,
+            crate::annotation::AnnotationEventKind::Resolved,
+            Some(resolved_by),
+            receipt,
+        )?;
+        Ok(Some(stored))
+    }
+
+    /// Mark an annotation an orphan (D3): its text-quote anchor re-resolved below
+    /// confidence on revisit, so it is listed in the session drawer but never
+    /// highlighted on the page. Upserts by id. `None` if the id is unknown.
+    pub fn mark_orphan(&mut self, comment_id: &str, orphan: bool) -> GraphStoreResult<Option<Item>> {
+        let Some(item) = self.get_item(comment_id)? else {
+            return Ok(None);
+        };
+        let item = item.with_extra(crate::annotation::ORPHAN_KEY, json!(orphan));
+        let stored = self.put_item(item)?;
+        self.record_annotation_event(
+            comment_id,
+            if orphan {
+                crate::annotation::AnnotationEventKind::Orphaned
+            } else {
+                crate::annotation::AnnotationEventKind::Unorphaned
+            },
+            None,
+            None,
+        )?;
+        Ok(Some(stored))
     }
 
     /// The annotations on a target (projected to [`Annotation`](crate::annotation::Annotation)),
@@ -762,6 +830,91 @@ where
         annotation_id: &str,
     ) -> GraphStoreResult<Vec<crate::annotation::Annotation>> {
         self.annotations_for(annotation_id)
+    }
+
+    /// Record one annotation lifecycle transition as an append-only event edge
+    /// (D3-5): an immutable `ANNOTATION_EVENT` self-loop on the comment carrying a
+    /// monotonic `seq`, the kind, actor, wall-clock `at_ms`, and optional detail.
+    /// Transaction-time is strictly increasing per annotation
+    /// (`max(now, previous + 1)`), so a replay cut isolates an exact prefix even
+    /// when several transitions land in the same millisecond.
+    fn record_annotation_event(
+        &mut self,
+        comment_id: &str,
+        kind: crate::annotation::AnnotationEventKind,
+        actor: Option<&str>,
+        detail: Option<&str>,
+    ) -> GraphStoreResult<()> {
+        let history = self.annotation_history(comment_id)?;
+        let seq = history.len() as u64;
+        let at_ms = history
+            .last()
+            .map(|event| (event.at_ms + 1).max(now_ms()))
+            .unwrap_or_else(now_ms);
+        let event = crate::annotation::AnnotationEvent {
+            seq,
+            kind,
+            actor: actor.map(str::to_string),
+            at_ms,
+            detail: detail.map(str::to_string),
+        };
+        let properties = serde_json::to_value(&event).map_err(serde_err)?;
+        self.store_mut().upsert_edge(EdgeRecord::new(
+            format!("annotation-event:{comment_id}:{seq}"),
+            comment_id.to_string(),
+            ANNOTATION_EVENT_EDGE.to_string(),
+            comment_id.to_string(),
+            properties,
+        ))?;
+        Ok(())
+    }
+
+    /// An annotation's full history (D3-5): every recorded transition, ordered by
+    /// transaction-time sequence. Empty for an unknown or event-less comment.
+    pub fn annotation_history(
+        &self,
+        comment_id: &str,
+    ) -> GraphStoreResult<Vec<crate::annotation::AnnotationEvent>> {
+        let mut events: Vec<crate::annotation::AnnotationEvent> = self
+            .store()
+            .neighbors(NeighborQuery::out(comment_id).with_edge_type(ANNOTATION_EVENT_EDGE))
+            .into_iter()
+            .filter_map(|hit| self.store().get_edge(&hit.edge_id).cloned())
+            .filter_map(|edge| serde_json::from_value(edge.properties).ok())
+            .collect();
+        events.sort_by_key(|event| event.seq);
+        Ok(events)
+    }
+
+    /// Reconstruct an annotation's state as of a transaction-time cut (D3-5) by
+    /// folding every event with `at_ms <= as_of_ms`. `None` when no event had
+    /// happened by then (e.g. a cut before the annotation was created). Pass
+    /// `i64::MAX` for the latest state.
+    pub fn replay_annotation(
+        &self,
+        comment_id: &str,
+        as_of_ms: i64,
+    ) -> GraphStoreResult<Option<crate::annotation::AnnotationReplay>> {
+        use crate::annotation::AnnotationEventKind;
+        let events = self.annotation_history(comment_id)?;
+        let mut applied = false;
+        let mut state = crate::annotation::AnnotationReplay::default();
+        for event in events.into_iter().filter(|event| event.at_ms <= as_of_ms) {
+            applied = true;
+            match event.kind {
+                AnnotationEventKind::Created => {}
+                AnnotationEventKind::Replied => state.reply_count += 1,
+                AnnotationEventKind::Resolved => {
+                    state.resolved = true;
+                    state.resolved_by = event.actor.clone();
+                    state.resolution_receipt = event.detail.clone();
+                }
+                AnnotationEventKind::Orphaned => state.orphan = true,
+                AnnotationEventKind::Unorphaned => state.orphan = false,
+            }
+            state.last_event = Some(event.kind);
+        }
+        Ok(applied.then_some(state))
     }
 
     /// Attach a file/blob item to another item.

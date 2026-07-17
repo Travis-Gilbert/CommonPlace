@@ -13,6 +13,9 @@
  * (apps/desktop/src-tauri/src/lib.rs, contract in apps/desktop/src/lib/commands.ts).
  */
 
+// Type-only import (erased at build), so the bridge stays runtime-dependency-free.
+import type { RecallPolicy } from '@/lib/margin-recall/recall-dial';
+
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
@@ -42,6 +45,23 @@ export async function invoke<T>(
   }
   return bridge.invoke(cmd, args) as Promise<T>;
 }
+
+/* ── Margin recall per-site policy (HANDOFF-MARGIN-RECALL D7) ────── */
+
+/**
+ * Rust: `site_policy_get(origin) -> Option<RecallPolicy>` (D7-3). The per-origin recall
+ * override for `origin`, or null when it has none (so the global dial applies). Throws
+ * outside the desktop runtime, where no per-site store exists.
+ */
+export const sitePolicyGet = (origin: string) =>
+  invoke<RecallPolicy | null>('site_policy_get', { origin });
+
+/**
+ * Rust: `site_policy_set(origin, policy)` (D7-3). Pin an origin's recall policy durably; an
+ * origin set to Off suppresses the pipeline for that origin no matter how loud the dial.
+ */
+export const sitePolicySet = (origin: string, policy: RecallPolicy) =>
+  invoke<void>('site_policy_set', { origin, policy });
 
 /* ── Receiver (local agent execution) ───────────────────────────── */
 

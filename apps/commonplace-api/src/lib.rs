@@ -21,6 +21,7 @@ pub mod organize;
 pub mod portability;
 pub mod publish;
 pub mod retrieve;
+pub mod salience;
 pub mod schema;
 pub mod serve;
 pub mod voice;
@@ -28,6 +29,10 @@ pub mod voice;
 pub use auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 pub use briefing::{briefing, Briefing, BriefingConfig, ConnectedItem};
 pub use discover::{discover, CandidateLink, DiscoverConfig};
+pub use salience::{
+    salience, salience_cached, CacheStatus, SalienceAnchor, SalienceCache, SalienceCandidate,
+    SalienceConfig, SalienceResult, SalienceTier,
+};
 pub use growth::{GrowthSnapshotGql, GrowthSnapshotResultGql};
 pub use organize::{
     organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup, OrganizeItem,
