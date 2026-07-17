@@ -1,0 +1,89 @@
+/* D5 margin notes (HANDOFF-MARGIN-RECALL). Notes are absolutely positioned within the margin
+   column at the y layoutMarginNotes resolved; chips are the narrow one-line form; the overflow
+   list stacks at the bottom. Scoped --cp tokens with fallbacks. No dashes per apps/web. */
+
+.column {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: auto;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--cp-tint-note, rgba(196, 154, 74, 0.14));
+  color: var(--cp-text, #222222);
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: translateY(2px);
+  animation: cp-note-in var(--cp-motion-note, 180ms) ease forwards;
+}
+
+.note[data-tier='exact'] {
+  background: var(--cp-tint-exact, rgba(180, 90, 45, 0.14));
+}
+
+.chip {
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.overflow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--cp-surface-sunken, rgba(0, 0, 0, 0.04));
+}
+
+.overflowItem {
+  font-size: 11px;
+  color: var(--cp-text-dim, #6b6b6b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overflowItem[data-tier='exact'] {
+  color: var(--cp-text, #222222);
+}
+
+.static {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+@keyframes cp-note-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}

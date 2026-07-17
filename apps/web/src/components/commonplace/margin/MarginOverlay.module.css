@@ -1,0 +1,51 @@
+/* D4 highlight overlay (HANDOFF-MARGIN-RECALL). A fixed, click-through layer of faint
+   gold marks positioned in viewport coordinates over the passages a connection anchors
+   to. Values are tokens, not literals: the gold is --cp-tint-note, the fade uses the
+   motion scale. mix-blend-mode multiply makes each mark read as a highlighter behind the
+   ink, so tinted text keeps its contrast rather than washing out. */
+
+.layer {
+  position: fixed;
+  inset: 0;
+  /* Above the reader content, below its chrome and popovers. Tuned when mounted. */
+  z-index: 5;
+  pointer-events: none;
+}
+
+.mark {
+  position: absolute;
+  background: rgb(var(--cp-tint-note));
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+  /* The tint intercepts hover/click; untinted regions fall through the layer (D4-3). */
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0;
+  animation: cp-mr-fade-in var(--cp-dur-local) var(--cp-ease-out) forwards;
+}
+
+.mark:hover {
+  opacity: 0.52;
+}
+
+/* Reduced-motion and the explicit static variant: the tint appears at rest, no fade. */
+.static {
+  animation: none;
+  opacity: 0.34;
+}
+
+@keyframes cp-mr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.34;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark {
+    animation: none;
+    opacity: 0.34;
+  }
+}

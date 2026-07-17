@@ -698,11 +698,12 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "commonplace"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake3",
  "chrono",
  "rustyred-thg-core",
+ "rustyred-thg-reconstruct-fact",
  "serde",
  "serde_json",
  "sha2",
@@ -3529,6 +3530,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustyred-thg-ml"
+version = "0.5.0"
+dependencies = [
+ "rustyred-thg-core",
+ "serde",
+]
+
+[[package]]
+name = "rustyred-thg-reconstruct-fact"
+version = "0.1.0"
+dependencies = [
+ "rustyred-thg-core",
+ "serde",
+ "serde_json",
+ "theorem-bayes",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3924,6 +3943,7 @@ dependencies = [
 name = "theorem-harness-core"
 version = "0.1.0"
 dependencies = [
+ "rustyred-thg-ml",
  "serde",
  "serde_json",
  "sha2",

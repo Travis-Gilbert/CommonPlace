@@ -285,6 +285,9 @@ importers:
       '@commonplace/block-view-contracts':
         specifier: file:../../packages/block-view-contracts
         version: link:../../packages/block-view-contracts
+      '@commonplace/coannotate':
+        specifier: file:../../packages/coannotate
+        version: link:../../packages/coannotate
       '@cosmos.gl/graph':
         specifier: ^3.0.0-beta.7
         version: 3.1.0
@@ -15125,7 +15128,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

@@ -1,4 +1,4 @@
-// @commonplace/coannotate — the co-annotation overlay spine (SPEC-PREVIEW-COANNOTATION).
+// @commonplace/coannotate; the co-annotation overlay spine (SPEC-PREVIEW-COANNOTATION).
 //
 // One overlay, three mounts. This package is the FRAMEWORK-AGNOSTIC core consumed
 // by the dev-preview mount, the general browser mount, and browse_with_me: the
@@ -46,6 +46,32 @@ export {
   selectorAnchor,
   SOURCE_ATTR,
 } from './anchor-dom.ts';
+
+export type {
+  MatchQuoteOptions,
+  OffsetLocation,
+  QuoteMatch,
+  TextPositionSelector,
+  TextQuoteSelector,
+} from './text-quote.ts';
+export { levenshtein, locateOffset, matchQuote, similarity } from './text-quote.ts';
+
+export type { RangeLike, ResolvedRects, TextNodeLike, TextRun } from './quote-dom.ts';
+export {
+  browserTextNodes,
+  collectTextRun,
+  rectsForMatch,
+  resolveQuoteRectsInRoot,
+  resolveTextRects,
+} from './quote-dom.ts';
+
+export type {
+  CurrentPage,
+  ReanchorOptions,
+  ReanchorOutcome,
+  StoredTextAnchor,
+} from './reanchor.ts';
+export { reanchorText } from './reanchor.ts';
 
 export type {
   CreateAnnotationInput,

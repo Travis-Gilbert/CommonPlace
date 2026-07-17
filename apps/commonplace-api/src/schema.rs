@@ -39,6 +39,9 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
+use crate::salience::{
+    salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier,
+};
 use crate::growth::{load_growth_snapshot_from_env, GrowthSnapshotResultGql};
 use crate::organize::{
     organize as run_organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup,
@@ -685,6 +688,42 @@ impl From<CandidateLink> for CandidateLinkGql {
             b: ItemGql::from(link.b),
             similarity: link.similarity,
             reason: link.reason,
+        }
+    }
+}
+
+/// A margin-recall salience candidate (D2, HANDOFF-MARGIN-RECALL), in the consumer
+/// API shape. The anchor is flattened to the quote plus its resolved character
+/// range; `tier` is `"exact"` or `"semantic"`; `refs` are the openable records.
+#[derive(SimpleObject)]
+pub struct SalienceCandidateGql {
+    pub quote_exact: String,
+    pub quote_prefix: Option<String>,
+    pub quote_suffix: Option<String>,
+    pub position_start: i32,
+    pub position_end: i32,
+    pub tier: String,
+    pub explanation: String,
+    pub score: f64,
+    pub refs: Vec<String>,
+}
+
+impl From<SalienceCandidate> for SalienceCandidateGql {
+    fn from(candidate: SalienceCandidate) -> Self {
+        Self {
+            quote_exact: candidate.anchor.quote.exact,
+            quote_prefix: candidate.anchor.quote.prefix,
+            quote_suffix: candidate.anchor.quote.suffix,
+            position_start: candidate.anchor.position.start as i32,
+            position_end: candidate.anchor.position.end as i32,
+            tier: match candidate.tier {
+                SalienceTier::Exact => "exact",
+                SalienceTier::Semantic => "semantic",
+            }
+            .to_string(),
+            explanation: candidate.explanation,
+            score: candidate.score,
+            refs: candidate.refs,
         }
     }
 }
@@ -1820,6 +1859,43 @@ where
         };
         let links = run_discover(&*cp, &config).map_err(store_err)?;
         Ok(links.into_iter().map(CandidateLinkGql::from).collect())
+    }
+
+    /// Salience (D2, HANDOFF-MARGIN-RECALL): the passages of `page_text` that
+    /// connect back to the tenant's stored knowledge, as margin-recall candidates.
+    /// `mode` selects the dial policy (`"quiet"` = exact tier only + higher bar;
+    /// anything else = Active, both tiers); `min_similarity` / `max_candidates`
+    /// override the preset. The Off position is enforced by the caller (the
+    /// pipeline is simply not invoked), so reaching this resolver already means
+    /// recall is on for the origin.
+    async fn salience(
+        &self,
+        ctx: &Context<'_>,
+        page_text: String,
+        mode: Option<String>,
+        min_similarity: Option<f64>,
+        max_candidates: Option<i32>,
+    ) -> Result<Vec<SalienceCandidateGql>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let mut config = match mode.as_deref() {
+            Some("quiet") => SalienceConfig::quiet(),
+            _ => SalienceConfig::active(),
+        };
+        if let Some(min_similarity) = min_similarity {
+            config.min_similarity = min_similarity;
+        }
+        if let Some(max_candidates) = max_candidates {
+            config.max_candidates = max_candidates.max(1) as usize;
+        }
+        let candidates = run_salience(&*cp, &page_text, &config).map_err(store_err)?;
+        Ok(candidates
+            .into_iter()
+            .map(SalienceCandidateGql::from)
+            .collect())
     }
 
     /// Organize: the daily triage surface. Partitions the items that arrived in

@@ -1,6 +1,8 @@
 [package]
 name = "commonplace"
-version = "0.1.0"
+# 0.1.1 (not 0.1.0) to disambiguate from the substrate's own `commonplace` v0.1.0
+# crate in the shared lockfile once commonplace-api pulls the Theorem harness crates.
+version = "0.1.1"
 edition = "2021"
 description = "CommonPlace consumer object model (Item/Collection/Tag) and auto-structuring ingest, graph-native over the RustyRedCore-THG substrate."
 license = "MIT"

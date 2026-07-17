@@ -147,6 +147,83 @@ export async function extractVisibleText(tabId: TabId): Promise<PageContext> {
   };
 }
 
+// --- Margin recall geometry (HANDOFF-MARGIN-RECALL D1) ----------------------
+//
+// The versioned command family the margin overlay positions itself by. Because a
+// tab is a native WebviewWindow (no Servo sidecar), geometry for an EXTERNAL page
+// is obtained by evaluating a resolver INTO the page (the same mechanism as
+// tab_highlight), not by a shell-side overlay -- which is also what keeps the
+// contract engine-neutral: a CDP fallback driver must return the same shapes from
+// the same inputs. CommonPlace's own reader resolves in its own DOM and skips these.
+
+/** A text target to resolve: a quote plus optional disambiguating context and a
+ * character-offset hint into the page's text (prefer the nearest occurrence). */
+export interface TextTarget {
+  quote: string;
+  prefix?: string;
+  suffix?: string;
+  positionHint?: number;
+}
+
+/** Zero or more viewport rects for one resolved target, with a confidence in
+ * [0,1] (1 = exact text match; lower = fuzzy). Empty `rects` = did not resolve. */
+export interface RectSet {
+  rects: Rect[];
+  confidence: number;
+}
+
+/** Stable identity of the page a tab currently shows. `contentHash` is a BLAKE3
+ * hash of the page content -- the cache + re-anchor key (D2/D3). */
+export interface PageIdentity {
+  url: string;
+  title: string;
+  contentHash: string;
+}
+
+/**
+ * Rust: `resolve_text_targets(tab_id: String, targets: TextTarget[]) -> RectSet[]`.
+ * Evals an in-page resolver that matches each quote (exact, then fuzzy) and returns
+ * the client rects of the match. One RectSet per input target, in order.
+ */
+export async function resolveTextTargets(
+  tabId: TabId,
+  targets: TextTarget[],
+): Promise<RectSet[]> {
+  if (isTauri()) return invoke<RectSet[]>("resolve_text_targets", { tabId, targets });
+  // No external page in plain browser mode: honest empty resolution, one per target.
+  return targets.map(() => ({ rects: [], confidence: 0 }));
+}
+
+/** Rust: `scroll_to_target(tab_id: String, target: TextTarget)`. Evals a
+ * scroll-into-view for the resolved quote so the overlay can bring a passage in. */
+export async function scrollToTarget(tabId: TabId, target: TextTarget): Promise<void> {
+  if (isTauri()) return invoke("scroll_to_target", { tabId, target });
+}
+
+/** Rust: `page_identity(tab_id: String) -> PageIdentity`. URL + title + BLAKE3
+ * content hash, for result caching (D2) and re-anchoring (D3). */
+export async function pageIdentity(tabId: TabId): Promise<PageIdentity> {
+  if (isTauri()) return invoke<PageIdentity>("page_identity", { tabId });
+  return {
+    url: "https://example.com",
+    title: "Example Domain",
+    contentHash: "blake3:" + "0".repeat(64),
+  };
+}
+
+/**
+ * Shell events for overlay tracking (subscribe via the tauri event plugin):
+ *
+ *   `marginrecall://viewport` { tabId, width, height }  the page viewport resized
+ *     (overlay re-layout).
+ *   `marginrecall://scroll`   { tabId, x, y }           the page scrolled; the
+ *     overlay offsets its tints to stay glued to passages.
+ *
+ * Emitted by an injected listener in the tab page, forwarded by the runtime. A CDP
+ * fallback driver emits the same two events from the same page signals.
+ */
+export type MarginRecallShellEvent = "marginrecall://viewport" | "marginrecall://scroll";
+
 // --- Session persistence (D3) -- Rust: tauri-plugin-sql (SQLite).
 
 /** Rust: `session_load() -> Option<SessionState>`. */
