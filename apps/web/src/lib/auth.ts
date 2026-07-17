@@ -16,7 +16,12 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         token.githubLogin = typeof profile?.login === 'string' ? profile.login : undefined;
         token.providerAccountId = account.providerAccountId;
       }
-      token.isOwner = isOwnerGithubLogin(token.githubLogin);
+      // Preserve legacy owner token state for sessions minted before this change.
+      // Old JWTs have no githubLogin but may have isOwner=true from prior logic.
+      token.isOwner =
+        token.githubLogin !== undefined
+          ? isOwnerGithubLogin(token.githubLogin)
+          : token.isOwner ?? false;
       return token;
     },
     async session({ session, token }) {
