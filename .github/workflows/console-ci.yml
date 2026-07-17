@@ -61,7 +61,7 @@ jobs:
         working-directory: apps/console
 
       - name: Contrast gate (gate 3)
-        run: node scripts/check-contrast.mjs
+        run: node --experimental-strip-types scripts/check-contrast.mjs
         working-directory: apps/console
 
       - name: Motion inventory scan (gate 4)
