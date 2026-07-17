@@ -7,6 +7,8 @@ export type BridgeCommand =
       message: { role: 'user'; parts: Array<{ type: 'text'; text: string }> };
       parentId: string | null;
       sourceId: string | null;
+      /** Original user text when the agent prompt was inquiry-grounded. */
+      displayText?: string;
     }
   | { type: 'permission-response'; callId: string; decision: 'allow' | 'reject' }
   | { type: 'cancel' };
@@ -48,7 +50,9 @@ export async function dispatchBridgeCommands(
         .filter((part) => part.type === 'text')
         .map((part) => part.text)
         .join('\n');
-      void session.prompt(text);
+      void session.prompt(text, {
+        displayText: command.displayText ?? text,
+      });
       continue;
     }
     if (command.type === 'permission-response') {
