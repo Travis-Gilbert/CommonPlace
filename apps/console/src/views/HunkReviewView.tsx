@@ -142,6 +142,11 @@ export function HunkReviewView({ set, host }: ViewRenderProps) {
   const cardRefs = useRef(new Map<string, HTMLElement>());
   const safeActiveIndex = Math.min(activeIndex, Math.max(hunks.length - 1, 0));
 
+  const hunkIndexMap = useMemo(
+    () => new Map(hunks.map((hunk, i) => [hunk.hunkId, i])),
+    [hunks],
+  );
+
   const groups = useMemo(() => {
     if (!grouped) return hunks.map((hunk) => [hunk.hunkId, [hunk]] as const);
     const groupedHunks = new Map<string, HunkViewModel[]>();
@@ -269,7 +274,7 @@ export function HunkReviewView({ set, host }: ViewRenderProps) {
                   </div>
                 ) : null}
                 {group.map((hunk) => {
-                  const index = hunks.findIndex((candidate) => candidate.hunkId === hunk.hunkId);
+                  const index = hunkIndexMap.get(hunk.hunkId) ?? -1;
                   const active = index === safeActiveIndex;
                   const status = statuses[hunk.hunkId] ?? 'idle';
                   const showHuman = humanAccept.has(hunk.hunkId);
