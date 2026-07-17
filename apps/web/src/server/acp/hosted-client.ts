@@ -173,9 +173,11 @@ export class HostedAcpClient {
       this.#onMessage(message);
     });
     this.#socket.addEventListener('close', () => {
+      if (this.#disposed) return;
       this.#onExit(new Error('Hosted ACP WebSocket closed'));
     });
     this.#socket.addEventListener('error', () => {
+      if (this.#disposed) return;
       this.#onExit(new Error('Hosted ACP WebSocket error'));
     });
   }
