@@ -21,7 +21,11 @@ test.describe('proof workspace', () => {
   });
 
   test('renders the seed at 1440 with Twenty density and holds the baseline', async ({ page }) => {
+    // Deterministic pixels for the baseline: the ground paints its static
+    // phase-0 texture under reduced motion, and the entrance renders settled.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 1440, height: 900 });
+    await page.reload();
     await settled(page);
     // The record set renders 12+ rows in the tool window at 1440x900.
     const rows = page.locator('tbody tr');
@@ -42,7 +46,9 @@ test.describe('proof workspace', () => {
   });
 
   test('holds the 1280 baseline', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 1280, height: 800 });
+    await page.reload();
     await settled(page);
     await expect(page).toHaveScreenshot('workspace-1280-dark.png', { fullPage: true });
   });

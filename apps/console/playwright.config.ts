@@ -12,8 +12,11 @@ export default defineConfig({
   },
   expect: {
     toHaveScreenshot: {
-      // The ground canvas drifts by design; allow its quiet texture.
-      maxDiffPixelRatio: 0.02,
+      // Captures emulate reduced motion so the ground paints once at phase 0
+      // and the pixels are deterministic; the tight ratio then catches real
+      // drift (a 2 percent full-page slack was measured to swallow a whole
+      // record-table layout change).
+      maxDiffPixelRatio: 0.002,
     },
   },
   webServer: {

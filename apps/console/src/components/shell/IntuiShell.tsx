@@ -230,8 +230,11 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       initial={durations.reduced ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{
+        // Editor content fades in after the chrome settles: chrome entrances
+        // take DUR.base, so the fade starts at DUR.slow - DUR.base and the
+        // whole entrance completes inside the DUR.slow budget.
         duration: seconds(durations.base),
-        delay: seconds(durations.reduced ? 0 : DUR.slow - DUR.base) / 1,
+        delay: seconds(durations.reduced ? 0 : DUR.slow - DUR.base),
         ease: EASE_OUT,
       }}
       className="h-full min-h-0"

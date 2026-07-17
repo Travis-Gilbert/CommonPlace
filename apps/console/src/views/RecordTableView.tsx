@@ -15,6 +15,7 @@ import {
   getCoreRowModel,
   useReactTable,
   type SortingState,
+  type VisibilityState,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ObjectQuery, ObjectRef, ObjectSet, Predicate } from '@commonplace/block-view/types';
@@ -77,6 +78,28 @@ function toRow(object: ObjectRef): RecordRow {
 
 const columnHelper = createColumnHelper<RecordRow>();
 
+// Column widths as layout classes on a shared flex row: the utility column is
+// the --rec-* 32px token, the title takes the remaining measure, the rest are
+// fixed. Density degrades by column visibility, not by squeezing: a narrow
+// tool window shows the essential projection, a wide mount shows everything.
+const COLUMN_CLASS: Record<string, string> = {
+  utility: 'shrink-0 w-rec-utility-col',
+  title: 'min-w-0 flex-1',
+  kind: 'shrink-0 w-24',
+  status: 'shrink-0 w-28',
+  updated: 'shrink-0 w-24',
+  tags: 'shrink-0 w-44',
+};
+
+function visibilityFor(width: number): VisibilityState {
+  return {
+    status: width >= 300,
+    kind: width >= 460,
+    updated: width >= 600,
+    tags: width >= 760,
+  };
+}
+
 export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
   const selectRecord = useShellStore((state) => state.selectRecord);
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
@@ -135,21 +158,21 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
           />
         ),
       }),
-      columnHelper.accessor('title', { header: 'Title', size: 420 }),
+      columnHelper.accessor('title', { header: 'Title' }),
       columnHelper.accessor('kind', {
         header: 'Kind',
-        size: 110,
         cell: (info) => <Chip label={info.getValue()} hue={TAG_HUES[info.getValue()] ?? undefined} />,
       }),
       columnHelper.accessor('status', {
         header: 'Status',
-        size: 120,
         cell: (info) => <Chip label={info.getValue()} hue={STATUS_HUES[info.getValue()]} />,
       }),
-      columnHelper.accessor('updated', { header: 'Updated', size: 110 }),
+      columnHelper.accessor('updated', {
+        header: 'Updated',
+        cell: (info) => <span className="font-ij-mono text-ij-ink-info">{info.getValue()}</span>,
+      }),
       columnHelper.accessor('tags', {
         header: 'Tags',
-        size: 200,
         enableSorting: false,
         cell: (info) => (
           <span className="flex gap-rec-sibling-gap">
@@ -163,11 +186,28 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
     [selectRecord, selectedRecordId],
   );
 
+  // Density degrades by column visibility (the essential projection first),
+  // driven by the mount's real width: a 24 percent tool window shows
+  // utility + title + status; an editor-wide mount shows every column.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => visibilityFor(320));
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      if (width > 0) setColumnVisibility(visibilityFor(width));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     manualSorting: true,
     manualFiltering: true,
     getCoreRowModel: getCoreRowModel(),
@@ -187,27 +227,27 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-ij-chrome" data-records-state={stateKind}>
+    <div ref={containerRef} className="flex h-full flex-col bg-ij-chrome" data-records-state={stateKind}>
       <div className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam px-2">
         <input
           value={filterText}
           onChange={(event) => setFilterText(event.target.value)}
           placeholder="Filter records"
           aria-label="Filter records by title"
-          className="h-ij-control w-56 rounded-ij-arc border border-ij-control-border bg-ij-editor px-rec-cell-pad text-ij-ink placeholder:text-ij-ink-disabled focus:outline-2 focus:outline-ij-accent"
+          className="h-ij-control min-w-0 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-rec-cell-pad text-ij-ink placeholder:text-ij-ink-disabled focus:outline-2 focus:outline-ij-accent"
         />
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
           aria-label="Filter records by status"
-          className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+          className="h-ij-control shrink-0 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
         >
-          <option value="">All statuses</option>
+          <option value="">All</option>
           <option value="open">open</option>
           <option value="processing">processing</option>
           <option value="settled">settled</option>
         </select>
-        <span className="ml-auto text-ij-ink-info">{rows.length} records</span>
+        <span className="shrink-0 whitespace-nowrap font-ij-mono text-ij-ink-info">{rows.length}</span>
       </div>
       {stateKind === 'empty' ? (
         <ViewState state="empty" />
@@ -216,12 +256,11 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
           <table className="w-full border-collapse" style={{ fontWeight: 'var(--rec-weight-regular)' }}>
             <thead className="sticky top-0 z-10 bg-ij-chrome">
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b border-ij-seam">
+                <tr key={headerGroup.id} className="flex w-full items-center border-b border-ij-seam">
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      style={{ width: header.getSize() }}
-                      className="h-8 px-rec-cell-pad text-left text-ij-ink-info"
+                      className={`h-8 px-rec-cell-pad text-left leading-8 text-ij-ink-info ${COLUMN_CLASS[header.column.id] ?? ''}`}
                     >
                       {header.column.getCanSort() ? (
                         <button
@@ -259,8 +298,7 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
                     {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
-                        style={{ width: cell.column.getSize() }}
-                        className="overflow-hidden text-ellipsis whitespace-nowrap px-rec-cell-pad"
+                        className={`overflow-hidden text-ellipsis whitespace-nowrap px-rec-cell-pad ${COLUMN_CLASS[cell.column.id] ?? ''}`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
