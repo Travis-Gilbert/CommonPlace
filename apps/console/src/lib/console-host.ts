@@ -21,10 +21,15 @@ import type {
   ViewDescriptor,
 } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
-import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, seedRecords } from './workspace-seed';
+import { HttpBlockHost } from '@commonplace/block-view/host/http';
+import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-seed';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const STORAGE_KEY = 'commonplace.console.surface.v1';
+
+/** Transport health as the host observes it (R2.3): HTTP 403 is the
+ *  identity-refusal analog of principal_resolution=unauthenticated. */
+export type TransportObserver = (status: number | null) => void;
 
 // The console theme tokens: every value is a register variable reference.
 const INTUI_TOKENS: ThemeTokens = {
@@ -103,23 +108,52 @@ function compareValues(a: JsonValue | undefined, b: JsonValue | undefined): numb
   return String(a ?? '').localeCompare(String(b ?? ''));
 }
 
+export interface ConsoleBlockHostOptions {
+  /** Test-only record pool: the 5000 row fixture lives in tests, never on a
+   *  user-reachable route (R2.1). Absent, record queries ride the real data
+   *  API through the console's same-origin proxy. */
+  readonly records?: ObjectRef[];
+  /** Observes every record-wire HTTP outcome for the status bar. */
+  readonly onTransport?: TransportObserver;
+}
+
 export class ConsoleBlockHost implements BlockHost {
   readonly tokens: ThemeTokens = INTUI_TOKENS;
 
   private layout = new Map<string, MutableLayout>();
-  private records: ObjectRef[];
+  private records: ObjectRef[] | null;
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
+  private http: HttpBlockHost;
+  private observer: TransportObserver | undefined;
 
-  constructor(registry: Registry) {
+  constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
-    this.records = seedRecords();
+    this.records = options.records ?? null;
+    this.observer = options.onTransport;
+    // HttpBlockHost appends /objects/query and /objects/action itself, so
+    // the console's same-origin base is /api (routes live at /api/objects/*).
+    this.http = new HttpBlockHost({
+      baseUrl: '/api',
+      onStatus: (status) => this.observer?.(status),
+    });
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
     this.hydrateLayout();
+  }
+
+  /** Cheap health probe for the Reconnect affordance (R2.3): reports through
+   *  the same transport observer the record wire uses. */
+  async probe(): Promise<void> {
+    try {
+      const response = await fetch('/api/objects/views', { cache: 'no-store' });
+      this.observer?.(response.status);
+    } catch {
+      this.observer?.(null);
+    }
   }
 
   private hydrateLayout(): void {
@@ -134,6 +168,19 @@ export class ConsoleBlockHost implements BlockHost {
     }
     const objects = restored ?? seedLayout();
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
+    // Seed migration: a persisted arrangement from an earlier build keeps the
+    // user's surfaces untouched while newly seeded surfaces (and their
+    // regions and view instances) appear beside them.
+    if (restored) {
+      let added = false;
+      for (const seeded of seedLayout()) {
+        if (!this.layout.has(seeded.id)) {
+          this.layout.set(seeded.id, toMutable(seeded));
+          added = true;
+        }
+      }
+      if (added) this.persistLayout();
+    }
   }
 
   /** Drop the persisted arrangement and return to the seed. */
@@ -162,10 +209,15 @@ export class ConsoleBlockHost implements BlockHost {
     return () => this.layoutSubs.delete(callback);
   }
 
-  query(query: ObjectQuery): ObjectSet {
+  query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
+    // Records are the live wire (R2.1): sort, filter, and pagination
+    // round-trip through the data API proxy unless a test supplied a pool.
+    if (query.types.includes('record') && this.records === null) {
+      return this.http.query(query);
+    }
     const pool = query.types.includes('record')
-      ? this.records
+      ? (this.records ?? [])
       : query.types.includes('doc')
         ? this.docs
         : query.types.includes('code-file')
@@ -198,11 +250,19 @@ export class ConsoleBlockHost implements BlockHost {
       shape,
       next_cursor: nextCursor,
       subscribe: (callback) => {
-        const listener = () => callback(this.query(query));
+        // This branch only serves local pools, so re-running the query is
+        // synchronous by construction.
+        const listener = () => callback(this.query(query) as ObjectSet);
         this.domainSubs.add(listener);
         return () => this.domainSubs.delete(listener);
       },
     };
+  }
+
+  /** The arrangement branch is always synchronous and local: the shell's
+   *  layout store reads it without awaiting. */
+  queryLayout(query: ObjectQuery): ObjectSet {
+    return this.layoutSet(query);
   }
 
   private layoutSet(query: ObjectQuery): ObjectSet {
@@ -254,9 +314,9 @@ export class ConsoleBlockHost implements BlockHost {
           this.notifyLayout();
           return Promise.resolve(applied([action.id]));
         }
-        // Domain objects (records, docs) patch in-session; the substrate
-        // write path lands when a live host replaces the fixtures.
-        for (const pool of [this.records, this.docs, this.codeFiles]) {
+        // Docs and code files patch in-session (seed content); record
+        // updates ride the live wire when no test pool is present.
+        for (const pool of [this.records ?? [], this.docs, this.codeFiles]) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
             pool[index] = { ...pool[index], properties: { ...pool[index].properties, ...action.patch } };
@@ -264,6 +324,7 @@ export class ConsoleBlockHost implements BlockHost {
             return Promise.resolve(applied([action.id]));
           }
         }
+        if (this.records === null) return this.http.emit(action);
         return Promise.resolve({ ok: false, error: `update target missing: ${action.id}` });
       }
       case 'create': {

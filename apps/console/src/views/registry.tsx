@@ -11,6 +11,7 @@ import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
+import { DocListView, IndexRailView } from './DocListView';
 
 function ThreadRender(_props: ViewRenderProps) {
   return <ThreadView />;
@@ -76,11 +77,43 @@ const CHAT_THREAD: ViewDescriptor = {
   render: ThreadRender,
 };
 
+const DOC_LIST: ViewDescriptor = {
+  id: 'doc.list',
+  name: 'Documents',
+  accepts: {},
+  emits: ['select', 'update'],
+  renderer: 'doc.list',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+  },
+  render: DocListView,
+};
+
+const INDEX_RAIL: ViewDescriptor = {
+  id: 'index.rail',
+  name: 'Destinations',
+  accepts: {},
+  emits: [],
+  renderer: 'index.rail',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+  },
+  render: IndexRailView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
   CODE_FILE,
   CHAT_THREAD,
+  DOC_LIST,
+  INDEX_RAIL,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

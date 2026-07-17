@@ -29,9 +29,14 @@ function layoutObject(
   };
 }
 
+/** Screens are seeded surfaces (HANDOFF-CONSOLE-ROUND-2 R3): the proof
+ *  workspace, the Index skeleton, and the Documents reading screen, each with
+ *  its own namespaced regions so every screen remembers its own arrangement.
+ *  The switcher flips the `active` flag; nothing else moves. */
 export function seedLayout(): ObjectRef[] {
   return [
-    layoutObject(SURFACE_ID, 'surface', { name: 'Workspace', kind: 'workspace' }, [
+    // Workspace: the proof arrangement (G8), the default active surface.
+    layoutObject(SURFACE_ID, 'surface', { name: 'Workspace', kind: 'workspace', active: true }, [
       'region-left',
       'region-editor',
       'region-right',
@@ -39,7 +44,7 @@ export function seedLayout(): ObjectRef[] {
     layoutObject(
       'region-left',
       'region',
-      { kind: 'tool-window', side: 'left', title: 'Records', size: 24, open: true },
+      { kind: 'tool-window', side: 'left', title: 'Records', icon: 'records', size: 24, open: true },
       ['vi-records'],
     ),
     layoutObject(
@@ -51,7 +56,7 @@ export function seedLayout(): ObjectRef[] {
     layoutObject(
       'region-right',
       'region',
-      { kind: 'tool-window', side: 'right', title: 'Thread', size: 28, open: true },
+      { kind: 'tool-window', side: 'right', title: 'Thread', icon: 'thread', size: 28, open: true, mark: true },
       ['vi-thread'],
     ),
     layoutObject('vi-records', 'view-instance', {
@@ -70,6 +75,76 @@ export function seedLayout(): ObjectRef[] {
       query: { types: ['code-file'], where: { kind: 'eq', field: 'path', value: 'packages/block-view/src/surface-tree.ts' } } as unknown as JsonValue,
     }),
     layoutObject('vi-thread', 'view-instance', {
+      descriptor_id: 'chat.thread',
+      title: 'Thread',
+      query: { types: ['thread'] } as unknown as JsonValue,
+    }),
+
+    // Index: the IX7 skeleton landing as a screen (R3.1). The destination
+    // rail names its missing wire; connectors and filing stay out of scope.
+    layoutObject('console-index', 'surface', { name: 'Index', kind: 'index', active: false }, [
+      'index.region-rail',
+      'index.region-editor',
+    ]),
+    layoutObject(
+      'index.region-rail',
+      'region',
+      { kind: 'tool-window', side: 'left', title: 'Destinations', icon: 'rail', size: 22, open: true },
+      ['index.vi-rail'],
+    ),
+    layoutObject(
+      'index.region-editor',
+      'region',
+      { kind: 'editor', size: 78, active_tab: 'index.vi-stream' },
+      ['index.vi-stream'],
+    ),
+    layoutObject('index.vi-rail', 'view-instance', {
+      descriptor_id: 'index.rail',
+      title: 'Destinations',
+      query: { types: ['record'], page: { limit: 1 } } as unknown as JsonValue,
+    }),
+    layoutObject('index.vi-stream', 'view-instance', {
+      descriptor_id: 'record.table',
+      title: 'Triage stream',
+      query: { types: ['record'], live: true } as unknown as JsonValue,
+    }),
+
+    // Documents: list left, Galley reading view center, thread on its stripe
+    // (closed by default) (R3.2).
+    layoutObject('console-docs', 'surface', { name: 'Documents', kind: 'documents', active: false }, [
+      'docs.region-list',
+      'docs.region-editor',
+      'docs.region-thread',
+    ]),
+    layoutObject(
+      'docs.region-list',
+      'region',
+      { kind: 'tool-window', side: 'left', title: 'Documents', icon: 'docs', size: 22, open: true },
+      ['docs.vi-list'],
+    ),
+    layoutObject(
+      'docs.region-editor',
+      'region',
+      { kind: 'editor', size: 50, active_tab: 'docs.vi-reader' },
+      ['docs.vi-reader'],
+    ),
+    layoutObject(
+      'docs.region-thread',
+      'region',
+      { kind: 'tool-window', side: 'right', title: 'Thread', icon: 'thread', size: 28, open: false, mark: true },
+      ['docs.vi-thread'],
+    ),
+    layoutObject('docs.vi-list', 'view-instance', {
+      descriptor_id: 'doc.list',
+      title: 'Documents',
+      query: { types: ['doc'], live: true } as unknown as JsonValue,
+    }),
+    layoutObject('docs.vi-reader', 'view-instance', {
+      descriptor_id: 'markdown.doc',
+      title: 'Reading',
+      query: { types: ['doc'], where: { kind: 'eq', field: 'slug', value: 'console-brief' } } as unknown as JsonValue,
+    }),
+    layoutObject('docs.vi-thread', 'view-instance', {
       descriptor_id: 'chat.thread',
       title: 'Thread',
       query: { types: ['thread'] } as unknown as JsonValue,

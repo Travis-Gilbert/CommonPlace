@@ -21,6 +21,7 @@
 'use client';
 
 import { useReducedMotion } from 'motion/react';
+import { useShellStore } from '@/lib/shell-store';
 
 export const DUR = {
   /** hover fades, exits, chip toggles */
@@ -87,10 +88,10 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'instant',
   },
   {
-    trigger: 'Search everywhere open/close',
-    effect: 'scale 0.98 to 1 plus fade',
+    trigger: 'Omnibar island expand/collapse',
+    effect: 'scale 0.98 to 1 plus fade below the toolbar',
     spec: 'DUR.fast open, EASE_OUT',
-    reducedMotion: 'instant',
+    reducedMotion: 'expansion renders as a plain fade (R1 acceptance), no scale',
   },
   {
     trigger: 'Thread message appears',
@@ -143,9 +144,13 @@ export interface MotionDurations {
   reduced: boolean;
 }
 
-/** The one reduced-motion branch in the app: token durations collapse to 0. */
+/** The one reduced-motion branch in the app: token durations collapse to 0.
+ *  The Command-mode preview toggle (R1) overlays the media query so reduced
+ *  rendering is inspectable without flipping the OS setting. */
 export function useMotionDurations(): MotionDurations {
-  const reduced = useReducedMotion() ?? false;
+  const media = useReducedMotion() ?? false;
+  const preview = useShellStore((state) => state.reducedMotionPreview);
+  const reduced = media || preview;
   if (reduced) return { fast: 0, base: 0, slow: 0, reduced: true };
   return { ...DUR, reduced: false };
 }

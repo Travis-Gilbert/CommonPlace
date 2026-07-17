@@ -65,21 +65,32 @@ export function PresenceMark({ state, size = 64 }: PresenceMarkProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<MarkState>(state);
   const [mode, setMode] = useState<'pending' | 'live' | 'static'>('pending');
-  stateRef.current = state;
+
+  // The draw loop reads the latest state through a ref so interruption
+  // settles within one frame; the ref updates in an effect, never in render.
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
-    if (prefersReducedMotion() || !hasWebGL2()) {
-      setMode('static');
-      return;
-    }
     let disposed = false;
     let modifier: { destroy(): void; noLoop(): void; loop(): void } | null = null;
 
-    // textmode.js is WebGL2-only and browser-only: dynamic import keeps it
-    // out of the SSR bundle and off the no-WebGL2 path entirely. The runtime
-    // exposes `textmode.create` (the d.ts index omits the namespace object,
-    // so it is typed here from the documented API).
-    void import('textmode.js').then((module) => {
+    // The capability check and the library load both resolve asynchronously
+    // so no state is set synchronously inside the effect body.
+    const boot = Promise.resolve().then(() => {
+      if (prefersReducedMotion() || !hasWebGL2()) {
+        if (!disposed) setMode('static');
+        return null;
+      }
+      // textmode.js is WebGL2-only and browser-only: dynamic import keeps it
+      // out of the SSR bundle and off the no-WebGL2 path entirely. The
+      // runtime exposes `textmode.create` (the d.ts index omits the
+      // namespace object, so it is typed here from the documented API).
+      return import('textmode.js');
+    });
+    void boot.then((module) => {
+      if (!module) return;
       const Textmode = (module as unknown as {
         textmode: { create(opts?: { canvas?: HTMLCanvasElement; fontSize?: number; frameRate?: number }): unknown };
       }).textmode;
@@ -144,7 +155,6 @@ export function PresenceMark({ state, size = 64 }: PresenceMarkProps) {
       disposed = true;
       modifier?.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size]);
 
   if (mode === 'static' ) {

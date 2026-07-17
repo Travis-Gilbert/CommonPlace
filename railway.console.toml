@@ -11,10 +11,23 @@ buildCommand = "npm run console:build:railway"
 watchPatterns = [
   "apps/console/**",
   "packages/block-view/**",
+  "packages/theorem-acp/**",
   "package.json",
   "pnpm-lock.yaml",
   "railway.console.toml"
 ]
+
+# Round 2 env contract (HANDOFF-CONSOLE-ROUND-2 R2). Set on the Railway
+# service; none of these ship defaults that fake liveness:
+#   NEXT_PUBLIC_CONSOLE_CHAT_URL = /api/chat/stream   (unset renders the named
+#     unavailable state; the route drives the hosted Theorem ACP session)
+#   THEOREM_NODE_URL / THEOREM_ACP_WS_URL / THEOREM_API_TOKEN  (hosted ACP;
+#     defaults resolve to https://api.theoremharness.com in production)
+#   CONSOLE_DATA_API_URL + CONSOLE_DATA_API_KEY  (object seam; the record
+#     table renders its error state when unreachable, identity refused on 403)
+#   CONSOLE_HARNESS_URL + CONSOLE_HARNESS_TOKEN + CONSOLE_HARNESS_TENANT +
+#   CONSOLE_HARNESS_ROOM  (presence and runs; absent keeps presence hidden
+#     and the Runs scope in its named unavailable state)
 
 [deploy]
 startCommand = "npm run console:start:railway"

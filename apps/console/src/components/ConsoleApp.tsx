@@ -6,7 +6,7 @@
 // once per session. Rendered after mount so the persisted arrangement (a
 // localStorage-backed surface object) never causes a hydration mismatch.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
@@ -15,7 +15,7 @@ import {
 } from '@assistant-ui/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
-import { useThreadStore, chatEndpoint, type ThreadMessage } from '@/lib/thread-store';
+import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { GroundCanvas } from '@/components/ground/GroundCanvas';
@@ -60,21 +60,56 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ConsoleApp() {
-  const [mounted, setMounted] = useState(false);
-  const setConnection = useShellStore((state) => state.setConnection);
+const emptySubscribe = () => () => {};
 
-  useEffect(() => {
-    setMounted(true);
-    // Connection state is real: with no chat endpoint configured the console
-    // is disconnected; a configured endpoint marks the session connected.
-    setConnection(chatEndpoint() ? 'connected' : 'disconnected');
-  }, [setConnection]);
+/** HTTP outcomes from the record wire map onto the named connection states
+ *  (R2.3): 403 is the identity-refusal analog, null is a dead transport. */
+function connectionFor(status: number | null): 'connected' | 'disconnected' | 'identity-refused' {
+  if (status === 403) return 'identity-refused';
+  if (status !== null && status >= 200 && status < 300) return 'connected';
+  return 'disconnected';
+}
+
+export function ConsoleApp() {
+  // True after hydration only (server snapshot false): the persisted
+  // arrangement in localStorage never causes a hydration mismatch.
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  const setPresence = useShellStore((state) => state.setPresence);
 
   const host = useMemo(
-    () => (mounted ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY) : null),
+    () =>
+      mounted
+        ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
+            onTransport: (status) =>
+              useShellStore.getState().setConnection(connectionFor(status)),
+          })
+        : null,
     [mounted],
   );
+
+  useEffect(() => {
+    if (!host) return;
+    // Transport health is real: the object-seam probe sets the connection
+    // state, and presence renders only when the harness transport reports it.
+    void host.probe();
+    let active = true;
+    void fetch('/api/harness/presence', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!active || !response.ok) return;
+        const payload = (await response.json()) as { count?: number };
+        if (typeof payload.count === 'number') setPresence(payload.count);
+      })
+      .catch(() => {
+        // Unconfigured or unreachable harness: presence stays absent.
+      });
+    return () => {
+      active = false;
+    };
+  }, [host, setPresence]);
 
   if (!mounted || !host) {
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;

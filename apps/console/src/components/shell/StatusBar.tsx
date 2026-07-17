@@ -1,11 +1,14 @@
 'use client';
 
 // SOURCING: hand-roll. The Int UI status bar is a named chrome signature.
-// Connection state includes the named identity-refusal state with a
-// reconnect affordance; progress uses the register's indeterminate Blue9 to
-// Blue5 treatment (declared in the motion register CSS).
+// Connection state binds to the real object-seam transport (R2.3): the named
+// identity-refusal state maps HTTP 403 (the principal_resolution=
+// unauthenticated analog) and Reconnect runs a real health probe. Presence
+// renders only when the harness transport reports it (R2.4); it can never
+// contradict the connection state because it hides unless connected.
 
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
+import type { ConsoleBlockHost } from '@/lib/console-host';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
   connected: 'Connected',
@@ -14,7 +17,7 @@ const CONNECTION_LABEL: Record<ConnectionState, string> = {
   'identity-refused': 'Identity refused',
 };
 
-export function StatusBar() {
+export function StatusBar({ host }: { host: ConsoleBlockHost }) {
   const connection = useShellStore((state) => state.connection);
   const setConnection = useShellStore((state) => state.setConnection);
   const tenant = useShellStore((state) => state.tenant);
@@ -22,6 +25,7 @@ export function StatusBar() {
   const progressLabel = useShellStore((state) => state.progressLabel);
 
   const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
+  const showPresence = connection === 'connected' && presenceCount !== null;
 
   return (
     <footer className="flex h-ij-statusbar shrink-0 items-center gap-3 border-t border-ij-seam bg-ij-chrome px-3 text-ij-ink-info">
@@ -34,7 +38,10 @@ export function StatusBar() {
       {needsReconnect ? (
         <button
           type="button"
-          onClick={() => setConnection('connecting')}
+          onClick={() => {
+            setConnection('connecting');
+            void host.probe();
+          }}
           className="rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
           style={{ transition: 'var(--rec-clickable-transition)' }}
         >
@@ -47,7 +54,13 @@ export function StatusBar() {
           {progressLabel}
         </span>
       ) : null}
-      <span className="ml-auto">{presenceCount} present</span>
+      {showPresence ? (
+        <span data-presence={presenceCount} className="ml-auto">
+          {presenceCount} present
+        </span>
+      ) : (
+        <span className="ml-auto" />
+      )}
       <span className="font-ij-mono">{tenant}</span>
     </footer>
   );

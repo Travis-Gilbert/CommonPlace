@@ -79,3 +79,31 @@ export function IconInspector(props: IconProps) {
     </svg>
   );
 }
+
+/** Tool window: destination rail (Index surface). */
+export function IconRail(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 3.5h10M3 6.5h10M3 9.5h6M3 12.5h6" />
+    </svg>
+  );
+}
+
+/** Tool window: document list (Documents surface). */
+export function IconDoc(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 2.5h5.5L12 5v8.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1Z" />
+      <path d="M9.5 2.5V5H12" />
+    </svg>
+  );
+}
+
+/** Layout switcher chevron for the toolbar project widget. */
+export function IconChevronDown(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m4.5 6.5 3.5 3.5 3.5-3.5" />
+    </svg>
+  );
+}

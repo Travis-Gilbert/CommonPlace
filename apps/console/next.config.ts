@@ -11,6 +11,10 @@ const isStandaloneServerBuild =
 
 const nextConfig: NextConfig = {
   output: isStandaloneServerBuild ? 'standalone' : undefined,
+  // The dev-tools indicator is chrome that never exists in production; with it
+  // on, dev-mode Playwright captures bake the badge into merge-gate baselines
+  // (and it occludes the records table's last row). R4 punch list.
+  devIndicators: false,
   reactCompiler: true,
   images: {
     unoptimized: true,

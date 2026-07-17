@@ -91,13 +91,23 @@ const COLUMN_CLASS: Record<string, string> = {
   tags: 'shrink-0 w-44',
 };
 
+// Fixed column widths in px (border-box, matching COLUMN_CLASS): a column is
+// admitted only when the fixed set plus a readable title measure (160px)
+// still fits, so the ladder can never crop a column mid-glyph at the pane
+// edge. Status is the triage signal and survives to the floor; the utility
+// checkbox drops before it.
+const COL_W = { utility: 32, status: 112, kind: 96, updated: 96, tags: 176 } as const;
+const TITLE_MIN = 160;
+
 function visibilityFor(width: number): VisibilityState {
-  return {
-    status: width >= 300,
-    kind: width >= 460,
-    updated: width >= 600,
-    tags: width >= 760,
-  };
+  const fits = (...cols: (keyof typeof COL_W)[]) =>
+    width >= TITLE_MIN + cols.reduce((sum, col) => sum + COL_W[col], 0);
+  const status = fits('status');
+  const utility = status && fits('status', 'utility');
+  const kind = utility && fits('status', 'utility', 'kind');
+  const updated = kind && fits('status', 'utility', 'kind', 'updated');
+  const tags = updated && fits('status', 'utility', 'kind', 'updated', 'tags');
+  return { utility, status, kind, updated, tags };
 }
 
 export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
@@ -227,7 +237,7 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
   }
 
   return (
-    <div ref={containerRef} className="flex h-full flex-col bg-ij-chrome" data-records-state={stateKind}>
+    <div ref={containerRef} tabIndex={-1} className="flex h-full flex-col bg-ij-chrome outline-none" data-records-state={stateKind}>
       <div className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam px-2">
         <input
           value={filterText}
@@ -286,9 +296,11 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
                 return (
                   <tr
                     key={row.id}
+                    tabIndex={-1}
+                    data-record-id={row.original.id}
                     data-selected={selectedRecordId === row.original.id ? 'true' : undefined}
                     onClick={() => selectRecord(row.original.id)}
-                    className="absolute left-0 top-0 flex w-full cursor-default items-center border-b border-ij-seam hover:bg-ij-hover-surface data-[selected]:bg-ij-selection"
+                    className="absolute left-0 top-0 flex w-full cursor-default items-center overflow-hidden border-b border-ij-seam hover:bg-ij-hover-surface data-[selected]:bg-ij-selection"
                     style={{
                       transform: `translateY(${virtualRow.start}px)`,
                       height: 32,

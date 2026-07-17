@@ -31,3 +31,34 @@
   list-style: decimal;
   padding-inline-start: var(--gy-space-4);
 }
+
+/* Heading rhythm at console scale (HANDOFF-CONSOLE-ROUND-2 R4.3): galley.css
+   0.1.2 ships the owl rhythm rule at (0,1,0) and then out-specifies it with
+   .galley p / :is(ul, ol) / blockquote resets at (0,1,1), so every body block
+   computes margin-top: 0. With headings text-box trimmed to cap height,
+   descenders paint through the first following line. This block restores the
+   owl and keeps headings owning their space above while staying attached
+   below. It is the downstream pass; SPEC-MDT-CONSOLE-FIXTURE M3 lands the fix
+   upstream and this block is deleted on that upgrade. */
+[data-register="intui"] .galley > * + * {
+  margin-top: var(--gy-space-3);
+}
+
+[data-register="intui"] .galley h1 {
+  margin-top: var(--gy-space-4);
+}
+
+[data-register="intui"] .galley h2 {
+  margin-top: var(--gy-space-5);
+}
+
+[data-register="intui"] .galley h3,
+[data-register="intui"] .galley h4 {
+  margin-top: var(--gy-space-4);
+}
+
+/* A heading stays attached to its first body block: enough clearance for the
+   trimmed descender hang, less than a full flow step. */
+[data-register="intui"] .galley :is(h1, h2, h3, h4, h5, h6) + * {
+  margin-top: var(--gy-space-2);
+}
