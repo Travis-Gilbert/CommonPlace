@@ -136,6 +136,33 @@ test.describe('omnibar island', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
   });
 
+  test('toggling a tool window reflows in place, never remounting the well', async ({ page }) => {
+    // The black-frame-drop regression: the PanelGroup was keyed on the visible
+    // panel set, so opening or closing a tool window tore the whole well down
+    // and rebuilt it (a flash to the frame, then back). Tag the editor panel
+    // and prove the node survives the toggle: reconcile, not remount.
+    const editor = page.locator('[data-panel-id="region-editor"]');
+    await expect(editor).toBeVisible();
+    await editor.evaluate((el) => (el.dataset.remountProbe = 'kept'));
+    const widthOpen = await editor.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    // Close the thread window: the editor widens and the same node survives.
+    await page.keyboard.press('Alt+9');
+    await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(editor).toHaveAttribute('data-remount-probe', 'kept');
+    const widthClosed = await editor.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    expect(widthClosed).toBeGreaterThan(widthOpen);
+    // Reopen: the node is still the same one, and the arrangement returns.
+    await page.keyboard.press('Alt+9');
+    await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(editor).toHaveAttribute('data-remount-probe', 'kept');
+  });
+
   test('surface rail round-trips surfaces with their own arrangements', async ({ page }) => {
     // Close the workspace's thread window so Workspace has a distinct shape.
     await page.keyboard.press('Alt+9');

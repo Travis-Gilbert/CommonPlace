@@ -405,7 +405,26 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     </motion.div>
   );
 
-  const groupKey = `${activeSurfaceId}:${visiblePanels.map((panel) => panel.region.object.id).join('+')}`;
+  // The PanelGroup remounts ONLY when the active surface changes (a real
+  // screen switch), never when a tool window toggles. Keying on the visible
+  // panel set instead tore the whole well down and rebuilt it on every
+  // open/close, which read as a black frame drop (the editor and thread
+  // unmounted, and the editor's delayed entrance fade re-fired) rather than
+  // a smooth reflow. react-resizable-panels reconciles a panel appearing or
+  // disappearing in place, given each panel a stable id and order.
+  const groupKey = activeSurfaceId;
+
+  // Stable panel order from the full region lists (open or closed), so adding
+  // or removing a visible panel never renumbers the others: left windows
+  // first, then the editor, then right windows.
+  const orderOf = (region: RegionNode): number => {
+    const leftIndex = regions.left.indexOf(region);
+    if (leftIndex >= 0) return leftIndex + 1;
+    if (region === regions.editor) return regions.left.length + 1;
+    const rightIndex = regions.right.indexOf(region);
+    if (rightIndex >= 0) return regions.left.length + 2 + rightIndex;
+    return 999;
+  };
 
   return (
     <div ref={shellRef} data-shell data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
@@ -466,7 +485,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                   <Panel
                     key={panel.region.object.id}
                     id={panel.region.object.id}
-                    order={index + 1}
+                    order={orderOf(panel.region)}
                     defaultSize={(panel.abs / visibleTotal) * 100}
                     minSize={isEditor ? 30 : 14}
                   >
