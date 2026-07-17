@@ -107,3 +107,62 @@
 .cardLink:hover {
   border-color: var(--accent);
 }
+
+.identityLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 1.25);
+  border: 1px solid var(--hair-soft);
+  border-radius: var(--r-control);
+  background: var(--raised);
+}
+
+.identityName,
+.identityStatus {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+}
+
+.identityName {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.identityStatus {
+  color: var(--ink-dim);
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 36px;
+  padding: calc(var(--u) * 0.8) calc(var(--u) * 1.5);
+  border-radius: var(--r-control);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion) var(--ease), border-color var(--motion) var(--ease);
+}
+
+.primaryAction {
+  color: var(--ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+
+.primaryAction:hover {
+  background: var(--accent);
+}
+
+.secondaryAction {
+  color: var(--ink-dim);
+  background: var(--raised);
+  border: 1px solid var(--hair-soft);
+}
+
+.secondaryAction:hover {
+  color: var(--ink);
+  border-color: var(--hair);
+}

@@ -54,7 +54,7 @@ export const PRODUCT_REDIRECTS: readonly ProductRedirect[] = [
   },
   {
     source: '/account',
-    destination: '/account/agents',
+    destination: '/account/user',
     permanent: true,
   },
 ];
@@ -185,7 +185,7 @@ export const PRODUCT_ROUTE_PROBES: readonly ProductRouteProbe[] = [
     method: 'GET',
     path: '/account?fo003=account&next=%2Fsettings',
     expectedStatus: 308,
-    expectedLocation: '/account/agents?fo003=account&next=%2Fsettings',
+    expectedLocation: '/account/user?fo003=account&next=%2Fsettings',
   },
   {
     id: 'health',
