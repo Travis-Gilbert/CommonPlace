@@ -58,6 +58,7 @@
     "@commonplace/block-view": "file:../../packages/block-view",
     "@commonplace/block-view-contracts": "file:../../packages/block-view-contracts",
     "@commonplace/coannotate": "file:../../packages/coannotate",
+    "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
     "@cosmos.gl/graph": "^3.0.0-beta.7",
     "@dagrejs/dagre": "^3.0.0",
     "@dagrejs/graphlib": "^4.0.1",

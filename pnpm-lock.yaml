@@ -70,6 +70,9 @@ importers:
       '@commonplace/block-view':
         specifier: file:../../packages/block-view
         version: link:../../packages/block-view
+      '@commonplace/theorem-acp':
+        specifier: file:../../packages/theorem-acp
+        version: link:../../packages/theorem-acp
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
@@ -394,6 +397,9 @@ importers:
       '@commonplace/coannotate':
         specifier: file:../../packages/coannotate
         version: link:../../packages/coannotate
+      '@commonplace/theorem-acp':
+        specifier: file:../../packages/theorem-acp
+        version: link:../../packages/theorem-acp
       '@cosmos.gl/graph':
         specifier: ^3.0.0-beta.7
         version: 3.1.0
@@ -944,6 +950,15 @@ importers:
         version: 5.8.3
 
   packages/rustyred-contracts: {}
+
+  packages/theorem-acp:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.8.3
 
 packages:
 
@@ -15251,7 +15266,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

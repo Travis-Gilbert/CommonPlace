@@ -30,6 +30,7 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
     "@commonplace/block-view": "file:../../packages/block-view",
+    "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
     "@lezer/highlight": "^1.2.1",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
