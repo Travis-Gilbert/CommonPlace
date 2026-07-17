@@ -23,6 +23,9 @@ export interface MarginCandidate {
   tier: SalienceTier;
   score: number;
   explanation: string;
+  /** Stored records this passage connects to, strongest first: the openable provenance chain
+   * a short click reveals (D6-2). Empty when the pipeline surfaced no linked records. */
+  refs?: string[];
 }
 
 /** A candidate resolved to pixels and kept for painting. */

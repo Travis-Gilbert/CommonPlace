@@ -41,6 +41,70 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+/* The select trigger (D6-1/2): the note's own text is the button, so the chain buttons below
+   are siblings rather than interactive nested inside interactive. */
+.trigger {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  width: 100%;
+  cursor: pointer;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--cp-tint-note-solid, #c49a4a);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* An expanded chip un-clips so its connection chain is readable. */
+.chip[data-mode='expanded'] {
+  white-space: normal;
+  overflow: visible;
+  border-radius: 8px;
+}
+
+/* The D6-2 provenance chain: how it was drawn, then each openable record. */
+.chain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--cp-rule, rgba(0, 0, 0, 0.1));
+}
+
+.basis {
+  font-size: 11px;
+  color: var(--cp-text-dim, #6b6b6b);
+}
+
+.record {
+  appearance: none;
+  border: 1px solid var(--cp-rule, rgba(0, 0, 0, 0.12));
+  background: var(--cp-surface-elevated, #ffffff);
+  color: var(--cp-text, #222222);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.record:hover {
+  border-color: var(--cp-tint-note-solid, #c49a4a);
+}
+
+.recordStatic {
+  font-size: 11px;
+  color: var(--cp-text-dim, #6b6b6b);
+}
+
 .overflow {
   position: absolute;
   left: 0;

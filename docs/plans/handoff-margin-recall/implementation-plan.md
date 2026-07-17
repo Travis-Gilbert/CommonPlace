@@ -429,8 +429,20 @@ the two tint builders); desktop-runtime compiles clean. [MR-D4-5] D4 now complet
 
 **D6-4 dismiss (FULL).** `apps/web/src/lib/margin-recall/dismiss.ts` reducer: hide-a-highlight-for-this-page
 plus a page-scoped relevance signal, idempotent so telemetry never double-counts. Proof: `dismiss.test.ts`
-**4/4** (in the 51-test margin-recall vitest sweep). [MR-D6-4] Remaining D6: MR-D6-1 (hover preview) and
-MR-D6-2 (provenance expansion via ReceiptRail) are interaction UI on the live overlay (named gap).
+**4/4** (in the margin-recall vitest sweep). [MR-D6-4]
+
+**D6-1/2 gestures + provenance (core DONE + verified).** `interaction.ts` reducer (hover previews the
+note, click or tap toggles the full connection, expanded outranks preview, and a stale leave cannot
+blank the current preview) plus `provenance.ts` `connectionProvenance` (what it links to, why, and the
+tier's evidence path, with an honest empty state when nothing is openable). `refs` now thread from the
+salience wire through the adapter to the overlay candidate, so the openable chain actually reaches the
+note (the adapter was dropping them; real gap, fixed). Wired into `MarginNotes`: hover to preview,
+select to the expanded chain, each record openable through an `onOpenRecord` callback, with record
+buttons rendered only when a real handler is supplied (no-fake-UI). Proof: `interaction.test.ts` +
+`provenance.test.ts` **11/11**; apps/web **62/62** vitest (9 files) with tsc clean. [MR-D6-1, MR-D6-2]
+Remaining for D6: the live demonstration (hover and click against a mounted overlay on real
+candidates) and fetching each referenced record to show its `when` and title. Both are the standing
+live-mount gap, not D6-specific work.
 
 Named gaps unchanged from the spec's own list: live end-to-end (real node + shell + page),
 cold-latency measurement (VF8), AR0 closure for Active rollout (VF3, upstream). The overlay +

@@ -13,6 +13,9 @@ export interface MarginNote {
   explanation: string;
   anchorY: number;
   tier: SalienceTier;
+  /** The openable records this connection points at, carried so an expanded note can show its
+   * provenance chain (D6-2) without a lookup back into the candidate. */
+  refs?: string[];
 }
 
 /** The reader's margin box in the same coordinate space as `anchorY`. */

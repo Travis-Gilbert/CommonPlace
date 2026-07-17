@@ -92,7 +92,8 @@ export function salienceCandidateId(candidate: SalienceCandidate): string {
 }
 
 /** Project a wire candidate to what the D4 overlay consumes: the quote, its position as the
- * resolve hint, tier, score, and the connection text shown on hover/expand. */
+ * resolve hint, tier, score, the connection text shown on hover/expand, and the openable
+ * record chain a short click reveals (D6-2). */
 export function salienceToMarginCandidate(candidate: SalienceCandidate): MarginCandidate {
   return {
     id: salienceCandidateId(candidate),
@@ -101,6 +102,7 @@ export function salienceToMarginCandidate(candidate: SalienceCandidate): MarginC
     tier: candidate.tier,
     score: candidate.score,
     explanation: candidate.explanation,
+    refs: candidate.refs,
   };
 }
 
