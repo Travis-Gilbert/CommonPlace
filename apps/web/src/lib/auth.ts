@@ -5,8 +5,10 @@ import { githubHarnessIdentity, isOwnerGithubLogin } from '@/lib/account-identit
 export const { auth, handlers, signIn, signOut } = NextAuth({
   // Railway terminates TLS in front of the Next.js process. Set AUTH_TRUST_HOST=true
   // in Railway (or any reverse-proxied deployment) so OAuth uses the forwarded public
-  // host instead of the internal 0.0.0.0 address.
-  trustHost: process.env.AUTH_TRUST_HOST === 'true',
+  // host instead of the internal 0.0.0.0 address. Also trusted in development so
+  // local OAuth redirects work without additional env configuration.
+  trustHost:
+    process.env.AUTH_TRUST_HOST === 'true' || process.env.NODE_ENV === 'development',
   providers: [GitHub],
   callbacks: {
     async jwt({ token, account, profile }) {
