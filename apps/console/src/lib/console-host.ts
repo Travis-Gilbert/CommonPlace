@@ -211,9 +211,9 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
-    // Records are the live wire (R2.1): sort, filter, and pagination
-    // round-trip through the data API proxy unless a test supplied a pool.
-    if (query.types.includes('record') && this.records === null) {
+    // Records and typed HunkSets are live wires (R2.1/H3): they round-trip
+    // through the same object seam and never compile review logic in React.
+    if (query.types.includes('hunk') || (query.types.includes('record') && this.records === null)) {
       return this.http.query(query);
     }
     const pool = query.types.includes('record')
@@ -345,6 +345,12 @@ export class ConsoleBlockHost implements BlockHost {
         this.notifyLayout();
         return Promise.resolve(applied([action.id]));
       }
+      case 'invoke_tool':
+      case 'dispatch':
+        // Consequential domain actions always ride the object seam. In
+        // particular hunk.accept/reject/verify/edit bind to Rust executors and
+        // their receipts instead of ending at a client-side JSON scaffold.
+        return this.http.emit(action);
       default:
         // open / select / link / run_agent are UI or substrate concerns.
         return Promise.resolve(accepted());

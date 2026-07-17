@@ -1,7 +1,7 @@
 // SOURCING: node:http. TEST INFRASTRUCTURE ONLY (R2.1: the record fixture
 // lives in tests): a stub object-seam upstream serving the Rust
 // commonplace-api wire contract (POST /objects/query, POST /objects/action,
-// GET /objects/views) over the deterministic 5000-record fixture, so e2e
+// GET /objects/views) over deterministic record and typed-Hunk fixtures, so e2e
 // exercises the real browser -> console proxy -> upstream path hermetically.
 // The record generator mirrors src/lib/workspace-seed.ts (djb2 + LCG, the
 // repo's deterministic PRNG convention) so captures stay stable.
@@ -66,6 +66,68 @@ function seedRecords() {
 
 const RECORDS = seedRecords();
 
+const HUNKS = [
+  {
+    id: 'hunk-agent-run',
+    type: 'hunk',
+    properties: {
+      hunk_id: 'agent-run:proposal', source: 'agent_run', state: { kind: 'proposed', actions: [] },
+      target_block: 'block:proposal', before_ref: 'value:proposal:before', after_ref: 'value:proposal:after',
+      before_text: 'status: draft\nowner: theorem', after_text: 'status: reviewed\nowner: theorem',
+      derivation_refs: ['derivation:run:1'], discharge: { kind: 'deterministic' }, group_id: 'run:current',
+      title: 'Promote proposal status', capability_class: 'proposal.write',
+      semiring: { supported: true, independent_lines: 1, weakest_link: '0.93', confidence: 0.93 },
+    },
+  },
+  {
+    id: 'hunk-briefing',
+    type: 'hunk',
+    properties: {
+      hunk_id: 'briefing:today', source: 'briefing', state: { kind: 'proposed', actions: [] },
+      target_block: 'briefing:today', before_ref: 'value:briefing:empty', after_ref: 'value:briefing:item',
+      before_text: '# Today\n', after_text: '# Today\n\n- Review the object-seam receipts.',
+      derivation_refs: ['derivation:briefing:1', 'derivation:briefing:2'], discharge: { kind: 'deterministic' }, group_id: 'briefing:today',
+      title: 'Add the morning review item', capability_class: 'briefing.publish',
+      semiring: { supported: true, independent_lines: 2, weakest_link: '0.88', confidence: 0.91 },
+    },
+  },
+  {
+    id: 'hunk-recalc',
+    type: 'hunk',
+    properties: {
+      hunk_id: 'recalc:standing', source: 'recalc', state: { kind: 'proposed', actions: [] }, model_authored: true,
+      target_block: 'belief:standing', before_ref: 'value:belief:before', after_ref: 'value:belief:after',
+      before_text: 'standing: probable', after_text: 'standing: accepted',
+      derivation_refs: ['derivation:recalc:1', 'why:standing'], discharge: { kind: 'undischarged' }, group_id: 'recalc:belief:standing',
+      title: 'Re-derived standing', capability_class: 'belief.revise',
+      semiring: { supported: true, independent_lines: 2, weakest_link: 'unverified model edge', confidence: 0.67 },
+    },
+  },
+  {
+    id: 'hunk-install',
+    type: 'hunk',
+    properties: {
+      hunk_id: 'install:grant', source: 'app_install', state: { kind: 'proposed', actions: [] },
+      target_block: 'grant:objects.write', after_ref: 'value:grant:preview',
+      derivation_refs: [], discharge: { kind: 'deterministic' }, group_id: 'install:grants',
+      title: 'Capability grant · objects.write', capability_class: 'app.install',
+      semiring: { supported: false, independent_lines: 0 },
+    },
+  },
+  {
+    id: 'hunk-schema',
+    type: 'hunk',
+    properties: {
+      hunk_id: 'schema:claim', source: 'schema_draft', state: { kind: 'proposed', actions: [] },
+      target_block: 'shape:claim', before_ref: 'value:shape:before', after_ref: 'value:shape:after',
+      before_text: 'fields: [title]', after_text: 'fields: [title, provenance]',
+      derivation_refs: ['derivation:schema:1'], discharge: { kind: 'discharged', verify_ref: 'verification:42' }, group_id: 'schema:draft',
+      title: 'Add provenance to Claim', capability_class: 'schema.publish',
+      semiring: { supported: true, independent_lines: 1, weakest_link: 'verification:42', confidence: 1 },
+    },
+  },
+];
+
 function matches(object, predicate) {
   if (!predicate) return true;
   switch (predicate.kind) {
@@ -87,7 +149,8 @@ function matches(object, predicate) {
 }
 
 function runQuery(query) {
-  let objects = RECORDS.filter((object) => matches(object, query.where));
+  const pool = query.types?.includes('hunk') ? HUNKS : RECORDS;
+  let objects = pool.filter((object) => matches(object, query.where));
   const ranker = query.rank?.[0];
   if (ranker?.kind === 'field') {
     const direction = ranker.direction === 'desc' ? -1 : 1;
@@ -105,8 +168,10 @@ function runQuery(query) {
   return {
     objects,
     shape: {
-      types: ['record'],
-      fields: ['title', 'kind', 'status', 'updated', 'tags'],
+      types: query.types?.includes('hunk') ? ['hunk'] : ['record'],
+      fields: query.types?.includes('hunk')
+        ? ['hunk_id', 'source', 'state', 'target_block', 'after_ref', 'derivation_refs', 'discharge', 'group_id']
+        : ['title', 'kind', 'status', 'updated', 'tags'],
       relations: [],
       axes: {},
       cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
