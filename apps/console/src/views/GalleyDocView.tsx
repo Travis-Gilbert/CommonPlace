@@ -14,12 +14,14 @@ import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
+import { useAppearance } from '@/lib/appearance-store';
 import { intuiEditorExtensions } from './cm-register-theme';
 import { ViewState } from './ViewStates';
 
 type Mode = 'read' | 'edit';
 
 export function GalleyDocView({ set, host }: ViewRenderProps) {
+  const { resolvedMode } = useAppearance();
   const doc = set.objects[0];
   const [mode, setMode] = useState<Mode>('read');
   const [text, setText] = useState<string>(() =>
@@ -44,7 +46,7 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           markdown(),
-          ...intuiEditorExtensions,
+          ...intuiEditorExtensions(resolvedMode),
           EditorView.lineWrapping,
         ],
       }),
@@ -57,7 +59,7 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
       view.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, resolvedMode]);
 
   useEffect(() => {
     if (mode !== 'read') return;
