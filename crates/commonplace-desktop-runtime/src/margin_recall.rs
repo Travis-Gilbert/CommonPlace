@@ -121,19 +121,33 @@ pub fn resolve_script(request_id: &str, target: &TextTarget) -> String {
   var nodes = [], flat = '', node;
   while ((node = walker.nextNode())) {{
     var start = flat.length;
-    flat += node.nodeValue;
+    flat += (node.nodeValue || '');
     nodes.push({{ node: node, start: start, end: flat.length }});
   }}
+  // Try full-context match first (confidence 1.0); fall back to quote-only (confidence 0.8)
+  // so that highlights survive minor page edits that shift prefix/suffix context.
   var needle = (pre || '') + quote + (suf || '');
-  var best = -1, from = 0, idx;
+  var qOffset = pre ? pre.length : 0;
+  var best = -1, bestConf = 0.0, from = 0, idx;
   while ((idx = flat.indexOf(needle, from)) !== -1) {{
-    if (best === -1 || (hint !== null && Math.abs(idx - hint) < Math.abs(best - hint))) {{
-      best = idx;
+    if (best === -1 || (hint !== null && Math.abs(idx + qOffset - hint) < Math.abs(best - hint))) {{
+      best = idx + qOffset;
+      bestConf = 1.0;
     }}
     from = idx + 1;
   }}
+  if (best === -1) {{
+    from = 0;
+    while ((idx = flat.indexOf(quote, from)) !== -1) {{
+      if (best === -1 || (hint !== null && Math.abs(idx - hint) < Math.abs(best - hint))) {{
+        best = idx;
+        bestConf = 0.8;
+      }}
+      from = idx + 1;
+    }}
+  }}
   if (best === -1) {{ post([]); return; }}
-  var qStart = best + (pre ? pre.length : 0);
+  var qStart = best;
   var qEnd = qStart + quote.length;
   function locate(offset) {{
     for (var i = 0; i < nodes.length; i++) {{
@@ -154,7 +168,7 @@ pub fn resolve_script(request_id: &str, target: &TextTarget) -> String {
     var r = list[j];
     rects.push({{ x: r.left, y: r.top, width: r.width, height: r.height }});
   }}
-  post([{{ rects: rects, confidence: 1.0 }}]);
+  post([{{ rects: rects, confidence: bestConf }}]);
 }})();"#,
         req = js(request_id),
         quote = js(&target.quote),
@@ -177,14 +191,21 @@ pub fn scroll_script(target: &TextTarget) -> String {
   while ((node = walker.nextNode())) {{
     starts.push(flat.length);
     nodes.push(node);
-    flat += node.nodeValue;
+    flat += (node.nodeValue || '');
   }}
+  // Try prefix + quote first; fall back to quote-only so scroll works after minor page edits.
   var needle = (pre || '') + quote;
   var idx = flat.indexOf(needle);
-  if (idx === -1) return;
-  var qStart = idx + (pre ? pre.length : 0);
+  var qStart;
+  if (idx === -1) {{
+    idx = flat.indexOf(quote);
+    qStart = idx;
+  }} else {{
+    qStart = idx + (pre ? pre.length : 0);
+  }}
+  if (qStart === -1) return;
   for (var i = 0; i < nodes.length; i++) {{
-    if (qStart >= starts[i] && qStart <= starts[i] + nodes[i].nodeValue.length) {{
+    if (qStart >= starts[i] && qStart <= starts[i] + (nodes[i].nodeValue || '').length) {{
       var range = document.createRange();
       range.setStart(nodes[i], qStart - starts[i]);
       range.setEnd(nodes[i], qStart - starts[i]);

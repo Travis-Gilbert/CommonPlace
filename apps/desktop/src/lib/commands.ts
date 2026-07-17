@@ -12,6 +12,7 @@
 // lands. The real path is always invoke(); mocks are gated behind isTauri().
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type {
   HarnessTarget,
   AgentIngestionReceipt,
@@ -181,17 +182,44 @@ export interface PageIdentity {
 }
 
 /**
- * Rust: `resolve_text_targets(tab_id: String, targets: TextTarget[]) -> RectSet[]`.
- * Evals an in-page resolver that matches each quote (exact, then fuzzy) and returns
- * the client rects of the match. One RectSet per input target, in order.
+ * Rust: `resolve_text_targets(tab_id, request_id, target) -> ()`.
+ * Evals a self-contained in-page resolver for each quote (exact context match, then
+ * quote-only fallback) and delivers the client rects via the `marginrecall://targets`
+ * event, tagged with the request id. This wrapper fans out per-target invocations,
+ * correlates results by request id, and collects one RectSet per input target in order.
  */
 export async function resolveTextTargets(
   tabId: TabId,
   targets: TextTarget[],
 ): Promise<RectSet[]> {
-  if (isTauri()) return invoke<RectSet[]>("resolve_text_targets", { tabId, targets });
-  // No external page in plain browser mode: honest empty resolution, one per target.
-  return targets.map(() => ({ rects: [], confidence: 0 }));
+  if (!isTauri()) return targets.map(() => ({ rects: [], confidence: 0 }));
+  return Promise.all(
+    targets.map(async (target) => {
+      const requestId = crypto.randomUUID();
+      // Grab the resolver from the Promise constructor synchronously so the listener
+      // callback and the invoke error path can both settle it.
+      let resolveResult: ((r: RectSet) => void) | null = null;
+      const resultPromise = new Promise<RectSet>((res) => {
+        resolveResult = res;
+      });
+      // resolveResult is always assigned above (Promise constructor is synchronous).
+      // Register the listener before invoking to avoid a race with the eval postback.
+      const unlisten = await listen<{ requestId: string; targets: RectSet[] }>(
+        "marginrecall://targets",
+        (event) => {
+          if (event.payload.requestId !== requestId) return;
+          unlisten();
+          resolveResult!(event.payload.targets[0] ?? { rects: [], confidence: 0 });
+        },
+      );
+      // Fire the resolver; rects arrive via the event listener above.
+      invoke("resolve_text_targets", { tabId, requestId, target }).catch(() => {
+        unlisten();
+        resolveResult!({ rects: [], confidence: 0 });
+      });
+      return resultPromise;
+    }),
+  );
 }
 
 /** Rust: `scroll_to_target(tab_id: String, target: TextTarget)`. Evals a

@@ -17,15 +17,11 @@
   background: rgb(var(--cp-tint-note));
   mix-blend-mode: multiply;
   border-radius: 2px;
-  /* The tint intercepts hover/click; untinted regions fall through the layer (D4-3). */
-  pointer-events: auto;
-  cursor: pointer;
+  /* Purely presentational: click-through so highlighted text stays selectable (D6 adds
+     interaction handlers and re-enables pointer-events when needed). */
+  pointer-events: none;
   opacity: 0;
   animation: cp-mr-fade-in var(--cp-dur-local) var(--cp-ease-out) forwards;
-}
-
-.mark:hover {
-  opacity: 0.52;
 }
 
 /* Reduced-motion and the explicit static variant: the tint appears at rest, no fade. */
