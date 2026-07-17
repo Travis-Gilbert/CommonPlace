@@ -14,6 +14,7 @@ import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
+import { objectChip, useShellStore } from '@/lib/shell-store';
 import { intuiEditorExtensions } from './cm-register-theme';
 import { ViewState } from './ViewStates';
 
@@ -25,6 +26,16 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
   const [text, setText] = useState<string>(() =>
     typeof doc?.properties.markdown === 'string' ? doc.properties.markdown : '',
   );
+  // Doc navigation patches the reader instance in place (an arrangement
+  // edit), so this component does not remount when the document changes.
+  // Deriving during render (the sanctioned adjust-state-on-prop-change
+  // pattern) resets the edited text to the newly selected document.
+  const [docId, setDocId] = useState<string | undefined>(doc?.id);
+  if (doc && doc.id !== docId) {
+    setDocId(doc.id);
+    setText(typeof doc.properties.markdown === 'string' ? doc.properties.markdown : '');
+    setMode('read');
+  }
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollPos = useRef(0);
   const editorHostRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +75,69 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
     const scroller = scrollRef.current;
     if (scroller) scroller.scrollTop = scrollPos.current;
   }, [mode]);
+
+  // The todo-block entry (HANDOFF-CARDS-ACTIONS-MENTIONS K3): every rendered
+  // task-list item gets the action affordance in the paper-plane position,
+  // with Alt+Enter as the shortcut. Galley owns the markup; the decoration
+  // attaches to its .task-list-item output. markdown-theory 0.1.2 styles
+  // that class but its renderer does not yet emit GFM task lists (the same
+  // upstream-gap family as the owl rhythm fix in markdown-theory PR 3), so
+  // until the 0.2.x renderer lands, plain list items that literally begin
+  // with "[ ]" or "[x]" are recognized as todos too.
+  useEffect(() => {
+    if (mode !== 'read') return;
+    const root = scrollRef.current;
+    const docId = doc?.id;
+    const docTitle = typeof doc?.properties.title === 'string' ? doc.properties.title : docId;
+    if (!root || !docId) return;
+    const items = [
+      ...root.querySelectorAll<HTMLElement>('li.task-list-item'),
+      ...[...root.querySelectorAll<HTMLElement>('.galley li:not(.task-list-item)')].filter((li) =>
+        /^\[( |x)\]\s/.test((li.textContent ?? '').trimStart()),
+      ),
+    ];
+    const cleanups: Array<() => void> = [];
+    items.forEach((item) => {
+      const todoText = (item.textContent ?? '').trim();
+      const openFor = () =>
+        useShellStore.getState().openActionSheet({
+          chips: [
+            objectChip(docId, 'doc', docTitle ?? docId),
+            {
+              id: `chip-selection-${docId}-${todoText.slice(0, 24)}`,
+              kind: 'selection',
+              label: todoText,
+              text: todoText,
+              source: 'origin',
+            },
+          ],
+        });
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.todoAction = '';
+      button.setAttribute('aria-label', 'Hand this todo to the agent');
+      button.textContent = '→';
+      button.className =
+        'ml-2 h-5 rounded-ij-arc px-1 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent';
+      button.addEventListener('click', openFor);
+      const onKey = (event: KeyboardEvent) => {
+        if (event.altKey && event.key === 'Enter') {
+          event.preventDefault();
+          openFor();
+        }
+      };
+      item.tabIndex = 0;
+      item.addEventListener('keydown', onKey);
+      item.appendChild(button);
+      cleanups.push(() => {
+        button.removeEventListener('click', openFor);
+        item.removeEventListener('keydown', onKey);
+        button.remove();
+        item.removeAttribute('tabindex');
+      });
+    });
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [mode, text, doc]);
 
   if (!doc) {
     return <ViewState state="empty" />;

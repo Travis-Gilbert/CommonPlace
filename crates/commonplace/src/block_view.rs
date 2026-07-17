@@ -928,6 +928,9 @@ where
             ObjectAction::Create { type_ref, props } => {
                 let item = item_from_props(&type_ref, props)?;
                 let item = self.put_item(item)?;
+                // Incremental mention detection (K5): a new text-bearing item
+                // is an atom; evaluate it once, never a full rescan.
+                self.evaluate_mentions_for_atom(&item.id)?;
                 Ok(ObjectActionReceipt {
                     action_kind,
                     status: ObjectActionStatus::Applied,
@@ -947,6 +950,19 @@ where
                 })?;
                 apply_item_patch(&mut item, patch)?;
                 let item = self.put_item(item)?;
+                if item_object_type_slug(&item) == crate::mentions::MENTION_CANDIDATE_KIND {
+                    // The confirm hook (K6): patching a candidate to
+                    // confirmed writes the identity edge with its basis; a
+                    // dismissal needs no extra write (the candidate is the
+                    // negative signal and the suppression record).
+                    if item.status.as_deref() == Some("confirmed") {
+                        self.apply_mention_confirmation(&item)?;
+                    }
+                } else {
+                    // An edited atom re-evaluates incrementally; existing
+                    // candidate ids (any status) stay untouched.
+                    self.evaluate_mentions_for_atom(&item.id)?;
+                }
                 Ok(ObjectActionReceipt {
                     action_kind,
                     status: ObjectActionStatus::Applied,

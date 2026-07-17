@@ -134,7 +134,12 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
     if (target && document.contains(target)) target.focus();
   }, [closeOmnibar]);
 
-  // Global keys: double Shift opens Search; Ctrl or Cmd L/K opens Ask.
+  // Global keys: double Shift opens Search; Ctrl or Cmd L opens Ask (the
+  // Cursor muscle-memory key from named choice 3, live in the desktop shell),
+  // and Ctrl or Cmd K opens Ask too. The desktop key is browser-reserved for
+  // the address bar, so a browser tab never delivers it to the page; K is the
+  // command-palette convention browsers do deliver, so the keyboard path
+  // works in both targets.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const askKey = event.key === 'l' || event.key === 'L' || event.key === 'k' || event.key === 'K';

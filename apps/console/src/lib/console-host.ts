@@ -23,6 +23,7 @@ import type {
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-seed';
+import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const STORAGE_KEY = 'commonplace.console.surface.v1';
@@ -124,6 +125,7 @@ export class ConsoleBlockHost implements BlockHost {
   private records: ObjectRef[] | null;
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
+  private cardTemplates: ObjectRef[];
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
@@ -142,6 +144,10 @@ export class ConsoleBlockHost implements BlockHost {
     });
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
+    // Card templates are seeded objects served through this seam (K1): the
+    // card engine queries them like any record, and the Model surface edits
+    // them later through the same update action.
+    this.cardTemplates = seedCardTemplates();
     this.hydrateLayout();
   }
 
@@ -211,18 +217,38 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
-    // Records and typed HunkSets are live wires (R2.1/H3): they round-trip
-    // through the same object seam and never compile review logic in React.
-    if (query.types.includes('hunk') || (query.types.includes('record') && this.records === null)) {
+    // The live wire is the default (R2.1): records, hunks, and every domain
+    // kind the seam serves (person, task, mention-candidate, ...) round-trip
+    // through the data API proxy. Documents and code files ride the live wire
+    // too so edits persist to the backend (the file-editing fix): the backend
+    // is the source of truth, but the console filters/sorts/pages client-side
+    // so slug and id predicates behave exactly as the seed path did.
+    // Console-owned seeds stay local: card templates (K1, authored objects)
+    // and 'thread' (the pane renders its own chat SSE, never the record wire).
+    const testMode = this.records !== null;
+    const isRecord = query.types.includes('record');
+    const isDoc = query.types.includes('doc');
+    const isCode = query.types.includes('code-file');
+    // Console-local kinds never touch the wire: 'thread' (its pane renders its
+    // own chat SSE) and card templates (K1, console-authored seeds).
+    const consoleLocal =
+      query.types.includes('thread') || query.types.includes(CARD_TEMPLATE_TYPE);
+    if (!testMode && !consoleLocal) {
+      // Docs and code files are client-filtered so slug/id predicates resolve
+      // exactly as the seed path did; every other seam kind (record, person,
+      // task, project, org, mention-candidate, hunk, ...) filters API-side.
+      if (isDoc || isCode) return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
       return this.http.query(query);
     }
-    const pool = query.types.includes('record')
+    const pool = isRecord
       ? (this.records ?? [])
-      : query.types.includes('doc')
+      : isDoc
         ? this.docs
-        : query.types.includes('code-file')
+        : isCode
           ? this.codeFiles
-          : [];
+          : query.types.includes(CARD_TEMPLATE_TYPE)
+            ? this.cardTemplates
+            : [];
     let objects = pool.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {
@@ -257,6 +283,83 @@ export class ConsoleBlockHost implements BlockHost {
         return () => this.domainSubs.delete(listener);
       },
     };
+  }
+
+  /** Documents and code files over the live wire: fetch the kind from the
+   *  backend, then filter, sort, and page with the console's own client logic
+   *  so a `where slug eq` or `where path eq` predicate resolves identically to
+   *  the former seed path (no dependency on the API's predicate support). */
+  private async queryLiveDomain(query: ObjectQuery, type: string): Promise<ObjectSet> {
+    const all = await this.http.query({ types: [type], page: { limit: 500 } });
+    let objects = all.objects.filter((object) => matchesPredicate(object, query.where));
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: Object.keys(objects[0]?.properties ?? {}),
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      next_cursor: nextCursor,
+      subscribe: () => () => {},
+    };
+  }
+
+  /** Seed the backend with the console's document fixtures once, keyed by slug
+   *  and path, so the deployed (in-memory, resets on restart) API has editable,
+   *  persistent content instead of client-only seeds. Content rides as extra
+   *  properties (markdown / content) so the projection returns exactly what the
+   *  Galley and CodeMirror views read. Idempotent: absent keys only. */
+  async ensureSeedContent(): Promise<void> {
+    if (this.records !== null) return;
+    try {
+      const existingDocs = await this.http.query({ types: ['doc'], page: { limit: 200 } });
+      const slugs = new Set(existingDocs.objects.map((object) => object.properties.slug));
+      for (const doc of this.docs) {
+        if (slugs.has(doc.properties.slug)) continue;
+        await this.http.emit({
+          kind: 'create',
+          type: 'doc',
+          props: {
+            title: doc.properties.title,
+            slug: doc.properties.slug,
+            markdown: doc.properties.markdown,
+          },
+        });
+      }
+      const existingCode = await this.http.query({ types: ['code-file'], page: { limit: 200 } });
+      const paths = new Set(existingCode.objects.map((object) => object.properties.path));
+      for (const file of this.codeFiles) {
+        if (paths.has(file.properties.path)) continue;
+        await this.http.emit({
+          kind: 'create',
+          type: 'code-file',
+          props: {
+            title: file.properties.path,
+            path: file.properties.path,
+            language: file.properties.language,
+            content: file.properties.content,
+          },
+        });
+      }
+    } catch {
+      // Backend unreachable: the Documents surface renders its empty state.
+    }
   }
 
   /** The arrangement branch is always synchronous and local: the shell's
@@ -314,9 +417,14 @@ export class ConsoleBlockHost implements BlockHost {
           this.notifyLayout();
           return Promise.resolve(applied([action.id]));
         }
-        // Docs and code files patch in-session (seed content); record
-        // updates ride the live wire when no test pool is present.
-        for (const pool of [this.records ?? [], this.docs, this.codeFiles]) {
+        // In live mode only card templates patch in-session (console-authored
+        // seeds); records, docs, and code files ride the wire so edits persist.
+        // In test mode the local pools carry every kind.
+        const updatePools =
+          this.records === null
+            ? [this.cardTemplates]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates];
+        for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
             pool[index] = { ...pool[index], properties: { ...pool[index].properties, ...action.patch } };

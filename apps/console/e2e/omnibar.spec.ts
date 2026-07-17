@@ -35,7 +35,8 @@ test.describe('omnibar island', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-omnibar-island]')).toHaveCount(0);
 
-    // Command-palette convention: Ctrl+K opens Ask too.
+    // Command-palette convention: Ctrl+K opens Ask too (the browser-reliable
+    // key, since Ctrl/Cmd+L is reserved by browsers for the address bar).
     await page.keyboard.press('Control+k');
     await expect(page.locator('[data-omnibar-island]')).toBeVisible();
     await expect(page.locator('[data-omnibar-mode="ask"]')).toHaveAttribute('aria-pressed', 'true');
@@ -142,31 +143,55 @@ test.describe('omnibar island', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
   });
 
-  test('layout switcher round-trips surfaces with their own arrangements', async ({ page }) => {
+  test('toggling a tool window reflows in place, never remounting the well', async ({ page }) => {
+    // The black-frame-drop regression: the PanelGroup was keyed on the visible
+    // panel set, so opening or closing a tool window tore the whole well down
+    // and rebuilt it (a flash to the frame, then back). Tag the editor panel
+    // and prove the node survives the toggle: reconcile, not remount.
+    const editor = page.locator('[data-panel-id="region-editor"]');
+    await expect(editor).toBeVisible();
+    await editor.evaluate((el) => (el.dataset.remountProbe = 'kept'));
+    const widthOpen = await editor.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    // Close the thread window: the editor widens and the same node survives.
+    await page.keyboard.press('Alt+9');
+    await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(editor).toHaveAttribute('data-remount-probe', 'kept');
+    const widthClosed = await editor.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    expect(widthClosed).toBeGreaterThan(widthOpen);
+    // Reopen: the node is still the same one, and the arrangement returns.
+    await page.keyboard.press('Alt+9');
+    await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(editor).toHaveAttribute('data-remount-probe', 'kept');
+  });
+
+  test('surface rail round-trips surfaces with their own arrangements', async ({ page }) => {
     // Close the workspace's thread window so Workspace has a distinct shape.
     await page.keyboard.press('Alt+9');
     await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
       'aria-pressed',
       'false',
     );
-    // Switch to Index from the toolbar widget.
-    await page.locator('[data-layout-switcher]').click();
-    await page.locator('[data-layout-option="console-index"]').click();
+    // Switch to Index from the leftmost stripe's surfaces group.
+    await page.locator('[data-surface-nav="console-index"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
     // The Index screen: destination rail naming its gap, live triage stream.
     await expect(page.getByText('destinations (connectors')).toBeVisible();
     await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThanOrEqual(12);
     // Documents: list left, Galley reading view center.
-    await page.locator('[data-layout-switcher]').click();
-    await page.locator('[data-layout-option="console-docs"]').click();
+    await page.locator('[data-surface-nav="console-docs"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-docs');
     await expect(page.locator('[data-doc-id]').first()).toBeVisible();
     await expect(page.locator('[data-doc-id] svg').first()).toHaveCSS('color', 'rgb(134, 138, 145)');
     await expect(page.locator('.galley').first()).toBeVisible();
     // Back to Workspace: the closed thread window survived the round trip
     // and a reload (per-surface arrangement snapshots, R3.3).
-    await page.locator('[data-layout-switcher]').click();
-    await page.locator('[data-layout-option="console-workspace"]').click();
+    await page.locator('[data-surface-nav="console-workspace"]').click();
     await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
       'aria-pressed',
       'false',

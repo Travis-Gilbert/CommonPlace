@@ -71,6 +71,8 @@ export function ThreadView() {
   const runtimeAvailable = useContext(ThreadRuntimeAvailable);
   const isRunning = useThreadStore((state) => state.isRunning);
   const error = useThreadStore((state) => state.error);
+  const staged = useThreadStore((state) => state.staged);
+  const unstage = useThreadStore((state) => state.unstage);
   const endpoint = chatEndpoint();
 
   if (!runtimeAvailable) {
@@ -109,9 +111,33 @@ export function ThreadView() {
         ) : null}
         {error ? <div className="px-4 py-1 text-ij-error">{error}</div> : null}
       </ThreadPrimitive.Viewport>
+      {staged.length > 0 ? (
+        // With-me staging (K4): object references ride visibly above the
+        // composer and travel with the next message; removable until sent.
+        <div className="flex flex-wrap items-center gap-1 border-t border-ij-seam px-2 pt-2" data-thread-staged>
+          {staged.map((ref) => (
+            <span
+              key={ref.id}
+              data-thread-staged-ref
+              className="inline-flex h-6 items-center gap-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+            >
+              <span className="max-w-48 truncate">{ref.label}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${ref.label}`}
+                onClick={() => unstage(ref.id)}
+                className="text-ij-ink-info hover:text-ij-ink"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <ComposerPrimitive.Root className="flex shrink-0 items-end gap-2 border-t border-ij-seam p-2">
         <ComposerPrimitive.Input
           rows={1}
+          data-thread-composer-input
           placeholder="Message the harness"
           className="max-h-40 min-h-ij-control flex-1 resize-none rounded-ij-arc border border-ij-control-border bg-ij-editor px-3 py-1 text-ij-ink placeholder:text-ij-ink-disabled focus:outline-2 focus:outline-ij-accent"
         />

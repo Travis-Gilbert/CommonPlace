@@ -110,6 +110,29 @@ export function seedLayout(): ObjectRef[] {
       query: { types: ['record'], live: true } as unknown as JsonValue,
     }),
 
+    // Cards: the cards.grid mount (HANDOFF-CARDS-ACTIONS-MENTIONS K2): an
+    // ObjectQuery rendered as faces at Twenty density for browsing people,
+    // projects, and tasks. The query rides the live wire; an empty store
+    // renders the honest empty state.
+    layoutObject('console-cards', 'surface', { name: 'Cards', kind: 'cards', active: false }, [
+      'cards.region-editor',
+    ]),
+    layoutObject(
+      'cards.region-editor',
+      'region',
+      { kind: 'editor', size: 100, active_tab: 'cards.vi-grid' },
+      ['cards.vi-grid'],
+    ),
+    layoutObject('cards.vi-grid', 'view-instance', {
+      descriptor_id: 'cards.grid',
+      title: 'Cards',
+      query: {
+        types: ['person', 'task', 'project', 'org'],
+        page: { limit: 400 },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+
     // Documents: list left, Galley reading view center, thread on its stripe
     // (closed by default) (R3.2).
     layoutObject('console-docs', 'surface', { name: 'Documents', kind: 'documents', active: false }, [
@@ -279,6 +302,24 @@ object, not component state. Toggle the tool windows from the stripes.
 Double-press Shift for search everywhere.
 `;
 
+const CONSOLE_PUNCH_LIST = `# Console punch list
+
+Working notes for the console itself. Each todo carries the action affordance:
+the arrow at the end of a line (or Alt Enter with the line focused) hands that
+item to the agent through the action sheet.
+
+## Open items
+
+- [ ] Wire the destination rail to live connector counts
+- [ ] Capture a fresh visual baseline after the card engine lands
+- [x] Point the record table at the deployed object seam
+
+## Notes
+
+The sheet stages this document plus the todo line as visible context; nothing
+travels unseen.
+`;
+
 export function seedDocs(): ObjectRef[] {
   return [
     {
@@ -288,6 +329,15 @@ export function seedDocs(): ObjectRef[] {
         slug: 'console-brief',
         title: 'The harness console',
         markdown: CONSOLE_BRIEF,
+      },
+    },
+    {
+      id: 'doc-console-punch-list',
+      type: 'doc',
+      properties: {
+        slug: 'console-punch-list',
+        title: 'Console punch list',
+        markdown: CONSOLE_PUNCH_LIST,
       },
     },
   ];

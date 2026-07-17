@@ -1,16 +1,17 @@
 // SOURCING: @playwright/test. Hunk visual milestone: the typed review route
 // resolves through the Greenfield surface registry and Int UI register.
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-async function openReview(page: import('@playwright/test').Page) {
+async function openReview(page: Page) {
   await page.goto('/');
   await page.evaluate(() => window.localStorage.removeItem('commonplace.console.surface.v1'));
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.getByRole('button', { name: 'Layout: Workspace' }).click();
-  await page.getByRole('option', { name: 'Review' }).click();
+  // Screen navigation is the leftmost stripe's surfaces group (the toolbar
+  // dropdown was replaced by the stripe surfaces group).
+  await page.locator('[data-surface-nav="console-review"]').click();
   await expect(page.locator('[data-active-surface="console-review"]')).toBeVisible();
   await expect(page.getByTestId('hunk-review')).toBeVisible();
 }

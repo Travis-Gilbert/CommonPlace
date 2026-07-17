@@ -27,10 +27,31 @@ import { EditorTabs } from './EditorTabs';
 import { MainToolbar } from './MainToolbar';
 import { StatusBar } from './StatusBar';
 import { OmnibarIsland } from './Omnibar';
+import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
-import { IconDoc, IconRail, IconRecords, IconThread } from './icons';
+import {
+  IconCards,
+  IconDoc,
+  IconInspector,
+  IconModel,
+  IconRail,
+  IconRecords,
+  IconThread,
+  IconWorkspace,
+} from './icons';
 
 const OVERLAY_BREAKPOINT = 1100;
+
+/** Surface nav icons by surface kind: the stripe surfaces group (AMENDMENT:
+ *  surfaces join the layout switcher AND the stripe surfaces group). */
+const SURFACE_ICONS: Record<string, typeof IconRecords> = {
+  workspace: IconWorkspace,
+  index: IconRail,
+  documents: IconDoc,
+  cards: IconCards,
+  model: IconModel,
+  review: IconInspector,
+};
 
 /** Region icon slugs carried on the surface object; the glyphs stay in the
  *  one chrome icon file. */
@@ -120,6 +141,70 @@ function StripeButton({
     >
       <Icon size={16} />
     </motion.button>
+  );
+}
+
+/** The stripe surfaces group: the top group of the leftmost stripe lists every
+ *  seeded surface and switches screens by flipping the active flag through the
+ *  host. This is the primary navigation (the AMENDMENT's stripe surfaces
+ *  group); it shares the leftmost bar with the active surface's tool windows,
+ *  divided, in the JetBrains grouped-stripe manner. */
+function SurfaceNavGroup({
+  surfaces,
+  activeSurfaceId,
+  host,
+}: {
+  surfaces: readonly ObjectRef[];
+  activeSurfaceId: string;
+  host: ConsoleBlockHost;
+}) {
+  const durations = useMotionDurations();
+  if (surfaces.length === 0) return null;
+  const switchTo = (surfaceId: string) => {
+    if (surfaceId === activeSurfaceId) return;
+    for (const surface of surfaces) {
+      void host.emit({
+        kind: 'update',
+        id: surface.id,
+        patch: { active: surface.id === surfaceId },
+      });
+    }
+  };
+  return (
+    <div data-surface-rail className="flex flex-col items-center gap-1">
+      {surfaces.map((surface, index) => {
+        const kind = String(surface.properties.kind ?? '');
+        const name = String(surface.properties.name ?? surface.id);
+        const Icon = SURFACE_ICONS[kind] ?? IconWorkspace;
+        const active = surface.id === activeSurfaceId;
+        return (
+          <motion.button
+            key={surface.id}
+            initial={durations.reduced ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: seconds(durations.base),
+              delay: seconds(staggerDelay(index)),
+              ease: EASE_OUT,
+            }}
+            type="button"
+            data-surface-nav={surface.id}
+            title={name}
+            aria-label={`${name} surface`}
+            aria-current={active ? 'page' : undefined}
+            onClick={() => switchTo(surface.id)}
+            className="flex h-10 w-10 items-center justify-center rounded-ij-arc"
+            style={{
+              color: active ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
+              background: active ? 'var(--ij-accent)' : 'transparent',
+              transition: 'var(--rec-clickable-transition)',
+            }}
+          >
+            <Icon size={16} />
+          </motion.button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -322,14 +407,42 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     </motion.div>
   );
 
-  const groupKey = `${activeSurfaceId}:${visiblePanels.map((panel) => panel.region.object.id).join('+')}`;
+  // The PanelGroup remounts ONLY when the active surface changes (a real
+  // screen switch), never when a tool window toggles. Keying on the visible
+  // panel set instead tore the whole well down and rebuilt it on every
+  // open/close, which read as a black frame drop (the editor and thread
+  // unmounted, and the editor's delayed entrance fade re-fired) rather than
+  // a smooth reflow. react-resizable-panels reconciles a panel appearing or
+  // disappearing in place, given each panel a stable id and order.
+  const groupKey = activeSurfaceId;
+
+  // Stable panel order from the full region lists (open or closed), so adding
+  // or removing a visible panel never renumbers the others: left windows
+  // first, then the editor, then right windows.
+  const orderOf = (region: RegionNode): number => {
+    const leftIndex = regions.left.indexOf(region);
+    if (leftIndex >= 0) return leftIndex + 1;
+    if (region === regions.editor) return regions.left.length + 1;
+    const rightIndex = regions.right.indexOf(region);
+    if (rightIndex >= 0) return regions.left.length + 2 + rightIndex;
+    return 999;
+  };
 
   return (
     <div ref={shellRef} data-shell data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
       <MainToolbar host={host} surfaces={(layoutObjects ?? []).filter((object) => object.type === 'surface')} activeSurfaceId={activeSurfaceId} />
       <div className="flex min-h-0 flex-1">
-        {/* Left stripe */}
-        <nav aria-label="Left tool window stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
+        {/* The leftmost stripe: screen navigation (surfaces group) on top,
+            then the active surface's tool windows, divided. One bar. */}
+        <nav aria-label="Screens and tool windows" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
+          <SurfaceNavGroup
+            surfaces={(layoutObjects ?? []).filter((object) => object.type === 'surface')}
+            activeSurfaceId={activeSurfaceId}
+            host={host}
+          />
+          {regions.left.length > 0 ? (
+            <div aria-hidden className="my-1 h-px w-6 shrink-0 bg-ij-seam" />
+          ) : null}
           {regions.left.map((region, index) => (
             <StripeButton
               key={region.object.id}
@@ -374,7 +487,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                   <Panel
                     key={panel.region.object.id}
                     id={panel.region.object.id}
-                    order={index + 1}
+                    order={orderOf(panel.region)}
                     defaultSize={(panel.abs / visibleTotal) * 100}
                     minSize={isEditor ? 30 : 14}
                   >
@@ -416,6 +529,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       </div>
       <StatusBar host={host} />
       <OmnibarIsland host={host} />
+      <ActionSheet host={host} />
     </div>
   );
 }

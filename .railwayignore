@@ -1,0 +1,4 @@
+.theorem/
+.git/
+test-results/
+**/*.spec.ts-snapshots/

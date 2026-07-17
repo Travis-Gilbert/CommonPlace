@@ -41,8 +41,11 @@ test.describe('proof workspace', () => {
     await expect(page.getByRole('tab', { name: 'surface-tree.ts' })).toBeVisible();
     // The brief reads through Galley inside the editor well.
     await expect(page.locator('.galley').first()).toBeVisible();
-    // The thread names its missing capability instead of faking activity.
-    await expect(page.getByText('NEXT_PUBLIC_CONSOLE_CHAT_URL')).toBeVisible();
+    // The chat wire is configured in e2e (the /do entry needs a live
+    // composer), so the thread renders its real composer; the named
+    // unavailable state for an unset NEXT_PUBLIC_CONSOLE_CHAT_URL lives in
+    // ThreadView and is exercised without the env in unit scope.
+    await expect(page.locator('[data-thread-composer-input]')).toBeVisible();
     // Entrance settled: chrome is fully opaque after the budget.
     const opacity = await page
       .locator('section[aria-label="Records tool window"]')

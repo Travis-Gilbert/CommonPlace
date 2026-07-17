@@ -121,3 +121,35 @@ export function KindDot({ kind }: { kind: ObjectKind }) {
   }[kind];
   return <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: color }} />;
 }
+
+/** Surface nav: workspace (split panes). */
+export function IconWorkspace(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <rect x="2" y="3" width="12" height="10" rx="1.5" />
+      <path d="M6.5 3v10" />
+    </svg>
+  );
+}
+
+/** Surface nav: cards (stacked faces). */
+export function IconCards(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <rect x="3" y="4.5" width="9" height="8" rx="1.5" />
+      <path d="M5 4.5V3.5A1 1 0 0 1 6 2.5h6a1 1 0 0 1 1 1v7" />
+    </svg>
+  );
+}
+
+/** Surface nav: model (kinds and relations). */
+export function IconModel(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <circle cx="4" cy="4" r="1.75" />
+      <circle cx="12" cy="12" r="1.75" />
+      <circle cx="12" cy="4" r="1.75" />
+      <path d="M5.2 5.2 10.8 10.8M5.75 4h4.5" />
+    </svg>
+  );
+}
