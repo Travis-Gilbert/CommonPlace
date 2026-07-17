@@ -1,9 +1,9 @@
 // SOURCING: @playwright/test. Hunk visual milestone: the typed review route
 // resolves through the Greenfield surface registry and Int UI register.
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-async function openReview(page: import('@playwright/test').Page) {
+async function openReview(page: Page) {
   await page.goto('/');
   await page.evaluate(() => window.localStorage.removeItem('commonplace.console.surface.v1'));
   await page.reload();
