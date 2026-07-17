@@ -148,7 +148,7 @@ test.describe('omnibar island', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
     // The Index screen: destination rail naming its gap, live triage stream.
     await expect(page.getByText('destinations (connectors')).toBeVisible();
-    expect(await page.locator('tbody tr').count()).toBeGreaterThanOrEqual(12);
+    await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThanOrEqual(12);
     // Documents: list left, Galley reading view center.
     await page.locator('[data-surface-nav="console-docs"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-docs');

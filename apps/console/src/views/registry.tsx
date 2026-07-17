@@ -13,6 +13,7 @@ import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
 import { DocListView, IndexRailView } from './DocListView';
 import { CardFullView, CardGridView } from './CardView';
+import { HunkReviewView } from './HunkReviewView';
 
 function ThreadRender(_props: ViewRenderProps) {
   return <ThreadView />;
@@ -142,6 +143,22 @@ const CARDS_GRID: ViewDescriptor = {
   render: CardGridView,
 };
 
+const HUNK_REVIEW: ViewDescriptor = {
+  id: 'hunk.review',
+  name: 'Review',
+  accepts: { required_types: ['hunk'], cardinality: 'many' },
+  emits: ['invoke_tool'],
+  renderer: 'hunk.review',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'The typed Hunk review mechanics are the product contract; nested structured values still resolve through registered descriptors.',
+  },
+  render: HunkReviewView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -151,6 +168,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   INDEX_RAIL,
   CARD_FULL,
   CARDS_GRID,
+  HUNK_REVIEW,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

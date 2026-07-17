@@ -22,6 +22,7 @@ import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { seconds, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { PresenceMark } from '@/components/mark/PresenceMark';
 import { SURFACE_ID } from '@/lib/workspace-seed';
+import { dispatchHunkReviewAction, HUNK_REVIEW_ACTIONS } from '@/views/hunks/hunk-actions';
 
 const DOUBLE_SHIFT_MS = 400;
 
@@ -348,9 +349,17 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
           }
         },
       }));
+    const hunkActions = activeSurface?.properties.kind === 'review'
+      ? HUNK_REVIEW_ACTIONS.map((command): ConsoleCommand => ({
+          id: command.id,
+          label: command.label,
+          run: () => dispatchHunkReviewAction(command.action),
+        }))
+      : [];
     return [
       ...toggles,
       ...layoutSwitches,
+      ...hunkActions,
       isRunning
         ? { id: 'run:stop', label: 'Stop the live run', run: () => cancel() }
         : {

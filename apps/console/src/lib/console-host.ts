@@ -217,12 +217,12 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
-    // The live wire is the default (R2.1): records and every domain kind the
-    // seam serves (person, task, mention_candidate, ...) round-trip through
-    // the data API proxy. Documents and code files ride the live wire too so
-    // edits persist to the backend (the file-editing fix): the backend is the
-    // source of truth, but the console filters/sorts/pages client-side so slug
-    // and id predicates behave exactly as the seed path did.
+    // The live wire is the default (R2.1): records, hunks, and every domain
+    // kind the seam serves (person, task, mention-candidate, ...) round-trip
+    // through the data API proxy. Documents and code files ride the live wire
+    // too so edits persist to the backend (the file-editing fix): the backend
+    // is the source of truth, but the console filters/sorts/pages client-side
+    // so slug and id predicates behave exactly as the seed path did.
     // Console-owned seeds stay local: card templates (K1, authored objects)
     // and 'thread' (the pane renders its own chat SSE, never the record wire).
     const testMode = this.records !== null;
@@ -236,7 +236,7 @@ export class ConsoleBlockHost implements BlockHost {
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
-      // task, project, org, mention-candidate, ...) filters API-side.
+      // task, project, org, mention-candidate, hunk, ...) filters API-side.
       if (isDoc || isCode) return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
       return this.http.query(query);
     }
@@ -453,6 +453,12 @@ export class ConsoleBlockHost implements BlockHost {
         this.notifyLayout();
         return Promise.resolve(applied([action.id]));
       }
+      case 'invoke_tool':
+      case 'dispatch':
+        // Consequential domain actions always ride the object seam. In
+        // particular hunk.accept/reject/verify/edit bind to Rust executors and
+        // their receipts instead of ending at a client-side JSON scaffold.
+        return this.http.emit(action);
       default:
         // open / select / link / run_agent are UI or substrate concerns.
         return Promise.resolve(accepted());
