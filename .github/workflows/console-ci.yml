@@ -1,0 +1,118 @@
+name: CommonPlace console CI
+
+# HANDOFF-GREENFIELD-CONSOLE G8: the five gates run and block merge on any
+# pull request touching the console app or the extracted contract:
+#   1. the import fence (with the probe self-test demonstrating the failure),
+#   2. the register lint,
+#   3. the contrast gate (markdown-theory WCAG solving over the pinned pairs),
+#   4. the motion inventory scan,
+#   5. the Playwright captures at 1280 and 1440 dark (the visual baseline).
+# The unit suite, typecheck, eslint fence, and production build ride along.
+
+on:
+  pull_request:
+    paths:
+      - "apps/console/**"
+      - "packages/block-view/**"
+      - "packages/theorem-acp/**"
+      - ".github/workflows/console-ci.yml"
+
+permissions:
+  contents: read
+
+env:
+  PNPM_FLAGS: "--no-frozen-lockfile"
+
+jobs:
+  gates:
+    name: Gates, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install (pnpm)
+        run: pnpm install ${{ env.PNPM_FLAGS }}
+
+      - name: Contract package typecheck
+        run: pnpm --filter @commonplace/block-view run check
+
+      - name: ACP package typecheck
+        run: pnpm --filter @commonplace/theorem-acp run check
+
+      - name: Import fence (gate 1, with probe self-test)
+        run: node scripts/check-import-fence.mjs --self-test
+        working-directory: apps/console
+
+      - name: Register lint (gate 2)
+        run: node scripts/check-register-lint.mjs
+        working-directory: apps/console
+
+      - name: Contrast gate (gate 3)
+        run: node scripts/check-contrast.mjs
+        working-directory: apps/console
+
+      - name: Motion inventory scan (gate 4)
+        run: node scripts/check-motion-inventory.mjs
+        working-directory: apps/console
+
+      - name: ESLint (fence in the editor)
+        run: pnpm --filter @commonplace/console run lint
+
+      - name: Unit tests
+        run: pnpm --filter @commonplace/console run test
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: apps/console
+
+      - name: Production build
+        run: pnpm --filter @commonplace/console run build
+
+  visual:
+    name: Playwright visual baseline (gate 5)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install (pnpm)
+        run: pnpm install ${{ env.PNPM_FLAGS }}
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/console
+
+      - name: Run e2e + snapshots
+        run: npx playwright test
+        working-directory: apps/console
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-playwright-results
+          path: apps/console/test-results
+          retention-days: 7

@@ -1,0 +1,22 @@
+/* The console stylesheet entry. Order matters: Tailwind first, then the
+   pinned Int UI register (as-is), the Twenty structural group, and the
+   bridge that emits utilities from those tokens. No other stylesheet exists
+   in this app; components consume utilities and register variables only. */
+
+@import 'tailwindcss';
+@import './int-ui-register.css';
+@import './rec-structural.css';
+@import './register-bridge.css';
+@import '@travis-gilbert/markdown-theory/css';
+@import './gy-bridge.css';
+@import '../motion/motion.css';
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ij-frame);
+}

@@ -1,0 +1,113 @@
+# apps/console constitution
+
+Register: HANDOFF-GREENFIELD-CONSOLE, in force. This file and AGENTS.md carry
+the same constitution; every agent session in this app inherits the fence from
+its context. The product sentence this app exists to make true: Cursor forked
+IntelliJ instead of VS Code, with sidebars that show code and markdown as
+easily as they show data models. The mechanism: IntelliJ chrome outside, the
+block-view object contract inside every pane.
+
+## Composition doctrine
+
+One material system. Two structural sources. Bridged, not blended.
+
+- Material (color, seams, elevation, focus, states) comes from the pinned Int
+  UI register exclusively (`src/styles/int-ui-register.css`, landed as-is from
+  JetBrains expUI_dark.theme.json SHA 1a82cda). The Int UI inversion holds
+  everywhere: seams are darker than surfaces; no light hairline exists.
+- IDE chrome (stripes, tool windows, tabs, toolbar, status bar) uses Int UI
+  metrics: 28px controls, 24px rows, 40px tabs, arc 8.
+- Record surfaces (tables, inspector, chips) use Twenty structural metrics
+  (`src/styles/rec-structural.css`, values only, license lane 1): 4px grid,
+  8px cell padding, 32px utility column, 500px side panel, 2px sibling gap,
+  the 0.1s background transition, weights capped at 600.
+- Documents render through Galley (`@travis-gilbert/markdown-theory`), mounted
+  bare inside the shell with the `--gy` bridge resolving its ground and surface
+  to the chrome. Prose faces stay Galley's own.
+- Grounds are canvas, chrome is still: ambient motion lives only in the
+  GroundCanvas layer behind the frame. Tool windows, tabs, and controls carry
+  no ambient motion.
+- The agent's visible identity is the Presence mark (textmode.js). No typing
+  dots, no bespoke agent spinners, anywhere.
+- Accent grammar: pending decisions and actions sit on the accent slot; the
+  learned register renders gold (`--ij-gold`).
+
+## Allowed sources
+
+- The Int UI register (`--ij-*` tokens) and utilities emitted from it.
+- The Twenty structural token group (`--rec-*`), structure only.
+- `@travis-gilbert/markdown-theory` (Galley) for document rendering.
+- `@commonplace/block-view` for the object contract.
+- The library ledger below. Nothing renders outside it.
+
+## Banned sources
+
+- The porcelain register: `--cr-*` never appears in this app. Nothing beige.
+- `apps/web` components, styles, or imports of any kind. The eslint fence and
+  `scripts/check-import-fence.mjs` make this structural; CI fails on violation.
+- Raw values: no hex outside register files, no arbitrary-value Tailwind
+  classes, no raw palette utilities, no `*.module.css`, no literal durations
+  outside `src/motion/motion-tokens.ts`.
+
+## The ledger rule
+
+Nothing on any surface is hand-rolled. Every visual and behavioral need
+resolves to a row in the library ledger below. A need with no row is a spec
+gap: add the row, with a named source, before writing code.
+
+| Need | Source | Owns |
+|---|---|---|
+| Split layout, tool window panels | `react-resizable-panels` | split geometry, persisted sizes, 1px `--ij-divider` handles |
+| Search everywhere, palettes | `cmdk` | command list, filtering, keyboard nav |
+| Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
+| Row virtualization | `@tanstack/react-virtual` | large record sets |
+| Thread, composer, messages | `@assistant-ui/react` 0.12 | message list, streaming, composer state |
+| Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
+| Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
+| Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
+| React lifecycle motion | `motion` (`motion/react`) | entrances per the interaction inventory |
+| Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
+| Client state | `zustand` | run state, shell session state |
+| SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
+| Icons | Int UI icon glyphs (intellij-community, Apache 2.0, ported with attribution) | every glyph in the chrome, one file: `src/components/shell/icons.tsx` |
+| Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
+| Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
+
+glide-data-grid is the escalation path for spreadsheet-scale grids only and is
+not used in this round.
+
+## Porting by extraction
+
+The only legal way code moves from `apps/web` into this app is landing in
+`packages/*` stripped of CSS, then being imported like any dependency. There
+is no second path. Renderers are never ported; they are rebuilt greenfield
+against carried contracts.
+
+## The marriage requirement
+
+Shell layout persists as a seeded `surface` object through the block-view
+contract. Tool windows and editor tabs host view instances resolved by
+descriptor. `moveSurfaceNodeAction` semantics govern rearrangement. The shell
+never grows a bespoke page; a new surface is a descriptor registration.
+
+## Motion governance
+
+One token file: `src/motion/motion-tokens.ts` (fast 160, base 220, slow 320,
+register easings, stagger 40ms capped at the first 5). Every animation on the
+surface appears in the interaction inventory; anything animating off-list is a
+defect. Load is alive but inventoried: the designed route entrance is an
+inventory row like every other animation. Reduced motion renders settled and
+static. Transform and opacity only.
+
+## Writing rules
+
+No em or en dashes anywhere: not in code comments, not in UI strings, not in
+markdown. Use colons, periods, commas, semicolons, or parentheses instead.
+
+## Gates (all block merge)
+
+1. Import fence: `npm run gate:fence`
+2. Register lint: `npm run gate:register`
+3. Contrast gate: `npm run gate:contrast`
+4. Motion inventory scan: `npm run gate:motion`
+5. Playwright visual baseline: `npm run test:e2e`

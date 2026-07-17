@@ -1,0 +1,22 @@
+{
+  "name": "@commonplace/theorem-acp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Theorem ACP server modules extracted from apps/web (HANDOFF-CONSOLE-ROUND-2 R2.2, porting by extraction): agent state reducer, local and hosted ACP clients, session manager, and the bridge command surface. Pure server logic, zero CSS, zero framework imports.",
+  "exports": {
+    "./node-upstream": "./src/node-upstream.ts",
+    "./state": "./src/state.ts",
+    "./client": "./src/client.ts",
+    "./hosted-client": "./src/hosted-client.ts",
+    "./session-manager": "./src/session-manager.ts",
+    "./bridge": "./src/bridge.ts"
+  },
+  "scripts": {
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.3"
+  }
+}

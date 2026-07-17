@@ -1,0 +1,64 @@
+/* The --gy bridge (HANDOFF-GREENFIELD-CONSOLE G5): Galley documents render
+   inside the shell with the host owning page geometry, and Galley's ground
+   and surface resolve to the chrome. Prose faces stay Galley's own so
+   documents read like documents inside an IDE that reads like an IDE.
+   This file bridges tokens only; galley.css itself ships from
+   @travis-gilbert/markdown-theory untouched. */
+
+[data-register="intui"] {
+  --gy-surface: var(--ij-editor);
+  --gy-ground: var(--ij-frame);
+  --gy-font-mono: var(--ij-font-mono);
+  --gy-ink: var(--ij-ink);
+  --gy-link: var(--ij-link);
+  --gy-hairline: var(--ij-divider);
+  /* The verify row: no porcelain font tokens leak through markdown-theory
+     defaults. Galley's own prose serif (Vollkorn) self-hosts through
+     next/font; document apparatus UI runs on the chrome face. */
+  --gy-font-prose: var(--font-console-vollkorn), Georgia, 'Times New Roman', serif;
+  --gy-font-ui: var(--ij-font-ui);
+}
+
+/* Host-reset repair: Tailwind preflight strips list markers and heading
+   margins app-wide; Galley owns document rendering, so inside a .galley
+   mount the document semantics come back through Galley's own tokens. */
+[data-register="intui"] .galley ul {
+  list-style: disc;
+  padding-inline-start: var(--gy-space-4);
+}
+
+[data-register="intui"] .galley ol {
+  list-style: decimal;
+  padding-inline-start: var(--gy-space-4);
+}
+
+/* Heading rhythm at console scale (HANDOFF-CONSOLE-ROUND-2 R4.3): galley.css
+   0.1.2 ships the owl rhythm rule at (0,1,0) and then out-specifies it with
+   .galley p / :is(ul, ol) / blockquote resets at (0,1,1), so every body block
+   computes margin-top: 0. With headings text-box trimmed to cap height,
+   descenders paint through the first following line. This block restores the
+   owl and keeps headings owning their space above while staying attached
+   below. It is the downstream pass; SPEC-MDT-CONSOLE-FIXTURE M3 lands the fix
+   upstream and this block is deleted on that upgrade. */
+[data-register="intui"] .galley > * + * {
+  margin-top: var(--gy-space-3);
+}
+
+[data-register="intui"] .galley h1 {
+  margin-top: var(--gy-space-4);
+}
+
+[data-register="intui"] .galley h2 {
+  margin-top: var(--gy-space-5);
+}
+
+[data-register="intui"] .galley h3,
+[data-register="intui"] .galley h4 {
+  margin-top: var(--gy-space-4);
+}
+
+/* A heading stays attached to its first body block: enough clearance for the
+   trimmed descender hang, less than a full flow step. */
+[data-register="intui"] .galley :is(h1, h2, h3, h4, h5, h6) + * {
+  margin-top: var(--gy-space-2);
+}

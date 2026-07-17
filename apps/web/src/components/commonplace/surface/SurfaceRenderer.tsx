@@ -19,7 +19,7 @@ import {
   updateViewInstanceConfigAction,
 } from './surface-actions';
 import type { SurfaceTreeNode } from './types';
-import { CONTAINS_EDGE } from './types';
+import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import styles from './SurfaceRenderer.module.css';
 
 interface SurfaceRendererProps {
@@ -591,34 +591,6 @@ function FallbackCard({
       <pre className={styles.fallbackPre}>{JSON.stringify(props, null, 2)}</pre>
     </div>
   );
-}
-
-function buildSurfaceTree(surfaceId: string, objects: readonly ObjectRef[]): SurfaceTreeNode | null {
-  const map = new Map(objects.map((object) => [object.id, object]));
-  return buildNode(surfaceId, map, new Set());
-}
-
-function buildNode(
-  id: string,
-  map: ReadonlyMap<string, ObjectRef>,
-  visited: Set<string>,
-): SurfaceTreeNode | null {
-  const object = map.get(id);
-  if (!object || visited.has(id)) return null;
-  visited.add(id);
-  const children = (object.relations?.[CONTAINS_EDGE] ?? [])
-    .map((childId) => buildNode(childId, map, visited))
-    .filter((node): node is SurfaceTreeNode => node !== null);
-  visited.delete(id);
-  return { object, children };
-}
-
-function surfaceQuery(): ObjectQuery {
-  return {
-    types: ['surface', 'region', 'view-instance'],
-    traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
-    live: true,
-  };
 }
 
 function objectQueryForInstance(instance: ObjectRef): ObjectQuery | null {
