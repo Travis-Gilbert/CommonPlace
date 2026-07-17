@@ -1,0 +1,33 @@
+/* The --gy bridge (HANDOFF-GREENFIELD-CONSOLE G5): Galley documents render
+   inside the shell with the host owning page geometry, and Galley's ground
+   and surface resolve to the chrome. Prose faces stay Galley's own so
+   documents read like documents inside an IDE that reads like an IDE.
+   This file bridges tokens only; galley.css itself ships from
+   @travis-gilbert/markdown-theory untouched. */
+
+[data-register="intui"] {
+  --gy-surface: var(--ij-editor);
+  --gy-ground: var(--ij-frame);
+  --gy-font-mono: var(--ij-font-mono);
+  --gy-ink: var(--ij-ink);
+  --gy-link: var(--ij-link);
+  --gy-hairline: var(--ij-divider);
+  /* The verify row: no porcelain font tokens leak through markdown-theory
+     defaults. Galley's own prose serif (Vollkorn) self-hosts through
+     next/font; document apparatus UI runs on the chrome face. */
+  --gy-font-prose: var(--font-console-vollkorn), Georgia, 'Times New Roman', serif;
+  --gy-font-ui: var(--ij-font-ui);
+}
+
+/* Host-reset repair: Tailwind preflight strips list markers and heading
+   margins app-wide; Galley owns document rendering, so inside a .galley
+   mount the document semantics come back through Galley's own tokens. */
+[data-register="intui"] .galley ul {
+  list-style: disc;
+  padding-inline-start: var(--gy-space-4);
+}
+
+[data-register="intui"] .galley ol {
+  list-style: decimal;
+  padding-inline-start: var(--gy-space-4);
+}

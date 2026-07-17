@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+
+# Environment
+.env
+.env.*
+
+# Test artifacts (baselines in e2e/*-snapshots ARE committed; results are not)
+test-results/
+playwright-report/
+
+# Misc
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts

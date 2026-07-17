@@ -9,6 +9,13 @@
       "autoPort": true
     },
     {
+      "name": "console",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "console:dev"],
+      "port": 3010,
+      "autoPort": true
+    },
+    {
       "name": "api",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "api:dev"],

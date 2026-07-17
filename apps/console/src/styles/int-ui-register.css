@@ -1,0 +1,131 @@
+/* Int UI register for the CommonPlace harness console.
+   Source of truth: JetBrains/intellij-community
+   platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda)
+   Every value below is the exact shipped Int UI Dark value. Light values come from
+   expUI_light.theme.json in the same directory and are a separate generation pass.
+   Scoped under [data-register="intui"] alongside the porcelain (--cr-*) register.
+   Discipline: no raw color values outside this file; components consume --ij-* only. */
+
+[data-register="intui"] {
+  /* Palette ramps (Int UI Dark, verbatim) */
+  --ij-gray-1: #1E1F22;  --ij-gray-2: #2B2D30;  --ij-gray-3: #393B40;
+  --ij-gray-4: #43454A;  --ij-gray-5: #4E5157;  --ij-gray-6: #5A5D63;
+  --ij-gray-7: #6F737A;  --ij-gray-8: #868A91;  --ij-gray-9: #9DA0A8;
+  --ij-gray-10: #B4B8BF; --ij-gray-11: #CED0D6; --ij-gray-12: #DFE1E5;
+  --ij-gray-13: #F0F1F2; --ij-gray-14: #FFFFFF;
+
+  --ij-blue-1: #25324D;  --ij-blue-2: #2E436E;  --ij-blue-3: #35538F;
+  --ij-blue-4: #375FAD;  --ij-blue-5: #366ACE;  --ij-blue-6: #3574F0;
+  --ij-blue-7: #467FF2;  --ij-blue-8: #548AF7;  --ij-blue-9: #6B9BFA;
+  --ij-blue-10: #83ACFC; --ij-blue-11: #99BBFF;
+
+  --ij-green-1: #253627; --ij-green-2: #273828; --ij-green-3: #375239;
+  --ij-green-5: #4E8052; --ij-green-6: #57965C; --ij-green-7: #5FAD65;
+  --ij-yellow-1: #3D3223; --ij-yellow-2: #5E4D33; --ij-yellow-4: #9E814A;
+  --ij-yellow-5: #BA9752; --ij-yellow-6: #D6AE58;
+  --ij-red-1: #402929;  --ij-red-3: #5E3838;  --ij-red-5: #9C4E4E;
+  --ij-red-6: #BD5757;  --ij-red-7: #DB5C5C;
+  --ij-orange-1: #45322B; --ij-orange-6: #E08855;
+  --ij-purple-2: #3B3147; --ij-purple-7: #955AE0; --ij-purple-9: #B589EC;
+  --ij-teal-2: #1D3D3B;   --ij-teal-7: #24A394;
+
+  /* The four structural surfaces. The Int UI inversion: seams are DARKER than
+     surfaces. Chrome sits on gray-2, the editor well sinks to gray-1, elevation
+     rises to gray-3, and every border is gray-1 or gray-4, never a light line. */
+  --ij-frame: #131314;              /* window frame tabs, deepest layer */
+  --ij-editor: var(--ij-gray-1);    /* editor well, tab strip background */
+  --ij-chrome: var(--ij-gray-2);    /* toolbars, tool windows, status bar */
+  --ij-raised: var(--ij-gray-3);    /* popups, tooltips, hover surfaces */
+  --ij-seam: var(--ij-gray-1);      /* structural borders between regions */
+  --ij-seam-raised: var(--ij-gray-4);   /* border on elevated surfaces */
+  --ij-divider: var(--ij-gray-3);   /* one pixel splitters */
+  --ij-control-border: var(--ij-gray-5);
+
+  /* Ink */
+  --ij-ink: var(--ij-gray-12);
+  --ij-ink-info: var(--ij-gray-7);      /* secondary text, shortcuts, counts */
+  --ij-ink-disabled: var(--ij-gray-6);
+  --ij-ink-bright: var(--ij-gray-14);   /* text on solid accent */
+
+  /* Accent slot. Default is the authentic Int UI blue. The register accepts a
+     brand override by redefining only this block; the oxblood experiment is
+     --ij-accent: oklch(54.25% 0.12 24) with hover and selection resolved, and
+     ships behind a data-accent="oxblood" attribute, not as the default. */
+  --ij-accent: var(--ij-blue-6);
+  --ij-accent-hover: var(--ij-blue-7);
+  --ij-selection: var(--ij-blue-2);
+  --ij-selection-inactive: var(--ij-gray-4);
+  --ij-link: var(--ij-blue-9);
+  --ij-modified: var(--ij-blue-9);      /* modified item foreground */
+  --ij-focus-ring: 2px solid var(--ij-accent);
+
+  /* State overlays (the alpha law, verbatim from ActionButton) */
+  --ij-hover-overlay: #FFFFFF16;    /* 9 percent white */
+  --ij-pressed-overlay: #FFFFFF26;  /* 15 percent white */
+  --ij-hover-surface: var(--ij-gray-3);
+
+  /* Status */
+  --ij-error: var(--ij-red-7);      --ij-error-bg: var(--ij-red-3);
+  --ij-warn: var(--ij-yellow-5);    --ij-warn-bg: var(--ij-yellow-1);
+  --ij-ok: var(--ij-green-6);       --ij-ok-bg: var(--ij-green-1);
+  --ij-running: var(--ij-green-6);  /* run widget while a run is live */
+
+  /* Harness domain accents on Int UI ramps (continuity with prior console
+     semantics: memory green, agent amber, rooms purple, graph teal) */
+  --ij-memory: var(--ij-green-7);   --ij-memory-tint: var(--ij-green-2);
+  --ij-agent: var(--ij-yellow-6);   --ij-agent-tint: var(--ij-yellow-1);
+  --ij-room: var(--ij-purple-7);    --ij-room-tint: var(--ij-purple-2);
+  --ij-graph: var(--ij-teal-7);     --ij-graph-tint: var(--ij-teal-2);
+
+  /* Row tints for record lists (FileColor set, verbatim) */
+  --ij-row-yellow: #3D3223; --ij-row-green: #273828; --ij-row-orange: #45322B;
+  --ij-row-rose: #472B2B;   --ij-row-violet: #3B3147; --ij-row-blue: #1D3D3B;
+  --ij-row-gray: #35363B;
+
+  /* Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,
+     List and Tree rowHeight 24, TabbedPane tabHeight 40, EditorTabs underline
+     height 4 arc 4, Tree border 4 12 4 12, stripe drop area from ToolWindow) */
+  --ij-arc: 8px;
+  --ij-arc-underline: 4px;
+  --ij-control-h: 28px;
+  --ij-control-min-w: 72px;
+  --ij-row-h: 24px;
+  --ij-tab-h: 40px;
+  --ij-underline-h: 4px;
+  --ij-stripe-w: 40px;
+  --ij-toolbar-h: 40px;
+  --ij-statusbar-h: 28px;
+  --ij-tree-inset: 4px 12px;
+
+  /* Type. Int UI ships Inter for UI at 13px and JetBrains Mono for code.
+     Both are OFL and self hostable. JetBrains Mono is already the porcelain
+     register mono, so only Inter is new. */
+  --ij-font-ui: "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --ij-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  --ij-text-ui: 13px;
+  --ij-text-small: 12px;
+  --ij-leading-ui: 1.4;
+
+  /* Motion inherits console durations so the register does not fork rhythm */
+  --ij-motion: 180ms;
+  --ij-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Progress (verbatim: indeterminate Blue9 to Blue5, track Gray4) */
+  --ij-progress: var(--ij-blue-7);
+  --ij-progress-a: var(--ij-blue-9);
+  --ij-progress-b: var(--ij-blue-5);
+  --ij-progress-track: var(--ij-gray-4);
+
+  color-scheme: dark;
+  background: var(--ij-chrome);
+  color: var(--ij-ink);
+  font-family: var(--ij-font-ui);
+  font-size: var(--ij-text-ui);
+  line-height: var(--ij-leading-ui);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-register="intui"] {
+    --ij-motion: 0ms;
+  }
+}

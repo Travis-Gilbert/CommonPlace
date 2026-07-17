@@ -1,0 +1,29 @@
+/* Twenty structural token group (--rec-*) for record surfaces.
+   Provenance: TWENTY-APP-VALUES, read from twentyhq/twenty
+   packages/twenty-ui/src/theme/constants/ (ThemeCommon, FontCommon,
+   BorderCommon) on 2026-07-17. License lane 1: design values, proportions,
+   and metrics are facts, not copyrightable source; no Twenty component
+   source is vendored (AGPL section 13 stays untriggered).
+   Structure only. Material (color, seams, elevation, states) comes from the
+   Int UI register exclusively; two paint systems inside one app is the exact
+   disease being cured. */
+
+[data-register="intui"] {
+  /* spacing(n) = n * 4px */
+  --rec-grid: 4px;
+  /* record table: horizontal cell padding and margin */
+  --rec-cell-pad: 8px;
+  --rec-cell-margin: 8px;
+  /* checkbox / utility column */
+  --rec-utility-col: 32px;
+  /* record detail side panel */
+  --rec-side-panel: 500px;
+  /* sibling gap between adjacent controls */
+  --rec-sibling-gap: 2px;
+  /* the one interaction rule: background only, one tenth of a second, ease */
+  --rec-clickable-transition: background 0.1s ease;
+  /* type weights capped at 600; sizes rem on the shared 13px base */
+  --rec-weight-regular: 400;
+  --rec-weight-medium: 500;
+  --rec-weight-cap: 600;
+}

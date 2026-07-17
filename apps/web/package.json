@@ -55,6 +55,7 @@
     "@codemirror/search": "^6.6.0",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
+    "@commonplace/block-view": "file:../../packages/block-view",
     "@commonplace/block-view-contracts": "file:../../packages/block-view-contracts",
     "@commonplace/coannotate": "file:../../packages/coannotate",
     "@cosmos.gl/graph": "^3.0.0-beta.7",

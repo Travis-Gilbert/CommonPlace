@@ -1,0 +1,94 @@
+'use client';
+
+// SOURCING: @commonplace/block-view (createViewRegistry, ViewDescriptor).
+// The console view registry: every pane the shell can host is a descriptor
+// registered here. The shell never grows a bespoke page; a new surface is a
+// registration in this file (the marriage requirement, G3/G8).
+
+import type { ViewDescriptor, ViewRenderProps } from '@commonplace/block-view/types';
+import { createViewRegistry } from '@commonplace/block-view/registry';
+import { RecordTableView } from './RecordTableView';
+import { GalleyDocView } from './GalleyDocView';
+import { CodeFileView } from './CodeFileView';
+import { ThreadView } from './ThreadView';
+
+function ThreadRender(_props: ViewRenderProps) {
+  return <ThreadView />;
+}
+
+const RECORD_TABLE: ViewDescriptor = {
+  id: 'record.table',
+  name: 'Records',
+  accepts: {},
+  emits: ['select', 'open', 'update'],
+  renderer: 'record.table',
+  source: {
+    package: '@tanstack/react-table',
+    component: 'useReactTable',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: RecordTableView,
+};
+
+const MARKDOWN_DOC: ViewDescriptor = {
+  id: 'markdown.doc',
+  name: 'Document',
+  accepts: {},
+  emits: ['update', 'open'],
+  renderer: 'markdown.doc',
+  source: {
+    package: '@travis-gilbert/markdown-theory',
+    component: 'Galley',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: GalleyDocView,
+};
+
+const CODE_FILE: ViewDescriptor = {
+  id: 'code.file',
+  name: 'Code',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'code.file',
+  source: {
+    package: 'codemirror',
+    component: 'EditorView',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: CodeFileView,
+};
+
+const CHAT_THREAD: ViewDescriptor = {
+  id: 'chat.thread',
+  name: 'Thread',
+  accepts: {},
+  emits: ['run_agent', 'open'],
+  renderer: 'chat.thread',
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: ThreadRender,
+};
+
+export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
+  RECORD_TABLE,
+  MARKDOWN_DOC,
+  CODE_FILE,
+  CHAT_THREAD,
+]);
+
+/** The forward-compat invariant: an unknown descriptor renders the fallback
+ *  card, never a crash, so shared or future arrangements stay safe. */
+export function FallbackCard({ descriptorId }: { descriptorId: string }) {
+  return (
+    <div className="m-3 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-4 text-ij-ink-info">
+      view &quot;{descriptorId}&quot; unavailable: no renderer registered
+    </div>
+  );
+}

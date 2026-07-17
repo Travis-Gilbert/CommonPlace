@@ -1,0 +1,36 @@
+/* Motion register CSS: the only stylesheet allowed to declare animation.
+   Two declarations exist: the status bar indeterminate progress (the register
+   Blue9 to Blue5 treatment) and nothing else. Chrome carries no ambient
+   motion; the ground and the mark animate on canvas, not CSS. */
+
+@keyframes ij-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+.ij-progress-indeterminate {
+  position: relative;
+  overflow: hidden;
+  background: var(--ij-progress-track);
+}
+
+.ij-progress-indeterminate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 33%;
+  background: linear-gradient(90deg, var(--ij-progress-a), var(--ij-progress-b));
+  animation: ij-progress-sweep 1.2s var(--ij-ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ij-progress-indeterminate::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+}

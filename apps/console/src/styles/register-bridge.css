@@ -1,0 +1,128 @@
+/* Tailwind v4 bridge: utilities are emitted from --ij-* (and the --rec-*
+   structural group) ONLY. No raw values appear here; every entry aliases a
+   register token, so bg-ij-chrome, text-ij-ink, rounded-ij-arc and friends
+   resolve to the pinned Int UI values. Adding a utility means adding an alias
+   to a token that already exists in a register file, never a literal. */
+
+@theme inline {
+  /* Reset Tailwind's stock palette so raw palette utilities (bg-red-500 and
+     friends) do not exist on this surface; the register is the only paint. */
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+
+  /* Surfaces */
+  --color-ij-frame: var(--ij-frame);
+  --color-ij-editor: var(--ij-editor);
+  --color-ij-chrome: var(--ij-chrome);
+  --color-ij-raised: var(--ij-raised);
+  --color-ij-seam: var(--ij-seam);
+  --color-ij-seam-raised: var(--ij-seam-raised);
+  --color-ij-divider: var(--ij-divider);
+  --color-ij-control-border: var(--ij-control-border);
+
+  /* Ink */
+  --color-ij-ink: var(--ij-ink);
+  --color-ij-ink-info: var(--ij-ink-info);
+  --color-ij-ink-disabled: var(--ij-ink-disabled);
+  --color-ij-ink-bright: var(--ij-ink-bright);
+
+  /* Accent slot */
+  --color-ij-accent: var(--ij-accent);
+  --color-ij-accent-hover: var(--ij-accent-hover);
+  --color-ij-selection: var(--ij-selection);
+  --color-ij-selection-inactive: var(--ij-selection-inactive);
+  --color-ij-link: var(--ij-link);
+  --color-ij-modified: var(--ij-modified);
+
+  /* State overlays */
+  --color-ij-hover-overlay: var(--ij-hover-overlay);
+  --color-ij-pressed-overlay: var(--ij-pressed-overlay);
+  --color-ij-hover-surface: var(--ij-hover-surface);
+
+  /* Status */
+  --color-ij-error: var(--ij-error);
+  --color-ij-error-bg: var(--ij-error-bg);
+  --color-ij-warn: var(--ij-warn);
+  --color-ij-warn-bg: var(--ij-warn-bg);
+  --color-ij-ok: var(--ij-ok);
+  --color-ij-ok-bg: var(--ij-ok-bg);
+  --color-ij-running: var(--ij-running);
+
+  /* Learned register (gold) and domain accents */
+  --color-ij-gold: var(--ij-gold);
+  --color-ij-gold-tint: var(--ij-gold-tint);
+  --color-ij-memory: var(--ij-memory);
+  --color-ij-memory-tint: var(--ij-memory-tint);
+  --color-ij-agent: var(--ij-agent);
+  --color-ij-agent-tint: var(--ij-agent-tint);
+  --color-ij-room: var(--ij-room);
+  --color-ij-room-tint: var(--ij-room-tint);
+  --color-ij-graph: var(--ij-graph);
+  --color-ij-graph-tint: var(--ij-graph-tint);
+
+  /* Row tints */
+  --color-ij-row-yellow: var(--ij-row-yellow);
+  --color-ij-row-green: var(--ij-row-green);
+  --color-ij-row-orange: var(--ij-row-orange);
+  --color-ij-row-rose: var(--ij-row-rose);
+  --color-ij-row-violet: var(--ij-row-violet);
+  --color-ij-row-blue: var(--ij-row-blue);
+  --color-ij-row-gray: var(--ij-row-gray);
+
+  /* Progress */
+  --color-ij-progress: var(--ij-progress);
+  --color-ij-progress-a: var(--ij-progress-a);
+  --color-ij-progress-b: var(--ij-progress-b);
+  --color-ij-progress-track: var(--ij-progress-track);
+
+  /* Radii */
+  --radius-ij-arc: var(--ij-arc);
+  --radius-ij-arc-underline: var(--ij-arc-underline);
+
+  /* Type */
+  --font-ij-ui: var(--ij-font-ui);
+  --font-ij-mono: var(--ij-font-mono);
+
+  /* Structural metrics as named spacing so h-ij-row, w-ij-stripe resolve */
+  --spacing-ij-row: var(--ij-row-h);
+  --spacing-ij-control: var(--ij-control-h);
+  --spacing-ij-tab: var(--ij-tab-h);
+  --spacing-ij-stripe: var(--ij-stripe-w);
+  --spacing-ij-toolbar: var(--ij-toolbar-h);
+  --spacing-ij-statusbar: var(--ij-statusbar-h);
+  --spacing-ij-underline: var(--ij-underline-h);
+  --spacing-rec-grid: var(--rec-grid);
+  --spacing-rec-cell-pad: var(--rec-cell-pad);
+  --spacing-rec-utility-col: var(--rec-utility-col);
+  --spacing-rec-side-panel: var(--rec-side-panel);
+  --spacing-rec-sibling-gap: var(--rec-sibling-gap);
+}
+
+/* The learned-register gold pair (HANDOFF-GREENFIELD-CONSOLE named choice 10,
+   G2): resolved from the Int UI Yellow ramp, AA on chrome. Yellow6 #D6AE58 on
+   Gray2 #2B2D30 computes to 6.6:1 (the contrast gate verifies in CI). The tint
+   is the Yellow1 surface the agent/warn tints already use. Defined here, not
+   by editing int-ui-register.css, because that file lands as-is. */
+[data-register="intui"] {
+  --ij-gold: var(--ij-yellow-6);
+  --ij-gold-tint: var(--ij-yellow-1);
+}
+
+/* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink
+   (gray-7 #6F737A) computes to 2.90:1 on chrome, under the 3.0 apparatus
+   floor markdown-theory's ink3 role requires. The register file stays
+   verbatim; this bridge re-points info one ramp step up to gray-8 #868A91
+   (3.98:1 on chrome), the same override pattern the gold pair uses. */
+[data-register="intui"] {
+  --ij-ink-info: var(--ij-gray-8);
+}
+
+/* Self-hosted font bridge: next/font/local-style variables from layout.tsx
+   re-point the register faces at the self-hosted Inter and JetBrains Mono
+   families (next/font renames families, so the register's literal "Inter"
+   stack cannot see them without this bridge). */
+[data-register="intui"] {
+  --ij-font-ui: var(--font-console-inter), "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --ij-font-mono: var(--font-console-jbmono), "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+}
