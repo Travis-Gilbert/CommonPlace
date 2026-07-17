@@ -1,4 +1,4 @@
-// SOURCING: @travis-gilbert/markdown-theory (Galley) — the memory body renders
+// SOURCING: @travis-gilbert/markdown-theory (Galley): the memory body renders
 // through the project's markdown renderer (the same Galley used by published
 // blocks). The surrounding read-state shell (loading / error / tenant-unset /
 // header strip) is thin composition; no upstream component models a harness

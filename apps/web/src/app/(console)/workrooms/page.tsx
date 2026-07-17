@@ -468,9 +468,9 @@ function Routes({ items, busy, run }: { items: RouteCard[]; busy: string | null;
                 <span className={styles.kvKey}>cost</span><span className={styles.kvVal}>{r.cost.known ? r.cost.label : 'unknown'}</span>
               </div>
               <div className={styles.counters}>
-                <div><div className={styles.counterVal}>{r.counters.requestsSeen ?? '—'}</div><div className={styles.counterKey}>requests</div></div>
-                <div><div className={styles.counterVal}>{r.counters.anthropicMessagesSeen ?? '—'}</div><div className={styles.counterKey}>anthropic</div></div>
-                <div><div className={styles.counterVal}>{r.counters.openaiResponsesSeen ?? '—'}</div><div className={styles.counterKey}>openai</div></div>
+                <div><div className={styles.counterVal}>{r.counters.requestsSeen ?? '·'}</div><div className={styles.counterKey}>requests</div></div>
+                <div><div className={styles.counterVal}>{r.counters.anthropicMessagesSeen ?? '·'}</div><div className={styles.counterKey}>anthropic</div></div>
+                <div><div className={styles.counterVal}>{r.counters.openaiResponsesSeen ?? '·'}</div><div className={styles.counterKey}>openai</div></div>
               </div>
               <div className={styles.actions}>
                 <SourceBadge source={r.source} />

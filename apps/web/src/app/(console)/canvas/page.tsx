@@ -1,4 +1,4 @@
-/* Canvas (Commonplaces): the Obsidian JSON Canvas — the spatial workspace.
+/* Canvas (Commonplaces): the Obsidian JSON Canvas: the spatial workspace.
    Carried over from the harness console, NOT dropped: it lives under the
    Commonplaces tab as part of the workspace. The `.canvas` format (nodes:
    text/file/link/group; edges with sides + labels) renders here in porcelain.

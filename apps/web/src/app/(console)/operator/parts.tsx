@@ -3,7 +3,7 @@
 /* Shared porcelain primitives for the Operator surface. V2 color law: ink is
    calm + information, amber is waiting-on-a-human + open PR, oxblood means
    blocked and nothing else on this screen, green is pass/merged. Fixture
-   honesty is one dev-mode dot in the breadcrumb rail — never a badge per card. */
+   honesty is one dev-mode dot in the breadcrumb rail: never a badge per card. */
 
 import type { OperatorSourceMode } from '@/lib/theorem-operator';
 import styles from './operator.module.css';

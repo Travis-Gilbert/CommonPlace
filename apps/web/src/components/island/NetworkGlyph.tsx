@@ -1,5 +1,5 @@
 /**
- * NetworkGlyph — the networking/graph mark (noun-project 6472628), used for the
+ * NetworkGlyph: the networking/graph mark (noun-project 6472628), used for the
  * omnibar's fractal-expansion (graph → web) mode. Single-path SVG rendered in
  * `currentColor` so it inherits the button's text colour like a lucide icon.
  */

@@ -1,9 +1,9 @@
 'use client';
 
-/* The Task Dial composer — Chat ui 3's shell (Base UI Combobox + PreviewCard +
+/* The Task Dial composer: Chat ui 3's shell (Base UI Combobox + PreviewCard +
    textarea + send) re-purposed: the dial addresses the room, not a model.
    Default pill reads "Theorem" (the room itself, answered from substrate).
-   The popup lists quick actions that insert a prewritten prompt for editing —
+   The popup lists quick actions that insert a prewritten prompt for editing : 
    never immediate send. /claude and /codex prefix the message as a mention
    delivered via coordinate; typing / in the textarea surfaces the same list.
    Hovering a head shows its live stat block (PreviewCard), fed real numbers.
@@ -172,7 +172,7 @@ export function TaskDialComposer({
 
       <textarea
         className={styles.dialText}
-        placeholder={target.kind === 'room' ? 'Ask the room — status, receipts, recall…' : `Message ${target.label}…`}
+        placeholder={target.kind === 'room' ? 'Ask the room: status, receipts, recall…' : `Message ${target.label}…`}
         value={text}
         disabled={busy}
         onChange={(e) => setText(e.target.value)}
@@ -225,7 +225,7 @@ export function TaskDialComposer({
                               ) : (
                                 <span className={styles.dialItemFace}>
                                   <span className={styles.dialMark} aria-hidden="true" />
-                                  Theorem — the room itself
+                                  Theorem: the room itself
                                 </span>
                               )}
                             </Combobox.Item>

@@ -3,7 +3,7 @@
    Usage all port here (almost everything from the old console lands under Agents).
 
    Backend truth: in harness-console these reads were served by the mock client
-   (`liveClient = { ...mockClient }`) — they were never live-wired. Making them
+   (`liveClient = { ...mockClient }`): they were never live-wired. Making them
    live requires ADDING resolvers to the canonical harness GraphQL
    (rustyred-thg-mcp/src/graphql), then a fixture->live seam per surface. Each
    card below is a real surface target; its data binds as that lands. */

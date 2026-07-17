@@ -1,9 +1,9 @@
 'use client';
 
-/* Row 2 — the attention strip. At most three chips, rendered only when nonzero:
+/* Row 2: the attention strip. At most three chips, rendered only when nonzero:
    Awaiting you, Blocked, New at gate. Ink on parchment; the amber left-dot marks
    a chip that demands action. When all are zero the strip does not render and
-   the bays rise. Clicking scrolls or filters — never navigates away. */
+   the bays rise. Clicking scrolls or filters: never navigates away. */
 
 import styles from './operator.module.css';
 

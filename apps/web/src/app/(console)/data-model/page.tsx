@@ -1,6 +1,6 @@
 'use client';
 
-// TW4 data-model page — stateful type editing over DataCanvas.
+// TW4 data-model page: stateful type editing over DataCanvas.
 // Maintains a live TypeDef[] array via a BlockHost that applies
 // create / update (addField, renameField, deleteField) / link / delete
 // mutations. Positions persist to localStorage and survive reload.
@@ -86,7 +86,7 @@ function savePositions(pos: PositionMap): void {
   try {
     localStorage.setItem(POSITIONS_KEY, JSON.stringify(pos));
   } catch {
-    /* quota exceeded – ignore */
+    /* quota exceeded, ignore */
   }
 }
 

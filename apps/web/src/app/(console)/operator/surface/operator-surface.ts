@@ -1,8 +1,8 @@
-/* SPEC-OBJECT-CONTRACT-V2 OC5 — the Operator surface expressed as objects.
+/* SPEC-OBJECT-CONTRACT-V2 OC5: the Operator surface expressed as objects.
  *
  * The attention strip, bays, and queue are view-instances; the arrangement is a
  * region tree. Both layouts reuse the SAME three instances (op-attention,
- * op-bays, op-queue) — only the region tree and the bays' descriptor differ. A
+ * op-bays, op-queue): only the region tree and the bays' descriptor differ. A
  * diff of the two surfaces is a diff of these objects, nothing else. This is the
  * proof: rearranging the Operator is editing data, not code. */
 
@@ -72,7 +72,7 @@ export function buildOperatorSurface(layout: OperatorLayout): ObjectRef[] {
     return [surface('operator-alt', ['op-split']), split, left, right, attention, queue, bays];
   }
 
-  // Default: one stack — attention, bays (as cards), then the queue.
+  // Default: one stack: attention, bays (as cards), then the queue.
   const main = region('op-main', 'stack', ['op-attention', 'op-bays', 'op-queue']);
   return [surface('operator', ['op-main']), main, attention, bays, queue];
 }

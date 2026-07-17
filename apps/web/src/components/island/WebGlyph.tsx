@@ -1,5 +1,5 @@
 /**
- * WebGlyph — a browser-window mark (noun-project 8223194), used for the
+ * WebGlyph: a browser-window mark (noun-project 8223194), used for the
  * omnibar's web-search mode. Rendered in `currentColor` like a lucide icon.
  */
 

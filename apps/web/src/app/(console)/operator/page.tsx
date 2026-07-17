@@ -2,13 +2,13 @@
 
 /* Operator surface, V2 presentation (SPEC-OPERATOR-SURFACE-V2 + OBJECT-CONTRACT-V2
  * OC5). A monitoring screen with a triage strip, not a Kanban board: one glance
- * answers who needs me, what is moving, what is stuck — everything else lives
+ * answers who needs me, what is moving, what is stuck: everything else lives
  * behind a click.
  *
  * The arrangement (attention strip, bays, queue) is no longer hand-composed
  * here: it is a surface object rendered through <SurfaceRenderer> over an
  * OperatorBlockHost. Switching "Layout" swaps a second surface object (queue
- * left, bays as a table right) with zero code change — the proof that layouts
+ * left, bays as a table right) with zero code change: the proof that layouts
  * are data. The rail, Room Panel, Gate drawer, and Bootstrap stay as the page
  * shell around the interpreted surface. State comes only from the substrate via
  * GET /api/theorem/operator; typed POST actions return structured results. */
@@ -135,7 +135,7 @@ export default function OperatorPage() {
   return (
     <>
       <div className={styles.col}>
-        {/* Row 1 — breadcrumb rail. CONVENTION: monitoring surfaces omit the
+        {/* Row 1: breadcrumb rail. CONVENTION: monitoring surfaces omit the
             p-top / p-h1 title block that content surfaces (account, settings,
             canvas) open with; the triage strip is the anchor, not a display
             heading. Deliberate divergence, not an oversight. */}
@@ -145,7 +145,7 @@ export default function OperatorPage() {
             <button
               className={styles.refresh}
               onClick={() => setLayout((l) => (l === 'alt' ? 'default' : 'alt'))}
-              title="Swap the surface arrangement — same instances, different layout object"
+              title="Swap the surface arrangement: same instances, different layout object"
             >
               Layout: {layout === 'alt' ? 'Split' : 'Stack'}
             </button>
@@ -165,7 +165,7 @@ export default function OperatorPage() {
         {error && <div className={styles.errorCard}>Operator surface unavailable: {error.message}</div>}
         {loading && !data && <div className={styles.loading}>Loading the board…</div>}
 
-        {/* Rows 2–5 — the interpreted surface: attention strip, bays, queue. */}
+        {/* Rows 2 to 5: the interpreted surface: attention strip, bays, queue. */}
         {host && <SurfaceRenderer surfaceId={operatorSurfaceId(layout)} host={host} chrome={false} />}
         <LibraryPanel />
       </div>

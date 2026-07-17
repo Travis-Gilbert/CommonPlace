@@ -1,9 +1,9 @@
 'use client';
 
-/* Row 4 — the Next queue. A compact ranked list (h-40 rows): drag handle,
+/* Row 4: the Next queue. A compact ranked list (h-40 rows): drag handle,
    status dot, title, one lane chip maximum, age right-aligned. A blocked row
-   shows the amber dot and carries its reason as the dot's tooltip — no inline
-   refusal sentences. Row 5 — Icebox and Done stay as collapsed disclosures.
+   shows the amber dot and carries its reason as the dot's tooltip: no inline
+   refusal sentences. Row 5: Icebox and Done stay as collapsed disclosures.
    Drag-to-reorder writes priority (@hello-pangea/dnd); collapsibles are Radix. */
 
 import { useMemo, useState } from 'react';
@@ -117,7 +117,7 @@ export function Queue({
       <section aria-label="Next">
         <div className={styles.laneHead}>
           <h2 className={styles.laneTitle}>Next</h2>
-          {blockedOnly && <span className={styles.laneHint}>blocked only — clear via the strip</span>}
+          {blockedOnly && <span className={styles.laneHint}>blocked only: clear via the strip</span>}
         </div>
         {nextOrdered.length === 0 ? (
           <Empty>{blockedOnly ? 'Nothing blocked.' : 'Queue empty.'}</Empty>

@@ -1,6 +1,6 @@
 'use client';
 
-/* BayCard story — every state on one screen, fixture-only. Not in the rail;
+/* BayCard story: every state on one screen, fixture-only. Not in the rail;
    exists so the card can be critiqued in isolation (spec process step 2) and
    revisited when states change. Route: /operator/story */
 
@@ -47,7 +47,7 @@ const STATES: { name: string; bay: Bay; urgency: 'calm' | 'waiting' | 'blocked' 
       task: task('t1', 'OP4 run drawer: receipts inside CommonPlace'),
       streaming: true,
       prLight: 'open',
-      lastStep: 'Verify First v1–v4 checked',
+      lastStep: 'Verify First v1 to v4 checked',
     }),
   },
   {

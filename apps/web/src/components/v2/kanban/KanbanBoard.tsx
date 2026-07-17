@@ -135,7 +135,7 @@ export const KanbanBoard: FC<KanbanBoardProps> = ({
   if (!objects.length) {
     return (
       <div className={styles['kb-empty']} role="status">
-        <div className={styles['kb-empty-icon']}>📋</div>
+        <div className={styles['kb-empty-icon']} aria-hidden="true">▦</div>
         <p className={styles['kb-empty-text']}>No records yet</p>
         <p className={styles['kb-empty-hint']}>
           Create records to see them organized on the board.

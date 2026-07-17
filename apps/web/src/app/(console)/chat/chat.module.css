@@ -5,7 +5,7 @@
    ONLY the porcelain stylesheets so the legacy cascade cannot restyle it, so
    `--cp-*` would resolve to nothing here. `.bridge` re-declares each `--cp-*`
    the island components use in terms of a porcelain token, scoped to this
-   surface — the component renders unchanged, in the shell's design language,
+   surface: the component renders unchanged, in the shell's design language,
    without importing the legacy cascade. */
 
 .wrap {
@@ -27,7 +27,7 @@
   --cp-text: var(--ink);
   --cp-text-muted: var(--ink-dim);
   --cp-text-faint: var(--ink-faint);
-  /* accent (oxblood) — the island's "red" is the porcelain accent */
+  /* accent (oxblood): the island's "red" is the porcelain accent */
   --cp-red: var(--accent);
   --cp-red-soft: var(--accent-soft);
   /* the island's teal (graph-source hint) has no porcelain analogue; fold it

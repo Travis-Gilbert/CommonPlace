@@ -1,6 +1,6 @@
 'use client';
 
-/* OP5 — the gate. The single mandatory human decision, as a PR review. One card
+/* OP5: the gate. The single mandatory human decision, as a PR review. One card
    per task in review: acceptance marks with cited (linked, not pasted) evidence,
    the cross-review verdict and what the reviewer tried to break, the changed-file
    list, and commit links. Pass is disabled until every acceptance mark is met with
@@ -112,7 +112,7 @@ function GateCard({
           </div>
         </div>
       ) : (
-        <div className={styles.reviewMissing}>No cross-review yet — the other head must review the diff first.</div>
+        <div className={styles.reviewMissing}>No cross-review yet: the other head must review the diff first.</div>
       )}
 
       {/* Changed files + commits */}

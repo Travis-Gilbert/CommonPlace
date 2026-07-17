@@ -1,6 +1,6 @@
 'use client';
 
-/* OP3 — assign and bootstrap. Dispatch-as-spawner is out of scope for v1: "Send
+/* OP3: assign and bootstrap. Dispatch-as-spawner is out of scope for v1: "Send
    to head" assigns the task and renders a copy-ready session bootstrap block (task
    id, governing handoff path, and the one-line opener that invokes the AGENTS.md
    protocol). Pasted into a fresh head session, it makes that head claim the task.

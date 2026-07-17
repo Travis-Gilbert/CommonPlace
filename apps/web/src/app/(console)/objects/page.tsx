@@ -1,6 +1,6 @@
 'use client';
 
-/* SPEC-OBJECT-CONTRACT-V2 — a live object surface over the Rust commonplace-api.
+/* SPEC-OBJECT-CONTRACT-V2: a live object surface over the Rust commonplace-api.
  *
  * The arrangement is local objects; the data is a live query against the
  * substrate through HttpBlockHost -> POST /objects/query. Nothing above the
@@ -56,8 +56,8 @@ export default function LiveObjectsPage() {
         <p style={{ color: 'var(--ink-dim)' }}>
           This surface renders live from the substrate through <code>HttpBlockHost</code> over{' '}
           <code>commonplace-api</code> (<code>POST /objects/query</code>). Set{' '}
-          <code>NEXT_PUBLIC_BLOCKVIEW_API_BASE</code> — and <code>NEXT_PUBLIC_BLOCKVIEW_API_KEY</code>{' '}
-          if the API is gated — to a running <code>commonplace-api</code> to go live. The arrangement
+          <code>NEXT_PUBLIC_BLOCKVIEW_API_BASE</code>: and <code>NEXT_PUBLIC_BLOCKVIEW_API_KEY</code>{' '}
+          if the API is gated: to a running <code>commonplace-api</code> to go live. The arrangement
           and renderers above the BlockHost seam are identical to the in-memory surfaces.
         </p>
       </div>
