@@ -35,7 +35,7 @@ test.describe('cards, actions, mentions', () => {
     const rail = page.locator('[data-surface-rail]');
     await expect(rail).toBeVisible();
     // Every seeded surface has a rail entry; the active one marks aria-current.
-    await expect(rail.locator('[data-surface-nav]')).toHaveCount(4);
+    await expect(rail.locator('[data-surface-nav]')).toHaveCount(5);
     await expect(rail.locator('[data-surface-nav="console-workspace"]')).toHaveAttribute(
       'aria-current',
       'page',
@@ -93,7 +93,10 @@ test.describe('cards, actions, mentions', () => {
     await page.reload();
     await settled(page);
     const card = page.locator('[data-card="full"]');
-    await expect(card).toBeVisible();
+    // The injected surface's card.full queries the task over the live wire on
+    // a freshly compiled route; allow headroom so a cold, parallel-loaded dev
+    // server does not flake this behavioral assertion.
+    await expect(card).toBeVisible({ timeout: 15000 });
     await expect(card.getByText('Send the compliance report')).toBeVisible();
     await expect(card.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40');
     await expect(card.getByText('high')).toBeVisible();

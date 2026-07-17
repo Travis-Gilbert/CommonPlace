@@ -32,6 +32,7 @@ import { RecordInspector } from '@/views/RecordInspector';
 import {
   IconCards,
   IconDoc,
+  IconInspector,
   IconModel,
   IconRail,
   IconRecords,
@@ -49,6 +50,7 @@ const SURFACE_ICONS: Record<string, typeof IconRecords> = {
   documents: IconDoc,
   cards: IconCards,
   model: IconModel,
+  review: IconInspector,
 };
 
 /** Region icon slugs carried on the surface object; the glyphs stay in the

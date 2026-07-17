@@ -9,8 +9,9 @@ async function openReview(page: import('@playwright/test').Page) {
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.getByRole('button', { name: 'Layout: Workspace' }).click();
-  await page.getByRole('option', { name: 'Review' }).click();
+  // Screen navigation is the leftmost stripe's surfaces group (the toolbar
+  // dropdown was replaced by the stripe surfaces group).
+  await page.locator('[data-surface-nav="console-review"]').click();
   await expect(page.locator('[data-active-surface="console-review"]')).toBeVisible();
   await expect(page.getByTestId('hunk-review')).toBeVisible();
 }
