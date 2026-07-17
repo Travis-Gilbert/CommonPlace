@@ -1,5 +1,10 @@
 import { AcpClient, type AcpSessionNotification, type RequestPermissionRequest } from './client';
 import {
+  HostedAcpClient,
+  hostedAgentIdForKey,
+  resolveAcpTransport,
+} from './hosted-client';
+import {
   applySessionUpdate,
   beginTurn,
   completeTurn,
@@ -13,7 +18,7 @@ import {
 } from './state';
 
 export type AcquiredAcpSession = {
-  client: AcpClient;
+  client: AcpTransport;
   sessionId: string;
   getState(): TheoremAgentState;
   subscribe(listener: (state: TheoremAgentState) => void): () => void;
@@ -22,8 +27,10 @@ export type AcquiredAcpSession = {
   cancel(): Promise<void>;
 };
 
+type AcpTransport = AcpClient | HostedAcpClient;
+
 type ProcessEntry = {
-  client: AcpClient;
+  client: AcpTransport;
   sessions: Map<string, ManagedAcpSession>;
 };
 
@@ -38,7 +45,7 @@ class ManagedAcpSession implements AcquiredAcpSession {
   #permissions = new Map<string, PendingDecision>();
 
   constructor(
-    readonly client: AcpClient,
+    readonly client: AcpTransport,
     readonly sessionId: string,
     readonly key: AgentProcessKey,
   ) {
@@ -169,17 +176,25 @@ export class AcpSessionManager {
   }
 
   async #spawnProcess(processKey: string, key: AgentProcessKey): Promise<ProcessEntry> {
-    let client: AcpClient | undefined;
+    let client: AcpTransport | undefined;
     try {
-      client = await AcpClient.spawn({
-        bin: process.env.THEOREM_ACP_BIN ?? 'theorem',
-        args: (process.env.THEOREM_ACP_ARGS ?? 'acp').split(/\s+/).filter(Boolean),
-        cwd: key.mount,
-        env: {
-          THEOREM_MODEL_BACKEND_KIND: key.mode,
-          ...(key.bindingId ? { THEOREM_COMPOSED_AGENT_BINDING_ID: key.bindingId } : {}),
-        },
-      });
+      if (resolveAcpTransport() === 'hosted') {
+        client = await HostedAcpClient.connect({
+          agentId: hostedAgentIdForKey(key.mode, key.bindingId),
+          cwd: key.mount,
+          bindingId: key.bindingId,
+        });
+      } else {
+        client = await AcpClient.spawn({
+          bin: process.env.THEOREM_ACP_BIN ?? 'theorem',
+          args: (process.env.THEOREM_ACP_ARGS ?? 'acp').split(/\s+/).filter(Boolean),
+          cwd: key.mount,
+          env: {
+            THEOREM_MODEL_BACKEND_KIND: key.mode,
+            ...(key.bindingId ? { THEOREM_COMPOSED_AGENT_BINDING_ID: key.bindingId } : {}),
+          },
+        });
+      }
       await client.initialize(1);
       const entry: ProcessEntry = { client, sessions: new Map() };
       client.onSessionUpdate((notification) => entry.sessions.get(notification.sessionId)?.onUpdate(notification));

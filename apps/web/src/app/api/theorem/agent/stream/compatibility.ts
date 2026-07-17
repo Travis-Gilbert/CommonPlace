@@ -22,7 +22,9 @@ export function isAcpSpawnUnavailable(error: unknown): boolean {
     message.includes('spawn theorem enoent') ||
     message.includes('enoent') ||
     message.includes('theorem cli was not included') ||
-    message.includes('not found')
+    message.includes('not found') ||
+    message.includes('hosted acp') ||
+    message.includes('agent stdout is no longer readable')
   );
 }
 
