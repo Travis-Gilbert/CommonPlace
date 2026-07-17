@@ -1,21 +1,35 @@
 import NextAuth from 'next-auth';
 import GitHub from 'next-auth/providers/github';
-
-// Only allow Travis's GitHub account to authenticate.
-// All other GitHub users are rejected at sign-in.
-const ALLOWED_GITHUB_USERNAME = 'Travis-Gilbert';
+import { githubHarnessIdentity, isOwnerGithubLogin } from '@/lib/account-identity';
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
+  // Railway terminates TLS in front of the Next.js process. Set AUTH_TRUST_HOST=true
+  // in Railway (or any reverse-proxied deployment) so OAuth uses the forwarded public
+  // host instead of the internal 0.0.0.0 address. Also trusted in development so
+  // local OAuth redirects work without additional env configuration.
+  trustHost:
+    process.env.AUTH_TRUST_HOST === 'true' || process.env.NODE_ENV === 'development',
   providers: [GitHub],
   callbacks: {
-    async signIn({ profile }) {
-      // Restrict access to the site owner's GitHub account
-      return profile?.login === ALLOWED_GITHUB_USERNAME;
+    async jwt({ token, account, profile }) {
+      if (account?.provider === 'github') {
+        token.githubLogin = typeof profile?.login === 'string' ? profile.login : undefined;
+        token.providerAccountId = account.providerAccountId;
+      }
+      // Preserve legacy owner token state for sessions minted before this change.
+      // Old JWTs have no githubLogin but may have isOwner=true from prior logic.
+      token.isOwner =
+        token.githubLogin !== undefined
+          ? isOwnerGithubLogin(token.githubLogin)
+          : token.isOwner ?? false;
+      return token;
     },
     async session({ session, token }) {
-      // Attach isOwner flag to the session object
       if (session.user) {
-        (session.user as any).isOwner = true;
+        session.user.isOwner = token.isOwner === true;
+        session.user.githubLogin =
+          typeof token.githubLogin === 'string' ? token.githubLogin : undefined;
+        session.user.harnessIdentity = githubHarnessIdentity(token.providerAccountId);
       }
       return session;
     },

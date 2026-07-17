@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
-/* Account has no root surface of its own: Agents is the primary subpage
-   (almost all migrated surfaces live there). Redirect to it. */
+/* Identity is the account entry point. Agent credentials and memory remain on
+   the Agents tab after the person has signed in. */
 export default function AccountIndex() {
-  redirect('/account/agents');
+  redirect('/account/user');
 }
