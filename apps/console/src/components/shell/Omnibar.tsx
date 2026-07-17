@@ -83,13 +83,13 @@ export function OmnibarField() {
     <button
       type="button"
       data-omnibar-field
-      aria-label="Ask; Ctrl+L in desktop opens Ask, Shift Shift opens Search"
+      aria-label="Ask; Ctrl+L or Cmd+L in desktop opens Ask; Shift Shift opens Search"
       aria-keyshortcuts="Meta+L Control+L"
       onClick={() => openOmnibar('ask')}
       className="flex h-ij-control w-full max-w-144 items-center rounded-ij-arc border border-ij-control-border bg-ij-chrome px-3 text-left text-ij-ink-disabled hover:border-ij-seam-raised hover:text-ij-ink-info"
       style={{ transition: 'var(--rec-clickable-transition)' }}
     >
-      Ask · Ctrl+L desktop · Shift Shift searches
+      Ask, Ctrl+L desktop, Shift Shift searches
     </button>
   );
 }
