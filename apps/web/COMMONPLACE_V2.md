@@ -58,7 +58,7 @@ Server-only (set on the hosting service; never `NEXT_PUBLIC_`):
 | `THEOREM_GRAPHQL_URL` | `http://127.0.0.1:50090` | the Railway `commonplace-api` URL |
 | `THEOREM_API_KEY` | `dev-key` | the instance key (`COMMONPLACE_API_KEY` on the Railway service) |
 | `AUTH_SECRET` | (set any value) | a rotated secret (next-auth) |
-| `AUTH_TRUST_HOST` | `true` | `true` behind Railway's reverse proxy |
+| `AUTH_TRUST_HOST` | `true` (auto in dev) | `true` (required behind Railway's reverse proxy) |
 | `AUTH_GITHUB_ID` | GitHub OAuth app client id | GitHub OAuth app client id |
 | `AUTH_GITHUB_SECRET` | GitHub OAuth app client secret | GitHub OAuth app client secret |
 | `COMMONPLACE_ALLOW_CLIENT_INSTANCE_OVERRIDE` | `1` | unset unless trusted clients may select localhost/private-LAN instances |
