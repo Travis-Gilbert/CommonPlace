@@ -29,6 +29,7 @@ pub mod collection;
 pub mod content_core;
 pub mod ingest;
 pub mod item;
+pub mod mentions;
 pub mod organize;
 pub mod page;
 pub mod reconstruction;

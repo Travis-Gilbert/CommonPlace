@@ -48,7 +48,17 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
     convertMessage,
     onNew: async (message: AppendMessage) => {
       const text = appendedText(message);
-      if (text) await send(text);
+      if (!text) return;
+      // The /do entry (K3): the composer's slash command opens the action
+      // sheet with the instruction pre-filled instead of sending a message.
+      if (/^\/do\b/i.test(text)) {
+        useShellStore.getState().openActionSheet({
+          instruction: text.replace(/^\/do\b/i, '').trim(),
+          chips: [],
+        });
+        return;
+      }
+      await send(text);
     },
     onCancel: async () => cancel(),
   });
@@ -96,6 +106,9 @@ export function ConsoleApp() {
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
     void host.probe();
+    // Seed the backend's document fixtures once so the Documents surface has
+    // editable, persistent content (the file-editing wire).
+    void host.ensureSeedContent();
     let active = true;
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {

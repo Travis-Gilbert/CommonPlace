@@ -21,12 +21,24 @@ export interface ThreadMessage {
   parts: ThreadTextPart[];
 }
 
+/** An object reference staged into the thread by the action sheet's With-me
+ *  path (HANDOFF-CARDS-ACTIONS-MENTIONS K4): visible above the composer,
+ *  travels with the next message, removable until sent. */
+export interface StagedThreadRef {
+  readonly id: string;
+  readonly label: string;
+  readonly objectId?: string;
+}
+
 export interface ThreadState {
   messages: ThreadMessage[];
   isRunning: boolean;
   error: string | null;
   abort: AbortController | null;
   endpoint: string | null;
+  staged: StagedThreadRef[];
+  stage(refs: readonly StagedThreadRef[]): void;
+  unstage(id: string): void;
   send(text: string): Promise<void>;
   cancel(): void;
 }
@@ -57,10 +69,30 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
   error: null,
   abort: null,
   endpoint: chatEndpoint(),
+  staged: [],
 
-  async send(text: string) {
+  stage(refs) {
+    set((state) => {
+      const seen = new Set(state.staged.map((ref) => ref.id));
+      return { staged: [...state.staged, ...refs.filter((ref) => !seen.has(ref.id))] };
+    });
+  },
+
+  unstage(id) {
+    set((state) => ({ staged: state.staged.filter((ref) => ref.id !== id) }));
+  },
+
+  async send(rawText: string) {
     const endpoint = get().endpoint;
     if (!endpoint || get().isRunning) return;
+    // Staged references travel with the message and clear once sent; they
+    // were visible chips the whole time (no invisible context lane).
+    const staged = get().staged;
+    const refLine = staged
+      .map((ref) => (ref.objectId ? `@[${ref.label}](${ref.objectId})` : ref.label))
+      .join(' ');
+    const text = refLine ? `${rawText}\n${refLine}` : rawText;
+    if (staged.length > 0) set({ staged: [] });
     const userMessage: ThreadMessage = { id: nextId(), role: 'user', parts: [{ type: 'text', text }] };
     const assistantMessage: ThreadMessage = { id: nextId(), role: 'assistant', parts: [{ type: 'text', text: '' }] };
     const abort = new AbortController();

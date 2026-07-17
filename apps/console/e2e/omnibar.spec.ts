@@ -136,30 +136,27 @@ test.describe('omnibar island', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
   });
 
-  test('layout switcher round-trips surfaces with their own arrangements', async ({ page }) => {
+  test('surface rail round-trips surfaces with their own arrangements', async ({ page }) => {
     // Close the workspace's thread window so Workspace has a distinct shape.
     await page.keyboard.press('Alt+9');
     await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
       'aria-pressed',
       'false',
     );
-    // Switch to Index from the toolbar widget.
-    await page.locator('[data-layout-switcher]').click();
-    await page.locator('[data-layout-option="console-index"]').click();
+    // Switch to Index from the leftmost stripe's surfaces group.
+    await page.locator('[data-surface-nav="console-index"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
     // The Index screen: destination rail naming its gap, live triage stream.
     await expect(page.getByText('destinations (connectors')).toBeVisible();
     expect(await page.locator('tbody tr').count()).toBeGreaterThanOrEqual(12);
     // Documents: list left, Galley reading view center.
-    await page.locator('[data-layout-switcher]').click();
-    await page.locator('[data-layout-option="console-docs"]').click();
+    await page.locator('[data-surface-nav="console-docs"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-docs');
     await expect(page.locator('[data-doc-id]').first()).toBeVisible();
     await expect(page.locator('.galley').first()).toBeVisible();
     // Back to Workspace: the closed thread window survived the round trip
     // and a reload (per-surface arrangement snapshots, R3.3).
-    await page.locator('[data-layout-switcher]').click();
-    await page.locator('[data-layout-option="console-workspace"]').click();
+    await page.locator('[data-surface-nav="console-workspace"]').click();
     await expect(page.locator('nav button[aria-label="Thread tool window"]')).toHaveAttribute(
       'aria-pressed',
       'false',

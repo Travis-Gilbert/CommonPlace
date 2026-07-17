@@ -37,6 +37,9 @@ export default defineConfig({
       env: {
         CONSOLE_DATA_API_URL: 'http://localhost:50591',
         CONSOLE_DATA_API_KEY: 'dev-key',
+        // The composer must be live for the /do entry (K3); the sheet's
+        // interception happens before any network send.
+        NEXT_PUBLIC_CONSOLE_CHAT_URL: '/api/chat/stream',
       },
     },
   ],
