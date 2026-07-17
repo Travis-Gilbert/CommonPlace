@@ -28,8 +28,16 @@ test.describe('omnibar island', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-omnibar-island]')).toHaveCount(0);
 
-    // Cursor muscle memory: Ctrl+L opens Ask.
+    // Cursor muscle memory: Ctrl+L opens Ask (the desktop-shell key).
     await page.keyboard.press('Control+l');
+    await expect(page.locator('[data-omnibar-island]')).toBeVisible();
+    await expect(page.locator('[data-omnibar-mode="ask"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-omnibar-island]')).toHaveCount(0);
+
+    // Command-palette convention: Ctrl+K opens Ask too (the browser-reliable
+    // key, since Ctrl/Cmd+L is reserved by browsers for the address bar).
+    await page.keyboard.press('Control+k');
     await expect(page.locator('[data-omnibar-island]')).toBeVisible();
     await expect(page.locator('[data-omnibar-mode="ask"]')).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');

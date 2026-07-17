@@ -84,7 +84,7 @@ export function OmnibarField() {
       type="button"
       data-omnibar-field
       aria-label="Ask, or press Shift Shift"
-      aria-keyshortcuts="Control+L Meta+L"
+      aria-keyshortcuts="Meta+K Control+K Meta+L Control+L"
       onClick={() => openOmnibar('ask')}
       className="flex h-ij-control w-full max-w-144 items-center rounded-ij-arc border border-ij-control-border bg-ij-chrome px-3 text-left text-ij-ink-disabled hover:border-ij-seam-raised hover:text-ij-ink-info"
       style={{ transition: 'var(--rec-clickable-transition)' }}
@@ -126,10 +126,16 @@ export function OmnibarIsland({ host }: { host: BlockHost }) {
     if (target && document.contains(target)) target.focus();
   }, [closeOmnibar]);
 
-  // Global keys: double Shift opens Search; Ctrl or Cmd L opens Ask.
+  // Global keys: double Shift opens Search; Ctrl or Cmd L opens Ask (the
+  // Cursor muscle-memory key from named choice 3, live in the desktop shell),
+  // and Ctrl or Cmd K opens Ask too. The desktop key is browser-reserved for
+  // the address bar, so a browser tab never delivers it to the page; K is the
+  // command-palette convention browsers do deliver, so the keyboard path
+  // works in both targets.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && (event.key === 'l' || event.key === 'L')) {
+      const askKey = event.key === 'l' || event.key === 'L' || event.key === 'k' || event.key === 'K';
+      if ((event.ctrlKey || event.metaKey) && askKey && !event.altKey && !event.shiftKey) {
         event.preventDefault();
         if (!open) prevFocus.current = document.activeElement as HTMLElement | null;
         openOmnibar('ask');
