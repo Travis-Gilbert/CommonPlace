@@ -56,6 +56,11 @@ jobs:
       - name: Console register lint (CR1 + CR2)
         run: pnpm --filter @commonplace/web run lint:register
 
+      # DT: the design-taste gates (emoji, dashes, h-screen, layout-prop
+      # transitions) over the console lane. See scripts/lint-design-taste.mjs.
+      - name: Design taste lint (DT gates)
+        run: pnpm --filter @commonplace/web run lint:taste
+
       - name: Unit tests (vitest)
         run: pnpm --filter @commonplace/web run test
 

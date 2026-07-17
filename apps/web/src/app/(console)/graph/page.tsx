@@ -145,7 +145,7 @@ export default function GraphPage() {
               <span className={styles.focusClear} aria-hidden="true">
                 ✕
               </span>
-              <span className="sr-only"> — clear focus</span>
+              <span className="sr-only">, clear focus</span>
             </button>
           )}
           <span className={styles.srcChip} data-mode={data.source.mode} title={data.source.message ?? undefined}>

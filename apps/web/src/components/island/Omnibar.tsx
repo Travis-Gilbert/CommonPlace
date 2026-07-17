@@ -181,7 +181,7 @@ export default function Omnibar({
   );
 }
 
-/** A graceful failure: a plain-language message only — never the raw backend
+/** A graceful failure: a plain-language message only: never the raw backend
  *  reason (env vars, GraphQL config, stack). The real error rides along in the
  *  `title` tooltip for anyone inspecting, and retry re-runs the same query. */
 function FailureView({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -199,7 +199,7 @@ function FailureView({ message, onRetry }: { message: string; onRetry: () => voi
         </span>
       </div>
       <p className="text-[13px] leading-[1.5]" style={{ color: 'var(--cp-text-muted)' }}>
-        Theorem is down, or the network is slow — we&rsquo;re looking into it.
+        Theorem is down, or the network is slow: we&rsquo;re looking into it.
       </p>
       <button
         type="button"

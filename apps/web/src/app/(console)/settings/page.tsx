@@ -1,4 +1,4 @@
-/* Settings (new tab, sits one above Account). For now it hosts Onboarding —
+/* Settings (new tab, sits one above Account). For now it hosts Onboarding : 
    the former harness-console "claim" flow, renamed (the word "claim" is dropped):
    a coding agent provisions its own key, a human claims it to an account later.
    The full multi-stage flow (choose / agent / signup) ports from

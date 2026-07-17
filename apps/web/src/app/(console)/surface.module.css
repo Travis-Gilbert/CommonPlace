@@ -1,5 +1,5 @@
 /* Shared porcelain layout for the migrated harness-console surfaces (account,
-   settings, canvas). All values resolve through porcelain tokens — no hex, no
+   settings, canvas). All values resolve through porcelain tokens: no hex, no
    edge stripe; cards are "wells" (inset material, light falling in) to match
    the Files tray. Scoped locally per import; safe to share across the routes. */
 

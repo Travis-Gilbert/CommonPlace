@@ -1,5 +1,5 @@
 /**
- * UploadGlyph — an upload/document mark (noun-project 8375073), used for the
+ * UploadGlyph: an upload/document mark (noun-project 8375073), used for the
  * omnibar's attach button. Rendered in `currentColor` like a lucide icon.
  */
 

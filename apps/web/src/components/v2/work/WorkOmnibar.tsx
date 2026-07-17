@@ -122,7 +122,7 @@ export function WorkOmnibar({ onAsk, onOpenStage, onRunTool, disabled }: WorkOmn
           onKeyDown={(event) => {
             if (event.key !== 'Enter') return;
             // Allow Enter to commit when the dropdown has no selectable items
-            // (e.g. free-text question or "no objects — press Enter to ask").
+            // (e.g. free-text question or "no objects: press Enter to ask").
             const hasSelectableItems = slash
               ? stageMatches.length > 0 || toolMatches.length > 0
               : results.length > 0;

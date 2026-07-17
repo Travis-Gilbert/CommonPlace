@@ -44,7 +44,7 @@
 .refresh:hover { background: var(--raised); }
 .refresh:disabled { opacity: 0.5; cursor: default; }
 
-/* Tabs (Radix) — teal active indicator, no red in the nav ------------------- */
+/* Tabs (Radix): teal active indicator, no red in the nav ------------------- */
 
 .tabsRoot {
   display: flex;
@@ -213,7 +213,7 @@
 .dot[data-status='approved'] { background: var(--ok); }
 .dot[data-status='claimed'],
 .dot[data-status='active'] { background: var(--ink); }
-/* blocked: a hollow ring, calm — never red on the board */
+/* blocked: a hollow ring, calm: never red on the board */
 .dot[data-status='blocked'],
 .dot[data-status='deferred'] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-faint); }
 
@@ -298,7 +298,7 @@
   background: var(--raised);
 }
 .btnDanger:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
-/* V2 primary on the Operator: navy — oxblood is reserved for blocked here. */
+/* V2 primary on the Operator: navy: oxblood is reserved for blocked here. */
 .btnNavy {
   composes: btn;
   background: var(--navy);
@@ -831,7 +831,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
    amber = waiting-on-human + open PR, oxblood = blocked ONLY, green = merged.
    Spacing grid: 4/8/12/16/24/32. */
 
-/* Content column — nothing spans the viewport. */
+/* Content column: nothing spans the viewport. */
 .col {
   width: 100%;
   max-width: 1100px;
@@ -839,7 +839,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   padding: 0 32px;
 }
 
-/* Row 1 — breadcrumb rail */
+/* Row 1: breadcrumb rail */
 .crumbRail {
   height: 40px;
   display: flex;
@@ -880,7 +880,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 }
 .devDot[data-mode='live'] { background: var(--ok); }
 
-/* Row 2 — attention strip. Absent when all zero; the bays rise. */
+/* Row 2: attention strip. Absent when all zero; the bays rise. */
 .strip {
   min-height: 56px;
   display: flex;
@@ -909,7 +909,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 .chipDot[data-urgent] { background: var(--amber); }
 .chipCount { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-dim); }
 
-/* Row 3 — bays (the hero) */
+/* Row 3: bays (the hero) */
 .bayStrip {
   display: flex;
   flex-wrap: wrap;
@@ -946,7 +946,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 .bayTilt { width: 340px; height: 227px; flex-shrink: 0; }
 
 /* The card sits ON the page: solid raised sheet, real elevation. Urgency reads
-   as material, not a stripe — a tinted hairline and a warmth in the shadow. */
+   as material, not a stripe: a tinted hairline and a warmth in the shadow. */
 .bayCard {
   position: relative;
   width: 340px;
@@ -1045,9 +1045,14 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 .bayProgressFill {
   display: block;
   height: 100%;
+  width: 100%;
   border-radius: 4px;
   background: var(--navy);
-  transition: width var(--motion) var(--ease);
+  /* Progress moves on the compositor: scaleX from the left edge, never width.
+     The track's overflow-hidden radius clips the fill. */
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--motion) var(--ease);
 }
 
 /* Elapsed lives in the head row; PR light + last step form a thin meta line
@@ -1077,7 +1082,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   text-overflow: ellipsis;
 }
 
-/* Three action tiles — always present, launcher-style, sitting at the bottom.
+/* Three action tiles: always present, launcher-style, sitting at the bottom.
    Layered above the whole-face open button so they stay independently clickable. */
 .bayActions {
   position: relative;
@@ -1121,7 +1126,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 .bayEmptyName { font-family: var(--font-body); font-size: 0.86rem; font-weight: 600; color: var(--ink-dim); }
 .bayEmptyHint { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint); }
 
-/* Row 4 — Next queue, compact ranked list */
+/* Row 4: Next queue, compact ranked list */
 .queueList {
   max-width: 672px;
   display: flex;
@@ -1190,7 +1195,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
   min-width: 28px;
 }
 
-/* On this screen oxblood means blocked and nothing else — the focus ring goes
+/* On this screen oxblood means blocked and nothing else: the focus ring goes
    navy (information), overriding the global porcelain accent ring. */
 .col :focus-visible,
 .panel :focus-visible,
@@ -1251,7 +1256,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 .panelSection { padding: 12px 0 8px; }
 .panelChat { padding-bottom: 16px; }
 
-/* Spec prose — the CommonPlace markdown render, porcelain-toned. */
+/* Spec prose: the CommonPlace markdown render, porcelain-toned. */
 .specProse { font-size: 0.84rem; line-height: 1.6; color: var(--ink); max-width: 90ch; }
 .specProse h1, .specProse h2, .specProse h3 {
   font-family: var(--font-display);
@@ -1297,7 +1302,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 .specProse a { color: var(--teal); text-decoration: underline; text-underline-offset: 2px; }
 .specProse ul, .specProse ol { margin: 8px 0; padding-left: 24px; }
 
-/* Activity — mono rows, no cards. */
+/* Activity: mono rows, no cards. */
 .footprintList { list-style: none; margin: 0 0 12px; padding: 0; }
 .footprintItem {
   font-family: var(--font-mono);
@@ -1494,7 +1499,7 @@ a.acceptEvidence { text-decoration: underline; text-underline-offset: 2px; text-
 /* Gate drawer: cards stack single-column inside the panel. */
 .gateStack { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
 
-/* Queue cards — 2:1, the bays' quiet younger sibling. Next is a horizontal
+/* Queue cards: 2:1, the bays' quiet younger sibling. Next is a horizontal
    drag row; Icebox/Done wrap as a grid (no drag). Same shadow language as the
    bays so the whole screen sits at one depth. */
 .qCardRow {

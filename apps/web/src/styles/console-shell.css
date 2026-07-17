@@ -1,10 +1,10 @@
-/* CR3 — the console shell, flipped onto the computed register.
+/* CR3: the console shell, flipped onto the computed register.
    Loaded after porcelain-surfaces.css; every rule here overrides the porcelain
    frame with --cr-* tokens (console-register.css) and the CR3 geometry:
 
-     • the sidebar IS the ground — full-bleed to all four edges, no border, no
+     • the sidebar IS the ground: full-bleed to all four edges, no border, no
        shadow, no radius. It is not a floating panel.
-     • the content area is the SHEET — one lightness step up (--cr-surface),
+     • the content area is the SHEET: one lightness step up (--cr-surface),
        rounded only at the seam where it meets the ground. The curve belongs to
        the sheet, not the sidebar (the Claude/Codex shell).
      • depth is the ground/surface lightness ladder plus hairlines. No relief:
@@ -38,6 +38,17 @@
   font-family: inherit;
 }
 
+/* ============ TACTILE PRESS ============ */
+/* Interactive chrome acknowledges pointer-down with a 1px drop. Transform only
+   (compositor path, no layout), and no transition: the instantaneous state
+   change is itself the feedback, so reduced motion needs no carve-out.
+   Elements that place or animate themselves with transform utilities are
+   excluded; a blanket transform here would clobber their placement mid-press.
+   Inline JS transforms (tilt springs) already win over this rule. */
+.porcelain :is(button, [role='button']):not(:disabled):not([class*='translate-']):not([class*='scale-']):active {
+  transform: translateY(1px);
+}
+
 /* Selection + focus speak in the register's signal. */
 .porcelain ::selection {
   background: var(--cr-tint);
@@ -64,7 +75,7 @@
 
 /* The content sheet is now bg-cr-surface + rounded-l-cr-lg utilities on V2Shell. */
 
-/* ============ WORDMARK — Cabinet Grotesk keeps its one home ============ */
+/* ============ WORDMARK: Cabinet Grotesk keeps its one home ============ */
 .p-wordmark,
 .p-mark {
   font-family: var(--font-display);
@@ -75,7 +86,7 @@
   color: var(--cr-signal);
 }
 
-/* ============ SECTION LABELS — small-caps hairline dividers ============ */
+/* ============ SECTION LABELS: small-caps hairline dividers ============ */
 .p-sec {
   font-family: var(--cr-font-mono);
   color: var(--cr-ink-3);
@@ -87,7 +98,7 @@
   background: var(--cr-hairline);
 }
 
-/* ============ NAV ROWS — tint-fill active, no lifted plane ============ */
+/* ============ NAV ROWS: tint-fill active, no lifted plane ============ */
 .p-navitem {
   color: var(--cr-ink-2);
   border-radius: var(--cr-radius-sm);
@@ -123,14 +134,14 @@
   outline-offset: 2px;
 }
 
-/* ============ COLLAPSED RAIL — stays flat ground, no shadow ============ */
+/* ============ COLLAPSED RAIL: stays flat ground, no shadow ============ */
 .p-rail[data-collapsed] {
   width: 60px;
   background-color: transparent;
   box-shadow: none;
 }
 
-/* ============ PAGE HEADER — one-line title at h4, no display slab ============ */
+/* ============ PAGE HEADER: one-line title at h4, no display slab ============ */
 .p-h1 {
   font-family: var(--cr-font-ui);
   font-size: var(--cr-text-h4);

@@ -1,6 +1,6 @@
 'use client';
 
-/* SPEC-OBJECT-CONTRACT-V2 OC5 — the Operator view renderers.
+/* SPEC-OBJECT-CONTRACT-V2 OC5: the Operator view renderers.
  *
  * Each is a thin wrapper: it casts the host to OperatorHost, pulls the live
  * slice + callbacks, and renders the existing operator component unchanged. The
@@ -81,7 +81,7 @@ export function OperatorBayTableView({ host }: SurfaceViewRendererProps) {
               <td style={{ ...cellStyle, fontFamily: 'var(--font-mono)', color: 'var(--ink-dim)', width: '9rem' }}>
                 {bay.label}
               </td>
-              <td style={{ ...cellStyle, fontWeight: 500 }}>{bay.task?.goal ?? '—'}</td>
+              <td style={{ ...cellStyle, fontWeight: 500 }}>{bay.task?.goal ?? '·'}</td>
               <td style={{ ...cellStyle, color: 'var(--ink-dim)', width: '6rem' }}>{urgency}</td>
             </tr>
           );

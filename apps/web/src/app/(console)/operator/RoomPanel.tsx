@@ -1,18 +1,18 @@
 'use client';
 
-/* The Room Panel — progressive disclosure for one task's room. Drawer from the
+/* The Room Panel: progressive disclosure for one task's room. Drawer from the
    right (720px, focus-trapped, Escape closes). Not tabs: three stacked sections
    with sticky mini-headers.
 
-   1. Spec — the claimed task's markdown (CommonPlace renderer: react-markdown +
+   1. Spec: the claimed task's markdown (CommonPlace renderer: react-markdown +
       GFM so the Build Table renders live), plus Verify First states and the
       OP3 Send action for a queued, unblocked task.
-   2. Activity — footprint file list, then the last 20 room events, mono,
+   2. Activity: footprint file list, then the last 20 room events, mono,
       timestamped, no cards around them.
-   3. Chat — the Task Dial composer, fixed at the bottom; messages scroll above.
+   3. Chat: the Task Dial composer, fixed at the bottom; messages scroll above.
 
    The Operator page is the aggregate view; this panel is the unit view. The
-   room binding travels with the panel — never a global selector. */
+   room binding travels with the panel: never a global selector. */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -198,7 +198,7 @@ export function RoomPanel({
                     </div>
                   ) : blocked ? (
                     <div className={styles.blockedNote}>
-                      Blocked — needs {unmet.map((p) => `"${p.goal}"`).join(', ')} before it can be claimed.
+                      Blocked: needs {unmet.map((p) => `"${p.goal}"`).join(', ')} before it can be claimed.
                     </div>
                   ) : null}
                 </section>

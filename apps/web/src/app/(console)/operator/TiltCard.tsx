@@ -2,7 +2,7 @@
 
 /* Porcelain TiltCard. Adapted from the provided Tilt card component: pointer-
    tracked 3D tilt with an optional cursor spotlight. Re-skinned to tokens and
-   tamed for furniture duty (tiltLimit 6, scale 1.02 — fifteen degrees is a toy).
+   tamed for furniture duty (tiltLimit 6, scale 1.02: fifteen degrees is a toy).
    Tilt engages only on hover-capable pointers with motion allowed; on touch or
    prefers-reduced-motion the card is static and every affordance still works. */
 

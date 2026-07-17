@@ -165,6 +165,22 @@ test.describe('HP5 chat surface', () => {
   });
 });
 
+test.describe('DT tactile press', () => {
+  test('a stream row acknowledges pointer-down with a compositor transform', async ({ page }) => {
+    await gotoIndex(page);
+    const row = page.getByRole('button', { name: /Ordinance 24-113/ }).first();
+    await row.hover();
+    await page.mouse.down();
+    const pressed = await row.evaluate((el) => getComputedStyle(el).transform);
+    await page.mouse.up();
+    const released = await row.evaluate((el) => getComputedStyle(el).transform);
+    // The console press rule is transform-only: a 1px drop while :active,
+    // nothing after release. Layout properties never animate on press.
+    expect(pressed).toBe('matrix(1, 0, 0, 1, 0, 1)');
+    expect(released).toBe('none');
+  });
+});
+
 test.describe('HP5 empty-state restraint', () => {
   test('the inspector empty state renders at most body size', async ({ page }) => {
     await gotoIndex(page);

@@ -1,4 +1,4 @@
-// RecordTable — TW2 data grid component.
+// RecordTable: TW2 data grid component.
 // Renders any ObjectShape through the view registry using @tanstack/react-table
 // for column management and @tanstack/react-virtual for windowing.
 //
@@ -146,7 +146,7 @@ export const RecordTable: FC<RecordTableProps> = ({ objectSet, host }) => {
   if (!objects.length && !store.isLoading) {
     return (
       <div className={styles['rt-empty']} role="status">
-        <div className={styles['rt-empty-icon']}>📋</div>
+        <div className={styles['rt-empty-icon']} aria-hidden="true">▤</div>
         <p className={styles['rt-empty-text']}>No records yet</p>
         <p className={styles['rt-empty-hint']}>Create your first record to get started.</p>
       </div>
@@ -191,7 +191,7 @@ export const RecordTable: FC<RecordTableProps> = ({ objectSet, host }) => {
 // ── Helpers ──
 
 function renderCellValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined) return ': ';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'object') return JSON.stringify(value);

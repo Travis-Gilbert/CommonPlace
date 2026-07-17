@@ -1,5 +1,5 @@
 /**
- * AiGlyph — the AI shimmer/spark mark (noun-project 8401748), used for the
+ * AiGlyph: the AI shimmer/spark mark (noun-project 8401748), used for the
  * omnibar's research ("search, then ask Theorem") mode. Rendered in
  * `currentColor` like a lucide icon.
  */

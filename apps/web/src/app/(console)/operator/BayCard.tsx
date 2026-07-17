@@ -1,10 +1,10 @@
 'use client';
 
-/* The bay card — the hero of the Operator screen. One card per head, landscape
+/* The bay card: the hero of the Operator screen. One card per head, landscape
    3:2 at 340x227. Exactly four zones: head row (name + live dot), one-line task
    title, 4px checklist progress bar, tri-segment footer (PR light | last step |
    elapsed). Urgency is a 4px left rail with three discrete stops: ink (calm),
-   amber (waiting on a human), oxblood (blocked) — no spectrum. Zero badges on
+   amber (waiting on a human), oxblood (blocked): no spectrum. Zero badges on
    the face. Hover (or focus) reveals the action row inside the tilt; click
    opens the Room Panel. Empty bay: dashed outline at 60%, mono invitation. */
 
@@ -59,7 +59,7 @@ export function BayCard({
         <button
           className={styles.bayFaceBtn}
           onClick={() => onOpenRoom(task.id)}
-          aria-label={`Open room — ${task.goal}`}
+          aria-label={`Open room: ${task.goal}`}
         />
 
         {/* Head: name + live dot, elapsed right */}
@@ -74,17 +74,17 @@ export function BayCard({
           {elapsed && <span className={styles.bayElapsed}>{elapsed}</span>}
         </div>
 
-        {/* Title — one line, the card's headline */}
+        {/* Title: one line, the card's headline */}
         <div className={styles.bayTaskTitle}>{task.goal}</div>
 
-        {/* Meta — PR light + last completed step */}
+        {/* Meta: PR light + last completed step */}
         <div className={styles.bayMeta}>
           <span
             className={styles.bayPrDot}
             data-pr={bay.prLight}
             title={bay.prLight === 'none' ? 'No PR' : bay.prLight === 'open' ? 'PR open' : 'PR merged'}
           />
-          <span className={styles.bayMetaStep}>{bay.lastStep ?? '—'}</span>
+          <span className={styles.bayMetaStep}>{bay.lastStep ?? '·'}</span>
         </div>
 
         {/* Checklist progress */}
@@ -96,10 +96,10 @@ export function BayCard({
           aria-valuenow={task.checklist?.done ?? 0}
           aria-label="Build Table completion"
         >
-          <span className={styles.bayProgressFill} style={{ width: `${Math.round(progress * 100)}%` }} />
+          <span className={styles.bayProgressFill} style={{ transform: `scaleX(${progress})` }} />
         </div>
 
-        {/* Three action tiles — always present */}
+        {/* Three action tiles: always present */}
         <div className={styles.bayActions}>
           <button className={styles.bayTile} onClick={() => onOpenRoom(task.id)}>
             Open room

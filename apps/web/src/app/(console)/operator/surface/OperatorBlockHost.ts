@@ -1,12 +1,12 @@
 'use client';
 
-/* SPEC-OBJECT-CONTRACT-V2 OC5 — the Operator's concrete BlockHost.
+/* SPEC-OBJECT-CONTRACT-V2 OC5: the Operator's concrete BlockHost.
  *
  * It serves two shapes from the live operator state: the arrangement
  * (surface/region/view-instance ObjectRefs) so SurfaceRenderer can walk it, and
  * one lightweight ObjectSet per view-instance query so the interpreter resolves
  * a renderer and knows the set is non-empty. The renderers cast `host` to
- * OperatorHost and read the typed slices + callbacks directly — the same seam
+ * OperatorHost and read the typed slices + callbacks directly: the same seam
  * MemoryBlockHost uses for the database Set. `emit` keeps views from widening
  * actions: `open` routes to the Room Panel, everything else is accepted intent. */
 
