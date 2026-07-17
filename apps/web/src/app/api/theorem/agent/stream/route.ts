@@ -52,18 +52,22 @@ async function groundBridgeCommands(
     if (!command || typeof command !== 'object') continue;
     const record = command as {
       type?: unknown;
+      displayText?: string;
       message?: { role?: unknown; parts?: Array<{ type?: unknown; text?: unknown }> };
     };
-    if (record.type !== 'add-message' || record.message?.role !== 'user') continue;
-    if (!Array.isArray(record.message.parts)) continue;
-    const text = record.message.parts
+    const message = record.message;
+    if (record.type !== 'add-message' || !message || message.role !== 'user') continue;
+    if (!Array.isArray(message.parts)) continue;
+    const text = message.parts
       .filter((part) => part?.type === 'text' && typeof part.text === 'string')
       .map((part) => String(part.text).trim())
       .filter(Boolean)
       .join('\n');
     if (!text) continue;
+    // Keep the original user bubble; only the agent prompt is evidence-enriched.
+    record.displayText = text;
     const grounded = await groundChatPrompt(text, request);
-    record.message.parts = [{ type: 'text', text: grounded.prompt }];
+    message.parts = [{ type: 'text', text: grounded.prompt }];
   }
 }
 

@@ -33,6 +33,10 @@ describe('hosted ACP transport routing', () => {
     delete process.env.THEOREM_ACP_WS_URL;
     delete process.env.NEXT_PUBLIC_COMMONPLACE_ACP_WS_URL;
     delete process.env.RAILWAY_ENVIRONMENT;
+    delete process.env.THEOREM_API_TOKEN;
+    delete process.env.THEOREM_AGENT_API_TOKEN;
+    delete process.env.THEOREM_AGENT_API_BEARER;
+    delete process.env.RUSTYRED_AGENT_BEARER;
     process.env.NODE_ENV = 'production';
     expect(resolveHostedAcpWsUrl()).toBe(
       'wss://api.theoremharness.com/v1/commonplace/acp/ws',

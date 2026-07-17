@@ -46,7 +46,7 @@ export class HostedAcpClient {
   #disposed = false;
   #exitError: Error | undefined;
   #pendingSession: PendingSession | undefined;
-  #pendingPrompt: PendingPrompt | undefined;
+  #pendingPrompts = new Map<string, PendingPrompt>();
   #sessionHandlers = new Set<(notification: AcpSessionNotification) => void>();
   #permissionHandler:
     | ((request: RequestPermissionRequest) => Promise<'allow' | 'reject'>)
@@ -101,15 +101,15 @@ export class HostedAcpClient {
 
   prompt(sessionId: string, text: string): Promise<PromptResponse> {
     if (this.#disposed) return Promise.reject(new Error('Hosted ACP client was disposed'));
-    if (this.#pendingPrompt) {
-      return Promise.reject(new Error('Hosted ACP prompt is already in flight'));
+    if (this.#pendingPrompts.has(sessionId)) {
+      return Promise.reject(new Error(`Hosted ACP prompt already in flight for ${sessionId}`));
     }
     return new Promise<PromptResponse>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        this.#pendingPrompt = undefined;
+        this.#pendingPrompts.delete(sessionId);
         reject(new Error('Hosted ACP prompt timed out'));
       }, promptTimeoutMs());
-      this.#pendingPrompt = { sessionId, resolve, reject, timeout };
+      this.#pendingPrompts.set(sessionId, { sessionId, resolve, reject, timeout });
       try {
         this.#send({
           type: 'prompt',
@@ -118,7 +118,7 @@ export class HostedAcpClient {
         });
       } catch (error) {
         clearTimeout(timeout);
-        this.#pendingPrompt = undefined;
+        this.#pendingPrompts.delete(sessionId);
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
@@ -126,12 +126,11 @@ export class HostedAcpClient {
 
   async cancel(sessionId: string): Promise<void> {
     if (this.#disposed) return;
-    // Frontend protocol has no cancel frame; drop the pending prompt waiter.
-    if (this.#pendingPrompt?.sessionId === sessionId) {
-      clearTimeout(this.#pendingPrompt.timeout);
-      this.#pendingPrompt.reject(new Error('Hosted ACP prompt was cancelled'));
-      this.#pendingPrompt = undefined;
-    }
+    const pending = this.#pendingPrompts.get(sessionId);
+    if (!pending) return;
+    clearTimeout(pending.timeout);
+    this.#pendingPrompts.delete(sessionId);
+    pending.reject(new Error('Hosted ACP prompt was cancelled'));
   }
 
   onSessionUpdate(handler: (notification: AcpSessionNotification) => void): () => void {
@@ -205,18 +204,20 @@ export class HostedAcpClient {
           const params = record.params as AcpSessionNotification;
           for (const handler of this.#sessionHandlers) handler(params);
         }
-        if (record.response && this.#pendingPrompt?.sessionId === sessionId) {
-          const response = record.response as {
-            result?: { stopReason?: string };
-            error?: { message?: string };
-          };
-          clearTimeout(this.#pendingPrompt.timeout);
-          const pending = this.#pendingPrompt;
-          this.#pendingPrompt = undefined;
-          if (response.error) {
-            pending.reject(new Error(response.error.message ?? 'Hosted ACP prompt failed'));
-          } else {
-            pending.resolve({ stopReason: response.result?.stopReason ?? 'end_turn' });
+        if (record.response) {
+          const pending = this.#pendingPrompts.get(sessionId);
+          if (pending) {
+            const response = record.response as {
+              result?: { stopReason?: string };
+              error?: { message?: string };
+            };
+            clearTimeout(pending.timeout);
+            this.#pendingPrompts.delete(sessionId);
+            if (response.error) {
+              pending.reject(new Error(response.error.message ?? 'Hosted ACP prompt failed'));
+            } else {
+              pending.resolve({ stopReason: response.result?.stopReason ?? 'end_turn' });
+            }
           }
         }
       }
@@ -225,18 +226,55 @@ export class HostedAcpClient {
 
     if (type === 'command_approval' && this.#permissionHandler) {
       const approval = message.approval as
-        | { request_id?: unknown; params?: RequestPermissionRequest }
+        | {
+            request_id?: unknown;
+            params?: RequestPermissionRequest;
+            terminal_id?: string;
+            command?: string;
+          }
         | undefined;
+      // Hosted theorem|composed path surfaces ACP session/request_permission as
+      // command_approval with JSON-RPC params. Provider CLI path uses terminal cards.
       const request = approval?.params;
       if (request?.sessionId && request.toolCall?.toolCallId) {
-        void this.#permissionHandler(request).then((decision) => {
-          this.#send({
-            type: decision === 'allow' ? 'respond_permission' : 'cancel_permission',
-            session_id: request.sessionId,
-            request_id: approval?.request_id ?? null,
-            ...(decision === 'allow' ? { option_id: 'allow' } : {}),
+        void this.#permissionHandler(request)
+          .then((decision) => {
+            if (decision === 'allow') {
+              const selected =
+                request.options.find((option) => option.kind?.startsWith('allow')) ??
+                request.options.find((option) => option.optionId.toLowerCase().includes('allow')) ??
+                request.options[0];
+              if (!selected) {
+                throw new Error('ACP permission request has no allow option');
+              }
+              this.#send({
+                type: 'respond_permission',
+                session_id: request.sessionId,
+                request_id: approval?.request_id ?? null,
+                option_id: selected.optionId,
+              });
+              return;
+            }
+            this.#send({
+              type: 'cancel_permission',
+              session_id: request.sessionId,
+              request_id: approval?.request_id ?? null,
+            });
+          })
+          .catch((error) => {
+            try {
+              this.#send({
+                type: 'cancel_permission',
+                session_id: request.sessionId,
+                request_id: approval?.request_id ?? null,
+              });
+            } catch {
+              // peer gone
+            }
+            this.#onExit(
+              error instanceof Error ? error : new Error(String(error)),
+            );
           });
-        });
       }
       return;
     }
@@ -249,10 +287,21 @@ export class HostedAcpClient {
         this.#pendingSession.reject(new Error(errMessage));
         this.#pendingSession = undefined;
       }
-      if (this.#pendingPrompt) {
-        clearTimeout(this.#pendingPrompt.timeout);
-        this.#pendingPrompt.reject(new Error(errMessage));
-        this.#pendingPrompt = undefined;
+      const sessionId =
+        typeof message.session_id === 'string' ? message.session_id : null;
+      if (sessionId) {
+        const pending = this.#pendingPrompts.get(sessionId);
+        if (pending) {
+          clearTimeout(pending.timeout);
+          this.#pendingPrompts.delete(sessionId);
+          pending.reject(new Error(errMessage));
+        }
+      } else {
+        for (const [id, pending] of this.#pendingPrompts) {
+          clearTimeout(pending.timeout);
+          pending.reject(new Error(errMessage));
+          this.#pendingPrompts.delete(id);
+        }
       }
     }
   }
@@ -278,10 +327,10 @@ export class HostedAcpClient {
       this.#pendingSession.reject(error);
       this.#pendingSession = undefined;
     }
-    if (this.#pendingPrompt) {
-      clearTimeout(this.#pendingPrompt.timeout);
-      this.#pendingPrompt.reject(error);
-      this.#pendingPrompt = undefined;
+    for (const [id, pending] of this.#pendingPrompts) {
+      clearTimeout(pending.timeout);
+      pending.reject(error);
+      this.#pendingPrompts.delete(id);
     }
   }
 }

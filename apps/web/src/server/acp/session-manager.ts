@@ -22,7 +22,7 @@ export type AcquiredAcpSession = {
   sessionId: string;
   getState(): TheoremAgentState;
   subscribe(listener: (state: TheoremAgentState) => void): () => void;
-  prompt(text: string): Promise<void>;
+  prompt(text: string, options?: { displayText?: string }): Promise<void>;
   respondPermission(callId: string, decision: 'allow' | 'reject'): boolean;
   cancel(): Promise<void>;
 };
@@ -61,8 +61,8 @@ class ManagedAcpSession implements AcquiredAcpSession {
     return () => this.#listeners.delete(listener);
   }
 
-  async prompt(text: string): Promise<void> {
-    this.#setState(beginTurn(this.#state, text));
+  async prompt(text: string, options?: { displayText?: string }): Promise<void> {
+    this.#setState(beginTurn(this.#state, options?.displayText ?? text));
     try {
       const response = await this.client.prompt(this.sessionId, text);
       this.#setState(completeTurn(this.#state, response.stopReason));

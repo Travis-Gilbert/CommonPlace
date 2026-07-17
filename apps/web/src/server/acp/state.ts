@@ -44,7 +44,11 @@ export type TheoremAgentState = {
 
 export type AcpSessionUpdate = {
   sessionUpdate: string;
-  content?: { content?: { type?: string; text?: string } };
+  content?: {
+    type?: string;
+    text?: string;
+    content?: { type?: string; text?: string };
+  };
   toolCallId?: string;
   title?: string;
   rawInput?: unknown;
@@ -224,5 +228,15 @@ function createMessage(role: 'user' | 'assistant', text: string): TheoremAgentMe
 }
 
 function readText(update: AcpSessionUpdate): string {
-  return update.content?.content?.type === 'text' ? update.content.content.text ?? '' : '';
+  const content = update.content as
+    | { type?: string; text?: string; content?: { type?: string; text?: string } }
+    | undefined;
+  if (!content) return '';
+  // Canonical ACP ContentBlock: { type: "text", text }
+  if (content.type === 'text' && typeof content.text === 'string') return content.text;
+  // Legacy double-nested shape some projectors accepted
+  if (content.content?.type === 'text' && typeof content.content.text === 'string') {
+    return content.content.text;
+  }
+  return '';
 }

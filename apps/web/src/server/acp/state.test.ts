@@ -11,15 +11,15 @@ describe('ACP state projector', () => {
     let state = beginTurn(createTheoremAgentState({ mode: 'composed', bindingId: 'agent:theorem' }), 'help');
     state = applySessionUpdate(state, {
       sessionUpdate: 'agent_thought_chunk',
-      content: { content: { type: 'text', text: '[deepseek] inspect the repository' } },
+      content: { type: 'text', text: '[deepseek] inspect the repository' },
     });
     state = applySessionUpdate(state, {
       sessionUpdate: 'agent_thought_chunk',
-      content: { content: { type: 'text', text: '[minimax] compare the API contract' } },
+      content: { type: 'text', text: '[minimax] compare the API contract' },
     });
     state = applySessionUpdate(state, {
       sessionUpdate: 'agent_message_chunk',
-      content: { content: { type: 'text', text: 'The implementation should use ACP.' } },
+      content: { type: 'text', text: 'The implementation should use ACP.' },
     });
 
     const assistant = state.messages.at(-1)!;
@@ -27,11 +27,20 @@ describe('ACP state projector', () => {
     expect(assistant.text).toBe('The implementation should use ACP.');
   });
 
+  it('accepts legacy double-nested content blocks', () => {
+    let state = beginTurn(createTheoremAgentState({ mode: 'single', bindingId: null }), 'help');
+    state = applySessionUpdate(state, {
+      sessionUpdate: 'agent_message_chunk',
+      content: { content: { type: 'text', text: 'legacy shape' } },
+    });
+    expect(state.messages.at(-1)?.text).toBe('legacy shape');
+  });
+
   it('keeps unattributed thoughts and makes tool updates idempotent', () => {
     let state = beginTurn(createTheoremAgentState({ mode: 'single', bindingId: null }), 'help');
     state = applySessionUpdate(state, {
       sessionUpdate: 'agent_thought_chunk',
-      content: { content: { type: 'text', text: 'inspect the repository' } },
+      content: { type: 'text', text: 'inspect the repository' },
     });
     state = applySessionUpdate(state, {
       sessionUpdate: 'tool_call',
@@ -76,7 +85,7 @@ describe('ACP state projector', () => {
     let state = beginTurn(createTheoremAgentState({ mode: 'composed', bindingId: 'agent:theorem' }), 'help');
     state = applySessionUpdate(state, {
       sessionUpdate: 'agent_message_chunk',
-      content: { content: { type: 'text', text: 'composed run blocked: policy conflict' } },
+      content: { type: 'text', text: 'composed run blocked: policy conflict' },
     });
     state = completeTurn(state, 'refusal');
 
