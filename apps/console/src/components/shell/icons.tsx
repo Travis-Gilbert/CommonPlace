@@ -109,6 +109,32 @@ export function IconChevronDown(props: IconProps) {
   return <svg {...controlBase(props)}><path d="m4.5 6.5 3.5 3.5 3.5-3.5" /></svg>;
 }
 
+export function IconAttach(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <path d="m6.25 8.75 3.6-3.6a2.1 2.1 0 0 1 3 3l-5.3 5.3a3.4 3.4 0 0 1-4.8-4.8l5.1-5.1" />
+    </svg>
+  );
+}
+
+export function IconCommand(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <path d="M5.25 5.25h5.5v5.5h-5.5z" />
+      <path d="M5.25 5.25H4a2 2 0 1 1 2-2v1.25m4.75 1H12a2 2 0 1 0-2-2v1.25m.75 6.25V12a2 2 0 1 1-2-2h1.25m-4.75.75V12a2 2 0 1 0 2-2H6" />
+    </svg>
+  );
+}
+
+export function IconSend(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <path d="m2.5 3 11 5-11 5 2-5-2-5Z" />
+      <path d="M4.5 8h5" />
+    </svg>
+  );
+}
+
 export function IconAccount(props: IconProps) {
   return (
     <svg {...controlBase(props)}>

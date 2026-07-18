@@ -110,6 +110,17 @@
 [data-register="intui"] {
   --ij-composer-min-h: 48px;
   --ij-composer-max-h: 164px;
+  --ij-composer-full-min-h: calc(var(--ij-composer-min-h) + var(--ij-control-h));
+  --ij-composer-radius: calc(var(--ij-arc) * 2);
+  --ij-composer-control-size: 32px;
+  --ij-composer-control-size-compact: var(--ij-control-h);
+  --ij-composer-pad-x: 16px;
+  --ij-composer-pad-y: 14px;
+  --ij-composer-pad-compact: 10px;
+  --ij-composer-gap: 8px;
+  --ij-composer-font-size: 16px;
+  --ij-composer-font-size-compact: 14px;
+  --ij-composer-shadow: 0 12px 32px -20px color-mix(in oklab, var(--ij-ink) 36%, transparent);
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);

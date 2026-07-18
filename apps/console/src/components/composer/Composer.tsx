@@ -13,6 +13,13 @@ import {
   unstable_useMentionAdapter,
 } from '@assistant-ui/react';
 import { PresenceMark } from '@/components/mark/PresenceMark';
+import {
+  IconAttach,
+  IconChevronDown,
+  IconCommand,
+  IconSend,
+  IconStop,
+} from '@/components/shell/icons';
 import { useShellStore } from '@/lib/shell-store';
 import { useThreadStore } from '@/lib/thread-store';
 import { ComposerSheenCanvas } from './ComposerSheenCanvas';
@@ -102,7 +109,7 @@ export function Composer({ host, compact = false, unavailable = false }: Compose
         <ComposerPrimitive.Root
           data-composer
           data-composer-density={compact ? 'compact' : 'full'}
-          className="relative overflow-hidden rounded-ij-arc border border-ij-seam-raised bg-ij-raised"
+          className="composer-shell relative overflow-hidden border border-ij-seam-raised bg-ij-raised"
         >
           <ComposerSheenCanvas streaming={isRunning} />
           <div className="relative z-10">
@@ -123,48 +130,58 @@ export function Composer({ host, compact = false, unavailable = false }: Compose
               data-composer-input
               data-thread-composer-input
               placeholder={unavailable ? 'Chat endpoint unavailable' : 'Message the harness. Use @ for objects or /do for an action.'}
-              className={`composer-input w-full resize-none bg-transparent px-3 py-2 text-ij-ink outline-none placeholder:text-ij-ink-disabled ${compact ? 'min-h-ij-control' : ''}`}
+              className="composer-input w-full resize-none bg-transparent text-ij-ink outline-none placeholder:text-ij-ink-disabled"
             />
-            <div className="flex items-center gap-1 border-t border-ij-seam px-2 py-1">
-              <ComposerPrimitive.AddAttachment
-                aria-label="Attach file"
-                disabled={unavailable}
-                className="h-ij-control rounded-ij-arc px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-              >
-                Attach
-              </ComposerPrimitive.AddAttachment>
-              <button
-                type="button"
-                aria-label="Open action sheet"
-                onClick={() => openActionSheet({ instruction: '', chips: [] })}
-                className="h-ij-control rounded-ij-arc px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-                style={{ transition: 'var(--rec-clickable-transition)' }}
-              >
-                /do
-              </button>
-              <select
-                aria-label="Composer mode"
-                value={mode}
-                onChange={(event) => setMode(event.target.value as 'agent' | 'plan' | 'model')}
-                className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
-              >
-                <option value="agent">Agent</option>
-                <option value="plan">Plan</option>
-                <option value="model">Model</option>
-              </select>
-              <span className="ml-auto flex items-center" data-presence-mark-placement="composer">
-                <PresenceMark state={isRunning ? 'composing' : 'idle'} size={compact ? 18 : 22} />
+            <div className="composer-controls border-t border-ij-seam">
+              <div className="composer-tool-group" data-composer-tool-group>
+                <ComposerPrimitive.AddAttachment
+                  aria-label="Attach file"
+                  title="Attach file"
+                  disabled={unavailable}
+                  className="composer-icon-button"
+                >
+                  <IconAttach size={16} />
+                </ComposerPrimitive.AddAttachment>
+                <button
+                  type="button"
+                  aria-label="Open action sheet"
+                  title="Plan an action"
+                  onClick={() => openActionSheet({ instruction: '', chips: [] })}
+                  className="composer-icon-button"
+                  style={{ transition: 'var(--rec-clickable-transition)' }}
+                >
+                  <IconCommand size={16} />
+                </button>
+              </div>
+              <label className="composer-mode-control">
+                <span className="sr-only">Composer mode</span>
+                <select
+                  aria-label="Composer mode"
+                  value={mode}
+                  onChange={(event) => setMode(event.target.value as 'agent' | 'plan' | 'model')}
+                  className="composer-mode-select"
+                >
+                  <option value="agent">Agent</option>
+                  <option value="plan">Plan</option>
+                  <option value="model">Model</option>
+                </select>
+                <IconChevronDown size={13} className="composer-mode-chevron" />
+              </label>
+              <span className="composer-presence" data-presence-mark-placement="composer">
+                <PresenceMark state={isRunning ? 'composing' : 'idle'} size={compact ? 22 : 26} staticOnly />
               </span>
               {isRunning ? (
-                <ComposerPrimitive.Cancel className="h-ij-control rounded-ij-arc bg-ij-raised px-3 text-ij-ink hover:bg-ij-hover-surface">
-                  Stop
+                <ComposerPrimitive.Cancel aria-label="Stop response" title="Stop response" className="composer-send-button">
+                  <IconStop size={16} />
                 </ComposerPrimitive.Cancel>
               ) : (
                 <ComposerPrimitive.Send
+                  aria-label="Send message"
+                  title="Send message"
                   disabled={unavailable}
-                  className="h-ij-control rounded-ij-arc bg-ij-accent px-4 text-ij-ink-bright hover:bg-ij-accent-hover disabled:bg-ij-disabled disabled:text-ij-ink-disabled"
+                  className="composer-send-button"
                 >
-                  Send
+                  <IconSend size={16} />
                 </ComposerPrimitive.Send>
               )}
             </div>

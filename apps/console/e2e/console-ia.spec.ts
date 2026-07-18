@@ -63,6 +63,12 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('nav')).toHaveCount(1);
     const composer = page.locator('[data-composer]');
     const input = page.locator('[data-composer-input]');
+    await expect(page.locator('[data-composer-tool-group]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Attach file' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open action sheet' })).toBeVisible();
+    await expect(page.getByLabel('Composer mode')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+    await expect(input).toHaveCSS('font-size', '16px');
     const initial = await input.boundingBox();
     const bounds = await composer.boundingBox();
     expect(initial?.height ?? 0).toBeGreaterThanOrEqual(48);
@@ -102,6 +108,7 @@ test.describe('Console information architecture', () => {
     await page.locator('[data-chat-starters] button').first().click();
     await expect(page.locator('[data-chat-starters]')).toHaveCount(0);
     await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-state', 'streaming');
+    await expect(page.locator('[data-presence-mark-placement="composer"] [data-mark-state]')).toHaveAttribute('data-mark-state', 'composing');
     await expect(page.locator('[data-search-field]')).toBeVisible();
     await expect(page).toHaveScreenshot('chat-streaming.png', { fullPage: true });
     if (pendingRoute) await pendingRoute.abort('failed');
@@ -135,20 +142,25 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('tab', { name: 'Console brief' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'surface-tree.ts' })).toBeVisible();
     await expect(page.locator('[data-composer-density="compact"]')).toBeVisible();
+    await expect(page.locator('.galley p').first()).toHaveCSS('font-size', '15px');
     await expect(page.locator('tbody')).toHaveCount(0);
   });
 
   test('virtualizes 5000 pinned memory projections and opens a read-only Galley tab', async ({ page }) => {
     await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-files-view]')).toContainText('5000 memory items', { timeout: 15000 });
-    await expect(page.getByRole('treeitem', { name: /no project context/i })).toBeVisible();
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    await expect(page.locator('[data-file-root-status="root-project"]')).toHaveText('Not connected');
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000');
+    await expect(page.locator('[data-file-root-status="root-uploads"]')).toHaveText('Empty');
+    await expect(page.getByRole('treeitem', { name: /no project context/i })).toHaveCount(0);
+    await page.getByRole('treeitem', { name: /^Harness Memory/ }).click();
     await expect(page.getByRole('treeitem', { name: 'topic-0' })).toBeVisible();
     expect(await page.getByRole('treeitem').count()).toBeLessThan(100);
-    await page.getByRole('treeitem', { name: 'Project', exact: true }).focus();
+    await page.getByRole('treeitem', { name: /^Harness Memory/ }).focus();
     await page.keyboard.press('ArrowDown');
-    await expect(page.getByRole('treeitem', { name: 'Harness Memory' })).toBeFocused();
+    await expect(page.getByRole('treeitem', { name: 'topic-0' })).toBeFocused();
     await page.keyboard.press('Home');
-    await expect(page.getByRole('treeitem', { name: 'Project', exact: true })).toBeFocused();
+    await expect(page.getByRole('treeitem', { name: /^Project/ })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
     await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
@@ -168,7 +180,7 @@ test.describe('Console information architecture', () => {
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
     await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-files-view]')).toContainText('5000 memory items', { timeout: 15000 });
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
     await openSurface(page, 'console-cards');
     await page.locator('[data-companion-nav="context"]').click();
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();

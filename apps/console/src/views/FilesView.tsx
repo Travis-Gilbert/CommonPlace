@@ -19,7 +19,16 @@ import {
 } from '@/lib/memory-projection-store';
 
 type TreeRow =
-  | { readonly id: string; readonly kind: 'root' | 'folder'; readonly label: string; readonly depth: number; readonly expanded: boolean }
+  | {
+      readonly id: string;
+      readonly kind: 'root' | 'folder';
+      readonly label: string;
+      readonly depth: number;
+      readonly expanded: boolean;
+      readonly expandable?: boolean;
+      readonly status?: string;
+      readonly statusTitle?: string;
+    }
   | { readonly id: string; readonly kind: 'memory'; readonly label: string; readonly depth: number; readonly item: HarnessMemoryItem }
   | { readonly id: string; readonly kind: 'state'; readonly label: string; readonly depth: number };
 
@@ -55,7 +64,15 @@ function buildMemoryRows(items: readonly HarnessMemoryItem[], expanded: Readonly
     }
     parent.items.push(item);
   }
-  const rows: TreeRow[] = [{ id: root.id, kind: 'root', label: root.label, depth: 1, expanded: expanded.has(root.id) }];
+  const rows: TreeRow[] = [{
+    id: root.id,
+    kind: 'root',
+    label: root.label,
+    depth: 1,
+    expanded: expanded.has(root.id),
+    expandable: items.length > 0,
+    status: items.length > 0 ? String(items.length) : 'Empty',
+  }];
   if (!expanded.has(root.id)) return rows;
   if (unavailable.length > 0) {
     rows.push({
@@ -76,7 +93,6 @@ function buildMemoryRows(items: readonly HarnessMemoryItem[], expanded: Readonly
     }
   };
   visit(root, 2);
-  if (items.length === 0) rows.push({ id: 'memory-empty', kind: 'state', label: 'No memory projections.', depth: 2 });
   return rows;
 }
 
@@ -114,9 +130,9 @@ export function FilesView({ host }: { host: BlockHost }) {
   const error = useMemoryProjectionStore((state) => state.error);
   const apply = useMemoryProjectionStore((state) => state.apply);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
-    () => new Set(['root-project', 'root-memory', 'root-uploads']),
+    () => new Set(),
   );
-  const [activeRowId, setActiveRowId] = useState('root-project');
+  const [activeRowId, setActiveRowId] = useState('root-memory');
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
 
@@ -190,31 +206,44 @@ export function FilesView({ host }: { host: BlockHost }) {
 
   const rows = useMemo<TreeRow[]>(() => {
     const project: TreeRow[] = [
-      { id: 'root-project', kind: 'root', label: 'Project', depth: 1, expanded: expanded.has('root-project') },
-      ...(expanded.has('root-project')
-        ? [{ id: 'project-unavailable', kind: 'state' as const, label: 'Unavailable: no project context is connected.', depth: 2 }]
-        : []),
+      {
+        id: 'root-project',
+        kind: 'root',
+        label: 'Project',
+        depth: 1,
+        expanded: false,
+        expandable: false,
+        status: 'Not connected',
+        statusTitle: 'Project context is not connected.',
+      },
     ];
     const memory = status === 'ready'
       ? buildMemoryRows(items, expanded)
       : [
-          { id: 'root-memory', kind: 'root' as const, label: 'Harness Memory', depth: 1, expanded: expanded.has('root-memory') },
-          ...(expanded.has('root-memory')
-            ? [{
-                id: 'memory-state',
-                kind: 'state' as const,
-                depth: 2,
-                label: status === 'loading'
-                  ? 'Loading tenant memory projection.'
-                  : `Unavailable: ${error ?? 'Harness GraphQL is not connected.'}`,
-              }]
-            : []),
+          {
+            id: 'root-memory',
+            kind: 'root' as const,
+            label: 'Harness Memory',
+            depth: 1,
+            expanded: false,
+            expandable: false,
+            status: status === 'loading' ? 'Loading' : 'Unavailable',
+            statusTitle: status === 'loading'
+              ? 'Loading tenant memory projection.'
+              : `Harness Memory unavailable: ${error ?? 'Harness GraphQL is not connected.'}`,
+          },
         ];
     const uploads: TreeRow[] = [
-      { id: 'root-uploads', kind: 'root', label: 'Uploads', depth: 1, expanded: expanded.has('root-uploads') },
-      ...(expanded.has('root-uploads')
-        ? [{ id: 'uploads-empty', kind: 'state' as const, label: 'No uploads.', depth: 2 }]
-        : []),
+      {
+        id: 'root-uploads',
+        kind: 'root',
+        label: 'Uploads',
+        depth: 1,
+        expanded: false,
+        expandable: false,
+        status: 'Empty',
+        statusTitle: 'No uploads yet.',
+      },
     ];
     return [...project, ...memory, ...uploads];
   }, [error, expanded, items, status]);
@@ -247,21 +276,20 @@ export function FilesView({ host }: { host: BlockHost }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-ij-chrome" data-files-view>
-      <div className="flex h-ij-control shrink-0 items-center border-b border-ij-seam px-2 text-ij-ink-info">
-        <span>{items.length} memory items</span>
-        <span className="ml-auto font-ij-mono">{status}</span>
-      </div>
       <div ref={scrollRef} role="tree" aria-label="Files" className="min-h-0 flex-1 overflow-y-auto">
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
-            const expandable = row.kind === 'root' || row.kind === 'folder';
+            const expandable = (row.kind === 'root' || row.kind === 'folder') && row.expandable !== false;
             return (
               <button
                 key={row.id}
                 type="button"
                 role="treeitem"
                 aria-level={row.depth}
+                aria-label={(row.kind === 'root' || row.kind === 'folder') && row.status
+                  ? `${row.label}, ${row.status}`
+                  : undefined}
                 aria-selected={row.id === effectiveActiveRowId}
                 aria-expanded={expandable ? row.expanded : undefined}
                 disabled={row.kind === 'state'}
@@ -314,6 +342,15 @@ export function FilesView({ host }: { host: BlockHost }) {
                   {expandable ? row.expanded ? '▾' : '▸' : row.kind === 'memory' ? '·' : ''}
                 </span>
                 <span className="truncate">{row.label}</span>
+                {(row.kind === 'root' || row.kind === 'folder') && row.status ? (
+                  <span
+                    className="ml-auto shrink-0 pl-2 font-ij-mono text-ij-ink-info"
+                    title={row.statusTitle}
+                    data-file-root-status={row.id}
+                  >
+                    {row.status}
+                  </span>
+                ) : null}
               </button>
             );
           })}

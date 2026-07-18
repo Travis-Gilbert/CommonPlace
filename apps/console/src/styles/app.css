@@ -17,6 +17,139 @@
   field-sizing: content;
   min-height: var(--ij-composer-min-h);
   max-height: var(--ij-composer-max-h);
+  padding: var(--ij-composer-pad-y) var(--ij-composer-pad-x);
+  font-size: var(--ij-composer-font-size);
+  line-height: 1.5;
+}
+
+.composer-shell {
+  border-radius: var(--ij-composer-radius);
+  box-shadow: var(--ij-composer-shadow);
+  transition: var(--rec-clickable-transition);
+}
+
+.composer-shell:focus-within {
+  border-color: var(--ij-accent);
+}
+
+.composer-shell [data-composer-sheen] {
+  opacity: 0.42;
+}
+
+.composer-shell [data-sheen-state="streaming"] {
+  opacity: 0.68;
+}
+
+[data-composer-density="full"] .composer-input {
+  min-height: var(--ij-composer-full-min-h);
+}
+
+[data-composer-density="compact"] .composer-input {
+  min-height: var(--ij-composer-min-h);
+  padding: var(--ij-composer-pad-compact) var(--ij-composer-pad-x);
+  font-size: var(--ij-composer-font-size-compact);
+}
+
+.composer-controls {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--ij-composer-gap);
+  padding: calc(var(--rec-grid) * 2) var(--ij-composer-pad-compact);
+}
+
+.composer-tool-group {
+  display: flex;
+  align-items: center;
+  gap: var(--rec-grid);
+  padding: calc(var(--rec-grid) / 2);
+  border: 1px solid var(--ij-divider);
+  border-radius: var(--ij-arc);
+  background: var(--ij-editor-line);
+}
+
+.composer-icon-button,
+.composer-send-button {
+  display: inline-flex;
+  width: var(--ij-composer-control-size);
+  height: var(--ij-composer-control-size);
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: var(--ij-arc);
+  transition: var(--rec-clickable-transition);
+}
+
+.composer-icon-button {
+  color: var(--ij-ink-info);
+}
+
+.composer-icon-button:hover:not(:disabled) {
+  color: var(--ij-ink);
+  background: var(--ij-hover-surface);
+}
+
+.composer-icon-button:disabled {
+  color: var(--ij-ink-disabled);
+  cursor: not-allowed;
+}
+
+.composer-mode-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.composer-mode-select {
+  height: var(--ij-composer-control-size);
+  appearance: none;
+  border: 1px solid var(--ij-control-border);
+  border-radius: var(--ij-arc);
+  background: var(--ij-editor);
+  color: var(--ij-ink);
+  padding-inline: var(--ij-composer-pad-compact) calc(var(--ij-composer-pad-x) + var(--rec-grid));
+  font: inherit;
+}
+
+.composer-mode-chevron {
+  position: absolute;
+  right: var(--rec-grid);
+  pointer-events: none;
+  color: var(--ij-ink-info);
+}
+
+.composer-presence {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+.composer-send-button {
+  color: var(--ij-ink-bright);
+  background: var(--ij-accent);
+}
+
+.composer-send-button:hover:not(:disabled) {
+  background: var(--ij-accent-hover);
+}
+
+.composer-send-button:disabled {
+  color: var(--ij-ink-disabled);
+  background: var(--ij-hover-surface);
+  cursor: not-allowed;
+}
+
+[data-composer-density="compact"] .composer-icon-button,
+[data-composer-density="compact"] .composer-send-button,
+[data-composer-density="compact"] .composer-mode-select {
+  width: var(--ij-composer-control-size-compact);
+  height: var(--ij-composer-control-size-compact);
+}
+
+[data-composer-density="compact"] .composer-mode-select {
+  width: auto;
 }
 
 html,

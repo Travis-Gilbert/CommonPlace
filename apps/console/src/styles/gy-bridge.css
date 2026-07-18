@@ -17,6 +17,10 @@
      next/font; document apparatus UI runs on the chrome face. */
   --gy-font-prose: var(--font-console-vollkorn), Georgia, 'Times New Roman', serif;
   --gy-font-ui: var(--ij-font-ui);
+  /* The Galley register declares a 15px reading base, while the Int UI root is
+     intentionally 13px for chrome. Bind prose to the declared document base
+     so rem inheritance does not collapse reading text to tool-window size. */
+  --gy-text-body: var(--gy-base);
 }
 
 /* Host-reset repair: Tailwind preflight strips list markers and heading
