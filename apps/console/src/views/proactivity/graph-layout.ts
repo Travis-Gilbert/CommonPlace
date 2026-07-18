@@ -1,14 +1,16 @@
-// SOURCING: elkjs (layered layout) feeding @xyflow/react (canvas). Verify-first
-// V11: the layout is topological-depth layered per the Atlas of Knowledge
-// prerequisite DAG, not a force layout, because force hides depth and depth is
-// the one thing this graph must show. elk is layout-only: it returns
-// coordinates, React Flow renders and routes. Sources and assumptions pin to
-// the first layer, responses to the last, so watches land where both streams
-// converge (the join, named choice 8). elk is imported dynamically here, so the
-// sentence and card altitudes load with no graph bundle (PG3 acceptance).
+// SOURCING: @dagrejs/dagre (layered layout) feeding @xyflow/react (canvas), the
+// substrate SPEC-PROACTIVITY-GRAPH-WIRING requires. Verify-first V11: the layout
+// is topological-depth layered per the Atlas of Knowledge prerequisite DAG, not
+// a force layout, because force hides depth and depth is the one thing this
+// graph must show. dagre is layout-only: it returns coordinates, React Flow
+// renders and routes. Sources and assumptions are DAG roots so they land on the
+// first rank; responses are sinks so they land on the last; watches fall where
+// both streams converge (the join, named choice 8). dagre is imported
+// dynamically here, so the sentence and card altitudes load no graph bundle
+// (PG3 acceptance).
 
 import { MarkerType, type Edge, type Node } from '@xyflow/react';
-import type { PgEdgeKind, PgNodeKind, ProactivityGraph, ProjectedNode } from '@/lib/proactivity/model';
+import type { PgEdgeKind, ProactivityGraph, ProjectedNode } from '@/lib/proactivity/model';
 
 /** The data a proactivity React Flow node carries: the projected node and
  *  whether it is the two-sided convergence (rendered as a marked join). */
@@ -58,14 +60,12 @@ const EDGE_STROKE: Record<PgEdgeKind, string> = {
   acts: 'var(--ij-ink-info)',
 };
 
-// The two root families pin to the first layer (sources on the fact side,
-// assumptions on the stake side); responses pin to the last. Everything between
-// is assigned by topology, so watches land where both streams converge.
-function layerConstraint(kind: PgNodeKind): string | undefined {
-  if (kind === 'source' || kind === 'assumption') return 'FIRST';
-  if (kind === 'response') return 'LAST';
-  return undefined;
-}
+// dagre ranks by topology: the two root families (sources on the fact side,
+// assumptions on the stake side) have no inbound edges so they land on the first
+// rank; responses have no outbound edges so they land on the last. Everything
+// between is assigned by topology, so watches land where both streams converge.
+// No explicit layer constraint is needed, which is why dagre carries the intent
+// that elk expressed with layerConstraint FIRST/LAST.
 
 /** Which watches are the join: an inbound feed (source) and an inbound declare
  *  (stake) both arrive (named choice 8). */
@@ -80,55 +80,49 @@ function joinWatchIds(graph: ProactivityGraph): Set<string> {
 }
 
 /**
- * Lay out the graph with elk's layered algorithm and return React Flow nodes and
- * edges. Dynamically imports elkjs so the graph bundle is only fetched at the
+ * Lay out the graph with dagre's layered ranking and return React Flow nodes and
+ * edges. Dynamically imports dagre so the graph bundle is only fetched at the
  * graph altitude.
  */
 export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout> {
-  const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
-  const elk = new ELK();
+  const { default: Dagre } = await import('@dagrejs/dagre');
+  const g = new Dagre.graphlib.Graph();
+  // rankdir LR: the fact side ranks on the left, responses on the right. ranksep
+  // and nodesep carry elk's between-layer (96) and within-layer (28) spacing.
+  g.setGraph({ rankdir: 'LR', nodesep: 28, ranksep: 96, ranker: 'network-simplex' });
+  g.setDefaultEdgeLabel(() => ({}));
 
   const joins = joinWatchIds(graph);
 
-  const children = graph.nodes.map((node) => {
-    const constraint = layerConstraint(node.kind);
+  for (const node of graph.nodes) {
+    g.setNode(node.id, { width: NODE_WIDTH, height: nodeHeight(node) });
+  }
+  for (const edge of graph.edges) {
+    g.setEdge(edge.from, edge.to);
+  }
+
+  Dagre.layout(g);
+
+  const nodes: ProactivityRFNode[] = graph.nodes.map((node) => {
+    const height = nodeHeight(node);
+    const laid = g.node(node.id);
+    // dagre reports node centers; React Flow positions by the top-left corner.
+    const position =
+      laid && typeof laid.x === 'number' && typeof laid.y === 'number'
+        ? { x: laid.x - NODE_WIDTH / 2, y: laid.y - height / 2 }
+        : { x: 0, y: 0 };
     return {
       id: node.id,
+      type: 'proactivity',
+      position,
+      data: { node, isJoin: node.kind === 'watch' && joins.has(node.id) },
       width: NODE_WIDTH,
-      height: nodeHeight(node),
-      ...(constraint ? { layoutOptions: { 'elk.layered.layering.layerConstraint': constraint } } : {}),
+      height,
+      draggable: false,
+      connectable: false,
+      deletable: false,
     };
   });
-
-  const elkEdges = graph.edges.map((edge) => ({ id: edge.id, sources: [edge.from], targets: [edge.to] }));
-
-  const laid = await elk.layout({
-    id: 'proactivity',
-    layoutOptions: {
-      'elk.algorithm': 'layered',
-      'elk.direction': 'RIGHT',
-      'elk.spacing.nodeNode': '28',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '96',
-      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-    },
-    children,
-    edges: elkEdges,
-  });
-
-  const positionById = new Map((laid.children ?? []).map((child) => [child.id, { x: child.x ?? 0, y: child.y ?? 0 }]));
-
-  const nodes: ProactivityRFNode[] = graph.nodes.map((node) => ({
-    id: node.id,
-    type: 'proactivity',
-    position: positionById.get(node.id) ?? { x: 0, y: 0 },
-    data: { node, isJoin: node.kind === 'watch' && joins.has(node.id) },
-    width: NODE_WIDTH,
-    height: nodeHeight(node),
-    draggable: false,
-    connectable: false,
-    deletable: false,
-  }));
 
   const edges: ProactivityRFEdge[] = graph.edges.map((edge) => {
     const stroke = EDGE_STROKE[edge.kind];
@@ -147,5 +141,6 @@ export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout>
     };
   });
 
-  return { width: laid.width ?? 0, height: laid.height ?? 0, nodes, edges };
+  const laidGraph = g.graph();
+  return { width: laidGraph.width ?? 0, height: laidGraph.height ?? 0, nodes, edges };
 }

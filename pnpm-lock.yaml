@@ -76,6 +76,12 @@ importers:
       '@commonplace/theorem-acp':
         specifier: file:../../packages/theorem-acp
         version: link:../../packages/theorem-acp
+      '@dagrejs/dagre':
+        specifier: ^3.0.0
+        version: 3.0.0
+      '@dagrejs/graphlib':
+        specifier: ^4.0.1
+        version: 4.0.1
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
@@ -97,9 +103,6 @@ importers:
       d3:
         specifier: ^7.9.0
         version: 7.9.0
-      elkjs:
-        specifier: ^0.9.3
-        version: 0.9.3
       eventsource-parser:
         specifier: ^3.0.0
         version: 3.1.0
@@ -6417,9 +6420,6 @@ packages:
   elementtree@0.1.7:
     resolution: {integrity: sha512-wkgGT6kugeQk/P6VZ/f4T+4HB41BVgNBq5CDIZVbQ02nvTVqAiVTbskxxu3eA/X96lMlfYOwnLQpN2v5E1zDEg==}
     engines: {node: '>= 0.4.0'}
-
-  elkjs@0.9.3:
-    resolution: {integrity: sha512-f/ZeWvW/BCXbhGEf1Ujp29EASo/lk1FDnETgNKwJrsVvGZhUWCZyg3xLJjAsxfOmt8KjswHmI5EwCQcPMpOYhQ==}
 
   embedding-atlas@0.21.0:
     resolution: {integrity: sha512-cjBkZiurZagyGGzKJmpJ8YaZlB6ZbM0mtEp4N1V5HTJArH8VJQWNNqxR1v0k0fpQZaByoLvT37kI972sr/Vawg==}
@@ -18028,8 +18028,6 @@ snapshots:
   elementtree@0.1.7:
     dependencies:
       sax: 1.1.4
-
-  elkjs@0.9.3: {}
 
   embedding-atlas@0.21.0(@uwdata/mosaic-core@0.24.4)(@uwdata/mosaic-spec@0.24.4)(@uwdata/mosaic-sql@0.24.3)(@uwdata/vgplot@0.24.4)(react@19.2.7):
     dependencies:

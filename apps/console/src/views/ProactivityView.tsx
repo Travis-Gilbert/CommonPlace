@@ -22,7 +22,7 @@ import { IntentComposer } from './proactivity/IntentComposer';
 import { sourcesOf } from './proactivity/kinds';
 import { useProactivityEdits } from './proactivity/use-edits';
 
-// The graph altitude, and the elkjs layout library it dynamically imports, load
+// The graph altitude, and the dagre layout library it dynamically imports, load
 // only when the graph altitude is opened (PG3: the list renders with no graph
 // bundle). The whole graph chunk is code-split behind this boundary.
 const GraphAltitude = dynamic(() => import('./proactivity/GraphAltitude').then((mod) => mod.GraphAltitude), {
