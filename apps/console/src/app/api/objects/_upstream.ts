@@ -4,6 +4,8 @@
 // owned so the two services stay independent. The key never reaches the
 // browser; the browser talks only to these same-origin routes.
 
+import { principalTenantHeaders, resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+
 export function upstreamBase(): string {
   return (
     process.env.CONSOLE_DATA_API_URL ??
@@ -20,6 +22,8 @@ export function upstreamKey(): string {
  *  through verbatim so the client can distinguish identity refusal (403)
  *  from a down transport. */
 export async function forward(path: string, init: RequestInit): Promise<Response> {
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
   let upstream: Response;
   try {
     upstream = await fetch(`${upstreamBase()}${path}`, {
@@ -27,6 +31,7 @@ export async function forward(path: string, init: RequestInit): Promise<Response
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': upstreamKey(),
+        ...principalTenantHeaders(resolution.principal),
       },
       cache: 'no-store',
     });

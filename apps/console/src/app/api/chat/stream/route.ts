@@ -15,13 +15,36 @@ import {
   type BridgeCommand,
 } from '@commonplace/theorem-acp/bridge';
 import { deltaStream, readChatRequest, requireMobileApiKey } from '@/lib/chat-delta';
+import {
+  configuredServiceTenantMatches,
+  resolveHarnessPrincipal,
+} from '@/lib/server/harness-principal';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    requireMobileApiKey(request, process.env.CONSOLE_MOBILE_API_KEY);
+    const configuredMobileKey = process.env.CONSOLE_MOBILE_API_KEY?.trim();
+    const mobileCredential = configuredMobileKey
+      ? request.headers.get('x-api-key') === configuredMobileKey
+      : false;
+    if (request.headers.has('x-api-key')) {
+      requireMobileApiKey(request, process.env.CONSOLE_MOBILE_API_KEY);
+    }
+    if (!mobileCredential) {
+      const resolution = await resolveHarnessPrincipal();
+      if (!resolution.ok) return resolution.response;
+      if (!configuredServiceTenantMatches(resolution.principal)) {
+        return Response.json(
+          {
+            error: 'tenant_connector_unavailable',
+            message: 'This signed-in tenant does not yet have a matching hosted ACP credential.',
+          },
+          { status: 403 },
+        );
+      }
+    }
     const chat = readChatRequest(await request.json().catch(() => null));
     const command: BridgeCommand = {
       type: 'add-message',

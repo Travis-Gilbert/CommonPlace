@@ -4,6 +4,8 @@ Status: SUPERSEDED, DO NOT EXECUTE. Author: Claude Code, 2026-07-06. Retained as
 
 > Superseded for execution by `docs/plans/frontend-ownership-migration/implementation-plan.md`. This file remains the July 6 harness-console commit ledger and backend-contract background. The newer plan covers all Theorem frontend surfaces, the post-July-6 drift, specialty clients, ownership prevention, and final teardown.
 
+> Canonical host correction, July 18: `https://v2.theoremharness.com` serving `apps/console` is the primary CommonPlace frontend. References below that call `https://app.theoremharness.com` or `apps/web` canonical are historical and must not guide new product work.
+
 > Marketing decision update, July 11: the landing page moves into the CommonPlace repository but remains a standalone public page at `https://theoremharness.com`. It must not be folded into the `app.theoremharness.com` product shell, and its public URL must not change during migration.
 
 > Path note: references below to Theorem crates, apps, and tests are relative to the sibling Theorem repository at the historical snapshot, not to this CommonPlace checkout. The checklist below is archival and must not be used for execution.

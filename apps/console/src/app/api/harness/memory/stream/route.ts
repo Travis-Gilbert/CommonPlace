@@ -1,11 +1,14 @@
 // SOURCING: none. Tenant-filtered same-origin proxy for the Harness Item SSE
 // changefeed. The server keeps the bearer token out of the browser.
 
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
-  const tenant = process.env.CONSOLE_HARNESS_TENANT?.trim();
-  if (!tenant) return Response.json({ error: 'missing_mcp_tenant' }, { status: 400 });
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
+  const tenant = resolution.principal.tenant;
   const base = process.env.THEOREM_ITEM_CHANGEFEED_URL ?? process.env.CONSOLE_HARNESS_URL;
   if (!base) return Response.json({ error: 'harness_changefeed_unconfigured' }, { status: 404 });
   const endpoint = process.env.THEOREM_ITEM_CHANGEFEED_URL

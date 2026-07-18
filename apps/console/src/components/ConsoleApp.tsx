@@ -16,6 +16,7 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
+import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
@@ -74,9 +75,9 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
 const emptySubscribe = () => () => {};
 
 /** HTTP outcomes from the record wire map onto the named connection states
- *  (R2.3): 403 is the identity-refusal analog, null is a dead transport. */
+ *  (R2.3): 401 and 403 are identity-refusal outcomes, null is a dead transport. */
 function connectionFor(status: number | null): 'connected' | 'disconnected' | 'identity-refused' {
-  if (status === 403) return 'identity-refused';
+  if (status === 401 || status === 403) return 'identity-refused';
   if (status !== null && status >= 200 && status < 300) return 'connected';
   return 'disconnected';
 }
@@ -137,11 +138,13 @@ export function ConsoleApp() {
     <div className="relative h-dvh w-full overflow-hidden bg-ij-frame">
       <GroundCanvas />
       <div className="relative z-10 h-full p-1">
-        <RuntimeBoundary>
-          <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
-            <IntuiShell host={host} />
-          </div>
-        </RuntimeBoundary>
+        <SessionProvider>
+          <RuntimeBoundary>
+            <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
+              <IntuiShell host={host} />
+            </div>
+          </RuntimeBoundary>
+        </SessionProvider>
       </div>
     </div>
   );

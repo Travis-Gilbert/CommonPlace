@@ -43,6 +43,7 @@ describe('ConsoleBlockHost', () => {
     const set = host.queryLayout(surfaceQuery());
     const surfaces = set.objects.filter((object) => object.type === 'surface');
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
+      'console-account',
       'console-appearance',
       'console-cards',
       'console-chat',

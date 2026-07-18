@@ -6,15 +6,18 @@
 // sheet can name it. No fixture rooms ever render.
 
 import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request): Promise<Response> {
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
   const base = process.env.CONSOLE_HARNESS_URL;
   if (!base) {
     return Response.json({ error: 'console_harness_unconfigured' }, { status: 404 });
   }
-  const tenant = process.env.CONSOLE_HARNESS_TENANT ?? 'Travis-Gilbert';
+  const tenant = resolution.principal.tenant;
   const room = process.env.CONSOLE_HARNESS_ROOM ?? 'commonplace';
   const pack = await req.text();
   const timeout = startHarnessRequestTimeout();
