@@ -15,8 +15,11 @@ export type PgNodeKind = 'stake' | 'source' | 'watch' | 'judgment' | 'response' 
  *  (named choice 4). */
 export type PgAuthor = 'agent' | 'human';
 
-/** The four DataWave life sources (the spec's Source vocabulary). */
-export type LifeSourceKind = 'life_email' | 'life_event' | 'life_sms' | 'life_call';
+/** The five DataWave life sources (the spec's Source vocabulary). `life_clock`
+ *  is time as a fact source, not a trigger (aliveness named choice 3): it emits
+ *  temporal facts (a staleness threshold passed, a cadence tick) that feed a
+ *  watch like any other source, so there is no cron block. */
+export type LifeSourceKind = 'life_email' | 'life_event' | 'life_sms' | 'life_call' | 'life_clock';
 
 /** A source's ingest state, rendered so disabling is never silent. */
 export type IngestState = 'live' | 'paused' | 'error';
@@ -108,14 +111,28 @@ export interface JudgmentNode {
   readonly disabled: boolean;
 }
 
+/** The typed blocks a response is made of (the node-model grammar). `prepare`
+ *  assembles ("find the deadline, gather the correspondence"), `verify` checks
+ *  feasibility before proposing (the verified-cognition layer, made visible),
+ *  `action` is the terminal effect, and `custom` is unthemed (its shape cannot
+ *  tell you what it does, so it is compiled from intent, never hand-written). */
+export type ResponseBlockType = 'prepare' | 'verify' | 'action' | 'custom';
+
 /** One step in a response's agent action. Actions are programmed by stacking
- *  steps (the git-graph building block): each step is a row a person adds to the
- *  node to build up what the agent does when the response fires. Steps are
- *  attention/plan only; they never widen the Grant or the EffectContract (the
- *  grant boundary holds, PG7 gate 2). */
+ *  typed blocks (the git-graph building block): each step is a row a person adds
+ *  to the node to build up what the agent does when the response fires. Steps
+ *  are attention/plan only; they never widen the Grant or the EffectContract
+ *  (the grant boundary holds, PG7 gate 2). */
 export interface ActionStep {
   readonly id: string;
   readonly label: string;
+  /** The typed block this step is. Absent means derived: an untyped step is a
+   *  `prepare` block, and the terminal effect is always the `action`. */
+  readonly type?: ResponseBlockType;
+  /** A branch label when this step forks the response rail (if/then is
+   *  fork/merge topology, the git-graph primitive). Absent means the trunk;
+   *  `then`/`else` steps fork and rejoin at the terminal action (the merge). */
+  readonly branch?: 'then' | 'else';
 }
 
 /** A response: "what it does about it" (an action class resolving to an

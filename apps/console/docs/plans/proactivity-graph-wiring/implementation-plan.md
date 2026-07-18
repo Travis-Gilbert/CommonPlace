@@ -109,6 +109,14 @@ Next.js server (apps/console, src/app/api/*)
 4. GW5 tenant module (server-side) + GW6 structural gates.
 5. GW3 SSE overlay (fixture firing at v0).
 6. GW4 ACP compile.
-7. Node-model typed blocks (design-gated for the block rendering).
+7. Node-model typed blocks (design-gated for the block rendering). **Done.** The
+   grammar (blocks typed by host kind), prepare/verify/action in Response, the
+   Clock source (not a cron block), custom compiled from intent, sentence-outside
+   / blocks-inside, and the git fork/merge for the response stack all ship as a
+   pure decompile over the existing fields (`lib/proactivity/blocks.ts`,
+   `views/proactivity/BlockStack.tsx`), so the fixture seam and the grant
+   boundary hold. See `node-model-typed-blocks-design.md`. Verified: tsc, lint,
+   five gates, 91 unit tests (10 new in `blocks.test.ts`), and the three
+   proactivity e2e; darwin baselines regenerated (linux harvested from CI).
 8. v1 swap: point the projection fn + mutations at the harness when admission is
    resolved. Front end and channels unchanged.

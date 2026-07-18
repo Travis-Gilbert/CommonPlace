@@ -122,6 +122,10 @@ const NODES: readonly StandingNode[] = [
   { id: 'pg-source-event', kind: 'source', lifeKind: 'life_event', label: 'Calendar', ingest: 'live', disabled: false },
   { id: 'pg-source-sms', kind: 'source', lifeKind: 'life_sms', label: 'Messages', ingest: 'live', disabled: false },
   { id: 'pg-source-call', kind: 'source', lifeKind: 'life_call', label: 'Calls', ingest: 'live', disabled: false },
+  // Time is a fact source, not a trigger (aliveness named choice 3): the Clock
+  // emits temporal facts (a cadence tick, a staleness threshold passed) that
+  // feed a watch like any other source, so there is no cron block.
+  { id: 'pg-source-clock', kind: 'source', lifeKind: 'life_clock', label: 'Clock', ingest: 'live', disabled: false },
 
   // --- Watches (derived from labels, and authored standing queries) ---
   {
@@ -140,10 +144,12 @@ const NODES: readonly StandingNode[] = [
     id: 'pg-watch-book',
     kind: 'watch',
     subKind: 'derived',
-    statement: 'The editor pings about the manuscript',
-    condition: 'the editor emails or texts',
-    conditionParams: {},
-    sourceIds: ['pg-source-email', 'pg-source-sms'],
+    statement: 'The editor pings, or a week passes on the manuscript',
+    condition: 'the editor emails or texts, or {cadenceDays} days pass with no progress',
+    conditionParams: { cadenceDays: 7 },
+    // The weekly cadence is a Clock-fed watch (aliveness named choice 3): the
+    // Clock source emits the cadence tick that this watch reads.
+    sourceIds: ['pg-source-email', 'pg-source-sms', 'pg-source-clock'],
     stakeId: 'pg-stake-book',
     author: 'agent',
     disabled: false,
@@ -191,12 +197,13 @@ const NODES: readonly StandingNode[] = [
     judgmentId: 'pg-judg-book',
     author: 'agent',
     disabled: false,
-    // A built-up agent action: three stacked steps a person programmed on the
-    // node (the git-graph building block).
+    // A built-up agent action: typed blocks a person stacked on the node (the
+    // git-graph building block). prepare assembles, verify checks, and the
+    // terminal action (the effect contract) is the merge.
     steps: [
-      { id: 'pg-resp-book-s1', label: 'Summarize what changed' },
-      { id: 'pg-resp-book-s2', label: 'Add it to your 6pm digest' },
-      { id: 'pg-resp-book-s3', label: 'Flag anything time-sensitive' },
+      { id: 'pg-resp-book-s1', label: 'Summarize what changed', type: 'prepare' },
+      { id: 'pg-resp-book-s2', label: 'Check it is worth surfacing', type: 'verify' },
+      { id: 'pg-resp-book-s3', label: 'Add it to your 6pm digest', type: 'prepare' },
     ],
   },
   {
@@ -206,9 +213,13 @@ const NODES: readonly StandingNode[] = [
     judgmentId: 'pg-judg-owe',
     author: 'human',
     disabled: false,
+    // A branched action: prepare, verify, then a then/else fork that rejoins at
+    // the terminal action (the git-graph fork/merge topology).
     steps: [
-      { id: 'pg-resp-owe-s1', label: 'Draft a short nudge' },
-      { id: 'pg-resp-owe-s2', label: 'Hold for your approval' },
+      { id: 'pg-resp-owe-s1', label: 'Draft a short nudge', type: 'prepare' },
+      { id: 'pg-resp-owe-s2', label: 'Check the reply is really overdue', type: 'verify' },
+      { id: 'pg-resp-owe-s3', label: 'If overdue, hold for your approval', type: 'prepare', branch: 'then' },
+      { id: 'pg-resp-owe-s4', label: 'Otherwise, note it silently', type: 'prepare', branch: 'else' },
     ],
   },
   { id: 'pg-resp-subs', kind: 'response', actionClass: 'push_subscription_alert', judgmentId: 'pg-judg-subs', author: 'agent', disabled: false },

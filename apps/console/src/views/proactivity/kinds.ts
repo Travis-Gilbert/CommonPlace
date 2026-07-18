@@ -106,6 +106,8 @@ export function humanLifeKind(lifeKind: string): string {
       return 'Messages';
     case 'life_call':
       return 'Calls';
+    case 'life_clock':
+      return 'Clock';
     default:
       return lifeKind;
   }

@@ -12,12 +12,11 @@
 // and fence gates. Steps are attention and plan only: they run through the same
 // receipted, reversible edits and never touch the Grant or the EffectContract.
 
-import { useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { nodeDisabled, type ActionStep, type ProjectedNode } from '@/lib/proactivity/model';
-import { setResponseStepsAction } from '@/lib/proactivity/node-actions';
+import { nodeDisabled, type ProjectedNode } from '@/lib/proactivity/model';
 import { KIND_META } from '@/views/proactivity/kinds';
 import { useGraphInteraction } from '@/views/proactivity/graph-context';
+import { BlockStack } from '@/views/proactivity/BlockStack';
 import type { ProactivityRFNode } from '@/views/proactivity/graph-layout';
 
 type Response = Extract<ProjectedNode, { kind: 'response' }>;
@@ -59,13 +58,6 @@ function responseMeta(node: Response): { text: string; ink: string } {
   return { text: 'asks you every time', ink: 'text-ij-accent' };
 }
 
-/** The visible step stack: authored steps, or one derived row from the effect so
- *  an unprogrammed action still reads as a single step a person can build on. */
-function visibleSteps(node: Response): ActionStep[] {
-  if (node.steps && node.steps.length > 0) return [...node.steps];
-  return [{ id: `${node.id}-s1`, label: node.effectContract.title }];
-}
-
 function containerClass(selected: boolean, degraded: boolean, isJoin: boolean, disabled: boolean): string {
   const border = selected
     ? 'border-ij-accent'
@@ -95,62 +87,10 @@ function KindHeader({ node, isJoin }: { readonly node: ProjectedNode; readonly i
   );
 }
 
-/** One editable step row on the rail: type the step, commit on blur, remove with
- *  the row control. This is how a person programs the agent action. */
-function StepRow({
-  step,
-  onCommit,
-  onRemove,
-}: {
-  readonly step: ActionStep;
-  readonly onCommit: (label: string) => void;
-  readonly onRemove: () => void;
-}) {
-  const [label, setLabel] = useState(step.label);
-  return (
-    <div className="nodrag nopan group/step flex items-center gap-2">
-      <span className="size-1.5 shrink-0 rounded-full" style={{ background: 'var(--ij-accent)' }} aria-hidden="true" />
-      <input
-        className="min-w-0 flex-1 bg-transparent text-xs text-ij-ink outline-none"
-        value={label}
-        aria-label="Action step"
-        onChange={(event) => setLabel(event.target.value)}
-        onBlur={() => {
-          if (label.trim() && label !== step.label) onCommit(label.trim());
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-        }}
-      />
-      <button
-        type="button"
-        aria-label="Remove step"
-        className="shrink-0 text-xs text-ij-ink-info opacity-0 group-hover/step:opacity-100 hover:text-ij-error"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove();
-        }}
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
 function ResponseStack({ node, selected }: { readonly node: Response; readonly selected: boolean }) {
-  const { edits } = useGraphInteraction();
-  const steps = visibleSteps(node);
+  const { edits, onCompile } = useGraphInteraction();
   const meta = responseMeta(node);
   const disabled = nodeDisabled(node);
-
-  const commitSteps = (next: ActionStep[], label: string) => {
-    if (!edits) return;
-    void edits.run({
-      action: setResponseStepsAction(node.id, next),
-      inverse: setResponseStepsAction(node.id, steps),
-      label,
-    });
-  };
 
   return (
     <div
@@ -164,37 +104,12 @@ function ResponseStack({ node, selected }: { readonly node: Response; readonly s
       <KindHeader node={node} isJoin={false} />
       <p className={`mb-1 truncate text-xs ${meta.ink}`}>{meta.text}</p>
 
-      <div className="flex flex-col gap-0.5 border-l border-ij-seam-raised pl-2">
-        {steps.map((step) => (
-          <StepRow
-            key={step.id}
-            step={step}
-            onCommit={(label) =>
-              commitSteps(
-                steps.map((candidate) => (candidate.id === step.id ? { ...candidate, label } : candidate)),
-                'edit step',
-              )
-            }
-            onRemove={() =>
-              commitSteps(
-                steps.filter((candidate) => candidate.id !== step.id),
-                'remove step',
-              )
-            }
-          />
-        ))}
-      </div>
-
-      <button
-        type="button"
-        className="nodrag nopan mt-0.5 flex items-center gap-1 self-start text-xs text-ij-ink-info hover:text-ij-ink"
-        onClick={(event) => {
-          event.stopPropagation();
-          commitSteps([...steps, { id: `${node.id}-step-${steps.length + 1}-${steps.length}`, label: 'New step' }], 'add step');
-        }}
-      >
-        <span aria-hidden="true">+</span> Add step
-      </button>
+      {/* The typed block stack: prepare/verify trunk, any then/else fork, and the
+          terminal action (the merge). Editing runs the same receipted, reversible
+          edits the inspector and card use, so the altitudes cannot drift. */}
+      {edits ? (
+        <BlockStack node={node} sources={[]} contracts={[]} edits={edits} dense onCompile={onCompile} />
+      ) : null}
 
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </div>
