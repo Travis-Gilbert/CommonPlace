@@ -11,6 +11,8 @@ block-view object contract inside every pane.
 Canonical product host: `https://v2.theoremharness.com`. The `apps/web`
 deployment at `https://app.theoremharness.com` is a legacy frontend and is not
 the primary CommonPlace product surface.
+Railway must deploy this app with `railway.console.toml`; the root
+`railway.toml` belongs to the legacy web service.
 
 ## Composition doctrine
 
