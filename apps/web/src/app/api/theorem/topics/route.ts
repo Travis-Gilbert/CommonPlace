@@ -64,12 +64,14 @@ function graphqlOperation(action: TopicAction | null, tenant: string): GraphqlOp
   }
   if (action.action === 'create' && action.config) {
     const config = action.config;
+    const seedUrls = Array.isArray(config.seedUrls) ? config.seedUrls : [];
+    const queries = Array.isArray(config.queries) ? config.queries : [];
     const connectors: Array<Record<string, unknown>> = [];
-    if (config.seedUrls.length > 0) {
-      connectors.push({ kind: 'site_scope', id: 'sites', seeds: config.seedUrls });
+    if (seedUrls.length > 0) {
+      connectors.push({ kind: 'site_scope', id: 'sites', seeds: seedUrls });
     }
-    if (config.queries.length > 0) {
-      connectors.push({ kind: 'search_fanout', id: 'search', queries: config.queries });
+    if (queries.length > 0) {
+      connectors.push({ kind: 'search_fanout', id: 'search', queries });
     }
     return {
       mutation: true,
