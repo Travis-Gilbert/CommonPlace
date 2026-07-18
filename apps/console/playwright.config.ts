@@ -39,9 +39,14 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 120000,
       env: {
+        AUTH_SECRET: 'console-e2e-secret-not-for-production',
         CONSOLE_DATA_API_URL: 'http://localhost:50591',
         CONSOLE_DATA_API_KEY: 'dev-key',
         CONSOLE_HARNESS_TENANT: 'Travis-Gilbert',
+        // Explicit non-production identity fixture: same-origin proxy tests
+        // exercise tenant headers without weakening the production session gate.
+        CONSOLE_E2E_GITHUB_LOGIN: 'Travis-Gilbert',
+        CONSOLE_E2E_HARNESS_IDENTITY: 'github:e2e-owner',
         THEOREM_GRAPHQL_URL: 'http://localhost:50591/graphql',
         THEOREM_ITEM_CHANGEFEED_URL: 'http://localhost:50591/v1/items/stream',
         THEOREM_API_KEY: 'dev-key',

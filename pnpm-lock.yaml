@@ -121,6 +121,9 @@ importers:
       next:
         specifier: ^16.1.6
         version: 16.2.10(@babel/core@7.29.7)(@playwright/test@1.61.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next-auth:
+        specifier: ^5.0.0-beta.30
+        version: 5.0.0-beta.31(next@16.2.10(@babel/core@7.29.7)(@playwright/test@1.61.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -813,7 +816,7 @@ importers:
         version: 19.2.3(react@19.2.3)
       react-force-graph-3d:
         specifier: ^1.29.1
-        version: 1.29.1(preact-render-to-string@6.6.5(preact@10.24.3))(react@19.2.3)
+        version: 1.29.1(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))(react@19.2.3)
       react-hotkeys-hook:
         specifier: ^5.2.4
         version: 5.3.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -11458,13 +11461,13 @@ packages:
 
 snapshots:
 
-  3d-force-graph@1.80.0(preact-render-to-string@6.6.5(preact@10.24.3)):
+  3d-force-graph@1.80.0(preact-render-to-string@6.6.5(preact@11.0.0-beta.0)):
     dependencies:
       accessor-fn: 1.5.3
       kapsule: 1.16.3
       three: 0.183.2
       three-forcegraph: 1.43.4(three@0.183.2)
-      three-render-objects: 1.42.0(preact-render-to-string@6.6.5(preact@10.24.3))(three@0.183.2)
+      three-render-objects: 1.42.0(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))(three@0.183.2)
     transitivePeerDependencies:
       - preact-render-to-string
 
@@ -19511,11 +19514,11 @@ snapshots:
 
   flexsearch@0.7.43: {}
 
-  float-tooltip@1.7.5(preact-render-to-string@6.6.5(preact@10.24.3)):
+  float-tooltip@1.7.5(preact-render-to-string@6.6.5(preact@11.0.0-beta.0)):
     dependencies:
       d3-selection: 3.0.0
       kapsule: 1.16.3
-      preact: 10.29.7(preact-render-to-string@6.6.5(preact@10.24.3))
+      preact: 10.29.7(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))
     transitivePeerDependencies:
       - preact-render-to-string
 
@@ -21947,20 +21950,15 @@ snapshots:
     dependencies:
       preact: 10.24.3
 
-  preact-render-to-string@6.6.5(preact@10.24.3):
-    dependencies:
-      preact: 10.24.3
-    optional: true
-
   preact-render-to-string@6.6.5(preact@11.0.0-beta.0):
     dependencies:
       preact: 11.0.0-beta.0
 
   preact@10.24.3: {}
 
-  preact@10.29.7(preact-render-to-string@6.6.5(preact@10.24.3)):
+  preact@10.29.7(preact-render-to-string@6.6.5(preact@11.0.0-beta.0)):
     optionalDependencies:
-      preact-render-to-string: 6.6.5(preact@10.24.3)
+      preact-render-to-string: 6.6.5(preact@11.0.0-beta.0)
 
   preact@11.0.0-beta.0: {}
 
@@ -22286,9 +22284,9 @@ snapshots:
 
   react-fast-compare@3.2.2: {}
 
-  react-force-graph-3d@1.29.1(preact-render-to-string@6.6.5(preact@10.24.3))(react@19.2.3):
+  react-force-graph-3d@1.29.1(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))(react@19.2.3):
     dependencies:
-      3d-force-graph: 1.80.0(preact-render-to-string@6.6.5(preact@10.24.3))
+      3d-force-graph: 1.80.0(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))
       prop-types: 15.8.1
       react: 19.2.3
       react-kapsule: 2.6.0(react@19.2.3)
@@ -23586,11 +23584,11 @@ snapshots:
     dependencies:
       three: 0.183.2
 
-  three-render-objects@1.42.0(preact-render-to-string@6.6.5(preact@10.24.3))(three@0.183.2):
+  three-render-objects@1.42.0(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))(three@0.183.2):
     dependencies:
       '@tweenjs/tween.js': 25.0.0
       accessor-fn: 1.5.3
-      float-tooltip: 1.7.5(preact-render-to-string@6.6.5(preact@10.24.3))
+      float-tooltip: 1.7.5(preact-render-to-string@6.6.5(preact@11.0.0-beta.0))
       kapsule: 1.16.3
       polished: 4.3.1
       three: 0.183.2

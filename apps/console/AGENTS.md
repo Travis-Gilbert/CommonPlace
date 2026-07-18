@@ -8,6 +8,12 @@ IntelliJ instead of VS Code, with sidebars that show code and markdown as
 easily as they show data models. The mechanism: IntelliJ chrome outside, the
 block-view object contract inside every pane.
 
+Canonical product host: `https://v2.theoremharness.com`. The `apps/web`
+deployment at `https://app.theoremharness.com` is a legacy frontend and is not
+the primary CommonPlace product surface.
+Railway must deploy this app with `railway.console.toml`; the root
+`railway.toml` belongs to the legacy web service.
+
 ## Composition doctrine
 
 One material system. Two structural sources. Bridged, not blended.
@@ -75,6 +81,7 @@ gap: add the row, with a named source, before writing code.
 | React lifecycle motion | `motion` (`motion/react`) | entrances per the interaction inventory |
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
 | Client state | `zustand` | run state, shell session state |
+| Account identity | Auth.js with GitHub | OAuth, session state, sign-in, sign-out, verified user claims |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |

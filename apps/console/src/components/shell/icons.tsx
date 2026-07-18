@@ -109,6 +109,15 @@ export function IconChevronDown(props: IconProps) {
   return <svg {...controlBase(props)}><path d="m4.5 6.5 3.5 3.5 3.5-3.5" /></svg>;
 }
 
+export function IconAccount(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <circle cx="8" cy="5.5" r="2.5" />
+      <path d="M3.5 13c.6-2.1 2.1-3.2 4.5-3.2s3.9 1.1 4.5 3.2" />
+    </svg>
+  );
+}
+
 export type ObjectKind = 'doc' | 'code' | 'record' | 'thread' | 'settings';
 
 export function KindDot({ kind }: { kind: ObjectKind }) {

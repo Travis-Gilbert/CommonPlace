@@ -11,8 +11,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import { useThreadStore } from '@/lib/thread-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
+import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { SearchField } from './SearchField';
-import { IconChevronDown, IconRun, IconStop } from './icons';
+import { IconAccount, IconChevronDown, IconRun, IconStop } from './icons';
 
 interface MainToolbarProps {
   readonly host: ConsoleBlockHost;
@@ -139,6 +140,17 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
         >
           {isRunning ? <IconStop size={14} /> : <IconRun size={14} />}
           {isRunning ? 'Running' : 'Run'}
+        </button>
+        <button
+          type="button"
+          data-account-trigger
+          aria-label="Account"
+          aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
+          onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
+          className="flex h-ij-control w-ij-control items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink aria-pressed:bg-ij-selection aria-pressed:text-ij-ink"
+          style={{ transition: 'var(--rec-clickable-transition)' }}
+        >
+          <IconAccount size={15} />
         </button>
       </div>
     </header>

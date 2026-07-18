@@ -4,6 +4,12 @@
 // owned so the two services stay independent. The key never reaches the
 // browser; the browser talks only to these same-origin routes.
 
+import {
+  configuredServiceTenantMatches,
+  principalTenantHeaders,
+  resolveHarnessPrincipal,
+} from '@/lib/server/harness-principal';
+
 export function upstreamBase(): string {
   return (
     process.env.CONSOLE_DATA_API_URL ??
@@ -17,9 +23,23 @@ export function upstreamKey(): string {
 }
 
 /** Forward a JSON body to the upstream object seam, passing the status
- *  through verbatim so the client can distinguish identity refusal (403)
- *  from a down transport. */
+ *  through verbatim so the client can distinguish identity refusal
+ *  (401 unauthenticated or 403 unauthorized) from a down transport. */
 export async function forward(path: string, init: RequestInit): Promise<Response> {
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
+  // The object API authorizes only by shared API key and does not scope by
+  // tenant headers yet. Refuse any signed-in principal that does not match
+  // the configured service tenant until tenant-scoped object credentials exist.
+  if (!configuredServiceTenantMatches(resolution.principal)) {
+    return Response.json(
+      {
+        error: 'tenant_object_credential_unavailable',
+        message: 'This signed-in tenant does not yet have a matching object-seam credential.',
+      },
+      { status: 403 },
+    );
+  }
   let upstream: Response;
   try {
     upstream = await fetch(`${upstreamBase()}${path}`, {
@@ -27,6 +47,7 @@ export async function forward(path: string, init: RequestInit): Promise<Response
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': upstreamKey(),
+        ...principalTenantHeaders(resolution.principal),
       },
       cache: 'no-store',
     });

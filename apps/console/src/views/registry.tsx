@@ -15,6 +15,7 @@ import { DocListView, IndexRailView } from './DocListView';
 import { CardFullView, CardGridView } from './CardView';
 import { HunkReviewView } from './HunkReviewView';
 import { AppearanceView } from './AppearanceView';
+import { AccountView } from './AccountView';
 import { FilesView } from './FilesView';
 import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
@@ -252,6 +253,21 @@ const APPEARANCE: ViewDescriptor = {
   render: AppearanceView,
 };
 
+const ACCOUNT: ViewDescriptor = {
+  id: 'settings.account',
+  name: 'Account',
+  accepts: {},
+  emits: ['update'],
+  renderer: 'settings.account',
+  source: {
+    package: 'next-auth/react',
+    component: 'SessionProvider',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: AccountView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -267,6 +283,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   HUNK_REVIEW,
   APPEARANCE,
   PROACTIVITY,
+  ACCOUNT,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

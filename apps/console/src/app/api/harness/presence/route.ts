@@ -4,14 +4,18 @@
 // renders no presence at all; presence appears only when the transport
 // actually reports it (the truthfulness rule).
 
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
   const base = process.env.CONSOLE_HARNESS_URL;
   if (!base) {
     return Response.json({ error: 'console_harness_unconfigured' }, { status: 404 });
   }
-  const tenant = process.env.CONSOLE_HARNESS_TENANT ?? 'Travis-Gilbert';
+  const tenant = resolution.principal.tenant;
   const room = process.env.CONSOLE_HARNESS_ROOM ?? 'commonplace';
   try {
     const upstream = await fetch(

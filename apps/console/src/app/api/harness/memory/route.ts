@@ -3,6 +3,7 @@
 // this route never falls back to a default tenant.
 
 import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
+import { principalTenantHeaders, resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,10 +29,9 @@ function graphqlUrl(): string | null {
 }
 
 export async function GET(): Promise<Response> {
-  const tenant = process.env.CONSOLE_HARNESS_TENANT?.trim();
-  if (!tenant) {
-    return Response.json({ error: 'missing_mcp_tenant' }, { status: 400 });
-  }
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
+  const tenant = resolution.principal.tenant;
   const endpoint = graphqlUrl();
   if (!endpoint) {
     return Response.json({ error: 'harness_graphql_unconfigured' }, { status: 404 });
@@ -42,8 +42,7 @@ export async function GET(): Promise<Response> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-theorem-tenant': tenant,
-        'x-tenant-id': tenant,
+        ...principalTenantHeaders(resolution.principal),
         ...(process.env.CONSOLE_HARNESS_TOKEN
           ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }
           : {}),
