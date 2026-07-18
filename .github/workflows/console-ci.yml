@@ -87,9 +87,11 @@ jobs:
 
   visual:
     name: Playwright visual baseline (gate 6)
-    # Visual references are captured on the design workstation; run the merge
-    # gate on the matching renderer so light and dark baselines both execute.
-    runs-on: macos-latest
+    # Runs on ubuntu-latest to match the gates job and the repo's CI-captured
+    # linux baseline convention: every -linux.png reference (light and dark) is
+    # generated from a CI run and pinned, so the gate validates on the same
+    # renderer that produced the references. Darwin baselines stay for local mac.
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
