@@ -30,6 +30,7 @@ const KEY = 'commonplace.instance.v1';
 export const DEFAULT_LOCAL_URL = 'http://127.0.0.1:50090';
 export const DEFAULT_CLOUD_URL = process.env.EXPO_PUBLIC_COMMONPLACE_CLOUD_URL ?? '';
 export const DEFAULT_CHAT_URL = process.env.EXPO_PUBLIC_COMMONPLACE_CHAT_URL ?? '';
+export const DEPLOYED_CHAT_URL = 'https://v2.theoremharness.com/api/chat/stream';
 export const DEFAULT_TENANT = 'Travis-Gilbert';
 export const DEFAULT_ACTOR = 'mobile';
 
@@ -69,13 +70,41 @@ export type InstanceCapabilities = {
   voiceCapture: boolean;
   voiceReadback: boolean;
   chatAttachments: boolean;
+  chatUrl: string | null;
+  webSearch: boolean;
+  pushRegistrationUrl: string | null;
+  expoProjectId: string | null;
+  capabilityCatalog: boolean;
 };
 
-const NO_CAPABILITIES: InstanceCapabilities = {
+export type CapabilityCatalogEntry = {
+  id: string;
+  kind: 'plugin' | 'skill';
+  name: string;
+  description?: string;
+};
+
+export type CapabilityCatalog = {
+  plugins: CapabilityCatalogEntry[];
+  skills: CapabilityCatalogEntry[];
+};
+
+export const NO_CAPABILITIES: InstanceCapabilities = {
   voiceCapture: false,
   voiceReadback: false,
   chatAttachments: false,
+  chatUrl: null,
+  webSearch: false,
+  pushRegistrationUrl: null,
+  expoProjectId: null,
+  capabilityCatalog: false,
 };
+
+export const EMPTY_CAPABILITY_CATALOG: CapabilityCatalog = { plugins: [], skills: [] };
+
+function optionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
 
 export async function fetchInstanceCapabilities(): Promise<InstanceCapabilities> {
   const settings = await readInstanceSettings();
@@ -88,15 +117,69 @@ export async function fetchInstanceCapabilities(): Promise<InstanceCapabilities>
       voice_capture?: boolean;
       voice_readback?: boolean;
       chat_attachments?: boolean;
+      chat_url?: string | null;
+      web_search?: boolean;
+      push_registration_url?: string | null;
+      expo_project_id?: string | null;
+      capability_catalog?: boolean;
     };
     return {
       voiceCapture: body.voice_capture === true,
       voiceReadback: body.voice_readback === true,
       chatAttachments: body.chat_attachments === true,
+      chatUrl: optionalString(body.chat_url),
+      webSearch: body.web_search === true,
+      pushRegistrationUrl: optionalString(body.push_registration_url),
+      expoProjectId: optionalString(body.expo_project_id),
+      capabilityCatalog: body.capability_catalog === true,
     };
   } catch {
     return NO_CAPABILITIES;
   }
+}
+
+export async function fetchCapabilityCatalog(): Promise<CapabilityCatalog> {
+  const settings = await readInstanceSettings();
+  try {
+    const response = await fetch(`${settings.url.replace(/\/$/, '')}/mobile/catalog`, {
+      headers: settings.apiKey ? { 'x-api-key': settings.apiKey } : undefined,
+    });
+    if (!response.ok) return EMPTY_CAPABILITY_CATALOG;
+    const body = await response.json() as Partial<CapabilityCatalog>;
+    const entries = (value: unknown, kind: CapabilityCatalogEntry['kind']): CapabilityCatalogEntry[] => {
+      if (!Array.isArray(value)) return [];
+      const out: CapabilityCatalogEntry[] = [];
+      for (const entry of value) {
+        if (!entry || typeof entry !== 'object') continue;
+        const candidate = entry as Partial<CapabilityCatalogEntry>;
+        const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+        const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
+        if (candidate.kind !== kind || !id || !name) continue;
+        const description = typeof candidate.description === 'string'
+          ? candidate.description.trim() || undefined
+          : undefined;
+        out.push({ id, kind, name, ...(description ? { description } : {}) });
+      }
+      return out;
+    };
+    return {
+      plugins: entries(body.plugins, 'plugin'),
+      skills: entries(body.skills, 'skill'),
+    };
+  } catch {
+    return EMPTY_CAPABILITY_CATALOG;
+  }
+}
+
+/** Manual/build configuration wins, then node discovery, then the v2 product route. */
+export async function resolveHostedChatUrl(
+  capabilities?: InstanceCapabilities,
+): Promise<string> {
+  const settings = await readInstanceSettings();
+  const configured = settings.chatUrl?.trim();
+  if (configured) return configured;
+  const discovered = capabilities ?? await fetchInstanceCapabilities();
+  return discovered.chatUrl ?? DEPLOYED_CHAT_URL;
 }
 
 /** Same probe the web shell uses: a `{ __typename }` round-trip. */

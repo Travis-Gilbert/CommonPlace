@@ -23,6 +23,8 @@ watchPatterns = [
 #     unavailable state; the route drives the hosted Theorem ACP session)
 #   THEOREM_NODE_URL / THEOREM_ACP_WS_URL / THEOREM_API_TOKEN  (hosted ACP;
 #     defaults resolve to https://api.theoremharness.com in production)
+#   CONSOLE_MOBILE_API_KEY  (optional x-api-key gate for native chat; use the
+#     same value as the connected CommonPlace node's mobile API key)
 #   CONSOLE_DATA_API_URL + CONSOLE_DATA_API_KEY  (object seam; the record
 #     table renders its error state when unreachable, identity refused on 403)
 #   CONSOLE_HARNESS_URL + CONSOLE_HARNESS_TOKEN + CONSOLE_HARNESS_TENANT +
