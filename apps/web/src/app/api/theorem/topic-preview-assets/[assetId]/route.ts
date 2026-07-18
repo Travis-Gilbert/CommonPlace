@@ -1,6 +1,13 @@
 const MCP_URL = process.env.THEOREM_MCP_URL?.trim() || 'http://127.0.0.1:50090/mcp';
 const MCP_TOKEN = process.env.THEOREM_MCP_BEARER_TOKEN?.trim();
 const TENANT = process.env.THEOREM_TENANT_SLUG?.trim();
+const PREVIEW_CONTENT_TYPES = new Set([
+  'image/avif',
+  'image/gif',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -37,10 +44,13 @@ export async function GET(
     const payload = await upstream.json().catch(() => null) as Record<string, unknown> | null;
     const asset = topicPreviewAsset(payload);
     if (!upstream.ok || !asset) return new Response('not found', { status: 404 });
-    const contentType = typeof asset.content_type === 'string' ? asset.content_type : '';
+    if (asset.asset_id !== assetId) return new Response('not found', { status: 404 });
+    const contentType = typeof asset.content_type === 'string' ? asset.content_type.toLowerCase() : '';
     const encoded = typeof asset.bytes_base64 === 'string' ? asset.bytes_base64 : '';
-    if (!contentType.startsWith('image/') || !encoded) return new Response('not found', { status: 404 });
-    return new Response(new Uint8Array(Buffer.from(encoded, 'base64')), {
+    if (!PREVIEW_CONTENT_TYPES.has(contentType) || !validBase64(encoded)) return new Response('not found', { status: 404 });
+    const bytes = Buffer.from(encoded, 'base64');
+    if (bytes.length === 0) return new Response('not found', { status: 404 });
+    return new Response(new Uint8Array(bytes), {
       headers: {
         'content-type': contentType,
         'cache-control': 'private, max-age=3600',
@@ -62,4 +72,10 @@ function objectValue(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
     : undefined;
+}
+
+function validBase64(value: string): boolean {
+  return value.length > 0
+    && value.length % 4 === 0
+    && /^[A-Za-z0-9+/]*={0,2}$/.test(value);
 }

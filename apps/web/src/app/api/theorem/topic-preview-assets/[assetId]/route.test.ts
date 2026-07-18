@@ -25,7 +25,7 @@ describe('GET /api/theorem/topic-preview-assets/[assetId]', () => {
       rpcBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return Response.json({
         jsonrpc: '2.0', id: '1', result: { structuredContent: { data: {
-          topicPreviewAsset: { content_type: 'image/png', bytes_base64: Buffer.from('held-png').toString('base64') },
+          topicPreviewAsset: { asset_id: assetId, content_type: 'image/png', bytes_base64: Buffer.from('held-png').toString('base64') },
         } } },
       });
     }) as typeof fetch;
@@ -49,5 +49,20 @@ describe('GET /api/theorem/topic-preview-assets/[assetId]', () => {
 
     expect(response.status).toBe(404);
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a mismatched asset id', { asset_id: 'f'.repeat(64), content_type: 'image/png', bytes_base64: 'aGVsZA==' }],
+    ['an unsafe SVG payload', { asset_id: assetId, content_type: 'image/svg+xml', bytes_base64: 'PHN2Zy8+' }],
+    ['malformed held bytes', { asset_id: assetId, content_type: 'image/png', bytes_base64: 'not base64' }],
+  ])('refuses %s from the held-asset boundary', async (_case, topicPreviewAsset) => {
+    globalThis.fetch = vi.fn(async () => Response.json({
+      jsonrpc: '2.0', id: '1', result: { structuredContent: { data: { topicPreviewAsset } } },
+    })) as typeof fetch;
+    const { GET } = await import('./route');
+
+    const response = await GET(new Request('http://localhost'), { params: Promise.resolve({ assetId }) });
+
+    expect(response.status).toBe(404);
   });
 });
