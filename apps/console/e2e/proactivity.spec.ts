@@ -27,6 +27,14 @@ async function openProactivity(page: Page) {
 }
 
 test.describe('Proactivity graph surface', () => {
+  test('the card altitude reads as a grid of card-sized cards, not full-width bars', async ({ page }) => {
+    await openProactivity(page);
+    // Cards is the default altitude; stakes and programs render as bounded cards.
+    await expect(page.locator('[data-node="pg-stake-appeal"]')).toBeVisible();
+    await expect(page.getByText('Looks for:').first()).toBeVisible();
+    await expect(page).toHaveScreenshot('proactivity-cards-1440-dark.png', { fullPage: true });
+  });
+
   test('disabling a source degrades its dependent watches with the consequence named', async ({ page }) => {
     await openProactivity(page);
     await page.getByRole('tab', { name: 'Cards' }).click();
