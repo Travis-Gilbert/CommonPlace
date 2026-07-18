@@ -144,12 +144,12 @@ export const speaker = {
     memory: accents.goldLight, // #E0BC60
     destructive: darkColors.destructive, // ink, never red
   },
-  /** Typography trinity: assigned by speaker on content surfaces (web parity). */
-  fonts: {
-    human: 'Vollkorn', // human authorship
-    agent: 'IBM Plex Sans', // agent voice
-    machine: 'JetBrains Mono', // machinery, regardless of speaker
-  },
+  // The typography trinity (Vollkorn / IBM Plex Sans / JetBrains Mono) is
+  // deliberately NOT mapped here yet: this app loads only Bricolage Grotesque
+  // (see _layout.tsx useFonts), so a bare family string would silently fall back
+  // to the system font. The trinity faces load, and this mapping lands, with the
+  // mobile execution dispatch item (HANDOFF-MOBILE-EXCELLENCE section 3.1). Until
+  // then, mobile speaker distinction is color-only.
 } as const;
 
 export type SpeakerScheme = { [K in keyof typeof speaker.light]: string };

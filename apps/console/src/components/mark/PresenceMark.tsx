@@ -208,7 +208,21 @@ const PRESENCE_RGB: [number, number, number] = [69, 180, 163];
 
 function inkFor(token: string): [number, number, number] {
   if (typeof window === 'undefined') return PRESENCE_RGB;
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(tokenName(token)).trim();
+  // The presence tokens chain one level (--cp-presence -> --cp-agent,
+  // --cp-presence-interrupt -> --cp-human). getComputedStyle does not
+  // substitute nested var() in a custom property's value on every engine (it is
+  // engine dependent, so relying on it would make the interrupted oxblood edge
+  // engine dependent too). Chase the chain like the contrast gate's
+  // resolveToken so the hex lands regardless.
+  const cs = getComputedStyle(document.documentElement);
+  let name = tokenName(token);
+  let raw = '';
+  for (let hop = 0; hop < 4; hop += 1) {
+    raw = cs.getPropertyValue(name).trim();
+    const nested = raw.match(/^var\((--[a-z0-9-]+)\)$/i);
+    if (!nested) break;
+    name = nested[1];
+  }
   if (!raw.startsWith('#') || raw.length < 7) return PRESENCE_RGB;
   return [
     parseInt(raw.slice(1, 3), 16),
