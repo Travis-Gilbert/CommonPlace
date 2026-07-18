@@ -157,8 +157,8 @@ describe('chat wire contract (R2.2)', () => {
     });
 
     expect(request.displayText).toBe('What changed in Rust this week?');
-    expect(request.promptText).toContain('perform live web research');
-    expect(request.promptText).toContain('cite the sources used');
+    expect(request.promptText).toContain('supplied live web research evidence');
+    expect(request.promptText).toContain('cite its exact source URLs');
   });
 
   it('optionally protects the mobile route with the instance api key', () => {
