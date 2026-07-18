@@ -6,11 +6,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { AppText } from '@/components/AppText';
+import { PressableSurface } from '@/components/PressableSurface';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -27,14 +28,15 @@ export default function SceneScreen() {
         <AppText variant="headline" tone="machine">
           Scene
         </AppText>
-        <Pressable
+        <PressableSurface
           onPress={() => router.back()}
           accessibilityLabel="Close scene"
           hitSlop={12}
-          style={({ pressed }) => [styles.close, { backgroundColor: pressed ? t.machine.raise : t.machine.mid, borderCurve: 'continuous' }]}
+          style={[styles.close, { backgroundColor: t.machine.mid, borderCurve: 'continuous' }]}
+          pressedStyle={{ backgroundColor: t.machine.raise }}
         >
           <Ionicons name="close" size={20} color={t.machine.text} />
-        </Pressable>
+        </PressableSurface>
       </View>
       {failed ? (
         <View style={styles.center}>

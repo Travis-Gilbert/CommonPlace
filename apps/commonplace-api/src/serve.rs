@@ -141,7 +141,31 @@ where
             post(ingest_blob_handler::<S, B>).layer(DefaultBodyLimit::max(BLOB_BODY_LIMIT_BYTES)),
         )
         .route("/blob/{hash}", get(blob_get_handler::<S, B>))
+        .route("/capabilities", get(capabilities_handler::<S, B>))
         .route("/tts", post(tts_handler::<S, B>))
+}
+
+#[derive(Serialize)]
+struct NativeCapabilities {
+    voice_capture: bool,
+    voice_readback: bool,
+}
+
+/// Safe capability discovery for native clients. Provider names and secrets
+/// stay server-side; the client only learns whether an affordance is real.
+async fn capabilities_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    headers: HeaderMap,
+) -> Result<Json<NativeCapabilities>, StatusCode>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    authorize(&state, &headers)?;
+    Ok(Json(NativeCapabilities {
+        voice_capture: Transcriber::from_env().is_enabled(),
+        voice_readback: Voice::from_env().is_ok(),
+    }))
 }
 
 /// The block-view object-model seam over HTTP (SPEC-OBJECT-CONTRACT-V2). The web

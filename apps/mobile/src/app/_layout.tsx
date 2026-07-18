@@ -1,12 +1,16 @@
 import '../global.css';
 
 import {
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-  useFonts,
-} from '@expo-google-fonts/bricolage-grotesque';
+  IBMPlexSans_400Regular,
+  IBMPlexSans_500Medium,
+  IBMPlexSans_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-sans';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
+import { Vollkorn_400Regular, Vollkorn_500Medium, Vollkorn_600SemiBold } from '@expo-google-fonts/vollkorn';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -14,8 +18,8 @@ import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import React, { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { respondToApproval } from '@/api/harness';
 import { editItem } from '@/api/queries';
+import { routeForTheoremUri } from '@/addressing/theoremUri';
 import { drainQueue, setQueueCallbacks, startQueuePump } from '@/capture/queue';
 import { Omnibar } from '@/components/omnibar/Omnibar';
 import { OmnibarProvider, useOmnibar } from '@/components/omnibar/OmnibarContext';
@@ -25,11 +29,14 @@ import {
   scheduleReminder,
   setupNotificationCategories,
   snoozeReminder,
+  startPushTokenRotationListener,
 } from '@/notifications';
 import { restoreQueryCache, startPersistingQueryCache } from '@/query/persistCache';
+import { mobileViewRegistry } from '@/renderers/registry';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 
 SplashScreen.preventAutoHideAsync();
+void mobileViewRegistry;
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -62,6 +69,7 @@ function AppWiring() {
   useEffect(() => {
     setupNotificationCategories().catch(() => {});
     registerForPush().catch(() => {});
+    const pushTokenSub = startPushTokenRotationListener();
     startQueuePump();
     setQueueCallbacks({
       onFiled: (_row, item) => {
@@ -88,12 +96,6 @@ function AppWiring() {
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown>;
       const action = response.actionIdentifier;
-      if (action === 'approve' || action === 'deny') {
-        const roomId = data.room_id as string | undefined;
-        const approvalId = (data.approval_id as string | undefined) ?? (data.job_id as string | undefined);
-        if (roomId && approvalId) void respondToApproval(roomId, approvalId, action === 'approve');
-        return;
-      }
       if (action === 'snooze' && typeof data.url === 'string') {
         const itemId = data.url.split('/').pop()!;
         void snoozeReminder(itemId, 'Reminder');
@@ -104,11 +106,12 @@ function AppWiring() {
         void editItem({ id: itemId, status: 'done' }).catch(() => {});
         return;
       }
-      if (typeof data.url === 'string') router.push(data.url as never);
+      if (typeof data.url === 'string') router.push(routeForTheoremUri(data.url) as never);
     });
     return () => {
       appState.remove();
       responseSub.remove();
+      pushTokenSub.remove();
     };
   }, []);
   return null;
@@ -134,7 +137,19 @@ function ThemedStack() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold });
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    IBMPlexSans_400Regular,
+    IBMPlexSans_500Medium,
+    IBMPlexSans_600SemiBold,
+    Vollkorn_400Regular,
+    Vollkorn_500Medium,
+    Vollkorn_600SemiBold,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+  });
   // Cache restore (D2.3): hydrate the query cache from disk before the splash
   // screen drops, so a cold launch paints the last-known feed on the first
   // frame instead of a blank/loading state. Queries revalidate afterward per

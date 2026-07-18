@@ -8,12 +8,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addToCollection, editItem, fetchCollections, fetchItem, putNote } from '@/api/queries';
 import { sceneForInput } from '@/api/scene';
+import { objectTheoremUri } from '@/addressing/theoremUri';
 import { AppText } from '@/components/AppText';
+import { PressableSurface } from '@/components/PressableSurface';
 import { scheduleReminder } from '@/notifications';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -75,6 +77,12 @@ export default function ObjectDrawer() {
     }
   }
 
+  async function shareObject() {
+    if (!item.data) return;
+    const url = await objectTheoremUri({ id: item.data.id, kind: item.data.kind });
+    await Share.share({ message: `${item.data.title}\n${url}`, url });
+  }
+
   const it = item.data;
   const tonight = () => {
     const d = new Date();
@@ -95,9 +103,14 @@ export default function ObjectDrawer() {
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close">
           <Ionicons name="chevron-down" size={24} color={t.c.text} />
         </Pressable>
-        <Pressable onPress={() => void neighborhood()} hitSlop={12} accessibilityLabel="Neighborhood scene">
-          <Ionicons name="git-network-outline" size={20} color={t.c.textMuted} />
-        </Pressable>
+        <View style={styles.topbarActions}>
+          <Pressable onPress={() => void shareObject()} hitSlop={12} accessibilityLabel="Share theorem address">
+            <Ionicons name="share-outline" size={20} color={t.c.textMuted} />
+          </Pressable>
+          <Pressable onPress={() => void neighborhood()} hitSlop={12} accessibilityLabel="Neighborhood scene">
+            <Ionicons name="git-network-outline" size={20} color={t.c.textMuted} />
+          </Pressable>
+        </View>
       </View>
       <ScrollView contentContainerStyle={styles.body}>
         {!it ? (
@@ -187,34 +200,38 @@ export default function ObjectDrawer() {
 
             {/* Actions */}
             <View style={styles.actionsRow}>
-              <Pressable
+              <PressableSurface
                 onPress={() => applyStatus({ id: itemId, status: 'done' }, 'done')}
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
+                style={[styles.actionBtn, { backgroundColor: t.c.secondary, borderCurve: 'continuous' }]}
+                pressedStyle={{ backgroundColor: t.c.muted }}
               >
                 <Ionicons name="checkmark" size={16} color={t.c.text} />
                 <AppText variant="caption">Done</AppText>
-              </Pressable>
-              <Pressable
+              </PressableSurface>
+              <PressableSurface
                 onPress={() => applyStatus({ id: itemId, residency: 'parked' }, 'park')}
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
+                style={[styles.actionBtn, { backgroundColor: t.c.secondary, borderCurve: 'continuous' }]}
+                pressedStyle={{ backgroundColor: t.c.muted }}
               >
                 <Ionicons name="pause" size={16} color={t.c.text} />
                 <AppText variant="caption">Park</AppText>
-              </Pressable>
-              <Pressable
+              </PressableSurface>
+              <PressableSurface
                 onPress={() => void remindAt(tonight())}
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
+                style={[styles.actionBtn, { backgroundColor: t.c.secondary, borderCurve: 'continuous' }]}
+                pressedStyle={{ backgroundColor: t.c.muted }}
               >
                 <Ionicons name="alarm-outline" size={16} color={t.c.text} />
                 <AppText variant="caption">Tonight</AppText>
-              </Pressable>
-              <Pressable
+              </PressableSurface>
+              <PressableSurface
                 onPress={() => void remindAt(tomorrow9())}
-                style={({ pressed }) => [styles.actionBtn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
+                style={[styles.actionBtn, { backgroundColor: t.c.secondary, borderCurve: 'continuous' }]}
+                pressedStyle={{ backgroundColor: t.c.muted }}
               >
                 <Ionicons name="alarm-outline" size={16} color={t.c.text} />
                 <AppText variant="caption">Tomorrow 9</AppText>
-              </Pressable>
+              </PressableSurface>
             </View>
 
             {/* Object-scoped composer */}
@@ -228,13 +245,14 @@ export default function ObjectDrawer() {
                 style={[styles.composerInput, { color: t.c.text }]}
                 maxFontSizeMultiplier={1.4}
               />
-              <Pressable
+              <PressableSurface
                 onPress={() => void saveNote()}
                 accessibilityLabel="Save note"
-                style={({ pressed }) => [styles.composerSend, { backgroundColor: pressed ? t.c.primaryPressed : t.c.primary, borderCurve: 'continuous' }]}
+                style={[styles.composerSend, { backgroundColor: t.c.primary, borderCurve: 'continuous' }]}
+                pressedStyle={{ backgroundColor: t.c.primaryPressed }}
               >
                 <Ionicons name={noteSaved ? 'checkmark' : 'arrow-up'} size={16} color={t.c.onPrimary} />
-              </Pressable>
+              </PressableSurface>
             </View>
           </>
         )}
@@ -246,6 +264,7 @@ export default function ObjectDrawer() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 4 },
+  topbarActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   body: { padding: 16, gap: 12, paddingBottom: 48 },
   metaRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

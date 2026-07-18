@@ -8,6 +8,7 @@
     "./types": "./src/types.ts",
     "./shape-match": "./src/shape-match.ts",
     "./registry": "./src/registry.ts",
+    "./descriptor-contracts": "./src/descriptor-contracts.ts",
     "./surface-tree": "./src/surface-tree.ts",
     "./surface-actions": "./src/surface-actions.ts",
     "./database/model": "./src/database/model.ts",

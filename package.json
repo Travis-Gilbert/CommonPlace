@@ -10,7 +10,7 @@
     "build:railway": "npm run install:railway && npm --prefix apps/web run build:railway",
     "start:railway": "npm --prefix apps/web run start:railway",
     "mobile:start": "npm --prefix apps/mobile run start",
-    "mobile:check": "npm --prefix apps/mobile exec tsc -- --noEmit",
+    "mobile:check": "tsc -p apps/mobile/tsconfig.json --noEmit",
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "console:dev": "npm --prefix apps/console run dev",
@@ -50,5 +50,14 @@
   },
   "dependencies": {
     "@travis-gilbert/markdown-theory": "0.1.2"
+  },
+  "devDependencies": {
+    "@assistant-ui/store": "0.2.13",
+    "@assistant-ui/tap": "0.5.16",
+    "lru-cache": "5.1.1"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   }
 }
