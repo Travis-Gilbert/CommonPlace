@@ -23,10 +23,14 @@ import type {
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-seed';
+import { ProactivityStore } from './proactivity/store';
+import { FIXTURE_TENANT, seedStandingStructure } from './proactivity/fixtures';
+import { PG_TYPES } from './proactivity/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
+const PG_TYPE_SET = new Set(PG_TYPES);
 const STORAGE_KEY = 'commonplace.console.surface.v1';
 
 /** Transport health as the host observes it (R2.3): HTTP 403 is the
@@ -117,6 +121,10 @@ export interface ConsoleBlockHostOptions {
   readonly records?: ObjectRef[];
   /** Observes every record-wire HTTP outcome for the status bar. */
   readonly onTransport?: TransportObserver;
+  /** The person's resolved tenant for the proactivity graph. A null value is a
+   *  refusal (named choice 10): the graph reads and writes are tenant-scoped.
+   *  Defaults to the fixture tenant until real tenant resolution lands. */
+  readonly proactivityTenant?: string | null;
 }
 
 export class ConsoleBlockHost implements BlockHost {
@@ -132,11 +140,14 @@ export class ConsoleBlockHost implements BlockHost {
   private registry: Registry;
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
+  private proactivity: ProactivityStore;
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
     this.records = options.records ?? null;
     this.observer = options.onTransport;
+    const tenant = options.proactivityTenant === undefined ? FIXTURE_TENANT : options.proactivityTenant;
+    this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
@@ -250,6 +261,9 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
+    // The proactivity graph is projected and served locally from fixtures until
+    // the kernel lands behind the same seam (verify-first V4 through V9).
+    if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
     if (query.types.includes('memory')) return this.memorySet(query);
     // The live wire is the default (R2.1): records, hunks, and every domain
     // kind the seam serves (person, task, mention-candidate, ...) round-trip
@@ -464,6 +478,11 @@ export class ConsoleBlockHost implements BlockHost {
       ok: true,
       value: { action_kind: action.kind, status: 'accepted' },
     });
+
+    // Proactivity edits (disable, parameter edits, prune, intent commit) are
+    // receipted, reversible mutations on the local projection until the kernel
+    // owns them. The store refuses an over-budget action-class edit itself.
+    if (this.proactivity.owns(action)) return Promise.resolve(this.proactivity.emit(action));
 
     switch (action.kind) {
       case 'move': {

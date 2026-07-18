@@ -2,10 +2,14 @@ import { auth } from '@/lib/auth';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { githubAuthCredentials } from '@/lib/auth-config';
 import {
+  configuredServiceTenantMatches as configuredServiceTenantMatchesCore,
   legacyServicePrincipal,
   principalFromSession,
   type HarnessPrincipal,
 } from '@/lib/harness-principal-core';
+
+export type { HarnessPrincipal } from '@/lib/harness-principal-core';
+export { filterRunsForTenant } from '@/lib/harness-principal-core';
 
 export type HarnessPrincipalResolution =
   | { readonly ok: true; readonly principal: HarnessPrincipal }
@@ -53,6 +57,5 @@ export function principalTenantHeaders(principal: HarnessPrincipal): Record<stri
 }
 
 export function configuredServiceTenantMatches(principal: HarnessPrincipal): boolean {
-  const configured = process.env.CONSOLE_HARNESS_TENANT?.trim();
-  return Boolean(configured && configured.toLowerCase() === principal.tenant.toLowerCase());
+  return configuredServiceTenantMatchesCore(principal, process.env.CONSOLE_HARNESS_TENANT);
 }

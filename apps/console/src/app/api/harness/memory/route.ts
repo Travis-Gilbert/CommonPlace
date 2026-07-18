@@ -42,8 +42,6 @@ export async function GET(): Promise<Response> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-theorem-tenant': tenant,
-        'x-tenant-id': tenant,
         ...principalTenantHeaders(resolution.principal),
         ...(process.env.CONSOLE_HARNESS_TOKEN
           ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }

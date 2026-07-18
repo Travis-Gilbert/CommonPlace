@@ -3,7 +3,7 @@
 // island's Runs scope render their empty or unavailable states, never a
 // fixture run.
 
-import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+import { filterRunsForTenant, resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,13 +33,7 @@ export async function GET(): Promise<Response> {
     }
     const payload = await upstream.json() as { runs?: unknown[] };
     const runs = Array.isArray(payload.runs)
-      ? payload.runs.filter((candidate) => {
-          if (!candidate || typeof candidate !== 'object') return false;
-          const scope = (candidate as { scope?: unknown }).scope;
-          if (!scope || typeof scope !== 'object') return false;
-          const record = scope as Record<string, unknown>;
-          return record.tenant === tenant || record.tenant_slug === tenant;
-        })
+      ? filterRunsForTenant(payload.runs, tenant)
       : [];
     return Response.json({ tenant, runs });
   } catch {

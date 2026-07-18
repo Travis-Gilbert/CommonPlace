@@ -16,12 +16,14 @@ export function githubHarnessIdentity(providerAccountId: unknown): string | unde
  * the same case-preserving rule as hosted OAuth and refuse the reserved
  * commons name instead of inventing a product default.
  */
+const TENANT_SLUG_CHAR = /[A-Za-z0-9]/;
+
 export function githubTenantSlug(login: unknown): string | undefined {
   if (typeof login !== 'string') return undefined;
   let slug = '';
   let previousWasSeparator = true;
   for (const character of login.trim()) {
-    if (/^[A-Za-z0-9]$/.test(character)) {
+    if (TENANT_SLUG_CHAR.test(character)) {
       slug += character;
       previousWasSeparator = false;
     } else if (!previousWasSeparator) {

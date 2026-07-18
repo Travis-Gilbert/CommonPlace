@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from 'next-auth';
-import { legacyServicePrincipal, principalFromSession } from './harness-principal-core';
+import {
+  configuredServiceTenantMatches,
+  filterRunsForTenant,
+  legacyServicePrincipal,
+  principalFromSession,
+} from './harness-principal-core';
 
 function session(githubLogin?: string, harnessIdentity?: string): Session {
   return {
@@ -35,5 +40,34 @@ describe('Harness principal resolution', () => {
     });
     expect(legacyServicePrincipal('default', false)).toBeNull();
     expect(legacyServicePrincipal('Travis-Gilbert', true)).toBeNull();
+  });
+
+  it('admits only the configured service tenant to shared object credentials', () => {
+    const owner = {
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'Travis-Gilbert',
+      harnessIdentity: 'github:1',
+    };
+    const other = {
+      tenant: 'someone-else',
+      githubLogin: 'someone-else',
+      harnessIdentity: 'github:2',
+    };
+    expect(configuredServiceTenantMatches(owner, 'Travis-Gilbert')).toBe(true);
+    expect(configuredServiceTenantMatches(other, 'Travis-Gilbert')).toBe(false);
+    expect(configuredServiceTenantMatches(owner, undefined)).toBe(false);
+  });
+
+  it('preserves run ledger entries without nested scope', () => {
+    const tenant = 'Travis-Gilbert';
+    expect(filterRunsForTenant([
+      { run_id: 'a', status: 'running' },
+      { run_id: 'b', status: 'done', scope: { tenant } },
+      { run_id: 'c', status: 'done', scope: { tenant: 'other' } },
+      null,
+    ], tenant)).toEqual([
+      { run_id: 'a', status: 'running' },
+      { run_id: 'b', status: 'done', scope: { tenant } },
+    ]);
   });
 });
