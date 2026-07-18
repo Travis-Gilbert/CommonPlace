@@ -107,7 +107,7 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Composer run state changes',
-    effect: 'angled register-derived sheen breathes while streaming and flashes once on commit',
+    effect: 'stepped register-derived material bands and flecks intensify while streaming and flash gold once on commit',
     spec: 'idle draws once; streaming requestAnimationFrame loop only; commit uses DUR.fast',
     reducedMotion: 'static low-chroma sheen, no frame loop or flash',
   },

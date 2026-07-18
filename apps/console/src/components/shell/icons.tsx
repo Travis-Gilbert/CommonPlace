@@ -135,6 +135,16 @@ export function IconSend(props: IconProps) {
   );
 }
 
+export function IconInfo(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 7.25v4" />
+      <path d="M8 4.75h.01" />
+    </svg>
+  );
+}
+
 export function IconAccount(props: IconProps) {
   return (
     <svg {...controlBase(props)}>

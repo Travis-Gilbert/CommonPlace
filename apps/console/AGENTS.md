@@ -66,6 +66,12 @@ Nothing on any surface is hand-rolled. Every visual and behavioral need
 resolves to a row in the library ledger below. A need with no row is a spec
 gap: add the row, with a named source, before writing code.
 
+User-supplied component source is implementation input, not visual inspiration.
+Start from the supplied component's actual structure and behavior, then adapt
+it to the active product contract, runtime primitives, register tokens, and
+responsive placements. Treat it as inspiration only when the user explicitly
+asks for inspiration, reference, mood, or direction.
+
 | Need | Source | Owns |
 |---|---|---|
 | Split layout, tool window panels | `react-resizable-panels` | split geometry, persisted sizes, 1px `--ij-divider` handles |
