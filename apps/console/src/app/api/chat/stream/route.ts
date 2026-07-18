@@ -14,19 +14,21 @@ import {
   streamHeaders,
   type BridgeCommand,
 } from '@commonplace/theorem-acp/bridge';
-import { deltaStream, readText } from '@/lib/chat-delta';
+import { deltaStream, readChatRequest, requireMobileApiKey } from '@/lib/chat-delta';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const text = readText(await request.json().catch(() => null));
+    requireMobileApiKey(request, process.env.CONSOLE_MOBILE_API_KEY);
+    const chat = readChatRequest(await request.json().catch(() => null));
     const command: BridgeCommand = {
       type: 'add-message',
-      message: { role: 'user', parts: [{ type: 'text', text }] },
+      message: { role: 'user', parts: [{ type: 'text', text: chat.promptText }] },
       parentId: null,
       sourceId: null,
+      displayText: chat.displayText,
     };
     const session = await resolveBridgeSession({});
     await dispatchBridgeCommands(session, [command]);
