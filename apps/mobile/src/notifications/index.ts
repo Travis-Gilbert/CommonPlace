@@ -150,11 +150,14 @@ export async function snoozeReminder(itemId: string, title: string, minutes = 10
   return scheduleReminder({ itemId, title, remindAtMs: Date.now() + minutes * 60_000 });
 }
 
+function nonEmpty(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 function expoProjectId(): string | undefined {
-  return Constants.expoConfig?.extra?.eas?.projectId
-    ?? Constants.easConfig?.projectId
-    ?? process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim()
-    ?? undefined;
+  return nonEmpty(Constants.expoConfig?.extra?.eas?.projectId)
+    ?? nonEmpty(Constants.easConfig?.projectId)
+    ?? nonEmpty(process.env.EXPO_PUBLIC_EAS_PROJECT_ID);
 }
 
 export type PushRegistrationResult = {
@@ -210,8 +213,12 @@ export async function registerForPush(): Promise<PushRegistrationResult> {
 export function startPushTokenRotationListener(): Notifications.EventSubscription {
   if (!Device.isDevice) return { remove() {} };
   return Notifications.addPushTokenListener((token) => {
-    void fetchInstanceCapabilities().then((capabilities) => (
-      relayPushToken(token.data, capabilities.pushRegistrationUrl ?? undefined)
-    ));
+    void (async () => {
+      // Prefer capability discovery, but always attempt relay: registerPushToken
+      // falls back to settings.harnessUrl so a transient /capabilities miss does
+      // not silently drop a rotated token.
+      const capabilities = await fetchInstanceCapabilities();
+      await relayPushToken(token.data, capabilities.pushRegistrationUrl ?? undefined);
+    })();
   });
 }

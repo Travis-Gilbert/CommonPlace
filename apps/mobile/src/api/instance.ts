@@ -146,16 +146,22 @@ export async function fetchCapabilityCatalog(): Promise<CapabilityCatalog> {
     });
     if (!response.ok) return EMPTY_CAPABILITY_CATALOG;
     const body = await response.json() as Partial<CapabilityCatalog>;
-    const entries = (value: unknown, kind: CapabilityCatalogEntry['kind']) =>
-      Array.isArray(value)
-        ? value.filter((entry): entry is CapabilityCatalogEntry => {
-          if (!entry || typeof entry !== 'object') return false;
-          const candidate = entry as Partial<CapabilityCatalogEntry>;
-          return candidate.kind === kind
-            && typeof candidate.id === 'string'
-            && typeof candidate.name === 'string';
-        })
-        : [];
+    const entries = (value: unknown, kind: CapabilityCatalogEntry['kind']): CapabilityCatalogEntry[] => {
+      if (!Array.isArray(value)) return [];
+      const out: CapabilityCatalogEntry[] = [];
+      for (const entry of value) {
+        if (!entry || typeof entry !== 'object') continue;
+        const candidate = entry as Partial<CapabilityCatalogEntry>;
+        const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+        const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
+        if (candidate.kind !== kind || !id || !name) continue;
+        const description = typeof candidate.description === 'string'
+          ? candidate.description.trim() || undefined
+          : undefined;
+        out.push({ id, kind, name, ...(description ? { description } : {}) });
+      }
+      return out;
+    };
     return {
       plugins: entries(body.plugins, 'plugin'),
       skills: entries(body.skills, 'skill'),
@@ -166,12 +172,14 @@ export async function fetchCapabilityCatalog(): Promise<CapabilityCatalog> {
 }
 
 /** Manual/build configuration wins, then node discovery, then the v2 product route. */
-export async function resolveHostedChatUrl(): Promise<string> {
+export async function resolveHostedChatUrl(
+  capabilities?: InstanceCapabilities,
+): Promise<string> {
   const settings = await readInstanceSettings();
   const configured = settings.chatUrl?.trim();
   if (configured) return configured;
-  const capabilities = await fetchInstanceCapabilities();
-  return capabilities.chatUrl ?? DEPLOYED_CHAT_URL;
+  const discovered = capabilities ?? await fetchInstanceCapabilities();
+  return discovered.chatUrl ?? DEPLOYED_CHAT_URL;
 }
 
 /** Same probe the web shell uses: a `{ __typename }` round-trip. */

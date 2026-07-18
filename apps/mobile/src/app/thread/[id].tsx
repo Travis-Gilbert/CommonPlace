@@ -461,7 +461,7 @@ export default function ThreadScreen() {
     void (async () => {
       const discovered = await fetchInstanceCapabilities();
       const [chatUrl, discoveredCatalog] = await Promise.all([
-        resolveHostedChatUrl(),
+        resolveHostedChatUrl(discovered),
         discovered.capabilityCatalog ? fetchCapabilityCatalog() : EMPTY_CAPABILITY_CATALOG,
       ]);
       setCapabilities(discovered);
