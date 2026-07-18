@@ -24,6 +24,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { communityCss, isCommunityActive, nodeRadius, type V2GraphData } from '@/lib/commonplace/v2-graph';
 import { NodeTypeIcon } from '@/lib/commonplace/node-icons';
+import { SignalModelStrip } from './SignalModelStrip';
 import styles from './graph.module.css';
 
 type ModelNodeData = { label: string; type: string; community: number; centrality: number; onFocus: (id: string) => void };
@@ -86,6 +87,7 @@ export default function ModelsView({ data, focusId, onFocus, selectedCommunities
 
   return (
     <div className={styles.modelsFrame}>
+      <SignalModelStrip />
       <ReactFlow
         nodes={nodes.map((n) => ({
           ...n,

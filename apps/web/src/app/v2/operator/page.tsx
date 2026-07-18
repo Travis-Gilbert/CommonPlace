@@ -24,6 +24,7 @@ import { RoomPanel } from './RoomPanel';
 import { GateDrawer } from './GateDrawer';
 import { BootstrapDialog } from './Bootstrap';
 import { LibraryPanel } from './LibraryPanel';
+import { TopicPanel } from './TopicPanel';
 import { DevModeDot } from './parts';
 import { OperatorBlockHost, type OperatorCallbacks } from './surface/OperatorBlockHost';
 import { buildOperatorSurface, operatorSurfaceId, type OperatorLayout } from './surface/operator-surface';
@@ -167,6 +168,7 @@ export default function OperatorPage() {
 
         {/* Rows 2–5 — the interpreted surface: attention strip, bays, queue. */}
         {host && <SurfaceRenderer surfaceId={operatorSurfaceId(layout)} host={host} chrome={false} />}
+        <TopicPanel />
         <LibraryPanel />
       </div>
 
