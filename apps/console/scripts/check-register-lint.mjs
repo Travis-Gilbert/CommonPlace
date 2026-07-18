@@ -14,6 +14,9 @@ const srcRoot = path.join(appRoot, 'src');
 // The register files themselves are the only place raw values live.
 const REGISTER_FILES = new Set([
   path.join(srcRoot, 'styles', 'int-ui-register.css'),
+  path.join(srcRoot, 'styles', 'int-ui-register-light.css'),
+  path.join(srcRoot, 'styles', 'primer-register.css'),
+  path.join(srcRoot, 'styles', 'theme-engine.ts'),
   path.join(srcRoot, 'styles', 'rec-structural.css'),
   path.join(srcRoot, 'styles', 'register-bridge.css'),
   path.join(srcRoot, 'styles', 'gy-bridge.css'),

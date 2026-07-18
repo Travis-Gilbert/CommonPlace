@@ -2,6 +2,7 @@
   "name": "@commonplace/console",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --port 3010",
     "build": "next build",
@@ -13,10 +14,12 @@
     "test:watch": "vitest",
     "gate:fence": "node scripts/check-import-fence.mjs",
     "gate:register": "node scripts/check-register-lint.mjs",
-    "gate:contrast": "node scripts/check-contrast.mjs",
+    "gate:contrast": "node --experimental-strip-types scripts/check-contrast.mjs",
     "gate:motion": "node scripts/check-motion-inventory.mjs",
+    "gate:icons": "node scripts/check-icon-svg.mjs",
+    "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion",
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion && npm run gate:icons",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -37,6 +40,7 @@
     "@tanstack/react-virtual": "^3.13.12",
     "@travis-gilbert/markdown-theory": "^0.1.2",
     "cmdk": "^1.1.1",
+    "d3": "^7.9.0",
     "eventsource-parser": "^3.0.0",
     "motion": "^12.35.0",
     "next": "^16.1.6",
@@ -50,6 +54,7 @@
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/d3": "^7.4.3",
     "@types/node": "^22.13.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

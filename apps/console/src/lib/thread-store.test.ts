@@ -19,7 +19,7 @@ function sseResponse(events: string[]): Response {
 
 describe('thread store', () => {
   beforeEach(() => {
-    useThreadStore.setState({ messages: [], isRunning: false, error: null, abort: null, endpoint: 'http://fixture/chat' });
+    useThreadStore.setState({ messages: [], isRunning: false, error: null, abort: null, endpoint: 'http://fixture/chat', mode: 'agent' });
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 0;
@@ -70,5 +70,14 @@ describe('thread store', () => {
     await useThreadStore.getState().send('hello');
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(useThreadStore.getState().messages).toHaveLength(0);
+  });
+
+  it('sends the selected Composer mode on the wire', async () => {
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => sseResponse([]));
+    vi.stubGlobal('fetch', fetchSpy);
+    useThreadStore.getState().setMode('plan');
+    await useThreadStore.getState().send('Plan this change');
+    const init = fetchSpy.mock.calls[0]?.[1];
+    expect(JSON.parse(String(init?.body))).toMatchObject({ mode: 'plan' });
   });
 });

@@ -690,6 +690,10 @@ where
         let similar_items =
             self.write_similarity_edges(commonplace, &item.id, prior_items.as_slice(), &embedding)?;
         let entities = self.resolve_entities(commonplace, &item.id, &searchable_text)?;
+        // Incremental mention detection (HANDOFF-CARDS-ACTIONS-MENTIONS K5):
+        // the freshly ingested item is a new atom; evaluate it once, in the
+        // same seam the entity resolver rides. Never a full rescan.
+        commonplace.evaluate_mentions_for_atom(&item.id)?;
         prior_items.push(item.clone());
 
         Ok(IngestReceipt {

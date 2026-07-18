@@ -19,18 +19,39 @@ import { buildSurfaceTree, surfaceQuery, type SurfaceTreeNode } from '@commonpla
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
 import { useShellStore } from '@/lib/shell-store';
-import { useThreadStore } from '@/lib/thread-store';
-import { PresenceMark } from '@/components/mark/PresenceMark';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
 import { MainToolbar } from './MainToolbar';
 import { StatusBar } from './StatusBar';
-import { OmnibarIsland } from './Omnibar';
+import { SearchPanel } from './SearchField';
+import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
-import { IconDoc, IconRail, IconRecords, IconThread } from './icons';
+import {
+  IconCards,
+  IconDoc,
+  IconInspector,
+  IconMemory,
+  IconModel,
+  IconRail,
+  IconRecords,
+  IconThread,
+  IconWorkspace,
+} from './icons';
 
 const OVERLAY_BREAKPOINT = 1100;
+
+/** Surface nav icons by surface kind: the stripe surfaces group (AMENDMENT:
+ *  surfaces join the layout switcher AND the stripe surfaces group). */
+const SURFACE_ICONS: Record<string, typeof IconRecords> = {
+  chat: IconThread,
+  workspace: IconWorkspace,
+  index: IconRail,
+  documents: IconDoc,
+  cards: IconCards,
+  model: IconModel,
+  review: IconInspector,
+};
 
 /** Region icon slugs carried on the surface object; the glyphs stay in the
  *  one chrome icon file. */
@@ -39,6 +60,8 @@ const REGION_ICONS: Record<string, typeof IconRecords> = {
   thread: IconThread,
   rail: IconRail,
   docs: IconDoc,
+  files: IconDoc,
+  context: IconMemory,
 };
 
 interface RegionNode {
@@ -68,25 +91,17 @@ function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
   return { left, right, editor };
 }
 
-/** Stripe shortcuts derive from side order: left windows Alt+1..4, right
- *  windows Alt+9..6 (the JetBrains convention). */
-function shortcutFor(side: 'left' | 'right', index: number): string {
-  return side === 'left' ? String(index + 1) : String(9 - index);
-}
-
 function isOpen(region: RegionNode): boolean {
   return region.object.properties.open !== false;
 }
 
-function StripeButton({
+function CompanionButton({
   region,
-  side,
   index,
   entranceIndex,
   onToggle,
 }: {
   region: RegionNode;
-  side: 'left' | 'right';
   index: number;
   entranceIndex: number;
   onToggle: () => void;
@@ -94,7 +109,7 @@ function StripeButton({
   const durations = useMotionDurations();
   const title = String(region.object.properties.title ?? region.object.id);
   const Icon = REGION_ICONS[String(region.object.properties.icon ?? '')] ?? IconRecords;
-  const key = shortcutFor(side, index);
+  const key = String(index + 1);
   const open = isOpen(region);
   return (
     <motion.button
@@ -106,10 +121,11 @@ function StripeButton({
         ease: EASE_OUT,
       }}
       type="button"
-      title={`${title} (Alt+${key})`}
-      aria-label={`${title} tool window`}
+      data-companion-nav={String(region.object.properties.companion ?? '')}
+      title={`${title} (Alt+Shift+${key})`}
+      aria-label={`${title} companion`}
       aria-pressed={open}
-      aria-keyshortcuts={`Alt+${key}`}
+      aria-keyshortcuts={`Alt+Shift+${key}`}
       onClick={onToggle}
       className="flex h-10 w-10 items-center justify-center rounded-ij-arc"
       style={{
@@ -123,14 +139,63 @@ function StripeButton({
   );
 }
 
-/** The thread header carries the mark (R4.2: header and composer line are the
- *  mark's only placements); state binds to the one ambient runtime. */
-function HeaderMark() {
-  const isRunning = useThreadStore((state) => state.isRunning);
+/** The stripe surfaces group: the top group of the leftmost stripe lists every
+ *  seeded surface and switches screens by flipping the active flag through the
+ *  host. This is the primary navigation (the AMENDMENT's stripe surfaces
+ *  group); it shares the leftmost bar with the active surface's tool windows,
+ *  divided, in the JetBrains grouped-stripe manner. */
+function SurfaceNavGroup({
+  surfaces,
+  activeSurfaceId,
+  host,
+}: {
+  surfaces: readonly ObjectRef[];
+  activeSurfaceId: string;
+  host: ConsoleBlockHost;
+}) {
+  const durations = useMotionDurations();
+  if (surfaces.length === 0) return null;
+  const switchTo = async (surfaceId: string) => {
+    if (surfaceId === activeSurfaceId) return;
+    await host.activateSurface(surfaceId);
+  };
   return (
-    <span className="ml-auto flex items-center">
-      <PresenceMark state={isRunning ? 'composing' : 'idle'} size={20} />
-    </span>
+    <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col items-center gap-1">
+      {surfaces.map((surface, index) => {
+        const kind = String(surface.properties.kind ?? '');
+        const name = String(surface.properties.name ?? surface.id);
+        const Icon = SURFACE_ICONS[kind] ?? IconWorkspace;
+        const active = surface.id === activeSurfaceId;
+        return (
+          <motion.button
+            key={surface.id}
+            initial={durations.reduced ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: seconds(durations.base),
+              delay: seconds(staggerDelay(index)),
+              ease: EASE_OUT,
+            }}
+            type="button"
+            role="radio"
+            data-surface-nav={surface.id}
+            title={name}
+            aria-label={`${name} surface`}
+            aria-checked={active}
+            aria-keyshortcuts={`Alt+${index + 1}`}
+            onClick={() => void switchTo(surface.id)}
+            className="flex h-10 w-10 items-center justify-center rounded-ij-arc"
+            style={{
+              color: active ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
+              background: active ? 'var(--ij-accent)' : 'transparent',
+              transition: 'var(--rec-clickable-transition)',
+            }}
+          >
+            <Icon size={16} />
+          </motion.button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -145,7 +210,6 @@ function ToolWindow({
 }) {
   const durations = useMotionDurations();
   const title = String(region.object.properties.title ?? region.object.id);
-  const withMark = region.object.properties.mark === true;
   return (
     <motion.section
       initial={durations.reduced ? false : { opacity: 0, y: 4 }}
@@ -160,7 +224,6 @@ function ToolWindow({
     >
       <div className="flex h-ij-toolbar shrink-0 items-center border-b border-ij-seam px-3 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
         {title}
-        {withMark ? <HeaderMark /> : null}
       </div>
       <div className="min-h-0 flex-1">
         {region.instances.map((instance) => (
@@ -199,6 +262,16 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     layoutStore.getSnapshot,
     layoutStore.getSnapshot,
   );
+  const surfaces = useMemo(
+    () => (layoutObjects ?? []).filter((object) => object.type === 'surface'),
+    [layoutObjects],
+  );
+  const primarySurfaces = useMemo(
+    () => surfaces
+      .filter((surface) => typeof surface.properties.stripe_order === 'number')
+      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order)),
+    [surfaces],
+  );
 
   // Constrained width: tool windows become overlays while stripes remain.
   useEffect(() => {
@@ -216,9 +289,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   // workspace otherwise. Switching layouts flips flags on surface objects;
   // regions and their arrangement stay untouched per surface (R3.3).
   const activeSurfaceId = useMemo(() => {
-    const surfaces = (layoutObjects ?? []).filter((object) => object.type === 'surface');
     return surfaces.find((object) => object.properties.active === true)?.id ?? SURFACE_ID;
-  }, [layoutObjects]);
+  }, [surfaces]);
 
   const root = useMemo(
     () => (layoutObjects ? buildSurfaceTree(activeSurfaceId, layoutObjects) : null),
@@ -226,38 +298,64 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   );
   const regions = useMemo(() => regionsOf(root), [root]);
   const editor = regions.editor;
+  const companions = useMemo(() => {
+    const order = new Map([['files', 0], ['context', 1], ['thread', 2]]);
+    return [...regions.left, ...regions.right]
+      .filter((region) => region.object.properties.role === 'companion')
+      .sort((a, b) =>
+        (order.get(String(a.object.properties.companion)) ?? 99) -
+        (order.get(String(b.object.properties.companion)) ?? 99));
+  }, [regions]);
 
   const toggle = useCallback(
     (region: RegionNode) => {
-      void host.emit({
-        kind: 'update',
-        id: region.object.id,
-        patch: { open: region.object.properties.open === false },
-      });
+      const open = region.object.properties.open === false;
+      const side = regions.left.includes(region) ? regions.left : regions.right;
+      const exclusivePeers = compact && open
+        ? side.filter((candidate) => candidate !== region).map((candidate) => candidate.object.id)
+        : [];
+      void host.setRegionOpen(region.object.id, open, exclusivePeers);
     },
-    [host],
+    [compact, host, regions.left, regions.right],
   );
 
-  // Keyboard shortcuts toggle every tool window on the active surface.
+  // Alt+1..5 switches the primary surface radio group. Alt+Shift+1..3
+  // toggles the companion group for the active surface.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
-      regions.left.forEach((region, index) => {
-        if (event.key === shortcutFor('left', index)) {
+      if (event.shiftKey) {
+        companions.forEach((region, index) => {
+          if (event.key === String(index + 1)) {
+            event.preventDefault();
+            toggle(region);
+          }
+        });
+        return;
+      }
+      primarySurfaces.forEach((surface, index) => {
+        if (event.key === String(index + 1)) {
           event.preventDefault();
-          toggle(region);
-        }
-      });
-      regions.right.forEach((region, index) => {
-        if (event.key === shortcutFor('right', index)) {
-          event.preventDefault();
-          toggle(region);
+          void host.activateSurface(surface.id);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [regions, toggle]);
+  }, [companions, host, primarySurfaces, toggle]);
+
+  useEffect(() => {
+    const focusComposer = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'l') return;
+      const inputs = [...document.querySelectorAll<HTMLTextAreaElement>('[data-composer-input]')];
+      const visible = inputs.find((input) => input.offsetParent !== null && !input.disabled);
+      if (!visible) return;
+      event.preventDefault();
+      visible.focus();
+    };
+    window.addEventListener('keydown', focusComposer);
+    return () => window.removeEventListener('keydown', focusComposer);
+  }, []);
 
   // Persisted sizes are absolute shares of the full well (they sum to 100
   // across ALL of the active surface's regions, open or closed). Rendering
@@ -322,24 +420,53 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     </motion.div>
   );
 
-  const groupKey = `${activeSurfaceId}:${visiblePanels.map((panel) => panel.region.object.id).join('+')}`;
+  // The PanelGroup remounts ONLY when the active surface changes (a real
+  // screen switch), never when a tool window toggles. Keying on the visible
+  // panel set instead tore the whole well down and rebuilt it on every
+  // open/close, which read as a black frame drop (the editor and thread
+  // unmounted, and the editor's delayed entrance fade re-fired) rather than
+  // a smooth reflow. react-resizable-panels reconciles a panel appearing or
+  // disappearing in place, given each panel a stable id and order.
+  const groupKey = activeSurfaceId;
+
+  // Stable panel order from the full region lists (open or closed), so adding
+  // or removing a visible panel never renumbers the others: left windows
+  // first, then the editor, then right windows.
+  const orderOf = (region: RegionNode): number => {
+    const leftIndex = regions.left.indexOf(region);
+    if (leftIndex >= 0) return leftIndex + 1;
+    if (region === regions.editor) return regions.left.length + 1;
+    const rightIndex = regions.right.indexOf(region);
+    if (rightIndex >= 0) return regions.left.length + 2 + rightIndex;
+    return 999;
+  };
 
   return (
-    <div ref={shellRef} data-shell data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
-      <MainToolbar host={host} surfaces={(layoutObjects ?? []).filter((object) => object.type === 'surface')} activeSurfaceId={activeSurfaceId} />
+    <div ref={shellRef} data-shell data-compact={compact} data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
+      <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
       <div className="flex min-h-0 flex-1">
-        {/* Left stripe */}
-        <nav aria-label="Left tool window stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
-          {regions.left.map((region, index) => (
-            <StripeButton
+        {/* The leftmost stripe: screen navigation (surfaces group) on top,
+            then the active surface's tool windows, divided. One bar. */}
+        <nav aria-label="Surfaces and companions" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
+          <SurfaceNavGroup
+            surfaces={primarySurfaces}
+            activeSurfaceId={activeSurfaceId}
+            host={host}
+          />
+          {companions.length > 0 ? (
+            <div aria-hidden className="my-1 h-px w-6 shrink-0 bg-ij-seam" />
+          ) : null}
+          <div aria-label="Companions" className="flex flex-col items-center gap-1">
+          {companions.map((region, index) => (
+            <CompanionButton
               key={region.object.id}
               region={region}
-              side="left"
               index={index}
               entranceIndex={index}
               onToggle={() => toggle(region)}
             />
           ))}
+          </div>
         </nav>
 
         <div className="relative min-h-0 min-w-0 flex-1">
@@ -374,9 +501,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                   <Panel
                     key={panel.region.object.id}
                     id={panel.region.object.id}
-                    order={index + 1}
+                    order={orderOf(panel.region)}
                     defaultSize={(panel.abs / visibleTotal) * 100}
-                    minSize={isEditor ? 30 : 14}
+                    minSize={isEditor ? 30 : 12}
                   >
                     {isEditor ? (
                       editorPane
@@ -399,23 +526,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
             </div>
           ) : null}
         </div>
-
-        {/* Right stripe */}
-        <nav aria-label="Right tool window stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-l border-ij-seam bg-ij-chrome py-1">
-          {regions.right.map((region, index) => (
-            <StripeButton
-              key={region.object.id}
-              region={region}
-              side="right"
-              index={index}
-              entranceIndex={index + 1}
-              onToggle={() => toggle(region)}
-            />
-          ))}
-        </nav>
       </div>
       <StatusBar host={host} />
-      <OmnibarIsland host={host} />
+      <SearchPanel host={host} />
+      <ActionSheet host={host} />
     </div>
   );
 }

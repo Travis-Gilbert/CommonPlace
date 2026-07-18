@@ -9,6 +9,7 @@ import type { KeyboardEvent } from 'react';
 import { MergeView } from '@codemirror/merge';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { useAppearance } from '@/lib/appearance-store';
 import type {
   BlockHost,
   ObjectActionReceipt,
@@ -40,11 +41,12 @@ const SOURCE_COPY: Record<HunkViewModel['source'], string> = {
 type ActionStatus = 'idle' | 'working' | 'accepted' | 'failed';
 
 function HunkTextMerge({ before, after }: { readonly before: string; readonly after: string }) {
+  const { resolvedMode } = useAppearance();
   const parentRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!parentRef.current) return;
     const readOnly = [
-      ...intuiEditorExtensions,
+      ...intuiEditorExtensions(resolvedMode),
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
     ];
@@ -58,7 +60,7 @@ function HunkTextMerge({ before, after }: { readonly before: string; readonly af
       collapseUnchanged: { margin: 2, minSize: 6 },
     });
     return () => merge.destroy();
-  }, [after, before]);
+  }, [after, before, resolvedMode]);
   return (
     <div
       ref={parentRef}
