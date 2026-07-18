@@ -121,8 +121,11 @@ export function compileIntent(intent: string, context: IntentContext): IntentCom
   const prefix = `${context.idPrefix}-${slug(text)}`;
 
   // Honest refusal: an action the surface has no EffectContract for cannot be
-  // compiled, because a node cannot grant itself capability (AK2).
-  if (/\b(pay|send money|transfer|purchase|buy|book|charge)\b/.test(lower)) {
+  // compiled, because a node cannot grant itself capability (AK2). Matched on
+  // action verbs only: nouns like "charge" (a recurring charge) and "book" (my
+  // book) name things to watch or help with, not actions to perform, and must
+  // reach their safe compilers below rather than being refused here.
+  if (/\b(pay|send money|transfer|purchase|buy)\b/.test(lower)) {
     return {
       ok: false,
       reason: 'That asks for an action I have no effect contract for (paying, sending money, or purchasing). I will not invent one, so I cannot compile it. I can watch and notify instead.',

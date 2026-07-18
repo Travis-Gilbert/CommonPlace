@@ -23,6 +23,7 @@ import type {
 } from '@commonplace/block-view/types';
 import type {
   EffectContract,
+  PgNodeKind,
   SourceNode,
   StandingBudget,
   StandingNode,
@@ -32,8 +33,33 @@ import { projectProactivityGraph } from './projection';
 import { isRefusal } from './model';
 import { graphToObjectRefs, pgKind } from './object-bridge';
 
-const STORAGE_KEY = 'commonplace.console.proactivity.v1';
+const STORAGE_PREFIX = 'commonplace.console.proactivity.v1';
 export const REFUSAL_NOTE = 'refused:missing_tenant';
+
+// The safe mutation surface (PG4): the only fields an update may patch, keyed by
+// node kind, each with a type guard. A patch naming any other field, or a value
+// of the wrong shape, is rejected before it can corrupt the stored structure.
+// Grant and effect-contract fields are absent by construction: there is no code
+// path here that writes a Grant or an EffectContract (PG7 gate 2).
+type FieldGuard = (value: JsonValue) => boolean;
+const isBoolean: FieldGuard = (value) => typeof value === 'boolean';
+const isString: FieldGuard = (value) => typeof value === 'string';
+const isStringArray: FieldGuard = (value) => Array.isArray(value) && value.every((item) => typeof item === 'string');
+const isParamRecord: FieldGuard = (value) =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Object.values(value as Record<string, unknown>).every((item) => typeof item === 'string' || typeof item === 'number');
+const isJudgmentClass: FieldGuard = (value) => value === 'interrupt' || value === 'digest' || value === 'silent';
+
+const PATCHABLE_FIELDS: Record<PgNodeKind, Readonly<Record<string, FieldGuard>>> = {
+  stake: { disabled: isBoolean },
+  assumption: { pruned: isBoolean },
+  source: { disabled: isBoolean },
+  watch: { disabled: isBoolean, sourceIds: isStringArray, conditionParams: isParamRecord },
+  judgment: { disabled: isBoolean, judgmentClass: isJudgmentClass, thresholds: isParamRecord },
+  response: { disabled: isBoolean, actionClass: isString },
+};
 
 function matchesWhere(object: ObjectRef, predicate: Predicate | undefined): boolean {
   if (!predicate) return true;
@@ -74,10 +100,18 @@ export class ProactivityStore {
     this.structure = this.hydrate(seed);
   }
 
+  /** Persistence is per tenant (PG7 gate 4): a browser reused across tenants
+   *  must never read another tenant's disabled, pruned, or created nodes. A null
+   *  tenant refuses on read and never persists. */
+  private storageKey(): string | null {
+    return this.tenant ? `${STORAGE_PREFIX}.${this.tenant}` : null;
+  }
+
   private hydrate(seed: () => StandingStructure): StandingStructure {
-    if (typeof window !== 'undefined') {
+    const key = this.storageKey();
+    if (key && typeof window !== 'undefined') {
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
+        const raw = window.localStorage.getItem(key);
         if (raw) return JSON.parse(raw) as StandingStructure;
       } catch {
         // fall through to seed
@@ -87,9 +121,10 @@ export class ProactivityStore {
   }
 
   private persist(): void {
-    if (typeof window === 'undefined') return;
+    const key = this.storageKey();
+    if (!key || typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.structure));
+      window.localStorage.setItem(key, JSON.stringify(this.structure));
     } catch {
       // storage unavailable: the in-memory structure still works
     }
@@ -101,7 +136,8 @@ export class ProactivityStore {
 
   /** Drop the persisted structure and return to the seed. */
   reset(seed: () => StandingStructure): void {
-    if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY);
+    const key = this.storageKey();
+    if (key && typeof window !== 'undefined') window.localStorage.removeItem(key);
     this.structure = seed();
     this.notify();
   }
@@ -191,6 +227,17 @@ export class ProactivityStore {
     const index = this.structure.nodes.findIndex((node) => node.id === id);
     if (index < 0) return { ok: false, error: `proactivity node missing: ${id}` };
     const node = this.structure.nodes[index];
+
+    // The safe mutation surface (PG4): reject any field outside this node kind's
+    // allowlist, or a value of the wrong shape, before it can corrupt the stored
+    // structure. This is also where the grant boundary holds: no field here can
+    // write a Grant or an EffectContract.
+    const allowed = PATCHABLE_FIELDS[node.kind];
+    for (const [field, value] of Object.entries(patch)) {
+      const guard = allowed[field];
+      if (!guard) return { ok: false, error: `field not editable on a ${node.kind}: ${field}` };
+      if (!guard(value)) return { ok: false, error: `invalid value for ${field} on a ${node.kind}` };
+    }
 
     // The budget boundary: changing a response's action class to one that would
     // exceed its capability's standing cap is refused with the budget named. A

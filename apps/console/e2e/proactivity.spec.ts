@@ -11,13 +11,18 @@ async function openProactivity(page: Page) {
   await page.goto('/');
   await page.evaluate(() => {
     window.localStorage.removeItem('commonplace.console.surface.v1');
-    window.localStorage.removeItem('commonplace.console.proactivity.v1');
+    // The store now scopes its key by tenant, so clear every proactivity key.
+    for (const key of Object.keys(window.localStorage)) {
+      if (key.startsWith('commonplace.console.proactivity.v1')) window.localStorage.removeItem(key);
+    }
   });
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.getByRole('button', { name: 'Layout: Workspace' }).click();
-  await page.getByRole('option', { name: 'Proactivity' }).click();
+  // Proactivity is a secondary surface reached through the layout switcher, like
+  // Review and Appearance (the coloration IA); it is not in the primary stripe.
+  await page.locator('[data-layout-switcher]').click();
+  await page.locator('[data-layout-option="console-proactivity"]').click();
   await expect(page.locator('[data-surface="proactivity"]')).toBeVisible();
 }
 

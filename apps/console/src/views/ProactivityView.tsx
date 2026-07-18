@@ -10,7 +10,7 @@
 // bespoke page, and nothing animates (the register rule), so the reduced-motion
 // pass is identical.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import dynamic from 'next/dynamic';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import type { EffectContract, ProactivityGraph } from '@/lib/proactivity/model';
@@ -62,7 +62,7 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
     return <ViewState state="empty" />;
   }
 
-  const onTabKey = (event: React.KeyboardEvent, index: number) => {
+  const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const last = ALTITUDES.length - 1;
     let next = index;
     if (event.key === 'ArrowRight') next = index === last ? 0 : index + 1;

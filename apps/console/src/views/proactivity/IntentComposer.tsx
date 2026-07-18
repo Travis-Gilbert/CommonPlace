@@ -50,13 +50,21 @@ export function IntentComposer({
   const commit = async (candidates: readonly StandingNode[]) => {
     setCommitting(true);
     setCommitError(null);
+    // Commit atomically: a candidate trio (or stake plus program) is one intent,
+    // so if any node is refused, roll back the ones already created. A failed
+    // commit leaves nothing behind, never a silent partial.
+    const committedIds: string[] = [];
     for (const candidate of candidates) {
       const receipt = await host.emit(commitCandidateAction(candidate));
       if (!receipt.ok) {
+        for (const id of [...committedIds].reverse()) {
+          await host.emit({ kind: 'delete', id });
+        }
         setCommitError(receipt.error ?? 'The commit was refused.');
         setCommitting(false);
         return;
       }
+      committedIds.push(...(receipt.value?.target_ids ?? [candidate.id]));
     }
     setCommitting(false);
     setResult(null);

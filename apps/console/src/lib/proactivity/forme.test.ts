@@ -72,4 +72,19 @@ describe('compileIntent', () => {
     if (result.ok) return;
     expect(result.reason).toMatch(/draft_nudge/);
   });
+
+  it('compiles a recurring-charge intent instead of refusing on the noun "charge" (PG5)', () => {
+    const result = compileIntent('notify me when a recurring charge appears', context());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const watch = result.candidates.find((candidate) => candidate.kind === 'watch');
+    expect(watch?.kind === 'watch' && watch.queryFamily).toBe('recurring_charges');
+  });
+
+  it('compiles a help intent whose topic contains "book" instead of refusing on the noun (PG5)', () => {
+    const result = compileIntent('help with my book', context());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.candidates.some((candidate) => candidate.kind === 'stake')).toBe(true);
+  });
 });

@@ -72,14 +72,31 @@ export function GraphAltitude({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
+  // Keep elk's geometry (positions are recomputed only when topology changes)
+  // but always render the current node state: a non-topology edit (disable,
+  // action class, judgment class, params) updates the projection without moving
+  // anything, so overlay the live ProjectedNode onto each cached position. The
+  // canvas never shows stale disabled, degraded, permission, or budget state
+  // (PG7 altitude coherence).
+  const currentById = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph.nodes]);
+  const layout = useMemo<GraphLayout | null>(() => {
+    if (!laid) return null;
+    return {
+      ...laid.layout,
+      nodes: laid.layout.nodes.map((laidNode) => {
+        const current = currentById.get(laidNode.id);
+        return current ? { ...laidNode, node: current } : laidNode;
+      }),
+    };
+  }, [laid, currentById]);
+
   const selected = selectedId ? graph.nodes.find((node) => node.id === selectedId) ?? null : null;
 
   if (failed) return <ViewState state="error" errorMessage="The graph could not be laid out." />;
-  if (!laid) return <ViewState state="loading" />;
+  if (!laid || !layout) return <ViewState state="loading" />;
   // The partial state: the structure changed (an intent was committed) and the
   // layered layout is being recomputed. The stale graph shows dimmed, not blank.
   const stale = laid.sig !== signature;
-  const layout = laid.layout;
 
   return (
     <div className="flex h-full flex-col" data-altitude="graph">
