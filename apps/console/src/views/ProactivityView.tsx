@@ -17,7 +17,6 @@ import type { EffectContract, ProactivityGraph } from '@/lib/proactivity/model';
 import { graphFromObjects } from '@/lib/proactivity/object-bridge';
 import { REFUSAL_NOTE } from '@/lib/proactivity/store';
 import { ViewState } from './ViewStates';
-import { SentenceAltitude } from './proactivity/SentenceAltitude';
 import { CardAltitude } from './proactivity/CardAltitude';
 import { IntentComposer } from './proactivity/IntentComposer';
 import { sourcesOf } from './proactivity/kinds';
@@ -31,16 +30,15 @@ const GraphAltitude = dynamic(() => import('./proactivity/GraphAltitude').then((
   loading: () => <ViewState state="loading" />,
 });
 
-type Altitude = 'sentence' | 'card' | 'graph';
+type Altitude = 'card' | 'graph';
 
 const ALTITUDES: readonly { readonly id: Altitude; readonly label: string }[] = [
-  { id: 'sentence', label: 'Sentences' },
   { id: 'card', label: 'Cards' },
   { id: 'graph', label: 'Graph' },
 ];
 
 export function ProactivityView({ set, host }: ViewRenderProps) {
-  const [altitude, setAltitude] = useState<Altitude>('sentence');
+  const [altitude, setAltitude] = useState<Altitude>('card');
   const edits = useProactivityEdits(host);
 
   const refused = set.notes?.includes(REFUSAL_NOTE) ?? false;
@@ -123,7 +121,6 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        {altitude === 'sentence' ? <SentenceAltitude graph={graph} host={host} edits={edits} contracts={contracts} /> : null}
         {altitude === 'card' ? <CardAltitude graph={graph} edits={edits} contracts={contracts} /> : null}
         {altitude === 'graph' ? <GraphAltitude graph={graph} edits={edits} contracts={contracts} /> : null}
       </div>

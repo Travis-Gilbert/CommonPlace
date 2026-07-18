@@ -27,28 +27,6 @@ async function openProactivity(page: Page) {
 }
 
 test.describe('Proactivity graph surface', () => {
-  test('renders the standing structure as sentences with honest permission and frontier wording', async ({ page }) => {
-    await openProactivity(page);
-
-    // The default altitude is the sentence list (PG3), and it reads plainly.
-    await expect(page.getByText('"Get the insurance appeal resolved before the deadline" matters to me.')).toBeVisible();
-
-    // Frontier honesty (gate 7): a bounded label names the frontier, never "all".
-    await expect(page.getByText(/with more beyond what has been explored \(2 pruned\)/)).toBeVisible();
-
-    // Permission renders on every response (named choice 7): a response that
-    // could send an email but has no grant says so; a granted one names its
-    // date; an over-budget one says it is not running.
-    await expect(page.getByText('will ask you every time').first()).toBeVisible();
-    await expect(page.getByText(/can act on its own, granted 2026-06-30, revocable/)).toBeVisible();
-    await expect(page.getByText('over budget, not running')).toBeVisible();
-
-    // The human-authored watch carries its author tag.
-    await expect(page.getByText('yours')).toBeVisible();
-
-    await expect(page).toHaveScreenshot('proactivity-1440-dark.png', { fullPage: true });
-  });
-
   test('disabling a source degrades its dependent watches with the consequence named', async ({ page }) => {
     await openProactivity(page);
     await page.getByRole('tab', { name: 'Cards' }).click();
@@ -70,6 +48,12 @@ test.describe('Proactivity graph surface', () => {
     await expect(page.locator('.react-flow__node').first()).toBeVisible();
     await expect(page.locator('[data-node-kind="response"]').first()).toBeVisible();
     await expect(page.locator('[data-node-kind="watch"]').first()).toBeVisible();
+
+    // Permission renders on every response (named choice 7): a granted one acts
+    // on its own, a no-grant one asks each time, an over-budget one does not run.
+    await expect(page.getByText('can act on its own').first()).toBeVisible();
+    await expect(page.getByText('asks you every time').first()).toBeVisible();
+    await expect(page.getByText('over budget, not running').first()).toBeVisible();
 
     // Let React Flow's fitView settle before the baseline.
     await page.waitForTimeout(600);
