@@ -160,7 +160,7 @@ export function generateTheme(mode: ResolvedThemeMode, input: ThemeKnobs): Gener
     tintChroma: clamp(Number.isFinite(input.tintChroma) ? input.tintChroma : 0, 0, 0.04),
     highlightHue: hue(Number.isFinite(input.highlightHue) ? input.highlightHue : NAVY_KNOBS.highlightHue),
   };
-  if (knobs.tintChroma !== input.tintChroma) notes.push('Background chroma was limited to the safe 0–0.04 range.');
+  if (knobs.tintChroma !== input.tintChroma) notes.push('Background chroma was limited to the safe 0 to 0.04 range.');
 
   const stock = mode === 'dark' ? DARK_NEUTRALS : LIGHT_NEUTRALS;
   const anchors = LIGHTNESS_LADDERS[mode];

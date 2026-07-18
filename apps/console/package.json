@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "gate:fence": "node scripts/check-import-fence.mjs",
     "gate:register": "node scripts/check-register-lint.mjs",
-    "gate:contrast": "node scripts/check-contrast.mjs",
+    "gate:contrast": "node --experimental-strip-types scripts/check-contrast.mjs",
     "gate:motion": "node scripts/check-motion-inventory.mjs",
     "gate:icons": "node scripts/check-icon-svg.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
