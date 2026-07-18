@@ -2,7 +2,7 @@
  * JSON Canvas 1.0 types + a defensive parser/serializer.
  *
  * Spec: https://jsoncanvas.org/spec/1.0/ (Obsidian's open `.canvas` format,
- * also the format `/v2/canvas`'s placeholder copy already promises: "nodes:
+ * also the format `/canvas`'s placeholder copy already promises: "nodes:
  * text/file/link/group; edges with sides + labels"). This module is the real
  * implementation behind that promise — no invented fields, no fields dropped.
  *

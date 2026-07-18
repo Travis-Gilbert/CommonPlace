@@ -1,0 +1,219 @@
+/* Tailwind v4 bridge: utilities are emitted from --ij-* (and the --rec-*
+   structural group) ONLY. No raw values appear here; every entry aliases a
+   register token, so bg-ij-chrome, text-ij-ink, rounded-ij-arc and friends
+   resolve to the pinned Int UI values. Adding a utility means adding an alias
+   to a token that already exists in a register file, never a literal. */
+
+@theme inline {
+  /* Reset Tailwind's stock palette so raw palette utilities (bg-red-500 and
+     friends) do not exist on this surface; the register is the only paint. */
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+
+  /* Surfaces */
+  --color-ij-frame: var(--ij-frame);
+  --color-ij-editor: var(--ij-editor);
+  --color-ij-chrome: var(--ij-chrome);
+  --color-ij-raised: var(--ij-raised);
+  --color-ij-seam: var(--ij-seam);
+  --color-ij-seam-raised: var(--ij-seam-raised);
+  --color-ij-divider: var(--ij-divider);
+  --color-ij-control-border: var(--ij-control-border);
+
+  /* Ink */
+  --color-ij-ink: var(--ij-ink);
+  --color-ij-ink-info: var(--ij-ink-info);
+  --color-ij-ink-disabled: var(--ij-ink-disabled);
+  --color-ij-ink-bright: var(--ij-ink-bright);
+
+  /* Accent slot */
+  --color-ij-accent: var(--ij-accent);
+  --color-ij-accent-hover: var(--ij-accent-hover);
+  --color-ij-selection: var(--ij-selection);
+  --color-ij-selection-inactive: var(--ij-selection-inactive);
+  --color-ij-link: var(--ij-link);
+  --color-ij-modified: var(--ij-modified);
+  --color-ij-editor-line: var(--ij-editor-line);
+  --color-ij-search-match: var(--ij-search-match);
+  --color-ij-text-selection: var(--ij-text-selection);
+
+  /* State overlays */
+  --color-ij-hover-overlay: var(--ij-hover-overlay);
+  --color-ij-pressed-overlay: var(--ij-pressed-overlay);
+  --color-ij-hover-surface: var(--ij-hover-surface);
+
+  /* Status */
+  --color-ij-error: var(--ij-error);
+  --color-ij-error-bg: var(--ij-error-bg);
+  --color-ij-warn: var(--ij-warn);
+  --color-ij-warn-bg: var(--ij-warn-bg);
+  --color-ij-ok: var(--ij-ok);
+  --color-ij-ok-bg: var(--ij-ok-bg);
+  --color-ij-running: var(--ij-running);
+
+  /* Learned register (gold) and domain accents */
+  --color-ij-gold: var(--ij-gold);
+  --color-ij-gold-tint: var(--ij-gold-tint);
+  --color-ij-memory: var(--ij-memory);
+  --color-ij-memory-tint: var(--ij-memory-tint);
+  --color-ij-agent: var(--ij-agent);
+  --color-ij-agent-tint: var(--ij-agent-tint);
+  --color-ij-room: var(--ij-room);
+  --color-ij-room-tint: var(--ij-room-tint);
+  --color-ij-graph: var(--ij-graph);
+  --color-ij-graph-tint: var(--ij-graph-tint);
+
+  /* Row tints */
+  --color-ij-row-yellow: var(--ij-row-yellow);
+  --color-ij-row-green: var(--ij-row-green);
+  --color-ij-row-orange: var(--ij-row-orange);
+  --color-ij-row-rose: var(--ij-row-rose);
+  --color-ij-row-violet: var(--ij-row-violet);
+  --color-ij-row-blue: var(--ij-row-blue);
+  --color-ij-row-gray: var(--ij-row-gray);
+
+  /* Progress */
+  --color-ij-progress: var(--ij-progress);
+  --color-ij-progress-a: var(--ij-progress-a);
+  --color-ij-progress-b: var(--ij-progress-b);
+  --color-ij-progress-track: var(--ij-progress-track);
+
+  /* Radii */
+  --radius-ij-arc: var(--ij-arc);
+  --radius-ij-arc-underline: var(--ij-arc-underline);
+
+  /* Type */
+  --font-ij-ui: var(--ij-font-ui);
+  --font-ij-mono: var(--ij-font-mono);
+
+  /* Structural metrics as named spacing so h-ij-row, w-ij-stripe resolve */
+  --spacing-ij-row: var(--ij-row-h);
+  --spacing-ij-control: var(--ij-control-h);
+  --spacing-ij-tab: var(--ij-tab-h);
+  --spacing-ij-stripe: var(--ij-stripe-w);
+  --spacing-ij-toolbar: var(--ij-toolbar-h);
+  --spacing-ij-statusbar: var(--ij-statusbar-h);
+  --spacing-ij-underline: var(--ij-underline-h);
+  --spacing-rec-grid: var(--rec-grid);
+  --spacing-rec-cell-pad: var(--rec-cell-pad);
+  --spacing-rec-utility-col: var(--rec-utility-col);
+  --spacing-rec-side-panel: var(--rec-side-panel);
+  --spacing-rec-sibling-gap: var(--rec-sibling-gap);
+}
+
+/* The learned-register gold pair (HANDOFF-GREENFIELD-CONSOLE named choice 10,
+   G2): resolved from the Int UI Yellow ramp, AA on chrome. Yellow6 #D6AE58 on
+   Gray2 #2B2D30 computes to 6.6:1 (the contrast gate verifies in CI). The tint
+   is the Yellow1 surface the agent/warn tints already use. Defined here, not
+   by editing int-ui-register.css, because that file lands as-is. */
+[data-register="intui"] {
+  --ij-composer-min-h: 48px;
+  --ij-composer-max-h: 164px;
+  --ij-gold: var(--ij-yellow-6);
+  --ij-gold-tint: var(--ij-yellow-1);
+  --ij-editor-line: var(--ij-hover-overlay);
+  --ij-search-match: var(--ij-selection-inactive);
+  --ij-text-selection: var(--ij-selection);
+}
+
+[data-register="intui"][data-theme="light"] {
+  /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
+     this is the runtime gate's light-mode clamp, kept outside the pin. */
+  --ij-gold: #9A6000;
+  --ij-gold-tint: #FFF5DB;
+}
+
+/* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink
+   (gray-7 #6F737A) computes to 2.90:1 on chrome, under the 3.0 apparatus
+   floor markdown-theory's ink3 role requires. The register file stays
+   verbatim; this bridge re-points info one ramp step up to gray-8 #868A91
+   (3.98:1 on chrome), the same override pattern the gold pair uses. */
+[data-register="intui"] {
+  --ij-ink-info: var(--ij-gray-8);
+}
+
+[data-register="intui"][data-theme="light"] {
+  --ij-ink-info: var(--ij-gray-6);
+}
+
+/* Self-hosted font bridge: next/font/local-style variables from layout.tsx
+   re-point the register faces at the self-hosted Inter and JetBrains Mono
+   families (next/font renames families, so the register's literal "Inter"
+   stack cannot see them without this bridge). */
+[data-register="intui"] {
+  --ij-font-ui: var(--font-console-inter), "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --ij-font-mono: var(--font-console-jbmono), "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+}
+
+/* Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION section 2).
+   Two grammars coexist by scope. The chrome grammar above (Int UI accent for
+   interactive and pending, --ij-gold for learned) governs chrome. This speaker
+   grammar governs conversational content: chat messages, margin threads,
+   annotations, approval and proposal cards. The --cp-* names are the
+   cross-platform register vocabulary (mobile tokens.ts mirrors the same roles);
+   here they bridge to the console primitives.
+
+   Roles carry verbatim from the spec; values re-resolve for the register:
+   human ink is the oxblood family, agent voice is teal, memory is gold,
+   destructive stays reserved and rare. The oxblood and teal are tuned for AA on
+   the dark chrome (the contrast gate proves human on chrome and agent on chrome
+   at 4.5, destructive on chrome at 3.0). Agent teal is held hue-distant from the
+   Int UI accent blue so the system speaking as machinery (accent) never blurs
+   with the agent speaking as a voice (teal). Raw hex lives here because this is
+   a register file; content surfaces consume --cp-* only. These are the dark-well
+   values; the light-theme block below carries the second value of each direct
+   role (two values, one token, section 2.2). */
+[data-register="intui"] {
+  --cp-human: #DE7C72;              /* oxblood family, AA on chrome (4.76:1) */
+  --cp-agent: #45B4A3;              /* teal voice, AA on chrome, hue-distant from accent */
+  --cp-memory: var(--ij-gold);      /* memory gold is already the learned register */
+  --cp-destructive: var(--ij-error); /* reserved red; never the human's voice */
+
+  /* Presence mark (section 2.4): the mark is the agent's identity, so its base
+     is the voice teal. The commit moment is a brightness lift on the same teal
+     (superseding the sourcing addendum gold base and the accent-slot flash).
+     The interrupted edge is human ink: the human's hand arriving is human. */
+  --cp-presence: var(--cp-agent);
+  --cp-presence-commit: #7FE0CF;    /* teal contraction with brightness lift */
+  --cp-presence-interrupt: var(--cp-human);
+
+  /* Typography trinity (section 2.3): assigned by speaker on content surfaces.
+     Chrome stays Inter; the trinity governs content only. Human and machine ride
+     the bridged Galley faces (--gy-font-prose is Vollkorn, --gy-font-mono is
+     JetBrains Mono). Agent voice must NOT ride --gy-font-ui: gy-bridge re-points
+     that at the chrome Inter, which would collapse the speaker distinction, so
+     it points at the self-hosted Plex variable from fonts.ts directly. */
+  --cp-font-human: var(--gy-font-prose);   /* Vollkorn: human authorship */
+  --cp-font-agent: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* agent voice */
+  --cp-font-machine: var(--gy-font-mono);  /* JetBrains Mono: machinery, any speaker */
+}
+
+/* Speaker register, light mode: the "two values, one token" of section 2.2, now
+   that HANDOFF-CONSOLE-COLORATION shipped the light register. The direct-hex
+   roles re-tune for AA on the light chrome (Gray13 #F7F8FA) and the light editor
+   well (Gray14 #FFFFFF): deep oxblood and deep teal replace the dark-well lifted
+   values. The var-chained roles (memory, destructive, presence, interrupt)
+   follow --ij-gold, --ij-error, and the human/agent values, which the light
+   register already re-tunes. The contrast gate proves both modes. */
+[data-register="intui"][data-theme="light"] {
+  --cp-human: #7A2733;              /* deep oxblood, AA on the light well */
+  --cp-agent: #2D5F6B;              /* deep teal, AA on the light well */
+  --cp-presence-commit: #0D7D6B;    /* saturated teal lift, visible on light */
+}
+
+/* Tailwind v4: speaker utilities emit from --cp-* only, so text-cp-human,
+   bg-cp-agent, font-cp-machine and friends resolve to the register values. */
+@theme inline {
+  --color-cp-human: var(--cp-human);
+  --color-cp-agent: var(--cp-agent);
+  --color-cp-memory: var(--cp-memory);
+  --color-cp-destructive: var(--cp-destructive);
+  --color-cp-presence: var(--cp-presence);
+  --color-cp-presence-commit: var(--cp-presence-commit);
+  --color-cp-presence-interrupt: var(--cp-presence-interrupt);
+
+  --font-cp-human: var(--cp-font-human);
+  --font-cp-agent: var(--cp-font-agent);
+  --font-cp-machine: var(--cp-font-machine);
+}

@@ -13,11 +13,12 @@
  */
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, {
   cubicBezier,
   useReducedMotion,
   type CSSAnimationKeyframes,
+  type CSSStyle,
 } from 'react-native-reanimated';
 import { cssEaseInOut } from '@/theme/springs';
 
@@ -39,7 +40,7 @@ export function WeaveSpinner({ size = 160, color = '#E0BC60' }: Props) {
   const glow80 = hexToRgba(color, 0.8);
   const glow50 = hexToRgba(color, 0.5);
 
-  const nodePulse: CSSAnimationKeyframes = {
+  const nodePulse: CSSAnimationKeyframes<ViewStyle> = {
     from: {
       transform: [{ scale: 1 }],
       boxShadow: `0 0 ${20 * d}px ${color}, 0 0 ${40 * d}px ${glow60}`,
@@ -54,7 +55,7 @@ export function WeaveSpinner({ size = 160, color = '#E0BC60' }: Props) {
     },
   };
 
-  const weave = (axis: 'x' | 'y', move: number, rotA: number, rotZ: number): CSSAnimationKeyframes => {
+  const weave = (axis: 'x' | 'y', move: number, rotA: number, rotZ: number): CSSAnimationKeyframes<ViewStyle> => {
     const t = (m: number, ra: number, rz: number) =>
       axis === 'y'
         ? [{ perspective: 1200 }, { translateY: m }, { rotateX: `${ra}deg` }, { rotateZ: `${rz}deg` }]
@@ -77,6 +78,13 @@ export function WeaveSpinner({ size = 160, color = '#E0BC60' }: Props) {
     { kf: weave('y', -40, -60, 15), dur: 2400, ease: cubicBezier(0.23, 1, 0.32, 1),       style: { width: size, height: 2, bottom: size * 0.3, left: 0 }, horiz: true },
     { kf: weave('x', 40, -60, -15), dur: 2600, ease: cubicBezier(0.36, 0, 0.66, -0.56),   style: { width: 2, height: size, top: 0, left: size * 0.3 },  horiz: false },
   ];
+  const nodeAnimationStyle: CSSStyle<ViewStyle> = {
+    backgroundColor: color,
+    animationName: nodePulse,
+    animationDuration: 1600,
+    animationIterationCount: 'infinite',
+    animationTimingFunction: cubicBezier(0.68, -0.55, 0.27, 1.55),
+  };
 
   if (reduceMotion) {
     return (
@@ -88,40 +96,27 @@ export function WeaveSpinner({ size = 160, color = '#E0BC60' }: Props) {
 
   return (
     <View style={[styles.wrapper, { width: size, height: size }]}>
-      {threads.map((th, i) => (
-        <Animated.View
-          key={i}
-          style={[
-            styles.thread,
-            th.style,
-            {
+      {threads.map((th, i) => {
+        const animationStyle: CSSStyle<ViewStyle> = {
               boxShadow: `0 0 ${10 * d}px ${glow50}`,
               animationName: th.kf,
               animationDuration: th.dur,
               animationIterationCount: 'infinite',
               animationTimingFunction: th.ease,
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={['transparent', glow80, 'transparent']}
-            start={th.horiz ? { x: 0, y: 0.5 } : { x: 0.5, y: 0 }}
-            end={th.horiz ? { x: 1, y: 0.5 } : { x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
-      ))}
+        };
+        return (
+          <Animated.View key={i} style={[styles.thread, th.style, animationStyle]}>
+            <LinearGradient
+              colors={['transparent', glow80, 'transparent']}
+              start={th.horiz ? { x: 0, y: 0.5 } : { x: 0.5, y: 0 }}
+              end={th.horiz ? { x: 1, y: 0.5 } : { x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+        );
+      })}
       <Animated.View
-        style={[
-          styles.node,
-          {
-            backgroundColor: color,
-            animationName: nodePulse,
-            animationDuration: 1600,
-            animationIterationCount: 'infinite',
-            animationTimingFunction: cubicBezier(0.68, -0.55, 0.27, 1.55),
-          },
-        ]}
+        style={[styles.node, nodeAnimationStyle]}
       />
     </View>
   );

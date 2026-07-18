@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
+import { CarryLineage } from '@/components/commonplace/carry/CarryLineage';
 import type { Editor } from '@tiptap/react';
 import type { TiptapUpdatePayload } from '@/components/studio/TiptapEditor';
 import {
@@ -197,10 +198,14 @@ export default function ComposeView({
   prefillText,
   prefillType,
   onSaved,
+  carrySessionId,
 }: {
   prefillText?: string;
   prefillType?: string;
   onSaved?: (objectId: number) => void;
+  /** Present when reached via Carry to Research: the research session, whose
+   *  lineage links back to the carried session (HANDOFF-CARRY D4). */
+  carrySessionId?: string | null;
 }) {
   const { openContextMenu, openDrawer } = useDrawer();
   const { clearStash, stashedObjects, unstashObject } = useWorkspace();
@@ -491,6 +496,11 @@ export default function ComposeView({
           <div className="cp-compose-editor-shell">
             <div className="cp-compose-writing-scroll">
               <div className="cp-compose-writing-column">
+                {carrySessionId ? (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <CarryLineage sessionId={carrySessionId} />
+                  </div>
+                ) : null}
                 <div className="cp-compose-toolbar">
                   <div className="cp-compose-toolbar-group">
                     <button
@@ -739,7 +749,7 @@ export default function ComposeView({
                   <div className="cp-compose-terminal-tension">
                     {!enableNli ? (
                       <div className="cp-compose-terminal-empty">
-                        NLI pass inactive. Click "Check Tension" below the editor to enable.
+                        NLI pass inactive. Click &quot;Check Tension&quot; below the editor to enable.
                       </div>
                     ) : results.filter((r) => r.signal === 'nli').length === 0 ? (
                       <div className="cp-compose-terminal-empty">
@@ -769,7 +779,7 @@ export default function ComposeView({
                   <div className="cp-compose-terminal-stash">
                     {stashedObjects.length === 0 ? (
                       <div className="cp-compose-terminal-empty">
-                        Right-click any object and choose "Stash for Later" to collect fragments here.
+                        Right-click any object and choose &quot;Stash for Later&quot; to collect fragments here.
                       </div>
                     ) : (
                       <>
@@ -883,7 +893,7 @@ export default function ComposeView({
               <div className="cp-compose-dock-section-title">Stash</div>
               {stashedObjects.length === 0 ? (
                 <div className="cp-compose-results-empty">
-                  Right-click selected text and choose "Stash for Later" to save fragments here.
+                  Right-click selected text and choose &quot;Stash for Later&quot; to save fragments here.
                 </div>
               ) : (
                 <div className="cp-compose-stash-chip-list">

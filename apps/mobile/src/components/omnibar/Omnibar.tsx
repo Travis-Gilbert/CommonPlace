@@ -31,7 +31,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { enqueueCapture, type CaptureSource } from '@/capture/queue';
+import { fetchInstanceCapabilities } from '@/api/instance';
 import { AppText } from '@/components/AppText';
+import { PressableSurface } from '@/components/PressableSurface';
 import { useTheme } from '@/theme/ThemeProvider';
 
 import { useOmnibar } from './OmnibarContext';
@@ -57,6 +59,7 @@ export function Omnibar() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [clip, setClip] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
   const [attachment, setAttachment] = useState<{ uri: string; mime: string; kind: string } | null>(null);
   const inputRef = useRef<TextInput>(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -65,26 +68,39 @@ export function Omnibar() {
 
   useEffect(() => {
     if (!state.visible) return;
-    setText(state.prefill?.text ?? '');
-    setArmed(false);
-    setNotify(false);
-    setConfirm(null);
-    setAttachment(
-      state.prefill?.attachmentUri
-        ? {
-            uri: state.prefill.attachmentUri,
-            mime: state.prefill.attachmentMime ?? 'application/octet-stream',
-            kind: state.prefill.kindHint ?? 'file',
-          }
-        : null,
-    );
-    // Paste detection: offer, never auto-insert.
-    Clipboard.getStringAsync()
-      .then((s) => setClip(s && s.trim().length > 0 && s !== text ? s.trim() : null))
-      .catch(() => setClip(null));
-    if (state.voiceMode) void startRecording();
-    else setTimeout(() => inputRef.current?.focus(), 120);
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
+    const resetTimer = setTimeout(() => {
+      const nextText = state.prefill?.text ?? '';
+      setText(nextText);
+      setArmed(false);
+      setNotify(false);
+      setConfirm(null);
+      setAttachment(
+        state.prefill?.attachmentUri
+          ? {
+              uri: state.prefill.attachmentUri,
+              mime: state.prefill.attachmentMime ?? 'application/octet-stream',
+              kind: state.prefill.kindHint ?? 'file',
+            }
+          : null,
+      );
+      // Paste detection: offer, never auto-insert.
+      Clipboard.getStringAsync()
+        .then((s) => setClip(s && s.trim().length > 0 && s !== nextText ? s.trim() : null))
+        .catch(() => setClip(null));
+      if (state.voiceMode) void startRecording();
+      else focusTimer = setTimeout(() => inputRef.current?.focus(), 120);
+    }, 0);
+    return () => {
+      clearTimeout(resetTimer);
+      if (focusTimer) clearTimeout(focusTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.visible]);
+
+  useEffect(() => {
+    if (!state.visible) return;
+    fetchInstanceCapabilities().then((capabilities) => setVoiceAvailable(capabilities.voiceCapture));
   }, [state.visible]);
 
   async function startRecording() {
@@ -196,7 +212,7 @@ export function Omnibar() {
                 >
                   <Ionicons name="clipboard-outline" size={14} color={t.c.textMuted} />
                   <AppText variant="caption" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
-                    Paste "{clip.slice(0, 60)}{clip.length > 60 ? '...' : ''}"
+                    {'Paste "'}{clip.slice(0, 60)}{clip.length > 60 ? '...' : ''}{'"'}
                   </AppText>
                 </Pressable>
               ) : null}
@@ -240,42 +256,35 @@ export function Omnibar() {
                     style={[styles.input, { color: t.c.text }]}
                     maxFontSizeMultiplier={1.4}
                   />
-                  <Pressable
+                  <PressableSurface
                     onPress={submit}
                     accessibilityLabel={armed ? 'Ask' : 'Keep'}
-                    style={({ pressed }) => [
-                      styles.submit,
-                      { backgroundColor: pressed ? accentPressed : accent, borderCurve: 'continuous' },
-                    ]}
+                    style={[styles.submit, { backgroundColor: accent, borderCurve: 'continuous' }]}
+                    pressedStyle={{ backgroundColor: accentPressed }}
                   >
                     <Ionicons name={armed ? 'sparkles' : 'arrow-up'} size={20} color={t.c.onPrimary} />
-                  </Pressable>
+                  </PressableSurface>
                 </View>
               )}
               <View style={styles.chipRow}>
-                {CHIPS.map((chip) => {
+                {CHIPS.filter((chip) => chip.id !== 'voice' || voiceAvailable).map((chip) => {
                   const isAsk = chip.id === 'ask';
                   const active = (isAsk && armed) || (chip.id === 'voice' && recording);
                   const softHighlight = isAsk && questionShaped && !armed;
                   return (
-                    <Pressable
+                    <PressableSurface
                       key={chip.id}
                       onPress={() => void onChip(chip)}
                       accessibilityLabel={chip.label}
                       hitSlop={6}
-                      style={({ pressed }) => [
+                      style={[
                         styles.chip,
                         {
                           borderCurve: 'continuous',
-                          backgroundColor: active
-                            ? accent
-                            : softHighlight
-                              ? t.c.primaryWash
-                              : pressed
-                                ? t.c.muted
-                                : t.c.secondary,
+                          backgroundColor: active ? accent : softHighlight ? t.c.primaryWash : t.c.secondary,
                         },
                       ]}
+                      pressedStyle={{ backgroundColor: active ? accent : softHighlight ? t.c.primaryWash : t.c.muted }}
                     >
                       <Ionicons
                         name={chip.icon}
@@ -290,7 +299,7 @@ export function Omnibar() {
                       >
                         {chip.label}
                       </AppText>
-                    </Pressable>
+                    </PressableSurface>
                   );
                 })}
               </View>

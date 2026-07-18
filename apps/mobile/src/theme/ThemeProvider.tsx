@@ -14,6 +14,7 @@ import {
   motion,
   oxblood,
   radius,
+  speaker,
   space,
   type,
   type MachineColors,
@@ -34,6 +35,8 @@ export type Theme = {
   oxblood: typeof oxblood;
   space: typeof space;
   radius: typeof radius;
+  speaker: (typeof speaker)['light'] | (typeof speaker)['dark'];
+  speakerFonts: typeof speaker.fonts;
   type: typeof type;
   motion: typeof motion;
   layout: typeof layout;
@@ -77,6 +80,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       oxblood,
       space,
       radius,
+      speaker: scheme === 'dark' ? speaker.dark : speaker.light,
+      speakerFonts: speaker.fonts,
       type,
       motion,
       layout,

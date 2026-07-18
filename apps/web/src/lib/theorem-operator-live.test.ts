@@ -18,7 +18,7 @@ const TASK_NODES = [
     node_type: 'implement',
     goal: 'Ship OP4 drawer',
     prerequisites: [],
-    file_scope: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
+    file_scope: ['apps/web/src/app/(console)/operator/RunDrawer.tsx'],
     status: 'claimed',
     claim: { owner: 'claude-code', epoch: 3, granted_at: 1_000_000, expires_at: 9_000_000, last_heartbeat: 1_500_000 },
     claim_epoch: 3,
@@ -57,7 +57,7 @@ const TASK_NODES = [
     node_type: 'verify',
     goal: 'Review gate',
     prerequisites: [],
-    file_scope: ['apps/web/src/app/v2/operator/Gate.tsx'],
+    file_scope: ['apps/web/src/app/(console)/operator/Gate.tsx'],
     status: 'patch_proposed',
     claim: null,
     claim_epoch: 2,
@@ -218,7 +218,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     const state = await buildOperatorStateLive(LIVE_ENV, NOW, graphqlFetch({ ok: true, tasks: TASK_NODES }));
     const taskA = state!.tasks.find((t) => t.id === 'task-a')!;
     expect(taskA.claim).toEqual({ head: 'claude-code', claimedAt: new Date(1_000_000).toISOString() });
-    expect(taskA.fileScope).toEqual(['apps/web/src/app/v2/operator/RunDrawer.tsx']);
+    expect(taskA.fileScope).toEqual(['apps/web/src/app/(console)/operator/RunDrawer.tsx']);
     expect(taskA.runId).toBe('run-1');
     expect(taskA.ageMs).toBeGreaterThan(0);
   });
@@ -276,7 +276,7 @@ describe('Operator live workGraph mapping (PT-010)', () => {
     expect(state!.drawers['task-a']).toMatchObject({
       taskId: 'task-a',
       live: true,
-      footprint: ['apps/web/src/app/v2/operator/RunDrawer.tsx'],
+      footprint: ['apps/web/src/app/(console)/operator/RunDrawer.tsx'],
     });
     expect(state!.drawers['task-a'].events[0]).toMatchObject({ kind: 'claim', actor: 'claude-code' });
 

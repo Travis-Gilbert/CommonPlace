@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ObjectQuery } from "@/lib/block-view/types";
 import type { CommonplaceRustyRedDataSource } from "@/lib/commonplace/rustyred-data-contract";
 import {
@@ -13,7 +13,7 @@ import {
 /* Index band queries (HANDOFF-INDEX-SURFACE D4).
  *
  * The Index is the daily driver: everything is already filed, so the surface
- * reviews three bands -- what landed, what is open, what today holds. This
+ * reviews three bands: what landed, what is open, what today holds. This
  * module is the contract-first seam between those bands and the substrate:
  *
  *   - `useIndexData()` returns typed bands with a `source.mode` (live/fixture/
@@ -96,7 +96,7 @@ export const INDEX_EPISTEMIC_M3 = false;
  *  tasks) only once M1 lands, with no UI change. */
 export const INDEX_TEMPORAL_M1 = false;
 
-/** A row exposes a decision -- the Needs-you filter. Refile candidates below the
+/** A row exposes a decision, the Needs-you filter. Refile candidates below the
  *  confidence threshold, open questions, tensions, and due-today tasks. */
 export function isNeedsYou(row: IndexRow): boolean {
   if (row.isTension) return true;
@@ -378,7 +378,7 @@ async function fetchLiveIndexData(): Promise<IndexData | null> {
 
 /** The Index data hook. Contract-first: fixture on first paint (server + first
  *  client render, so hydration matches), then swaps to live briefing on mount if
- *  reachable. A down backend keeps the fixture -- callers never change. */
+ *  reachable. A down backend keeps the fixture; callers never change. */
 export function useIndexData(): IndexData {
   const [data, setData] = useState<IndexData>(fixtureIndexData);
 
@@ -463,7 +463,7 @@ export function submitRefile(
   }
   // 2. Durable write (best-effort, fail-open): resolve the destination label to
   //    a collection (create if new). When the item's current collection id is
-  //    known (live), MOVE -- add the new membership and tombstone the old with
+  //    known (live), MOVE: add the new membership and tombstone the old with
   //    provenance retained (commonplace-api moveToCollection). Otherwise add.
   return persistRefile(id, label, currentCollectionId, currentCollectionLabel).then((collectionId) => {
     if (collectionId) recordRefileOverride(id, label, title, collectionId);
@@ -524,4 +524,184 @@ export function useRefileSignal(handler: (signal: RefileSignal) => void): void {
     window.addEventListener("commonplace:refile", onRefile);
     return () => window.removeEventListener("commonplace:refile", onRefile);
   }, []);
+}
+
+/* ── Destinations (IX7 destination rail) ──────────────────────────────────────
+   The rail is derived from the loaded rows, not a separate fetch: every
+   destination shown has at least one real item and an exact count, so clicking
+   it filters the stream to those items. Deriving from data already in hand keeps
+   the count honest (it reflects the live stream) and avoids a rail full of
+   zero-count collections. */
+
+export interface IndexDestination {
+  /** Stable key: the collection id when live, else the label. */
+  readonly key: string;
+  readonly label: string;
+  /** How many loaded rows are filed to this destination. */
+  readonly count: number;
+}
+
+/** The destination key a row files to, or null when it is not filed (an open
+ *  question, an unresolved tension). Uses the collection id when present so a
+ *  rename does not split a destination in two. */
+export function rowDestinationKey(row: IndexRow): string | null {
+  if (!row.destination) return null;
+  return row.destinationId ?? row.destination.label;
+}
+
+/** Destinations present in the data, most-populated first. `destinationOf` /
+ *  `keyOf` default to the row's own destination, but a surface holding optimistic
+ *  refile overrides passes override-aware versions so the rail buckets + counts
+ *  follow an edit before a refetch lands. */
+export function destinationsFromData(
+  data: IndexData,
+  destinationOf: (row: IndexRow) => IndexRowDestination | null = (row) => row.destination,
+  keyOf: (row: IndexRow) => string | null = rowDestinationKey,
+): readonly IndexDestination[] {
+  const byKey = new Map<string, { label: string; count: number }>();
+  for (const row of allRows(data)) {
+    const key = keyOf(row);
+    const dest = destinationOf(row);
+    if (!key || !dest) continue;
+    const entry = byKey.get(key);
+    if (entry) entry.count += 1;
+    else byKey.set(key, { label: dest.label, count: 1 });
+  }
+  return [...byKey.entries()]
+    .map(([key, { label, count }]) => ({ key, label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/* ── Watch queries (IX6 saved-search destinations) ────────────────────────────
+   A watch query is a saved search that behaves as a destination: it re-runs a
+   real filter over the real rows and shows its live match count. This is the
+   surface half of IX6, fully real client-side (localStorage). The engine half --
+   a watch query participating in filing scores like an anchor, is backend work
+   that this seam does not fake. */
+
+export interface WatchQuery {
+  readonly id: string;
+  readonly label: string;
+  readonly query: string;
+}
+
+const WATCH_QUERIES_KEY = "v2:index:watch-queries";
+
+function readWatchQueries(): WatchQuery[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(WATCH_QUERIES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (q): q is WatchQuery =>
+        !!q &&
+        typeof (q as WatchQuery).id === "string" &&
+        typeof (q as WatchQuery).label === "string" &&
+        typeof (q as WatchQuery).query === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeWatchQueries(queries: readonly WatchQuery[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(WATCH_QUERIES_KEY, JSON.stringify(queries));
+  } catch {
+    /* storage full or blocked: the in-memory list still holds for the session */
+  }
+}
+
+/** True when a row matches a free-text query (title, tags, destination, meta) --
+ *  the same haystack the list search uses, so a saved query and a typed one
+ *  select the same rows. */
+export function rowMatchesQuery(row: IndexRow, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [row.title, ...row.tags, row.destination?.label ?? "", row.meta ?? ""]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(q);
+}
+
+/** Live match count for a saved query over the loaded rows. */
+export function watchQueryCount(data: IndexData, query: string): number {
+  return allRows(data).filter((row) => rowMatchesQuery(row, query)).length;
+}
+
+/* Watch queries live in a tiny external store (localStorage is the source of
+   truth) read through useSyncExternalStore. That is the SSR-safe, lint-clean way
+   to subscribe to browser storage: the server snapshot is empty so first paint
+   matches, the client snapshot is a cached array (stable ref, so no render loop),
+   and a cross-tab `storage` event refreshes it. */
+
+const EMPTY_WATCH_QUERIES: readonly WatchQuery[] = [];
+let watchSnapshot: readonly WatchQuery[] | null = null;
+const watchListeners = new Set<() => void>();
+
+function watchStoreSnapshot(): readonly WatchQuery[] {
+  if (watchSnapshot === null) watchSnapshot = readWatchQueries();
+  return watchSnapshot;
+}
+
+function commitWatchQueries(next: readonly WatchQuery[]): void {
+  watchSnapshot = next;
+  writeWatchQueries(next);
+  watchListeners.forEach((notify) => notify());
+}
+
+function subscribeWatchStore(onChange: () => void): () => void {
+  watchListeners.add(onChange);
+  // Refresh on (re)subscribe: a change made while nothing was mounted (so no
+  // storage listener was active) would otherwise leave the cached snapshot stale.
+  watchSnapshot = readWatchQueries();
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === WATCH_QUERIES_KEY) {
+      watchSnapshot = readWatchQueries();
+      onChange();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    watchListeners.delete(onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/** Saved watch queries + mutators, backed by localStorage. SSR-safe: the server
+ *  snapshot is empty so first paint matches, then the client snapshot hydrates
+ *  from storage without a setState-in-effect. */
+export function useWatchQueries(): {
+  queries: readonly WatchQuery[];
+  save: (label: string, query: string) => void;
+  remove: (id: string) => void;
+} {
+  const queries = useSyncExternalStore(
+    subscribeWatchStore,
+    watchStoreSnapshot,
+    () => EMPTY_WATCH_QUERIES,
+  );
+
+  const save = (label: string, query: string) => {
+    const trimmedLabel = label.trim();
+    const trimmedQuery = query.trim();
+    if (!trimmedLabel || !trimmedQuery) return;
+    // Replace an existing query with the same label rather than duplicating it.
+    const withoutDupe = watchStoreSnapshot().filter(
+      (q) => q.label.toLowerCase() !== trimmedLabel.toLowerCase(),
+    );
+    commitWatchQueries([
+      ...withoutDupe,
+      { id: `wq-${Date.now()}`, label: trimmedLabel, query: trimmedQuery },
+    ]);
+  };
+
+  const remove = (id: string) => {
+    commitWatchQueries(watchStoreSnapshot().filter((q) => q.id !== id));
+  };
+
+  return { queries, save, remove };
 }

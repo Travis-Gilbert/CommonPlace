@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { libraryRecords, unwrapGraphqlField } from './theorem-libraries';
+import { libraryReceipt, libraryRecords, unwrapGraphqlField } from './theorem-libraries';
 
 describe('theorem libraries client', () => {
   it('normalizes MCP structured content into operator records', () => {
@@ -19,5 +19,16 @@ describe('theorem libraries client', () => {
   it('unwraps a queried JSON scalar', () => {
     const value = { result: { structuredContent: { data: { libraryQuery: { result: { count: 2 } } } } } };
     expect(unwrapGraphqlField(value, 'libraryQuery')).toEqual({ result: { count: 2 } });
+  });
+
+  it('normalizes a direct RustyWeb crawl receipt', () => {
+    const value = { result: { structuredContent: { receipt: {
+      receipt_id: 'receipt-1', operation: 'live_crawl', pages_fetched: 4,
+      changed_pages: 2, facts_deposited: 6, metered_cost: { unit: 'input_byte', quantity: 1024 },
+    } } } };
+    expect(libraryReceipt(value)).toEqual({
+      receiptId: 'receipt-1', operation: 'live_crawl', pagesFetched: 4,
+      changedPages: 2, factsDeposited: 6, meteredCost: { unit: 'input_byte', quantity: 1024 },
+    });
   });
 });

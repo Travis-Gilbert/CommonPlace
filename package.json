@@ -4,23 +4,28 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "sync:rustyred": "node scripts/update-rustyred-source.mjs",
-    "install:railway": "npm --prefix apps/web ci --legacy-peer-deps --workspaces=false && mkdir -p node_modules && touch node_modules/.railpack-keep",
-    "build:railway": "npm run install:railway && npm --prefix apps/web run build:railway",
-    "start:railway": "npm --prefix apps/web run start:railway",
-    "mobile:start": "npm --prefix apps/mobile run start",
-    "mobile:check": "npm --prefix apps/mobile exec tsc -- --noEmit",
-    "web:dev": "npm --prefix apps/web run dev",
-    "web:build": "npm --prefix apps/web run build",
-    "web:build:desktop": "npm --prefix apps/web run build:desktop",
-    "desktop:dev": "npm --prefix apps/desktop run tauri -- dev",
-    "desktop:build": "npm --prefix apps/desktop run tauri -- build",
-    "collab:dev": "npm --prefix apps/commonplace-collab run dev",
-    "collab:start": "npm --prefix apps/commonplace-collab run start",
     "api:dev": "cargo run --manifest-path apps/commonplace-api/Cargo.toml",
     "api:test": "cargo test --manifest-path apps/commonplace-api/Cargo.toml",
+    "build:railway": "npm run install:railway && npm --prefix apps/web run build:railway",
     "check": "node scripts/update-rustyred-source.mjs --check && cargo test --workspace && npm --prefix packages/block-view-contracts run check",
-    "check:rust": "cargo test --workspace"
+    "check:rust": "cargo test --workspace",
+    "collab:dev": "npm --prefix apps/commonplace-collab run dev",
+    "collab:start": "npm --prefix apps/commonplace-collab run start",
+    "console:build": "npm --prefix apps/console run build",
+    "console:build:railway": "corepack enable && pnpm install --no-frozen-lockfile --filter @commonplace/console... && pnpm --filter @commonplace/console run build:railway",
+    "console:dev": "npm --prefix apps/console run dev",
+    "console:gates": "npm --prefix apps/console run gates",
+    "console:start:railway": "node apps/console/scripts/start-railway.mjs",
+    "desktop:build": "npm --prefix apps/desktop run tauri -- build",
+    "desktop:dev": "npm --prefix apps/desktop run tauri -- dev",
+    "install:railway": "npm --prefix apps/web ci --legacy-peer-deps --workspaces=false && mkdir -p node_modules/@types && ln -sfn ../apps/web/node_modules/react node_modules/react && ln -sfn ../../apps/web/node_modules/@types/react node_modules/@types/react && touch node_modules/.railpack-keep",
+    "mobile:check": "tsc -p apps/mobile/tsconfig.json --noEmit",
+    "mobile:start": "npm --prefix apps/mobile run start",
+    "start:railway": "npm --prefix apps/web run start:railway",
+    "sync:rustyred": "node scripts/update-rustyred-source.mjs",
+    "web:build": "npm --prefix apps/web run build",
+    "web:build:desktop": "npm --prefix apps/web run build:desktop",
+    "web:dev": "npm --prefix apps/web run dev"
   },
   "workspaces": [
     "apps/*",
@@ -30,6 +35,29 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@travis-gilbert/markdown-theory": "^0.1.2"
+    "@travis-gilbert/markdown-theory": "0.1.2"
+  },
+  "packageManager": "pnpm@10.30.1",
+  "pnpm": {
+    "overrides": {
+      "@blocksuite/icons": "2.1.75",
+      "@duckdb/duckdb-wasm": "1.32.0",
+      "@luma.gl/core": "9.2.6",
+      "@luma.gl/engine": "9.2.6",
+      "@luma.gl/webgl": "9.2.6",
+      "@luma.gl/shadertools": "9.2.6",
+      "@luma.gl/constants": "9.2.6",
+      "@travis-gilbert/document-types": "0.1.0",
+      "@travis-gilbert/markdown-spine": "0.1.0"
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/store": "0.2.13",
+    "@assistant-ui/tap": "0.5.16",
+    "lru-cache": "5.1.1"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   }
 }

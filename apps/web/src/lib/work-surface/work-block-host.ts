@@ -98,7 +98,7 @@ export function createWorkBlockHost(): WorkBlockHost {
 
 let singleton: WorkBlockHost | null = null;
 
-/** Shared host for the /v2/work route, so every tool card reuses one view-catalog fetch. */
+/** Shared host for the /work route, so every tool card reuses one view-catalog fetch. */
 export function getWorkBlockHost(): WorkBlockHost {
   if (!singleton) singleton = createWorkBlockHost();
   return singleton;

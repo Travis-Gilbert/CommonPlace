@@ -1,0 +1,100 @@
+/* Publish action (HANDOFF-PUBLISH D4). Oxblood register, quiet: a small inline
+   control that publishes an artifact to a public URL and then shows its
+   published state. */
+
+.publish {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-family: var(--cp-font-mono, ui-monospace, monospace);
+}
+
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.visSelect {
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.14));
+  background: var(--cp-surface, #fbf6ec);
+  color: var(--cp-ink, #2c2722);
+  font-size: 0.74rem;
+}
+
+.publishButton {
+  padding: 0.3rem 0.7rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--cp-oxblood, #7a2733);
+  background: var(--cp-oxblood, #7a2733);
+  color: var(--cp-paper, #f7f0e6);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.publishButton:hover:not(:disabled) {
+  background: var(--cp-oxblood-pressed, #5f1e28);
+}
+.publishButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.publishedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--cp-oxblood, #7a2733) 35%, transparent);
+  background: color-mix(in oklab, var(--cp-oxblood, #7a2733) 8%, transparent);
+  color: var(--cp-oxblood, #7a2733);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.linkGlyph {
+  font-size: 0.8rem;
+}
+
+.visTag {
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--cp-oxblood, #7a2733) 16%, transparent);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.12));
+  background: var(--cp-surface, #fbf6ec);
+}
+
+.url {
+  color: var(--cp-oxblood, #7a2733);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.copyButton {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--cp-hairline, rgba(0, 0, 0, 0.16));
+  background: var(--cp-bg, #f2ead9);
+  color: var(--cp-ink, #2c2722);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.error {
+  color: var(--cp-oxblood, #7a2733);
+  font-size: 0.7rem;
+}

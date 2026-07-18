@@ -1,21 +1,7 @@
 /**
- * CommonPlace mobile tokens: porcelain register v2.
- *
- * Governing mechanism: tonal elevation. Ground carries hue temperature; layers
- * differ by lightness step, not shadow. Light mode gets ONE contact shadow;
- * dark mode gets zero (depth = the surface ladder).
- *
- * Palette lineage: claude-crimson light values with real oxblood replacing the
- * crimson primary; warm dark derived from the claude.ai dark family. Oxblood
- * owns the red channel (destructive is ink, never red). Umber is the default
- * machine surface; deep teal ships as the first user-selectable alternate.
- *
- * Contrast receipts (WCAG 2.x relative luminance, computed not eyeballed):
- *   white on oxblood #7A2733          9.7:1
- *   white on oxblood dark #8A3140     8.1:1
- *   mutedText #6A5E52 on bg #faf9f5   6.0:1
- *   dark muted #A8A59D on #262624     6.1:1
- *   ink #141413 on bg #faf9f5        17.9:1
+ * CommonPlace mobile tokens: the Int UI material ladder adapted to native
+ * controls. The values match the Console register roles while navigation,
+ * gestures, typography sizing, and safe-area behavior stay platform-native.
  */
 
 export const oxblood = {
@@ -28,55 +14,55 @@ export const oxblood = {
 } as const;
 
 export const lightColors = {
-  deep: '#F5F4EE', // sidebar step, below ground
-  bg: '#FAF9F5',
-  surface: '#FAF9F5',
-  raised: '#FFFFFF', // popover step
-  secondary: '#E9E6DC',
-  muted: '#EDE9DE',
-  border: '#DAD9D4',
-  input: '#B4B2A7',
-  text: '#141413',
-  textMuted: '#6A5E52',
-  textFaint: '#8A857B',
-  primary: oxblood.fill,
-  primaryPressed: oxblood.pressed,
-  primaryWash: oxblood.washLight,
+  deep: '#EBECF0',
+  bg: '#F7F8FA',
+  surface: '#FFFFFF',
+  raised: '#FFFFFF',
+  secondary: '#EBECF0',
+  muted: '#F7F8FA',
+  border: '#D3D5DB',
+  input: '#C9CCD6',
+  text: '#27282E',
+  textMuted: '#6C707E',
+  textFaint: '#818594',
+  primary: '#3574F0',
+  primaryPressed: '#3369D6',
+  primaryWash: '#D4E2FF',
   onPrimary: '#FFFFFF',
-  destructive: '#141413', // ink; red is never spent on delete
-  onDestructive: '#FAF9F5',
+  destructive: '#AD2B38',
+  onDestructive: '#FFFFFF',
 } as const;
 
 export const darkColors = {
-  deep: '#1F1E1D',
-  bg: '#262624',
-  surface: '#30302E',
-  raised: '#3A3A37',
-  secondary: '#3A3A37',
-  muted: '#30302E',
-  border: '#413F3C',
-  input: '#55534E',
-  text: '#F5F4EE',
-  textMuted: '#A8A59D',
-  textFaint: '#7C7A73',
-  primary: oxblood.fillDark,
-  primaryPressed: oxblood.pressedDark,
-  primaryWash: oxblood.washDark,
+  deep: '#131314',
+  bg: '#1E1F22',
+  surface: '#2B2D30',
+  raised: '#393B40',
+  secondary: '#393B40',
+  muted: '#2B2D30',
+  border: '#1E1F22',
+  input: '#4E5157',
+  text: '#DFE1E5',
+  textMuted: '#868A91',
+  textFaint: '#6F737A',
+  primary: '#3574F0',
+  primaryPressed: '#467FF2',
+  primaryWash: '#2E436E',
   onPrimary: '#FFFFFF',
-  destructive: '#F5F4EE',
-  onDestructive: '#262624',
+  destructive: '#DB5C5C',
+  onDestructive: '#FFFFFF',
 } as const;
 
 export type SchemeColors = { [K in keyof typeof lightColors]: string };
 
-/** Machine surfaces (scenes, room feeds, agent output): umber default. */
+/** Machine surfaces remain separate from speaker identity. */
 export const machineUmber = {
-  ground: '#1C1C20',
-  mid: '#222226',
-  raise: '#2A2A30',
-  line: '#35353C',
-  text: '#D8D6DC',
-  muted: '#88868E',
+  ground: '#1E1F22',
+  mid: '#2B2D30',
+  raise: '#393B40',
+  line: '#43454A',
+  text: '#DFE1E5',
+  muted: '#868A91',
 } as const;
 
 /** User-themeable alternate machine surface (deep teal). */
@@ -94,16 +80,59 @@ export type MachineColors = { [K in keyof typeof machineUmber]: string };
 /** Secondary hue + signal family (shared across schemes). */
 export const accents = {
   teal: '#2D5F6B',
-  tealLight: '#3A7A88',
-  gold: '#C49A4A',
-  goldLight: '#E0BC60', // loader glow / machine signal
-  green: '#5A7A4A',
-  purple: '#8B6FA0',
-  blue: '#4A7A9A',
+  tealLight: '#45B4A3',
+  gold: '#9A6000',
+  goldLight: '#D6AE58',
+  green: '#57965C',
+  purple: '#955AE0',
+  blue: '#3574F0',
   pink: '#B06080',
   steel: '#6B7A8A',
   burntOrange: '#A65324', // machine pencil accent (web parity); NOT the primary
 } as const;
+
+/**
+ * Speaker register: the cross-platform --cp-* roles (AMENDMENT-REGISTERS-AND-
+ * MOBILE-RECONCILIATION section 2). Authorship encoding for conversational
+ * content: chat messages, margin threads, annotations, approval and proposal
+ * cards. The web home of the same roles is apps/console register-bridge.css
+ * (--cp-human, --cp-agent, --cp-memory, --cp-destructive); this mirrors them by
+ * role so both renderers speak one vocabulary.
+ *
+ * Roles carry verbatim from the spec; values re-resolve per scheme. Human ink is
+ * the oxblood family (the same role at two lightnesses: deep on the light well,
+ * lifted on the dark well, which is the "two values, one token" the amendment
+ * names). Agent voice is teal. Memory is gold, darkened to read as text on the
+ * light well. Destructive stays reserved: mobile spends ink on delete, never
+ * red, so the human's oxblood voice never reads as danger.
+ *
+ * Contrast receipts (WCAG 2.x relative luminance, computed not eyeballed; text
+ * target 4.5:1):
+ *   The executable contrast gate resolves these roles against both scheme
+ *   backgrounds; comments never substitute for the computed receipt.
+ */
+export const speaker = {
+  light: {
+    human: oxblood.fill, // #7A2733
+    agent: accents.teal, // #2D5F6B
+    memory: '#8A6D1F', // gold darkened for AA as text on the light well
+    destructive: lightColors.destructive, // ink, never red
+  },
+  dark: {
+    human: '#DE7C72', // oxblood lifted for AA as text on the dark well
+    agent: '#45B4A3', // teal lifted for AA, held hue-distant from a blue accent
+    memory: accents.goldLight, // #E0BC60
+    destructive: darkColors.destructive, // ink, never red
+  },
+  /** Typography trinity: assigned by speaker on content surfaces (web parity). */
+  fonts: {
+    human: 'Vollkorn_400Regular', // human authorship
+    agent: 'IBMPlexSans_400Regular', // agent voice
+    machine: 'JetBrainsMono_400Regular', // machinery, regardless of speaker
+  },
+} as const;
+
+export type SpeakerScheme = { [K in keyof typeof speaker.light]: string };
 
 /** Object-kind colors (web --cp-type-* parity). */
 export const kindColors: Record<string, string> = {
@@ -151,15 +180,15 @@ export const radius = {
   pill: 999,
 } as const;
 
-/** Type scale. Display = Bricolage Grotesque; UI = system; mono = platform mono. */
+/** Int UI type scale. Chrome and controls stay Inter. */
 export const type = {
-  display1: { fontSize: 28, lineHeight: 34, fontFamily: 'BricolageGrotesque_600SemiBold' },
-  display2: { fontSize: 22, lineHeight: 28, fontFamily: 'BricolageGrotesque_600SemiBold' },
-  headline: { fontSize: 17, lineHeight: 24, fontWeight: '600' as const },
-  body: { fontSize: 17, lineHeight: 24 },
-  sub: { fontSize: 15, lineHeight: 20 },
-  caption: { fontSize: 13, lineHeight: 18 },
-  micro: { fontSize: 12, lineHeight: 16 },
+  display1: { fontSize: 28, lineHeight: 34, fontFamily: 'Inter_600SemiBold' },
+  display2: { fontSize: 22, lineHeight: 28, fontFamily: 'Inter_600SemiBold' },
+  headline: { fontSize: 17, lineHeight: 24, fontFamily: 'Inter_600SemiBold' },
+  body: { fontSize: 17, lineHeight: 24, fontFamily: 'Inter_400Regular' },
+  sub: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter_400Regular' },
+  caption: { fontSize: 13, lineHeight: 18, fontFamily: 'Inter_400Regular' },
+  micro: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_500Medium' },
 } as const;
 
 export const MAX_FONT_SIZE_MULTIPLIER = 1.4;

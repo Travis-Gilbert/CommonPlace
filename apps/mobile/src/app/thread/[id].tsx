@@ -1,69 +1,449 @@
-/**
- * One thread: messages + docked composer with attach, voice, and @-mention of
- * any object. Text fallback always renders first; a scene is an explicit
- * affordance on agent answers (gateway sceneForInput -> WebView sheet), so a
- * slow or failing scene never blocks the answer (D3).
- */
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+  AttachmentPrimitive,
+  AssistantRuntimeProvider,
+  ComposerPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useAui,
+  useAuiState,
+  useLocalRuntime,
+  type ChatModelAdapter,
+  type ThreadMessage,
+  type ThreadMessageLike,
+} from '@assistant-ui/react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { File as ExpoFile } from 'expo-file-system';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { runTheoremAgent, searchItems } from '@/api/queries';
-import { sceneForInput } from '@/api/scene';
-import type { ItemGql } from '@/api/types';
 import {
-  appendMessage,
-  listMessages,
-  resolveMessage,
-  subscribeChat,
-  type ChatMessage,
-} from '@/chat/threads';
+  isAbortError,
+  streamHostedChat,
+  type HostedChatCapability,
+  type HostedChatContentPart,
+} from '@/api/chat';
+import {
+  EMPTY_CAPABILITY_CATALOG,
+  fetchCapabilityCatalog,
+  fetchInstanceCapabilities,
+  NO_CAPABILITIES,
+  resolveHostedChatUrl,
+  type CapabilityCatalog,
+  type CapabilityCatalogEntry,
+  type InstanceCapabilities,
+} from '@/api/instance';
+import { searchItems } from '@/api/queries';
+import type { ItemGql } from '@/api/types';
+import { sceneForInput } from '@/api/scene';
+import { appendMessage, createThread, listMessages, resolveMessage } from '@/chat/threads';
 import { AppText } from '@/components/AppText';
+import { ChatCapabilitySheet } from '@/components/chat/ChatCapabilitySheet';
+import { PresenceMark } from '@/components/mark/PresenceMark';
 import { useOmnibar } from '@/components/omnibar/OmnibarContext';
-import { WeaveSpinner } from '@/components/WeaveSpinner';
+import { PressableSurface } from '@/components/PressableSurface';
 import { useTheme } from '@/theme/ThemeProvider';
 import { speak, stopSpeaking } from '@/voice/readback';
 
-export default function ThreadScreen() {
+const ReadbackContext = createContext<{
+  speakingId: string | null;
+  speakLoadingId: string | null;
+  toggleSpeak: (id: string, text: string) => void;
+}>({
+  speakingId: null,
+  speakLoadingId: null,
+  toggleSpeak: () => {},
+});
+
+function messageText(message: ThreadMessage): string {
+  return message.content
+    .filter((part): part is Extract<(typeof message.content)[number], { type: 'text' }> => part.type === 'text')
+    .map((part) => part.text)
+    .join('');
+}
+
+function requestedCapability(value: unknown): HostedChatCapability | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as Partial<HostedChatCapability>;
+  if (candidate.kind === 'web' || candidate.kind === 'object') return { kind: candidate.kind };
+  if (
+    (candidate.kind === 'plugin' || candidate.kind === 'skill')
+    && typeof candidate.id === 'string'
+    && candidate.id.trim()
+    && typeof candidate.name === 'string'
+    && candidate.name.trim()
+  ) {
+    return { kind: candidate.kind, id: candidate.id.trim(), name: candidate.name.trim() };
+  }
+  return undefined;
+}
+
+function initialMessages(threadId: string): ThreadMessageLike[] {
+  return listMessages(threadId)
+    .filter((message) => !message.pending)
+    .map((message) => ({
+      id: message.id,
+      role: message.role === 'agent' ? 'assistant' : message.role,
+      content: message.text,
+      createdAt: new Date(message.createdAt),
+      status: message.role === 'agent' ? { type: 'complete', reason: 'stop' } : undefined,
+      metadata: { custom: { localMessageId: message.id, sceneUrl: message.sceneUrl ?? undefined } },
+    }));
+}
+
+function UserMessage() {
   const t = useTheme();
-  const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const threadId = id!;
-  const messages = useSyncExternalStore(
-    subscribeChat,
-    () => listMessages(threadId),
-    () => listMessages(threadId),
+  return (
+    <MessagePrimitive.Root
+      accessibilityLabel="You"
+      style={[styles.userMessage, { backgroundColor: t.c.surface }]}
+    >
+      <MessagePrimitive.Attachments components={{ Attachment: MessageAttachment }} />
+      <MessagePrimitive.Content
+        renderText={({ part }) => (
+          <AppText style={{ color: t.speaker.human, fontFamily: t.speakerFonts.human }}>{part.text}</AppText>
+        )}
+      />
+    </MessagePrimitive.Root>
   );
-  const [text, setText] = useState('');
+}
+
+function MessageAttachment() {
+  const t = useTheme();
+  return (
+    <AttachmentPrimitive.Root style={[styles.messageAttachment, { backgroundColor: t.c.secondary }]}>
+      <Ionicons name="document-outline" size={15} color={t.speaker.human} />
+      <AttachmentPrimitive.Name
+        numberOfLines={1}
+        style={[t.type.caption, styles.attachmentName, { color: t.speaker.human }]}
+      />
+    </AttachmentPrimitive.Root>
+  );
+}
+
+function ComposerAttachment() {
+  const t = useTheme();
+  return (
+    <AttachmentPrimitive.Root style={[styles.composerAttachment, { backgroundColor: t.c.secondary }]}>
+      <Ionicons name="document-outline" size={15} color={t.c.textMuted} />
+      <AttachmentPrimitive.Name
+        numberOfLines={1}
+        style={[t.type.caption, styles.attachmentName, { color: t.c.text }]}
+      />
+      <AttachmentPrimitive.Remove accessibilityLabel="Remove attachment" hitSlop={8}>
+        <Ionicons name="close" size={16} color={t.c.textMuted} />
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  const t = useTheme();
+  const { speakingId, speakLoadingId, toggleSpeak } = useContext(ReadbackContext);
+  const message = useAuiState((state) => state.message);
+  const allMessages = useAuiState((state) => state.thread.messages);
+  const [sceneLoading, setSceneLoading] = useState(false);
+  const text = messageText(message);
+  const custom = message.metadata.custom as { localMessageId?: string; sceneUrl?: string };
+  const messageId = custom.localMessageId ?? message.id;
+  const previousQuestion = [...allMessages]
+    .slice(0, message.index)
+    .reverse()
+    .find((candidate) => candidate.role === 'user');
+
+  async function openScene() {
+    setSceneLoading(true);
+    try {
+      if (custom.sceneUrl) {
+        router.push({ pathname: '/scene', params: { url: custom.sceneUrl } });
+        return;
+      }
+      const reference = await sceneForInput(previousQuestion ? messageText(previousQuestion) : text.slice(0, 200));
+      if (!reference) return;
+      if (custom.localMessageId) resolveMessage(custom.localMessageId, text, reference.url);
+      router.push({ pathname: '/scene', params: { url: reference.url } });
+    } finally {
+      setSceneLoading(false);
+    }
+  }
+
+  if (!text && message.status?.type === 'running') return null;
+  return (
+    <MessagePrimitive.Root accessibilityLabel="Harness" style={styles.assistantMessage}>
+      <MessagePrimitive.Content
+        renderText={({ part }) => (
+          <AppText style={{ color: t.speaker.agent, fontFamily: t.speakerFonts.agent }}>{part.text}</AppText>
+        )}
+      />
+      {message.status?.type === 'complete' && text ? (
+        <View style={styles.answerActions}>
+          <Pressable
+            onPress={() => void openScene()}
+            style={[styles.sceneButton, { borderColor: t.machine.line }]}
+            accessibilityLabel="View answer as scene"
+          >
+            <Ionicons name={sceneLoading ? 'hourglass-outline' : 'planet-outline'} size={14} color={t.speaker.agent} />
+            <AppText variant="micro" style={{ color: t.speaker.agent, fontFamily: t.speakerFonts.machine }}>
+              {sceneLoading ? 'Composing scene...' : custom.sceneUrl ? 'Open scene' : 'View as scene'}
+            </AppText>
+          </Pressable>
+          <Pressable
+            onPress={() => toggleSpeak(messageId, text)}
+            accessibilityLabel={speakingId === messageId ? 'Stop reading' : 'Listen'}
+            style={[styles.sceneButton, { borderColor: t.machine.line }]}
+          >
+            <Ionicons
+              name={
+                speakLoadingId === messageId
+                  ? 'hourglass-outline'
+                  : speakingId === messageId
+                    ? 'stop-circle-outline'
+                    : 'volume-high-outline'
+              }
+              size={14}
+              color={t.speaker.agent}
+            />
+            <AppText variant="micro" style={{ color: t.speaker.agent, fontFamily: t.speakerFonts.machine }}>
+              {speakLoadingId === messageId ? 'Loading...' : speakingId === messageId ? 'Stop' : 'Listen'}
+            </AppText>
+          </Pressable>
+        </View>
+      ) : null}
+    </MessagePrimitive.Root>
+  );
+}
+
+function MentionTray() {
+  const t = useTheme();
+  const aui = useAui();
+  const text = useAuiState((state) => state.composer.text);
   const [mentions, setMentions] = useState<ItemGql[]>([]);
-  const [sceneLoading, setSceneLoading] = useState<string | null>(null);
+  const query = text.match(/@([\w-]{2,})$/)?.[1] ?? null;
+
+  useEffect(() => {
+    if (!query) return;
+    const timer = setTimeout(() => {
+      searchItems(query, 5)
+        .then((hits) => setMentions(hits.map((hit) => hit.item)))
+        .catch(() => setMentions([]));
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  if (!query || mentions.length === 0) return null;
+  return (
+    <View style={[styles.mentions, { backgroundColor: t.c.raised, borderColor: t.c.border }]}>
+      {mentions.map((item) => (
+        <Pressable
+          key={item.id}
+          onPress={() => {
+            aui.composer().setText(text.replace(/@[\w-]*$/, `@[${item.title}](${item.id}) `));
+            setMentions([]);
+          }}
+          style={styles.mentionRow}
+        >
+          <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>{item.title}</AppText>
+          <AppText variant="micro" tone="faint" style={{ fontFamily: t.speakerFonts.machine }}>{item.kind}</AppText>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function ThreadComposer({
+  unavailable,
+  capabilities,
+  catalog,
+}: {
+  unavailable: boolean;
+  capabilities: InstanceCapabilities;
+  catalog: CapabilityCatalog;
+}) {
+  const t = useTheme();
+  const aui = useAui();
+  const insets = useSafeAreaInsets();
+  const { open: openOmnibar } = useOmnibar();
+  const running = useAuiState((state) => state.thread.isRunning);
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
+  const [inputHeight, setInputHeight] = useState(48);
+
+  async function addFile() {
+    if (!capabilities.chatAttachments) {
+      throw new Error('The hosted ACP route does not advertise attachment support.');
+    }
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+      type: '*/*',
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset) return;
+    if ((asset.size ?? 0) > 10 * 1024 * 1024) throw new Error('Choose a file smaller than 10 MB.');
+    const mimeType = asset.mimeType ?? 'application/octet-stream';
+    const base64 = await new ExpoFile(asset.uri).base64();
+    const image = mimeType.startsWith('image/');
+    await aui.composer().addAttachment({
+      type: image ? 'image' : 'document',
+      name: asset.name,
+      contentType: mimeType,
+      content: image
+        ? [{ type: 'image', image: `data:${mimeType};base64,${base64}`, filename: asset.name }]
+        : [{ type: 'file', data: base64, mimeType, filename: asset.name }],
+    });
+  }
+
+  function selectCapability(
+    kind: 'object' | 'plugin' | 'skill' | 'web',
+    entry?: CapabilityCatalogEntry,
+  ) {
+    const prompt = entry
+      ? `Use ${entry.name} for this turn.\n`
+      : kind === 'object'
+        ? '@'
+        : 'Search the web for ';
+    const current = aui.composer().getState().text.trimEnd();
+    aui.composer().setText(`${current}${current ? '\n' : ''}${prompt}`);
+    aui.composer().setRunConfig({
+      custom: {
+        requestedCapability: entry
+          ? { kind: entry.kind, id: entry.id, name: entry.name }
+          : { kind },
+      },
+    });
+  }
+
+  return (
+    <View
+      style={[
+        styles.composerDock,
+        {
+          backgroundColor: t.c.bg,
+          paddingBottom: Math.max(insets.bottom, 10),
+        },
+      ]}
+    >
+      <MentionTray />
+      <ComposerPrimitive.Root
+        style={[
+          styles.composer,
+          {
+            backgroundColor: t.c.surface,
+            borderColor: t.c.border,
+            borderCurve: 'continuous',
+            boxShadow: t.contactShadow || undefined,
+          },
+        ]}
+      >
+        <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachment }} />
+        <View style={[styles.inputClip, { height: inputHeight }]}>
+          <ComposerPrimitive.Input
+            editable={!unavailable}
+            placeholder={unavailable ? 'Connect hosted ACP to chat' : 'Message the harness...'}
+            placeholderTextColor={t.c.textFaint}
+            multiline
+            maxFontSizeMultiplier={1.4}
+            onContentSizeChange={(event) => {
+              setInputHeight(Math.min(132, Math.max(48, event.nativeEvent.contentSize.height + 14)));
+            }}
+            style={[styles.input, { color: t.c.text, height: inputHeight }]}
+          />
+        </View>
+        <View style={styles.composerControls}>
+          <PressableSurface
+            onPress={() => openOmnibar()}
+            accessibilityLabel="Attach via capture"
+            style={[styles.composerIcon, { backgroundColor: t.c.secondary }]}
+            pressedStyle={{ backgroundColor: t.c.muted }}
+          >
+            <Ionicons name="attach" size={22} color={t.c.text} />
+          </PressableSurface>
+          <PressableSurface
+            onPress={() => openOmnibar({ voice: true })}
+            accessibilityLabel="Voice capture"
+            style={[styles.composerIcon, { backgroundColor: t.c.secondary }]}
+            pressedStyle={{ backgroundColor: t.c.muted }}
+          >
+            <Ionicons name="mic-outline" size={22} color={t.c.text} />
+          </PressableSurface>
+          <PressableSurface
+            onPress={() => setCapabilitiesOpen(true)}
+            accessibilityLabel="Add to this chat"
+            style={[styles.composerIcon, { backgroundColor: t.c.secondary }]}
+            pressedStyle={{ backgroundColor: t.c.muted }}
+          >
+            <Ionicons name="add" size={22} color={t.c.text} />
+          </PressableSurface>
+          <View style={[styles.agentChip, { backgroundColor: t.c.secondary }]}>
+            <Ionicons name="sparkles-outline" size={14} color={t.speaker.agent} />
+            <AppText variant="caption" numberOfLines={1} style={{ color: t.c.text }}>
+              Harness
+            </AppText>
+            <AppText variant="micro" numberOfLines={1} style={{ color: t.speaker.agent }}>
+              Grounded
+            </AppText>
+          </View>
+          <View style={styles.composerSpacer} />
+          {running ? <PresenceMark active /> : null}
+          {running ? (
+            <ComposerPrimitive.Cancel
+              accessibilityLabel="Stop"
+              style={[styles.send, { backgroundColor: t.c.text }]}
+            >
+              <Ionicons name="stop" size={15} color={t.c.bg} />
+            </ComposerPrimitive.Cancel>
+          ) : (
+            <ComposerPrimitive.Send
+              disabled={unavailable}
+              accessibilityLabel="Send"
+              style={[styles.send, { backgroundColor: unavailable ? t.c.secondary : t.c.text }]}
+            >
+              <Ionicons name="arrow-up" size={18} color={unavailable ? t.c.textFaint : t.c.bg} />
+            </ComposerPrimitive.Send>
+          )}
+        </View>
+      </ComposerPrimitive.Root>
+      <ChatCapabilitySheet
+        visible={capabilitiesOpen}
+        fileEnabled={capabilities.chatAttachments}
+        webEnabled={capabilities.webSearch}
+        catalogAvailable={capabilities.capabilityCatalog}
+        catalog={catalog}
+        onClose={() => setCapabilitiesOpen(false)}
+        onAddFile={addFile}
+        onSelectCapability={selectCapability}
+      />
+    </View>
+  );
+}
+
+function AssistantThread({
+  unavailable,
+  capabilities,
+  catalog,
+}: {
+  unavailable: boolean;
+  capabilities: InstanceCapabilities;
+  catalog: CapabilityCatalog;
+}) {
+  const t = useTheme();
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [speakLoadingId, setSpeakLoadingId] = useState<string | null>(null);
-  const listRef = useRef<FlatList>(null);
-  const { open: openOmnibar } = useOmnibar();
 
   useEffect(() => () => stopSpeaking(), []);
 
-  async function onSpeak(msg: ChatMessage) {
-    if (speakingId === msg.id) {
+  async function toggleSpeak(id: string, text: string) {
+    if (speakingId === id) {
       stopSpeaking();
       setSpeakingId(null);
       return;
     }
-    setSpeakLoadingId(msg.id); // fetch + synthesis latency before audio starts
+    setSpeakLoadingId(id);
     try {
-      await speak(msg.text);
-      setSpeakingId(msg.id);
+      await speak(text);
+      setSpeakingId(id);
     } catch {
       // No voice configured or node unreachable: the text answer stands alone.
     } finally {
@@ -71,249 +451,195 @@ export default function ThreadScreen() {
     }
   }
 
-  const mentionQuery = useMemo(() => {
-    const m = text.match(/@([\w-]{2,})$/);
-    return m ? m[1] : null;
-  }, [text]);
+  return (
+    <ReadbackContext.Provider value={{ speakingId, speakLoadingId, toggleSpeak }}>
+    <ThreadPrimitive.Root style={styles.thread}>
+      <ThreadPrimitive.Empty>
+        <View style={styles.empty}>
+          <View style={[styles.emptyMark, { backgroundColor: t.c.secondary }]}>
+            <PresenceMark active={false} />
+          </View>
+          <AppText variant="display2" style={{ textAlign: 'center' }}>What are we working through?</AppText>
+          <AppText variant="sub" tone="muted" style={{ textAlign: 'center' }}>
+            Ask from live context or mention an object with @.
+          </AppText>
+        </View>
+      </ThreadPrimitive.Empty>
+      <ThreadPrimitive.Messages
+        components={{ UserMessage, AssistantMessage }}
+        contentContainerStyle={styles.messages}
+        keyboardShouldPersistTaps="handled"
+        style={{ backgroundColor: t.c.bg }}
+      />
+      <ThreadComposer unavailable={unavailable} capabilities={capabilities} catalog={catalog} />
+    </ThreadPrimitive.Root>
+    </ReadbackContext.Provider>
+  );
+}
+
+export default function ThreadScreen() {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const threadId = id!;
+  const [chatAvailable, setChatAvailable] = useState<boolean | null>(null);
+  const [capabilities, setCapabilities] = useState(NO_CAPABILITIES);
+  const [catalog, setCatalog] = useState(EMPTY_CAPABILITY_CATALOG);
+  const seed = useMemo(() => initialMessages(threadId), [threadId]);
+  const adapter = useMemo<ChatModelAdapter>(() => ({
+    async *run({ messages, abortSignal, runConfig }) {
+      const latest = [...messages].reverse().find((message) => message.role === 'user');
+      const question = latest ? messageText(latest) : '';
+      const capability = requestedCapability(runConfig?.custom?.requestedCapability);
+      const content: HostedChatContentPart[] = [];
+      for (const part of latest?.content ?? []) {
+        if (part.type === 'text') content.push({ type: 'text', text: part.text });
+        if (part.type === 'file') {
+          content.push({ type: 'file', data: part.data, mimeType: part.mimeType, filename: part.filename });
+        }
+        if (part.type === 'image') content.push({ type: 'image', image: part.image, filename: part.filename });
+      }
+      if (content.length === 0) content.push({ type: 'text', text: question });
+      const attachments = content.filter((part) => part.type !== 'text');
+      const attachmentSummary = attachments
+        .map((part) => part.filename)
+        .filter((filename): filename is string => Boolean(filename))
+        .join(', ');
+      appendMessage(threadId, 'user', question || attachmentSummary || 'Attachment');
+      try {
+        if (attachments.length > 0 && !capabilities.chatAttachments) {
+          throw new Error('The hosted ACP route does not accept file or image content parts.');
+        }
+        let answer = '';
+        for await (const snapshot of streamHostedChat(content, abortSignal, { capability })) {
+          answer = snapshot;
+          yield { content: [{ type: 'text', text: answer }] };
+        }
+        const stored = appendMessage(threadId, 'agent', answer);
+        yield {
+          content: [{ type: 'text', text: answer }],
+          metadata: { custom: { localMessageId: stored.id } },
+        };
+      } catch (error) {
+        if (abortSignal.aborted || isAbortError(error)) throw error;
+        const failure = error instanceof Error ? error.message : String(error);
+        const text = `Could not reach hosted ACP: ${failure}`;
+        const stored = appendMessage(threadId, 'agent', text);
+        yield {
+          content: [{ type: 'text', text }],
+          metadata: { custom: { localMessageId: stored.id, failed: true } },
+        };
+      }
+    },
+  }), [capabilities.chatAttachments, threadId]);
+  const runtime = useLocalRuntime(adapter, { initialMessages: seed });
 
   useEffect(() => {
-    if (!mentionQuery) {
-      setMentions([]);
-      return;
-    }
-    const h = setTimeout(() => {
-      searchItems(mentionQuery, 5)
-        .then((hits) => setMentions(hits.map((h) => h.item)))
-        .catch(() => setMentions([]));
-    }, 200);
-    return () => clearTimeout(h);
-  }, [mentionQuery]);
+    void (async () => {
+      const discovered = await fetchInstanceCapabilities();
+      const [chatUrl, discoveredCatalog] = await Promise.all([
+        resolveHostedChatUrl(discovered),
+        discovered.capabilityCatalog ? fetchCapabilityCatalog() : EMPTY_CAPABILITY_CATALOG,
+      ]);
+      setCapabilities(discovered);
+      setCatalog(discoveredCatalog);
+      setChatAvailable(Boolean(chatUrl));
+    })();
+  }, []);
 
-  async function send() {
-    const body = text.trim();
-    if (!body) return;
-    setText('');
-    appendMessage(threadId, 'user', body);
-    const pendingMsg = appendMessage(threadId, 'agent', '', { pending: true });
-    try {
-      const run = await runTheoremAgent(body, 'ask');
-      resolveMessage(pendingMsg.id, run.answer || '(empty answer)');
-    } catch (e) {
-      resolveMessage(pendingMsg.id, `Could not reach the node: ${e instanceof Error ? e.message : e}`);
-    }
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
-  }
-
-  async function openScene(msg: ChatMessage) {
-    const question = [...messages].reverse().find((m) => m.role === 'user' && m.createdAt < msg.createdAt);
-    setSceneLoading(msg.id);
-    try {
-      if (msg.sceneUrl) {
-        router.push({ pathname: '/scene', params: { url: msg.sceneUrl } });
-        return;
-      }
-      const ref = await sceneForInput(question?.text ?? msg.text.slice(0, 200));
-      if (ref) {
-        resolveMessage(msg.id, msg.text, ref.url);
-        router.push({ pathname: '/scene', params: { url: ref.url } });
-      }
-    } catch {
-      // Scene failure leaves the text answer intact (D3 acceptance).
-    } finally {
-      setSceneLoading(null);
-    }
+  function startNewThread() {
+    const thread = createThread('New thread');
+    router.replace({ pathname: '/thread/[id]', params: { id: thread.id } });
   }
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'height' : undefined}
       style={[styles.root, { backgroundColor: t.c.bg }]}
     >
-      <View style={[styles.topbar, { paddingTop: insets.top + 6, borderBottomColor: t.c.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={t.c.text} />
-        </Pressable>
-        <AppText variant="headline" numberOfLines={1} style={{ flex: 1 }}>
-          Thread
-        </AppText>
+      <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
+        <PressableSurface
+          onPress={() => router.back()}
+          accessibilityLabel="Back"
+          style={[styles.headerButton, { backgroundColor: t.c.surface, borderColor: t.c.border }]}
+          pressedStyle={{ backgroundColor: t.c.muted }}
+        >
+          <Ionicons name="chevron-back" size={22} color={t.c.text} />
+        </PressableSurface>
+        <PressableSurface
+          onPress={startNewThread}
+          accessibilityLabel="New thread"
+          style={[styles.headerButton, { backgroundColor: t.c.surface, borderColor: t.c.border }]}
+          pressedStyle={{ backgroundColor: t.c.muted }}
+        >
+          <Ionicons name="add" size={23} color={t.c.text} />
+        </PressableSurface>
       </View>
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(m) => m.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item: m }) => (
-          <View
-            style={[
-              styles.bubble,
-              m.role === 'user'
-                ? { alignSelf: 'flex-end', backgroundColor: t.c.primary, borderCurve: 'continuous' }
-                : { alignSelf: 'flex-start', backgroundColor: t.machine.mid, borderCurve: 'continuous' },
-            ]}
-          >
-            {m.pending ? (
-              <WeaveSpinner size={72} color={t.accents.goldLight} />
-            ) : (
-              <>
-                <AppText variant="sub" style={{ color: m.role === 'user' ? t.c.onPrimary : t.machine.text }}>
-                  {m.text}
-                </AppText>
-                {m.role === 'agent' && !m.pending ? (
-                  <View style={styles.answerActions}>
-                    <Pressable
-                      onPress={() => void openScene(m)}
-                      style={[styles.sceneBtn, { borderColor: t.machine.line, borderCurve: 'continuous' }]}
-                    >
-                      <Ionicons
-                        name={sceneLoading === m.id ? 'hourglass-outline' : 'planet-outline'}
-                        size={14}
-                        color={t.accents.goldLight}
-                      />
-                      <AppText variant="micro" style={{ color: t.accents.goldLight }}>
-                        {m.sceneUrl ? 'Open scene' : sceneLoading === m.id ? 'Composing scene...' : 'View as scene'}
-                      </AppText>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => void onSpeak(m)}
-                      accessibilityLabel={speakingId === m.id ? 'Stop reading' : 'Listen'}
-                      style={[styles.sceneBtn, { borderColor: t.machine.line, borderCurve: 'continuous' }]}
-                    >
-                      <Ionicons
-                        name={
-                          speakLoadingId === m.id
-                            ? 'hourglass-outline'
-                            : speakingId === m.id
-                              ? 'stop-circle-outline'
-                              : 'volume-high-outline'
-                        }
-                        size={14}
-                        color={t.accents.goldLight}
-                      />
-                      <AppText variant="micro" style={{ color: t.accents.goldLight }}>
-                        {speakLoadingId === m.id ? 'Loading...' : speakingId === m.id ? 'Stop' : 'Listen'}
-                      </AppText>
-                    </Pressable>
-                  </View>
-                ) : null}
-              </>
-            )}
-          </View>
-        )}
-      />
-      {mentions.length > 0 ? (
-        <View style={[styles.mentions, { backgroundColor: t.c.raised, borderColor: t.c.border }]}>
-          {mentions.map((it) => (
-            <Pressable
-              key={it.id}
-              onPress={() => {
-                setText((s) => s.replace(/@[\w-]*$/, `[[${it.title}]] `));
-                setMentions([]);
-              }}
-              style={styles.mentionRow}
-            >
-              <AppText variant="caption" numberOfLines={1}>
-                {it.title}
-              </AppText>
-              <AppText variant="micro" tone="faint">
-                {it.kind}
-              </AppText>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-      <View
-        style={[
-          styles.composer,
-          { borderTopColor: t.c.border, paddingBottom: Math.max(insets.bottom, 10), backgroundColor: t.c.surface },
-        ]}
-      >
-        <Pressable
-          onPress={() => openOmnibar()}
-          accessibilityLabel="Attach via capture"
-          hitSlop={8}
-          style={styles.composerIcon}
-        >
-          <Ionicons name="attach" size={22} color={t.c.textMuted} />
-        </Pressable>
-        <Pressable
-          onPress={() => openOmnibar({ voice: true })}
-          accessibilityLabel="Voice capture"
-          hitSlop={8}
-          style={styles.composerIcon}
-        >
-          <Ionicons name="mic-outline" size={22} color={t.c.textMuted} />
-        </Pressable>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Ask, or @ an object"
-          placeholderTextColor={t.c.textFaint}
-          multiline
-          style={[styles.input, { color: t.c.text, backgroundColor: t.c.muted, borderCurve: 'continuous' }]}
-          maxFontSizeMultiplier={1.4}
+      <AssistantRuntimeProvider runtime={runtime}>
+        <AssistantThread
+          unavailable={chatAvailable !== true}
+          capabilities={capabilities}
+          catalog={catalog}
         />
-        <Pressable
-          onPress={() => void send()}
-          accessibilityLabel="Send"
-          style={({ pressed }) => [
-            styles.send,
-            { backgroundColor: pressed ? t.c.primaryPressed : t.c.primary, borderCurve: 'continuous' },
-          ]}
-        >
-          <Ionicons name="arrow-up" size={18} color={t.c.onPrimary} />
-        </Pressable>
-      </View>
+      </AssistantRuntimeProvider>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  thread: { flex: 1 },
   topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingBottom: 12,
   },
-  list: { padding: 16, gap: 10 },
-  bubble: { maxWidth: '84%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  headerButton: {
+    width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  messages: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 20, gap: 18, flexGrow: 1 },
+  userMessage: {
+    maxWidth: '88%', alignSelf: 'flex-end', borderRadius: 22,
+    paddingHorizontal: 16, paddingVertical: 14, borderCurve: 'continuous',
+  },
+  messageAttachment: {
+    maxWidth: 220, flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7, marginBottom: 8,
+  },
+  assistantMessage: { maxWidth: '94%', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 8, gap: 10 },
   answerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  sceneBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  sceneButton: {
+    minHeight: 32, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
+    gap: 6, borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 9,
   },
-  mentions: {
-    marginHorizontal: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  mentionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 9 },
+  empty: { flex: 1, minHeight: 360, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 32 },
+  emptyMark: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  mentions: { marginHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, overflow: 'hidden' },
+  mentionRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
+  composerDock: { paddingHorizontal: 12, paddingTop: 6 },
   composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    minHeight: 112, borderWidth: StyleSheet.hairlineWidth, borderRadius: 24,
+    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10,
   },
-  composerIcon: { paddingBottom: 9 },
+  composerAttachment: {
+    maxWidth: '100%', alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7, marginBottom: 2,
+  },
+  attachmentName: { flexShrink: 1 },
   input: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    maxHeight: 110,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    flexGrow: 0, flexShrink: 0, minHeight: 48, maxHeight: 132,
+    paddingHorizontal: 4, paddingVertical: 9, fontSize: 17, lineHeight: 23,
   },
-  send: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
+  inputClip: { flexGrow: 0, flexShrink: 0, overflow: 'hidden' },
+  composerControls: {
+    minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8,
+    position: 'relative', zIndex: 2,
+  },
+  composerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  agentChip: {
+    height: 40, maxWidth: 172, flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 20, paddingHorizontal: 12,
+  },
+  composerSpacer: { flex: 1 },
+  send: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

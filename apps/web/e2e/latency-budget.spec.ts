@@ -64,7 +64,7 @@ test.describe('UX-D7 latency budget (INP 200ms) on the headline flows', () => {
   });
 
   test('approve stays within the 200ms INP budget', async ({ page }) => {
-    await page.goto('/v2/workrooms');
+    await page.goto('/workrooms');
     const approvalsTab = page.getByRole('button', { name: /Approvals/ }).first();
     const tabVisible = await becomesVisible(approvalsTab, 30_000);
     test.skip(!tabVisible, 'Workroom control center unavailable in this environment');

@@ -40,9 +40,9 @@ export function columnsFromShape(
       case 'integer': return '#';
       case 'boolean': return '✓';
       case 'json': return '{}';
-      case 'id': return '🔑';
+      case 'id': return '№';
       case 'timestamp_ms': return '⏱';
-      case 'vector': return '📐';
+      case 'vector': return '⬡';
       case 'string_list': return '[]';
       default: return '?';
     }

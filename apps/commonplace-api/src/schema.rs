@@ -39,12 +39,16 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
+use crate::salience::{
+    salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier,
+};
 use crate::growth::{load_growth_snapshot_from_env, GrowthSnapshotResultGql};
 use crate::organize::{
     organize as run_organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup,
     OrganizeItem, OrganizeSnapshot, OrganizedToday, Subtask, Timeframe,
 };
 use crate::portability::{self, ExportDocument};
+use crate::publish;
 use crate::retrieve::{
     answer_from_provenance, retrieve_grounding, AnswerKind, AnswerModel, AskConfig, AskResult,
     NoModel, RetrievedItem,
@@ -684,6 +688,42 @@ impl From<CandidateLink> for CandidateLinkGql {
             b: ItemGql::from(link.b),
             similarity: link.similarity,
             reason: link.reason,
+        }
+    }
+}
+
+/// A margin-recall salience candidate (D2, HANDOFF-MARGIN-RECALL), in the consumer
+/// API shape. The anchor is flattened to the quote plus its resolved character
+/// range; `tier` is `"exact"` or `"semantic"`; `refs` are the openable records.
+#[derive(SimpleObject)]
+pub struct SalienceCandidateGql {
+    pub quote_exact: String,
+    pub quote_prefix: Option<String>,
+    pub quote_suffix: Option<String>,
+    pub position_start: i32,
+    pub position_end: i32,
+    pub tier: String,
+    pub explanation: String,
+    pub score: f64,
+    pub refs: Vec<String>,
+}
+
+impl From<SalienceCandidate> for SalienceCandidateGql {
+    fn from(candidate: SalienceCandidate) -> Self {
+        Self {
+            quote_exact: candidate.anchor.quote.exact,
+            quote_prefix: candidate.anchor.quote.prefix,
+            quote_suffix: candidate.anchor.quote.suffix,
+            position_start: candidate.anchor.position.start as i32,
+            position_end: candidate.anchor.position.end as i32,
+            tier: match candidate.tier {
+                SalienceTier::Exact => "exact",
+                SalienceTier::Semantic => "semantic",
+            }
+            .to_string(),
+            explanation: candidate.explanation,
+            score: candidate.score,
+            refs: candidate.refs,
         }
     }
 }
@@ -1821,6 +1861,43 @@ where
         Ok(links.into_iter().map(CandidateLinkGql::from).collect())
     }
 
+    /// Salience (D2, HANDOFF-MARGIN-RECALL): the passages of `page_text` that
+    /// connect back to the tenant's stored knowledge, as margin-recall candidates.
+    /// `mode` selects the dial policy (`"quiet"` = exact tier only + higher bar;
+    /// anything else = Active, both tiers); `min_similarity` / `max_candidates`
+    /// override the preset. The Off position is enforced by the caller (the
+    /// pipeline is simply not invoked), so reaching this resolver already means
+    /// recall is on for the origin.
+    async fn salience(
+        &self,
+        ctx: &Context<'_>,
+        page_text: String,
+        mode: Option<String>,
+        min_similarity: Option<f64>,
+        max_candidates: Option<i32>,
+    ) -> Result<Vec<SalienceCandidateGql>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let mut config = match mode.as_deref() {
+            Some("quiet") => SalienceConfig::quiet(),
+            _ => SalienceConfig::active(),
+        };
+        if let Some(min_similarity) = min_similarity {
+            config.min_similarity = min_similarity;
+        }
+        if let Some(max_candidates) = max_candidates {
+            config.max_candidates = max_candidates.max(1) as usize;
+        }
+        let candidates = run_salience(&*cp, &page_text, &config).map_err(store_err)?;
+        Ok(candidates
+            .into_iter()
+            .map(SalienceCandidateGql::from)
+            .collect())
+    }
+
     /// Organize: the daily triage surface. Partitions the items that arrived in
     /// the timeframe into what the engine filed confidently (`organizedToday`)
     /// and what still needs a human (`needsYou`, low-confidence or
@@ -1860,6 +1937,54 @@ where
             ExportFormat::Markdown => portability::export_markdown(&*cp).map_err(store_err)?,
         };
         Ok(output)
+    }
+
+    /// Resolve a published block by its stable alias for the public host
+    /// (HANDOFF-PUBLISH D2/D3). The API key is the trusted-caller gate; `viewer`
+    /// is the signed-in visitor's principal id, used only for private grants.
+    /// Returns a designed status (`ok`/`gone`/`forbidden`/`not_found`).
+    async fn published_block(
+        &self,
+        ctx: &Context<'_>,
+        alias: String,
+        #[graphql(desc = "Signed-in visitor principal id, for private grants.")] viewer: Option<
+            String,
+        >,
+        #[graphql(desc = "Count this resolution as a view (owner counter).")] count_view: Option<
+            bool,
+        >,
+    ) -> Result<publish::PublishResolution> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::resolve_alias_status(
+            &mut cp,
+            &alias,
+            viewer.as_deref(),
+            count_view.unwrap_or(true),
+        ))
+    }
+
+    /// Resolve a permanent, version-addressed block by its content hash. A
+    /// version URL that was ever public resolves forever (HANDOFF-PUBLISH D1).
+    async fn published_block_version(
+        &self,
+        ctx: &Context<'_>,
+        version_hash: String,
+    ) -> Result<Option<publish::PublishedBlock>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::resolve_version(&cp, &version_hash).ok())
+    }
+
+    /// Aliases of currently-public, live blocks for the public sitemap (P3.2).
+    /// Unlisted and private blocks are excluded.
+    async fn public_aliases(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::public_aliases(&cp))
     }
 }
 
@@ -2499,6 +2624,76 @@ where
             imported: summary.items as i32,
             collections: summary.collections as i32,
         })
+    }
+
+    /// Publish (or re-publish) an artifact to a live URL (HANDOFF-PUBLISH D1).
+    /// Runs the L1 shape floor; on refusal the outcome carries the conformance
+    /// result rather than erroring, so the publish moment can name the failure.
+    async fn publish(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The origin artifact item id to publish.")] origin_id: String,
+        #[graphql(desc = "Visibility: PUBLIC, UNLISTED (default), or PRIVATE.")] visibility: Option<
+            publish::Visibility,
+        >,
+    ) -> Result<publish::PublishOutcome> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        Ok(publish::publish_block_outcome(
+            &mut cp,
+            &origin_id,
+            visibility.unwrap_or(publish::Visibility::Unlisted),
+            &principal.id,
+        ))
+    }
+
+    /// Unpublish by alias: the alias returns the designed gone state; the block
+    /// survives in the graph (HANDOFF-PUBLISH D1).
+    async fn unpublish(&self, ctx: &Context<'_>, alias: String) -> Result<bool> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        publish::unpublish_block(&mut cp, &alias, &principal.id).map_err(|e| match e {
+            publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
+            _ => Error::new("published block not found"),
+        })?;
+        Ok(true)
+    }
+
+    /// Change a published block's visibility; takes effect on next request
+    /// (HANDOFF-PUBLISH D3).
+    async fn set_block_visibility(
+        &self,
+        ctx: &Context<'_>,
+        alias: String,
+        visibility: publish::Visibility,
+    ) -> Result<bool> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        publish::set_visibility(&mut cp, &alias, &principal.id, visibility).map_err(|e| match e {
+            publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
+            _ => Error::new("published block not found"),
+        })?;
+        Ok(true)
+    }
+
+    /// The doorway: reference (or fork) a published block into the caller's
+    /// space, with origin provenance (HANDOFF-PUBLISH D5). Returns the new item id.
+    async fn reference_block(
+        &self,
+        ctx: &Context<'_>,
+        alias: String,
+        #[graphql(desc = "Make an owned divergent copy instead of a reference.")] fork: Option<
+            bool,
+        >,
+    ) -> Result<String> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        publish::reference_block(&mut cp, &alias, &principal.id, fork.unwrap_or(false))
+            .map_err(|_| Error::new("published block not found"))
     }
 }
 

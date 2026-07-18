@@ -41,9 +41,11 @@ const MODE_LABELS: Record<string, string> = {
 interface ProjectViewProps {
   slug: string;
   onOpenObject?: (objectRef: number, title?: string) => void;
+  /** Present when reached via Carry to Write (HANDOFF-CARRY D2). */
+  carrySessionId?: string | null;
 }
 
-export default function ProjectView({ slug, onOpenObject }: ProjectViewProps) {
+export default function ProjectView({ slug, onOpenObject, carrySessionId }: ProjectViewProps) {
   const { data: project, loading, error, refetch } = useApiData(
     () => fetchProjectBySlug(slug),
     [slug],
@@ -147,7 +149,7 @@ export default function ProjectView({ slug, onOpenObject }: ProjectViewProps) {
           />
         )}
         {activeTab === 'pages' && (
-          <ProjectPagesView projectId={slug} />
+          <ProjectPagesView projectId={slug} carrySessionId={carrySessionId} />
         )}
         {activeTab === 'timeline' && (
           <ScopedTimelinePanel

@@ -1,37 +1,107 @@
 /**
- * Notification ethics, enforced as law (SPEC-MOBILE-APP D6):
- * notifications fire ONLY for
- *   1. explicit time reminders,
- *   2. approvals,
- *   3. direct @-mentions,
- *   4. run-finished when the user asked to be told.
- * Resurfacing never notifies. No engagement notifications. No icon badge, ever.
+ * Notification capability law for the field organ.
  *
- * Every schedule/present call in the app goes through this module; nothing else
- * imports expo-notifications directly.
+ * Push is presentation only. Every interrupt must open a prepared review
+ * surface; notification actions never approve, deny, or sign an effect.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { registerPushToken } from '@/api/harness';
+import { fetchInstanceCapabilities, readInstanceSettings } from '@/api/instance';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  APPROVAL_NOTIFICATION_ACTIONS,
+  notificationPolicy,
+  type AllowedNotificationKind,
+  type NotificationPreferences,
+} from './policy';
 
-export type AllowedNotificationKind = 'reminder' | 'approval' | 'mention' | 'run-finished';
+export {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  APPROVAL_NOTIFICATION_ACTIONS,
+  notificationPolicy,
+  type AllowedNotificationKind,
+  type NotificationCapability,
+  type NotificationPreferences,
+} from './policy';
+
+const PREFERENCES_KEY = 'commonplace.notifications.capabilities.v1';
+const DISMISSED_BASIS_KEY = 'commonplace.notifications.dismissed-basis.v1';
+
+export async function readNotificationPreferences(): Promise<NotificationPreferences> {
+  try {
+    const raw = await AsyncStorage.getItem(PREFERENCES_KEY);
+    return raw ? { ...DEFAULT_NOTIFICATION_PREFERENCES, ...JSON.parse(raw) } : DEFAULT_NOTIFICATION_PREFERENCES;
+  } catch {
+    return DEFAULT_NOTIFICATION_PREFERENCES;
+  }
+}
+
+export async function saveNotificationPreferences(preferences: NotificationPreferences): Promise<void> {
+  await AsyncStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+}
+
+export async function rememberDismissedBasis(basisHash: string): Promise<void> {
+  if (!basisHash) return;
+  const dismissed = await readDismissedBasis();
+  dismissed.add(basisHash);
+  await AsyncStorage.setItem(DISMISSED_BASIS_KEY, JSON.stringify([...dismissed].slice(-500)));
+}
+
+async function readDismissedBasis(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(DISMISSED_BASIS_KEY);
+    return new Set<string>(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false, // the ethics: no icon badge, ever
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data ?? {};
+    const [preferences, dismissedBasis] = await Promise.all([
+      readNotificationPreferences(),
+      readDismissedBasis(),
+    ]);
+    const policy = notificationPolicy({
+      kind: data.kind,
+      url: data.url,
+      basisHash: data.basis_hash,
+      dismissedBasis,
+      preferences,
+    });
+    return {
+      shouldShowAlert: policy.present,
+      shouldShowBanner: policy.present,
+      shouldShowList: policy.present,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 export async function setupNotificationCategories() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('prepared', {
+      name: 'Prepared reviews',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: null,
+      sound: null,
+    });
+    await Notifications.setNotificationChannelAsync('reminders', {
+      name: 'Reminders',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: null,
+      sound: null,
+    });
+  }
   await Notifications.setNotificationCategoryAsync('approval', [
-    { identifier: 'approve', buttonTitle: 'Approve', options: { opensAppToForeground: false } },
-    { identifier: 'deny', buttonTitle: 'Deny', options: { opensAppToForeground: false } },
+    ...APPROVAL_NOTIFICATION_ACTIONS,
   ]);
   await Notifications.setNotificationCategoryAsync('reminder', [
     { identifier: 'snooze', buttonTitle: 'Snooze 10 min', options: { opensAppToForeground: false } },
@@ -42,33 +112,35 @@ export async function setupNotificationCategories() {
 async function ensurePermission(): Promise<boolean> {
   const settings = await Notifications.getPermissionsAsync();
   if (settings.granted) return true;
-  const req = await Notifications.requestPermissionsAsync();
-  return req.granted;
+  const request = await Notifications.requestPermissionsAsync();
+  return request.granted;
 }
 
-/** Schedule a local reminder at remindAtMs, deep-linked to the object. */
 export async function scheduleReminder(opts: { itemId: string; title: string; remindAtMs: number }) {
-  if (opts.remindAtMs <= Date.now()) return null;
-  if (!(await ensurePermission())) return null;
+  if (opts.remindAtMs <= Date.now() || !(await ensurePermission())) return null;
   return Notifications.scheduleNotificationAsync({
     content: {
       title: 'Reminder',
       body: opts.title,
       categoryIdentifier: 'reminder',
       data: { kind: 'reminder' satisfies AllowedNotificationKind, url: `/object/${opts.itemId}` },
+      sound: false,
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(opts.remindAtMs) },
   });
 }
 
-/** Present run-finished ONLY when the user asked to be told (omnibar toggle). */
+/** Called only for a run whose Composer request had notify-on-answer enabled. */
 export async function presentRunFinished(opts: { title: string; body: string; url: string }) {
-  if (!(await ensurePermission())) return;
+  const preferences = await readNotificationPreferences();
+  const policy = notificationPolicy({ kind: 'run-finished', url: opts.url, preferences });
+  if (!policy.present || !(await ensurePermission())) return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: opts.title,
       body: opts.body,
       data: { kind: 'run-finished' satisfies AllowedNotificationKind, url: opts.url },
+      sound: false,
     },
     trigger: null,
   });
@@ -78,15 +150,75 @@ export async function snoozeReminder(itemId: string, title: string, minutes = 10
   return scheduleReminder({ itemId, title, remindAtMs: Date.now() + minutes * 60_000 });
 }
 
-/** Expo push registration; token relayed to the harness node for approvals/mentions. */
-export async function registerForPush(): Promise<string | null> {
-  if (!Device.isDevice) return null;
-  if (!(await ensurePermission())) return null;
-  try {
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    await registerPushToken(token, Platform.OS);
-    return token;
-  } catch {
-    return null;
+function nonEmpty(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function expoProjectId(): string | undefined {
+  return nonEmpty(Constants.expoConfig?.extra?.eas?.projectId)
+    ?? nonEmpty(Constants.easConfig?.projectId)
+    ?? nonEmpty(process.env.EXPO_PUBLIC_EAS_PROJECT_ID);
+}
+
+export type PushRegistrationResult = {
+  code:
+    | 'registered'
+    | 'simulator'
+    | 'permission-denied'
+    | 'missing-project-id'
+    | 'missing-relay'
+    | 'token-error'
+    | 'relay-error';
+  message: string;
+  token?: string;
+};
+
+async function relayPushToken(token: string, registrationUrl?: string): Promise<boolean> {
+  return registerPushToken(token, Platform.OS, registrationUrl);
+}
+
+/** Push requires a physical-device development build and a configured EAS project id. */
+export async function registerForPush(): Promise<PushRegistrationResult> {
+  if (!Device.isDevice) {
+    return { code: 'simulator', message: 'Push registration requires a physical device build' };
   }
+  if (!(await ensurePermission())) {
+    return { code: 'permission-denied', message: 'Notification permission was not granted' };
+  }
+  const [capabilities, settings] = await Promise.all([
+    fetchInstanceCapabilities(),
+    readInstanceSettings(),
+  ]);
+  const projectId = expoProjectId() ?? capabilities.expoProjectId ?? undefined;
+  if (!projectId) {
+    return { code: 'missing-project-id', message: 'Push needs an EAS project id from the app build or connected node' };
+  }
+  const registrationUrl = capabilities.pushRegistrationUrl ?? undefined;
+  if (!registrationUrl && !settings.harnessUrl?.trim()) {
+    return { code: 'missing-relay', message: 'The connected node does not advertise a push registration relay' };
+  }
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : 'Expo did not return a push token';
+    return { code: 'token-error', message: `Could not create a push token: ${reason}` };
+  }
+  if (!(await relayPushToken(token, registrationUrl))) {
+    return { code: 'relay-error', message: 'The push relay refused this device token', token };
+  }
+  return { code: 'registered', message: 'Push registered with your node', token };
+}
+
+export function startPushTokenRotationListener(): Notifications.EventSubscription {
+  if (!Device.isDevice) return { remove() {} };
+  return Notifications.addPushTokenListener((token) => {
+    void (async () => {
+      // Prefer capability discovery, but always attempt relay: registerPushToken
+      // falls back to settings.harnessUrl so a transient /capabilities miss does
+      // not silently drop a rotated token.
+      const capabilities = await fetchInstanceCapabilities();
+      await relayPushToken(token.data, capabilities.pushRegistrationUrl ?? undefined);
+    })();
+  });
 }

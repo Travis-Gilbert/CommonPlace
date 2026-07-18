@@ -171,7 +171,7 @@
     },
     {
       "id": "work-surface",
-      "path": "/v2/work",
+      "path": "/work",
       "label": "Work surface",
       "viewport": "desktop",
       "renderChecks": ["http-ok", "axe-pending", "target-size-pending"]

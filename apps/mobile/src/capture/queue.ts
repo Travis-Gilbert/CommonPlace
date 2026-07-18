@@ -14,6 +14,7 @@ import * as SQLite from 'expo-sqlite';
 import { readInstanceSettings } from '@/api/instance';
 import { ingestItem, putNote, runTheoremAgent } from '@/api/queries';
 import type { ItemGql } from '@/api/types';
+import { createRevisionStore } from '@/lib/revisionStore';
 
 export type CaptureVerb = 'keep' | 'ask';
 export type CaptureState = 'kept' | 'syncing' | 'filed' | 'answered' | 'error';
@@ -63,17 +64,10 @@ db.execSync(`
   );
 `);
 
-type Listener = () => void;
-const listeners = new Set<Listener>();
-
-export function subscribeQueue(fn: Listener): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
-
-function emit() {
-  for (const fn of listeners) fn();
-}
+const queueChanges = createRevisionStore();
+export const subscribeQueue = queueChanges.subscribe;
+export const getQueueRevision = queueChanges.getSnapshot;
+const emit = queueChanges.emit;
 
 function rowFrom(r: Record<string, unknown>): CaptureRow {
   return {

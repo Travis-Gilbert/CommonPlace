@@ -27,8 +27,8 @@ const TYPE_ICONS: Record<string, string> = {
   integer: 'Σ',
   boolean: '✓',
   json: '{}',
-  id: '🔑',
-  timestamp_ms: '🕐',
+  id: '№',
+  timestamp_ms: '⏱',
   vector: '⬡',
   string_list: '[]',
 };

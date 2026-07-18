@@ -9,6 +9,10 @@ import '@/styles/global.css';
 // properties (no Tailwind needed); the @theme that re-exports them as utilities
 // is inlined in global.css so Tailwind compiles it in-context.
 import '@/styles/console-register.css';
+// Hand-authored companion to the generated register: the status + tag color
+// scales the console fixture does not emit. Loaded right after so its --cr-*
+// tokens sit in the same cascade.
+import '@/styles/console-register-status.css';
 import '@/styles/print.css';
 
 export async function generateMetadata(): Promise<Metadata> {

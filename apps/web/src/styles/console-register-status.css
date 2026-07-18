@@ -1,0 +1,54 @@
+/* CR status + tag palettes: the hand authored companion to the generated
+   console-register.css.
+
+   The markdown-theory `console` fixture that emits console-register.css solves
+   only ink (3 steps), one signal (oxblood), and one link. It has no status axis
+   and no tag axis, so the color-heavy new-shell surfaces (Operator, the record
+   table, Kanban, Workrooms, the board) had nowhere in the register to reach for
+   a "done" green or an object-relation hue. This file adds those two scales
+   under the same --cr-* namespace, ported from the porcelain register's status
+   and tag values (porcelain-theme.css) and re-solved so every foreground clears
+   WCAG AA 4.5:1 on the darkest register ground (--cr-ground, the rail).
+
+   Why a separate file, not an edit to console-register.css: that file is
+   machine generated (npm run build:register) and carries a "do not edit by
+   hand" header; a regenerate would erase any status/tag additions. This is the
+   sanctioned place for the hand-authored half of the register, the one file
+   besides the generated sheet where a color literal is allowed. The values are
+   exposed as Tailwind utilities (bg-cr-ok, text-cr-tag-red,
+   border-cr-tag-red-line, ...) by the @theme re-export in global.css, and as
+   block-view ThemeTokens by console-tokens.ts.
+
+   Light register only. The porcelain umber (machine-surface) register is a
+   per-container [data-register='umber'] opt-in; its cr equivalent lands with the
+   machine-surface migration, where a dark cr ground exists to sit these hues on.
+   Shipping dark status hues now, with no dark cr surface under them, would only
+   render broken. */
+
+:root {
+  /* Status: a four-step escalation that sits beneath the reserved red signal.
+     waiting (calm, queued) -> progress (active, forward motion) -> attention
+     (needs a human) -> signal (blocked or urgent, == --cr-signal). ok is
+     success and sits off the ladder. Red is deliberately absent here so the
+     surface never reads as all-alarm: pending and urgent speak through
+     --cr-signal alone. */
+  --cr-ok: #3B7648;         /* porcelain --ok #3D7A4A, deepened for 4.5:1 on cr-ground */
+  --cr-progress: #33455C;   /* porcelain --navy: information, quiet forward motion */
+  --cr-attention: #8E6212;  /* porcelain --amber #9A6A14, deepened for 4.5:1 on cr-ground */
+  --cr-waiting: #2E6F69;    /* porcelain --teal: the calm baseline */
+
+  /* Tags: ten muted, object-relation hues. Rendered as filled chips (fg text on
+     the -soft fill, optional -line border). Every hue desaturated to sit on the
+     ground, never neon. green and yellow deepened for WCAG; the rest are the
+     porcelain values, which already clear 4.5:1 on every register ground. */
+  --cr-tag-grey: #6B665C;
+  --cr-tag-yellow: #846611;   /* porcelain #8A6A12, deepened for WCAG */
+  --cr-tag-orange: #A2531F;
+  --cr-tag-red: #9A2E29;
+  --cr-tag-pink: #97386A;
+  --cr-tag-purple: #64499A;
+  --cr-tag-blue: #33455C;
+  --cr-tag-sky: #2E6A8A;
+  --cr-tag-teal: #2E6F69;
+  --cr-tag-green: #3B7648;    /* porcelain #3D7A4A, deepened for WCAG */
+}

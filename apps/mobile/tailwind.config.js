@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Colors resolve through the porcelain custom properties declared in
+// Colors resolve through the Int UI custom properties declared in
 // src/global.css so NativeWind carries the same tokens as src/theme/tokens.ts.
 module.exports = {
   content: ['./src/**/*.{ts,tsx}'],
@@ -19,6 +19,7 @@ module.exports = {
         'cp-text': 'var(--cp-text)',
         'cp-text-muted': 'var(--cp-text-muted)',
         'cp-text-faint': 'var(--cp-text-faint)',
+        'cp-accent': 'var(--cp-accent)',
         'cp-oxblood': 'var(--cp-oxblood)',
         'cp-oxblood-pressed': 'var(--cp-oxblood-pressed)',
         'cp-oxblood-wash': 'var(--cp-oxblood-wash)',
@@ -29,6 +30,9 @@ module.exports = {
         'cp-machine-raise': 'var(--cp-machine-raise)',
         'cp-machine-line': 'var(--cp-machine-line)',
         'cp-machine-text': 'var(--cp-machine-text)',
+        'cp-human': 'var(--cp-human)',
+        'cp-agent': 'var(--cp-agent)',
+        'cp-memory': 'var(--cp-memory)',
       },
       spacing: {
         // 4px base grid (web --cp-space-* parity)

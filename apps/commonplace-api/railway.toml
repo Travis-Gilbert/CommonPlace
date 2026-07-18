@@ -7,6 +7,10 @@
 # server-side with x-api-key = COMMONPLACE_API_KEY.
 #
 # Required env: COMMONPLACE_API_KEY (the instance key the proxy must send).
+# Mobile bootstrap env: COMMONPLACE_CHAT_URL, COMMONPLACE_WEB_SEARCH,
+# COMMONPLACE_EXPO_PROJECT_ID, COMMONPLACE_PUSH_REGISTRATION_URL, and optional
+# COMMONPLACE_MOBILE_CATALOG_JSON. These advertise public capability metadata;
+# APNs/FCM/provider credentials never belong in this service response.
 # Exposes HTTP, so a real healthcheck is wired: GET /healthz returns "ok".
 #
 # NOTE: backing is the in-memory store for this slice, so data resets on every
