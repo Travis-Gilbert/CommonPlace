@@ -399,6 +399,74 @@
   inset: 0;
 }
 
+.signalModels {
+  position: absolute;
+  z-index: 5;
+  top: calc(var(--u) * 1.5);
+  left: calc(var(--u) * 1.5);
+  display: flex;
+  width: min(720px, calc(100% - var(--u) * 3));
+  gap: 1px;
+  padding: 1px;
+  overflow-x: auto;
+  border: 1px solid var(--hair-soft);
+  border-radius: var(--r-row);
+  background: var(--hair-soft);
+  box-shadow: var(--edge);
+}
+
+.signalModelsHead,
+.signalModel {
+  display: flex;
+  min-width: 132px;
+  flex-direction: column;
+  gap: 2px;
+  padding: calc(var(--u) * 0.75) var(--u);
+  background: color-mix(in srgb, var(--plane) 94%, transparent);
+}
+
+.signalModelsHead span {
+  color: var(--teal);
+  font: 600 0.62rem var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.signalModelsHead small,
+.signalModel span,
+.signalModelEmpty {
+  color: var(--ink-faint);
+  font: 0.58rem var(--font-mono);
+}
+
+.signalModel {
+  min-width: 156px;
+}
+
+.signalModel strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signalModel code {
+  overflow: hidden;
+  color: var(--teal);
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signalModelEmpty {
+  display: flex;
+  min-width: 190px;
+  align-items: center;
+  padding: 0 var(--u);
+  background: var(--plane);
+}
+
 .modelNode {
   display: flex;
   align-items: center;
