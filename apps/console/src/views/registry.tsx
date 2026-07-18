@@ -17,6 +17,7 @@ import { HunkReviewView } from './HunkReviewView';
 import { AppearanceView } from './AppearanceView';
 import { FilesView } from './FilesView';
 import { ContextView } from './ContextView';
+import { ProactivityView } from './ProactivityView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -219,6 +220,23 @@ const HUNK_REVIEW: ViewDescriptor = {
   render: HunkReviewView,
 };
 
+const PROACTIVITY: ViewDescriptor = {
+  id: 'proactivity.graph',
+  name: 'Proactivity',
+  accepts: { required_types: ['pg.stake'], cardinality: 'many' },
+  emits: ['update', 'create', 'delete'],
+  renderer: 'proactivity.graph',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the elkjs layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+  },
+  render: ProactivityView,
+};
+
 const APPEARANCE: ViewDescriptor = {
   id: 'settings.appearance',
   name: 'Appearance',
@@ -248,6 +266,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   CARDS_GRID,
   HUNK_REVIEW,
   APPEARANCE,
+  PROACTIVITY,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback
