@@ -26,6 +26,8 @@ import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-
 import { ProactivityStore } from './proactivity/store';
 import { FIXTURE_TENANT, seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
+import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
+import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
@@ -132,6 +134,7 @@ export class ConsoleBlockHost implements BlockHost {
   private records: ObjectRef[] | null;
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
+  private cardTemplates: ObjectRef[];
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
@@ -153,6 +156,10 @@ export class ConsoleBlockHost implements BlockHost {
     });
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
+    // Card templates are seeded objects served through this seam (K1): the
+    // card engine queries them like any record, and the Model surface edits
+    // them later through the same update action.
+    this.cardTemplates = seedCardTemplates();
     this.hydrateLayout();
   }
 
@@ -177,14 +184,16 @@ export class ConsoleBlockHost implements BlockHost {
         restored = null;
       }
     }
-    const objects = restored ?? seedLayout();
+    const seed = seedLayout();
+    const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
+    const objects = needsIaMigration ? seed : (restored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
-    if (restored) {
+    if (restored && !needsIaMigration) {
       let added = false;
-      for (const seeded of seedLayout()) {
+      for (const seeded of seed) {
         if (!this.layout.has(seeded.id)) {
           this.layout.set(seeded.id, toMutable(seeded));
           added = true;
@@ -199,6 +208,36 @@ export class ConsoleBlockHost implements BlockHost {
     if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY);
     this.layout = new Map(seedLayout().map((ref) => [ref.id, toMutable(ref)]));
     this.notifyLayout();
+  }
+
+  /** Apply a radio-group surface switch as one layout transaction. Subscribers
+   *  never observe zero or two active surfaces between individual updates. */
+  async activateSurface(surfaceId: string): Promise<boolean> {
+    const target = this.layout.get(surfaceId);
+    if (target?.type !== 'surface') return false;
+    for (const candidate of this.layout.values()) {
+      if (candidate.type === 'surface') candidate.properties.active = candidate.id === surfaceId;
+    }
+    this.persistLayout();
+    this.notifyLayout();
+    return true;
+  }
+
+  /** Toggle a region and optionally close same-side peers in one transaction.
+   *  Compact overlays use this to keep exactly one panel visible per side. */
+  async setRegionOpen(regionId: string, open: boolean, exclusivePeerIds: readonly string[] = []): Promise<boolean> {
+    const region = this.layout.get(regionId);
+    if (region?.type !== 'region') return false;
+    if (open) {
+      for (const peerId of exclusivePeerIds) {
+        const peer = this.layout.get(peerId);
+        if (peer?.type === 'region') peer.properties.open = false;
+      }
+    }
+    region.properties.open = open;
+    this.persistLayout();
+    this.notifyLayout();
+    return true;
   }
 
   private persistLayout(): void {
@@ -225,18 +264,45 @@ export class ConsoleBlockHost implements BlockHost {
     // The proactivity graph is projected and served locally from fixtures until
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
-    // Records and typed HunkSets are live wires (R2.1/H3): they round-trip
-    // through the same object seam and never compile review logic in React.
-    if (query.types.includes('hunk') || (query.types.includes('record') && this.records === null)) {
+    if (query.types.includes('memory')) return this.memorySet(query);
+    // The live wire is the default (R2.1): records, hunks, and every domain
+    // kind the seam serves (person, task, mention-candidate, ...) round-trip
+    // through the data API proxy. Documents and code files ride the live wire
+    // too so edits persist to the backend (the file-editing fix): the backend
+    // is the source of truth, but the console filters/sorts/pages client-side
+    // so slug and id predicates behave exactly as the seed path did.
+    // Console-owned seeds stay local: card templates (K1, authored objects)
+    // and 'thread' (the pane renders its own chat SSE, never the record wire).
+    const testMode = this.records !== null;
+    const isRecord = query.types.includes('record');
+    const isDoc = query.types.includes('doc');
+    const isCode = query.types.includes('code-file');
+    // Console-local kinds never touch the wire: 'thread' (its pane renders its
+    // own chat SSE) and card templates (K1, console-authored seeds).
+    const consoleLocal =
+      query.types.includes('thread') ||
+      query.types.includes('files-view') ||
+      query.types.includes('context-view') ||
+      query.types.includes('surface-tool') ||
+      query.types.includes(CARD_TEMPLATE_TYPE);
+    if (!testMode && !consoleLocal) {
+      // Docs and code files are client-filtered so slug/id predicates resolve
+      // exactly as the seed path did; every other seam kind (record, person,
+      // task, project, org, mention-candidate, hunk, ...) filters API-side.
+      if (query.types.length === 1 && (isDoc || isCode)) {
+        return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
+      }
       return this.http.query(query);
     }
-    const pool = query.types.includes('record')
+    const pool = isRecord
       ? (this.records ?? [])
-      : query.types.includes('doc')
+      : isDoc
         ? this.docs
-        : query.types.includes('code-file')
+        : isCode
           ? this.codeFiles
-          : [];
+          : query.types.includes(CARD_TEMPLATE_TYPE)
+            ? this.cardTemplates
+            : [];
     let objects = pool.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {
@@ -271,6 +337,115 @@ export class ConsoleBlockHost implements BlockHost {
         return () => this.domainSubs.delete(listener);
       },
     };
+  }
+
+  private memorySet(query: ObjectQuery): ObjectSet {
+    let objects = memoryObjects().filter((object) => matchesPredicate(object, query.where));
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    const shape: ObjectShape = {
+      types: ['memory'],
+      fields: ['object_id', 'title', 'markdown', 'projection_path', 'source', 'updated', 'read_only_reason'],
+      relations: [],
+      axes: {},
+      cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+    };
+    return {
+      objects,
+      shape,
+      next_cursor: nextCursor,
+      subscribe: (callback) => useMemoryProjectionStore.subscribe(() => callback(this.memorySet(query))),
+    };
+  }
+
+  /** Documents and code files over the live wire: fetch the kind from the
+   *  backend, then filter, sort, and page with the console's own client logic
+   *  so a `where slug eq` or `where path eq` predicate resolves identically to
+   *  the former seed path (no dependency on the API's predicate support). */
+  private async queryLiveDomain(query: ObjectQuery, type: string): Promise<ObjectSet> {
+    const allObjects: ObjectRef[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await this.http.query({ types: [type], page: { limit: 500, cursor } });
+      allObjects.push(...page.objects);
+      const next = page.next_cursor;
+      if (!next || next === cursor) break;
+      cursor = next;
+    } while (cursor);
+    let objects = allObjects.filter((object) => matchesPredicate(object, query.where));
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: Object.keys(objects[0]?.properties ?? {}),
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      next_cursor: nextCursor,
+      subscribe: () => () => {},
+    };
+  }
+
+  /** Seed the backend with the console's document fixtures once, keyed by slug
+   *  and path, so the deployed (in-memory, resets on restart) API has editable,
+   *  persistent content instead of client-only seeds. Content rides as extra
+   *  properties (markdown / content) so the projection returns exactly what the
+   *  Galley and CodeMirror views read. Idempotent: absent keys only. */
+  async ensureSeedContent(): Promise<void> {
+    if (this.records !== null) return;
+    try {
+      const existingDocs = await this.http.query({ types: ['doc'], page: { limit: 200 } });
+      const slugs = new Set(existingDocs.objects.map((object) => object.properties.slug));
+      for (const doc of this.docs) {
+        if (slugs.has(doc.properties.slug)) continue;
+        await this.http.emit({
+          kind: 'create',
+          type: 'doc',
+          props: {
+            title: doc.properties.title,
+            slug: doc.properties.slug,
+            markdown: doc.properties.markdown,
+          },
+        });
+      }
+      const existingCode = await this.http.query({ types: ['code-file'], page: { limit: 200 } });
+      const paths = new Set(existingCode.objects.map((object) => object.properties.path));
+      for (const file of this.codeFiles) {
+        if (paths.has(file.properties.path)) continue;
+        await this.http.emit({
+          kind: 'create',
+          type: 'code-file',
+          props: {
+            title: file.properties.path,
+            path: file.properties.path,
+            language: file.properties.language,
+            content: file.properties.content,
+          },
+        });
+      }
+    } catch {
+      // Backend unreachable: the Documents surface renders its empty state.
+    }
   }
 
   /** The arrangement branch is always synchronous and local: the shell's
@@ -333,9 +508,14 @@ export class ConsoleBlockHost implements BlockHost {
           this.notifyLayout();
           return Promise.resolve(applied([action.id]));
         }
-        // Docs and code files patch in-session (seed content); record
-        // updates ride the live wire when no test pool is present.
-        for (const pool of [this.records ?? [], this.docs, this.codeFiles]) {
+        // In live mode only card templates patch in-session (console-authored
+        // seeds); records, docs, and code files ride the wire so edits persist.
+        // In test mode the local pools carry every kind.
+        const updatePools =
+          this.records === null
+            ? [this.cardTemplates]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates];
+        for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
             pool[index] = { ...pool[index], properties: { ...pool[index].properties, ...action.patch } };

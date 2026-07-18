@@ -9,6 +9,16 @@ import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { motion } from 'motion/react';
 import { seconds, useMotionDurations, EASE_OUT } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
+import { KindDot, type ObjectKind } from './icons';
+
+function kindOf(instance: ObjectRef): ObjectKind {
+  const descriptor = String(instance.properties.descriptor_id ?? '');
+  if (descriptor === 'markdown.doc') return 'doc';
+  if (descriptor === 'code.file') return 'code';
+  if (descriptor === 'chat.thread') return 'thread';
+  if (descriptor === 'settings.appearance') return 'settings';
+  return 'record';
+}
 
 interface EditorTabsProps {
   readonly region: ObjectRef;
@@ -20,6 +30,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
   const durations = useMotionDurations();
   const activeId = String(region.properties.active_tab ?? instances[0]?.id ?? '');
   const active = instances.find((instance) => instance.id === activeId) ?? instances[0];
+  const bare = region.properties.chrome === 'bare' && instances.length === 1;
 
   const activate = (id: string) => {
     void host.emit({ kind: 'update', id: region.id, patch: { active_tab: id } });
@@ -27,7 +38,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div
+      {bare ? null : <div
         role="tablist"
         aria-label="Editor tabs"
         className="flex h-ij-tab shrink-0 items-end bg-ij-editor"
@@ -40,9 +51,10 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
               role="tab"
               aria-selected={selected}
               onClick={() => activate(instance.id)}
-              className="relative flex h-full items-center px-4 text-ij-ink"
+              className="relative flex h-full items-center gap-2 px-4 text-ij-ink"
               style={{ opacity: selected ? 1 : 0.75, transition: 'var(--rec-clickable-transition)' }}
             >
+              <KindDot kind={kindOf(instance)} />
               {String(instance.properties.title ?? instance.id)}
               {selected ? (
                 <span
@@ -53,8 +65,8 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
             </button>
           );
         })}
-      </div>
-      <div className="min-h-0 flex-1 border-t border-ij-seam bg-ij-editor">
+      </div>}
+      <div className={`min-h-0 flex-1 bg-ij-editor ${bare ? '' : 'border-t border-ij-seam'}`}>
         {active ? (
           <motion.div
             key={active.id}

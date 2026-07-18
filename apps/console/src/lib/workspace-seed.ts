@@ -14,7 +14,8 @@
 import type { ObjectRef, JsonValue } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 
-export const SURFACE_ID = 'console-workspace';
+export const SURFACE_ID = 'console-chat';
+export const WORKSPACE_SURFACE_ID = 'console-workspace';
 
 function layoutObject(
   id: string,
@@ -30,158 +31,205 @@ function layoutObject(
   };
 }
 
-/** Screens are seeded surfaces (HANDOFF-CONSOLE-ROUND-2 R3): the proof
- *  workspace, the Index skeleton, and the Documents reading screen, each with
- *  its own namespaced regions so every screen remembers its own arrangement.
- *  The switcher flips the `active` flag; nothing else moves. */
+export type ToolWindowRole = 'surface' | 'companion';
+
+interface ToolWindowSeed {
+  readonly id: string;
+  readonly title: string;
+  readonly icon: string;
+  readonly side: 'left' | 'right';
+  readonly size: number;
+  readonly open: boolean;
+  readonly role: ToolWindowRole;
+  readonly descriptorId: string;
+  readonly companion?: 'files' | 'context' | 'thread';
+  readonly queryTypes?: readonly string[];
+}
+
+/** Register one role-bearing tool window and its descriptor-backed view. */
+export function registerToolWindow(seed: ToolWindowSeed): ObjectRef[] {
+  const viewId = `${seed.id}.view`;
+  return [
+    layoutObject(
+      seed.id,
+      'region',
+      {
+        kind: 'tool-window',
+        side: seed.side,
+        title: seed.title,
+        icon: seed.icon,
+        size: seed.size,
+        open: seed.open,
+        role: seed.role,
+        ...(seed.companion ? { companion: seed.companion } : {}),
+      },
+      [viewId],
+    ),
+    layoutObject(viewId, 'view-instance', {
+      descriptor_id: seed.descriptorId,
+      title: seed.title,
+      query: {
+        types: seed.queryTypes ?? (seed.companion === 'thread'
+          ? ['thread']
+          : seed.companion === 'files'
+            ? ['files-view']
+            : seed.companion === 'context'
+              ? ['context-view']
+              : ['surface-tool']),
+      } as unknown as JsonValue,
+    }),
+  ];
+}
+
+function companionSeeds(prefix: string, threadOpen = false): ObjectRef[] {
+  return [
+    ...registerToolWindow({
+      id: `${prefix}.region-files`,
+      title: 'Files',
+      icon: 'files',
+      side: 'left',
+      size: 24,
+      open: false,
+      role: 'companion',
+      companion: 'files',
+      descriptorId: 'files.tree',
+    }),
+    ...registerToolWindow({
+      id: `${prefix}.region-context`,
+      title: 'Context',
+      icon: 'context',
+      side: 'right',
+      size: 24,
+      open: false,
+      role: 'companion',
+      companion: 'context',
+      descriptorId: 'context.graph',
+    }),
+    ...registerToolWindow({
+      id: `${prefix}.region-thread`,
+      title: 'Thread',
+      icon: 'thread',
+      side: 'right',
+      size: 28,
+      open: threadOpen,
+      role: 'companion',
+      companion: 'thread',
+      descriptorId: 'chat.thread',
+    }),
+  ];
+}
+
+function companionIds(prefix: string): string[] {
+  return [`${prefix}.region-files`, `${prefix}.region-context`, `${prefix}.region-thread`];
+}
+
+/** The durable IA seed: five primary surfaces in stripe order, plus secondary
+ * layouts available through the layout switcher and Command mode. */
 export function seedLayout(): ObjectRef[] {
   return [
-    // Workspace: the proof arrangement (G8), the default active surface.
-    layoutObject(SURFACE_ID, 'surface', { name: 'Workspace', kind: 'workspace', active: true }, [
-      'region-left',
-      'region-editor',
-      'region-right',
-    ]),
-    layoutObject(
-      'region-left',
-      'region',
-      { kind: 'tool-window', side: 'left', title: 'Records', icon: 'records', size: 24, open: true },
-      ['vi-records'],
-    ),
-    layoutObject(
-      'region-editor',
-      'region',
-      { kind: 'editor', size: 48, active_tab: 'vi-brief' },
-      ['vi-brief', 'vi-code'],
-    ),
-    layoutObject(
-      'region-right',
-      'region',
-      { kind: 'tool-window', side: 'right', title: 'Thread', icon: 'thread', size: 28, open: true, mark: true },
-      ['vi-thread'],
-    ),
-    layoutObject('vi-records', 'view-instance', {
-      descriptor_id: 'record.table',
-      title: 'Records',
-      query: { types: ['record'], live: true } as unknown as JsonValue,
+    layoutObject(SURFACE_ID, 'surface', {
+      name: 'Chat', kind: 'chat', role: 'surface', stripe_order: 0, active: true, seed_revision: 2,
+    }, ['chat.region-editor', ...companionIds('chat')]),
+    layoutObject('chat.region-editor', 'region', {
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,
+    }, ['chat.vi-surface']),
+    layoutObject('chat.vi-surface', 'view-instance', {
+      descriptor_id: 'chat.surface', title: 'Chat', query: { types: ['thread'] } as unknown as JsonValue,
     }),
+    ...companionSeeds('chat'),
+
+    layoutObject(WORKSPACE_SURFACE_ID, 'surface', {
+      name: 'Workspace', kind: 'workspace', role: 'surface', stripe_order: 1, active: false, seed_revision: 2,
+    }, ['region-editor', ...companionIds('workspace')]),
+    layoutObject('region-editor', 'region', {
+      kind: 'editor', size: 72, active_tab: 'vi-brief', seed_revision: 2,
+    }, ['vi-brief', 'vi-code']),
     layoutObject('vi-brief', 'view-instance', {
-      descriptor_id: 'markdown.doc',
-      title: 'Console brief',
+      descriptor_id: 'markdown.doc', title: 'Console brief',
       query: { types: ['doc'], where: { kind: 'eq', field: 'slug', value: 'console-brief' } } as unknown as JsonValue,
     }),
     layoutObject('vi-code', 'view-instance', {
-      descriptor_id: 'code.file',
-      title: 'surface-tree.ts',
+      descriptor_id: 'code.file', title: 'surface-tree.ts',
       query: { types: ['code-file'], where: { kind: 'eq', field: 'path', value: 'packages/block-view/src/surface-tree.ts' } } as unknown as JsonValue,
     }),
-    layoutObject('vi-thread', 'view-instance', {
-      descriptor_id: 'chat.thread',
-      title: 'Thread',
-      query: { types: ['thread'] } as unknown as JsonValue,
-    }),
+    ...companionSeeds('workspace', true),
 
-    // Index: the IX7 skeleton landing as a screen (R3.1). The destination
-    // rail names its missing wire; connectors and filing stay out of scope.
-    layoutObject('console-index', 'surface', { name: 'Index', kind: 'index', active: false }, [
-      'index.region-rail',
-      'index.region-editor',
-    ]),
-    layoutObject(
-      'index.region-rail',
-      'region',
-      { kind: 'tool-window', side: 'left', title: 'Destinations', icon: 'rail', size: 22, open: true },
-      ['index.vi-rail'],
-    ),
-    layoutObject(
-      'index.region-editor',
-      'region',
-      { kind: 'editor', size: 78, active_tab: 'index.vi-stream' },
-      ['index.vi-stream'],
-    ),
-    layoutObject('index.vi-rail', 'view-instance', {
-      descriptor_id: 'index.rail',
-      title: 'Destinations',
-      query: { types: ['record'], page: { limit: 1 } } as unknown as JsonValue,
+    layoutObject('console-index', 'surface', {
+      name: 'Index', kind: 'index', role: 'surface', stripe_order: 2, active: false, seed_revision: 2,
+    }, ['index.region-rail', 'index.region-editor', ...companionIds('index')]),
+    ...registerToolWindow({
+      id: 'index.region-rail', title: 'Destinations', icon: 'rail', side: 'left', size: 22,
+      open: true, role: 'surface', descriptorId: 'index.rail', queryTypes: ['record'],
     }),
+    layoutObject('index.region-editor', 'region', {
+      kind: 'editor', size: 78, active_tab: 'index.vi-stream', seed_revision: 2,
+    }, ['index.vi-stream']),
     layoutObject('index.vi-stream', 'view-instance', {
-      descriptor_id: 'record.table',
-      title: 'Triage stream',
+      descriptor_id: 'record.table', title: 'Triage stream',
       query: { types: ['record'], live: true } as unknown as JsonValue,
     }),
+    ...companionSeeds('index'),
 
-    // Documents: list left, Galley reading view center, thread on its stripe
-    // (closed by default) (R3.2).
-    layoutObject('console-docs', 'surface', { name: 'Documents', kind: 'documents', active: false }, [
-      'docs.region-list',
-      'docs.region-editor',
-      'docs.region-thread',
-    ]),
-    layoutObject(
-      'docs.region-list',
-      'region',
-      { kind: 'tool-window', side: 'left', title: 'Documents', icon: 'docs', size: 22, open: true },
-      ['docs.vi-list'],
-    ),
-    layoutObject(
-      'docs.region-editor',
-      'region',
-      { kind: 'editor', size: 50, active_tab: 'docs.vi-reader' },
-      ['docs.vi-reader'],
-    ),
-    layoutObject(
-      'docs.region-thread',
-      'region',
-      { kind: 'tool-window', side: 'right', title: 'Thread', icon: 'thread', size: 28, open: false, mark: true },
-      ['docs.vi-thread'],
-    ),
-    layoutObject('docs.vi-list', 'view-instance', {
-      descriptor_id: 'doc.list',
-      title: 'Documents',
-      query: { types: ['doc'], live: true } as unknown as JsonValue,
+    layoutObject('console-docs', 'surface', {
+      name: 'Documents', kind: 'documents', role: 'surface', stripe_order: 3, active: false, seed_revision: 2,
+    }, ['docs.region-list', 'docs.region-editor', ...companionIds('docs')]),
+    ...registerToolWindow({
+      id: 'docs.region-list', title: 'Documents', icon: 'docs', side: 'left', size: 22,
+      open: true, role: 'surface', descriptorId: 'doc.list', queryTypes: ['doc'],
     }),
+    layoutObject('docs.region-editor', 'region', {
+      kind: 'editor', size: 78, active_tab: 'docs.vi-reader', seed_revision: 2,
+    }, ['docs.vi-reader']),
     layoutObject('docs.vi-reader', 'view-instance', {
-      descriptor_id: 'markdown.doc',
-      title: 'Reading',
+      descriptor_id: 'markdown.doc', title: 'Reading',
       query: { types: ['doc'], where: { kind: 'eq', field: 'slug', value: 'console-brief' } } as unknown as JsonValue,
     }),
-    layoutObject('docs.vi-thread', 'view-instance', {
-      descriptor_id: 'chat.thread',
-      title: 'Thread',
-      query: { types: ['thread'] } as unknown as JsonValue,
-    }),
+    ...companionSeeds('docs'),
 
-    // Review: the Hunk handoff re-scoped to the Greenfield shell. The route is
-    // arrangement data (a named surface and registered view), while the typed
-    // values and action receipts remain substrate-owned.
-    layoutObject('console-review', 'surface', { name: 'Review', kind: 'review', active: false }, [
-      'review.region-editor',
-    ]),
-    layoutObject(
-      'review.region-editor',
-      'region',
-      { kind: 'editor', size: 100, active_tab: 'review.vi-hunks' },
-      ['review.vi-hunks'],
-    ),
-    layoutObject('review.vi-hunks', 'view-instance', {
-      descriptor_id: 'hunk.review',
-      title: 'Hunk review',
-      query: { types: ['hunk'], live: true } as unknown as JsonValue,
+    layoutObject('console-cards', 'surface', {
+      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 4, active: false, seed_revision: 2,
+    }, ['cards.region-editor', ...companionIds('cards')]),
+    layoutObject('cards.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'cards.vi-grid', seed_revision: 2,
+    }, ['cards.vi-grid']),
+    layoutObject('cards.vi-grid', 'view-instance', {
+      descriptor_id: 'cards.grid', title: 'Cards',
+      query: { types: ['person', 'task', 'project', 'org'], page: { limit: 400 }, live: true } as unknown as JsonValue,
     }),
+    ...companionSeeds('cards'),
+
+    layoutObject('console-review', 'surface', {
+      name: 'Review', kind: 'review', role: 'surface', active: false, seed_revision: 2,
+    }, ['review.region-editor', ...companionIds('review')]),
+    layoutObject('review.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'review.vi-hunks', seed_revision: 2,
+    }, ['review.vi-hunks']),
+    layoutObject('review.vi-hunks', 'view-instance', {
+      descriptor_id: 'hunk.review', title: 'Hunk review', query: { types: ['hunk'], live: true } as unknown as JsonValue,
+    }),
+    ...companionSeeds('review'),
+
+    layoutObject('console-appearance', 'surface', {
+      name: 'Appearance', kind: 'settings', role: 'surface', active: false, seed_revision: 2,
+    }, ['appearance.region-editor', ...companionIds('appearance')]),
+    layoutObject('appearance.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'appearance.vi-theme', seed_revision: 2,
+    }, ['appearance.vi-theme']),
+    layoutObject('appearance.vi-theme', 'view-instance', {
+      descriptor_id: 'settings.appearance', title: 'Appearance', query: { types: ['surface'] } as unknown as JsonValue,
+    }),
+    ...companionSeeds('appearance'),
 
     // Proactivity: the editable standing graph, projected from fixtures until
-    // the kernel lands behind the same seam. One editor region hosts the
-    // surface at all three altitudes; the switcher flips the active flag like
-    // every other screen. A second arrangement is a second seed, zero code.
-    layoutObject('console-proactivity', 'surface', { name: 'Proactivity', kind: 'proactivity', active: false }, [
-      'proactivity.region-editor',
-    ]),
-    layoutObject(
-      'proactivity.region-editor',
-      'region',
-      { kind: 'editor', size: 100, active_tab: 'proactivity.vi-graph' },
-      ['proactivity.vi-graph'],
-    ),
+    // the kernel lands behind the same seam. A secondary surface reached through
+    // the layout switcher and Command mode, like Review and Appearance; the
+    // editor hosts all three altitudes and the switcher flips the active flag.
+    layoutObject('console-proactivity', 'surface', {
+      name: 'Proactivity', kind: 'proactivity', role: 'surface', active: false, seed_revision: 2,
+    }, ['proactivity.region-editor', ...companionIds('proactivity')]),
+    layoutObject('proactivity.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'proactivity.vi-graph', seed_revision: 2,
+    }, ['proactivity.vi-graph']),
     layoutObject('proactivity.vi-graph', 'view-instance', {
       descriptor_id: 'proactivity.graph',
       title: 'Proactivity',
@@ -190,6 +238,7 @@ export function seedLayout(): ObjectRef[] {
         live: true,
       } as unknown as JsonValue,
     }),
+    ...companionSeeds('proactivity'),
   ];
 }
 
@@ -284,6 +333,24 @@ object, not component state. Toggle the tool windows from the stripes.
 Double-press Shift for search everywhere.
 `;
 
+const CONSOLE_PUNCH_LIST = `# Console punch list
+
+Working notes for the console itself. Each todo carries the action affordance:
+the arrow at the end of a line (or Alt Enter with the line focused) hands that
+item to the agent through the action sheet.
+
+## Open items
+
+- [ ] Wire the destination rail to live connector counts
+- [ ] Capture a fresh visual baseline after the card engine lands
+- [x] Point the record table at the deployed object seam
+
+## Notes
+
+The sheet stages this document plus the todo line as visible context; nothing
+travels unseen.
+`;
+
 export function seedDocs(): ObjectRef[] {
   return [
     {
@@ -293,6 +360,15 @@ export function seedDocs(): ObjectRef[] {
         slug: 'console-brief',
         title: 'The harness console',
         markdown: CONSOLE_BRIEF,
+      },
+    },
+    {
+      id: 'doc-console-punch-list',
+      type: 'doc',
+      properties: {
+        slug: 'console-punch-list',
+        title: 'Console punch list',
+        markdown: CONSOLE_PUNCH_LIST,
       },
     },
   ];

@@ -9,6 +9,9 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
   AssistantRuntimeProvider,
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
   useExternalStoreRuntime,
   type AppendMessage,
   type ThreadMessageLike,
@@ -17,9 +20,16 @@ import { ConsoleBlockHost } from '@/lib/console-host';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
+import { submitThreadText } from '@/lib/thread-submit';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { GroundCanvas } from '@/components/ground/GroundCanvas';
 import { IntuiShell } from '@/components/shell/IntuiShell';
+import { startAppearanceStore } from '@/lib/appearance-store';
+
+const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
+  new SimpleImageAttachmentAdapter(),
+  new SimpleTextAttachmentAdapter(),
+]);
 
 function convertMessage(message: ThreadMessage): ThreadMessageLike {
   return {
@@ -39,7 +49,6 @@ function appendedText(message: AppendMessage): string {
 function RuntimeBoundary({ children }: { children: React.ReactNode }) {
   const messages = useThreadStore((state) => state.messages);
   const isRunning = useThreadStore((state) => state.isRunning);
-  const send = useThreadStore((state) => state.send);
   const cancel = useThreadStore((state) => state.cancel);
 
   const runtime = useExternalStoreRuntime({
@@ -48,9 +57,11 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
     convertMessage,
     onNew: async (message: AppendMessage) => {
       const text = appendedText(message);
-      if (text) await send(text);
+      if (!text) return;
+      await submitThreadText(text);
     },
     onCancel: async () => cancel(),
+    adapters: { attachments: ATTACHMENT_ADAPTER },
   });
 
   return (
@@ -92,10 +103,17 @@ export function ConsoleApp() {
   );
 
   useEffect(() => {
+    return startAppearanceStore();
+  }, []);
+
+  useEffect(() => {
     if (!host) return;
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
     void host.probe();
+    // Seed the backend's document fixtures once so the Documents surface has
+    // editable, persistent content (the file-editing wire).
+    void host.ensureSeedContent();
     let active = true;
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {

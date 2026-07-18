@@ -34,6 +34,9 @@
   --color-ij-selection-inactive: var(--ij-selection-inactive);
   --color-ij-link: var(--ij-link);
   --color-ij-modified: var(--ij-modified);
+  --color-ij-editor-line: var(--ij-editor-line);
+  --color-ij-search-match: var(--ij-search-match);
+  --color-ij-text-selection: var(--ij-text-selection);
 
   /* State overlays */
   --color-ij-hover-overlay: var(--ij-hover-overlay);
@@ -105,8 +108,20 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
+  --ij-composer-min-h: 48px;
+  --ij-composer-max-h: 164px;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
+  --ij-editor-line: var(--ij-hover-overlay);
+  --ij-search-match: var(--ij-selection-inactive);
+  --ij-text-selection: var(--ij-selection);
+}
+
+[data-register="intui"][data-theme="light"] {
+  /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
+     this is the runtime gate's light-mode clamp, kept outside the pin. */
+  --ij-gold: #9A6000;
+  --ij-gold-tint: #FFF5DB;
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink
@@ -118,6 +133,10 @@
   --ij-ink-info: var(--ij-gray-8);
 }
 
+[data-register="intui"][data-theme="light"] {
+  --ij-ink-info: var(--ij-gray-6);
+}
+
 /* Self-hosted font bridge: next/font/local-style variables from layout.tsx
    re-point the register faces at the self-hosted Inter and JetBrains Mono
    families (next/font renames families, so the register's literal "Inter"
@@ -125,4 +144,76 @@
 [data-register="intui"] {
   --ij-font-ui: var(--font-console-inter), "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
   --ij-font-mono: var(--font-console-jbmono), "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+}
+
+/* Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION section 2).
+   Two grammars coexist by scope. The chrome grammar above (Int UI accent for
+   interactive and pending, --ij-gold for learned) governs chrome. This speaker
+   grammar governs conversational content: chat messages, margin threads,
+   annotations, approval and proposal cards. The --cp-* names are the
+   cross-platform register vocabulary (mobile tokens.ts mirrors the same roles);
+   here they bridge to the console primitives.
+
+   Roles carry verbatim from the spec; values re-resolve for the register:
+   human ink is the oxblood family, agent voice is teal, memory is gold,
+   destructive stays reserved and rare. The oxblood and teal are tuned for AA on
+   the dark chrome (the contrast gate proves human on chrome and agent on chrome
+   at 4.5, destructive on chrome at 3.0). Agent teal is held hue-distant from the
+   Int UI accent blue so the system speaking as machinery (accent) never blurs
+   with the agent speaking as a voice (teal). Raw hex lives here because this is
+   a register file; content surfaces consume --cp-* only. These are the dark-well
+   values; the light-theme block below carries the second value of each direct
+   role (two values, one token, section 2.2). */
+[data-register="intui"] {
+  --cp-human: #DE7C72;              /* oxblood family, AA on chrome (4.76:1) */
+  --cp-agent: #45B4A3;              /* teal voice, AA on chrome, hue-distant from accent */
+  --cp-memory: var(--ij-gold);      /* memory gold is already the learned register */
+  --cp-destructive: var(--ij-error); /* reserved red; never the human's voice */
+
+  /* Presence mark (section 2.4): the mark is the agent's identity, so its base
+     is the voice teal. The commit moment is a brightness lift on the same teal
+     (superseding the sourcing addendum gold base and the accent-slot flash).
+     The interrupted edge is human ink: the human's hand arriving is human. */
+  --cp-presence: var(--cp-agent);
+  --cp-presence-commit: #7FE0CF;    /* teal contraction with brightness lift */
+  --cp-presence-interrupt: var(--cp-human);
+
+  /* Typography trinity (section 2.3): assigned by speaker on content surfaces.
+     Chrome stays Inter; the trinity governs content only. Human and machine ride
+     the bridged Galley faces (--gy-font-prose is Vollkorn, --gy-font-mono is
+     JetBrains Mono). Agent voice must NOT ride --gy-font-ui: gy-bridge re-points
+     that at the chrome Inter, which would collapse the speaker distinction, so
+     it points at the self-hosted Plex variable from fonts.ts directly. */
+  --cp-font-human: var(--gy-font-prose);   /* Vollkorn: human authorship */
+  --cp-font-agent: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* agent voice */
+  --cp-font-machine: var(--gy-font-mono);  /* JetBrains Mono: machinery, any speaker */
+}
+
+/* Speaker register, light mode: the "two values, one token" of section 2.2, now
+   that HANDOFF-CONSOLE-COLORATION shipped the light register. The direct-hex
+   roles re-tune for AA on the light chrome (Gray13 #F7F8FA) and the light editor
+   well (Gray14 #FFFFFF): deep oxblood and deep teal replace the dark-well lifted
+   values. The var-chained roles (memory, destructive, presence, interrupt)
+   follow --ij-gold, --ij-error, and the human/agent values, which the light
+   register already re-tunes. The contrast gate proves both modes. */
+[data-register="intui"][data-theme="light"] {
+  --cp-human: #7A2733;              /* deep oxblood, AA on the light well */
+  --cp-agent: #2D5F6B;              /* deep teal, AA on the light well */
+  --cp-presence-commit: #0D7D6B;    /* saturated teal lift, visible on light */
+}
+
+/* Tailwind v4: speaker utilities emit from --cp-* only, so text-cp-human,
+   bg-cp-agent, font-cp-machine and friends resolve to the register values. */
+@theme inline {
+  --color-cp-human: var(--cp-human);
+  --color-cp-agent: var(--cp-agent);
+  --color-cp-memory: var(--cp-memory);
+  --color-cp-destructive: var(--cp-destructive);
+  --color-cp-presence: var(--cp-presence);
+  --color-cp-presence-commit: var(--cp-presence-commit);
+  --color-cp-presence-interrupt: var(--cp-presence-interrupt);
+
+  --font-cp-human: var(--cp-font-human);
+  --font-cp-agent: var(--cp-font-agent);
+  --font-cp-machine: var(--cp-font-machine);
 }

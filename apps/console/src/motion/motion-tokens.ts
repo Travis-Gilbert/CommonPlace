@@ -88,16 +88,28 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'instant',
   },
   {
-    trigger: 'Omnibar island expand/collapse',
+    trigger: 'Search panel expand/collapse',
     effect: 'scale 0.98 to 1 plus fade below the toolbar',
     spec: 'DUR.fast open, EASE_OUT',
     reducedMotion: 'expansion renders as a plain fade (R1 acceptance), no scale',
+  },
+  {
+    trigger: 'Action sheet opens',
+    effect: 'scale 0.98 to 1 plus fade on the composer material at reduced scale',
+    spec: 'DUR.fast, EASE_OUT',
+    reducedMotion: 'renders without the material animation (K3 acceptance): plain fade, no scale',
   },
   {
     trigger: 'Thread message appears',
     effect: 'opacity 0 to 1, y 6 to 0',
     spec: 'DUR.base, EASE_OUT; streaming text container never participates in layout animation',
     reducedMotion: 'instant',
+  },
+  {
+    trigger: 'Composer run state changes',
+    effect: 'angled register-derived sheen breathes while streaming and flashes once on commit',
+    spec: 'idle draws once; streaming requestAnimationFrame loop only; commit uses DUR.fast',
+    reducedMotion: 'static low-chroma sheen, no frame loop or flash',
   },
   {
     trigger: 'Tool card appears in thread',

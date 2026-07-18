@@ -12,6 +12,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
 import { markdown } from '@codemirror/lang-markdown';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
+import { useAppearance } from '@/lib/appearance-store';
 import { intuiEditorExtensions } from './cm-register-theme';
 import { ViewState } from './ViewStates';
 
@@ -22,6 +23,7 @@ function languageFor(name: string) {
 }
 
 export function CodeFileView({ set }: ViewRenderProps) {
+  const { resolvedMode } = useAppearance();
   const file = set.objects[0];
   const hostRef = useRef<HTMLDivElement | null>(null);
 
@@ -38,14 +40,14 @@ export function CodeFileView({ set }: ViewRenderProps) {
         extensions: [
           lineNumbers(),
           languageFor(language),
-          ...intuiEditorExtensions,
+          ...intuiEditorExtensions(resolvedMode),
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
         ],
       }),
     });
     return () => view.destroy();
-  }, [content, language]);
+  }, [content, language, resolvedMode]);
 
   if (!file) return <ViewState state="empty" />;
 
