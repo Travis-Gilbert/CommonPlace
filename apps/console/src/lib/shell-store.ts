@@ -26,15 +26,14 @@ export interface ActionSheetOrigin {
   readonly chips: readonly StagedContextChip[];
 }
 
-/** The island's four modes (HANDOFF-CONSOLE-ROUND-2 named choice 2). */
-export type OmnibarMode = 'ask' | 'command' | 'search' | 'objects';
+/** The Search field owns discovery only. Generative input belongs to Composer. */
+export type SearchFieldMode = 'command' | 'search' | 'objects';
 
 export interface ShellState {
-  /** Omnibar island state: one island, four modes, one engine (R1). */
-  omnibarOpen: boolean;
-  omnibarMode: OmnibarMode;
-  openOmnibar(mode: OmnibarMode): void;
-  closeOmnibar(): void;
+  searchPanelOpen: boolean;
+  searchFieldMode: SearchFieldMode;
+  openSearchPanel(mode: SearchFieldMode): void;
+  closeSearchPanel(): void;
   /** Command-mode reduced motion preview: overrides the media query when on. */
   reducedMotionPreview: boolean;
   toggleReducedMotionPreview(): void;
@@ -43,6 +42,9 @@ export interface ShellState {
   /** The selected object when the opener already held it (a table row, a grid
    *  cell); saves the inspector a refetch. Null means fetch by id. */
   selectedRecordObject: ObjectRef | null;
+  /** Last concrete object selection. Closing the inspector does not erase the
+   *  Context companion's stable selection key. */
+  contextObject: ObjectRef | null;
   /** Type hint for cross-kind fetches: a relation chip knows its target kind
    *  (K1 named choice 2) so the inspector can query the right types. */
   selectedTypeHint: string | null;
@@ -66,18 +68,24 @@ export interface ShellState {
 }
 
 export const useShellStore = create<ShellState>((set) => ({
-  omnibarOpen: false,
-  omnibarMode: 'ask',
-  openOmnibar: (mode) => set({ omnibarOpen: true, omnibarMode: mode }),
-  closeOmnibar: () => set({ omnibarOpen: false }),
+  searchPanelOpen: false,
+  searchFieldMode: 'search',
+  openSearchPanel: (mode) => set({ searchPanelOpen: true, searchFieldMode: mode }),
+  closeSearchPanel: () => set({ searchPanelOpen: false }),
   reducedMotionPreview: false,
   toggleReducedMotionPreview: () =>
     set((state) => ({ reducedMotionPreview: !state.reducedMotionPreview })),
   selectedRecordId: null,
   selectedRecordObject: null,
+  contextObject: null,
   selectedTypeHint: null,
   selectRecord: (id, object = null, typeHint = null) =>
-    set({ selectedRecordId: id, selectedRecordObject: object, selectedTypeHint: typeHint }),
+    set((state) => ({
+      selectedRecordId: id,
+      selectedRecordObject: object,
+      selectedTypeHint: typeHint,
+      contextObject: object ?? state.contextObject,
+    })),
   connection: 'disconnected',
   setConnection: (state) => set({ connection: state }),
   presenceCount: null,

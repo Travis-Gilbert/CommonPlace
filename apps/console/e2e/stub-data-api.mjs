@@ -66,6 +66,20 @@ function seedRecords() {
 
 const RECORDS = seedRecords();
 
+const MEMORIES = Array.from({ length: 5000 }, (_, index) => ({
+  id: `memory-${index + 1}`,
+  kind: 'memory',
+  title: index < 2 ? `Ada Lovelace memory ${index + 1}` : `Harness memory ${index + 1}`,
+  source: 'harness:memory',
+  createdAtMs: Date.UTC(2026, 0, 1) + index,
+  updatedAtMs: Date.UTC(2026, 6, 17) + index,
+  extra: {
+    projection_path: `Harness Memory/topic-${index % 20}/memory-${index + 1}.md`,
+    markdown: `# Harness memory ${index + 1}\n\n${index < 2 ? 'Ada Lovelace is named in this memory.' : 'Projected from the tenant memory substrate.'}`,
+    tags: ['harness', index % 2 === 0 ? 'memory' : 'agent'],
+  },
+}));
+
 // Domain fixtures for the card engine + mentions surface (K1/K2/K6
 // acceptance): a real person and task render through their templates against
 // this seam, relation chips resolve to these objects, and the mention
@@ -354,6 +368,37 @@ const server = createServer((request, response) => {
   if (request.method === 'GET' && request.url === '/objects/views') {
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end('[]');
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/graphql') {
+    if (!request.headers['x-theorem-tenant']) {
+      response.writeHead(400, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: 'missing_mcp_tenant' }));
+      return;
+    }
+    let body = '';
+    request.on('data', (chunk) => {
+      body += chunk;
+    });
+    request.on('end', () => {
+      if (!body.includes('itemsByKind')) {
+        response.writeHead(400, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ errors: [{ message: 'unsupported query' }] }));
+        return;
+      }
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ data: { itemsByKind: MEMORIES } }));
+    });
+    return;
+  }
+  if (request.method === 'GET' && request.url?.startsWith('/v1/items/stream?tenant=')) {
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+    response.write(': tenant-filtered changefeed connected\n\n');
+    request.on('close', () => response.end());
     return;
   }
   if (request.method === 'POST' && (request.url === '/objects/query' || request.url === '/objects/action')) {

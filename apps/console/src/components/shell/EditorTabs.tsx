@@ -30,6 +30,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
   const durations = useMotionDurations();
   const activeId = String(region.properties.active_tab ?? instances[0]?.id ?? '');
   const active = instances.find((instance) => instance.id === activeId) ?? instances[0];
+  const bare = region.properties.chrome === 'bare' && instances.length === 1;
 
   const activate = (id: string) => {
     void host.emit({ kind: 'update', id: region.id, patch: { active_tab: id } });
@@ -37,7 +38,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div
+      {bare ? null : <div
         role="tablist"
         aria-label="Editor tabs"
         className="flex h-ij-tab shrink-0 items-end bg-ij-editor"
@@ -64,8 +65,8 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
             </button>
           );
         })}
-      </div>
-      <div className="min-h-0 flex-1 border-t border-ij-seam bg-ij-editor">
+      </div>}
+      <div className={`min-h-0 flex-1 bg-ij-editor ${bare ? '' : 'border-t border-ij-seam'}`}>
         {active ? (
           <motion.div
             key={active.id}

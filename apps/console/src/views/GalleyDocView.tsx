@@ -22,6 +22,9 @@ type Mode = 'read' | 'edit';
 
 export function GalleyDocView({ set, host }: ViewRenderProps) {
   const doc = set.objects[0];
+  const readOnlyReason = typeof doc?.properties.read_only_reason === 'string'
+    ? doc.properties.read_only_reason
+    : null;
   const [mode, setMode] = useState<Mode>('read');
   const [text, setText] = useState<string>(() =>
     typeof doc?.properties.markdown === 'string' ? doc.properties.markdown : '',
@@ -144,6 +147,7 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
   }
 
   const toggle = () => {
+    if (readOnlyReason) return;
     scrollPos.current = scrollRef.current?.scrollTop ?? 0;
     if (mode === 'edit' && editorRef.current) {
       const edited = editorRef.current.state.doc.toString();
@@ -161,12 +165,19 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
         <button
           type="button"
           onClick={toggle}
+          disabled={Boolean(readOnlyReason)}
+          title={readOnlyReason ?? undefined}
           aria-pressed={mode === 'edit'}
-          className="h-6 rounded-ij-arc px-3 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+          className="h-6 rounded-ij-arc px-3 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink disabled:text-ij-ink-disabled"
         >
-          {mode === 'edit' ? 'Done' : 'Edit'}
+          {readOnlyReason ? 'Read only' : mode === 'edit' ? 'Done' : 'Edit'}
         </button>
       </div>
+      {readOnlyReason ? (
+        <div role="note" className="border-b border-ij-seam px-3 py-1 text-ij-ink-info">
+          {readOnlyReason}
+        </div>
+      ) : null}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         {mode === 'read' ? (
           <div className="mx-auto max-w-prose px-8 py-10">

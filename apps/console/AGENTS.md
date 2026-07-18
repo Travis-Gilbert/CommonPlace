@@ -61,7 +61,9 @@ gap: add the row, with a named source, before writing code.
 | Search everywhere, palettes | `cmdk` | command list, filtering, keyboard nav |
 | Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
-| Thread, composer, messages | `@assistant-ui/react` 0.12 | message list, streaming, composer state |
+| Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
+| Composer mechanics | `@assistant-ui/react` 0.12 plus 21st.dev `reuno-ui/ai-input` extraction | auto-grow input, attachments, object mentions, mode slot, send behavior |
+| Composer sheen | 21st.dev `muhammad-binsalman/glowing-ai-chat-assistant` material extraction plus hand-roll canvas | register-derived angled low-chroma sheen behind the Composer |
 | Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
 | Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
@@ -70,6 +72,9 @@ gap: add the row, with a named source, before writing code.
 | Client state | `zustand` | run state, shell session state |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
 | Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
+| Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
+| Context graph | D3 | deterministic ego graph layout and relation geometry |
+| Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.

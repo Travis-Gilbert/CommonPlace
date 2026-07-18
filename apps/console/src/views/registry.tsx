@@ -15,9 +15,23 @@ import { DocListView, IndexRailView } from './DocListView';
 import { CardFullView, CardGridView } from './CardView';
 import { HunkReviewView } from './HunkReviewView';
 import { AppearanceView } from './AppearanceView';
+import { FilesView } from './FilesView';
+import { ContextView } from './ContextView';
 
-function ThreadRender(_props: ViewRenderProps) {
-  return <ThreadView />;
+function ThreadRender(props: ViewRenderProps) {
+  return <ThreadView host={props.host} density="compact" />;
+}
+
+function ChatSurfaceRender(props: ViewRenderProps) {
+  return <ThreadView host={props.host} density="full" />;
+}
+
+function FilesRender(props: ViewRenderProps) {
+  return <FilesView host={props.host} />;
+}
+
+function ContextRender(props: ViewRenderProps) {
+  return <ContextView host={props.host} />;
 }
 
 const RECORD_TABLE: ViewDescriptor = {
@@ -78,6 +92,51 @@ const CHAT_THREAD: ViewDescriptor = {
     regime: 'css-vars',
   },
   render: ThreadRender,
+};
+
+const CHAT_SURFACE: ViewDescriptor = {
+  id: 'chat.surface',
+  name: 'Chat',
+  accepts: {},
+  emits: ['run_agent', 'open'],
+  renderer: 'chat.surface',
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: ChatSurfaceRender,
+};
+
+const FILES_TREE: ViewDescriptor = {
+  id: 'files.tree',
+  name: 'Files',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'files.tree',
+  source: {
+    package: '@tanstack/react-virtual',
+    component: 'useVirtualizer',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: FilesRender,
+};
+
+const CONTEXT_GRAPH: ViewDescriptor = {
+  id: 'context.graph',
+  name: 'Context',
+  accepts: {},
+  emits: ['select', 'open'],
+  renderer: 'context.graph',
+  source: {
+    package: 'd3',
+    component: 'scalePoint',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: ContextRender,
 };
 
 const DOC_LIST: ViewDescriptor = {
@@ -180,6 +239,9 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   MARKDOWN_DOC,
   CODE_FILE,
   CHAT_THREAD,
+  CHAT_SURFACE,
+  FILES_TREE,
+  CONTEXT_GRAPH,
   DOC_LIST,
   INDEX_RAIL,
   CARD_FULL,

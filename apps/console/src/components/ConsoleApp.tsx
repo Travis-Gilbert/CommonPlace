@@ -9,6 +9,9 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
   AssistantRuntimeProvider,
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
   useExternalStoreRuntime,
   type AppendMessage,
   type ThreadMessageLike,
@@ -21,6 +24,11 @@ import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { GroundCanvas } from '@/components/ground/GroundCanvas';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
+
+const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
+  new SimpleImageAttachmentAdapter(),
+  new SimpleTextAttachmentAdapter(),
+]);
 
 function convertMessage(message: ThreadMessage): ThreadMessageLike {
   return {
@@ -62,6 +70,7 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
       await send(text);
     },
     onCancel: async () => cancel(),
+    adapters: { attachments: ATTACHMENT_ADAPTER },
   });
 
   return (

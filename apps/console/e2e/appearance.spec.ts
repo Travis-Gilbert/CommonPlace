@@ -34,7 +34,7 @@ test.describe('appearance surface', () => {
     await settled(page);
   });
 
-  test('persists a preset and exposes the same action through the omnibar', async ({ page }) => {
+  test('persists a preset and exposes the same action through Search', async ({ page }) => {
     await openAppearance(page);
     await selectPreset(page, 'intellij-light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -43,9 +43,9 @@ test.describe('appearance surface', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme-preset', 'intellij-light');
     await expect(page.locator('[data-appearance-view]')).toBeVisible();
 
-    await page.keyboard.press('Control+l');
-    const input = page.locator('[data-omnibar-island] input');
-    await input.fill('>Set theme: GitHub Dark');
+    await page.keyboard.press('Control+k');
+    const input = page.locator('[data-search-panel] input');
+    await input.fill('Set theme: GitHub Dark');
     await page.getByText('Set theme: GitHub Dark', { exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme-preset', 'github-dark');
   });
@@ -86,11 +86,8 @@ test.describe('appearance surface', () => {
     await expect(page.locator('[data-run-widget]')).toHaveCSS('height', '28px');
     await expect(page.locator('[data-run-widget] svg')).toHaveCSS('color', 'rgb(108, 112, 126)');
     await expect(page.locator('html')).toHaveCSS('font-size', '13px');
-    await page.keyboard.press('Alt+1');
-    await expect(page.locator('nav button[aria-label="Records tool window"] svg')).toHaveCSS(
-      'color',
-      'rgb(108, 112, 126)',
-    );
+    await page.keyboard.press('Alt+Shift+1');
+    await expect(page.locator('[data-companion-nav="files"]')).toHaveCSS('background-color', 'rgb(53, 116, 240)');
   });
 
   test('derived controls paint live and disclose a contrast clamp quietly', async ({ page }) => {
@@ -100,7 +97,7 @@ test.describe('appearance surface', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme-derived', 'true');
     const stored = await page.evaluate((key) => localStorage.getItem(key), APPEARANCE_KEY);
     expect(stored).toContain('"tintHue":275');
-    await expect(page.locator('[data-icon-domain="memory"]')).toHaveCSS('color', 'rgb(95, 173, 101)');
+    await expect(page.locator('[data-icon-domain="memory"]').first()).toHaveCSS('color', 'rgb(95, 173, 101)');
 
     await page.evaluate((key) => {
       const raw = localStorage.getItem(key);

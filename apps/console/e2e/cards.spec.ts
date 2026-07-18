@@ -34,18 +34,18 @@ test.describe('cards, actions, mentions', () => {
   test('the surface rail is the primary nav: far-left, switches screens', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
     await expect(rail).toBeVisible();
-    // Every seeded surface has a rail entry; the active one marks aria-current.
+    // The exact five primary surfaces form an APG radio group.
     await expect(rail.locator('[data-surface-nav]')).toHaveCount(5);
-    await expect(rail.locator('[data-surface-nav="console-workspace"]')).toHaveAttribute(
-      'aria-current',
-      'page',
+    await expect(rail.locator('[data-surface-nav="console-chat"]')).toHaveAttribute(
+      'aria-checked',
+      'true',
     );
     // Clicking a rail entry switches the surface without the toolbar dropdown.
     await rail.locator('[data-surface-nav="console-cards"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-cards');
     await expect(rail.locator('[data-surface-nav="console-cards"]')).toHaveAttribute(
-      'aria-current',
-      'page',
+      'aria-checked',
+      'true',
     );
   });
 
@@ -119,7 +119,7 @@ test.describe('cards, actions, mentions', () => {
     });
     await page.reload();
     await settled(page);
-    await expect(page.locator('[data-cards-grid]')).toBeVisible();
+    await expect(page.locator('[data-cards-grid]')).toBeVisible({ timeout: 15000 });
     const rendered = await page.locator('[data-card-cell]').count();
     expect(rendered).toBeGreaterThan(0);
     expect(rendered).toBeLessThan(400);

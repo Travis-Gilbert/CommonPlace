@@ -6,6 +6,10 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60000,
   retries: 0,
+  // The deterministic upstream fixture is mutable and serves multi-megabyte
+  // memory projections. Serial workers keep behavioral and visual gates from
+  // racing the same tenant state or starving the changefeed handshake.
+  workers: 1,
   use: {
     colorScheme: 'dark',
     baseURL: 'http://localhost:3010',
@@ -37,6 +41,10 @@ export default defineConfig({
       env: {
         CONSOLE_DATA_API_URL: 'http://localhost:50591',
         CONSOLE_DATA_API_KEY: 'dev-key',
+        CONSOLE_HARNESS_TENANT: 'Travis-Gilbert',
+        THEOREM_GRAPHQL_URL: 'http://localhost:50591/graphql',
+        THEOREM_ITEM_CHANGEFEED_URL: 'http://localhost:50591/v1/items/stream',
+        THEOREM_API_KEY: 'dev-key',
         // The composer must be live for the /do entry (K3); the sheet's
         // interception happens before any network send.
         NEXT_PUBLIC_CONSOLE_CHAT_URL: '/api/chat/stream',

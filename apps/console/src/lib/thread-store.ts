@@ -21,6 +21,13 @@ export interface ThreadMessage {
   parts: ThreadTextPart[];
 }
 
+export interface AgentPlanStep {
+  readonly id: string;
+  readonly label: string;
+  readonly tool?: string;
+  readonly status: 'pending' | 'running' | 'complete' | 'refused';
+}
+
 /** An object reference staged into the thread by the action sheet's With-me
  *  path (HANDOFF-CARDS-ACTIONS-MENTIONS K4): visible above the composer,
  *  travels with the next message, removable until sent. */
@@ -36,6 +43,7 @@ export interface ThreadState {
   error: string | null;
   abort: AbortController | null;
   endpoint: string | null;
+  plan: AgentPlanStep[];
   staged: StagedThreadRef[];
   stage(refs: readonly StagedThreadRef[]): void;
   unstage(id: string): void;
@@ -63,12 +71,56 @@ function textOf(data: string): string {
   }
 }
 
+function planOf(data: string): AgentPlanStep[] | null {
+  try {
+    const parsed = JSON.parse(data) as {
+      plan?: { steps?: unknown[] };
+      steps?: unknown[];
+      id?: string;
+      label?: string;
+      title?: string;
+      tool?: string;
+      status?: string;
+    };
+    const source = parsed.plan?.steps ?? parsed.steps;
+    if (Array.isArray(source)) {
+      return source.map((value, index) => {
+        const step = value as { id?: string; label?: string; title?: string; tool?: string; status?: string };
+        const status = step.status === 'running' || step.status === 'complete' || step.status === 'refused'
+          ? step.status
+          : 'pending';
+        return {
+          id: step.id ?? `plan-${index}`,
+          label: step.label ?? step.title ?? `Step ${index + 1}`,
+          tool: step.tool,
+          status,
+        };
+      });
+    }
+    if (parsed.label || parsed.title || parsed.tool) {
+      const status = parsed.status === 'running' || parsed.status === 'complete' || parsed.status === 'refused'
+        ? parsed.status
+        : 'pending';
+      return [{
+        id: parsed.id ?? `plan-${Date.now()}`,
+        label: parsed.label ?? parsed.title ?? parsed.tool ?? 'Agent step',
+        tool: parsed.tool,
+        status,
+      }];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export const useThreadStore = create<ThreadState>((set, get) => ({
   messages: [],
   isRunning: false,
   error: null,
   abort: null,
   endpoint: chatEndpoint(),
+  plan: [],
   staged: [],
 
   stage(refs) {
@@ -101,6 +153,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       isRunning: true,
       error: null,
       abort,
+      plan: [],
     }));
 
     // Text deltas buffer in a local accumulator and flush once per animation
@@ -143,6 +196,11 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
           const name = event.event ?? 'message';
           if (name === 'error') {
             set({ error: textOf(event.data) || 'stream error' });
+            return;
+          }
+          if (name.includes('plan') || name.includes('tool')) {
+            const plan = planOf(event.data);
+            if (plan) set({ plan });
             return;
           }
           if (name.includes('delta') || name === 'message' || name === 'text') {

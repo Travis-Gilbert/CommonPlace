@@ -40,6 +40,7 @@
     "@tanstack/react-virtual": "^3.13.12",
     "@travis-gilbert/markdown-theory": "^0.1.2",
     "cmdk": "^1.1.1",
+    "d3": "^7.9.0",
     "eventsource-parser": "^3.0.0",
     "motion": "^12.35.0",
     "next": "^16.1.6",
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/d3": "^7.4.3",
     "@types/node": "^22.13.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

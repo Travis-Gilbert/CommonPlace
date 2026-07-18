@@ -4,16 +4,14 @@
 // chrome signature; no library models it. Screen navigation lives in the
 // leftmost stripe (the stripe surfaces group), not a toolbar dropdown; the
 // toolbar shows the product name and the active screen as a quiet breadcrumb.
-// The toolbar center hosts the omnibar's collapsed field (R1); while a run
-// streams, the field gives way to the quiet streaming chip carrying the mark
-// at chip scale. The run widget binds to real run state and renders its empty
-// state otherwise, never a fixture run.
+// The toolbar center hosts the durable Search field. The run widget binds to
+// real run state and renders its empty state otherwise, never a fixture run.
 
+import { useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
-import { useShellStore } from '@/lib/shell-store';
 import { useThreadStore } from '@/lib/thread-store';
-import { OmnibarField } from './Omnibar';
-import { IconRun, IconSearch, IconStop } from './icons';
+import { SearchField } from './SearchField';
+import { IconChevronDown, IconRun, IconStop } from './icons';
 
 interface MainToolbarProps {
   readonly host: BlockHost;
@@ -21,29 +19,65 @@ interface MainToolbarProps {
   readonly activeSurfaceId: string;
 }
 
-export function MainToolbar({ surfaces, activeSurfaceId }: MainToolbarProps) {
+export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProps) {
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const isRunning = useThreadStore((state) => state.isRunning);
   const cancel = useThreadStore((state) => state.cancel);
-  const openOmnibar = useShellStore((state) => state.openOmnibar);
   const activeName = String(
-    surfaces.find((surface) => surface.id === activeSurfaceId)?.properties.name ?? 'Workspace',
+    surfaces.find((surface) => surface.id === activeSurfaceId)?.properties.name ?? 'Chat',
   );
+  const switchTo = (surfaceId: string) => {
+    for (const surface of surfaces) {
+      void host.emit({ kind: 'update', id: surface.id, patch: { active: surface.id === surfaceId } });
+    }
+    setLayoutOpen(false);
+  };
 
   return (
     <header className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2">
       <span className="px-2 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
         CommonPlace
       </span>
-      <span aria-hidden className="text-ij-ink-disabled">
-        /
-      </span>
-      <span data-active-surface-name className="text-ij-ink-info">
-        {activeName}
-      </span>
+      <div className="relative">
+        <button
+          type="button"
+          data-layout-switcher
+          aria-haspopup="menu"
+          aria-expanded={layoutOpen}
+          onClick={() => setLayoutOpen((value) => !value)}
+          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+          style={{ transition: 'var(--rec-clickable-transition)' }}
+        >
+          <span data-active-surface-name>{activeName}</span>
+          <IconChevronDown size={13} />
+        </button>
+        {layoutOpen ? (
+          <div
+            role="menu"
+            aria-label="Layouts"
+            className="absolute left-0 top-full z-40 mt-1 min-w-48 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
+          >
+            {surfaces.map((surface) => (
+              <button
+                key={surface.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={surface.id === activeSurfaceId}
+                data-layout-option={surface.id}
+                onClick={() => switchTo(surface.id)}
+                className="flex h-ij-row w-full items-center rounded-ij-arc-underline px-2 text-left text-ij-ink hover:bg-ij-hover-surface"
+                style={{ transition: 'var(--rec-clickable-transition)' }}
+              >
+                {String(surface.properties.name ?? surface.id)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       <div className="mx-2 min-w-0 flex-1">
         <div className="mx-auto max-w-144">
-          <OmnibarField />
+          <SearchField />
         </div>
       </div>
 
@@ -64,15 +98,6 @@ export function MainToolbar({ surfaces, activeSurfaceId }: MainToolbarProps) {
         >
           {isRunning ? <IconStop size={14} /> : <IconRun size={14} />}
           {isRunning ? 'Running' : 'Run'}
-        </button>
-        <button
-          type="button"
-          aria-label="Search everywhere (double Shift)"
-          onClick={() => openOmnibar('search')}
-          className="flex h-ij-control w-ij-control items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-          style={{ width: 'var(--ij-control-h)', transition: 'var(--rec-clickable-transition)' }}
-        >
-          <IconSearch size={15} />
         </button>
       </div>
     </header>

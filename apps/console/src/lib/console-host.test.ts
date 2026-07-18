@@ -29,43 +29,62 @@ describe('ConsoleBlockHost', () => {
     const root = buildSurfaceTree(SURFACE_ID, set.objects);
     expect(root).not.toBeNull();
     expect(root!.children.map((child) => child.object.id)).toEqual([
-      'region-left',
-      'region-editor',
-      'region-right',
+      'chat.region-editor',
+      'chat.region-files',
+      'chat.region-context',
+      'chat.region-thread',
     ]);
-    const editor = root!.children.find((child) => child.object.id === 'region-editor')!;
-    expect(editor.children.map((node) => node.object.id)).toEqual(['vi-brief', 'vi-code']);
+    const editor = root!.children.find((child) => child.object.id === 'chat.region-editor')!;
+    expect(editor.children.map((node) => node.object.id)).toEqual(['chat.vi-surface']);
   });
 
-  it('seeds all four named surfaces with their own regions (R3)', () => {
+  it('seeds the exact primary IA order and role-bearing companions', () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = host.queryLayout(surfaceQuery());
     const surfaces = set.objects.filter((object) => object.type === 'surface');
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
       'console-appearance',
       'console-cards',
+      'console-chat',
       'console-docs',
       'console-index',
       'console-review',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
+    expect(surfaces
+      .filter((surface) => typeof surface.properties.stripe_order === 'number')
+      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
+      .map((surface) => surface.properties.name)).toEqual([
+        'Chat', 'Workspace', 'Index', 'Documents', 'Cards',
+      ]);
+    const workspace = buildSurfaceTree('console-workspace', set.objects);
+    expect(workspace!.children.map((child) => child.object.id)).toEqual([
+      'region-editor',
+      'workspace.region-files',
+      'workspace.region-context',
+      'workspace.region-thread',
+    ]);
+    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
     const index = buildSurfaceTree('console-index', set.objects);
     expect(index!.children.map((child) => child.object.id)).toEqual([
       'index.region-rail',
       'index.region-editor',
+      'index.region-files',
+      'index.region-context',
+      'index.region-thread',
     ]);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
-    const receipt = await host.emit({ kind: 'move', id: 'vi-code', new_parent: 'region-left', order: 0 });
+    const receipt = await host.emit({ kind: 'move', id: 'vi-code', new_parent: 'workspace.region-files', order: 0 });
     expect(receipt.ok).toBe(true);
     expect(receipt.value?.status).toBe('applied');
     const set = host.queryLayout(surfaceQuery());
-    const left = set.objects.find((object) => object.id === 'region-left')!;
+    const left = set.objects.find((object) => object.id === 'workspace.region-files')!;
     const editor = set.objects.find((object) => object.id === 'region-editor')!;
-    expect(left.relations?.[CONTAINS_EDGE]).toEqual(['vi-code', 'vi-records']);
+    expect(left.relations?.[CONTAINS_EDGE]).toEqual(['vi-code', 'workspace.region-files.view']);
     expect(editor.relations?.[CONTAINS_EDGE]).toEqual(['vi-brief']);
   });
 
@@ -76,7 +95,7 @@ describe('ConsoleBlockHost', () => {
     const unsubscribe = set.subscribe(() => {
       notified += 1;
     });
-    await host.emit({ kind: 'update', id: 'region-left', patch: { size: 30 } });
+    await host.emit({ kind: 'update', id: 'workspace.region-files', patch: { size: 30 } });
     expect(notified).toBe(1);
     unsubscribe();
   });
@@ -117,6 +136,25 @@ describe('ConsoleBlockHost', () => {
     expect(receipt.ok).toBe(true);
     expect(notified).toBe(1);
     unsubscribe();
+  });
+
+  it('preserves mixed object types when documents share a search query', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { types?: string[] };
+      return new Response(JSON.stringify({
+        objects: [{ id: 'person-ada', type: 'person', properties: { title: 'Ada Lovelace' } }],
+        shape: { types: body.types ?? [], fields: ['title'], relations: [], axes: {}, cardinality: 'one' },
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const result = await Promise.resolve(host.query({
+      types: ['record', 'person', 'doc'],
+      where: { kind: 'contains', field: 'title', value: 'Ada' },
+    }));
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body ?? '{}')) as { types?: string[] };
+    expect(request.types).toEqual(['record', 'person', 'doc']);
+    expect(result.objects[0]?.id).toBe('person-ada');
   });
 
   it('routes typed Hunk queries and named executor actions through the object seam', async () => {

@@ -9,9 +9,9 @@ async function openReview(page: Page) {
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  // Screen navigation is the leftmost stripe's surfaces group (the toolbar
-  // dropdown was replaced by the stripe surfaces group).
-  await page.locator('[data-surface-nav="console-review"]').click();
+  // Review stays a secondary layout in the toolbar switcher and Command mode.
+  await page.locator('[data-layout-switcher]').click();
+  await page.locator('[data-layout-option="console-review"]').click();
   await expect(page.locator('[data-active-surface="console-review"]')).toBeVisible();
   await expect(page.getByTestId('hunk-review')).toBeVisible();
 }
@@ -43,8 +43,7 @@ test.describe('Greenfield Hunk review', () => {
     await page.keyboard.press('r');
     await expect(page.getByRole('listitem').nth(1).locator('[data-action-status="accepted"]')).toBeVisible();
 
-    await page.keyboard.press('Control+l');
-    await page.getByRole('button', { name: 'Command' }).click();
+    await page.keyboard.press('Control+k');
     await expect(page.getByText('Hunk: accept active')).toBeVisible();
     await expect(page.getByText('Hunk: verify active')).toBeVisible();
   });

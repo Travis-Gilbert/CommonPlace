@@ -13,6 +13,12 @@
 @import './gy-bridge.css';
 @import '../motion/motion.css';
 
+.composer-input {
+  field-sizing: content;
+  min-height: var(--ij-composer-min-h);
+  max-height: var(--ij-composer-max-h);
+}
+
 html,
 body {
   height: 100%;

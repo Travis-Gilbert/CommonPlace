@@ -108,6 +108,8 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
+  --ij-composer-min-h: 48px;
+  --ij-composer-max-h: 164px;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);

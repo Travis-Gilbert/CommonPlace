@@ -24,6 +24,7 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-seed';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
+import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const STORAGE_KEY = 'commonplace.console.surface.v1';
@@ -172,14 +173,16 @@ export class ConsoleBlockHost implements BlockHost {
         restored = null;
       }
     }
-    const objects = restored ?? seedLayout();
+    const seed = seedLayout();
+    const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
+    const objects = needsIaMigration ? seed : (restored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
-    if (restored) {
+    if (restored && !needsIaMigration) {
       let added = false;
-      for (const seeded of seedLayout()) {
+      for (const seeded of seed) {
         if (!this.layout.has(seeded.id)) {
           this.layout.set(seeded.id, toMutable(seeded));
           added = true;
@@ -217,6 +220,7 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
+    if (query.types.includes('memory')) return this.memorySet(query);
     // The live wire is the default (R2.1): records, hunks, and every domain
     // kind the seam serves (person, task, mention-candidate, ...) round-trip
     // through the data API proxy. Documents and code files ride the live wire
@@ -232,12 +236,18 @@ export class ConsoleBlockHost implements BlockHost {
     // Console-local kinds never touch the wire: 'thread' (its pane renders its
     // own chat SSE) and card templates (K1, console-authored seeds).
     const consoleLocal =
-      query.types.includes('thread') || query.types.includes(CARD_TEMPLATE_TYPE);
+      query.types.includes('thread') ||
+      query.types.includes('files-view') ||
+      query.types.includes('context-view') ||
+      query.types.includes('surface-tool') ||
+      query.types.includes(CARD_TEMPLATE_TYPE);
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
       // task, project, org, mention-candidate, hunk, ...) filters API-side.
-      if (isDoc || isCode) return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
+      if (query.types.length === 1 && (isDoc || isCode)) {
+        return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
+      }
       return this.http.query(query);
     }
     const pool = isRecord
@@ -282,6 +292,26 @@ export class ConsoleBlockHost implements BlockHost {
         this.domainSubs.add(listener);
         return () => this.domainSubs.delete(listener);
       },
+    };
+  }
+
+  private memorySet(query: ObjectQuery): ObjectSet {
+    let objects = memoryObjects().filter((object) => matchesPredicate(object, query.where));
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      objects = objects.slice(offset, offset + query.page.limit);
+    }
+    const shape: ObjectShape = {
+      types: ['memory'],
+      fields: ['object_id', 'title', 'markdown', 'projection_path', 'source', 'updated', 'read_only_reason'],
+      relations: [],
+      axes: {},
+      cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+    };
+    return {
+      objects,
+      shape,
+      subscribe: (callback) => useMemoryProjectionStore.subscribe(() => callback(this.memorySet(query))),
     };
   }
 
