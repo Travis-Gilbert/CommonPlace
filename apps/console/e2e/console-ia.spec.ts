@@ -125,6 +125,8 @@ test.describe('Console information architecture', () => {
     await page.locator('[data-composer-input]').press('Enter');
     await expect(page.locator('[data-agent-plan]')).toBeVisible();
     await expect(page.locator('[data-agent-plan]')).toContainText('objects.query');
+    await expect(page.locator('[data-speaker="human"]').first()).toHaveCSS('font-family', /Vollkorn/i);
+    await expect(page.locator('[data-speaker="agent"]').first()).toHaveCSS('font-family', /IBM Plex Sans/i);
     await expect(page).toHaveScreenshot('chat-plan.png', { fullPage: true });
   });
 

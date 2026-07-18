@@ -15,9 +15,10 @@
  * that more is still streaming without a second code path.
  */
 import React, { type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
+import { PressableSurface } from '@/components/PressableSurface';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import type { ViewState } from '@/lib/viewState';
 import { useWaitTier } from '@/lib/waitTier';
@@ -78,22 +79,17 @@ export function ViewStateView<T>({
       <View style={styles.centered} accessibilityRole="alert">
         <AppText variant="sub">{state.message}</AppText>
         {state.retry ? (
-          <Pressable
+          <PressableSurface
             onPress={state.retry}
             accessibilityRole="button"
             accessibilityLabel="Try again"
-            style={({ pressed }) => [
-              styles.retry,
-              {
-                backgroundColor: pressed ? t.c.primaryPressed : t.c.primary,
-                borderCurve: 'continuous',
-              },
-            ]}
+            style={[styles.retry, { backgroundColor: t.c.primary, borderCurve: 'continuous' }]}
+            pressedStyle={{ backgroundColor: t.c.primaryPressed }}
           >
             <AppText variant="caption" tone="onPrimary">
               Try again
             </AppText>
-          </Pressable>
+          </PressableSurface>
         ) : null}
       </View>
     );

@@ -35,7 +35,7 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root>
       <MessageShell>
-        <div className="ml-8 rounded-ij-arc bg-ij-raised px-3 py-2 text-ij-ink">
+        <div data-speaker="human" className="ml-8 rounded-ij-arc bg-ij-raised px-3 py-2 font-cp-human text-cp-human">
           <MessagePrimitive.Parts />
         </div>
       </MessageShell>
@@ -51,7 +51,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
       <MessageShell>
-        <div className="mr-8 px-1 text-ij-ink">
+        <div data-speaker="agent" className="mr-8 px-1 font-cp-agent text-cp-agent">
           <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
         </div>
       </MessageShell>

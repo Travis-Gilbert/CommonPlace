@@ -23,8 +23,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.12.25",
-    "@assistant-ui/react-markdown": "^0.12.9",
+    "@assistant-ui/react": "0.12.28",
+    "@assistant-ui/react-markdown": "0.12.11",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",
@@ -44,8 +44,8 @@
     "eventsource-parser": "^3.0.0",
     "motion": "^12.35.0",
     "next": "^16.1.6",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-resizable-panels": "^3.0.6",
     "tailwindcss": "^4.1.18",
     "textmode.js": "^0.17.0",

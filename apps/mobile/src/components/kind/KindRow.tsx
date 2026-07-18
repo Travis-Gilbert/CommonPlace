@@ -5,9 +5,10 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
+import { PressableSurface } from '@/components/PressableSurface';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const KIND_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -49,17 +50,14 @@ export function KindRow({
   const icon = KIND_ICON[kind] ?? 'ellipse-outline';
   const kindColor = t.kindColors[kind] ?? t.c.textFaint;
   return (
-    <Pressable
+    <PressableSurface
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [
+      style={[
         styles.row,
-        {
-          backgroundColor: pressed ? t.c.muted : t.c.surface,
-          borderBottomColor: t.c.border,
-          minHeight: t.layout.touchTargetMin + 12,
-        },
+        { backgroundColor: t.c.surface, borderBottomColor: t.c.border, minHeight: t.layout.touchTargetMin + 12 },
       ]}
+      pressedStyle={{ backgroundColor: t.c.muted }}
     >
       <View style={[styles.iconWrap, { backgroundColor: t.c.muted, borderCurve: 'continuous' }]}>
         <Ionicons name={icon} size={17} color={kindColor} />
@@ -108,7 +106,7 @@ export function KindRow({
           </AppText>
         ) : null}
       </View>
-    </Pressable>
+    </PressableSurface>
   );
 }
 

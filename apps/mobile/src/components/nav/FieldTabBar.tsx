@@ -1,36 +1,33 @@
 /**
- * The bottom row: tab pill (Index, Chat, Commonplaces, Data) left, detached
- * 56pt capture FAB right in the thumb zone (Linear/Plane anatomy). iOS pill is
- * expo-blur; Android falls back to an 85% surface tint. No badges, ever.
+ * Native phone hierarchy: Home, Chat, Capture, Triage. Capture occupies the
+ * thumb-zone emphasis inside the tab row. No desktop stripes and no badges.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/AppText';
-import { useOmnibar } from '@/components/omnibar/OmnibarContext';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const TAB_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  index: 'list-outline',
+  index: 'home-outline',
   chat: 'chatbubble-outline',
-  commonplaces: 'people-outline',
-  data: 'albums-outline',
+  capture: 'add-circle-outline',
+  triage: 'layers-outline',
 };
 const TAB_ICON_ACTIVE: Record<string, keyof typeof Ionicons.glyphMap> = {
-  index: 'list',
+  index: 'home',
   chat: 'chatbubble',
-  commonplaces: 'people',
-  data: 'albums',
+  capture: 'add-circle',
+  triage: 'layers',
 };
 const TAB_LABEL: Record<string, string> = {
-  index: 'Index',
+  index: 'Home',
   chat: 'Chat',
-  commonplaces: 'Commonplaces',
-  data: 'Data',
+  capture: 'Capture',
+  triage: 'Triage',
 };
 
 /* Structural subset of BottomTabBarProps: expo-router vendors its own
@@ -43,16 +40,16 @@ type TabBarProps = {
   };
 };
 
-export function TabBarWithFab({ state, navigation }: TabBarProps) {
+export function FieldTabBar({ state, navigation }: TabBarProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { open } = useOmnibar();
 
   const pillInner = (
     <View style={styles.pillInner}>
       {state.routes.map((route, i) => {
         const focused = state.index === i;
         const name = route.name;
+        const capture = name === 'capture';
         // Press-down activation (SPEC-UX-PHYSICS D5): a tab switch is idempotent, so
         // it fires on press-in for a crisp flip. onPress keeps assistive-tech
         // activation working; navigating to the same route is a no-op, so the two
@@ -69,14 +66,18 @@ export function TabBarWithFab({ state, navigation }: TabBarProps) {
             accessibilityLabel={TAB_LABEL[name] ?? name}
             onPressIn={activate}
             onPress={activate}
-            style={styles.tab}
+            style={[
+              styles.tab,
+              capture && styles.captureTab,
+              capture && { backgroundColor: focused ? t.c.primary : t.c.primaryWash },
+            ]}
           >
             <Ionicons
               name={focused ? (TAB_ICON_ACTIVE[name] ?? 'ellipse') : (TAB_ICON[name] ?? 'ellipse-outline')}
               size={22}
-              color={focused ? t.c.primary : t.c.textMuted}
+              color={capture ? (focused ? t.c.onPrimary : t.c.primary) : focused ? t.c.primary : t.c.textMuted}
             />
-            <AppText variant="micro" style={{ color: focused ? t.c.primary : t.c.textMuted }} numberOfLines={1}>
+            <AppText variant="micro" style={{ color: capture ? (focused ? t.c.onPrimary : t.c.primary) : focused ? t.c.primary : t.c.textMuted }} numberOfLines={1}>
               {TAB_LABEL[name] ?? name}
             </AppText>
           </Pressable>
@@ -111,32 +112,6 @@ export function TabBarWithFab({ state, navigation }: TabBarProps) {
           pillInner
         )}
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Capture"
-        accessibilityHint="Opens the omnibar. Long press to capture by voice."
-        onPress={() => {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          open();
-        }}
-        onLongPress={() => {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          open({ voice: true });
-        }}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            width: t.layout.fabSize,
-            height: t.layout.fabSize,
-            borderRadius: t.layout.fabSize / 2,
-            backgroundColor: pressed ? t.c.primaryPressed : t.c.primary,
-            borderCurve: 'continuous',
-            boxShadow: t.contactShadow || undefined,
-          },
-        ]}
-      >
-        <Ionicons name="add" size={28} color={t.c.onPrimary} />
-      </Pressable>
     </View>
   );
 }
@@ -149,7 +124,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingHorizontal: 16,
   },
   pill: {
@@ -161,5 +135,5 @@ const styles = StyleSheet.create({
   pillBlur: { borderRadius: 999 },
   pillInner: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, height: '100%' },
-  fab: { alignItems: 'center', justifyContent: 'center' },
+  captureTab: { margin: 5, borderRadius: 18 },
 });

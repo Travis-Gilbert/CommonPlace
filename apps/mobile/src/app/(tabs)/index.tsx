@@ -1,321 +1,171 @@
-/**
- * Mobile Index: the three bands (What landed / What is open / What today holds)
- * as the home tab. One column, virtualized, porcelain. No counts, no badges;
- * the only warm red is the needs-you card and pending approvals. Unsynced
- * captures are never invisible: the On-this-phone group sits on top until the
- * queue drains. Search is a pull-down (header sits above the fold).
- */
 import { Ionicons } from '@expo/vector-icons';
-import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Alert, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
-import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { editItem, fetchBriefing, fetchItems, fetchOrganize, searchItems } from '@/api/queries';
-import type { ItemGql } from '@/api/types';
-import { drainQueue, listPending, subscribeQueue, type CaptureRow } from '@/capture/queue';
+import { fetchAgencyProposals } from '@/api/agency';
+import { listRooms } from '@/api/harness';
+import { readInstanceSettings, type InstanceSettings } from '@/api/instance';
+import { fetchBriefing, fetchOrganize } from '@/api/queries';
 import { AppText } from '@/components/AppText';
-import { KindRow, type KindRowData } from '@/components/kind/KindRow';
+import { ProposalCard } from '@/components/agency/ProposalCard';
+import { useOmnibar } from '@/components/omnibar/OmnibarContext';
 import { useTheme } from '@/theme/ThemeProvider';
 
-type Row =
-  | { type: 'pending'; row: CaptureRow }
-  | { type: 'needs-you'; item: { id: string; kind: string; title: string; preview: string; label?: string | null } }
-  | { type: 'item'; item: ItemGql };
-
-type ListRow = { type: 'header'; id: string; title: string } | Row;
-
-function usePendingCaptures(): CaptureRow[] {
-  return useSyncExternalStore(subscribeQueue, listPending, listPending);
-}
-
-function startOfToday(): number {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-export default function IndexScreen() {
+export default function HomeScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const qc = useQueryClient();
-  const pending = usePendingCaptures();
-  const [search, setSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<ItemGql[] | null>(null);
-  // Optimistic overlay for swipe actions (D3.2): an acted row leaves the feed in
-  // the same frame; on a failed sync it rolls back into place with a reason.
-  const [actedIds, setActedIds] = useState<Set<string>>(new Set());
-
-  const organize = useQuery({ queryKey: ['organize'], queryFn: () => fetchOrganize('day') });
-  const briefing = useQuery({ queryKey: ['briefing'], queryFn: fetchBriefing });
-  const items = useQuery({ queryKey: ['items'], queryFn: () => fetchItems() });
+  const { open: openCapture } = useOmnibar();
+  const [settings, setSettings] = useState<InstanceSettings | null>(null);
 
   useEffect(() => {
-    if (!search.trim()) {
-      setSearchResults(null);
-      return;
-    }
-    const h = setTimeout(() => {
-      searchItems(search.trim(), 20)
-        .then((hits) => setSearchResults(hits.map((h) => h.item)))
-        .catch(() => setSearchResults([]));
-    }, 250);
-    return () => clearTimeout(h);
-  }, [search]);
+    readInstanceSettings().then(setSettings);
+  }, []);
 
-  const sections = useMemo(() => {
-    if (searchResults) {
-      return [{ title: 'Search', data: searchResults.map((item) => ({ type: 'item', item }) as Row) }];
-    }
-    const out: { title: string; data: Row[] }[] = [];
-    if (pending.length > 0) {
-      out.push({ title: 'On this phone', data: pending.map((row) => ({ type: 'pending', row }) as Row) });
-    }
-    const landed: Row[] = [];
-    const filed = organize.data?.organizedToday;
-    if (filed?.mostRecent) {
-      landed.push({
-        type: 'item',
-        item: {
-          id: filed.mostRecent.item.id,
-          kind: filed.mostRecent.item.kind,
-          title: filed.mostRecent.item.title,
-          bodyText: filed.mostRecent.item.preview,
-          residency: 'filed',
-          tags: filed.mostRecent.item.tags,
-          collections: [],
-          createdAtMs: 0,
-          updatedAtMs: 0,
-          classification: filed.mostRecent.item.classification.targetCollectionLabel,
-        } as ItemGql,
-      });
-    }
-    for (const it of briefing.data?.recent ?? []) landed.push({ type: 'item', item: it });
-    if (landed.length) out.push({ title: 'What landed', data: landed });
+  const briefing = useQuery({ queryKey: ['briefing'], queryFn: fetchBriefing, retry: 1 });
+  const organize = useQuery({ queryKey: ['organize'], queryFn: () => fetchOrganize('day'), retry: 1 });
+  const rooms = useQuery({ queryKey: ['rooms'], queryFn: listRooms, retry: 1, enabled: Boolean(settings?.harnessUrl), refetchInterval: 30_000 });
+  const proposals = useQuery({
+    queryKey: ['agency-proposals', settings?.tenant],
+    queryFn: () => fetchAgencyProposals(settings!.tenant!, 20),
+    enabled: Boolean(settings?.tenant),
+    retry: false,
+  });
 
-    const open: Row[] = [];
-    for (const n of organize.data?.needsYou ?? []) {
-      open.push({
-        type: 'needs-you',
-        item: {
-          id: n.id,
-          kind: n.kind,
-          title: n.title,
-          preview: n.preview,
-          label: n.classification.targetCollectionLabel,
-        },
-      });
-    }
-    for (const it of briefing.data?.openThreads ?? []) open.push({ type: 'item', item: it });
-    if (open.length) out.push({ title: 'What is open', data: open });
+  const recent = briefing.data?.recent ?? [];
+  const prepared = proposals.data ?? [];
+  const relief = [
+    { label: 'caught', value: organize.data?.organizedToday.totalCount ?? 0 },
+    { label: 'closed', value: organize.data?.dailyProgress.done ?? 0 },
+    { label: 'connected', value: briefing.data?.newlyConnected.length ?? 0 },
+  ];
 
-    const today0 = startOfToday();
-    const today1 = today0 + 86_400_000;
-    const todays = (items.data ?? []).filter((it) => {
-      const due = it.dueAtMs ?? 0;
-      const remind = it.remindAtMs ?? 0;
-      const isDone = /^(done|closed|complete|completed|cancelled|canceled)$/i.test(it.status ?? '');
-      return !isDone && ((due >= today0 && due < today1) || (remind >= today0 && remind < today1));
-    });
-    if (todays.length) out.push({ title: 'What today holds', data: todays.map((item) => ({ type: 'item', item }) as Row) });
-    return out;
-  }, [pending, organize.data, briefing.data, items.data, searchResults]);
+  return (
+    <View style={[styles.root, { backgroundColor: t.c.bg }]}>
+      <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top + 8, paddingBottom: t.layout.tabPillHeight + 56 }]}>
+        <View style={styles.header}>
+          <View>
+            <AppText variant="micro" tone="faint" style={{ fontFamily: t.speakerFonts.machine }}>FIELD ORGAN</AppText>
+            <AppText variant="display1">Home</AppText>
+          </View>
+          <Pressable onPress={() => router.push('/account')} accessibilityLabel="Account" style={[styles.iconButton, { backgroundColor: t.c.secondary }]}>
+            <Ionicons name="person-outline" size={18} color={t.c.textMuted} />
+          </Pressable>
+        </View>
 
-  const listData = useMemo<ListRow[]>(() => {
-    const out: ListRow[] = [];
-    for (const section of sections) {
-      const rows =
-        actedIds.size === 0
-          ? section.data
-          : section.data.filter((r) =>
-              r.type === 'item' || r.type === 'needs-you' ? !actedIds.has(r.item.id) : true,
-            );
-      if (rows.length === 0) continue; // an emptied section drops its header too
-      out.push({ type: 'header', id: `header:${section.title}`, title: section.title });
-      out.push(...rows);
-    }
-    return out;
-  }, [sections, actedIds]);
+        <Pressable
+          onPress={() => openCapture()}
+          style={styles.capturePressable}
+          android_ripple={{ color: t.c.primaryPressed }}
+        >
+          <View style={[styles.capture, { backgroundColor: t.c.primary }]}>
+            <View style={styles.captureCopy}>
+              <AppText variant="headline" tone="onPrimary">Capture what you encountered</AppText>
+              <AppText variant="caption" tone="onPrimary">Writes to this phone first, then files with provenance.</AppText>
+            </View>
+            <Ionicons name="add-circle-outline" size={30} color={t.c.onPrimary} />
+          </View>
+        </Pressable>
 
-  const refetchAll = () => {
-    void drainQueue();
-    void qc.invalidateQueries();
-  };
+        <View style={styles.lensRow}>
+          <Lens label="Decision" icon="git-compare-outline" onPress={() => router.push('/cognition/decision')} />
+          <Lens label="Consistency" icon="shield-checkmark-outline" onPress={() => router.push('/cognition/consistency')} />
+        </View>
 
-  async function act(item: ItemGql, action: 'done' | 'park') {
-    // The row leaves the feed immediately; the server call settles in the
-    // background. Success reconciles via invalidation, failure restores the row.
-    setActedIds((prev) => new Set(prev).add(item.id));
-    try {
-      if (action === 'done') await editItem({ id: item.id, status: 'done' });
-      else await editItem({ id: item.id, residency: 'parked' });
-      void qc.invalidateQueries();
-    } catch {
-      setActedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
-      Alert.alert('Could not save', `That ${action} did not go through. The item is back in your feed.`);
-    }
-  }
+        <Section title="Prepared for your decision" subtitle="Approvals are the hero. Chat remains available, but it is not the job hierarchy.">
+          {prepared.length ? prepared.slice(0, 5).map((proposal) => (
+            <Pressable key={proposal.id} onPress={() => router.push({ pathname: '/proposal/[id]', params: { id: proposal.id } })}>
+              <ProposalCard proposal={proposal} compact canApprove={false} />
+            </Pressable>
+          )) : (
+            <EmptyState
+              title={proposals.isError ? 'Agency proposals unavailable' : proposals.isLoading ? 'Checking prepared work' : 'Nothing needs your attention'}
+              detail={proposals.isError ? 'The live kernel projection is not available on this node. No approval affordance is shown.' : 'No grounded proposal is waiting. This silence is intentional.'}
+            />
+          )}
+        </Section>
 
-  const renderActions = (item: ItemGql) => (
-    <View style={styles.actions}>
-      <Pressable onPress={() => void act(item, 'done')} style={[styles.action, { backgroundColor: t.accents.green }]}>
-        <Ionicons name="checkmark" size={20} color="#fff" />
-        <AppText variant="micro" style={{ color: '#fff' }}>Done</AppText>
-      </Pressable>
-      <Pressable onPress={() => void act(item, 'park')} style={[styles.action, { backgroundColor: t.accents.steel }]}>
-        <Ionicons name="pause" size={20} color="#fff" />
-        <AppText variant="micro" style={{ color: '#fff' }}>Park</AppText>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push({ pathname: '/object/[id]', params: { id: item.id, refile: '1' } })}
-        style={[styles.action, { backgroundColor: t.c.primary }]}
-      >
-        <Ionicons name="folder-open-outline" size={20} color="#fff" />
-        <AppText variant="micro" style={{ color: '#fff' }}>Refile</AppText>
-      </Pressable>
+        <Section title="Relief ledger" subtitle="Evidence that the harness worked in your favor.">
+          <View style={styles.reliefRow}>
+            {relief.map((item) => (
+              <View key={item.label} style={[styles.relief, { backgroundColor: t.c.raised, borderColor: t.c.border }]}>
+                <AppText variant="display2" style={{ color: item.value ? t.speaker.memory : t.c.textFaint }}>{item.value}</AppText>
+                <AppText variant="micro" tone="faint" style={{ fontFamily: t.speakerFonts.machine }}>{item.label}</AppText>
+              </View>
+            ))}
+          </View>
+        </Section>
+
+        <Section title="Running work" subtitle="Quiet presence, not a dashboard.">
+          {(rooms.data ?? []).length ? (rooms.data ?? []).slice(0, 5).map((room) => (
+            <Pressable
+              key={room.room_id}
+              onPress={() => router.push({ pathname: '/room/[id]', params: { id: room.room_id } })}
+              style={[styles.row, { backgroundColor: t.c.surface, borderBottomColor: t.c.border }]}
+            >
+              <View style={[styles.presence, { backgroundColor: t.speaker.agent }]} />
+              <View style={styles.rowCopy}>
+                <AppText variant="sub" numberOfLines={1}>{room.room_id}</AppText>
+                {room.latest_message ? <AppText variant="caption" tone="muted" numberOfLines={1}>{room.latest_message}</AppText> : null}
+              </View>
+              <AppText variant="micro" tone="faint">{room.member_count ?? 0} active</AppText>
+            </Pressable>
+          )) : <EmptyState title={settings?.harnessUrl ? 'No work is running' : 'Rooms are not configured'} detail="Add a Harness node in Account to supervise delegated work here." />}
+        </Section>
+
+        <Section title="Ready to read" subtitle="Briefs and memory documents open at reading density.">
+          {recent.length ? recent.slice(0, 4).map((item) => (
+            <Pressable key={item.id} onPress={() => router.push({ pathname: '/reader/[id]', params: { id: item.id } })} style={styles.readRow}>
+              <Ionicons name="document-text-outline" size={18} color={t.speaker.memory} />
+              <View style={styles.rowCopy}>
+                <AppText variant="sub" numberOfLines={1}>{item.title}</AppText>
+                <AppText variant="caption" tone="muted" numberOfLines={1}>{item.bodyText ?? item.kind}</AppText>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={t.c.textFaint} />
+            </Pressable>
+          )) : <EmptyState title="No brief today" detail="Home invents nothing when the node has no prepared reading." />}
+        </Section>
+      </ScrollView>
     </View>
   );
 
-  const renderRow = ({ item: row }: { item: Row }) => {
-    if (row.type === 'pending') {
-      const receipt = row.row.receiptJson ? JSON.parse(row.row.receiptJson) : null;
-      const data: KindRowData = {
-        id: row.row.id,
-        kind: row.row.kindHint ?? (row.row.verb === 'ask' ? 'hunch' : 'note'),
-        title: row.row.title ?? row.row.text,
-        subtitle: row.row.verb === 'ask' ? 'Ask, waiting to send' : null,
-        stateChip:
-          row.row.state === 'syncing' ? 'Syncing' : row.row.state === 'error' ? 'Retry' : 'On this phone',
-        stateChipTone: 'pending',
-      };
-      return <KindRow data={data} onPress={() => void drainQueue()} />;
-    }
-    if (row.type === 'needs-you') {
-      // Human-facing: a needs-you card ("Needs your call"), never a category label.
-      return (
-        <KindRow
-          data={{
-            id: row.item.id,
-            kind: row.item.kind,
-            title: row.item.title,
-            subtitle: row.item.label ? `Suggested: ${row.item.label}` : row.item.preview,
-            stateChip: 'Needs your call',
-            stateChipTone: 'needs-you',
-          }}
-          onPress={() => router.push({ pathname: '/object/[id]', params: { id: row.item.id, refile: '1' } })}
-        />
-      );
-    }
-    const item = row.item;
-    const isDone = /^(done|closed|complete|completed)$/i.test(item.status ?? '');
+  function Lens({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
     return (
-      <ReanimatedSwipeable renderRightActions={() => renderActions(item)} overshootRight={false}>
-        <KindRow
-          data={{
-            id: item.id,
-            kind: item.kind,
-            title: item.title,
-            subtitle: item.classification ?? item.bodyText?.slice(0, 80) ?? null,
-            stateChip: item.collections.length ? undefined : null,
-            done: isDone,
-          }}
-          onPress={() => router.push({ pathname: '/object/[id]', params: { id: item.id } })}
-        />
-      </ReanimatedSwipeable>
+      <Pressable onPress={onPress} style={[styles.lens, { backgroundColor: t.c.surface, borderColor: t.c.border }]}>
+        <Ionicons name={icon} size={19} color={t.speaker.agent} />
+        <AppText variant="caption" style={{ fontFamily: t.speakerFonts.agent, color: t.speaker.agent }}>{label}</AppText>
+      </Pressable>
     );
-  };
+  }
 
-  const renderListItem = ({ item }: ListRenderItemInfo<ListRow>) => {
-    if (item.type === 'header') {
-      return (
-        <View style={styles.sectionHeader}>
-          <AppText variant="display2">{item.title}</AppText>
-        </View>
-      );
-    }
-    return renderRow({ item });
-  };
+  function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+    return <View style={styles.section}><AppText variant="display2">{title}</AppText><AppText variant="caption" tone="muted">{subtitle}</AppText><View style={styles.sectionBody}>{children}</View></View>;
+  }
 
-  return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: t.c.bg }]}>
-      <View style={[styles.topbar, { paddingTop: insets.top + 6 }]}>
-        <AppText variant="display1">Index</AppText>
-        <Pressable
-          onPress={() => router.push('/account')}
-          accessibilityLabel="Account"
-          style={({ pressed }) => [
-            styles.avatar,
-            { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' },
-          ]}
-        >
-          <Ionicons name="person-outline" size={18} color={t.c.textMuted} />
-        </Pressable>
-      </View>
-      <FlashList
-        data={listData}
-        keyExtractor={(row) =>
-          row.type === 'header' ? row.id : row.type === 'pending' ? row.row.id : row.item.id
-        }
-        renderItem={renderListItem}
-        getItemType={(row) => row.type}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetchAll} tintColor={t.c.textMuted} />}
-        ListHeaderComponent={
-          <View style={[styles.search, { backgroundColor: t.c.muted, borderCurve: 'continuous' }]}>
-            <Ionicons name="search-outline" size={16} color={t.c.textFaint} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search your commonplace"
-              placeholderTextColor={t.c.textFaint}
-              style={[styles.searchInput, { color: t.c.text }]}
-              maxFontSizeMultiplier={1.4}
-            />
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <AppText variant="sub" tone="muted">
-              {organize.isLoading || briefing.isLoading ? 'Fetching your index...' : 'Nothing yet. Capture something.'}
-            </AppText>
-          </View>
-        }
-        contentContainerStyle={{ paddingBottom: t.layout.tabPillHeight + 48 }}
-      />
-    </GestureHandlerRootView>
-  );
+  function EmptyState({ title, detail }: { title: string; detail: string }) {
+    return <View style={[styles.empty, { backgroundColor: t.c.raised, borderColor: t.c.border }]}><AppText variant="headline">{title}</AppText><AppText variant="caption" tone="muted">{detail}</AppText></View>;
+  }
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 12,
-  },
-  searchInput: { flex: 1, fontSize: 15 },
-  sectionHeader: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
-  empty: { padding: 48, alignItems: 'center' },
-  actions: { flexDirection: 'row' },
-  action: { width: 72, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  body: { paddingHorizontal: 16, gap: 22 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  capturePressable: { borderRadius: 16, overflow: 'hidden' },
+  capture: { minHeight: 92, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  captureCopy: { flex: 1, gap: 4 },
+  lensRow: { flexDirection: 'row', gap: 10 },
+  lens: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  section: { gap: 5 },
+  sectionBody: { gap: 10, marginTop: 6 },
+  reliefRow: { flexDirection: 'row', gap: 8 },
+  relief: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 12, gap: 2 },
+  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  rowCopy: { flex: 1, gap: 2 },
+  presence: { width: 7, height: 7, borderRadius: 4 },
+  readRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
+  empty: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 16, gap: 6 },
 });

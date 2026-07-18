@@ -30,6 +30,7 @@ import {
   type RoomMessage,
 } from '@/api/harness';
 import { AppText } from '@/components/AppText';
+import { PressableSurface } from '@/components/PressableSurface';
 import { WeaveSpinner } from '@/components/WeaveSpinner';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -152,33 +153,32 @@ export default function RoomScreen() {
             </AppText>
           ) : (
             <View style={styles.approvalActions}>
-              <Pressable
+              <PressableSurface
                 onPress={() => void decide(entry, true)}
-                style={({ pressed }) => [
-                  styles.approvalBtn,
-                  { backgroundColor: pressed ? t.c.primaryPressed : t.c.primary, borderCurve: 'continuous' },
-                ]}
+                style={[styles.approvalBtn, { backgroundColor: t.c.primary, borderCurve: 'continuous' }]}
+                pressedStyle={{ backgroundColor: t.c.primaryPressed }}
               >
                 <AppText variant="caption" tone="onPrimary">
                   Approve
                 </AppText>
-              </Pressable>
-              <Pressable
+              </PressableSurface>
+              <PressableSurface
                 onPress={() => void decide(entry, false)}
-                style={({ pressed }) => [
+                style={[
                   styles.approvalBtn,
                   {
-                    backgroundColor: pressed ? t.machine.mid : 'transparent',
+                    backgroundColor: 'transparent',
                     borderWidth: 1,
                     borderColor: t.machine.line,
                     borderCurve: 'continuous',
                   },
                 ]}
+                pressedStyle={{ backgroundColor: t.machine.mid }}
               >
                 <AppText variant="caption" tone="machine">
                   Deny
                 </AppText>
-              </Pressable>
+              </PressableSurface>
             </View>
           )}
         </View>
@@ -266,16 +266,14 @@ export default function RoomScreen() {
           style={[styles.input, { color: t.machine.text, backgroundColor: t.machine.raise, borderCurve: 'continuous' }]}
           maxFontSizeMultiplier={1.4}
         />
-        <Pressable
+        <PressableSurface
           onPress={() => void send()}
           accessibilityLabel="Send"
-          style={({ pressed }) => [
-            styles.send,
-            { backgroundColor: pressed ? t.c.primaryPressed : t.c.primary, borderCurve: 'continuous' },
-          ]}
+          style={[styles.send, { backgroundColor: t.c.primary, borderCurve: 'continuous' }]}
+          pressedStyle={{ backgroundColor: t.c.primaryPressed }}
         >
           <Ionicons name="arrow-up" size={18} color={t.c.onPrimary} />
-        </Pressable>
+        </PressableSurface>
       </View>
     </KeyboardAvoidingView>
   );
