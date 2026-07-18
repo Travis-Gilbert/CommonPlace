@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { topicRecords, unwrapGraphqlField } from './theorem-topics';
+import { topicCapturePreview, topicRecords, unwrapGraphqlField } from './theorem-topics';
 
 describe('theorem topics client', () => {
   it('unwraps MCP GraphQL envelopes and projects topic cards', () => {
@@ -57,5 +57,36 @@ describe('theorem topics client', () => {
 
   it('drops malformed graph nodes instead of inventing topic identities', () => {
     expect(topicRecords({ data: { topics: { topics: [{ properties: {} }] } } })).toEqual([]);
+  });
+
+  it('keeps GitHub OG provenance separate from its held Survey asset', () => {
+    const preview = topicCapturePreview({
+      source_preview_kind: 'open_graph',
+      source_preview_origin_url: 'https://opengraph.githubassets.com/abc/owner/repo',
+      source_preview_title: 'owner/repo',
+      source_preview_description: 'A GitHub repository',
+      source_snapshot_url: '/api/theorem/topic-preview-assets/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      source_snapshot_alt: 'Preview image for owner/repo',
+      source_aspect_ratio: 2,
+    });
+
+    expect(preview).toMatchObject({
+      kind: 'open_graph',
+      originUrl: 'https://opengraph.githubassets.com/abc/owner/repo',
+      snapshotUrl: '/api/theorem/topic-preview-assets/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      aspectRatio: 2,
+    });
+    expect(preview?.snapshotUrl).not.toBe(preview?.originUrl);
+  });
+
+  it('refuses an unheld remote URL as a Survey render asset', () => {
+    const preview = topicCapturePreview({
+      source_preview_kind: 'open_graph',
+      source_preview_origin_url: 'https://opengraph.githubassets.com/abc/owner/repo',
+      source_snapshot_url: 'https://opengraph.githubassets.com/abc/owner/repo',
+    });
+
+    expect(preview?.originUrl).toBe('https://opengraph.githubassets.com/abc/owner/repo');
+    expect(preview?.snapshotUrl).toBeUndefined();
   });
 });
