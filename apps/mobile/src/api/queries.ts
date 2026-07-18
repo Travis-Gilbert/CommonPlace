@@ -13,23 +13,29 @@ const ITEM_FIELDS = `
   id kind title bodyText blobHash mime source residency tags collections
   classification status priority dueAtMs path createdAtMs updatedAtMs
 `;
+const ITEM_GIST_FIELDS = `
+  id kind title mime source residency tags collections
+  classification status priority dueAtMs path createdAtMs updatedAtMs
+`;
+const ITEM_BRIEFING_FIELDS = `${ITEM_GIST_FIELDS} bodyText`;
 
-/* remindAtMs is requested separately so nodes without PT-008 still answer. */
-const ITEM_FIELDS_WITH_REMIND = `${ITEM_FIELDS} remindAtMs`;
-
-async function itemQuery<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+async function itemQuery<T>(
+  query: string,
+  variables?: Record<string, unknown>,
+  fields = ITEM_FIELDS,
+): Promise<T> {
   try {
-    return await gql<T>(query.replace('__ITEM__', ITEM_FIELDS_WITH_REMIND), variables);
+    return await gql<T>(query.replace('__ITEM__', `${fields} remindAtMs`), variables);
   } catch (e) {
     if (e instanceof Error && /remindAtMs/.test(e.message)) {
-      return gql<T>(query.replace('__ITEM__', ITEM_FIELDS), variables);
+      return gql<T>(query.replace('__ITEM__', fields), variables);
     }
     throw e;
   }
 }
 
 export const fetchItems = (kind?: string) =>
-  itemQuery<{ items: ItemGql[] }>(`query($kind:String){ items(kind:$kind){ __ITEM__ } }`, { kind }).then(
+  itemQuery<{ items: ItemGql[] }>(`query($kind:String){ items(kind:$kind){ __ITEM__ } }`, { kind }, ITEM_GIST_FIELDS).then(
     (d) => d.items,
   );
 
@@ -47,6 +53,7 @@ export const searchItems = (query: string, k = 20) =>
   itemQuery<{ search: SearchHit[] }>(
     `query($q:String!,$k:Int){ search(query:$q,k:$k){ item{ __ITEM__ } score } }`,
     { q: query, k },
+    ITEM_GIST_FIELDS,
   ).then((d) => d.search);
 
 export const runAsk = (question: string, k = 6) =>
@@ -64,6 +71,8 @@ export const runTheoremAgent = (task: string, mode: string = 'ask') =>
 export const fetchBriefing = () =>
   itemQuery<{ briefing: Briefing }>(
     `{ briefing { recent{ __ITEM__ } newlyConnected{ item{ __ITEM__ } connections } openThreads{ __ITEM__ } } }`,
+    undefined,
+    ITEM_BRIEFING_FIELDS,
   ).then((d) => d.briefing);
 
 const ORGANIZE_ITEM = `

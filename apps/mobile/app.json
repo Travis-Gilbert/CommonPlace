@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "commonplace",
+    "scheme": [
+      "theorem",
+      "commonplace"
+    ],
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
@@ -17,7 +20,7 @@
     "android": {
       "package": "com.travisgilbert.commonplace",
       "adaptiveIcon": {
-        "backgroundColor": "#FAF9F5",
+        "backgroundColor": "#F7F8FA",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -33,7 +36,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FAF9F5",
+          "backgroundColor": "#F7F8FA",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -63,9 +66,16 @@
             "NSExtensionActivationSupportsImageWithMaxCount": 4,
             "NSExtensionActivationSupportsFileWithMaxCount": 4
           },
-          "androidIntentFilters": ["text/*", "image/*", "application/*"]
+          "androidIntentFilters": [
+            "text/*",
+            "image/*",
+            "application/*"
+          ]
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

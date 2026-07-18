@@ -7,7 +7,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -21,7 +21,15 @@ import {
 } from '@/api/instance';
 import { clearQueue, drainQueue, pendingCount } from '@/capture/queue';
 import { AppText } from '@/components/AppText';
-import { registerForPush } from '@/notifications';
+import { PressableSurface } from '@/components/PressableSurface';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  readNotificationPreferences,
+  registerForPush,
+  saveNotificationPreferences,
+  type NotificationCapability,
+  type NotificationPreferences,
+} from '@/notifications';
 import { useTheme, useThemePrefs } from '@/theme/ThemeProvider';
 
 function Field({
@@ -65,12 +73,22 @@ export default function AccountScreen() {
   const [s, setS] = useState<InstanceSettings>(DEFAULT_SETTINGS);
   const [probe, setProbe] = useState<string | null>(null);
   const [pushState, setPushState] = useState<string | null>(null);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES,
+  );
 
   useEffect(() => {
     readInstanceSettings().then(setS);
+    readNotificationPreferences().then(setNotificationPreferences);
   }, []);
 
   const patch = (p: Partial<InstanceSettings>) => setS((cur) => ({ ...cur, ...p }));
+
+  function patchNotification(capability: NotificationCapability, value: boolean) {
+    const next = { ...notificationPreferences, [capability]: value };
+    setNotificationPreferences(next);
+    void saveNotificationPreferences(next);
+  }
 
   async function connect() {
     setProbe('Probing...');
@@ -150,26 +168,38 @@ export default function AccountScreen() {
         <Field label="Node URL" value={s.url} onChange={(url) => patch({ url })} placeholder={DEFAULT_LOCAL_URL} />
         <Field label="API key" value={s.apiKey} onChange={(apiKey) => patch({ apiKey })} secure placeholder="x-api-key" />
         <View style={styles.row}>
-          <Pressable
+          <PressableSurface
             onPress={() => void connect()}
-            style={({ pressed }) => [styles.btn, { backgroundColor: pressed ? t.c.primaryPressed : t.c.primary, borderCurve: 'continuous' }]}
+            style={[styles.btn, { backgroundColor: t.c.primary, borderCurve: 'continuous' }]}
+            pressedStyle={{ backgroundColor: t.c.primaryPressed }}
           >
             <AppText variant="caption" tone="onPrimary">
               Probe and connect
             </AppText>
-          </Pressable>
-          <Pressable
+          </PressableSurface>
+          <PressableSurface
             onPress={() => void saveOnly()}
-            style={({ pressed }) => [styles.btn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, borderCurve: 'continuous' }]}
+            style={[styles.btn, { backgroundColor: t.c.secondary, borderCurve: 'continuous' }]}
+            pressedStyle={{ backgroundColor: t.c.muted }}
           >
             <AppText variant="caption">Save</AppText>
-          </Pressable>
+          </PressableSurface>
           {probe ? (
             <AppText variant="caption" tone={probe === 'Connected' ? 'primary' : 'muted'}>
               {probe}
             </AppText>
           ) : null}
         </View>
+        <Field
+          label="Approval signature reference"
+          value={s.userSignatureRef ?? ''}
+          onChange={(userSignatureRef) => patch({ userSignatureRef })}
+          placeholder="keychain:commonplace-mobile"
+          secure
+        />
+        <AppText variant="caption" tone="muted">
+          Approval is hidden until the live agency kernel can bind this reference to a fresh preflight. The key itself never enters the app bundle.
+        </AppText>
 
         <AppText variant="headline" style={{ marginTop: 16 }}>
           Scenes and rooms
@@ -186,6 +216,15 @@ export default function AccountScreen() {
           onChange={(harnessUrl) => patch({ harnessUrl })}
           placeholder="http://192.168.x.x:50080"
         />
+        <Field
+          label="Hosted ACP chat URL"
+          value={s.chatUrl ?? ''}
+          onChange={(chatUrl) => patch({ chatUrl })}
+          placeholder="https://your-console.example/api/chat/stream"
+        />
+        <AppText variant="caption" tone="muted">
+          Chat names this capability as unavailable when the ACP route is absent. It never substitutes a different agent path.
+        </AppText>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <Field label="Tenant" value={s.tenant ?? ''} onChange={(tenant) => patch({ tenant })} />
@@ -199,18 +238,41 @@ export default function AccountScreen() {
           Notifications
         </AppText>
         <AppText variant="caption" tone="muted">
-          Only reminders, approvals, direct mentions, and answers you asked to be told about will ever notify.
-          Nothing else does, and there is no icon badge.
+          Reminder times you set are always local. Every other interrupt is a separate capability and opens a
+          prepared review surface. Notification actions cannot approve or sign, sound is quiet, and there is no badge.
         </AppText>
-        <Pressable
+        {(
+          [
+            ['notify:digest', 'Prepared digest'],
+            ['notify:push/approval', 'Approval ready for review'],
+            ['notify:push/mention', 'Direct mentions'],
+            ['notify:push/run-finished', 'Requested run finished'],
+          ] as const
+        ).map(([capability, label]) => (
+          <View key={capability} style={styles.preferenceRow}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <AppText variant="caption">{label}</AppText>
+              <AppText variant="micro" tone="faint" style={{ fontFamily: t.speakerFonts.machine }}>
+                {capability}
+              </AppText>
+            </View>
+            <Switch
+              value={notificationPreferences[capability]}
+              onValueChange={(value) => patchNotification(capability, value)}
+              trackColor={{ false: t.c.border, true: t.c.primary }}
+            />
+          </View>
+        ))}
+        <PressableSurface
           onPress={() => {
             setPushState('Registering...');
             void registerForPush().then((token) => setPushState(token ? 'Push registered with your node' : 'Push unavailable'));
           }}
-          style={({ pressed }) => [styles.btn, { backgroundColor: pressed ? t.c.muted : t.c.secondary, alignSelf: 'flex-start', borderCurve: 'continuous' }]}
+          style={[styles.btn, { backgroundColor: t.c.secondary, alignSelf: 'flex-start', borderCurve: 'continuous' }]}
+          pressedStyle={{ backgroundColor: t.c.muted }}
         >
-          <AppText variant="caption">Register for approval and mention push</AppText>
-        </Pressable>
+          <AppText variant="caption">Register enabled push capabilities</AppText>
+        </PressableSurface>
         {pushState ? (
           <AppText variant="caption" tone="muted">
             {pushState}
@@ -239,12 +301,12 @@ export default function AccountScreen() {
           ))}
         </View>
 
-        <Pressable
+        <PressableSurface
           onPress={signOut}
-          style={({ pressed }) => [
+          style={[
             styles.btn,
             {
-              backgroundColor: pressed ? t.c.muted : 'transparent',
+              backgroundColor: 'transparent',
               borderWidth: 1,
               borderColor: t.c.border,
               alignSelf: 'flex-start',
@@ -252,9 +314,10 @@ export default function AccountScreen() {
               borderCurve: 'continuous',
             },
           ]}
+          pressedStyle={{ backgroundColor: t.c.muted }}
         >
           <AppText variant="caption">Sign out</AppText>
-        </Pressable>
+        </PressableSurface>
       </ScrollView>
     </View>
   );
@@ -270,4 +333,5 @@ const styles = StyleSheet.create({
   input: { height: 42, borderRadius: 10, paddingHorizontal: 12, fontSize: 15 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   btn: { paddingHorizontal: 14, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  preferenceRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

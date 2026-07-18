@@ -9,6 +9,7 @@
 export * from './types';
 export * from './shape-match';
 export * from './registry';
+export * from './descriptor-contracts';
 // Both ./types and ./surface-tree declare a SurfaceTreeNode (the contract
 // carries the historical shape, the tree builder carries the render shape the
 // web SurfaceRenderer actually walks). The explicit re-export resolves the

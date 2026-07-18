@@ -17,6 +17,7 @@ import { sceneForInput } from '@/api/scene';
 import type { ItemGql } from '@/api/types';
 import { AppText } from '@/components/AppText';
 import { KindRow } from '@/components/kind/KindRow';
+import { PressableSurface } from '@/components/PressableSurface';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const LENSES = ['Objects', 'Files', 'Timeline', 'Graph'] as const;
@@ -180,16 +181,14 @@ export default function DataScreen() {
               onSubmitEditing={() => void openGraph()}
               maxFontSizeMultiplier={1.4}
             />
-            <Pressable
+            <PressableSurface
               onPress={() => void openGraph()}
               disabled={graphBusy}
-              style={({ pressed }) => [
-                styles.graphGo,
-                { backgroundColor: pressed ? t.c.primaryPressed : t.c.primary, borderCurve: 'continuous', opacity: graphBusy ? 0.6 : 1 },
-              ]}
+              style={[styles.graphGo, { backgroundColor: t.c.primary, borderCurve: 'continuous', opacity: graphBusy ? 0.6 : 1 }]}
+              pressedStyle={{ backgroundColor: t.c.primaryPressed }}
             >
               <Ionicons name={graphBusy ? 'hourglass-outline' : 'arrow-forward'} size={16} color={t.c.onPrimary} />
-            </Pressable>
+            </PressableSurface>
           </View>
           {graphError ? (
             <AppText variant="caption" tone="muted">

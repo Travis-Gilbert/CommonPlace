@@ -2,6 +2,8 @@
 import * as Crypto from 'expo-crypto';
 import * as SQLite from 'expo-sqlite';
 
+import { createRevisionStore } from '@/lib/revisionStore';
+
 export type ChatThread = { id: string; title: string; createdAt: number; updatedAt: number };
 export type ChatMessage = {
   id: string;
@@ -26,12 +28,10 @@ db.execSync(`
   );
 `);
 
-const listeners = new Set<() => void>();
-export const subscribeChat = (fn: () => void) => {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-};
-const emit = () => listeners.forEach((fn) => fn());
+const chatChanges = createRevisionStore();
+export const subscribeChat = chatChanges.subscribe;
+export const getChatRevision = chatChanges.getSnapshot;
+const emit = chatChanges.emit;
 
 export function listThreads(): ChatThread[] {
   return db

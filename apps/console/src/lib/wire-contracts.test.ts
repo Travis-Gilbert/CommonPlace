@@ -137,12 +137,15 @@ describe('chat wire contract (R2.2)', () => {
       snapshot('The harness', 'running'),
       snapshot('The harness answers.', 'complete'),
     ]);
-    const deltas = [...frames.matchAll(/data: (\{.*\})/g)].map((match) => JSON.parse(match[1]));
+    const deltas = [...frames.matchAll(/data: (\{.*\})/g)]
+      .map((match) => JSON.parse(match[1]) as { delta?: string })
+      .filter((frame) => typeof frame.delta === 'string');
     expect(deltas).toEqual([
       { delta: 'The' },
       { delta: ' harness' },
       { delta: ' answers.' },
     ]);
+    expect(frames).toContain('event: done');
     // The console parser treats unnamed data events as message deltas; no
     // update-state envelope and no [DONE] sentinel may leak through.
     expect(frames).not.toContain('update-state');
