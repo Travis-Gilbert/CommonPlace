@@ -3,11 +3,19 @@
 // SOURCING: textmode.js (SPEC-UI-SOURCING-ADDENDUM D1: the Presence mark).
 // The agent's visible identity: one living form rendered in type, replacing
 // every spinner and typing affordance on agent paths. Round-one state subset
-// (G7): idle, composing (thinking), acting (condensation with the accent
-// commit flash), interrupted (settles within one frame). Motion math is
+// (G7): idle, composing (thinking), acting (condensation with the commit
+// brightness lift), interrupted (settles within one frame). Motion math is
 // implemented by hand (the pts choreography reference ships no code).
 // Reduced motion and the no-WebGL2 path render the static constellation
 // WITHOUT the library. The canvas never intercepts pointer events.
+//
+// Color register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.4): the mark
+// is the agent's identity, and identity belongs to the voice register, so the
+// base is the voice teal (--cp-presence). The commit moment is a teal
+// contraction with a brightness lift (--cp-presence-commit), superseding the
+// sourcing addendum's gold base and the accent-slot flash. The interrupted
+// edge is human ink (--cp-presence-interrupt): the human's hand arriving is
+// human. Gold never marks the mark; gold marks memory.
 
 import { useEffect, useRef, useState } from 'react';
 import { MARK } from '@/motion/motion-tokens';
@@ -47,12 +55,20 @@ function hasWebGL2(): boolean {
   }
 }
 
+// The voice register per state (section 2.4): the commit lift on acting, the
+// human-ink edge on interrupted, the base voice teal otherwise. Gold is gone.
+function staticMarkColor(state: MarkState): string {
+  if (state === 'acting') return 'var(--cp-presence-commit)';
+  if (state === 'interrupted') return 'var(--cp-presence-interrupt)';
+  return 'var(--cp-presence)';
+}
+
 function StaticConstellation({ state, size }: { state: MarkState; size: number }) {
   return (
     <pre
       aria-hidden="true"
       className="pointer-events-none m-0 select-none text-center font-ij-mono leading-none"
-      style={{ width: size, height: size, color: state === 'acting' ? 'var(--ij-accent)' : 'var(--ij-gold)' }}
+      style={{ width: size, height: size, color: staticMarkColor(state) }}
       data-mark-state={state}
       data-mark-mode="static"
     >
@@ -131,12 +147,12 @@ export function PresenceMark({ state, size = 64 }: PresenceMarkProps) {
           }
           if (current === 'idle') {
             const phase = Math.floor((tick * (1000 / 30)) / MARK.idleCycleMs);
-            drawOrbit(t, cx, cy, 4, 3, phase + tick * 0.008, 'var(--ij-gold)');
+            drawOrbit(t, cx, cy, 4, 3, phase + tick * 0.008, PRESENCE);
             return;
           }
           if (current === 'composing') {
             const phase = tick * ((1000 / 30) / MARK.composeCycleMs);
-            drawOrbit(t, cx, cy, 7, 2.6, phase, 'var(--ij-gold)');
+            drawOrbit(t, cx, cy, 7, 2.6, phase, PRESENCE);
             return;
           }
           // acting: the constellation condenses into a solid glyph with the
@@ -185,15 +201,15 @@ type Drawable = {
   rect(x: number, y: number, w?: number, h?: number): void;
 };
 
-// The register gold as RGB components, for the frames before the computed
-// style resolves. Numeric mirror of --ij-gold (Yellow6); the register file
-// stays the single hex source.
-const GOLD_RGB: [number, number, number] = [214, 174, 88];
+// The voice teal as RGB components, for the frames before the computed style
+// resolves. Numeric mirror of --cp-presence (which resolves to --cp-agent, the
+// voice teal); the register file stays the single hex source.
+const PRESENCE_RGB: [number, number, number] = [69, 180, 163];
 
 function inkFor(token: string): [number, number, number] {
-  if (typeof window === 'undefined') return GOLD_RGB;
+  if (typeof window === 'undefined') return PRESENCE_RGB;
   const raw = getComputedStyle(document.documentElement).getPropertyValue(tokenName(token)).trim();
-  if (!raw.startsWith('#') || raw.length < 7) return GOLD_RGB;
+  if (!raw.startsWith('#') || raw.length < 7) return PRESENCE_RGB;
   return [
     parseInt(raw.slice(1, 3), 16),
     parseInt(raw.slice(3, 5), 16),
@@ -206,8 +222,9 @@ function tokenName(varExpr: string): string {
   return match ? match[1] : varExpr;
 }
 
-const GOLD = 'var(--ij-gold)';
-const ACCENT = 'var(--ij-accent)';
+const PRESENCE = 'var(--cp-presence)';
+const PRESENCE_COMMIT = 'var(--cp-presence-commit)';
+const PRESENCE_INTERRUPT = 'var(--cp-presence-interrupt)';
 
 function drawOrbit(t: Drawable, cx: number, cy: number, count: number, radius: number, phase: number, ink: string) {
   const [r, g, b] = inkFor(ink);
@@ -222,7 +239,9 @@ function drawOrbit(t: Drawable, cx: number, cy: number, count: number, radius: n
 }
 
 function drawStatic(t: Drawable, cx: number, cy: number, count: number) {
-  const [r, g, b] = inkFor(GOLD);
+  // drawStatic renders the interrupted state: the human's hand arriving is
+  // human ink, so the edge is the interrupt (oxblood) token.
+  const [r, g, b] = inkFor(PRESENCE_INTERRUPT);
   for (let i = 0; i < count; i += 1) {
     const x = cx + ((i * 2654435761) % 5) - 2;
     const y = cy + ((i * 40503) % 3) - 1;
@@ -233,7 +252,9 @@ function drawStatic(t: Drawable, cx: number, cy: number, count: number) {
 }
 
 function drawCondense(t: Drawable, cx: number, cy: number, flashing: boolean) {
-  const [r, g, b] = inkFor(flashing ? ACCENT : GOLD);
+  // acting condenses on the voice teal; the commit moment lifts to the brighter
+  // teal (--cp-presence-commit), superseding the old accent-slot flash.
+  const [r, g, b] = inkFor(flashing ? PRESENCE_COMMIT : PRESENCE);
   t.charColor(r, g, b, 255);
   t.char(':');
   t.rect(cx, cy, 1, 1);

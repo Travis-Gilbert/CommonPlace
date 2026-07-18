@@ -65,6 +65,14 @@ const PAIRS = [
   { name: 'accent on chrome', fg: '--ij-accent', bg: '--ij-chrome', target: 3.0 },
   { name: 'ink on editor', fg: '--ij-ink', bg: '--ij-editor', target: 4.5 },
   { name: 'bright ink on accent', fg: '--ij-ink-bright', bg: '--ij-accent', target: 3.0 },
+  // Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.5, D6):
+  // human ink and agent voice read as body text (4.5); destructive reads as a
+  // UI/large label (3.0). Memory reuses the gold pair already gated above.
+  { name: 'human on chrome', fg: '--cp-human', bg: '--ij-chrome', target: 4.5 },
+  { name: 'agent on chrome', fg: '--cp-agent', bg: '--ij-chrome', target: 4.5 },
+  { name: 'human on editor', fg: '--cp-human', bg: '--ij-editor', target: 4.5 },
+  { name: 'agent on editor', fg: '--cp-agent', bg: '--ij-editor', target: 4.5 },
+  { name: 'destructive on chrome', fg: '--cp-destructive', bg: '--ij-chrome', target: 3.0 },
 ];
 
 let failed = false;

@@ -34,6 +34,16 @@ const ARBITRARY_RE = /(?:^|[\s"'`])(?!data-|aria-|group-data-|peer-data-)[a-z][a
 const PALETTE_RE =
   /\b(?:bg|text|border|fill|stroke|ring|outline|decoration|accent|caret|divide|from|via|to|shadow)-(?:red|blue|green|yellow|orange|amber|lime|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose|gray|grey|slate|zinc|neutral|stone)-\d{2,3}\b/g;
 const MODULE_CSS_RE = /\.module\.css/g;
+// Speaker-register rule 1 (AMENDMENT 2.5: "raw values fail"). The hex rule
+// above misses the color functions the register vocabulary is actually written
+// in (Galley emits oklch, color-mix). A component inlining any of these bypasses
+// the register just as a raw hex would, so raw color functions fail outside the
+// register files too.
+const RAW_COLOR_FN_RE = /\b(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch)\(|color-mix\(/g;
+// Human ink token (matches --cp-human and utilities like text-cp-human) and the
+// destructive-variant signifiers, for speaker-register rule 2 below.
+const HUMAN_INK_RE = /\bcp-human\b/g;
+const DESTRUCTIVE_RE = /\b(?:destructive|danger)\b/gi;
 
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -53,6 +63,7 @@ for (const file of walk(srcRoot)) {
   lines.forEach((line, index) => {
     for (const [name, re] of [
       ['hex literal', HEX_RE],
+      ['raw color function', RAW_COLOR_FN_RE],
       ['arbitrary-value class', ARBITRARY_RE],
       ['raw palette utility', PALETTE_RE],
       ['module.css', MODULE_CSS_RE],
@@ -62,6 +73,21 @@ for (const file of walk(srcRoot)) {
       if (match) {
         violations.push({ file, line: index + 1, name, sample: match[0] });
       }
+    }
+    // Speaker-register rule 2 (AMENDMENT 2.5: "human ink on a destructive
+    // variant fails"). Human ink (oxblood, --cp-human) is the human's authored
+    // voice; destructive red is reserved and near it in hue. Painting human ink
+    // onto a destructive/danger variant makes the human read as danger, so the
+    // co-occurrence fails on any single line.
+    HUMAN_INK_RE.lastIndex = 0;
+    DESTRUCTIVE_RE.lastIndex = 0;
+    if (HUMAN_INK_RE.test(line) && DESTRUCTIVE_RE.test(line)) {
+      violations.push({
+        file,
+        line: index + 1,
+        name: 'human ink on destructive variant',
+        sample: line.trim().slice(0, 60),
+      });
     }
   });
 }

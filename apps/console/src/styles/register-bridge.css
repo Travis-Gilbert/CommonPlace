@@ -126,3 +126,62 @@
   --ij-font-ui: var(--font-console-inter), "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
   --ij-font-mono: var(--font-console-jbmono), "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
+
+/* Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION section 2).
+   Two grammars coexist by scope. The chrome grammar above (Int UI accent for
+   interactive and pending, --ij-gold for learned) governs chrome. This speaker
+   grammar governs conversational content: chat messages, margin threads,
+   annotations, approval and proposal cards. The --cp-* names are the
+   cross-platform register vocabulary (mobile tokens.ts mirrors the same roles);
+   here they bridge to the console primitives.
+
+   Roles carry verbatim from the spec; values re-resolve for the register:
+   human ink is the oxblood family, agent voice is teal, memory is gold,
+   destructive stays reserved and rare. The oxblood and teal are tuned for AA on
+   the dark chrome (the contrast gate proves human on chrome and agent on chrome
+   at 4.5, destructive on chrome at 3.0). Agent teal is held hue-distant from the
+   Int UI accent blue so the system speaking as machinery (accent) never blurs
+   with the agent speaking as a voice (teal). Raw hex lives here because this is
+   a register file; content surfaces consume --cp-* only. The light editor well
+   is the second value of the same token, carried by the mobile light scheme
+   until the console light pass lands (two values, one role). */
+[data-register="intui"] {
+  --cp-human: #DE7C72;              /* oxblood family, AA on chrome (4.76:1) */
+  --cp-agent: #45B4A3;              /* teal voice, AA on chrome, hue-distant from accent */
+  --cp-memory: var(--ij-gold);      /* memory gold is already the learned register */
+  --cp-destructive: var(--ij-error); /* reserved red; never the human's voice */
+
+  /* Presence mark (section 2.4): the mark is the agent's identity, so its base
+     is the voice teal. The commit moment is a brightness lift on the same teal
+     (superseding the sourcing addendum gold base and the accent-slot flash).
+     The interrupted edge is human ink: the human's hand arriving is human. */
+  --cp-presence: var(--cp-agent);
+  --cp-presence-commit: #7FE0CF;    /* teal contraction with brightness lift */
+  --cp-presence-interrupt: var(--cp-human);
+
+  /* Typography trinity (section 2.3): assigned by speaker on content surfaces.
+     Chrome stays Inter; the trinity governs content only. Human and machine ride
+     the bridged Galley faces (--gy-font-prose is Vollkorn, --gy-font-mono is
+     JetBrains Mono). Agent voice must NOT ride --gy-font-ui: gy-bridge re-points
+     that at the chrome Inter, which would collapse the speaker distinction, so
+     it points at the self-hosted Plex variable from fonts.ts directly. */
+  --cp-font-human: var(--gy-font-prose);   /* Vollkorn: human authorship */
+  --cp-font-agent: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* agent voice */
+  --cp-font-machine: var(--gy-font-mono);  /* JetBrains Mono: machinery, any speaker */
+}
+
+/* Tailwind v4: speaker utilities emit from --cp-* only, so text-cp-human,
+   bg-cp-agent, font-cp-machine and friends resolve to the register values. */
+@theme inline {
+  --color-cp-human: var(--cp-human);
+  --color-cp-agent: var(--cp-agent);
+  --color-cp-memory: var(--cp-memory);
+  --color-cp-destructive: var(--cp-destructive);
+  --color-cp-presence: var(--cp-presence);
+  --color-cp-presence-commit: var(--cp-presence-commit);
+  --color-cp-presence-interrupt: var(--cp-presence-interrupt);
+
+  --font-cp-human: var(--cp-font-human);
+  --font-cp-agent: var(--cp-font-agent);
+  --font-cp-machine: var(--cp-font-machine);
+}

@@ -105,6 +105,55 @@ export const accents = {
   burntOrange: '#A65324', // machine pencil accent (web parity); NOT the primary
 } as const;
 
+/**
+ * Speaker register: the cross-platform --cp-* roles (AMENDMENT-REGISTERS-AND-
+ * MOBILE-RECONCILIATION section 2). Authorship encoding for conversational
+ * content: chat messages, margin threads, annotations, approval and proposal
+ * cards. The web home of the same roles is apps/console register-bridge.css
+ * (--cp-human, --cp-agent, --cp-memory, --cp-destructive); this mirrors them by
+ * role so both renderers speak one vocabulary.
+ *
+ * Roles carry verbatim from the spec; values re-resolve per scheme. Human ink is
+ * the oxblood family (the same role at two lightnesses: deep on the light well,
+ * lifted on the dark well, which is the "two values, one token" the amendment
+ * names). Agent voice is teal. Memory is gold, darkened to read as text on the
+ * light well. Destructive stays reserved: mobile spends ink on delete, never
+ * red, so the human's oxblood voice never reads as danger.
+ *
+ * Contrast receipts (WCAG 2.x relative luminance, computed not eyeballed; text
+ * target 4.5:1):
+ *   human light  #7A2733 on bg #FAF9F5   9.20:1
+ *   human dark   #DE7C72 on bg #262624   5.22:1  (shared with the console dark chrome value)
+ *   agent light  #2D5F6B on bg #FAF9F5   6.73:1
+ *   agent dark   #45B4A3 on bg #262624   6.00:1  (shared with the console dark chrome value)
+ *   memory light #8A6D1F on bg #FAF9F5   4.65:1
+ *   memory dark  #E0BC60 on bg #262624   8.33:1
+ *   destructive light #141413 on #FAF9F5 17.50:1
+ *   destructive dark  #F5F4EE on #262624 13.76:1
+ */
+export const speaker = {
+  light: {
+    human: oxblood.fill, // #7A2733
+    agent: accents.teal, // #2D5F6B
+    memory: '#8A6D1F', // gold darkened for AA as text on the light well
+    destructive: lightColors.destructive, // ink, never red
+  },
+  dark: {
+    human: '#DE7C72', // oxblood lifted for AA as text on the dark well
+    agent: '#45B4A3', // teal lifted for AA, held hue-distant from a blue accent
+    memory: accents.goldLight, // #E0BC60
+    destructive: darkColors.destructive, // ink, never red
+  },
+  /** Typography trinity: assigned by speaker on content surfaces (web parity). */
+  fonts: {
+    human: 'Vollkorn', // human authorship
+    agent: 'IBM Plex Sans', // agent voice
+    machine: 'JetBrains Mono', // machinery, regardless of speaker
+  },
+} as const;
+
+export type SpeakerScheme = { [K in keyof typeof speaker.light]: string };
+
 /** Object-kind colors (web --cp-type-* parity). */
 export const kindColors: Record<string, string> = {
   note: '#68666E',
