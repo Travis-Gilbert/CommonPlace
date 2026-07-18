@@ -39,11 +39,11 @@
 }
 
 .composer-shell [data-composer-sheen] {
-  opacity: 0.76;
+  opacity: 0.5;
 }
 
 .composer-shell [data-sheen-state="streaming"] {
-  opacity: 0.92;
+  opacity: 0.62;
 }
 
 .composer-source-overlay,
@@ -245,6 +245,29 @@
 [data-composer-density="compact"] .composer-source-character-count,
 [data-composer-density="compact"] .composer-source-footer {
   display: none;
+}
+
+/* The Console's left tool stripe leaves a narrow usable canvas on phones.
+   Keep both destinations and the real Send control reachable instead of
+   letting an option label push the latter past the composer boundary. */
+@media (max-width: 480px) {
+  .composer-controls {
+    gap: var(--rec-grid);
+    padding: calc(var(--rec-grid) * 1.5) var(--ij-composer-pad-compact);
+  }
+
+  .composer-mode-select {
+    width: 92px;
+    padding-inline: calc(var(--rec-grid) * 2) calc(var(--rec-grid) * 5);
+  }
+
+  .composer-source-character-count {
+    display: none;
+  }
+
+  .composer-source-footer {
+    gap: calc(var(--rec-grid) * 1.5);
+  }
 }
 
 html,

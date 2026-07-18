@@ -2,9 +2,9 @@
 
 // SOURCING: direct material port from the 21st.dev muhammad-binsalman glowing
 // AI chat component supplied by Travis. The source's layered translucent
-// gradients are retokened, then extended with deterministic stepped bands and
-// flecks to preserve its staccato interior at Console scale. Paint remains
-// register-derived, idle draws once, and only streaming owns a frame loop.
+// gradients are retokened as a restrained low-chroma wash with sparse flecks.
+// The source has no repeated stripe geometry, so paint remains quiet at every
+// Console width. Idle draws once, and only streaming owns a frame loop.
 
 import { useEffect, useRef, useState } from 'react';
 import { DUR, useMotionDurations } from '@/motion/motion-tokens';
@@ -55,51 +55,25 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
 
       const field = context.createLinearGradient(0, height, width, 0);
       field.addColorStop(0, 'transparent');
-      field.addColorStop(0.12, 'transparent');
-      field.addColorStop(0.13, accent);
-      field.addColorStop(0.23, accent);
-      field.addColorStop(0.24, 'transparent');
-      field.addColorStop(0.41, 'transparent');
-      field.addColorStop(0.42, agent);
-      field.addColorStop(0.51, agent);
-      field.addColorStop(0.52, 'transparent');
-      field.addColorStop(0.66, 'transparent');
-      field.addColorStop(0.67, room);
-      field.addColorStop(0.75, room);
-      field.addColorStop(0.76, 'transparent');
-      field.addColorStop(0.88, 'transparent');
-      field.addColorStop(0.89, showCommit ? gold : accent);
-      field.addColorStop(0.96, showCommit ? gold : accent);
-      field.addColorStop(0.97, 'transparent');
+      field.addColorStop(0.22, accent);
+      field.addColorStop(0.56, agent);
+      field.addColorStop(0.8, room);
+      field.addColorStop(0.92, showCommit ? gold : agent);
       field.addColorStop(1, 'transparent');
-      context.globalAlpha = (showCommit ? 0.2 : 0.1) * pulse;
+      context.globalAlpha = (showCommit ? 0.08 : 0.032) * pulse;
       context.fillStyle = field;
       context.fillRect(0, 0, width, height);
 
       const phase = streaming && !durations.reduced ? Math.floor(now / DUR.slow) % 7 : 0;
       const pigments = [accent, agent, room, showCommit ? gold : accent];
-      const bandWidth = Math.max(1, Math.round(width / 320));
-      for (let index = 0; index < 28; index += 1) {
-        const start = ((index * 79 + phase * 23) % (width + height)) - height;
-        context.beginPath();
-        context.moveTo(start, height);
-        context.lineTo(start + bandWidth, height);
-        context.lineTo(start + height + bandWidth * 5, 0);
-        context.lineTo(start + height + bandWidth * 3, 0);
-        context.closePath();
-        context.globalAlpha = (index % 4 === 0 ? 0.07 : 0.025) * pulse;
-        context.fillStyle = pigments[index % pigments.length];
-        context.fill();
-      }
-
-      const fleckCount = Math.min(96, Math.max(36, Math.round((width * height) / 18000)));
+      const fleckSize = Math.max(1, Math.round(width / 960));
+      const fleckCount = Math.min(24, Math.max(12, Math.round((width * height) / 72000)));
       for (let index = 0; index < fleckCount; index += 1) {
-        const x = (index * 137 + phase * 19) % width;
+        const x = (index * 137 + phase * 7) % width;
         const y = (index * 71 + index * index * 3) % height;
-        const length = index % 5 === 0 ? bandWidth * 3 : bandWidth;
-        context.globalAlpha = (index % 3 === 0 ? 0.09 : 0.035) * pulse;
+        context.globalAlpha = (index % 3 === 0 ? 0.024 : 0.009) * pulse;
         context.fillStyle = index % 4 === 0 ? bright : pigments[index % pigments.length];
-        context.fillRect(x, y, length, Math.max(1, bandWidth));
+        context.fillRect(x, y, fleckSize, fleckSize);
       }
 
       context.globalAlpha = 1;
@@ -127,7 +101,7 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
       ref={canvasRef}
       aria-hidden="true"
       data-composer-sheen
-      data-material-texture="staccato"
+      data-material-texture="soft-wash"
       data-sheen-state={durations.reduced ? 'idle' : commit ? 'commit' : streaming ? 'streaming' : 'idle'}
       className="pointer-events-none absolute inset-0 h-full w-full rounded-ij-arc"
     />

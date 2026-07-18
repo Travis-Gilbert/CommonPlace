@@ -37,7 +37,10 @@ export interface StagedThreadRef {
   readonly objectId?: string;
 }
 
-export type ComposerMode = 'agent' | 'plan' | 'model';
+/** The actual destination of the next turn. These values map directly to the
+ * hosted chat request, unlike the former presentational Agent/Plan/Model
+ * labels. */
+export type ComposerMode = 'theorem' | 'web';
 
 export interface ThreadState {
   messages: ThreadMessage[];
@@ -124,7 +127,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
   error: null,
   abort: null,
   endpoint: chatEndpoint(),
-  mode: 'agent',
+  mode: 'theorem',
   plan: [],
   staged: [],
 
@@ -196,7 +199,10 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: [{ type: 'text', text }], mode: get().mode }),
+        body: JSON.stringify({
+          content: [{ type: 'text', text }],
+          ...(get().mode === 'web' ? { capability: { kind: 'web' } } : {}),
+        }),
         signal: abort.signal,
       });
       if (!response.ok || !response.body) throw new Error(`chat endpoint failed: ${response.status}`);

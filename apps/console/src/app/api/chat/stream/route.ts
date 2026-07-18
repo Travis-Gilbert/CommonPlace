@@ -19,12 +19,15 @@ import {
   configuredServiceTenantMatches,
   resolveHarnessPrincipal,
 } from '@/lib/server/harness-principal';
+import { loadInstanceCapabilities } from '@/lib/server/instance-capabilities';
+import type { HarnessPrincipal } from '@/lib/harness-principal-core';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    let principal: HarnessPrincipal | null = null;
     const configuredMobileKey = process.env.CONSOLE_MOBILE_API_KEY?.trim();
     const mobileCredential = configuredMobileKey
       ? request.headers.get('x-api-key') === configuredMobileKey
@@ -35,6 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!mobileCredential) {
       const resolution = await resolveHarnessPrincipal();
       if (!resolution.ok) return resolution.response;
+      principal = resolution.principal;
       if (!configuredServiceTenantMatches(resolution.principal)) {
         return Response.json(
           {
@@ -46,6 +50,19 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
     const chat = readChatRequest(await request.json().catch(() => null));
+    if (chat.capability?.kind === 'web') {
+      const capabilities = await loadInstanceCapabilities(principal);
+      if (!capabilities.ok) return capabilities.response;
+      if (!capabilities.capabilities.webSearch) {
+        return Response.json(
+          {
+            error: 'web_search_unavailable',
+            message: 'Web search is unavailable on this connected CommonPlace backend.',
+          },
+          { status: 409 },
+        );
+      }
+    }
     const command: BridgeCommand = {
       type: 'add-message',
       message: { role: 'user', parts: [{ type: 'text', text: chat.promptText }] },

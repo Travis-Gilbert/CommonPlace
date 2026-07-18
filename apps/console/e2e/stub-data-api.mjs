@@ -9,6 +9,7 @@
 import { createServer } from 'node:http';
 
 const PORT = Number(process.env.STUB_DATA_API_PORT ?? 50591);
+const WEB_SEARCH_ENABLED = process.env.STUB_WEB_SEARCH_ENABLED !== 'false';
 
 function djb2(text) {
   let hash = 5381;
@@ -363,6 +364,11 @@ const server = createServer((request, response) => {
   if (key !== (process.env.STUB_DATA_API_KEY ?? 'dev-key')) {
     response.writeHead(403, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ error: 'forbidden' }));
+    return;
+  }
+  if (request.method === 'GET' && request.url === '/capabilities') {
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ web_search: WEB_SEARCH_ENABLED }));
     return;
   }
   if (request.method === 'GET' && request.url === '/objects/views') {

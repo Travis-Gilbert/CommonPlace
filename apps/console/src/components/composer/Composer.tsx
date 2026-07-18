@@ -45,6 +45,8 @@ export interface ComposerProps {
   readonly host: BlockHost;
   readonly compact?: boolean;
   readonly unavailable?: boolean;
+  /** Backend-advertised capability. The server verifies this again per turn. */
+  readonly webSearchAvailable?: boolean;
 }
 
 function useObjectMentionAdapter(objects: readonly ObjectRef[]) {
@@ -61,7 +63,12 @@ function useObjectMentionAdapter(objects: readonly ObjectRef[]) {
   return unstable_useMentionAdapter({ items, includeModelContextTools: false });
 }
 
-export function Composer({ host, compact = false, unavailable = false }: ComposerProps) {
+export function Composer({
+  host,
+  compact = false,
+  unavailable = false,
+  webSearchAvailable = false,
+}: ComposerProps) {
   const isRunning = useThreadStore((state) => state.isRunning);
   const staged = useThreadStore((state) => state.staged);
   const unstage = useThreadStore((state) => state.unstage);
@@ -171,16 +178,17 @@ export function Composer({ host, compact = false, unavailable = false }: Compose
                   </button>
                 </div>
                 <label className="composer-mode-control">
-                  <span className="sr-only">Composer mode</span>
+                  <span className="sr-only">Chat destination</span>
                   <select
-                    aria-label="Composer mode"
+                    aria-label="Chat destination"
                     value={mode}
-                    onChange={(event) => setMode(event.target.value as 'agent' | 'plan' | 'model')}
+                    onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
                     className="composer-mode-select"
                   >
-                    <option value="agent">Agent</option>
-                    <option value="plan">Plan</option>
-                    <option value="model">Model</option>
+                    <option value="theorem">Theorem</option>
+                    <option value="web" disabled={!webSearchAvailable}>
+                      Web search
+                    </option>
                   </select>
                   <IconChevronDown size={13} className="composer-mode-chevron" />
                 </label>
@@ -217,7 +225,9 @@ export function Composer({ host, compact = false, unavailable = false }: Compose
                   <span className="composer-presence" data-presence-mark-placement="composer">
                     <PresenceMark state={isRunning ? 'composing' : 'idle'} size={18} staticOnly />
                   </span>
-                  <span>{isRunning ? 'Working' : 'Ready'}</span>
+                  <span data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}>
+                    {isRunning ? 'Working' : mode === 'web' ? 'Web search ready' : 'Theorem ready'}
+                  </span>
                 </div>
               </div>
             </div>
