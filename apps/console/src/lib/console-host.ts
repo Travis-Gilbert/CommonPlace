@@ -199,6 +199,36 @@ export class ConsoleBlockHost implements BlockHost {
     this.notifyLayout();
   }
 
+  /** Apply a radio-group surface switch as one layout transaction. Subscribers
+   *  never observe zero or two active surfaces between individual updates. */
+  async activateSurface(surfaceId: string): Promise<boolean> {
+    const target = this.layout.get(surfaceId);
+    if (target?.type !== 'surface') return false;
+    for (const candidate of this.layout.values()) {
+      if (candidate.type === 'surface') candidate.properties.active = candidate.id === surfaceId;
+    }
+    this.persistLayout();
+    this.notifyLayout();
+    return true;
+  }
+
+  /** Toggle a region and optionally close same-side peers in one transaction.
+   *  Compact overlays use this to keep exactly one panel visible per side. */
+  async setRegionOpen(regionId: string, open: boolean, exclusivePeerIds: readonly string[] = []): Promise<boolean> {
+    const region = this.layout.get(regionId);
+    if (region?.type !== 'region') return false;
+    if (open) {
+      for (const peerId of exclusivePeerIds) {
+        const peer = this.layout.get(peerId);
+        if (peer?.type === 'region') peer.properties.open = false;
+      }
+    }
+    region.properties.open = open;
+    this.persistLayout();
+    this.notifyLayout();
+    return true;
+  }
+
   private persistLayout(): void {
     if (typeof window === 'undefined') return;
     const objects = [...this.layout.values()].map(toRef);
@@ -297,9 +327,12 @@ export class ConsoleBlockHost implements BlockHost {
 
   private memorySet(query: ObjectQuery): ObjectSet {
     let objects = memoryObjects().filter((object) => matchesPredicate(object, query.where));
+    let nextCursor: string | undefined;
     if (query.page) {
       const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
-      objects = objects.slice(offset, offset + query.page.limit);
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
     }
     const shape: ObjectShape = {
       types: ['memory'],
@@ -311,6 +344,7 @@ export class ConsoleBlockHost implements BlockHost {
     return {
       objects,
       shape,
+      next_cursor: nextCursor,
       subscribe: (callback) => useMemoryProjectionStore.subscribe(() => callback(this.memorySet(query))),
     };
   }
@@ -320,8 +354,16 @@ export class ConsoleBlockHost implements BlockHost {
    *  so a `where slug eq` or `where path eq` predicate resolves identically to
    *  the former seed path (no dependency on the API's predicate support). */
   private async queryLiveDomain(query: ObjectQuery, type: string): Promise<ObjectSet> {
-    const all = await this.http.query({ types: [type], page: { limit: 500 } });
-    let objects = all.objects.filter((object) => matchesPredicate(object, query.where));
+    const allObjects: ObjectRef[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await this.http.query({ types: [type], page: { limit: 500, cursor } });
+      allObjects.push(...page.objects);
+      const next = page.next_cursor;
+      if (!next || next === cursor) break;
+      cursor = next;
+    } while (cursor);
+    let objects = allObjects.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {
       const direction = ranker.direction === 'desc' ? -1 : 1;

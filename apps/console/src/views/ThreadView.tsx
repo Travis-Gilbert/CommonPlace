@@ -12,6 +12,7 @@ import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
 import { Composer } from '@/components/composer/Composer';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
+import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
 
 export const ThreadRuntimeAvailable = createContext(false);
@@ -75,9 +76,7 @@ function AgentPlan({ steps }: { steps: readonly AgentPlanStep[] }) {
                 ? 'var(--ij-success)'
                 : step.status === 'refused'
                   ? 'var(--ij-error)'
-                  : step.status === 'running'
-                    ? 'var(--ij-gold)'
-                    : 'var(--ij-ink-disabled)',
+                  : 'var(--ij-ink-disabled)',
             }}
           />
           <span className="min-w-0 flex-1 truncate text-ij-ink">{step.label}</span>
@@ -100,7 +99,6 @@ function titleOf(object: ObjectRef | undefined, fallback: string): string {
 }
 
 function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boolean }) {
-  const send = useThreadStore((state) => state.send);
   const [suggestions, setSuggestions] = useState<readonly StarterSuggestion[]>([]);
 
   useEffect(() => {
@@ -136,7 +134,7 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
             key={suggestion.id}
             type="button"
             disabled={disabled}
-            onClick={() => void send(suggestion.prompt)}
+            onClick={() => void submitThreadText(suggestion.prompt)}
             className="rounded-ij-arc border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface disabled:text-ij-ink-disabled"
             style={{ transition: 'var(--rec-clickable-transition)' }}
           >

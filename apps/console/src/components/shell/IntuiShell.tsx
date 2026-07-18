@@ -155,15 +155,9 @@ function SurfaceNavGroup({
 }) {
   const durations = useMotionDurations();
   if (surfaces.length === 0) return null;
-  const switchTo = (surfaceId: string) => {
+  const switchTo = async (surfaceId: string) => {
     if (surfaceId === activeSurfaceId) return;
-    for (const surface of surfaces) {
-      void host.emit({
-        kind: 'update',
-        id: surface.id,
-        patch: { active: surface.id === surfaceId },
-      });
-    }
+    await host.activateSurface(surfaceId);
   };
   return (
     <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col items-center gap-1">
@@ -189,7 +183,7 @@ function SurfaceNavGroup({
             aria-label={`${name} surface`}
             aria-checked={active}
             aria-keyshortcuts={`Alt+${index + 1}`}
-            onClick={() => switchTo(surface.id)}
+            onClick={() => void switchTo(surface.id)}
             className="flex h-10 w-10 items-center justify-center rounded-ij-arc"
             style={{
               color: active ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
@@ -315,13 +309,14 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
 
   const toggle = useCallback(
     (region: RegionNode) => {
-      void host.emit({
-        kind: 'update',
-        id: region.object.id,
-        patch: { open: region.object.properties.open === false },
-      });
+      const open = region.object.properties.open === false;
+      const side = regions.left.includes(region) ? regions.left : regions.right;
+      const exclusivePeers = compact && open
+        ? side.filter((candidate) => candidate !== region).map((candidate) => candidate.object.id)
+        : [];
+      void host.setRegionOpen(region.object.id, open, exclusivePeers);
     },
-    [host],
+    [compact, host, regions.left, regions.right],
   );
 
   // Alt+1..5 switches the primary surface radio group. Alt+Shift+1..3
@@ -341,19 +336,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       primarySurfaces.forEach((surface, index) => {
         if (event.key === String(index + 1)) {
           event.preventDefault();
-          for (const candidate of surfaces) {
-            void host.emit({
-              kind: 'update',
-              id: candidate.id,
-              patch: { active: candidate.id === surface.id },
-            });
-          }
+          void host.activateSurface(surface.id);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, host, primarySurfaces, surfaces, toggle]);
+  }, [companions, host, primarySurfaces, toggle]);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {
@@ -453,7 +442,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   };
 
   return (
-    <div ref={shellRef} data-shell data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
+    <div ref={shellRef} data-shell data-compact={compact} data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
       <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
       <div className="flex min-h-0 flex-1">
         {/* The leftmost stripe: screen navigation (surfaces group) on top,

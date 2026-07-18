@@ -37,16 +37,20 @@ export interface StagedThreadRef {
   readonly objectId?: string;
 }
 
+export type ComposerMode = 'agent' | 'plan' | 'model';
+
 export interface ThreadState {
   messages: ThreadMessage[];
   isRunning: boolean;
   error: string | null;
   abort: AbortController | null;
   endpoint: string | null;
+  mode: ComposerMode;
   plan: AgentPlanStep[];
   staged: StagedThreadRef[];
   stage(refs: readonly StagedThreadRef[]): void;
   unstage(id: string): void;
+  setMode(mode: ComposerMode): void;
   send(text: string): Promise<void>;
   cancel(): void;
 }
@@ -120,6 +124,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
   error: null,
   abort: null,
   endpoint: chatEndpoint(),
+  mode: 'agent',
   plan: [],
   staged: [],
 
@@ -132,6 +137,10 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
 
   unstage(id) {
     set((state) => ({ staged: state.staged.filter((ref) => ref.id !== id) }));
+  },
+
+  setMode(mode) {
+    set({ mode });
   },
 
   async send(rawText: string) {
@@ -187,7 +196,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: [{ type: 'text', text }] }),
+        body: JSON.stringify({ content: [{ type: 'text', text }], mode: get().mode }),
         signal: abort.signal,
       });
       if (!response.ok || !response.body) throw new Error(`chat endpoint failed: ${response.status}`);

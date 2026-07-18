@@ -82,6 +82,9 @@ export function parseCardTemplate(ref: ObjectRef): ParsedCardTemplate {
   if (typeof kind !== 'string' || !kind) {
     return { spec: null, note: `template object ${ref.id} is missing its kind` };
   }
+  if (typeof ref.properties.kind !== 'string' || ref.properties.kind !== kind) {
+    return { spec: null, note: `template object ${ref.id} kind does not match its payload` };
+  }
   if (!isRecord(identity) || typeof identity.titleField !== 'string' || !identity.titleField) {
     return { spec: null, note: `template for "${kind}" has no identity.titleField` };
   }

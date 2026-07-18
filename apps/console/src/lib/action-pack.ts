@@ -59,7 +59,13 @@ export function buildActionPack(
 export function packEqualsChips(pack: ActionPack, chips: readonly StagedContextChip[]): boolean {
   if (pack.context.length !== chips.length) return false;
   const key = (entry: PackContextEntry) =>
-    `${entry.kind}|${entry.label}|${entry.object_id ?? ''}|${entry.text ?? ''}`;
+    JSON.stringify([
+      entry.kind,
+      entry.label,
+      entry.object_id ?? null,
+      entry.object_type ?? null,
+      entry.text ?? null,
+    ]);
   const packKeys = pack.context.map(key).sort();
   const chipKeys = chips.map((chip) => key(entryFromChip(chip))).sort();
   if (packKeys.some((value, index) => value !== chipKeys[index])) return false;
@@ -69,4 +75,3 @@ export function packEqualsChips(pack: ActionPack, chips: readonly StagedContextC
   }
   return true;
 }
-

@@ -58,6 +58,14 @@ describe('card templates', () => {
     expect(resolved.fallbackNote).toMatch(/identity\.titleField/);
   });
 
+  it('rejects a template whose external and payload kinds disagree', () => {
+    const mismatched: ObjectRef = {
+      ...seedCardTemplates()[0],
+      properties: { ...seedCardTemplates()[0].properties, kind: 'task' },
+    };
+    expect(parseCardTemplate(mismatched).note).toMatch(/kind does not match/);
+  });
+
   it('generic dynamic facts skip identity fields and non-scalars', () => {
     const generic = resolveCardTemplate(seedCardTemplates(), 'anything').spec;
     const object: ObjectRef = {

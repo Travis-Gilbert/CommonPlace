@@ -423,16 +423,28 @@ const server = createServer((request, response) => {
               );
               return;
             }
+            response.writeHead(404, { 'Content-Type': 'application/json' });
+            response.end(
+              JSON.stringify({ action_kind: 'update', status: 'rejected', error: 'target_not_found' }),
+            );
+            return;
           }
           // Create appends to the type's pool (the seed-content path); ids are
           // deterministic for stable captures.
-          if (action.kind === 'create' && POOLS.has(action.type)) {
-            const pool = POOLS.get(action.type);
-            const id = `${action.type}-${pool.length + 1}`;
-            pool.push({ id, type: action.type, properties: { ...action.props }, relations: {} });
-            response.writeHead(200, { 'Content-Type': 'application/json' });
+          if (action.kind === 'create') {
+            if (POOLS.has(action.type)) {
+              const pool = POOLS.get(action.type);
+              const id = `${action.type}-${pool.length + 1}`;
+              pool.push({ id, type: action.type, properties: { ...action.props }, relations: {} });
+              response.writeHead(200, { 'Content-Type': 'application/json' });
+              response.end(
+                JSON.stringify({ action_kind: 'create', status: 'applied', target_ids: [id] }),
+              );
+              return;
+            }
+            response.writeHead(400, { 'Content-Type': 'application/json' });
             response.end(
-              JSON.stringify({ action_kind: 'create', status: 'applied', target_ids: [id] }),
+              JSON.stringify({ action_kind: 'create', status: 'rejected', error: 'unsupported_type' }),
             );
             return;
           }

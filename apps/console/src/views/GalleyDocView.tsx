@@ -126,8 +126,10 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
         'ml-2 h-5 rounded-ij-arc px-1 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent';
       button.addEventListener('click', openFor);
       const onKey = (event: KeyboardEvent) => {
+        if (event.currentTarget !== event.target) return;
         if (event.altKey && event.key === 'Enter') {
           event.preventDefault();
+          event.stopPropagation();
           openFor();
         }
       };

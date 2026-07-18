@@ -29,9 +29,10 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
     const context = canvas.getContext('2d');
     if (!context) return;
     let frame = 0;
-    let animation = 0;
+    let pendingFrame: number | null = null;
     let active = true;
     const draw = (now: number) => {
+      pendingFrame = null;
       const rect = canvas.getBoundingClientRect();
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.max(1, Math.round(rect.width * ratio));
@@ -45,20 +46,24 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
       const accent = styles.getPropertyValue('--ij-accent').trim();
       const gold = styles.getPropertyValue('--ij-gold').trim();
       const pulse = durations.reduced || !streaming ? 0.12 : 0.12 + Math.sin(now / DUR.slow) * 0.035;
+      const showCommit = commit && !durations.reduced;
       const gradient = context.createLinearGradient(0, height, width, 0);
       gradient.addColorStop(0, 'transparent');
       gradient.addColorStop(0.44, accent);
-      gradient.addColorStop(0.58, commit ? gold : accent);
+      gradient.addColorStop(0.58, showCommit ? gold : accent);
       gradient.addColorStop(1, 'transparent');
-      context.globalAlpha = commit ? 0.24 : pulse;
+      context.globalAlpha = showCommit ? 0.24 : pulse;
       context.fillStyle = gradient;
       context.fillRect(0, 0, width, height);
       context.globalAlpha = 1;
       frame += 1;
       canvas.dataset.sheenFrames = String(frame);
-      if (active && streaming && !durations.reduced) animation = requestAnimationFrame(draw);
+      if (active && streaming && !durations.reduced) pendingFrame = requestAnimationFrame(draw);
     };
-    const observer = new ResizeObserver(() => draw(performance.now()));
+    const scheduleDraw = () => {
+      if (pendingFrame === null) pendingFrame = requestAnimationFrame(draw);
+    };
+    const observer = new ResizeObserver(scheduleDraw);
     observer.observe(canvas);
     const start = performance.now();
     draw(start);
@@ -66,7 +71,7 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
     return () => {
       active = false;
       observer.disconnect();
-      cancelAnimationFrame(animation);
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
     };
   }, [commit, durations.reduced, streaming]);
 
@@ -75,7 +80,7 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
       ref={canvasRef}
       aria-hidden="true"
       data-composer-sheen
-      data-sheen-state={commit ? 'commit' : streaming ? 'streaming' : 'idle'}
+      data-sheen-state={durations.reduced ? 'idle' : commit ? 'commit' : streaming ? 'streaming' : 'idle'}
       className="pointer-events-none absolute inset-0 h-full w-full rounded-ij-arc"
     />
   );

@@ -7,8 +7,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { createParser, type EventSourceMessage } from 'eventsource-parser';
 import type { BlockHost, JsonValue, ObjectRef } from '@commonplace/block-view/types';
 import { surfaceQuery } from '@commonplace/block-view/surface-tree';
+import { DUR } from '@/motion/motion-tokens';
 import {
   projectionPathOf,
   useMemoryProjectionStore,
@@ -114,7 +116,9 @@ export function FilesView({ host }: { host: BlockHost }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
     () => new Set(['root-project', 'root-memory', 'root-uploads']),
   );
+  const [activeRowId, setActiveRowId] = useState('root-project');
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
     const projection = useMemoryProjectionStore.getState();
@@ -142,17 +146,46 @@ export function FilesView({ host }: { host: BlockHost }) {
 
   useEffect(() => {
     if (status !== 'ready') return;
-    const source = new EventSource('/api/harness/memory/stream');
-    const onDelta = (event: MessageEvent<string>) => {
+    const controller = new AbortController();
+    let reconnectTimer: number | undefined;
+    const connect = async () => {
       try {
-        apply(JSON.parse(event.data) as HarnessMemoryDelta);
-      } catch {
-        // Malformed deltas are ignored; the next hydration remains authoritative.
+        const response = await fetch('/api/harness/memory/stream', {
+          cache: 'no-store',
+          headers: { Accept: 'text/event-stream' },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) throw new Error(`memory changefeed failed: ${response.status}`);
+        const parser = createParser({
+          onEvent(event: EventSourceMessage) {
+            if (event.event !== 'item.upserted' && event.event !== 'item.deleted') return;
+            try {
+              apply(JSON.parse(event.data) as HarnessMemoryDelta);
+            } catch {
+              // Malformed deltas are ignored; the next hydration remains authoritative.
+            }
+          },
+        });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          parser.feed(decoder.decode(value, { stream: true }));
+        }
+      } catch (streamError) {
+        if (controller.signal.aborted) return;
+        void streamError;
+      }
+      if (!controller.signal.aborted) {
+        reconnectTimer = window.setTimeout(() => void connect(), DUR.slow * 4);
       }
     };
-    source.addEventListener('item.upserted', onDelta as EventListener);
-    source.addEventListener('item.deleted', onDelta as EventListener);
-    return () => source.close();
+    void connect();
+    return () => {
+      controller.abort();
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+    };
   }, [apply, status]);
 
   const rows = useMemo<TreeRow[]>(() => {
@@ -192,6 +225,19 @@ export function FilesView({ host }: { host: BlockHost }) {
     estimateSize: () => 24,
     overscan: 12,
   });
+  const focusableRows = rows.filter((row) => row.kind !== 'state');
+  const effectiveActiveRowId = focusableRows.some((row) => row.id === activeRowId)
+    ? activeRowId
+    : focusableRows[0]?.id;
+  const focusRow = (id: string) => {
+    const index = rows.findIndex((row) => row.id === id);
+    if (index < 0) return;
+    setActiveRowId(id);
+    virtualizer.scrollToIndex(index, { align: 'auto' });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => rowRefs.current.get(id)?.focus());
+    });
+  };
   const toggle = (id: string) => setExpanded((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
@@ -216,11 +262,38 @@ export function FilesView({ host }: { host: BlockHost }) {
                 type="button"
                 role="treeitem"
                 aria-level={row.depth}
-                aria-selected={false}
+                aria-selected={row.id === effectiveActiveRowId}
                 aria-expanded={expandable ? row.expanded : undefined}
                 disabled={row.kind === 'state'}
+                tabIndex={row.id === effectiveActiveRowId ? 0 : -1}
+                ref={(node) => {
+                  if (node) rowRefs.current.set(row.id, node);
+                  else rowRefs.current.delete(row.id);
+                }}
+                onFocus={() => setActiveRowId(row.id)}
                 onClick={() => expandable ? toggle(row.id) : row.kind === 'memory' ? void openMemoryTab(host, row.item) : undefined}
                 onKeyDown={(event) => {
+                  const focusIndex = focusableRows.findIndex((entry) => entry.id === row.id);
+                  if (event.key === 'ArrowDown' && focusIndex < focusableRows.length - 1) {
+                    event.preventDefault();
+                    focusRow(focusableRows[focusIndex + 1].id);
+                    return;
+                  }
+                  if (event.key === 'ArrowUp' && focusIndex > 0) {
+                    event.preventDefault();
+                    focusRow(focusableRows[focusIndex - 1].id);
+                    return;
+                  }
+                  if (event.key === 'Home' && focusableRows.length > 0) {
+                    event.preventDefault();
+                    focusRow(focusableRows[0].id);
+                    return;
+                  }
+                  if (event.key === 'End' && focusableRows.length > 0) {
+                    event.preventDefault();
+                    focusRow(focusableRows[focusableRows.length - 1].id);
+                    return;
+                  }
                   if (!expandable) return;
                   if (event.key === 'ArrowRight' && !row.expanded) {
                     event.preventDefault();

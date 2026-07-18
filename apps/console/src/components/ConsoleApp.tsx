@@ -20,6 +20,7 @@ import { ConsoleBlockHost } from '@/lib/console-host';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
+import { submitThreadText } from '@/lib/thread-submit';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { GroundCanvas } from '@/components/ground/GroundCanvas';
 import { IntuiShell } from '@/components/shell/IntuiShell';
@@ -48,7 +49,6 @@ function appendedText(message: AppendMessage): string {
 function RuntimeBoundary({ children }: { children: React.ReactNode }) {
   const messages = useThreadStore((state) => state.messages);
   const isRunning = useThreadStore((state) => state.isRunning);
-  const send = useThreadStore((state) => state.send);
   const cancel = useThreadStore((state) => state.cancel);
 
   const runtime = useExternalStoreRuntime({
@@ -58,16 +58,7 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
     onNew: async (message: AppendMessage) => {
       const text = appendedText(message);
       if (!text) return;
-      // The /do entry (K3): the composer's slash command opens the action
-      // sheet with the instruction pre-filled instead of sending a message.
-      if (/^\/do\b/i.test(text)) {
-        useShellStore.getState().openActionSheet({
-          instruction: text.replace(/^\/do\b/i, '').trim(),
-          chips: [],
-        });
-        return;
-      }
-      await send(text);
+      await submitThreadText(text);
     },
     onCancel: async () => cancel(),
     adapters: { attachments: ATTACHMENT_ADAPTER },

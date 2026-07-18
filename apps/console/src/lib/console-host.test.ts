@@ -100,6 +100,27 @@ describe('ConsoleBlockHost', () => {
     unsubscribe();
   });
 
+  it('switches surfaces atomically and closes compact same-side companions', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = host.queryLayout(surfaceQuery());
+    let notified = 0;
+    const unsubscribe = set.subscribe(() => {
+      notified += 1;
+    });
+    expect(await host.activateSurface('console-workspace')).toBe(true);
+    let current = host.queryLayout(surfaceQuery()).objects;
+    expect(current.filter((object) => object.type === 'surface' && object.properties.active === true).map((object) => object.id))
+      .toEqual(['console-workspace']);
+    expect(notified).toBe(1);
+
+    await host.setRegionOpen('workspace.region-context', true);
+    await host.setRegionOpen('workspace.region-thread', true, ['workspace.region-context']);
+    current = host.queryLayout(surfaceQuery()).objects;
+    expect(current.find((object) => object.id === 'workspace.region-context')?.properties.open).toBe(false);
+    expect(current.find((object) => object.id === 'workspace.region-thread')?.properties.open).toBe(true);
+    unsubscribe();
+  });
+
   it('round-trips server-driven filter and sort through ObjectQuery', async () => {
     const host = fixtureHost();
     const filtered = await Promise.resolve(

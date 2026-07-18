@@ -38,6 +38,16 @@ describe('the prepared pack', () => {
     expect(packEqualsChips(pack, [ORIGIN])).toBe(false);
   });
 
+  it('distinguishes object types and delimiter-bearing values', () => {
+    const pack = buildActionPack('send it', [ORIGIN], 'for-me', 'keep-open');
+    expect(packEqualsChips({
+      ...pack,
+      context: [{ ...pack.context[0], object_type: 'person' }],
+    }, [ORIGIN])).toBe(false);
+    const delimited = { ...ORIGIN, label: 'Send|the|report' };
+    expect(packEqualsChips(buildActionPack('send it', [delimited], 'for-me', 'keep-open'), [delimited])).toBe(true);
+  });
+
   it('a removed auto chip never reaches the pack', () => {
     const visible = [ORIGIN, MANUAL];
     const pack = buildActionPack('send it', visible, 'with-me', 'mark-handled');

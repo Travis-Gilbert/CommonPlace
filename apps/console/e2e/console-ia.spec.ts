@@ -86,7 +86,10 @@ test.describe('Console information architecture', () => {
     const firstFrames = await page.locator('[data-composer-sheen]').getAttribute('data-sheen-frames');
     await page.waitForTimeout(300);
     await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-frames', firstFrames ?? '1');
-    const idleCost = Number(await page.locator('[data-composer-sheen]').getAttribute('data-idle-paint-cost'));
+    const idleCostAttribute = await page.locator('[data-composer-sheen]').getAttribute('data-idle-paint-cost');
+    expect(idleCostAttribute).not.toBeNull();
+    const idleCost = Number(idleCostAttribute);
+    expect(Number.isFinite(idleCost)).toBe(true);
     expect(idleCost).toBeLessThan(16);
     await expect(page).toHaveScreenshot('chat-empty.png', { fullPage: true });
   });
@@ -139,11 +142,26 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('treeitem', { name: /no project context/i })).toBeVisible();
     await expect(page.getByRole('treeitem', { name: 'topic-0' })).toBeVisible();
     expect(await page.getByRole('treeitem').count()).toBeLessThan(100);
+    await page.getByRole('treeitem', { name: 'Project', exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('treeitem', { name: 'Harness Memory' })).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(page.getByRole('treeitem', { name: 'Project', exact: true })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
     await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
     await expect(page.getByRole('note')).toContainText('MemoryPatch is not available');
     await expect(page).toHaveScreenshot('files-projection.png', { fullPage: true });
+  });
+
+  test('keeps one compact companion open per side', async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await expect(page.locator('[data-shell]')).toHaveAttribute('data-compact', 'true');
+    await page.locator('[data-companion-nav="context"]').click();
+    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('[data-companion-nav="thread"]').click();
+    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {

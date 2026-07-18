@@ -5,6 +5,8 @@
 // identity refusal observable in production) passes its status through so the
 // sheet can name it. No fixture rooms ever render.
 
+import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request): Promise<Response> {
@@ -15,6 +17,7 @@ export async function POST(req: Request): Promise<Response> {
   const tenant = process.env.CONSOLE_HARNESS_TENANT ?? 'Travis-Gilbert';
   const room = process.env.CONSOLE_HARNESS_ROOM ?? 'commonplace';
   const pack = await req.text();
+  const timeout = startHarnessRequestTimeout();
   try {
     const upstream = await fetch(
       `${base.replace(/\/$/, '')}/harness/rooms/${encodeURIComponent(room)}/handoffs?tenant=${encodeURIComponent(tenant)}`,
@@ -28,6 +31,7 @@ export async function POST(req: Request): Promise<Response> {
         },
         body: pack,
         cache: 'no-store',
+        signal: timeout.signal,
       },
     );
     const body = await upstream.text();
@@ -36,6 +40,11 @@ export async function POST(req: Request): Promise<Response> {
       headers: { 'Content-Type': upstream.headers.get('Content-Type') ?? 'application/json' },
     });
   } catch {
+    if (timeout.didTimeout()) {
+      return Response.json({ error: 'harness_delegate_timeout' }, { status: 504 });
+    }
     return Response.json({ error: 'harness_unreachable' }, { status: 502 });
+  } finally {
+    timeout.clear();
   }
 }

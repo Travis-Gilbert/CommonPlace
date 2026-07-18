@@ -52,9 +52,10 @@ export function Composer({ host, compact = false, unavailable = false }: Compose
   const isRunning = useThreadStore((state) => state.isRunning);
   const staged = useThreadStore((state) => state.staged);
   const unstage = useThreadStore((state) => state.unstage);
+  const mode = useThreadStore((state) => state.mode);
+  const setMode = useThreadStore((state) => state.setMode);
   const openActionSheet = useShellStore((state) => state.openActionSheet);
   const [mentions, setMentions] = useState<readonly ObjectRef[]>([]);
-  const [mode, setMode] = useState('Agent');
 
   useEffect(() => {
     let active = true;
@@ -144,12 +145,12 @@ export function Composer({ host, compact = false, unavailable = false }: Compose
               <select
                 aria-label="Composer mode"
                 value={mode}
-                onChange={(event) => setMode(event.target.value)}
+                onChange={(event) => setMode(event.target.value as 'agent' | 'plan' | 'model')}
                 className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
               >
-                <option>Agent</option>
-                <option>Plan</option>
-                <option>Model</option>
+                <option value="agent">Agent</option>
+                <option value="plan">Plan</option>
+                <option value="model">Model</option>
               </select>
               <span className="ml-auto flex items-center" data-presence-mark-placement="composer">
                 <PresenceMark state={isRunning ? 'composing' : 'idle'} size={compact ? 18 : 22} />

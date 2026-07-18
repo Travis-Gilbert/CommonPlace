@@ -2,6 +2,8 @@
 // projection. Tenant identity is mandatory and travels on the connection;
 // this route never falls back to a default tenant.
 
+import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
+
 export const dynamic = 'force-dynamic';
 
 const MEMORY_QUERY = `
@@ -34,6 +36,7 @@ export async function GET(): Promise<Response> {
   if (!endpoint) {
     return Response.json({ error: 'harness_graphql_unconfigured' }, { status: 404 });
   }
+  const timeout = startHarnessRequestTimeout();
   try {
     const upstream = await fetch(endpoint, {
       method: 'POST',
@@ -50,6 +53,7 @@ export async function GET(): Promise<Response> {
       },
       body: JSON.stringify({ query: MEMORY_QUERY }),
       cache: 'no-store',
+      signal: timeout.signal,
     });
     const payload = (await upstream.json()) as {
       data?: { itemsByKind?: unknown[] };
@@ -64,6 +68,11 @@ export async function GET(): Promise<Response> {
     }
     return Response.json({ tenant, items: payload.data?.itemsByKind ?? [] });
   } catch {
+    if (timeout.didTimeout()) {
+      return Response.json({ error: 'harness_graphql_timeout' }, { status: 504 });
+    }
     return Response.json({ error: 'harness_graphql_unreachable' }, { status: 502 });
+  } finally {
+    timeout.clear();
   }
 }
