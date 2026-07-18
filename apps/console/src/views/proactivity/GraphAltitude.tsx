@@ -24,7 +24,7 @@ import {
 } from './controls';
 import { AssumptionPanel } from './AssumptionPanel';
 import { BlockStack } from './BlockStack';
-import { humanLifeKind, sourcesOf } from './kinds';
+import { bodyFontClass, humanLifeKind, sourcesOf } from './kinds';
 import type { ProactivityEdits } from './use-edits';
 
 function structuralSignature(graph: ProactivityGraph): string {
@@ -140,7 +140,7 @@ function NodeInspector({
 }) {
   const sources = sourcesOf(graph.nodes);
   return (
-    <div className="flex flex-col gap-3">
+    <div className={`flex flex-col gap-3 ${bodyFontClass(node)}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <KindChip kind={node.kind} />
@@ -158,7 +158,7 @@ function NodeInspector({
 
       {node.kind === 'stake' ? (
         <>
-          <p className="text-sm text-ij-ink">{node.statement}</p>
+          <p className="text-sm text-ij-ink font-cp-title">{node.statement}</p>
           <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <AssumptionPanel graph={graph} stakeId={node.id} edits={edits} />
         </>
@@ -170,7 +170,7 @@ function NodeInspector({
 
       {node.kind === 'watch' ? (
         <>
-          <p className="text-sm text-ij-ink">{node.statement}</p>
+          <p className="text-sm text-ij-ink font-cp-title">{node.statement}</p>
           <p className="text-xs text-ij-ink-info">Looks for: {node.condition}</p>
           <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <DegradedNote node={node} />

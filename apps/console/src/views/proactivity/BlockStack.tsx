@@ -33,7 +33,7 @@ import type { ProactivityEdits } from './use-edits';
 
 type SourceProjection = Extract<ProjectedNode, { kind: 'source' }>;
 
-const CHIP = 'shrink-0 rounded-ij-arc bg-ij-chrome px-1.5 text-xs font-medium text-ij-ink-info';
+const CHIP = 'shrink-0 rounded-ij-arc bg-ij-chrome px-1.5 text-xs font-medium font-ij-mono text-ij-ink-info';
 
 /** The type chip and rail dot: kind reads by the chip label and the dot, never
  *  color alone (the join-honesty rule, applied to blocks). */
@@ -248,7 +248,7 @@ function BranchGroup({
 }) {
   return (
     <div className="ml-2 flex flex-col gap-0.5 border-l border-dashed border-ij-seam-raised pl-2">
-      <span className="text-xs uppercase tracking-wide text-ij-ink-info">{branch}</span>
+      <span className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info">{branch}</span>
       {blocks.map((block) => (
         <BlockRow key={block.id} block={block} {...row} {...row.stepHandlers(block)} />
       ))}
@@ -316,7 +316,7 @@ export function BlockStack({
 
         {forked ? (
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-ij-ink-info">if</span>
+            <span className="font-ij-mono text-xs text-ij-ink-info">if</span>
             {thenBranch.length > 0 ? (
               <BranchGroup branch="then" blocks={thenBranch} {...row} stepHandlers={stepHandlers} />
             ) : null}

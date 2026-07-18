@@ -33,6 +33,16 @@ export const KIND_META: Record<PgNodeKind, KindMeta> = {
   assumption: { label: 'Assumption', ink: 'text-ij-ink-info', tint: 'bg-ij-chrome', shape: 'dot' },
 };
 
+/** The body face for a node's content, by author (the console typography
+ *  system): the human speaks in Manrope at an extra-light weight, everyone else
+ *  in the chrome/agent Plex (an empty string, which inherits the chrome face).
+ *  Titles (font-cp-title, Vollkorn) and metadata (font-ij-mono, JetBrains) are
+ *  applied on their own elements and are universal to author. */
+export function bodyFontClass(node: ProjectedNode): string {
+  const author = 'author' in node ? node.author : 'agent';
+  return author === 'human' ? 'font-cp-human font-extralight' : '';
+}
+
 /** A standing program: a watch and its downstream, plus its stake and sources. */
 export interface ProgramView {
   readonly id: string;

@@ -65,7 +65,7 @@ export function RepoCard({
           {kind ? (
             <span className={`shrink-0 rounded-ij-arc px-1.5 text-xs font-medium ${kindTint} ${kindInk}`}>{kind}</span>
           ) : null}
-          {title ? <span className="min-w-0 font-semibold text-ij-ink">{title}</span> : null}
+          {title ? <span className="min-w-0 font-cp-title font-semibold text-ij-ink">{title}</span> : null}
         </div>
         {badges ? <div className="flex shrink-0 items-center gap-2">{badges}</div> : null}
       </div>

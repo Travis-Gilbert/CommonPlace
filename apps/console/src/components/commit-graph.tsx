@@ -14,7 +14,7 @@
 
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { nodeDisabled, type ProjectedNode } from '@/lib/proactivity/model';
-import { KIND_META } from '@/views/proactivity/kinds';
+import { KIND_META, bodyFontClass } from '@/views/proactivity/kinds';
 import { useGraphInteraction } from '@/views/proactivity/graph-context';
 import { BlockStack } from '@/views/proactivity/BlockStack';
 import type { ProactivityRFNode } from '@/views/proactivity/graph-layout';
@@ -66,14 +66,14 @@ function containerClass(selected: boolean, degraded: boolean, isJoin: boolean, d
       : isJoin
         ? 'border-ij-accent-muted'
         : 'border-ij-seam-raised';
-  return `flex h-full w-full flex-col overflow-hidden rounded-ij-arc border ${border} bg-ij-editor px-3 py-1.5 font-ij-ui ${disabled ? 'opacity-45' : ''}`;
+  return `flex h-full w-full flex-col overflow-hidden rounded-ij-arc border ${border} bg-ij-editor px-3 py-1.5 ${disabled ? 'opacity-45' : ''}`;
 }
 
 function KindHeader({ node, isJoin }: { readonly node: ProjectedNode; readonly isJoin: boolean }) {
   const meta = KIND_META[node.kind];
   const author = 'author' in node ? node.author : null;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 font-ij-mono">
       <span className="size-2.5 shrink-0 rounded-full" style={{ background: RAIL[node.kind] }} aria-hidden="true" />
       <span className={`rounded-ij-arc px-1.5 text-xs font-medium ${meta.tint} ${meta.ink}`}>{meta.label}</span>
       {isJoin ? (
@@ -97,7 +97,7 @@ function ResponseStack({ node, selected }: { readonly node: Response; readonly s
       data-node={node.id}
       data-node-kind="response"
       aria-label={`Response: ${commitMessage(node)}, ${meta.text}${disabled ? ', disabled' : ''}`}
-      className={containerClass(selected, node.degraded.degraded, false, disabled)}
+      className={`${containerClass(selected, node.degraded.degraded, false, disabled)} ${bodyFontClass(node)}`}
     >
       <Handle type="target" position={Position.Left} isConnectable={false} />
 
@@ -126,11 +126,11 @@ function SingleEntry({ node, isJoin, selected }: { readonly node: ProjectedNode;
       data-node={node.id}
       data-node-kind={node.kind}
       aria-label={`${meta.label}: ${message}${disabled ? ', disabled' : ''}${degraded ? `, degraded, ${node.degraded.consequence}` : ''}`}
-      className={`${containerClass(selected, degraded, isJoin, disabled)} justify-center gap-1`}
+      className={`${containerClass(selected, degraded, isJoin, disabled)} justify-center gap-1 ${bodyFontClass(node)}`}
     >
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <KindHeader node={node} isJoin={isJoin} />
-      <p className="truncate text-sm text-ij-ink">{message}</p>
+      <p className="truncate text-sm text-ij-ink font-cp-title">{message}</p>
       {degraded ? <p className="truncate text-xs text-ij-warn">{node.degraded.consequence}</p> : null}
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </div>
