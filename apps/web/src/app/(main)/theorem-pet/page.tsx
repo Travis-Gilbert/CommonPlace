@@ -157,6 +157,8 @@ export default function TheoremPetPage() {
                 alt="Nine pixel creatures, each a distinct silhouette, rendered on a dark screen in two idle frames."
                 width={784}
                 height={3536}
+                loading="lazy"
+                decoding="async"
                 style={pixel}
                 className="w-full"
               />
