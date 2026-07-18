@@ -114,10 +114,10 @@ export function TopicPanel() {
           <label className={styles.libraryField}>Seed URLs<textarea name="seedUrls" rows={2} placeholder="https://example.com/research" /></label>
           <label className={styles.libraryField}>Search queries<textarea name="queries" rows={2} placeholder="rust database release" /></label>
           <div className={styles.libraryPair}>
-            <label className={styles.libraryField}>Every (minutes)<input name="cadenceMinutes" type="number" min="1" defaultValue="60" /></label>
+            <label className={styles.libraryField}>Every (minutes)<input name="cadenceMinutes" type="number" min="1" defaultValue="60" required /></label>
             <label className={styles.libraryField}>Link depth<input name="maxDepth" type="number" min="0" max="32" defaultValue="2" /></label>
           </div>
-          <label className={styles.libraryField}>Items per source<input name="maxItems" type="number" min="1" max="1000" defaultValue="100" /></label>
+          <label className={styles.libraryField}>Items per source<input name="maxItems" type="number" min="1" max="1000" defaultValue="100" required /></label>
           <button className={styles.libraryPrimary} disabled={busy !== null}>{busy === 'create' ? 'Subscribing…' : 'Subscribe to topic'}</button>
         </form>
 
