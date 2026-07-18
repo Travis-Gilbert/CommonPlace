@@ -37,6 +37,16 @@ export interface TopicRecord {
   trainingDecision?: string;
 }
 
+export interface TopicCapturePreview {
+  kind: 'open_graph' | 'screenshot' | 'embedded_media';
+  originUrl: string;
+  title?: string;
+  description?: string;
+  snapshotUrl?: string;
+  alt?: string;
+  aspectRatio?: number;
+}
+
 export type TopicAction =
   | { action: 'list' }
   | { action: 'create'; config: TopicConfig }
@@ -99,6 +109,28 @@ export function topicRecords(value: unknown): TopicRecord[] {
   });
 }
 
+/**
+ * Project a Survey capture preview without ever turning provenance into a
+ * browser render URL. A missing/unsafe held path means the caller should use
+ * its typed reconstruction instead.
+ */
+export function topicCapturePreview(value: unknown): TopicCapturePreview | undefined {
+  const properties = objectValue(value);
+  const kind = text(properties?.source_preview_kind);
+  if (kind !== 'open_graph' && kind !== 'screenshot' && kind !== 'embedded_media') return undefined;
+  const originUrl = optionalText(properties?.source_preview_origin_url);
+  if (!originUrl) return undefined;
+  return {
+    kind,
+    originUrl,
+    title: optionalText(properties?.source_preview_title),
+    description: optionalText(properties?.source_preview_description),
+    snapshotUrl: heldSnapshotPath(properties?.source_snapshot_url),
+    alt: optionalText(properties?.source_snapshot_alt),
+    aspectRatio: aspectRatio(properties?.source_aspect_ratio),
+  };
+}
+
 export function unwrapGraphqlField(value: unknown, field: string): unknown {
   const root = objectValue(value);
   const result = objectValue(root?.result) ?? root;
@@ -139,6 +171,19 @@ function number(value: unknown): number {
 
 function optionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function heldSnapshotPath(value: unknown): string | undefined {
+  const path = optionalText(value);
+  return path && /^\/api\/theorem\/topic-preview-assets\/[a-f0-9]{64}$/.test(path)
+    ? path
+    : undefined;
+}
+
+function aspectRatio(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 10
+    ? value
+    : undefined;
 }
 
 function topicStatus(value: unknown): TopicStatus {
