@@ -51,6 +51,17 @@ const isParamRecord: FieldGuard = (value) =>
   !Array.isArray(value) &&
   Object.values(value as Record<string, unknown>).every((item) => typeof item === 'string' || typeof item === 'number');
 const isJudgmentClass: FieldGuard = (value) => value === 'interrupt' || value === 'digest' || value === 'silent';
+// The agent-action stack: a list of {id, label} rows. Attention/plan only, so a
+// step can never carry a capability field; the guard admits id and label only.
+const isStepArray: FieldGuard = (value) =>
+  Array.isArray(value) &&
+  value.every(
+    (step) =>
+      typeof step === 'object' &&
+      step !== null &&
+      typeof (step as Record<string, unknown>).id === 'string' &&
+      typeof (step as Record<string, unknown>).label === 'string',
+  );
 
 const PATCHABLE_FIELDS: Record<PgNodeKind, Readonly<Record<string, FieldGuard>>> = {
   stake: { disabled: isBoolean },
@@ -58,7 +69,7 @@ const PATCHABLE_FIELDS: Record<PgNodeKind, Readonly<Record<string, FieldGuard>>>
   source: { disabled: isBoolean },
   watch: { disabled: isBoolean, sourceIds: isStringArray, conditionParams: isParamRecord },
   judgment: { disabled: isBoolean, judgmentClass: isJudgmentClass, thresholds: isParamRecord },
-  response: { disabled: isBoolean, actionClass: isString },
+  response: { disabled: isBoolean, actionClass: isString, steps: isStepArray },
 };
 
 function matchesWhere(object: ObjectRef, predicate: Predicate | undefined): boolean {

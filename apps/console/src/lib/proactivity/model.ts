@@ -108,8 +108,19 @@ export interface JudgmentNode {
   readonly disabled: boolean;
 }
 
+/** One step in a response's agent action. Actions are programmed by stacking
+ *  steps (the git-graph building block): each step is a row a person adds to the
+ *  node to build up what the agent does when the response fires. Steps are
+ *  attention/plan only; they never widen the Grant or the EffectContract (the
+ *  grant boundary holds, PG7 gate 2). */
+export interface ActionStep {
+  readonly id: string;
+  readonly label: string;
+}
+
 /** A response: "what it does about it" (an action class resolving to an
- *  EffectContract, bounded by a Grant). */
+ *  EffectContract, bounded by a Grant). Its agent action is a stack of steps a
+ *  person builds up on the node. */
 export interface ResponseNode {
   readonly id: string;
   readonly kind: 'response';
@@ -119,6 +130,9 @@ export interface ResponseNode {
   readonly judgmentId: string;
   readonly author: PgAuthor;
   readonly disabled: boolean;
+  /** The stacked agent-action steps. Absent or empty renders one derived row
+   *  (the effect contract's action); a person stacks more to build the action. */
+  readonly steps?: readonly ActionStep[];
 }
 
 export type StandingNode =

@@ -63,11 +63,16 @@ test.describe('Proactivity graph surface', () => {
     await openProactivity(page);
     await page.getByRole('tab', { name: 'Graph' }).click();
 
-    // The layered layout resolves (elk runs) and the join is named.
+    // The layered layout resolves (elk runs) and React Flow renders the nodes as
+    // commit-entry building blocks; the join watches are marked.
     await expect(page.getByText(/A watch fires only where both converge/)).toBeVisible();
     await expect(page.getByRole('group', { name: 'The standing proactivity graph' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /The adjuster replies on the appeal/ })).toBeVisible();
+    await expect(page.locator('.react-flow__node').first()).toBeVisible();
+    await expect(page.locator('[data-node-kind="response"]').first()).toBeVisible();
+    await expect(page.locator('[data-node-kind="watch"]').first()).toBeVisible();
 
+    // Let React Flow's fitView settle before the baseline.
+    await page.waitForTimeout(600);
     await expect(page).toHaveScreenshot('proactivity-graph-1440-dark.png', { fullPage: true });
   });
 });

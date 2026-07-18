@@ -43,6 +43,16 @@ export function setActionClassAction(id: string, actionClass: string): ObjectAct
   return { kind: 'update', id, patch: { actionClass } };
 }
 
+/** Stack, reorder, or edit a response's agent-action steps (named choice: build
+ *  actions by stacking rows on the node). Attention/plan only; the grant and the
+ *  effect contract are untouched. */
+export function setResponseStepsAction(
+  id: string,
+  steps: readonly { readonly id: string; readonly label: string }[],
+): ObjectAction {
+  return { kind: 'update', id, patch: { steps: steps.map((step) => ({ ...step })) as unknown as JsonValue } };
+}
+
 /** Commit one intent candidate. The node carries author: human already. */
 export function commitCandidateAction(node: StandingNode): ObjectAction {
   return { kind: 'create', type: `pg.${node.kind}`, props: node as unknown as Record<string, JsonValue> };

@@ -1,47 +1,61 @@
-// SOURCING: elkjs (Eclipse Layout Kernel, layered algorithm). Verify-first V11:
-// the layout is topological-depth layered per the Atlas of Knowledge
+// SOURCING: elkjs (layered layout) feeding @xyflow/react (canvas). Verify-first
+// V11: the layout is topological-depth layered per the Atlas of Knowledge
 // prerequisite DAG, not a force layout, because force hides depth and depth is
 // the one thing this graph must show. elk is layout-only: it returns
-// coordinates, and the canvas renders every pixel through register tokens, so
-// there is no bespoke canvas styling outside the register (named choice 9).
-// elk is imported dynamically here, so the sentence and card altitudes load
-// with no graph bundle (PG3 acceptance).
+// coordinates, React Flow renders and routes. Sources and assumptions pin to
+// the first layer, responses to the last, so watches land where both streams
+// converge (the join, named choice 8). elk is imported dynamically here, so the
+// sentence and card altitudes load with no graph bundle (PG3 acceptance).
 
+import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import type { PgEdgeKind, PgNodeKind, ProactivityGraph, ProjectedNode } from '@/lib/proactivity/model';
 
-export interface LaidOutNode {
-  readonly id: string;
-  readonly kind: PgNodeKind;
+/** The data a proactivity React Flow node carries: the projected node and
+ *  whether it is the two-sided convergence (rendered as a marked join). */
+export interface ProactivityNodeData extends Record<string, unknown> {
   readonly node: ProjectedNode;
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-  /** A watch that is the two-sided convergence: fed by a source and declared by
-   *  a stake. The canvas marks it so the join reads as a join, not a pipe. */
   readonly isJoin: boolean;
 }
 
-export interface LaidOutEdge {
-  readonly id: string;
-  readonly kind: PgEdgeKind;
-  readonly points: readonly { readonly x: number; readonly y: number }[];
-}
+export type ProactivityRFNode = Node<ProactivityNodeData, 'proactivity'>;
+export type ProactivityRFEdge = Edge<{ readonly kind: PgEdgeKind }>;
 
 export interface GraphLayout {
   readonly width: number;
   readonly height: number;
-  readonly nodes: readonly LaidOutNode[];
-  readonly edges: readonly LaidOutEdge[];
+  readonly nodes: ProactivityRFNode[];
+  readonly edges: ProactivityRFEdge[];
 }
 
-const DIMENSIONS: Record<PgNodeKind, { width: number; height: number }> = {
-  assumption: { width: 168, height: 40 },
-  source: { width: 132, height: 44 },
-  stake: { width: 188, height: 52 },
-  watch: { width: 208, height: 56 },
-  judgment: { width: 156, height: 48 },
-  response: { width: 208, height: 60 },
+// Node dimensions: every node shares a width; height grows with content. A
+// response is a stack of agent-action steps (the git-graph building block), so
+// it is as tall as its stack; every other kind is a single commit-entry row.
+// elk lays out against these exact dimensions and React Flow renders the nodes
+// at them, so positions stay valid as a person stacks steps higher.
+export const NODE_WIDTH = 248;
+const ROW_HEIGHT = 68;
+const RESPONSE_HEADER = 50;
+const STEP_HEIGHT = 26;
+const RESPONSE_ADD = 30;
+
+/** A response node renders one derived row when it has no authored steps. */
+export function responseStepCount(node: ProjectedNode): number {
+  return node.kind === 'response' ? Math.max(1, node.steps?.length ?? 0) : 0;
+}
+
+function nodeHeight(node: ProjectedNode): number {
+  if (node.kind === 'response') return RESPONSE_HEADER + responseStepCount(node) * STEP_HEIGHT + RESPONSE_ADD;
+  return ROW_HEIGHT;
+}
+
+// Edge paint by kind: the two converging streams are tinted so the join at a
+// watch reads as a join, not a pipe (named choice 8). Register tokens only.
+const EDGE_STROKE: Record<PgEdgeKind, string> = {
+  feeds: 'var(--ij-memory)',
+  declares: 'var(--ij-graph)',
+  rests_on: 'var(--ij-ink-info)',
+  gates: 'var(--ij-room)',
+  acts: 'var(--ij-ink-info)',
 };
 
 // The two root families pin to the first layer (sources on the fact side,
@@ -66,8 +80,9 @@ function joinWatchIds(graph: ProactivityGraph): Set<string> {
 }
 
 /**
- * Lay out the graph with elk's layered algorithm. Dynamically imports elkjs so
- * the graph bundle is only fetched at the graph altitude.
+ * Lay out the graph with elk's layered algorithm and return React Flow nodes and
+ * edges. Dynamically imports elkjs so the graph bundle is only fetched at the
+ * graph altitude.
  */
 export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout> {
   const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
@@ -76,12 +91,11 @@ export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout>
   const joins = joinWatchIds(graph);
 
   const children = graph.nodes.map((node) => {
-    const dims = DIMENSIONS[node.kind];
     const constraint = layerConstraint(node.kind);
     return {
       id: node.id,
-      width: dims.width,
-      height: dims.height,
+      width: NODE_WIDTH,
+      height: nodeHeight(node),
       ...(constraint ? { layoutOptions: { 'elk.layered.layering.layerConstraint': constraint } } : {}),
     };
   });
@@ -93,9 +107,8 @@ export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout>
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': 'RIGHT',
-      'elk.edgeRouting': 'ORTHOGONAL',
-      'elk.spacing.nodeNode': '20',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '84',
+      'elk.spacing.nodeNode': '28',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '96',
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
       'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
     },
@@ -103,40 +116,36 @@ export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout>
     edges: elkEdges,
   });
 
-  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
-  const edgeKindById = new Map(graph.edges.map((edge) => [edge.id, edge.kind]));
+  const positionById = new Map((laid.children ?? []).map((child) => [child.id, { x: child.x ?? 0, y: child.y ?? 0 }]));
 
-  const nodes: LaidOutNode[] = (laid.children ?? []).map((child) => {
-    const node = byId.get(child.id);
-    if (!node) throw new Error(`layout returned unknown node: ${child.id}`);
-    return {
-      id: child.id,
-      kind: node.kind,
-      node,
-      x: child.x ?? 0,
-      y: child.y ?? 0,
-      width: child.width ?? 0,
-      height: child.height ?? 0,
-      isJoin: node.kind === 'watch' && joins.has(node.id),
-    };
-  });
+  const nodes: ProactivityRFNode[] = graph.nodes.map((node) => ({
+    id: node.id,
+    type: 'proactivity',
+    position: positionById.get(node.id) ?? { x: 0, y: 0 },
+    data: { node, isJoin: node.kind === 'watch' && joins.has(node.id) },
+    width: NODE_WIDTH,
+    height: nodeHeight(node),
+    draggable: false,
+    connectable: false,
+    deletable: false,
+  }));
 
-  const edges: LaidOutEdge[] = (laid.edges ?? []).map((edge) => {
-    const section = edge.sections?.[0];
-    const points = section
-      ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
-      : [];
+  const edges: ProactivityRFEdge[] = graph.edges.map((edge) => {
+    const stroke = EDGE_STROKE[edge.kind];
+    const strong = edge.kind === 'feeds' || edge.kind === 'declares';
     return {
       id: edge.id,
-      kind: edgeKindById.get(edge.id) ?? 'feeds',
-      points,
+      source: edge.from,
+      target: edge.to,
+      type: 'smoothstep',
+      data: { kind: edge.kind },
+      style: { stroke, strokeWidth: strong ? 2 : 1.5 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: stroke, width: 16, height: 16 },
+      selectable: false,
+      focusable: false,
+      deletable: false,
     };
   });
 
-  return {
-    width: laid.width ?? 0,
-    height: laid.height ?? 0,
-    nodes,
-    edges,
-  };
+  return { width: laid.width ?? 0, height: laid.height ?? 0, nodes, edges };
 }

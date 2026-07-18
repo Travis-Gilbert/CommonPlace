@@ -21,6 +21,7 @@ import {
 import { AuthorTag, DegradedNote, DisableControl, DisabledTag } from './controls';
 import { AssumptionPanel } from './AssumptionPanel';
 import { humanClass } from './kinds';
+import { RepoCard, RepoCardDescription } from '@/components/repo-card';
 import type { ProactivityEdits } from './use-edits';
 
 const INLINE = 'rounded-ij-arc border border-ij-control-border bg-ij-editor px-1 text-xs text-ij-ink font-ij-ui';
@@ -185,30 +186,34 @@ export function SentenceAltitude({
           const stakeNode = nodeById(graph, line.stakeId);
           const open = openStake === line.stakeId;
           return (
-            <div key={line.id} className="rounded-ij-arc border border-ij-seam-raised bg-ij-editor p-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-ij-ink">
-                  {line.text} <span className="text-ij-ink-info">{line.assumptionSummary}</span>
-                </p>
-                <div className="flex shrink-0 items-center gap-2">
-                  {stakeNode && stakeNode.kind === 'stake' ? (
-                    <>
-                      <DisabledTag disabled={stakeNode.disabled} />
-                      <DisableControl node={stakeNode} edits={edits} />
-                    </>
-                  ) : null}
-                </div>
-              </div>
+            <RepoCard
+              key={line.id}
+              dataNode={line.stakeId}
+              dot="var(--ij-graph)"
+              kind="Stake"
+              kindTint="bg-ij-graph-tint"
+              kindInk="text-ij-graph"
+              title={line.text}
+              badges={
+                stakeNode && stakeNode.kind === 'stake' ? (
+                  <>
+                    <DisabledTag disabled={stakeNode.disabled} />
+                    <DisableControl node={stakeNode} edits={edits} />
+                  </>
+                ) : null
+              }
+            >
+              <RepoCardDescription>{line.assumptionSummary}</RepoCardDescription>
               <button
                 type="button"
-                className="mt-2 text-xs text-ij-link"
+                className="self-start text-xs text-ij-link"
                 aria-expanded={open}
                 onClick={() => setOpenStake(open ? null : line.stakeId)}
               >
                 {open ? 'Hide what it rests on' : 'See what it rests on'}
               </button>
               {open ? <AssumptionPanel graph={graph} stakeId={line.stakeId} edits={edits} /> : null}
-            </div>
+            </RepoCard>
           );
         })}
       </section>
@@ -218,26 +223,32 @@ export function SentenceAltitude({
         {doc.programs.map((line) => {
           const watchNode = graph.nodes.find((node) => line.nodeIds.includes(node.id) && node.kind === 'watch');
           return (
-            <div key={line.id} className="rounded-ij-arc border border-ij-seam-raised bg-ij-editor p-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className="leading-relaxed text-ij-ink">
-                  {line.tokens.map((token, index) => (
-                    <TokenView key={index} token={token} graph={graph} contracts={contracts} edits={edits} />
-                  ))}
-                  {line.note ? <span className="ml-1 text-ij-ink-info">({line.note})</span> : null}
-                </p>
-                <div className="flex shrink-0 items-center gap-2">
+            <RepoCard
+              key={line.id}
+              dot="var(--ij-agent)"
+              kind="Watch"
+              kindTint="bg-ij-agent-tint"
+              kindInk="text-ij-agent"
+              badges={
+                <>
                   <AuthorTag author={line.author} />
                   {watchNode && watchNode.kind === 'watch' ? <DisableControl node={watchNode} edits={edits} /> : null}
-                </div>
-              </div>
+                </>
+              }
+            >
+              <p className="leading-relaxed text-ij-ink">
+                {line.tokens.map((token, index) => (
+                  <TokenView key={index} token={token} graph={graph} contracts={contracts} edits={edits} />
+                ))}
+                {line.note ? <span className="ml-1 text-ij-ink-info">({line.note})</span> : null}
+              </p>
               {line.nodeIds
                 .map((id) => nodeById(graph, id))
                 .filter((node): node is ProjectedNode => Boolean(node))
                 .map((node) => (
                   <DegradedNote key={`deg-${node.id}`} node={node} />
                 ))}
-            </div>
+            </RepoCard>
           );
         })}
       </section>

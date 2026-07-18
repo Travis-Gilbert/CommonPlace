@@ -184,8 +184,33 @@ const NODES: readonly StandingNode[] = [
 
   // --- Responses (what it does; each resolves an EffectContract + Grant) ---
   { id: 'pg-resp-appeal', kind: 'response', actionClass: 'send_email_reply', judgmentId: 'pg-judg-appeal', author: 'agent', disabled: false },
-  { id: 'pg-resp-book', kind: 'response', actionClass: 'notify_digest', judgmentId: 'pg-judg-book', author: 'agent', disabled: false },
-  { id: 'pg-resp-owe', kind: 'response', actionClass: 'draft_nudge', judgmentId: 'pg-judg-owe', author: 'human', disabled: false },
+  {
+    id: 'pg-resp-book',
+    kind: 'response',
+    actionClass: 'notify_digest',
+    judgmentId: 'pg-judg-book',
+    author: 'agent',
+    disabled: false,
+    // A built-up agent action: three stacked steps a person programmed on the
+    // node (the git-graph building block).
+    steps: [
+      { id: 'pg-resp-book-s1', label: 'Summarize what changed' },
+      { id: 'pg-resp-book-s2', label: 'Add it to your 6pm digest' },
+      { id: 'pg-resp-book-s3', label: 'Flag anything time-sensitive' },
+    ],
+  },
+  {
+    id: 'pg-resp-owe',
+    kind: 'response',
+    actionClass: 'draft_nudge',
+    judgmentId: 'pg-judg-owe',
+    author: 'human',
+    disabled: false,
+    steps: [
+      { id: 'pg-resp-owe-s1', label: 'Draft a short nudge' },
+      { id: 'pg-resp-owe-s2', label: 'Hold for your approval' },
+    ],
+  },
   { id: 'pg-resp-subs', kind: 'response', actionClass: 'push_subscription_alert', judgmentId: 'pg-judg-subs', author: 'agent', disabled: false },
 ];
 
