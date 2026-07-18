@@ -37,13 +37,14 @@ describe('ConsoleBlockHost', () => {
     expect(editor.children.map((node) => node.object.id)).toEqual(['vi-brief', 'vi-code']);
   });
 
-  it('seeds all three named surfaces with their own regions (R3)', () => {
+  it('seeds all named surfaces with their own regions (R3)', () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = host.queryLayout(surfaceQuery());
     const surfaces = set.objects.filter((object) => object.type === 'surface');
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
       'console-docs',
       'console-index',
+      'console-proactivity',
       'console-review',
       'console-workspace',
     ]);

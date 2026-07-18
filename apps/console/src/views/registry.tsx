@@ -13,6 +13,7 @@ import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
 import { DocListView, IndexRailView } from './DocListView';
 import { HunkReviewView } from './HunkReviewView';
+import { ProactivityView } from './ProactivityView';
 
 function ThreadRender(_props: ViewRenderProps) {
   return <ThreadView />;
@@ -124,6 +125,23 @@ const HUNK_REVIEW: ViewDescriptor = {
   render: HunkReviewView,
 };
 
+const PROACTIVITY: ViewDescriptor = {
+  id: 'proactivity.graph',
+  name: 'Proactivity',
+  accepts: { required_types: ['pg.stake'], cardinality: 'many' },
+  emits: ['update', 'create', 'delete'],
+  renderer: 'proactivity.graph',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the elkjs layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+  },
+  render: ProactivityView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -132,6 +150,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   DOC_LIST,
   INDEX_RAIL,
   HUNK_REVIEW,
+  PROACTIVITY,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

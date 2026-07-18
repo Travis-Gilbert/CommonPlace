@@ -72,6 +72,7 @@ gap: add the row, with a named source, before writing code.
 | Icons | Int UI icon glyphs (intellij-community, Apache 2.0, ported with attribution) | every glyph in the chrome, one file: `src/components/shell/icons.tsx` |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
 | Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
+| Graph layout (topological-depth layered) | `elkjs` (Eclipse Layout Kernel, `layered` algorithm) | node and edge coordinates for the proactivity graph; layout only, rendered as register-styled SVG, dynamic-imported so the sentence and card altitudes load with no graph bundle |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.

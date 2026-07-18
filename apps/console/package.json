@@ -37,6 +37,7 @@
     "@tanstack/react-virtual": "^3.13.12",
     "@travis-gilbert/markdown-theory": "^0.1.2",
     "cmdk": "^1.1.1",
+    "elkjs": "^0.9.3",
     "eventsource-parser": "^3.0.0",
     "motion": "^12.35.0",
     "next": "^16.1.6",

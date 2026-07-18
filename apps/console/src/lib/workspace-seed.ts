@@ -168,6 +168,28 @@ export function seedLayout(): ObjectRef[] {
       title: 'Hunk review',
       query: { types: ['hunk'], live: true } as unknown as JsonValue,
     }),
+
+    // Proactivity: the editable standing graph, projected from fixtures until
+    // the kernel lands behind the same seam. One editor region hosts the
+    // surface at all three altitudes; the switcher flips the active flag like
+    // every other screen. A second arrangement is a second seed, zero code.
+    layoutObject('console-proactivity', 'surface', { name: 'Proactivity', kind: 'proactivity', active: false }, [
+      'proactivity.region-editor',
+    ]),
+    layoutObject(
+      'proactivity.region-editor',
+      'region',
+      { kind: 'editor', size: 100, active_tab: 'proactivity.vi-graph' },
+      ['proactivity.vi-graph'],
+    ),
+    layoutObject('proactivity.vi-graph', 'view-instance', {
+      descriptor_id: 'proactivity.graph',
+      title: 'Proactivity',
+      query: {
+        types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption'],
+        live: true,
+      } as unknown as JsonValue,
+    }),
   ];
 }
 
