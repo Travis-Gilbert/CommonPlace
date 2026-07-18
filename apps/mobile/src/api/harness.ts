@@ -118,16 +118,25 @@ export async function subscribeRoom(
   return () => es.close();
 }
 
-export async function registerPushToken(expoPushToken: string, platform: string): Promise<boolean> {
-  const cfg = await harnessBase();
-  if (!cfg) return false;
+export async function registerPushToken(
+  expoPushToken: string,
+  platform: string,
+  registrationUrl?: string,
+): Promise<boolean> {
+  const settings = await readInstanceSettings();
+  const endpoint = registrationUrl?.trim()
+    || (settings.harnessUrl ? `${settings.harnessUrl.replace(/\/$/, '')}/harness/push/register` : '');
+  if (!endpoint) return false;
   try {
-    const res = await fetch(`${cfg.base}/harness/push/register`, {
+    const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...(settings.apiKey ? { 'x-api-key': settings.apiKey } : {}),
+      },
       body: JSON.stringify({
-        tenant_slug: cfg.tenant,
-        actor_id: cfg.actorId,
+        tenant_slug: settings.tenant ?? 'Travis-Gilbert',
+        actor_id: settings.actorId ?? 'mobile',
         expo_push_token: expoPushToken,
         platform,
       }),

@@ -19,8 +19,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { isAbortError, streamHostedChat, type HostedChatContentPart } from '@/api/chat';
-import { fetchInstanceCapabilities, readInstanceSettings } from '@/api/instance';
+import {
+  isAbortError,
+  streamHostedChat,
+  type HostedChatCapability,
+  type HostedChatContentPart,
+} from '@/api/chat';
+import {
+  EMPTY_CAPABILITY_CATALOG,
+  fetchCapabilityCatalog,
+  fetchInstanceCapabilities,
+  NO_CAPABILITIES,
+  resolveHostedChatUrl,
+  type CapabilityCatalog,
+  type CapabilityCatalogEntry,
+  type InstanceCapabilities,
+} from '@/api/instance';
 import { searchItems } from '@/api/queries';
 import type { ItemGql } from '@/api/types';
 import { sceneForInput } from '@/api/scene';
@@ -36,6 +50,22 @@ function messageText(message: ThreadMessage): string {
     .filter((part): part is Extract<(typeof message.content)[number], { type: 'text' }> => part.type === 'text')
     .map((part) => part.text)
     .join('');
+}
+
+function requestedCapability(value: unknown): HostedChatCapability | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as Partial<HostedChatCapability>;
+  if (candidate.kind === 'web' || candidate.kind === 'object') return { kind: candidate.kind };
+  if (
+    (candidate.kind === 'plugin' || candidate.kind === 'skill')
+    && typeof candidate.id === 'string'
+    && candidate.id.trim()
+    && typeof candidate.name === 'string'
+    && candidate.name.trim()
+  ) {
+    return { kind: candidate.kind, id: candidate.id.trim(), name: candidate.name.trim() };
+  }
+  return undefined;
 }
 
 function initialMessages(threadId: string): ThreadMessageLike[] {
@@ -188,10 +218,12 @@ function MentionTray() {
 
 function ThreadComposer({
   unavailable,
-  attachmentsAvailable,
+  capabilities,
+  catalog,
 }: {
   unavailable: boolean;
-  attachmentsAvailable: boolean;
+  capabilities: InstanceCapabilities;
+  catalog: CapabilityCatalog;
 }) {
   const t = useTheme();
   const aui = useAui();
@@ -201,7 +233,7 @@ function ThreadComposer({
   const [inputHeight, setInputHeight] = useState(48);
 
   async function addFile() {
-    if (!attachmentsAvailable) {
+    if (!capabilities.chatAttachments) {
       throw new Error('The hosted ACP route does not advertise attachment support.');
     }
     const result = await DocumentPicker.getDocumentAsync({
@@ -226,16 +258,24 @@ function ThreadComposer({
     });
   }
 
-  function insertCapabilityPrompt(kind: 'object' | 'plugin' | 'skill' | 'web') {
-    const prompts = {
-      object: '@',
-      plugin: 'Use the plugin ',
-      skill: 'Use the skill ',
-      web: 'Search the web for ',
-    } as const;
+  function selectCapability(
+    kind: 'object' | 'plugin' | 'skill' | 'web',
+    entry?: CapabilityCatalogEntry,
+  ) {
+    const prompt = entry
+      ? `Use ${entry.name} for this turn.\n`
+      : kind === 'object'
+        ? '@'
+        : 'Search the web for ';
     const current = aui.composer().getState().text.trimEnd();
-    aui.composer().setText(`${current}${current ? '\n' : ''}${prompts[kind]}`);
-    aui.composer().setRunConfig({ custom: { requestedCapability: kind } });
+    aui.composer().setText(`${current}${current ? '\n' : ''}${prompt}`);
+    aui.composer().setRunConfig({
+      custom: {
+        requestedCapability: entry
+          ? { kind: entry.kind, id: entry.id, name: entry.name }
+          : { kind },
+      },
+    });
   }
 
   return (
@@ -314,10 +354,13 @@ function ThreadComposer({
       </ComposerPrimitive.Root>
       <ChatCapabilitySheet
         visible={capabilitiesOpen}
-        fileEnabled={attachmentsAvailable}
+        fileEnabled={capabilities.chatAttachments}
+        webEnabled={capabilities.webSearch}
+        catalogAvailable={capabilities.capabilityCatalog}
+        catalog={catalog}
         onClose={() => setCapabilitiesOpen(false)}
         onAddFile={addFile}
-        onInsertPrompt={insertCapabilityPrompt}
+        onSelectCapability={selectCapability}
       />
     </View>
   );
@@ -325,10 +368,12 @@ function ThreadComposer({
 
 function AssistantThread({
   unavailable,
-  attachmentsAvailable,
+  capabilities,
+  catalog,
 }: {
   unavailable: boolean;
-  attachmentsAvailable: boolean;
+  capabilities: InstanceCapabilities;
+  catalog: CapabilityCatalog;
 }) {
   const t = useTheme();
   return (
@@ -350,7 +395,7 @@ function AssistantThread({
         keyboardShouldPersistTaps="handled"
         style={{ backgroundColor: t.c.bg }}
       />
-      <ThreadComposer unavailable={unavailable} attachmentsAvailable={attachmentsAvailable} />
+      <ThreadComposer unavailable={unavailable} capabilities={capabilities} catalog={catalog} />
     </ThreadPrimitive.Root>
   );
 }
@@ -361,12 +406,14 @@ export default function ThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const threadId = id!;
   const [chatAvailable, setChatAvailable] = useState<boolean | null>(null);
-  const [chatAttachments, setChatAttachments] = useState(false);
+  const [capabilities, setCapabilities] = useState(NO_CAPABILITIES);
+  const [catalog, setCatalog] = useState(EMPTY_CAPABILITY_CATALOG);
   const seed = useMemo(() => initialMessages(threadId), [threadId]);
   const adapter = useMemo<ChatModelAdapter>(() => ({
-    async *run({ messages, abortSignal }) {
+    async *run({ messages, abortSignal, runConfig }) {
       const latest = [...messages].reverse().find((message) => message.role === 'user');
       const question = latest ? messageText(latest) : '';
+      const capability = requestedCapability(runConfig?.custom?.requestedCapability);
       const content: HostedChatContentPart[] = [];
       for (const part of latest?.content ?? []) {
         if (part.type === 'text') content.push({ type: 'text', text: part.text });
@@ -383,11 +430,11 @@ export default function ThreadScreen() {
         .join(', ');
       appendMessage(threadId, 'user', question || attachmentSummary || 'Attachment');
       try {
-        if (attachments.length > 0 && !chatAttachments) {
+        if (attachments.length > 0 && !capabilities.chatAttachments) {
           throw new Error('The hosted ACP route does not accept file or image content parts.');
         }
         let answer = '';
-        for await (const snapshot of streamHostedChat(content, abortSignal)) {
+        for await (const snapshot of streamHostedChat(content, abortSignal, { capability })) {
           answer = snapshot;
           yield { content: [{ type: 'text', text: answer }] };
         }
@@ -407,14 +454,20 @@ export default function ThreadScreen() {
         };
       }
     },
-  }), [chatAttachments, threadId]);
+  }), [capabilities.chatAttachments, threadId]);
   const runtime = useLocalRuntime(adapter, { initialMessages: seed });
 
   useEffect(() => {
-    readInstanceSettings().then((settings) => setChatAvailable(Boolean(settings.chatUrl?.trim())));
-    fetchInstanceCapabilities().then((capabilities) => {
-      setChatAttachments(capabilities.chatAttachments);
-    });
+    void (async () => {
+      const discovered = await fetchInstanceCapabilities();
+      const [chatUrl, discoveredCatalog] = await Promise.all([
+        resolveHostedChatUrl(),
+        discovered.capabilityCatalog ? fetchCapabilityCatalog() : EMPTY_CAPABILITY_CATALOG,
+      ]);
+      setCapabilities(discovered);
+      setCatalog(discoveredCatalog);
+      setChatAvailable(Boolean(chatUrl));
+    })();
   }, []);
 
   function startNewThread() {
@@ -448,7 +501,8 @@ export default function ThreadScreen() {
       <AssistantRuntimeProvider runtime={runtime}>
         <AssistantThread
           unavailable={chatAvailable !== true}
-          attachmentsAvailable={chatAttachments}
+          capabilities={capabilities}
+          catalog={catalog}
         />
       </AssistantRuntimeProvider>
     </KeyboardAvoidingView>

@@ -266,7 +266,7 @@ export default function AccountScreen() {
         <PressableSurface
           onPress={() => {
             setPushState('Registering...');
-            void registerForPush().then((token) => setPushState(token ? 'Push registered with your node' : 'Push unavailable'));
+            void registerForPush().then((result) => setPushState(result.message));
           }}
           style={[styles.btn, { backgroundColor: t.c.secondary, alignSelf: 'flex-start', borderCurve: 'continuous' }]}
           pressedStyle={{ backgroundColor: t.c.muted }}

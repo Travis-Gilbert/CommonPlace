@@ -9,6 +9,7 @@
 //! `GET /blob/{hash}` (raw bytes with the item's mime), gated by the same
 //! `x-api-key` registry.
 
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -142,6 +143,7 @@ where
         )
         .route("/blob/{hash}", get(blob_get_handler::<S, B>))
         .route("/capabilities", get(capabilities_handler::<S, B>))
+        .route("/mobile/catalog", get(mobile_catalog_handler::<S, B>))
         .route("/tts", post(tts_handler::<S, B>))
 }
 
@@ -150,6 +152,27 @@ struct NativeCapabilities {
     voice_capture: bool,
     voice_readback: bool,
     chat_attachments: bool,
+    chat_url: Option<String>,
+    web_search: bool,
+    push_registration_url: Option<String>,
+    expo_project_id: Option<String>,
+    capability_catalog: bool,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeCatalogEntry {
+    id: String,
+    kind: String,
+    name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+}
+
+#[derive(Serialize)]
+struct NativeCapabilityCatalog {
+    plugins: Vec<NativeCatalogEntry>,
+    skills: Vec<NativeCatalogEntry>,
 }
 
 /// Safe capability discovery for native clients. Provider names and secrets
@@ -168,9 +191,108 @@ where
         voice_readback: Voice::from_env().is_ok(),
         // This must only be enabled when the configured hosted ACP route
         // consumes file and image content parts instead of dropping them.
-        chat_attachments: std::env::var("COMMONPLACE_CHAT_ATTACHMENTS")
-            .is_ok_and(|value| value == "1" || value.eq_ignore_ascii_case("true")),
+        chat_attachments: env_flag("COMMONPLACE_CHAT_ATTACHMENTS"),
+        chat_url: env_value("COMMONPLACE_CHAT_URL"),
+        web_search: env_flag("COMMONPLACE_WEB_SEARCH"),
+        push_registration_url: env_value("COMMONPLACE_PUSH_REGISTRATION_URL"),
+        expo_project_id: env_value("COMMONPLACE_EXPO_PROJECT_ID"),
+        capability_catalog: true,
     }))
+}
+
+/// Installed or configured plugins and skills available to the connected
+/// runtime. The normalized response lets native clients select an exact id
+/// instead of relying on an unvalidated name typed into the prompt.
+async fn mobile_catalog_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    headers: HeaderMap,
+) -> Result<Json<NativeCapabilityCatalog>, StatusCode>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    authorize(&state, &headers)?;
+    let store = state
+        .store
+        .lock()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut entries = BTreeMap::<(String, String), NativeCatalogEntry>::new();
+    for kind in ["plugin", "skill"] {
+        for item in store
+            .items_by_kind(&ItemKind::from(kind.to_string()))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        {
+            if item
+                .extra
+                .get("enabled")
+                .and_then(serde_json::Value::as_bool)
+                == Some(false)
+            {
+                continue;
+            }
+            let description = item
+                .extra
+                .get("description")
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .or_else(|| match &item.body {
+                    ItemBody::Inline { text } if !text.trim().is_empty() => {
+                        Some(text.trim().to_string())
+                    }
+                    _ => None,
+                });
+            let entry = NativeCatalogEntry {
+                id: item.id,
+                kind: kind.to_string(),
+                name: item.title,
+                description,
+            };
+            entries.insert((entry.kind.clone(), entry.id.clone()), entry);
+        }
+    }
+    for entry in configured_catalog_entries() {
+        entries.insert((entry.kind.clone(), entry.id.clone()), entry);
+    }
+    let mut plugins = Vec::new();
+    let mut skills = Vec::new();
+    for entry in entries.into_values() {
+        match entry.kind.as_str() {
+            "plugin" => plugins.push(entry),
+            "skill" => skills.push(entry),
+            _ => {}
+        }
+    }
+    plugins.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    skills.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+    Ok(Json(NativeCapabilityCatalog { plugins, skills }))
+}
+
+fn configured_catalog_entries() -> Vec<NativeCatalogEntry> {
+    let Some(raw) = env_value("COMMONPLACE_MOBILE_CATALOG_JSON") else {
+        return Vec::new();
+    };
+    serde_json::from_str::<Vec<NativeCatalogEntry>>(&raw)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|entry| {
+            !entry.id.trim().is_empty()
+                && !entry.name.trim().is_empty()
+                && matches!(entry.kind.as_str(), "plugin" | "skill")
+        })
+        .collect()
+}
+
+fn env_value(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn env_flag(name: &str) -> bool {
+    env_value(name).is_some_and(|value| value == "1" || value.eq_ignore_ascii_case("true"))
 }
 
 /// The block-view object-model seam over HTTP (SPEC-OBJECT-CONTRACT-V2). The web

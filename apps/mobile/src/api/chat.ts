@@ -1,11 +1,19 @@
 import EventSource from 'react-native-sse';
 
-import { readInstanceSettings } from './instance';
+import { readInstanceSettings, resolveHostedChatUrl } from './instance';
 
 export type HostedChatContentPart =
   | { type: 'text'; text: string }
   | { type: 'file'; data: string; mimeType: string; filename?: string }
   | { type: 'image'; image: string; filename?: string };
+
+export type HostedChatCapability =
+  | { kind: 'plugin' | 'skill'; id: string; name: string }
+  | { kind: 'web' | 'object' };
+
+export type HostedChatOptions = {
+  capability?: HostedChatCapability;
+};
 
 type HostedChatEvent = 'text' | 'delta' | 'done';
 type StreamQueueItem =
@@ -38,17 +46,40 @@ export function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
+function isHostedChatCapability(value: unknown): value is HostedChatCapability {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<HostedChatCapability>;
+  if (candidate.kind === 'web' || candidate.kind === 'object') return true;
+  return (candidate.kind === 'plugin' || candidate.kind === 'skill')
+    && typeof candidate.id === 'string'
+    && Boolean(candidate.id.trim())
+    && typeof candidate.name === 'string'
+    && Boolean(candidate.name.trim());
+}
+
+function requestBody(
+  input: string | readonly HostedChatContentPart[],
+  options?: HostedChatOptions,
+) {
+  const content = typeof input === 'string' ? [{ type: 'text' as const, text: input }] : input;
+  return {
+    content,
+    mode: 'agent' as const,
+    ...(isHostedChatCapability(options?.capability) ? { capability: options.capability } : {}),
+  };
+}
+
 /** Streams cumulative text snapshots for assistant-ui's async adapter. */
 export async function* streamHostedChat(
   input: string | readonly HostedChatContentPart[],
   signal?: AbortSignal,
+  options?: HostedChatOptions,
 ): AsyncGenerator<string, void> {
   const settings = await readInstanceSettings();
-  const endpoint = settings.chatUrl?.trim();
-  if (!endpoint) throw new Error('Hosted ACP chat is unavailable. Configure its URL in Account.');
+  const endpoint = await resolveHostedChatUrl();
+  if (!endpoint) throw new Error('Hosted ACP chat is unavailable. Connect a node in Account.');
   if (signal?.aborted) throw abortError();
 
-  const content = typeof input === 'string' ? [{ type: 'text' as const, text: input }] : input;
   const queue: StreamQueueItem[] = [];
   let resume: (() => void) | null = null;
   let terminalQueued = false;
@@ -82,8 +113,11 @@ export async function* streamHostedChat(
 
   const source = new EventSource<HostedChatEvent>(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content, mode: 'agent' }),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(settings.apiKey ? { 'X-API-Key': settings.apiKey } : {}),
+    },
+    body: JSON.stringify(requestBody(input, options)),
     pollingInterval: 0,
     timeoutBeforeConnection: 0,
     lineEndingCharacter: '\n',
@@ -131,10 +165,11 @@ export async function* streamHostedChat(
 export async function runHostedChat(
   input: string | readonly HostedChatContentPart[],
   signal?: AbortSignal,
+  options?: HostedChatOptions,
 ): Promise<string> {
   let answer = '';
-  for await (const snapshot of streamHostedChat(input, signal)) answer = snapshot;
+  for await (const snapshot of streamHostedChat(input, signal, options)) answer = snapshot;
   return answer;
 }
 
-export const __chatTest = { textOf, abortError };
+export const __chatTest = { textOf, abortError, isHostedChatCapability, requestBody };

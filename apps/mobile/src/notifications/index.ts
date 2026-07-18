@@ -11,6 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { registerPushToken } from '@/api/harness';
+import { fetchInstanceCapabilities, readInstanceSettings } from '@/api/instance';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   APPROVAL_NOTIFICATION_ACTIONS,
@@ -150,30 +151,67 @@ export async function snoozeReminder(itemId: string, title: string, minutes = 10
 }
 
 function expoProjectId(): string | undefined {
-  return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  return Constants.expoConfig?.extra?.eas?.projectId
+    ?? Constants.easConfig?.projectId
+    ?? process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim()
+    ?? undefined;
 }
 
-async function relayPushToken(token: string): Promise<boolean> {
-  return registerPushToken(token, Platform.OS);
+export type PushRegistrationResult = {
+  code:
+    | 'registered'
+    | 'simulator'
+    | 'permission-denied'
+    | 'missing-project-id'
+    | 'missing-relay'
+    | 'token-error'
+    | 'relay-error';
+  message: string;
+  token?: string;
+};
+
+async function relayPushToken(token: string, registrationUrl?: string): Promise<boolean> {
+  return registerPushToken(token, Platform.OS, registrationUrl);
 }
 
 /** Push requires a physical-device development build and a configured EAS project id. */
-export async function registerForPush(): Promise<string | null> {
-  if (!Device.isDevice || !(await ensurePermission())) return null;
-  const projectId = expoProjectId();
-  if (!projectId) return null;
-  try {
-    const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-    await relayPushToken(token);
-    return token;
-  } catch {
-    return null;
+export async function registerForPush(): Promise<PushRegistrationResult> {
+  if (!Device.isDevice) {
+    return { code: 'simulator', message: 'Push registration requires a physical device build' };
   }
+  if (!(await ensurePermission())) {
+    return { code: 'permission-denied', message: 'Notification permission was not granted' };
+  }
+  const [capabilities, settings] = await Promise.all([
+    fetchInstanceCapabilities(),
+    readInstanceSettings(),
+  ]);
+  const projectId = expoProjectId() ?? capabilities.expoProjectId ?? undefined;
+  if (!projectId) {
+    return { code: 'missing-project-id', message: 'Push needs an EAS project id from the app build or connected node' };
+  }
+  const registrationUrl = capabilities.pushRegistrationUrl ?? undefined;
+  if (!registrationUrl && !settings.harnessUrl?.trim()) {
+    return { code: 'missing-relay', message: 'The connected node does not advertise a push registration relay' };
+  }
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : 'Expo did not return a push token';
+    return { code: 'token-error', message: `Could not create a push token: ${reason}` };
+  }
+  if (!(await relayPushToken(token, registrationUrl))) {
+    return { code: 'relay-error', message: 'The push relay refused this device token', token };
+  }
+  return { code: 'registered', message: 'Push registered with your node', token };
 }
 
 export function startPushTokenRotationListener(): Notifications.EventSubscription {
   if (!Device.isDevice) return { remove() {} };
   return Notifications.addPushTokenListener((token) => {
-    void relayPushToken(token.data);
+    void fetchInstanceCapabilities().then((capabilities) => (
+      relayPushToken(token.data, capabilities.pushRegistrationUrl ?? undefined)
+    ));
   });
 }

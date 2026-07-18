@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import type { TheoremAgentState } from '@commonplace/theorem-acp/state';
-import { deltaStream } from './chat-delta';
+import { deltaStream, readChatRequest, requireMobileApiKey } from './chat-delta';
 
 // The captured object-seam response shape (POST /objects/query). Field names
 // are the serde renames on the wire: `type` (not type_ref), `where` (not
@@ -131,6 +131,36 @@ async function collectFrames(states: TheoremAgentState[]): Promise<string> {
 }
 
 describe('chat wire contract (R2.2)', () => {
+  it('preserves display text while grounding the ACP prompt in an exact capability', () => {
+    const request = readChatRequest({
+      content: [{ type: 'text', text: 'Review this change.' }],
+      capability: { kind: 'plugin', id: 'review-plugin', name: 'Review plugin' },
+    });
+
+    expect(request.displayText).toBe('Review this change.');
+    expect(request.promptText).toContain('id "review-plugin"');
+    expect(request.promptText).toContain('name "Review plugin"');
+    expect(request.promptText).toContain('User request:\nReview this change.');
+  });
+
+  it('rejects malformed capability selection instead of treating it as prose', () => {
+    expect(() => readChatRequest({
+      content: [{ type: 'text', text: 'Review this change.' }],
+      capability: { kind: 'skill', id: '', name: 'Review' },
+    })).toThrow('Expected a valid chat capability.');
+  });
+
+  it('optionally protects the mobile route with the instance api key', () => {
+    expect(() => requireMobileApiKey(
+      new Request('https://example.test/api/chat/stream', { headers: { 'x-api-key': 'right-key' } }),
+      'right-key',
+    )).not.toThrow();
+    expect(() => requireMobileApiKey(
+      new Request('https://example.test/api/chat/stream'),
+      'right-key',
+    )).toThrow('The mobile API key was refused.');
+  });
+
   it('flattens cumulative snapshots into incremental delta frames', async () => {
     const frames = await collectFrames([
       snapshot('The', 'running'),
