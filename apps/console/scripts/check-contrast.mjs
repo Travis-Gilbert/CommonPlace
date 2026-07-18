@@ -49,7 +49,7 @@ function declarationsFor(preset) {
   for (const source of registerSources) {
     for (const block of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       if (!selectorApplies(block[1], preset)) continue;
-      for (const declaration of block[2].matchAll(/(--ij-[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
+      for (const declaration of block[2].matchAll(/(--(?:ij|cp)-[a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
         declarations.set(declaration[1], declaration[2].trim());
       }
     }
@@ -75,6 +75,19 @@ const PAIRS = [
   { name: 'accent on chrome', foreground: '--ij-accent', background: '--ij-chrome', target: 3 },
   { name: 'ink on editor', foreground: '--ij-ink', background: '--ij-editor', target: 4.5 },
   { name: 'bright ink on accent', foreground: '--ij-ink-bright', background: '--ij-accent', target: 3 },
+];
+
+// Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.5, D6): the
+// --cp-* speaker colors are register level, not preset varying, so they are
+// verified on the base Int UI register in both modes rather than across the
+// Primer presets. Human ink and agent voice read as body text (4.5);
+// destructive reads as a UI/large label (3); memory reuses the gold pair above.
+const SPEAKER_PAIRS = [
+  { name: 'human on chrome', foreground: '--cp-human', background: '--ij-chrome', target: 4.5 },
+  { name: 'agent on chrome', foreground: '--cp-agent', background: '--ij-chrome', target: 4.5 },
+  { name: 'human on editor', foreground: '--cp-human', background: '--ij-editor', target: 4.5 },
+  { name: 'agent on editor', foreground: '--cp-agent', background: '--ij-editor', target: 4.5 },
+  { name: 'destructive on chrome', foreground: '--cp-destructive', background: '--ij-chrome', target: 3 },
 ];
 
 const PRIMER_ANCHORS = {
@@ -116,6 +129,23 @@ for (const preset of [
       failed ||= !pass;
       console.log(`${pass ? 'PASS' : 'FAIL'} ${preset.id} · Primer anchor ${token}: ${actual}`);
     }
+  }
+}
+
+// Speaker pairs on the base register in both modes (SPEAKER_PAIRS above): dark
+// values live in the base register block, light values in the light-theme scope.
+for (const preset of [
+  { id: 'intellij-dark', mode: 'dark' },
+  { id: 'intellij-light', mode: 'light' },
+]) {
+  const declarations = declarationsFor(preset);
+  for (const pair of SPEAKER_PAIRS) {
+    const foreground = resolveToken(pair.foreground, declarations);
+    const background = resolveToken(pair.background, declarations);
+    const ratio = wcagContrast(hexToOklch(foreground), hexToOklch(background));
+    const pass = ratio >= pair.target;
+    failed ||= !pass;
+    console.log(`${pass ? 'PASS' : 'FAIL'} ${preset.id} · ${pair.name}: ${ratio.toFixed(2)} (target ${pair.target})`);
   }
 }
 

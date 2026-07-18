@@ -14,7 +14,8 @@ F separate app (mobile, desktop shell), unaffected
 
 | PRs | Capability | Lane | Disposition |
 |---|---|---|---|
-| 9, 13, 17, 19, 20, 25, 26, 27, 28, 50, 51, 52 | Porcelain v2 shell, register, UX physics, design-taste lane | C | Paint and shell die; the governance habits already carried into the console constitution |
+| 9, 13, 17, 19, 20, 26, 27, 28, 50, 51, 52 | Porcelain v2 shell, register, UX physics, design-taste lane | C | Paint and shell die; the governance habits already carried into the console constitution |
+| 25 | Porcelain physics (paint) plus the mobile app foundation: expo-router tabs, thread and room and object routes, a capture queue, notifications, theme tokens with contrast receipts, the WeaveSpinner | C + F | Errata (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 5.1): split out of the lane-C group, which classified it porcelain-only from its title. Porcelain physics dies (C); the mobile foundation is carried (F) and re-lands via HANDOFF-MOBILE-EXCELLENCE. The deep pass still verifies the split against the PR diff |
 | 14, 24, 31, 36, 49 | Object and annotation foundation, operator live contracts, PUBLISH and CARRY, BFF endpoints | D | Backend; console consumes through the same seams |
 | 42, 43, 54, 55 | ACP chat transport, hosted ACP, assistant bridge | A | Transport carried; console chat route built in round 2 |
 | 40, 41 | Harness memory as Files (OKF, REST) | B | Superseded by SPEC-HARNESS-MEMORY-PROJECTION; console landing is HANDOFF-CONSOLE-IA I3; engine deliverables dispatch to Theorem repo |
