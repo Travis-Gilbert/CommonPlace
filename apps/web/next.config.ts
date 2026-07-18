@@ -39,6 +39,9 @@ const isStandaloneServerBuild =
 
 const nextConfig: NextConfig = {
   output: isDesktopExport ? 'export' : isStandaloneServerBuild ? 'standalone' : undefined,
+  // pnpm installs file: dependencies under node_modules. block-view ships raw
+  // TypeScript, so opt it into compilation in addition to normal workspace use.
+  transpilePackages: ['@commonplace/block-view'],
   experimental: {
     viewTransition: true,
   },

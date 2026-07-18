@@ -65,7 +65,17 @@ export function invalidateInstanceCache() {
 }
 
 export type ProbeResult = { ok: true } | { ok: false; error: string };
-export type InstanceCapabilities = { voiceCapture: boolean; voiceReadback: boolean };
+export type InstanceCapabilities = {
+  voiceCapture: boolean;
+  voiceReadback: boolean;
+  chatAttachments: boolean;
+};
+
+const NO_CAPABILITIES: InstanceCapabilities = {
+  voiceCapture: false,
+  voiceReadback: false,
+  chatAttachments: false,
+};
 
 export async function fetchInstanceCapabilities(): Promise<InstanceCapabilities> {
   const settings = await readInstanceSettings();
@@ -73,11 +83,19 @@ export async function fetchInstanceCapabilities(): Promise<InstanceCapabilities>
     const response = await fetch(`${settings.url.replace(/\/$/, '')}/capabilities`, {
       headers: settings.apiKey ? { 'x-api-key': settings.apiKey } : undefined,
     });
-    if (!response.ok) return { voiceCapture: false, voiceReadback: false };
-    const body = await response.json() as { voice_capture?: boolean; voice_readback?: boolean };
-    return { voiceCapture: body.voice_capture === true, voiceReadback: body.voice_readback === true };
+    if (!response.ok) return NO_CAPABILITIES;
+    const body = await response.json() as {
+      voice_capture?: boolean;
+      voice_readback?: boolean;
+      chat_attachments?: boolean;
+    };
+    return {
+      voiceCapture: body.voice_capture === true,
+      voiceReadback: body.voice_readback === true,
+      chatAttachments: body.chat_attachments === true,
+    };
   } catch {
-    return { voiceCapture: false, voiceReadback: false };
+    return NO_CAPABILITIES;
   }
 }
 

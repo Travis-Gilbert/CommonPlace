@@ -4,7 +4,7 @@ import { gql } from './client';
 
 const PROPOSAL_FIELDS = `
   id tenantId whatChanged goalRefs stakeRefs actionClass executorId
-  effectContractId effectContractHash disclosures payloadHash previewRef targetIdentity
+  effectContractId effectContractHash disclosures { id text } payloadHash previewRef targetIdentity
   evidenceRefs counterEvidenceRefs assumptionEnvironments assumptionLabelComplete constraintRefs verifierReceiptRefs
   riskTier permission reversibility sourceGraphVersion preconditionHash basisHash expiresAtMs state
 `;

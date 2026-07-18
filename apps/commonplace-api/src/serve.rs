@@ -149,6 +149,7 @@ where
 struct NativeCapabilities {
     voice_capture: bool,
     voice_readback: bool,
+    chat_attachments: bool,
 }
 
 /// Safe capability discovery for native clients. Provider names and secrets
@@ -165,6 +166,10 @@ where
     Ok(Json(NativeCapabilities {
         voice_capture: Transcriber::from_env().is_enabled(),
         voice_readback: Voice::from_env().is_ok(),
+        // This must only be enabled when the configured hosted ACP route
+        // consumes file and image content parts instead of dropping them.
+        chat_attachments: std::env::var("COMMONPLACE_CHAT_ATTACHMENTS")
+            .is_ok_and(|value| value == "1" || value.eq_ignore_ascii_case("true")),
     }))
 }
 

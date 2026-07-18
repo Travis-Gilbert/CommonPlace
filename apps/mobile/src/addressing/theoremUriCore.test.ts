@@ -13,7 +13,7 @@ describe('theorem URI', () => {
     })).toBe('theorem://Travis-Gilbert/doc/memory%2Fone?v=42#paragraph%202');
   });
 
-  it('routes proposals to deliberate review and other objects to the reader path', () => {
+  it('routes proposals to deliberate review and other objects to the object drawer', () => {
     expect(routeForTheoremUri('theorem://tenant/agency.proposal/proposal-1')).toBe('/proposal/proposal-1');
     expect(routeForTheoremUri('theorem://tenant/doc/memory%2Fone?v=42')).toBe('/object/memory%2Fone');
   });

@@ -26,12 +26,13 @@ const CAPABILITIES: Capability[] = [
 
 type Props = {
   visible: boolean;
+  fileEnabled: boolean;
   onClose: () => void;
   onAddFile: () => Promise<void>;
   onInsertPrompt: (kind: Exclude<CapabilityId, 'file'>) => void;
 };
 
-export function ChatCapabilitySheet({ visible, onClose, onAddFile, onInsertPrompt }: Props) {
+export function ChatCapabilitySheet({ visible, fileEnabled, onClose, onAddFile, onInsertPrompt }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
@@ -90,9 +91,11 @@ export function ChatCapabilitySheet({ visible, onClose, onAddFile, onInsertPromp
             {CAPABILITIES.map((capability) => (
               <PressableSurface
                 key={capability.id}
-                disabled={busy}
+                disabled={busy || (capability.id === 'file' && !fileEnabled)}
                 onPress={() => void choose(capability)}
-                accessibilityLabel={capability.label}
+                accessibilityLabel={capability.id === 'file' && !fileEnabled
+                  ? 'Add files unavailable for this chat endpoint'
+                  : capability.label}
                 style={styles.action}
                 pressedStyle={{ backgroundColor: t.c.muted }}
               >
@@ -101,9 +104,17 @@ export function ChatCapabilitySheet({ visible, onClose, onAddFile, onInsertPromp
                 </View>
                 <View style={{ flex: 1 }}>
                   <AppText variant="sub">{capability.id === 'file' && busy ? 'Opening files...' : capability.label}</AppText>
-                  <AppText variant="caption" tone="muted">{capability.detail}</AppText>
+                  <AppText variant="caption" tone="muted">
+                    {capability.id === 'file' && !fileEnabled
+                      ? 'Unavailable until the hosted ACP route advertises attachment support'
+                      : capability.detail}
+                  </AppText>
                 </View>
-                <Ionicons name="chevron-forward" size={17} color={t.c.textFaint} />
+                <Ionicons
+                  name={capability.id === 'file' && !fileEnabled ? 'lock-closed-outline' : 'chevron-forward'}
+                  size={17}
+                  color={t.c.textFaint}
+                />
               </PressableSurface>
             ))}
           </View>

@@ -49,6 +49,11 @@ export function deltaStream(
           // Already closed by the runtime.
         }
       };
+      const complete = () => {
+        if (closed) return;
+        controller.enqueue(encoder.encode('event: done\ndata: {}\n\n'));
+        close();
+      };
       const write = (state: TheoremAgentState) => {
         if (closed) return;
         const assistant = [...state.messages].reverse().find((message) => message.role === 'assistant');
@@ -66,7 +71,7 @@ export function deltaStream(
           const reason = state.blockedReason ?? `turn ${state.turnStatus}`;
           controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: reason })}\n\n`));
         }
-        if (state.pendingPermission || state.turnStatus !== 'running') close();
+        if (state.pendingPermission || state.turnStatus !== 'running') complete();
       };
       if (signal.aborted) {
         close();

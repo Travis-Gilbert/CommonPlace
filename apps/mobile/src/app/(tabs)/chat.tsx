@@ -42,7 +42,7 @@ export default function ChatScreen() {
         renderItem={({ item: th }) => (
           <PressableSurface
             onPress={() => router.push({ pathname: '/thread/[id]', params: { id: th.id } })}
-            style={styles.threadRow}
+            style={[styles.threadRow, { backgroundColor: t.c.surface }]}
             pressedStyle={{ backgroundColor: t.c.muted }}
           >
             <View style={{ flex: 1 }}>

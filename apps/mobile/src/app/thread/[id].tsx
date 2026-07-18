@@ -19,8 +19,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { runHostedChat, type HostedChatContentPart } from '@/api/chat';
-import { readInstanceSettings } from '@/api/instance';
+import { isAbortError, streamHostedChat, type HostedChatContentPart } from '@/api/chat';
+import { fetchInstanceCapabilities, readInstanceSettings } from '@/api/instance';
 import { searchItems } from '@/api/queries';
 import type { ItemGql } from '@/api/types';
 import { sceneForInput } from '@/api/scene';
@@ -186,7 +186,13 @@ function MentionTray() {
   );
 }
 
-function ThreadComposer({ unavailable }: { unavailable: boolean }) {
+function ThreadComposer({
+  unavailable,
+  attachmentsAvailable,
+}: {
+  unavailable: boolean;
+  attachmentsAvailable: boolean;
+}) {
   const t = useTheme();
   const aui = useAui();
   const insets = useSafeAreaInsets();
@@ -195,6 +201,9 @@ function ThreadComposer({ unavailable }: { unavailable: boolean }) {
   const [inputHeight, setInputHeight] = useState(48);
 
   async function addFile() {
+    if (!attachmentsAvailable) {
+      throw new Error('The hosted ACP route does not advertise attachment support.');
+    }
     const result = await DocumentPicker.getDocumentAsync({
       copyToCacheDirectory: true,
       multiple: false,
@@ -305,6 +314,7 @@ function ThreadComposer({ unavailable }: { unavailable: boolean }) {
       </ComposerPrimitive.Root>
       <ChatCapabilitySheet
         visible={capabilitiesOpen}
+        fileEnabled={attachmentsAvailable}
         onClose={() => setCapabilitiesOpen(false)}
         onAddFile={addFile}
         onInsertPrompt={insertCapabilityPrompt}
@@ -313,7 +323,13 @@ function ThreadComposer({ unavailable }: { unavailable: boolean }) {
   );
 }
 
-function AssistantThread({ unavailable }: { unavailable: boolean }) {
+function AssistantThread({
+  unavailable,
+  attachmentsAvailable,
+}: {
+  unavailable: boolean;
+  attachmentsAvailable: boolean;
+}) {
   const t = useTheme();
   return (
     <ThreadPrimitive.Root style={styles.thread}>
@@ -334,7 +350,7 @@ function AssistantThread({ unavailable }: { unavailable: boolean }) {
         keyboardShouldPersistTaps="handled"
         style={{ backgroundColor: t.c.bg }}
       />
-      <ThreadComposer unavailable={unavailable} />
+      <ThreadComposer unavailable={unavailable} attachmentsAvailable={attachmentsAvailable} />
     </ThreadPrimitive.Root>
   );
 }
@@ -345,9 +361,10 @@ export default function ThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const threadId = id!;
   const [chatAvailable, setChatAvailable] = useState<boolean | null>(null);
+  const [chatAttachments, setChatAttachments] = useState(false);
   const seed = useMemo(() => initialMessages(threadId), [threadId]);
   const adapter = useMemo<ChatModelAdapter>(() => ({
-    async run({ messages, abortSignal }) {
+    async *run({ messages, abortSignal }) {
       const latest = [...messages].reverse().find((message) => message.role === 'user');
       const question = latest ? messageText(latest) : '';
       const content: HostedChatContentPart[] = [];
@@ -359,29 +376,45 @@ export default function ThreadScreen() {
         if (part.type === 'image') content.push({ type: 'image', image: part.image, filename: part.filename });
       }
       if (content.length === 0) content.push({ type: 'text', text: question });
-      appendMessage(threadId, 'user', question);
+      const attachments = content.filter((part) => part.type !== 'text');
+      const attachmentSummary = attachments
+        .map((part) => part.filename)
+        .filter((filename): filename is string => Boolean(filename))
+        .join(', ');
+      appendMessage(threadId, 'user', question || attachmentSummary || 'Attachment');
       try {
-        const answer = await runHostedChat(content, abortSignal);
+        if (attachments.length > 0 && !chatAttachments) {
+          throw new Error('The hosted ACP route does not accept file or image content parts.');
+        }
+        let answer = '';
+        for await (const snapshot of streamHostedChat(content, abortSignal)) {
+          answer = snapshot;
+          yield { content: [{ type: 'text', text: answer }] };
+        }
         const stored = appendMessage(threadId, 'agent', answer);
-        return {
+        yield {
           content: [{ type: 'text', text: answer }],
           metadata: { custom: { localMessageId: stored.id } },
         };
       } catch (error) {
+        if (abortSignal.aborted || isAbortError(error)) throw error;
         const failure = error instanceof Error ? error.message : String(error);
         const text = `Could not reach hosted ACP: ${failure}`;
         const stored = appendMessage(threadId, 'agent', text);
-        return {
+        yield {
           content: [{ type: 'text', text }],
           metadata: { custom: { localMessageId: stored.id, failed: true } },
         };
       }
     },
-  }), [threadId]);
+  }), [chatAttachments, threadId]);
   const runtime = useLocalRuntime(adapter, { initialMessages: seed });
 
   useEffect(() => {
     readInstanceSettings().then((settings) => setChatAvailable(Boolean(settings.chatUrl?.trim())));
+    fetchInstanceCapabilities().then((capabilities) => {
+      setChatAttachments(capabilities.chatAttachments);
+    });
   }, []);
 
   function startNewThread() {
@@ -413,7 +446,10 @@ export default function ThreadScreen() {
         </PressableSurface>
       </View>
       <AssistantRuntimeProvider runtime={runtime}>
-        <AssistantThread unavailable={chatAvailable !== true} />
+        <AssistantThread
+          unavailable={chatAvailable !== true}
+          attachmentsAvailable={chatAttachments}
+        />
       </AssistantRuntimeProvider>
     </KeyboardAvoidingView>
   );

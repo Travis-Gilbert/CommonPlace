@@ -17,6 +17,7 @@ const ITEM_GIST_FIELDS = `
   id kind title mime source residency tags collections
   classification status priority dueAtMs path createdAtMs updatedAtMs
 `;
+const ITEM_BRIEFING_FIELDS = `${ITEM_GIST_FIELDS} bodyText`;
 
 async function itemQuery<T>(
   query: string,
@@ -71,7 +72,7 @@ export const fetchBriefing = () =>
   itemQuery<{ briefing: Briefing }>(
     `{ briefing { recent{ __ITEM__ } newlyConnected{ item{ __ITEM__ } connections } openThreads{ __ITEM__ } } }`,
     undefined,
-    ITEM_GIST_FIELDS,
+    ITEM_BRIEFING_FIELDS,
   ).then((d) => d.briefing);
 
 const ORGANIZE_ITEM = `
