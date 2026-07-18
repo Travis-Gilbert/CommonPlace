@@ -1,8 +1,9 @@
 # apps/console constitution
 
-Register: HANDOFF-GREENFIELD-CONSOLE, in force. This file and AGENTS.md carry
-the same constitution; every agent session in this app inherits the fence from
-its context. The product sentence this app exists to make true: Cursor forked
+Register: HANDOFF-GREENFIELD-CONSOLE, in force; HANDOFF-CONSOLE-COLORATION
+layers the light register, the two-knob theme engine, and the icon policy on
+top. This file and AGENTS.md carry the same constitution; every agent session
+in this app inherits the fence from its context. The product sentence this app exists to make true: Cursor forked
 IntelliJ instead of VS Code, with sidebars that show code and markdown as
 easily as they show data models. The mechanism: IntelliJ chrome outside, the
 block-view object contract inside every pane.
@@ -12,9 +13,13 @@ block-view object contract inside every pane.
 One material system. Two structural sources. Bridged, not blended.
 
 - Material (color, seams, elevation, focus, states) comes from the pinned Int
-  UI register exclusively (`src/styles/int-ui-register.css`, landed as-is from
-  JetBrains expUI_dark.theme.json SHA 1a82cda). The Int UI inversion holds
-  everywhere: seams are darker than surfaces; no light hairline exists.
+  UI registers and the gated theme engine: `int-ui-register.css` (dark,
+  expUI_dark SHA 1a82cda) and `int-ui-register-light.css` (light), plus the
+  two-knob derived engine (`theme-engine.ts`) and the Primer-sourced presets,
+  all per HANDOFF-CONSOLE-COLORATION. The Int UI inversion holds in every mode:
+  seams are darker than surfaces; no light hairline. Every stock, Primer, and
+  derived theme clears the contrast gate, so the pinned-verbatim discipline
+  survives coloration.
 - IDE chrome (stripes, tool windows, tabs, toolbar, status bar) uses Int UI
   metrics: 28px controls, 24px rows, 40px tabs, arc 8.
 - Record surfaces (tables, inspector, chips) use Twenty structural metrics
@@ -61,7 +66,9 @@ gap: add the row, with a named source, before writing code.
 | Search everywhere, palettes | `cmdk` | command list, filtering, keyboard nav |
 | Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
-| Thread, composer, messages | `@assistant-ui/react` 0.12 | message list, streaming, composer state |
+| Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
+| Composer mechanics | `@assistant-ui/react` 0.12 plus 21st.dev `reuno-ui/ai-input` extraction | auto-grow input, attachments, object mentions, mode slot, send behavior |
+| Composer sheen | 21st.dev `muhammad-binsalman/glowing-ai-chat-assistant` material extraction plus hand-roll canvas | register-derived angled low-chroma sheen behind the Composer |
 | Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
 | Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
@@ -69,9 +76,12 @@ gap: add the row, with a named source, before writing code.
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
 | Client state | `zustand` | run state, shell session state |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
-| Icons | Int UI icon glyphs (intellij-community, Apache 2.0, ported with attribution) | every glyph in the chrome, one file: `src/components/shell/icons.tsx` |
+| Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
 | Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
+| Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
+| Context graph | D3 | deterministic ego graph layout and relation geometry |
+| Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.
@@ -110,4 +120,5 @@ markdown. Use colons, periods, commas, semicolons, or parentheses instead.
 2. Register lint: `npm run gate:register`
 3. Contrast gate: `npm run gate:contrast`
 4. Motion inventory scan: `npm run gate:motion`
-5. Playwright visual baseline: `npm run test:e2e`
+5. Icon paint scan: `npm run gate:icons`
+6. Playwright visual baseline: `npm run test:e2e`

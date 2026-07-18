@@ -1,0 +1,79 @@
+/* GitHub presets are anchored to @primer/primitives 11.9.0 (MIT). The console
+   keeps Int UI geometry and typography; only the semantic paint slots move to
+   Primer's functional colors. */
+
+[data-register="intui"][data-theme-preset="github-dark"] {
+  --ij-frame: #010409;
+  --ij-editor: #0D1117;
+  --ij-chrome: #151B23;
+  --ij-raised: #212830;
+  --ij-seam: #010409;
+  --ij-seam-raised: #3D444D;
+  --ij-divider: #212830;
+  --ij-control-border: #3D444D;
+  --ij-ink: #F0F6FC;
+  --ij-ink-info: #9198A1;
+  --ij-ink-disabled: #656C76;
+  --ij-ink-bright: #FFFFFF;
+  --ij-accent: #1F6FEB;
+  --ij-accent-hover: #4493F8;
+  --ij-selection: #1F6FEB66;
+  --ij-selection-inactive: #656C7633;
+  --ij-link: #4493F8;
+  --ij-modified: #4493F8;
+  --ij-hover-overlay: #FFFFFF16;
+  --ij-pressed-overlay: #FFFFFF26;
+  --ij-hover-surface: #212830;
+  --ij-error: #F85149; --ij-error-bg: #F851491A;
+  --ij-warn: #D29922; --ij-warn-bg: #BB800926;
+  --ij-ok: #3FB950; --ij-ok-bg: #2EA04326;
+  --ij-running: #3FB950;
+  --ij-memory: #3FB950; --ij-memory-tint: #2EA04326;
+  --ij-agent: #D29922; --ij-agent-tint: #BB800926;
+  --ij-room: #AB7DF8; --ij-room-tint: #AB7DF826;
+  --ij-graph: #4493F8; --ij-graph-tint: #1F6FEB26;
+  --ij-row-yellow: #BB800926; --ij-row-green: #2EA04326; --ij-row-orange: #D1861626;
+  --ij-row-rose: #F851491A; --ij-row-violet: #AB7DF826; --ij-row-blue: #1F6FEB26;
+  --ij-row-gray: #656C7633;
+  --ij-progress: #4493F8; --ij-progress-a: #4493F8; --ij-progress-b: #1F6FEB;
+  --ij-progress-track: #3D444D;
+  color-scheme: dark;
+}
+
+[data-register="intui"][data-theme-preset="github-light"] {
+  --ij-frame: #EFF2F5;
+  --ij-editor: #FFFFFF;
+  --ij-chrome: #F6F8FA;
+  --ij-raised: #FFFFFF;
+  --ij-seam: #D1D9E0;
+  --ij-seam-raised: #818B98;
+  --ij-divider: #D1D9E0;
+  --ij-control-border: #D1D9E0;
+  --ij-ink: #1F2328;
+  --ij-ink-info: #59636E;
+  --ij-ink-disabled: #818B98;
+  --ij-ink-bright: #FFFFFF;
+  --ij-accent: #0969DA;
+  --ij-accent-hover: #0757B9;
+  --ij-selection: #DDF4FF;
+  --ij-selection-inactive: #EFF2F5;
+  --ij-link: #0969DA;
+  --ij-modified: #0969DA;
+  --ij-hover-overlay: #0000000D;
+  --ij-pressed-overlay: #0000001A;
+  --ij-hover-surface: #EFF2F5;
+  --ij-error: #D1242F; --ij-error-bg: #FFEBE9;
+  --ij-warn: #9A6700; --ij-warn-bg: #FFF8C5;
+  --ij-ok: #1A7F37; --ij-ok-bg: #DAFBE1;
+  --ij-running: #1A7F37;
+  --ij-memory: #1A7F37; --ij-memory-tint: #DAFBE1;
+  --ij-agent: #9A6700; --ij-agent-tint: #FFF8C5;
+  --ij-room: #8250DF; --ij-room-tint: #F0E7FF;
+  --ij-graph: #0969DA; --ij-graph-tint: #DDF4FF;
+  --ij-row-yellow: #FFF8C5; --ij-row-green: #DAFBE1; --ij-row-orange: #FFF1E5;
+  --ij-row-rose: #FFEBE9; --ij-row-violet: #F0E7FF; --ij-row-blue: #DDF4FF;
+  --ij-row-gray: #EFF2F5;
+  --ij-progress: #0969DA; --ij-progress-a: #0969DA; --ij-progress-b: #54AEFF;
+  --ij-progress-track: #D1D9E0;
+  color-scheme: light;
+}

@@ -1,35 +1,27 @@
 'use client';
 
-// SOURCING: @assistant-ui/react (thread, composer, message primitives) +
-// @assistant-ui/react-markdown (markdown in messages). The chat.thread
-// descriptor (G7): renders the assistant-ui thread from the ambient runtime
-// the shell provides; outside a runtime it degrades to the fallback card.
-// The Presence mark is the composing indicator; no other typing affordance
-// or spinner exists on any agent path. Streaming text never participates in
-// layout animation.
+// SOURCING: @assistant-ui/react thread and message primitives,
+// @assistant-ui/react-markdown, the shared Composer, and the 21st.dev
+// isaiahBjork agent-plan structure extraction. The Presence mark appears only
+// inside Composer. Streaming text never participates in layout animation.
 
-import { createContext, useContext } from 'react';
-import {
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
-} from '@assistant-ui/react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
+import { MessagePrimitive, ThreadPrimitive } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
-import { useThreadStore, chatEndpoint } from '@/lib/thread-store';
-import { DUR, EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
-import { PresenceMark } from '@/components/mark/PresenceMark';
-import { ViewState } from './ViewStates';
+import { Composer } from '@/components/composer/Composer';
+import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
+import { submitThreadText } from '@/lib/thread-submit';
+import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
 
-/** Set true by ConsoleApp inside AssistantRuntimeProvider; the descriptor
- *  degrades to the fallback card when mounted outside one. */
 export const ThreadRuntimeAvailable = createContext(false);
 
 function MessageShell({ children }: { children: React.ReactNode }) {
   const durations = useMotionDurations();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={durations.reduced ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: seconds(durations.base), ease: EASE_OUT }}
       className="px-3 py-2"
@@ -67,10 +59,98 @@ function AssistantMessage() {
   );
 }
 
-export function ThreadView() {
+function AgentPlan({ steps }: { steps: readonly AgentPlanStep[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <section data-agent-plan aria-label="Agent plan" className="mx-3 my-2 overflow-hidden rounded-ij-arc border border-ij-seam-raised bg-ij-raised">
+      <div className="flex h-ij-control items-center border-b border-ij-seam px-3 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+        Plan
+      </div>
+      {steps.map((step) => (
+        <div key={step.id} data-plan-status={step.status} className="flex h-ij-row items-center gap-2 border-b border-ij-seam px-3 last:border-b-0">
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-full"
+            style={{
+              background: step.status === 'complete'
+                ? 'var(--ij-success)'
+                : step.status === 'refused'
+                  ? 'var(--ij-error)'
+                  : 'var(--ij-ink-disabled)',
+            }}
+          />
+          <span className="min-w-0 flex-1 truncate text-ij-ink">{step.label}</span>
+          {step.tool ? <span className="font-ij-mono text-ij-ink-info">{step.tool}</span> : null}
+          <span className="text-ij-ink-disabled">{step.status}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+interface StarterSuggestion {
+  readonly id: string;
+  readonly label: string;
+  readonly prompt: string;
+}
+
+function titleOf(object: ObjectRef | undefined, fallback: string): string {
+  return String(object?.properties.title ?? object?.properties.name ?? fallback);
+}
+
+function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boolean }) {
+  const [suggestions, setSuggestions] = useState<readonly StarterSuggestion[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      Promise.resolve(host.query({ types: ['record'], rank: [{ kind: 'field', field: 'updated', direction: 'desc' }], page: { limit: 1 } })),
+      Promise.resolve(host.query({ types: ['doc'], rank: [{ kind: 'field', field: 'updated', direction: 'desc' }], page: { limit: 1 } })),
+    ]).then(([records, docs]) => {
+      if (!active) return;
+      const record = records.objects[0];
+      const doc = docs.objects[0];
+      const recordTitle = titleOf(record, 'recent record');
+      const docTitle = titleOf(doc, 'recent document');
+      setSuggestions([
+        { id: 'recent-record', label: `Review ${recordTitle}`, prompt: `Review the recent record: ${recordTitle}` },
+        { id: 'recent-document', label: `Summarize ${docTitle}`, prompt: `Summarize the recent document: ${docTitle}` },
+        { id: 'runnable-action', label: `Plan action for ${recordTitle}`, prompt: `/do Plan the next action for ${recordTitle}` },
+      ]);
+    }).catch(() => {
+      if (active) setSuggestions([]);
+    });
+    return () => {
+      active = false;
+    };
+  }, [host]);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-ij-ink-info">
+      <p>Start from live tenant context.</p>
+      <div className="flex max-w-3xl flex-wrap justify-center gap-2" data-chat-starters>
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => void submitThreadText(suggestion.prompt)}
+            className="rounded-ij-arc border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface disabled:text-ij-ink-disabled"
+            style={{ transition: 'var(--rec-clickable-transition)' }}
+          >
+            {suggestion.label}
+          </button>
+        ))}
+      </div>
+      {suggestions.length === 0 ? <p data-starters-unavailable>Tenant suggestions are unavailable.</p> : null}
+    </div>
+  );
+}
+
+export function ThreadView({ host, density = 'compact' }: { host: BlockHost; density?: 'full' | 'compact' }) {
   const runtimeAvailable = useContext(ThreadRuntimeAvailable);
-  const isRunning = useThreadStore((state) => state.isRunning);
   const error = useThreadStore((state) => state.error);
+  const plan = useThreadStore((state) => state.plan);
   const endpoint = chatEndpoint();
 
   if (!runtimeAvailable) {
@@ -81,52 +161,30 @@ export function ThreadView() {
     );
   }
 
-  if (!endpoint) {
-    return (
-      <ViewState
-        state="unavailable"
-        capability="the harness chat endpoint (NEXT_PUBLIC_CONSOLE_CHAT_URL)"
-      />
-    );
-  }
-
+  const full = density === 'full';
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-ij-chrome">
+    <ThreadPrimitive.Root
+      data-chat-surface={full ? 'full' : undefined}
+      className={`flex h-full min-h-0 flex-col ${full ? 'bg-ij-editor' : 'bg-ij-chrome'}`}
+    >
       <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto">
-        <ThreadPrimitive.Empty>
-          <div className="flex h-full items-center justify-center p-6 text-ij-ink-info">
-            Ask the harness.
-          </div>
-        </ThreadPrimitive.Empty>
-        <ThreadPrimitive.Messages
-          components={{ UserMessage, AssistantMessage }}
-        />
-        {isRunning ? (
-          <div className="flex items-center gap-2 px-4 py-1" aria-live="polite">
-            <PresenceMark state="composing" size={28} />
-            <span className="sr-only">Assistant is composing</span>
-          </div>
-        ) : null}
-        {error ? <div className="px-4 py-1 text-ij-error">{error}</div> : null}
+        <div className={`mx-auto flex h-full w-full flex-col ${full ? 'max-w-4xl pt-8' : ''}`}>
+          <ThreadPrimitive.Empty>
+            <StarterSuggestions host={host} disabled={!endpoint} />
+          </ThreadPrimitive.Empty>
+          <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+          <AgentPlan steps={plan} />
+          {error ? <div className="px-4 py-1 text-ij-error">{error}</div> : null}
+        </div>
       </ThreadPrimitive.Viewport>
-      <ComposerPrimitive.Root className="flex shrink-0 items-end gap-2 border-t border-ij-seam p-2">
-        <ComposerPrimitive.Input
-          rows={1}
-          placeholder="Message the harness"
-          className="max-h-40 min-h-ij-control flex-1 resize-none rounded-ij-arc border border-ij-control-border bg-ij-editor px-3 py-1 text-ij-ink placeholder:text-ij-ink-disabled focus:outline-2 focus:outline-ij-accent"
-        />
-        {isRunning ? (
-          <ComposerPrimitive.Cancel
-            className="h-ij-control rounded-ij-arc bg-ij-raised px-3 text-ij-ink hover:bg-ij-hover-surface"
-          >
-            Stop
-          </ComposerPrimitive.Cancel>
-        ) : (
-          <ComposerPrimitive.Send className="h-ij-control rounded-ij-arc bg-ij-accent px-4 text-ij-ink-bright hover:bg-ij-accent-hover">
-            Send
-          </ComposerPrimitive.Send>
-        )}
-      </ComposerPrimitive.Root>
+      <div className={full ? 'mx-auto mb-24 w-full max-w-4xl px-6' : 'p-2'} data-composer-zone>
+        {!endpoint ? (
+          <p data-chat-unavailable className="mb-1 text-ij-ink-info">
+            Chat endpoint unavailable: configure NEXT_PUBLIC_CONSOLE_CHAT_URL.
+          </p>
+        ) : null}
+        <Composer host={host} compact={!full} unavailable={!endpoint} />
+      </div>
     </ThreadPrimitive.Root>
   );
 }

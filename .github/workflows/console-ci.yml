@@ -6,7 +6,8 @@ name: CommonPlace console CI
 #   2. the register lint,
 #   3. the contrast gate (markdown-theory WCAG solving over the pinned pairs),
 #   4. the motion inventory scan,
-#   5. the Playwright captures at 1280 and 1440 dark (the visual baseline).
+#   5. the Noun icon currentColor paint gate,
+#   6. the Playwright captures at 1280 and 1440 (the visual baseline).
 # The unit suite, typecheck, eslint fence, and production build ride along.
 
 on:
@@ -60,11 +61,15 @@ jobs:
         working-directory: apps/console
 
       - name: Contrast gate (gate 3)
-        run: node scripts/check-contrast.mjs
+        run: node --experimental-strip-types scripts/check-contrast.mjs
         working-directory: apps/console
 
       - name: Motion inventory scan (gate 4)
         run: node scripts/check-motion-inventory.mjs
+        working-directory: apps/console
+
+      - name: Noun icon paint scan (gate 5, with hostile fill probe)
+        run: node scripts/check-icon-svg.mjs
         working-directory: apps/console
 
       - name: ESLint (fence in the editor)
@@ -81,7 +86,11 @@ jobs:
         run: pnpm --filter @commonplace/console run build
 
   visual:
-    name: Playwright visual baseline (gate 5)
+    name: Playwright visual baseline (gate 6)
+    # Runs on ubuntu-latest to match the gates job and the repo's CI-captured
+    # linux baseline convention: every -linux.png reference (light and dark) is
+    # generated from a CI run and pinned, so the gate validates on the same
+    # renderer that produced the references. Darwin baselines stay for local mac.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
