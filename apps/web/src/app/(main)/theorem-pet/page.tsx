@@ -117,10 +117,11 @@ export default function TheoremPetPage() {
           A designed roster, not a family of lumps.
         </h1>
         <p className="max-w-2xl text-[17px] leading-relaxed text-ink-secondary">
-          Nine pet creatures, each committing to one distinct silhouette &mdash; and a build-time
-          perceptual gate that fails the build if the set ever collapses back toward near-identical
-          rounded blobs. Every creature is a pure function of its seed on{' '}
-          <span className="font-mono text-ink">theorem-form</span>, the deterministic generator.
+          Nine pet creatures, each committing to one distinct silhouette. Every creature is a pure
+          function of its seed on{' '}
+          <span className="font-mono text-ink">theorem-form</span>, the deterministic generator
+          &mdash; whose build-time perceptual gate fails that build if the set ever collapses back
+          toward near-identical rounded blobs.
         </p>
         <p className="max-w-2xl border-l-2 border-gold pl-3 text-sm leading-relaxed text-ink-secondary">
           The design-gate spec targeted a creature catalog that was already stripped. Rather than
@@ -169,7 +170,7 @@ export default function TheoremPetPage() {
       <section className="space-y-4">
         <RoughLine label="The full roster · idle bounce" labelColor="var(--color-gold)" />
         <div className="grid gap-6 md:grid-cols-[240px_1fr]">
-          <div className="md:sticky md:top-6 md:self-start">
+          <div className="md:sticky md:top-24 md:self-start">
             <RoughBox variant="dark" padding={14}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -229,7 +230,7 @@ export default function TheoremPetPage() {
                 <ProgressIndicator className={bar.tone === 'before' ? 'bg-terracotta' : 'bg-teal'} />
                 <span
                   aria-hidden
-                  className="absolute -top-1 -bottom-1 w-0.5 bg-gold"
+                  className="absolute inset-y-0 w-0.5 bg-gold"
                   style={{ left: `${IOU_GATE * 100}%` }}
                 />
               </ProgressTrack>
