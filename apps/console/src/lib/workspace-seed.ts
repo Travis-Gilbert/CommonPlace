@@ -221,6 +221,26 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('appearance'),
 
+    // Proactivity: the editable standing graph, projected from fixtures until
+    // the kernel lands behind the same seam. A secondary surface reached through
+    // the layout switcher and Command mode, like Review and Appearance; the
+    // editor hosts all three altitudes and the switcher flips the active flag.
+    layoutObject('console-proactivity', 'surface', {
+      name: 'Proactivity', kind: 'proactivity', role: 'surface', active: false, seed_revision: 2,
+    }, ['proactivity.region-editor', ...companionIds('proactivity')]),
+    layoutObject('proactivity.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'proactivity.vi-graph', seed_revision: 2,
+    }, ['proactivity.vi-graph']),
+    layoutObject('proactivity.vi-graph', 'view-instance', {
+      descriptor_id: 'proactivity.graph',
+      title: 'Proactivity',
+      query: {
+        types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption'],
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('proactivity'),
+
     layoutObject(ACCOUNT_SURFACE_ID, 'surface', {
       name: 'Account', kind: 'account', role: 'surface', active: false, seed_revision: 2,
     }, ['account.region-editor']),

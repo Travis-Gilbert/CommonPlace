@@ -12,6 +12,10 @@
 @import '@travis-gilbert/markdown-theory/css';
 @import './gy-bridge.css';
 @import '../motion/motion.css';
+/* React Flow functional base only (no theme): the proactivity graph nodes and
+   edges are custom and register-styled, so only the layout/transform styles are
+   needed. Its theme variables are mapped to the register below. */
+@import '@xyflow/react/dist/base.css';
 
 .composer-input {
   field-sizing: content;
@@ -278,4 +282,26 @@ body {
 body {
   margin: 0;
   background: var(--ij-frame);
+}
+
+/* React Flow, themed through the register: edge and selection defaults resolve
+   to Int UI tokens (per-edge styles still win), and handles are hidden because
+   the proactivity graph is read-and-inspect, not hand-wired. */
+.react-flow {
+  --xy-edge-stroke-default: var(--ij-ink-info);
+  --xy-edge-stroke-selected-default: var(--ij-accent);
+  --xy-connectionline-stroke-default: var(--ij-accent);
+  --xy-attribution-background-color-default: transparent;
+}
+
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: none;
 }

@@ -49,6 +49,7 @@ describe('ConsoleBlockHost', () => {
       'console-chat',
       'console-docs',
       'console-index',
+      'console-proactivity',
       'console-review',
       'console-workspace',
     ]);
