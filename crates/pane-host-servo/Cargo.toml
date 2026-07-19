@@ -1,0 +1,29 @@
+[package]
+name = "pane-host-servo"
+version = "0.1.0"
+edition = "2021"
+description = "SPEC-COMMONPLACE-BROWSER-SHELL B2: the `pane-host` sidecar binary — the only place CommonPlace links Servo."
+license = "MIT"
+publish = false
+
+# Its own workspace: this build graph contains libservo, which needs Servo's
+# pinned toolchain and `mach bootstrap` system dependencies. Nothing else in
+# CommonPlace should pay that to run its tests.
+[workspace]
+
+# The chrome spawns a sidecar called `pane-host`; the package is named for what
+# it links so nobody mistakes it for the testable half.
+[[bin]]
+name = "pane-host"
+path = "src/main.rs"
+
+[dependencies]
+# All the logic. This crate is the mapping layer and nothing else, which is why
+# it has no tests: everything worth asserting lives one crate over, where it can
+# be run without a Servo build.
+pane-host = { path = "../pane-host" }
+pane-protocol = { path = "../pane-protocol" }
+# B1's reusable embedding. Lives in the Theorem repo beside `apps/browser`
+# because that is where the Servo toolchain pin lives.
+browser-embed = { path = "../../../Theorem/apps/browser/crates/browser-embed" }
+raw-window-handle = "0.6"
