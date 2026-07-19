@@ -12,6 +12,12 @@ import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { ViewState } from './ViewStates';
 import { useUrgentEvents } from './filing/filing-client';
 
+/**
+ * The bounded frame X5 asks for, minus a title bar: this view mounts as a tool
+ * window, and IntuiShell already gives every tool window the Int UI header
+ * strip with its hide affordance (X3.2). Drawing a second one here rendered
+ * "Needs you today" twice, which a capture caught.
+ */
 function Frame({ children }: { readonly children: React.ReactNode }) {
   return (
     <div
@@ -19,9 +25,6 @@ function Frame({ children }: { readonly children: React.ReactNode }) {
       data-paint-region="filing-urgent"
       className="flex h-full min-h-0 flex-col bg-ij-editor font-ij-ui"
     >
-      <div className="flex h-ij-toolwindow-header shrink-0 items-center border-b border-ij-seam bg-ij-chrome px-2 text-ij-ink">
-        Needs you today
-      </div>
       {children}
     </div>
   );

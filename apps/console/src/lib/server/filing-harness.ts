@@ -162,8 +162,104 @@ export interface IndexProjection {
   readonly recentlyFiled: readonly FiledItem[];
 }
 
+/**
+ * Test-only stand-in for the engine, the shape proactivity-harness.ts
+ * established. Production never reads it: the flag is checked only outside a
+ * production build, so this cannot become a shadow product that drifts from
+ * the real backend.
+ */
+function filingFixtureEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.CONSOLE_E2E_FILING_FIXTURE === '1';
+}
+
+function fixtureCollections(): IndexCollection[] {
+  return [
+    { id: 'coll-reading', name: 'Reading', kind: 'manual' },
+    { id: 'coll-correspondence', name: 'Correspondence', kind: 'manual' },
+    { id: 'coll-receipts', name: 'Receipts', kind: 'auto' },
+  ];
+}
+
+/** One filed item per tier, so the receipt affordance can be exercised for
+ *  all three without a live model. */
+function fixtureFiled(nowMs: number): FiledItem[] {
+  return [
+    {
+      item: 'item-precedent',
+      title: 'Appeal deadline moved',
+      source: 'mail',
+      destination: 'coll-correspondence',
+      filedAtMs: nowMs - 60_000,
+      receipt: {
+        item: 'item-precedent',
+        destination: 'coll-correspondence',
+        tier: 0,
+        attribution: { kind: 'precedent', precedent: 'the appeals office' },
+        confidence: 1,
+        actor: { kind: 'engine' },
+        lowConfidence: false,
+      },
+    },
+    {
+      item: 'item-learned',
+      title: 'Ownership in Rust',
+      source: 'save',
+      destination: 'coll-reading',
+      filedAtMs: nowMs - 120_000,
+      receipt: {
+        item: 'item-learned',
+        destination: 'coll-reading',
+        tier: 1,
+        attribution: {
+          kind: 'features',
+          features: [
+            { name: 'arrived from save', weight: 0.42 },
+            { name: 'text content', weight: 0.31 },
+          ],
+        },
+        confidence: 0.81,
+        actor: { kind: 'engine' },
+        lowConfidence: false,
+      },
+    },
+    {
+      item: 'item-escalated',
+      title: 'Invoice 2026-07',
+      source: 'watched-file',
+      destination: 'coll-receipts',
+      filedAtMs: nowMs - 180_000,
+      receipt: {
+        item: 'item-escalated',
+        destination: 'coll-receipts',
+        tier: 2,
+        attribution: {
+          kind: 'model',
+          reason: 'It is a payment record, not correspondence about one.',
+        },
+        confidence: 0.88,
+        actor: { kind: 'engine' },
+        lowConfidence: false,
+      },
+    },
+  ];
+}
+
 /** The Index surface's read: the shelves, and the trailing ribbon window. */
 export async function readIndex(sinceMs: number): Promise<FilingRead<IndexProjection>> {
+  if (filingFixtureEnabled()) {
+    const resolution = await resolveHarnessPrincipal();
+    if (!resolution.ok) {
+      return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
+    }
+    // Relative to now, not to the `since` bound: the ribbon is a trailing
+    // window, so a fixture anchored at the window's far edge would render an
+    // empty ribbon and prove nothing.
+    return {
+      ok: true,
+      tenant: resolution.principal.tenant,
+      data: { collections: fixtureCollections(), recentlyFiled: fixtureFiled(Date.now()) },
+    };
+  }
   const result = await executeGraphql(INDEX_QUERY, { since: String(sinceMs) });
   if (!result.ok) return result;
   const collections = result.data.indexCollections;
@@ -193,6 +289,36 @@ export async function readDigest(sinceMs: number): Promise<FilingRead<readonly D
 }
 
 export async function readRules(): Promise<FilingRead<readonly FilingRule[]>> {
+  if (filingFixtureEnabled()) {
+    const resolution = await resolveHarnessPrincipal();
+    if (!resolution.ok) {
+      return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
+    }
+    return {
+      ok: true,
+      tenant: resolution.principal.tenant,
+      data: [
+        {
+          id: 'invoices',
+          predicates: [{ kind: 'subject-contains', value: 'invoice' }],
+          destination: 'coll-receipts',
+          urgent: false,
+          state: 'active',
+          sievePreview:
+            'require ["fileinto"];\nif header :contains "subject" "invoice" {\n    fileinto "coll-receipts";\n}\n',
+        },
+        {
+          id: 'proposed-appeals',
+          predicates: [{ kind: 'sender-entity', value: 'entity-appeals' }],
+          destination: 'coll-correspondence',
+          urgent: false,
+          state: 'pending-consent',
+          proposedBy: { kind: 'agent', id: 'claude-code' },
+          reason: 'The last six items from this sender went to Correspondence.',
+        },
+      ],
+    };
+  }
   const result = await executeGraphql(RULES_QUERY);
   if (!result.ok) return result;
   const rules = result.data.filingRules;
@@ -203,6 +329,37 @@ export async function readRules(): Promise<FilingRead<readonly FilingRule[]>> {
 }
 
 export async function readUrgent(sinceMs: number): Promise<FilingRead<readonly UrgentEvent[]>> {
+  if (filingFixtureEnabled()) {
+    const resolution = await resolveHarnessPrincipal();
+    if (!resolution.ok) {
+      return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
+    }
+    // Empty, because the empty state is the designed norm and is the state the
+    // capture set needs to prove. CONSOLE_E2E_FILING_URGENT=1 supplies the
+    // populated case for the other capture.
+    const events: UrgentEvent[] =
+      process.env.CONSOLE_E2E_FILING_URGENT === '1'
+        ? [
+            {
+              id: 'urgent-1',
+              item: 'item-precedent',
+              title: 'Appeal deadline moved',
+              reason: 'The deadline is in three days.',
+              atMs: sinceMs + 1_000,
+              receipt: {
+                item: 'item-precedent',
+                destination: 'coll-correspondence',
+                tier: 2,
+                attribution: { kind: 'model', reason: 'The deadline is in three days.' },
+                confidence: 0.93,
+                actor: { kind: 'engine' },
+                lowConfidence: false,
+              },
+            },
+          ]
+        : [];
+    return { ok: true, tenant: resolution.principal.tenant, data: events };
+  }
   const result = await executeGraphql(URGENT_QUERY, { since: String(sinceMs) });
   if (!result.ok) return result;
   const events = result.data.urgentEvents;

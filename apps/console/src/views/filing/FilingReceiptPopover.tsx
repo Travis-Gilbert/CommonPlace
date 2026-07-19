@@ -15,28 +15,44 @@ import { IconInfo } from '@/components/shell/icons';
 
 const LAW_SEEN_KEY = 'commonplace.console.filing.law.v1';
 
+// Every row in the ribbon mounts its own popover, so "seen" has to be shared
+// across instances rather than held per component: otherwise dismissing the
+// line on one receipt leaves it armed on all the others, and the line that
+// promised to appear once appears once per item. The subscriber set is the
+// smallest thing that makes one dismissal reach every mounted popover.
+const lawSubscribers = new Set<(seen: boolean) => void>();
+
+function readLawSeen(): boolean {
+  try {
+    return window.localStorage.getItem(LAW_SEEN_KEY) === 'seen';
+  } catch {
+    // A browser that refuses storage gets the line every time rather than
+    // never: the line is reassurance, and losing it is the worse failure.
+    return false;
+  }
+}
+
+function markLawSeen() {
+  try {
+    window.localStorage.setItem(LAW_SEEN_KEY, 'seen');
+  } catch {
+    // Nothing to persist: the line simply reappears next session.
+  }
+  for (const notify of lawSubscribers) notify(true);
+}
+
 /** The one-line law appears once and is dismissible. It teaches the thing that
  *  makes a wrong file cheap, so it is worth saying, and saying once. */
 function useFirstUseLaw(): { readonly show: boolean; readonly dismiss: () => void } {
-  const [show, setShow] = useState(false);
+  const [seen, setSeen] = useState(true);
   useEffect(() => {
-    try {
-      setShow(window.localStorage.getItem(LAW_SEEN_KEY) !== 'seen');
-    } catch {
-      // A browser that refuses storage gets the line every time rather than
-      // never: the line is reassurance, and losing it is the worse failure.
-      setShow(true);
-    }
+    setSeen(readLawSeen());
+    lawSubscribers.add(setSeen);
+    return () => {
+      lawSubscribers.delete(setSeen);
+    };
   }, []);
-  const dismiss = useCallback(() => {
-    setShow(false);
-    try {
-      window.localStorage.setItem(LAW_SEEN_KEY, 'seen');
-    } catch {
-      // Nothing to do: the line simply reappears next time.
-    }
-  }, []);
-  return { show, dismiss };
+  return { show: !seen, dismiss: useCallback(markLawSeen, []) };
 }
 
 export interface FilingReceiptPopoverProps {
@@ -76,7 +92,10 @@ export function FilingReceiptPopover({
           sideOffset={4}
           data-filing-receipt={receipt.item}
           data-paint-region="filing-receipt"
-          className="w-80 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-3 font-ij-ui text-ij-ink"
+          // z-50 lifts the popover above the ribbon it is anchored to. Without
+          // it the portal lands in the DOM behind the scrolling list and its
+          // controls are unclickable, which the e2e caught.
+          className="z-50 w-80 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-3 font-ij-ui text-ij-ink"
           style={{ boxShadow: 'var(--ij-popover-shadow)' }}
         >
           <p className="text-ij-ink" data-filing-receipt-sentence>
