@@ -93,6 +93,7 @@ export type ViewType =
   | 'files'
   | 'code'
   | 'connection-review'
+  | 'agency-proposals'
   | 'agent-thread'
   | 'terminal'
   | 'empty';
@@ -165,6 +166,7 @@ export const VIEW_REGISTRY: Record<ViewType, { label: string; icon: string }> = 
   files: { label: 'Files', icon: 'archive' },
   code: { label: 'Code', icon: 'terminal' },
   'connection-review': { label: 'Connection Review', icon: 'check-circle' },
+  'agency-proposals': { label: 'Proposals', icon: 'check-list' },
   'agent-thread': { label: 'Agent Thread', icon: 'sparks' },
   terminal: { label: 'Terminal', icon: 'terminal' },
   empty: { label: 'Empty', icon: 'plus' },
