@@ -284,6 +284,23 @@ body {
   background: var(--ij-frame);
 }
 
+.theorem-acknowledgement {
+  margin: 0 0 calc(var(--rec-grid) * 3);
+  color: var(--ij-ink-info);
+  font-size: 1em;
+  line-height: 1.55;
+}
+
+.theorem-activity {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: calc(var(--rec-grid) * 2);
+  margin-block: var(--rec-grid) calc(var(--rec-grid) * 2);
+  color: var(--ij-ink-info);
+  font-size: 0.875em;
+}
+
 /* React Flow, themed through the register: edge and selection defaults resolve
    to Int UI tokens (per-edge styles still win), and handles are hidden because
    the proactivity graph is read-and-inspect, not hand-wired. */

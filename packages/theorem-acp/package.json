@@ -14,7 +14,7 @@
     "./identity": "./src/identity.ts"
   },
   "scripts": {
-    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit && npx --yes tsx@4.23.0 --test src/state.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

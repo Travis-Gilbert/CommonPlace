@@ -97,12 +97,15 @@ function snapshot(text: string, turnStatus: TheoremAgentState['turnStatus']): Th
     mode: 'composed',
     bindingId: 'agent:theorem',
     turnStatus,
+    activityStatus: turnStatus === 'running' ? 'running' : 'completed',
     messages: [
-      { id: 'm1', role: 'user', text: 'hello', contributions: [], toolCalls: [] },
-      { id: 'm2', role: 'assistant', text, contributions: [], toolCalls: [] },
+      { id: 'm1', role: 'user', text: 'hello', acknowledgement: null, contributions: [], toolCalls: [] },
+      { id: 'm2', role: 'assistant', text, acknowledgement: null, contributions: [], toolCalls: [] },
     ],
     pendingPermission: null,
     blockedReason: null,
+    error: null,
+    appliedUpdateKeys: [],
   };
 }
 
@@ -161,6 +164,16 @@ describe('chat wire contract (R2.2)', () => {
     expect(request.promptText).toContain('cite its exact source URLs');
   });
 
+  it('accepts an explicit Theorem destination separately from Auto', () => {
+    const request = readChatRequest({
+      content: [{ type: 'text', text: 'Explain this result.' }],
+      capability: { kind: 'theorem' },
+    });
+
+    expect(request.capability).toEqual({ kind: 'theorem' });
+    expect(request.promptText).toContain('composed Theorem agent');
+  });
+
   it('optionally protects the mobile route with the instance api key', () => {
     expect(() => requireMobileApiKey(
       new Request('https://example.test/api/chat/stream', { headers: { 'x-api-key': 'right-key' } }),
@@ -187,6 +200,7 @@ describe('chat wire contract (R2.2)', () => {
       { delta: ' answers.' },
     ]);
     expect(frames).toContain('event: done');
+    expect(frames).toContain('event: activity');
     // The console parser treats unnamed data events as message deltas; no
     // update-state envelope and no [DONE] sentinel may leak through.
     expect(frames).not.toContain('update-state');

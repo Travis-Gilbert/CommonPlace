@@ -39,8 +39,10 @@ export async function loadWebResearch(
         provider_timeout_ms: 10_000,
       }),
       cache: 'no-store',
+      signal: request.signal,
     });
-  } catch {
+  } catch (error) {
+    if (request.signal.aborted) throw error;
     return {
       ok: false,
       response: Response.json(

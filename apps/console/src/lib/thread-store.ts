@@ -15,10 +15,27 @@ export interface ThreadTextPart {
   text: string;
 }
 
+export interface ThreadAcknowledgementPart {
+  readonly type: 'data';
+  readonly name: 'theorem-acknowledgement';
+  readonly data: { readonly text: string };
+}
+
+export interface ThreadActivityPart {
+  readonly type: 'data';
+  readonly name: 'theorem-activity';
+  readonly data: { readonly status: 'running' };
+}
+
+export type ThreadMessagePart =
+  | ThreadTextPart
+  | ThreadAcknowledgementPart
+  | ThreadActivityPart;
+
 export interface ThreadMessage {
   id: string;
   role: 'user' | 'assistant';
-  parts: ThreadTextPart[];
+  parts: ThreadMessagePart[];
 }
 
 export interface AgentPlanStep {
@@ -40,7 +57,7 @@ export interface StagedThreadRef {
 /** The actual destination of the next turn. These values map directly to the
  * hosted chat request, unlike the former presentational Agent/Plan/Model
  * labels. */
-export type ComposerMode = 'theorem' | 'web';
+export type ComposerMode = 'auto' | 'theorem' | 'web';
 
 export interface ThreadState {
   messages: ThreadMessage[];
@@ -121,13 +138,76 @@ function planOf(data: string): AgentPlanStep[] | null {
   }
 }
 
+function acknowledgementOf(data: string): string | null {
+  try {
+    const parsed = JSON.parse(data) as { acknowledgement?: unknown };
+    return typeof parsed.acknowledgement === 'string' && parsed.acknowledgement.trim()
+      ? parsed.acknowledgement.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function activityOf(data: string): 'running' | null {
+  try {
+    const parsed = JSON.parse(data) as { status?: unknown };
+    return parsed.status === 'running' ? 'running' : null;
+  } catch {
+    return null;
+  }
+}
+
+function orderedAssistantParts(
+  parts: readonly ThreadMessagePart[],
+  change: {
+    readonly acknowledgement?: string | null;
+    readonly activity?: 'running' | null;
+    readonly appendText?: string;
+  },
+): ThreadMessagePart[] {
+  const existingAcknowledgement = parts.find(
+    (part): part is ThreadAcknowledgementPart =>
+      part.type === 'data' && part.name === 'theorem-acknowledgement',
+  );
+  const existingActivity = parts.find(
+    (part): part is ThreadActivityPart =>
+      part.type === 'data' && part.name === 'theorem-activity',
+  );
+  const existingText = parts.find((part): part is ThreadTextPart => part.type === 'text');
+  const acknowledgement = change.acknowledgement === undefined
+    ? existingAcknowledgement
+    : change.acknowledgement
+      ? {
+          type: 'data' as const,
+          name: 'theorem-acknowledgement' as const,
+          data: { text: change.acknowledgement },
+        }
+      : undefined;
+  const activity = change.activity === undefined
+    ? existingActivity
+    : change.activity === 'running'
+      ? {
+          type: 'data' as const,
+          name: 'theorem-activity' as const,
+          data: { status: 'running' as const },
+        }
+      : undefined;
+  const text = `${existingText?.text ?? ''}${change.appendText ?? ''}`;
+  return [
+    ...(acknowledgement ? [acknowledgement] : []),
+    ...(activity ? [activity] : []),
+    ...(text ? [{ type: 'text' as const, text }] : []),
+  ];
+}
+
 export const useThreadStore = create<ThreadState>((set, get) => ({
   messages: [],
   isRunning: false,
   error: null,
   abort: null,
   endpoint: chatEndpoint(),
-  mode: 'theorem',
+  mode: 'auto',
   plan: [],
   staged: [],
 
@@ -158,7 +238,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     const text = refLine ? `${rawText}\n${refLine}` : rawText;
     if (staged.length > 0) set({ staged: [] });
     const userMessage: ThreadMessage = { id: nextId(), role: 'user', parts: [{ type: 'text', text }] };
-    const assistantMessage: ThreadMessage = { id: nextId(), role: 'assistant', parts: [{ type: 'text', text: '' }] };
+    const assistantMessage: ThreadMessage = { id: nextId(), role: 'assistant', parts: [] };
     const abort = new AbortController();
     set((state) => ({
       messages: [...state.messages, userMessage, assistantMessage],
@@ -181,7 +261,10 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       set((state) => ({
         messages: state.messages.map((message) =>
           message.id === assistantMessage.id
-            ? { ...message, parts: [{ type: 'text', text: message.parts[0].text + chunk }] }
+            ? {
+                ...message,
+                parts: orderedAssistantParts(message.parts, { appendText: chunk }),
+              }
             : message,
         ),
       }));
@@ -196,29 +279,83 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     };
 
     try {
+      const mode = get().mode;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: [{ type: 'text', text }],
-          ...(get().mode === 'web' ? { capability: { kind: 'web' } } : {}),
+          ...(mode === 'web'
+            ? { capability: { kind: 'web' } }
+            : mode === 'theorem'
+              ? { capability: { kind: 'theorem' } }
+              : {}),
         }),
         signal: abort.signal,
       });
       if (!response.ok || !response.body) throw new Error(`chat endpoint failed: ${response.status}`);
+      let terminal = false;
       const parser = createParser({
         onEvent(event: EventSourceMessage) {
           const name = event.event ?? 'message';
           if (name === 'error') {
-            set({ error: textOf(event.data) || 'stream error' });
+            terminal = true;
+            set((state) => ({
+              error: textOf(event.data) || 'stream error',
+              messages: state.messages.map((message) =>
+                message.id === assistantMessage.id
+                  ? { ...message, parts: orderedAssistantParts(message.parts, { activity: null }) }
+                  : message,
+              ),
+            }));
+            return;
+          }
+          if (name === 'turn_prelude') {
+            if (terminal) return;
+            const acknowledgement = acknowledgementOf(event.data);
+            set((state) => ({
+              messages: state.messages.map((message) =>
+                message.id === assistantMessage.id
+                  ? {
+                      ...message,
+                      parts: orderedAssistantParts(message.parts, { acknowledgement }),
+                    }
+                  : message,
+              ),
+            }));
+            return;
+          }
+          if (name === 'activity') {
+            if (terminal) return;
+            const activity = activityOf(event.data);
+            set((state) => ({
+              messages: state.messages.map((message) =>
+                message.id === assistantMessage.id
+                  ? { ...message, parts: orderedAssistantParts(message.parts, { activity }) }
+                  : message,
+              ),
+            }));
+            return;
+          }
+          if (name === 'done') {
+            terminal = true;
+            set((state) => ({
+              messages: state.messages.map((message) =>
+                message.id === assistantMessage.id
+                  ? { ...message, parts: orderedAssistantParts(message.parts, { activity: null }) }
+                  : message,
+              ),
+            }));
             return;
           }
           if (name.includes('plan') || name.includes('tool')) {
+            if (terminal) return;
             const plan = planOf(event.data);
             if (plan) set({ plan });
             return;
           }
           if (name.includes('delta') || name === 'message' || name === 'text') {
+            if (terminal) return;
             enqueue(textOf(event.data));
           }
         },
@@ -229,6 +366,10 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
         const { done, value } = await reader.read();
         if (done) break;
         parser.feed(decoder.decode(value, { stream: true }));
+        if (terminal) {
+          await reader.cancel();
+          break;
+        }
       }
       flush();
     } catch (error) {
@@ -237,7 +378,15 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       }
     } finally {
       flush();
-      set({ isRunning: false, abort: null });
+      set((state) => ({
+        isRunning: false,
+        abort: null,
+        messages: state.messages.map((message) =>
+          message.id === assistantMessage.id
+            ? { ...message, parts: orderedAssistantParts(message.parts, { activity: null }) }
+            : message,
+        ),
+      }));
     }
   },
 

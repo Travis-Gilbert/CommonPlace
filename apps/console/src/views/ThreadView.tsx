@@ -7,10 +7,15 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
-import { MessagePrimitive, ThreadPrimitive } from '@assistant-ui/react';
+import {
+  MessagePrimitive,
+  ThreadPrimitive,
+  type DataMessagePartProps,
+} from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
 import { Composer } from '@/components/composer/Composer';
+import { PresenceMark } from '@/components/mark/PresenceMark';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
@@ -47,12 +52,39 @@ function MarkdownText() {
   return <MarkdownTextPrimitive />;
 }
 
+function TheoremAcknowledgement({ data }: DataMessagePartProps<{ text: string }>) {
+  return (
+    <p data-theorem-acknowledgement className="theorem-acknowledgement">
+      {data.text}
+    </p>
+  );
+}
+
+function TheoremActivity() {
+  return (
+    <div data-theorem-activity className="theorem-activity">
+      <PresenceMark state="composing" size={30} />
+      <span>Theorem is thinking</span>
+    </div>
+  );
+}
+
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
       <MessageShell>
         <div data-speaker="agent" className="mr-8 px-1 font-cp-agent text-cp-agent">
-          <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+          <MessagePrimitive.Parts
+            components={{
+              Text: MarkdownText,
+              data: {
+                by_name: {
+                  'theorem-acknowledgement': TheoremAcknowledgement,
+                  'theorem-activity': TheoremActivity,
+                },
+              },
+            }}
+          />
         </div>
       </MessageShell>
     </MessagePrimitive.Root>
@@ -150,6 +182,7 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
 export function ThreadView({ host, density = 'compact' }: { host: BlockHost; density?: 'full' | 'compact' }) {
   const runtimeAvailable = useContext(ThreadRuntimeAvailable);
   const error = useThreadStore((state) => state.error);
+  const isRunning = useThreadStore((state) => state.isRunning);
   const plan = useThreadStore((state) => state.plan);
   const endpoint = chatEndpoint();
   const [webSearchAvailable, setWebSearchAvailable] = useState(false);
@@ -185,8 +218,12 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
   return (
     <ThreadPrimitive.Root
       data-chat-surface={full ? 'full' : undefined}
+      aria-busy={isRunning}
       className={`flex h-full min-h-0 flex-col ${full ? 'bg-ij-editor' : 'bg-ij-chrome'}`}
     >
+      <span className="sr-only" role="status" aria-live="polite">
+        {isRunning ? 'Theorem is working' : 'Theorem is ready'}
+      </span>
       <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto">
         <div className={`mx-auto flex h-full w-full flex-col ${full ? 'max-w-4xl pt-8' : ''}`}>
           <ThreadPrimitive.Empty>

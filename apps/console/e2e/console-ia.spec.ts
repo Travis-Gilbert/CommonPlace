@@ -19,6 +19,57 @@ async function openSurface(page: Page, id: string) {
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
 }
 
+async function installCohesiveTurnStream(page: Page) {
+  await page.evaluate(() => {
+    const originalFetch = window.fetch.bind(window);
+    const controlledWindow = window as typeof window & {
+      finishCohesiveTurn?: () => void;
+    };
+    window.fetch = async (input, init) => {
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+      if (!url.includes('/api/chat/stream')) return originalFetch(input, init);
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode([
+            'event: turn_prelude',
+            'data: {"route":"chat","acknowledgement":"I will trace this through the current tenant context."}',
+            '',
+            'event: activity',
+            'data: {"status":"running"}',
+            '',
+            '',
+          ].join('\n')));
+          controlledWindow.finishCohesiveTurn = () => {
+            controller.enqueue(encoder.encode([
+              'data: {"delta":"The composed Theorem response follows from that context."}',
+              '',
+              'event: done',
+              'data: {}',
+              '',
+              '',
+            ].join('\n')));
+            controller.close();
+          };
+        },
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    };
+  });
+}
+
+async function finishCohesiveTurn(page: Page) {
+  await page.evaluate(() => {
+    const controlledWindow = window as typeof window & {
+      finishCohesiveTurn?: () => void;
+    };
+    controlledWindow.finishCohesiveTurn?.();
+  });
+}
+
 test.describe('Console information architecture', () => {
   test.beforeEach(async ({ page }) => freshLoad(page));
 
@@ -69,12 +120,12 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('button', { name: 'Attach file' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open action sheet' })).toBeVisible();
     await expect(page.getByLabel('Chat destination')).toBeVisible();
-    await expect(page.getByLabel('Chat destination')).toHaveValue('theorem');
+    await expect(page.getByLabel('Chat destination')).toHaveValue('auto');
     await expect(page.locator('[data-web-search-state]')).toHaveAttribute('data-web-search-state', 'available');
     await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
     await expect(page.locator('[data-composer-character-count]')).toHaveText('0/2000');
     await expect(page.locator('[data-composer-source-footer]')).toContainText('Shift + Enter');
-    await expect(page.locator('[data-composer-source-footer]')).toContainText('Theorem ready');
+    await expect(page.locator('[data-composer-source-footer]')).toContainText('Auto ready');
     await expect(input).toHaveCSS('font-size', '16px');
     const initial = await input.boundingBox();
     const bounds = await composer.boundingBox();
@@ -148,7 +199,48 @@ test.describe('Console information architecture', () => {
     await expect(page).toHaveScreenshot('chat-plan.png', { fullPage: true });
   });
 
-  test('sends Theorem chat and advertised web search through the hosted stream', async ({ page }) => {
+  test('renders one cohesive turn with truthful activity at desktop and mobile width', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await installCohesiveTurnStream(page);
+    const input = page.locator('[data-composer-input]');
+    await input.fill('Explain the current result.');
+    await input.press('Enter');
+
+    await expect(page.locator('[data-chat-surface]')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByRole('status')).toContainText('Theorem is working');
+    await expect(page.locator('[data-theorem-acknowledgement]')).toHaveText(
+      'I will trace this through the current tenant context.',
+    );
+    await expect(page.locator('[data-theorem-activity]')).toContainText('Theorem is thinking');
+    await expect(page.locator('[data-theorem-activity] [data-mark-mode]')).toHaveAttribute(
+      'data-mark-mode',
+      'static',
+    );
+    await expect(page).toHaveScreenshot('cohesive-turn-running.png', { fullPage: true });
+
+    await finishCohesiveTurn(page);
+    await expect(page.getByText('The composed Theorem response follows from that context.')).toBeVisible();
+    await expect(page.locator('[data-theorem-activity]')).toHaveCount(0);
+    await expect(page.locator('[data-theorem-acknowledgement]')).toHaveCount(1);
+    await expect(page.locator('[data-chat-surface]')).toHaveAttribute('aria-busy', 'false');
+    await expect(page.getByRole('status')).toContainText('Theorem is ready');
+    await expect(page).toHaveScreenshot('cohesive-turn-complete.png', { fullPage: true });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await page.waitForSelector('[data-composer-sheen]');
+    await installCohesiveTurnStream(page);
+    const mobileInput = page.locator('[data-composer-input]');
+    await mobileInput.fill('Explain the current result.');
+    await mobileInput.press('Enter');
+    await expect(page.locator('[data-theorem-activity]')).toBeVisible();
+    await expect(page.getByLabel('Chat destination')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop response' })).toBeInViewport();
+    await expect(page).toHaveScreenshot('cohesive-turn-mobile.png', { fullPage: true });
+    await finishCohesiveTurn(page);
+  });
+
+  test('sends Auto, explicit Theorem, and advertised web search through the hosted stream', async ({ page }) => {
     const bodies: unknown[] = [];
     await page.route('**/api/chat/stream', async (route) => {
       bodies.push(route.request().postDataJSON());
@@ -166,12 +258,21 @@ test.describe('Console information architecture', () => {
     expect(bodies[0]).toMatchObject({ content: [{ type: 'text', text: 'Use Theorem context.' }] });
     expect(bodies[0]).not.toHaveProperty('capability');
 
+    await page.getByLabel('Chat destination').selectOption('theorem');
+    await input.fill('Keep this inside Theorem.');
+    await input.press('Enter');
+    await expect.poll(() => bodies.length).toBe(2);
+    expect(bodies[1]).toMatchObject({
+      content: [{ type: 'text', text: 'Keep this inside Theorem.' }],
+      capability: { kind: 'theorem' },
+    });
+
     await page.getByLabel('Chat destination').selectOption('web');
     await expect(page.locator('[data-web-search-state]')).toHaveText('Web search ready');
     await input.fill('Find the current release notes.');
     await input.press('Enter');
-    await expect.poll(() => bodies.length).toBe(2);
-    expect(bodies[1]).toMatchObject({
+    await expect.poll(() => bodies.length).toBe(3);
+    expect(bodies[2]).toMatchObject({
       content: [{ type: 'text', text: 'Find the current release notes.' }],
       capability: { kind: 'web' },
     });

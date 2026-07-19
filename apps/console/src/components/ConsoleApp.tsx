@@ -37,7 +37,7 @@ function convertMessage(message: ThreadMessage): ThreadMessageLike {
   return {
     id: message.id,
     role: message.role,
-    content: message.parts.map((part) => ({ type: 'text' as const, text: part.text })),
+    content: message.parts,
   };
 }
 

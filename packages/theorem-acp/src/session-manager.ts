@@ -7,6 +7,7 @@ import {
 import {
   applySessionUpdate,
   beginTurn,
+  cancelTurn,
   completeTurn,
   createTheoremAgentState,
   failTurn,
@@ -15,6 +16,7 @@ import {
   type AgentProcessKey,
   type PendingPermission,
   type TheoremAgentState,
+  type TurnContext,
 } from './state';
 
 export type AcquiredAcpSession = {
@@ -22,7 +24,10 @@ export type AcquiredAcpSession = {
   sessionId: string;
   getState(): TheoremAgentState;
   subscribe(listener: (state: TheoremAgentState) => void): () => void;
-  prompt(text: string, options?: { displayText?: string }): Promise<void>;
+  prompt(
+    text: string,
+    options?: { displayText?: string; turnContext?: TurnContext },
+  ): Promise<void>;
   respondPermission(callId: string, decision: 'allow' | 'reject'): boolean;
   cancel(): Promise<void>;
 };
@@ -43,6 +48,7 @@ class ManagedAcpSession implements AcquiredAcpSession {
   #state: TheoremAgentState;
   #listeners = new Set<(state: TheoremAgentState) => void>();
   #permissions = new Map<string, PendingDecision>();
+  #promptGeneration = 0;
 
   constructor(
     readonly client: AcpTransport,
@@ -61,17 +67,35 @@ class ManagedAcpSession implements AcquiredAcpSession {
     return () => this.#listeners.delete(listener);
   }
 
-  async prompt(text: string, options?: { displayText?: string }): Promise<void> {
-    this.#setState(beginTurn(this.#state, options?.displayText ?? text));
+  async prompt(
+    text: string,
+    options?: { displayText?: string; turnContext?: TurnContext },
+  ): Promise<void> {
+    const generation = ++this.#promptGeneration;
+    this.#setState(
+      beginTurn(this.#state, options?.displayText ?? text, options?.turnContext),
+    );
     try {
-      const response = await this.client.prompt(this.sessionId, text);
+      const response = await this.client.prompt(
+        this.sessionId,
+        text,
+        options?.turnContext,
+      );
+      if (generation !== this.#promptGeneration) return;
       this.#setState(completeTurn(this.#state, response.stopReason));
-    } catch {
-      this.#setState(failTurn(this.#state));
+    } catch (error) {
+      if (generation !== this.#promptGeneration) return;
+      this.#setState(
+        failTurn(
+          this.#state,
+          error instanceof Error ? error.message : String(error),
+        ),
+      );
     }
   }
 
   async cancel(): Promise<void> {
+    this.#setState(cancelTurn(this.#state));
     await this.client.cancel(this.sessionId);
   }
 

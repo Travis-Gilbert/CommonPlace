@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-import type { AcpSessionUpdate } from './state';
+import type { AcpSessionUpdate, TurnContext } from './state';
 
 export type AcpClientOptions = {
   bin: string;
@@ -104,7 +104,11 @@ export class AcpClient {
     return response.sessionId;
   }
 
-  prompt(sessionId: string, text: string): Promise<PromptResponse> {
+  prompt(
+    sessionId: string,
+    text: string,
+    _turnContext?: TurnContext,
+  ): Promise<PromptResponse> {
     return this.#request('session/prompt', {
       sessionId,
       prompt: [{ type: 'text', text }],

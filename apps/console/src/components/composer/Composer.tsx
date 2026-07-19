@@ -25,7 +25,7 @@ import {
   IconStop,
 } from '@/components/shell/icons';
 import { useShellStore } from '@/lib/shell-store';
-import { useThreadStore } from '@/lib/thread-store';
+import { useThreadStore, type ComposerMode } from '@/lib/thread-store';
 import { ComposerSheenCanvas } from './ComposerSheenCanvas';
 
 const MAX_CHARACTERS = 2000;
@@ -182,9 +182,10 @@ export function Composer({
                   <select
                     aria-label="Chat destination"
                     value={mode}
-                    onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
+                    onChange={(event) => setMode(event.target.value as ComposerMode)}
                     className="composer-mode-select"
                   >
+                    <option value="auto">Auto</option>
                     <option value="theorem">Theorem</option>
                     <option value="web" disabled={!webSearchAvailable}>
                       Web search
@@ -226,7 +227,13 @@ export function Composer({
                     <PresenceMark state={isRunning ? 'composing' : 'idle'} size={18} staticOnly />
                   </span>
                   <span data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}>
-                    {isRunning ? 'Working' : mode === 'web' ? 'Web search ready' : 'Theorem ready'}
+                    {isRunning
+                      ? 'Working'
+                      : mode === 'web'
+                        ? 'Web search ready'
+                        : mode === 'theorem'
+                          ? 'Theorem ready'
+                          : 'Auto ready'}
                   </span>
                 </div>
               </div>
