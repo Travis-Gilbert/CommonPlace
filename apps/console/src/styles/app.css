@@ -32,14 +32,14 @@
   --xy-controls-button-color-default: var(--ij-ink-info);
   --xy-controls-button-color-hover-default: var(--ij-ink);
   --xy-controls-button-border-color-default: var(--ij-seam);
-  --xy-controls-box-shadow-default: var(--ij-material-shadow);
+  --xy-controls-box-shadow-default: var(--ij-popover-shadow);
   --xy-edge-label-background-color-default: var(--ij-editor);
   --xy-edge-label-color-default: var(--ij-ink-info);
 }
 
 .react-flow__controls {
   border-color: var(--ij-control-border);
-  box-shadow: var(--ij-material-shadow);
+  box-shadow: var(--ij-popover-shadow);
 }
 
 .react-flow__controls-button {
@@ -48,7 +48,7 @@
 
 .react-flow__node.proactivity-node-highlighted > div {
   border-color: var(--ij-accent);
-  box-shadow: var(--ij-material-shadow);
+  box-shadow: var(--ij-popover-shadow);
 }
 
 .composer-input {
@@ -60,49 +60,28 @@
   line-height: 1.5;
 }
 
+/* The composer is an instrument panel, not a card: the ladder and the seam
+   carry its depth, so it takes no shadow (X1 named choice 3 -- shadows are
+   reserved for transient popovers, and the composer is permanent). Its
+   surface is --ij-raised, set on the element in the component. */
 .composer-shell {
-  border-radius: var(--ij-composer-radius);
-  box-shadow: var(--ij-composer-shadow), var(--ij-composer-material-shadow);
-  transition: var(--rec-clickable-transition);
-}
-
-.composer-source-surface {
   isolation: isolate;
-  background: var(--ij-composer-material);
-  backdrop-filter: blur(var(--ij-composer-backdrop-blur));
+  border-radius: var(--ij-composer-radius);
+  transition: var(--rec-clickable-transition);
 }
 
 .composer-shell:focus-within {
   border-color: var(--ij-accent);
 }
 
-.composer-shell [data-composer-sheen] {
-  opacity: 0.5;
-}
+/* The sheen paints at its own alphas. The 0.5 multiplier that used to live
+   here existed only to lose the fight with the pastel overlay stacked above
+   it; with that overlay gone the canvas's internal 3.2 percent budget is the
+   whole budget (X1). */
 
-.composer-shell [data-sheen-state="streaming"] {
-  opacity: 0.62;
-}
-
-.composer-source-overlay,
-.composer-source-input-gradient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.composer-source-overlay {
-  z-index: 2;
-  background: var(--ij-composer-material-overlay);
-}
-
-.composer-source-input-section {
+.composer-input-section {
   position: relative;
   overflow: hidden;
-}
-
-.composer-source-input-gradient {
-  background: var(--ij-composer-input-wash);
 }
 
 [data-composer-density="full"] .composer-input {
@@ -123,11 +102,14 @@
   padding: calc(var(--rec-grid) * 2) var(--ij-composer-pad-compact);
 }
 
-.composer-source-controls-wrap {
+.composer-controls-wrap {
   position: relative;
   z-index: 3;
 }
 
+/* A plain divider border groups the tools. The group carried its own fill in
+   the port; a second material inside the panel is exactly the layering the
+   subtraction removes (X1). */
 .composer-tool-group {
   display: flex;
   align-items: center;
@@ -135,7 +117,6 @@
   padding: calc(var(--rec-grid) / 2);
   border: 1px solid var(--ij-divider);
   border-radius: var(--ij-arc);
-  background: var(--ij-composer-control-material);
 }
 
 .composer-icon-button,
@@ -195,19 +176,26 @@
   margin-left: auto;
 }
 
-.composer-source-character-count {
+/* Inline and mono, and only present inside the final tenth of the budget.
+   The reserved min-width keeps the controls row from twitching as the last
+   digits change (X1). */
+.composer-character-count {
   display: inline-flex;
   min-width: var(--ij-composer-counter-min-width);
   justify-content: flex-end;
   margin-left: auto;
   color: var(--ij-ink-info);
   font-family: var(--ij-font-mono);
-  font-size: var(--ij-composer-footer-font-size);
+  font-size: var(--ij-composer-meta-font-size);
+}
+
+/* The counter takes the auto margin when it is present, so the mark keeps its
+   place at the end of the row rather than jumping left. */
+.composer-character-count + .composer-presence {
+  margin-left: var(--ij-composer-gap);
 }
 
 .composer-send-button {
-  position: relative;
-  overflow: hidden;
   color: var(--ij-ink-bright);
   background: var(--ij-accent);
 }
@@ -222,53 +210,6 @@
   cursor: not-allowed;
 }
 
-.composer-source-send-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  box-shadow: var(--ij-composer-send-glow);
-  opacity: 0;
-  transition: var(--rec-clickable-transition);
-}
-
-.composer-source-send:hover:not(:disabled) .composer-source-send-glow {
-  opacity: 1;
-}
-
-.composer-source-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ij-composer-gap);
-  margin-inline: var(--ij-composer-pad-compact);
-  padding: calc(var(--rec-grid) * 2) calc(var(--rec-grid) / 2) var(--ij-composer-pad-compact);
-  border-top: 1px solid var(--ij-divider);
-  color: var(--ij-ink-info);
-  font-size: var(--ij-composer-footer-font-size);
-}
-
-.composer-source-shortcut,
-.composer-source-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--rec-grid);
-}
-
-.composer-source-shortcut kbd {
-  border: 1px solid var(--ij-control-border);
-  border-radius: var(--ij-arc-underline);
-  background: var(--ij-composer-kbd-material);
-  padding: calc(var(--rec-grid) / 2) var(--rec-grid);
-  color: var(--ij-ink);
-  font-family: var(--ij-font-mono);
-  box-shadow: inset 0 -1px 0 var(--ij-divider);
-}
-
-.composer-source-status .composer-presence {
-  margin-left: 0;
-}
-
 [data-composer-density="compact"] .composer-icon-button,
 [data-composer-density="compact"] .composer-send-button,
 [data-composer-density="compact"] .composer-mode-select {
@@ -280,10 +221,9 @@
   width: auto;
 }
 
-[data-composer-density="compact"] .composer-source-character-count,
-[data-composer-density="compact"] .composer-source-footer {
-  display: none;
-}
+/* The compact density no longer suppresses the counter: it is rare rather
+   than ambient now, so the one place it appears is the one place it matters
+   (X1). The narrow-viewport rule below still hides it, for reachability. */
 
 /* The Console's left tool stripe leaves a narrow usable canvas on phones.
    Keep both destinations and the real Send control reachable instead of
@@ -299,12 +239,8 @@
     padding-inline: calc(var(--rec-grid) * 2) calc(var(--rec-grid) * 5);
   }
 
-  .composer-source-character-count {
+  .composer-character-count {
     display: none;
-  }
-
-  .composer-source-footer {
-    gap: calc(var(--rec-grid) * 1.5);
   }
 }
 

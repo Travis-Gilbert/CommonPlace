@@ -73,9 +73,14 @@ test.describe('Console information architecture', () => {
     await expect(page.getByLabel('Chat destination')).toHaveValue('theorem');
     await expect(page.locator('[data-web-search-state]')).toHaveAttribute('data-web-search-state', 'available');
     await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
-    await expect(page.locator('[data-composer-character-count]')).toHaveText('0/2000');
-    await expect(page.locator('[data-composer-source-footer]')).toContainText('Shift + Enter');
-    await expect(page.locator('[data-composer-source-footer]')).toContainText('Theorem ready');
+    // X1: the counter is not ambient furniture, the footer row is gone, and
+    // the new-line hint rides the send control's title instead.
+    await expect(page.locator('[data-composer-character-count]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Send message' })).toHaveAttribute(
+      'title',
+      'Send message (Shift + Enter for a new line)',
+    );
+    await expect(page.locator('[data-composer-source-footer]')).toHaveCount(0);
     await expect(input).toHaveCSS('font-size', '16px');
     const initial = await input.boundingBox();
     const bounds = await composer.boundingBox();
@@ -86,7 +91,10 @@ test.describe('Console information architecture', () => {
     expect((bounds?.y ?? 0) + ((bounds?.height ?? 0) / 2)).toBeGreaterThan((viewport?.height ?? 0) * (2 / 3));
     await input.fill('');
     await input.fill('Material');
-    await expect(page.locator('[data-composer-character-count]')).toHaveText('8/2000');
+    await expect(page.locator('[data-composer-character-count]')).toHaveCount(0);
+    // Inside the final tenth of the budget the number is news, so it appears.
+    await input.fill('x'.repeat(1800));
+    await expect(page.locator('[data-composer-character-count]')).toHaveText('1800/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
     const mention = page.getByText('Ada Lovelace', { exact: true });
