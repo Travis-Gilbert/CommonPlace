@@ -2507,7 +2507,19 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
     tauri::Builder::default()
         .manage(Mutex::new(DesktopBackendState::default()))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
+            // DESIGN-THEOREM-URI section 3: the desktop registers `theorem://`
+            // so a link anywhere on the machine opens the object in the shell.
+            // macOS reads the scheme from the bundle's Info.plist, which the
+            // bundler writes from the plugin config; Windows and Linux need a
+            // runtime registration, and in dev builds that is the only way the
+            // scheme reaches the OS at all.
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().register_all()?;
+            }
             let state = app.state::<Mutex<DesktopBackendState>>();
             start_local_node(app.handle(), &state)?;
             start_commonplace_api(app.handle(), &state)?;

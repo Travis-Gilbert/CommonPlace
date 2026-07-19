@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
+    "./addressing": "./src/addressing.ts",
     "./shape-match": "./src/shape-match.ts",
     "./registry": "./src/registry.ts",
     "./descriptor-contracts": "./src/descriptor-contracts.ts",

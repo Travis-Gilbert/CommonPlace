@@ -8,6 +8,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Command } from 'cmdk';
 import { motion } from 'motion/react';
 import type { ObjectRef } from '@commonplace/block-view/types';
+import {
+  extractTheoremAddress,
+  parseTheoremUri,
+  theoremUri,
+  THEOREM_SCHEME,
+  type TheoremAddress,
+} from '@commonplace/block-view/addressing';
 import { surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { useShellStore, type SearchFieldMode } from '@/lib/shell-store';
 import { SURFACE_ID } from '@/lib/workspace-seed';
@@ -28,6 +35,44 @@ interface ConsoleCommand {
   readonly id: string;
   readonly label: string;
   run(): void;
+}
+
+/** What the field makes of its text: an address to resolve, a refusal to
+ *  show, or null for ordinary search text. */
+type AddressProbe =
+  | { readonly ok: true; readonly address: TheoremAddress }
+  | { readonly ok: false; readonly message: string };
+
+/**
+ * Sniff a `theorem://` address out of the field (DESIGN-THEOREM-URI section 3).
+ *
+ * An address is an object reference, not a title fragment, so a substring
+ * search over titles would find nothing and say nothing. A malformed one is an
+ * absence with a reason, and a well-formed one belonging to another tenant is
+ * refused here rather than resolved: addresses name, they never grant.
+ */
+function probeAddress(raw: string, tenant: string): AddressProbe | null {
+  // The objects lane's `@` prefix is a mode sigil, not part of the address.
+  const text = raw.trimStart().startsWith('@') ? raw.trimStart().slice(1) : raw;
+  if (!text.includes(THEOREM_SCHEME)) return null;
+  // Share-sheet text ("<title>\n<address>") pastes whole; the address is found
+  // inside it rather than demanded bare.
+  const address = extractTheoremAddress(text);
+  if (address) {
+    return address.tenant === tenant
+      ? { ok: true, address }
+      : {
+          ok: false,
+          message: `that address names tenant ${address.tenant}; this console is ${tenant}`,
+        };
+  }
+  const token = text.trim().split(/\s+/).find((part) => part.startsWith(THEOREM_SCHEME));
+  const parsed = token ? parseTheoremUri(token) : null;
+  return {
+    ok: false,
+    message:
+      parsed && !parsed.ok ? parsed.refusal.message : 'that text carries no theorem address',
+  };
 }
 
 export function SearchField() {
@@ -57,10 +102,15 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
   const closeSearchPanel = useShellStore((state) => state.closeSearchPanel);
   const selectRecord = useShellStore((state) => state.selectRecord);
   const toggleReducedMotionPreview = useShellStore((state) => state.toggleReducedMotionPreview);
+  const tenant = useShellStore((state) => state.tenant);
   const durations = useMotionDurations();
   const [text, setText] = useState('');
   const [layout, setLayout] = useState<readonly ObjectRef[]>([]);
   const [objects, setObjects] = useState<readonly ObjectRef[]>([]);
+  /** The object an addressed id resolved to, when this console holds it. Null
+   *  means the address still opens by id; the inspector fetches it. */
+  const [addressMatch, setAddressMatch] = useState<ObjectRef | null>(null);
+  const addressProbe = useMemo(() => probeAddress(text, tenant), [text, tenant]);
   const previousFocus = useRef<HTMLElement | null>(null);
   const lastShift = useRef(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -113,8 +163,32 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
     };
   }, [host, open]);
 
+  // An addressed object resolves by id, not by title. One bounded query names
+  // it so the item reads as the object rather than as a raw id, and so the
+  // inspector opens without a second fetch.
+  useEffect(() => {
+    if (!open || !addressProbe?.ok) return;
+    const address = addressProbe.address;
+    let active = true;
+    Promise.resolve(host.query({
+      types: [...new Set([address.kind, 'record'])],
+      where: { kind: 'eq', field: 'id', value: address.id },
+      page: { limit: 4 },
+    })).then((set) => {
+      if (active) setAddressMatch(set.objects.find((object) => object.id === address.id) ?? null);
+    }).catch(() => {
+      if (active) setAddressMatch(null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [addressProbe, host, open]);
+
   useEffect(() => {
     if (!open || mode === 'command') return;
+    // Address text is a reference, never a title fragment: the title search
+    // would find nothing, so it does not run.
+    if (addressProbe) return;
     const token = mode === 'objects' ? text.replace(/^@/, '') : text;
     if (mode === 'search' && token.trim().length < 2) return;
     let active = true;
@@ -130,7 +204,7 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
     return () => {
       active = false;
     };
-  }, [host, mode, open, text]);
+  }, [addressProbe, host, mode, open, text]);
 
   useEffect(() => {
     if (open) {
@@ -191,10 +265,25 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
     const needle = text.trim().toLowerCase();
     return needle ? commands.filter((command) => command.label.toLowerCase().includes(needle)) : commands;
   }, [commands, text]);
-  const visibleObjects = mode === 'search' && text.trim().length < 2 ? [] : objects;
+  const visibleObjects =
+    addressProbe || (mode === 'search' && text.trim().length < 2) ? [] : objects;
+  /** The addressed object when this console holds it and it still matches the
+   *  text; a stale match never labels a newer address. */
+  const resolved =
+    addressProbe?.ok && addressMatch && addressMatch.id === addressProbe.address.id
+      ? addressMatch
+      : null;
 
   const chooseObject = (object: ObjectRef) => {
     selectRecord(object.id, object, object.type);
+    setText('');
+    close();
+  };
+
+  /** Resolve an address straight to its object: identity lives in the id, and
+   *  the kind rides along as the fetch hint. */
+  const chooseAddress = (address: TheoremAddress) => {
+    selectRecord(address.id, resolved, address.kind);
     setText('');
     close();
   };
@@ -206,6 +295,9 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
       return;
     }
     if (value.startsWith('@')) openSearchPanel('objects');
+    // An address is an object reference: the field moves to the objects lane
+    // so it resolves instead of filtering command labels.
+    else if (mode === 'command' && value.includes(THEOREM_SCHEME)) openSearchPanel('objects');
     setText(value);
   };
 
@@ -270,7 +362,30 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
             >
               {command.label}
             </Command.Item>
-          )) : visibleObjects.map((object) => (
+          )) : addressProbe ? (
+            addressProbe.ok ? (
+              <Command.Item
+                key="theorem-address"
+                data-address-resolve
+                value={theoremUri(addressProbe.address)}
+                onSelect={() => chooseAddress(addressProbe.address)}
+                className={itemClass}
+              >
+                <span className="truncate">
+                  Open {resolved ? String(resolved.properties.title ?? resolved.id) : addressProbe.address.id}
+                </span>
+                <span className="ml-auto font-ij-mono text-ij-ink-disabled">
+                  {addressProbe.address.kind}
+                </span>
+              </Command.Item>
+            ) : (
+              // A malformed or foreign address says so; it never silently
+              // does nothing.
+              <div className="p-3 text-ij-error" data-address-refusal>
+                {addressProbe.message}
+              </div>
+            )
+          ) : visibleObjects.map((object) => (
             <Command.Item
               key={object.id}
               value={`${String(object.properties.title ?? object.id)} ${object.type}`}
@@ -281,7 +396,7 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
               <span className="ml-auto font-ij-mono text-ij-ink-disabled">{object.type}</span>
             </Command.Item>
           ))}
-          {mode !== 'command' && visibleObjects.length === 0 ? (
+          {mode !== 'command' && !addressProbe && visibleObjects.length === 0 ? (
             <Command.Empty className="p-3 text-ij-ink-info">
               {text.trim().length < 2 && mode === 'search' ? 'Type two characters to search.' : 'No matching objects.'}
             </Command.Empty>

@@ -110,6 +110,7 @@ gap: add the row, with a named source, before writing code.
 | Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |
 | Workspace substrate | `@tanstack/react-virtual`, CodeMirror 6 merge, `cmdk`, and Radix Popover | semantic workspace entity tree, virtual rows, local-history revision diff, project Find, readiness detail |
 | Graph node and sentence card building blocks | jalco-ui `commit-graph` and `repo-card` (ui.justinlevine.me), structure extraction | the commit-entry node (a response is a stack of agent-action steps a person builds) and the RepoCard sentence card; the jalco layouts are reproduced and every shadcn token re-skinned to the register |
+| Object addressing and copy | `@commonplace/block-view/addressing` (the shared `theorem://` grammar, per DESIGN-THEOREM-URI) plus the platform Clipboard API | every canonical address this app emits, parses, or offers: the inspector footer, the card copy affordance, mention chips, the Composer paste offer, and the Search field's address lane. `src/lib/object-address.ts` is the only place a tenant plus an object becomes an address, and `src/lib/use-copy.ts` is the only clipboard call (the apps/web hook's shape, re-implemented because the import fence is structural) |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.

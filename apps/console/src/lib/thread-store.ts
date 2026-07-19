@@ -45,6 +45,10 @@ export interface StagedThreadRef {
   readonly id: string;
   readonly label: string;
   readonly objectId?: string;
+  /** The ref's canonical `theorem://` address (DESIGN-THEOREM-URI section 3).
+   *  When present it is what travels with the message, so a staged mention
+   *  names its object the same way a copied address does. */
+  readonly address?: string;
 }
 
 /** The actual destination of the next turn. These values map directly to the
@@ -169,8 +173,14 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     // Staged references travel with the message and clear once sent; they
     // were visible chips the whole time (no invisible context lane).
     const staged = get().staged;
+    // A staged mention serializes to the canonical address when it has one
+    // (DESIGN-THEOREM-URI section 3); a ref minted before addresses existed
+    // still travels by bare id rather than losing its target.
     const refLine = staged
-      .map((ref) => (ref.objectId ? `@[${ref.label}](${ref.objectId})` : ref.label))
+      .map((ref) => {
+        const target = ref.address ?? ref.objectId;
+        return target ? `@[${ref.label}](${target})` : ref.label;
+      })
       .join(' ');
     const text = refLine ? `${rawText}\n${refLine}` : rawText;
     if (staged.length > 0) set({ staged: [] });

@@ -145,6 +145,21 @@ export function IconInfo(props: IconProps) {
   );
 }
 
+/** Copy and its settled acknowledgement: the address affordance on cards and
+ *  the inspector footer. Controls, not taxonomy, so register strokes. */
+export function IconCopy(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <rect x="5.75" y="5.75" width="7.5" height="7.5" rx="1.5" />
+      <path d="M10.25 3.75a1.5 1.5 0 0 0-1.5-1.5h-4.5a1.5 1.5 0 0 0-1.5 1.5v4.5a1.5 1.5 0 0 0 1.5 1.5" />
+    </svg>
+  );
+}
+
+export function IconCheck(props: IconProps) {
+  return <svg {...controlBase(props)}><path d="m3.5 8.5 3 3 6-6.5" /></svg>;
+}
+
 export function IconAccount(props: IconProps) {
   return (
     <svg {...controlBase(props)}>

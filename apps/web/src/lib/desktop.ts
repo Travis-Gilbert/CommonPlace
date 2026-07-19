@@ -1,5 +1,14 @@
 'use client';
 
+// SOURCING: hand-roll — the Tauri IPC surface itself. `@tauri-apps/api` and the
+// per-plugin guest bindings (`@tauri-apps/plugin-deep-link`) are the upstream
+// libraries here, and each is a thin wrapper over the runtime-injected
+// `window.__TAURI_INTERNALS__.invoke`. This module deliberately calls that
+// injected surface directly so the web bundle carries no `@tauri-apps/*`
+// dependency: apps/web ships the plain web app as well as the desktop shell.
+// Every wrapper below mirrors its upstream binding's command name and payload
+// shape exactly, so the contract is the library's, not ours.
+
 /**
  * Dependency-free Tauri bridge for CommonPlace desktop mode (SPEC-9 D4/D5).
  *
@@ -165,8 +174,15 @@ export interface AgentIngestionReceipt {
  */
 export type CoBrowseShellEvent = 'cobrowse://stage-focus' | 'cobrowse://navigation';
 
+/**
+ * Every shell event this bridge subscribes to. `deep-link://new-url` is emitted
+ * by tauri-plugin-deep-link when a `theorem://` link is opened while the app is
+ * running (DESIGN-THEOREM-URI section 3).
+ */
+export type DesktopShellEvent = CoBrowseShellEvent | 'deep-link://new-url';
+
 export async function listenDesktopEvent<T = unknown>(
-  event: CoBrowseShellEvent,
+  event: DesktopShellEvent,
   handler: (payload: T) => void,
 ): Promise<() => void> {
   const bridge = internals();
@@ -183,6 +199,28 @@ export async function listenDesktopEvent<T = unknown>(
     void bridge.invoke('plugin:event|unlisten', { event, eventId });
   };
 }
+
+/* ── theorem:// deep links (DESIGN-THEOREM-URI section 3) ─────────────
+ *
+ * Typed mirrors of tauri-plugin-deep-link's guest bindings
+ * (`@tauri-apps/plugin-deep-link`, guest-js/index.ts): `getCurrent` is
+ * `invoke('plugin:deep-link|get_current')` and `onOpenUrl` is a `listen` on
+ * `deep-link://new-url` carrying the URLs as its payload. Expressed through the
+ * bridge above rather than the npm package, for the reason this whole module
+ * exists (see the SOURCING note at the top of the file).
+ */
+
+/**
+ * The URLs the app was launched with, or null when it was not launched from a
+ * link. The plugin holds the launch URL until the webview asks for it, so this
+ * is how a cold start sees the address that opened the app.
+ */
+export const deepLinkGetCurrent = () =>
+  invoke<string[] | null>('plugin:deep-link|get_current');
+
+/** Run `handler` for every link opened while the app is already running. */
+export const onDeepLinkOpenUrl = (handler: (urls: string[]) => void) =>
+  listenDesktopEvent<string[]>('deep-link://new-url', handler);
 
 /** Draw or clear the telegraph highlight overlay inside a tab's page (D3). */
 export const tabHighlight = (

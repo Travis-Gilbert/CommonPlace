@@ -9,6 +9,7 @@ import ConnectionComposer from '@/components/commonplace/compose/ConnectionCompo
 import EngineWidget from '@/components/commonplace/engine/EngineWidget';
 import ReaderOverlay from '@/components/commonplace/reader/ReaderOverlay';
 import CommonPlacePwaInstall from '@/components/commonplace/install/CommonPlacePwaInstall';
+import TheoremDeepLink from '@/components/commonplace/deeplink/TheoremDeepLink';
 import { CommonPlaceVitals } from '@/lib/commonplace-vitals';
 import { Toaster } from 'sonner';
 import shellStyles from '@/components/commonplace/shell/CommonPlaceShell.module.css';
@@ -92,6 +93,10 @@ export default function CommonPlaceLayout({
         <ConnectionComposer />
         <EngineWidget />
         <CommonPlacePwaInstall surface="commonplace-shell" />
+        {/* theorem:// acceptor (DESIGN-THEOREM-URI section 3): a link opened
+            anywhere on the machine reaches the desktop shell here. Renders
+            nothing, and is inert outside the Tauri runtime. */}
+        <TheoremDeepLink />
         {/* Latency instrumentation (SPEC-UX-PHYSICS D7.1): reports INP against
             the 200ms budget on the core interactions. Renders nothing. */}
         <CommonPlaceVitals />
