@@ -23,6 +23,12 @@ roots across tenants, and prevents symlink escapes. The legacy
 `COMMONPLACE_WORKSPACE_ALLOWED_ROOTS` variable is a single-tenant development
 fallback only. Production must configure the Console list and tenant map.
 
+Proactivity's GraphQL projection uses the CommonPlace API configured by
+`CONSOLE_HARNESS_URL`. Its SSE feed is a separate RustyRed server endpoint:
+set `THEOREM_PROACTIVITY_CHANGEFEED_URL` to the tenant-filtered
+`/v1/proactivity/stream` host. Do not fall back to `CONSOLE_HARNESS_URL`,
+which would silently target the wrong deployment.
+
 ## Composition doctrine
 
 One material system. Two structural sources. Bridged, not blended.
@@ -98,6 +104,7 @@ gap: add the row, with a named source, before writing code.
 | Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
 | Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
+| Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |
 | Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 | Graph canvas | `@xyflow/react` (React Flow) over `@dagrejs/dagre` (layered ranking) | the proactivity graph, per SPEC-PROACTIVITY-GRAPH-WIRING: dagre computes the layered join topology (roots rank first, sinks last), React Flow owns pan, zoom, selection, and edge routing; nodes and edges are register-styled (base CSS only, `--xy-*` mapped to the register in app.css), dynamic-imported so the sentence and card altitudes load no graph bundle |
 | Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |

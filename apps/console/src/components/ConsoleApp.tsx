@@ -27,6 +27,8 @@ import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { GroundCanvas } from '@/components/ground/GroundCanvas';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
+import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
+import type { ProactivityGraph } from '@/lib/proactivity/types';
 
 const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
@@ -84,7 +86,11 @@ function connectionFor(status: number | null): 'connected' | 'disconnected' | 'i
   return 'disconnected';
 }
 
-export function ConsoleApp() {
+export function ConsoleApp({
+  initialProactivity,
+}: {
+  initialProactivity?: { readonly graph: ProactivityGraph | null; readonly error: string | null };
+} = {}) {
   // True after hydration only (server snapshot false): the persisted
   // arrangement in localStorage never causes a hydration mismatch.
   const mounted = useSyncExternalStore(
@@ -93,6 +99,8 @@ export function ConsoleApp() {
     () => false,
   );
   const setPresence = useShellStore((state) => state.setPresence);
+  const hydrateProactivity = useProactivityStore((state) => state.hydrate);
+  const failProactivity = useProactivityStore((state) => state.fail);
 
   const host = useMemo(
     () =>
@@ -111,6 +119,11 @@ export function ConsoleApp() {
   useEffect(() => {
     return startAppearanceStore();
   }, []);
+
+  useEffect(() => {
+    if (initialProactivity.graph) hydrateProactivity(initialProactivity.graph);
+    else failProactivity(initialProactivity.error ?? 'server_projection_unavailable');
+  }, [failProactivity, hydrateProactivity, initialProactivity]);
 
   useEffect(() => {
     if (!host) return;

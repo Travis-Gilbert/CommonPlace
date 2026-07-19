@@ -4,6 +4,7 @@
    in this app; components consume utilities and register variables only. */
 
 @import 'tailwindcss';
+@import '@xyflow/react/dist/style.css';
 @import './int-ui-register.css';
 @import './int-ui-register-light.css';
 @import './rec-structural.css';
@@ -16,6 +17,39 @@
    edges are custom and register-styled, so only the layout/transform styles are
    needed. Its theme variables are mapped to the register below. */
 @import '@xyflow/react/dist/base.css';
+
+.react-flow {
+  --xy-edge-stroke-default: var(--ij-divider);
+  --xy-edge-stroke-selected-default: var(--ij-accent);
+  --xy-background-color-default: var(--ij-editor);
+  --xy-background-pattern-dots-color-default: var(--ij-divider);
+  --xy-node-color-default: var(--ij-ink);
+  --xy-node-background-color-default: var(--ij-raised);
+  --xy-handle-background-color-default: var(--ij-editor);
+  --xy-handle-border-color-default: var(--ij-seam);
+  --xy-controls-button-background-color-default: var(--ij-raised);
+  --xy-controls-button-background-color-hover-default: var(--ij-hover-surface);
+  --xy-controls-button-color-default: var(--ij-ink-info);
+  --xy-controls-button-color-hover-default: var(--ij-ink);
+  --xy-controls-button-border-color-default: var(--ij-seam);
+  --xy-controls-box-shadow-default: var(--ij-material-shadow);
+  --xy-edge-label-background-color-default: var(--ij-editor);
+  --xy-edge-label-color-default: var(--ij-ink-info);
+}
+
+.react-flow__controls {
+  border-color: var(--ij-control-border);
+  box-shadow: var(--ij-material-shadow);
+}
+
+.react-flow__controls-button {
+  border-bottom-color: var(--ij-seam);
+}
+
+.react-flow__node.proactivity-node-highlighted > div {
+  border-color: var(--ij-accent);
+  box-shadow: var(--ij-material-shadow);
+}
 
 .composer-input {
   field-sizing: content;
