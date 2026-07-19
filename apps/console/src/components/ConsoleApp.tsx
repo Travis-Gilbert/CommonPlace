@@ -121,6 +121,7 @@ export function ConsoleApp({
   }, []);
 
   useEffect(() => {
+    if (!initialProactivity) return;
     if (initialProactivity.graph) hydrateProactivity(initialProactivity.graph);
     else failProactivity(initialProactivity.error ?? 'server_projection_unavailable');
   }, [failProactivity, hydrateProactivity, initialProactivity]);
