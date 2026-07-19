@@ -47,6 +47,7 @@ export default defineConfig({
         // exercise tenant headers without weakening the production session gate.
         CONSOLE_E2E_GITHUB_LOGIN: 'Travis-Gilbert',
         CONSOLE_E2E_HARNESS_IDENTITY: 'github:e2e-owner',
+        CONSOLE_E2E_PROACTIVITY_FIXTURE: '1',
         THEOREM_GRAPHQL_URL: 'http://localhost:50591/graphql',
         THEOREM_ITEM_CHANGEFEED_URL: 'http://localhost:50591/v1/items/stream',
         THEOREM_API_KEY: 'dev-key',

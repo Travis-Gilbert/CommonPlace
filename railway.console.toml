@@ -30,6 +30,9 @@ watchPatterns = [
 #   CONSOLE_HARNESS_URL + CONSOLE_HARNESS_TOKEN + CONSOLE_HARNESS_TENANT +
 #   CONSOLE_HARNESS_ROOM  (presence and runs; absent keeps presence hidden
 #     and the Runs scope in its named unavailable state)
+#   THEOREM_PROACTIVITY_CHANGEFEED_URL  (required for the Console proactivity
+#     overlay; points at RustyRed `/v1/proactivity/stream`, never the
+#     CommonPlace GraphQL host configured by `CONSOLE_HARNESS_URL`)
 
 [deploy]
 startCommand = "npm run console:start:railway"

@@ -49,6 +49,7 @@ const SURFACE_ICONS: Record<string, typeof IconRecords> = {
   index: IconRail,
   documents: IconDoc,
   cards: IconCards,
+  proactivity: IconRail,
   model: IconModel,
   review: IconInspector,
   goals: IconModel,
