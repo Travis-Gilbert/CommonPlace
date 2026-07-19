@@ -109,6 +109,13 @@ export function IconChevronDown(props: IconProps) {
   return <svg {...controlBase(props)}><path d="m4.5 6.5 3.5 3.5 3.5-3.5" /></svg>;
 }
 
+/** The tool window header's hide affordance (HANDOFF-CONSOLE-DIMENSIONALITY
+ *  X3.2): the Int UI "hide" mark, a bar the panel collapses toward. A control
+ *  primitive, so it strokes rather than fills. */
+export function IconHide(props: IconProps) {
+  return <svg {...controlBase(props)}><path d="M3.5 8h9" /></svg>;
+}
+
 export function IconAttach(props: IconProps) {
   return (
     <svg {...controlBase(props)}>

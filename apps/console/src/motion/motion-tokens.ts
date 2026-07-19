@@ -12,10 +12,25 @@
  * 2. Entrances are interruptible; no animation gates input.
  * 3. Streaming text is sacred: no layout animation on the streaming container.
  * 4. Ambient motion lives only in the GroundCanvas layer behind the frame;
- *    chrome is still.
+ *    chrome is still AT REST. Narrowed, on the record, by
+ *    HANDOFF-CONSOLE-DIMENSIONALITY named choice 1: "ambient" means unprompted
+ *    and always-on, which is the property that made the ground the only place
+ *    for it. Paint that runs only while a named state is live is feedback, not
+ *    ambience, and it stops when the state does. The composer sheen is that
+ *    case and the only chrome exception: it draws once and holds still at idle,
+ *    and opens a frame loop strictly while the agent is streaming ("breathes
+ *    only while the agent works"). The rule's original flat reading had already
+ *    been narrowed in practice by the reviewable half of this register --
+ *    INTERACTION_INVENTORY has carried the composer, the Presence mark, and the
+ *    status-bar sweep as non-ground surfaces since G4 -- so this paragraph
+ *    writes down a narrowing that was previously implicit rather than granting
+ *    a new one. DECLARED_PAINT_SURFACES below closes the matching gap in the
+ *    mechanical half.
  * 5. prefers-reduced-motion renders settled and static: every duration maps
  *    to 0 and the ground stops repainting. No component implements its own
- *    reduced-motion branch outside useMotionDurations.
+ *    reduced-motion branch outside useMotionDurations. "Static" means the
+ *    surface still paints its resting frame; a removed surface is not a
+ *    settled one.
  */
 
 'use client';
@@ -152,6 +167,37 @@ export const INTERACTION_INVENTORY = [
     effect: 'quiet register-derived texture drift on the GroundCanvas behind the frame',
     spec: 'GROUND tokens; the only permitted ambient motion; never repaints above a measured negligible idle cost',
     reducedMotion: 'static texture, no repaint loop',
+  },
+] as const;
+
+/**
+ * The declared paint surfaces (HANDOFF-CONSOLE-DIMENSIONALITY, motion-gate
+ * reconciliation). A canvas that obtains a rendering context and drives its own
+ * frame loop is invisible to the textual half of the scan: it declares no CSS
+ * animation, no @keyframes, and no literal duration, so it would merge
+ * undeclared. That was the one real hole in gate 4, and it is the hole rule 4
+ * exists to cover. Every such surface is named here with the inventory row that
+ * reviews it; scripts/check-motion-inventory.mjs fails on any file that paints
+ * a canvas in a frame loop without appearing on this list.
+ *
+ * Paths are app-relative. Adding one is a reviewed diff, exactly as adding a
+ * register token is.
+ */
+export const DECLARED_PAINT_SURFACES = [
+  {
+    file: 'src/components/ground/GroundCanvas.tsx',
+    inventory: 'Ground ambient',
+    reason: 'the one permitted ambient surface; sits behind the frame, not in chrome',
+  },
+  {
+    file: 'src/components/mark/PresenceMark.tsx',
+    inventory: 'Presence mark states',
+    reason: 'the agent identity glyph; canvas drawing per the inventory, never intercepts pointer events',
+  },
+  {
+    file: 'src/components/composer/ComposerSheenCanvas.tsx',
+    inventory: 'Composer run state changes',
+    reason: 'the composer instrument sheen; static at idle, frame loop strictly while streaming (rule 4 narrowing)',
   },
 ] as const;
 
