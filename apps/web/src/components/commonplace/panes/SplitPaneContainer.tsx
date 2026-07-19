@@ -60,6 +60,7 @@ import FilesView from '../views/FilesView';
 import AgentThreadView from '../views/AgentThreadView';
 import CodeWorkspaceView from '../views/CodeWorkspaceView';
 import ConnectionWorkshop from '../engine/ConnectionWorkshop';
+import AgencyProposalLens from '../agency/AgencyProposalLens';
 import LensPane from '../lenses/LensPane';
 import type { LensContext } from '@/lib/commonplace-lenses';
 
@@ -947,6 +948,17 @@ function PaneViewContent({
   /* Connection Review (Level 2 feedback) */
   if (viewType === 'connection-review') {
     return <ConnectionWorkshop notebookSlug={context?.slug as string | undefined} />;
+  }
+
+  /* Agency proposals require a caller-bound tenant; the lens refuses an
+     unbound pane rather than silently reading or acting as a default tenant. */
+  if (viewType === 'agency-proposals') {
+    return (
+      <AgencyProposalLens
+        tenantId={typeof context?.tenantId === 'string' ? context.tenantId : undefined}
+        userSignatureRef={typeof context?.userSignatureRef === 'string' ? context.userSignatureRef : undefined}
+      />
+    );
   }
 
   /* Agent Thread (Theorem API agent or ACP-native external agent surface) */
