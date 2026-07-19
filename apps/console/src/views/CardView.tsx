@@ -23,6 +23,8 @@ import {
   type CardChipSpec,
   type ResolvedCardTemplate,
 } from '@/lib/card-templates';
+import { CopyAddressButton } from '@/components/shell/CopyAddressButton';
+import { objectAddress } from '@/lib/object-address';
 import { objectChip, useShellStore } from '@/lib/shell-store';
 import { MentionsSection, UnlinkedMentionsChip } from './MentionsSection';
 import { ViewState } from './ViewStates';
@@ -134,6 +136,7 @@ function ResolvedCard({
 }: RecordCardProps & { readonly resolved: ResolvedCardTemplate }) {
   const selectRecord = useShellStore((state) => state.selectRecord);
   const openActionSheet = useShellStore((state) => state.openActionSheet);
+  const tenant = useShellStore((state) => state.tenant);
   const { spec, fallbackNote } = resolved;
   const title = textValue(object.properties[spec.identity.titleField]) || object.id;
   const subtitle = (spec.identity.subtitleFields ?? [])
@@ -178,20 +181,31 @@ function ResolvedCard({
         </div>
         <UnlinkedMentionsChip host={host} object={object} />
         {size === 'full' ? (
-          <button
-            type="button"
-            data-card-action
-            aria-label={`Hand ${title} to the agent`}
-            onClick={() =>
-              // The Action verb (K3): one of the three entries into the one
-              // sheet, with this object pre-staged as the originating chip.
-              openActionSheet({ chips: [objectChip(object.id, object.type, title)] })
-            }
-            className="ml-2 h-6 shrink-0 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
-            style={{ transition: 'var(--rec-clickable-transition)' }}
-          >
-            Action
-          </button>
+          <>
+            {/* Copy-address (DESIGN-THEOREM-URI section 3) joins the card's
+                action treatment: the compact head carries no actions of its
+                own, and its mount (the inspector) shows the address in its
+                footer. */}
+            <CopyAddressButton
+              address={objectAddress(tenant, object)}
+              name={title}
+              className="ml-2 inline-flex h-6 w-8 shrink-0 items-center justify-center rounded-ij-arc border border-ij-control-border bg-ij-editor text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
+            />
+            <button
+              type="button"
+              data-card-action
+              aria-label={`Hand ${title} to the agent`}
+              onClick={() =>
+                // The Action verb (K3): one of the three entries into the one
+                // sheet, with this object pre-staged as the originating chip.
+                openActionSheet({ chips: [objectChip(object.id, object.type, title)] })
+              }
+              className="ml-2 h-6 shrink-0 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
+              style={{ transition: 'var(--rec-clickable-transition)' }}
+            >
+              Action
+            </button>
+          </>
         ) : null}
       </header>
 

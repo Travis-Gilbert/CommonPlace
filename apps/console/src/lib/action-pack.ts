@@ -14,6 +14,11 @@ export interface PackContextEntry {
   readonly label: string;
   readonly object_id?: string;
   readonly object_type?: string;
+  /** The entry's canonical `theorem://` address (DESIGN-THEOREM-URI section
+   *  3). An action's context names its objects the way everything else does,
+   *  so the receiving agent can resolve a pack entry without being told which
+   *  tenant the ids belong to. */
+  readonly address?: string;
   readonly text?: string;
 }
 
@@ -30,6 +35,7 @@ function entryFromChip(chip: StagedContextChip): PackContextEntry {
     label: chip.label,
     ...(chip.objectId ? { object_id: chip.objectId } : {}),
     ...(chip.objectType ? { object_type: chip.objectType } : {}),
+    ...(chip.address ? { address: chip.address } : {}),
     ...(chip.text ? { text: chip.text } : {}),
   };
 }
@@ -64,6 +70,7 @@ export function packEqualsChips(pack: ActionPack, chips: readonly StagedContextC
       entry.label,
       entry.object_id ?? null,
       entry.object_type ?? null,
+      entry.address ?? null,
       entry.text ?? null,
     ]);
   const packKeys = pack.context.map(key).sort();

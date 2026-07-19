@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import type { ObjectRef } from '@commonplace/block-view/types';
+import { addressOf } from './object-address';
 
 export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'identity-refused';
 
@@ -17,6 +18,10 @@ export interface StagedContextChip {
   readonly label: string;
   readonly objectId?: string;
   readonly objectType?: string;
+  /** The chip's canonical `theorem://` address (DESIGN-THEOREM-URI section 3).
+   *  Object chips carry one so the action pack names context by address rather
+   *  than by a bare id whose tenant the reader has to guess. */
+  readonly address?: string;
   readonly text?: string;
   readonly source: 'origin' | 'manual' | 'auto';
 }
@@ -99,12 +104,22 @@ export const useShellStore = create<ShellState>((set) => ({
 }));
 
 /** The staged chip for an object entry: the originating object rides first in
- *  the pack, so openers build it through this helper for a stable shape. */
+ *  the pack, so openers build it through this helper for a stable shape. The
+ *  tenant comes from the store, never from a second literal, so every chip
+ *  addresses its object the way the engine does. */
 export function objectChip(
   id: string,
   type: string,
   label: string,
   source: StagedContextChip['source'] = 'origin',
 ): StagedContextChip {
-  return { id: `chip-object-${id}`, kind: 'object', label, objectId: id, objectType: type, source };
+  return {
+    id: `chip-object-${id}`,
+    kind: 'object',
+    label,
+    objectId: id,
+    objectType: type,
+    address: addressOf(useShellStore.getState().tenant, type, id),
+    source,
+  };
 }

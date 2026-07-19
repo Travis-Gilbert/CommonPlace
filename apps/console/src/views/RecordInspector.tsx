@@ -9,6 +9,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
+import { CopyAddressButton } from '@/components/shell/CopyAddressButton';
+import { objectAddress } from '@/lib/object-address';
 import { objectChip, useShellStore } from '@/lib/shell-store';
 import { RecordCard } from './CardView';
 import { ViewState } from './ViewStates';
@@ -19,6 +21,7 @@ export function RecordInspector({ host }: { host: BlockHost }) {
   const selectedTypeHint = useShellStore((state) => state.selectedTypeHint);
   const selectRecord = useShellStore((state) => state.selectRecord);
   const openActionSheet = useShellStore((state) => state.openActionSheet);
+  const tenant = useShellStore((state) => state.tenant);
   const [fetched, setFetched] = useState<ObjectRef | null>(null);
   // The opener may have handed us the object (a grid cell, a chip with a
   // resolved target); deriving at render time keeps the effect fetch-only
@@ -145,7 +148,22 @@ export function RecordInspector({ host }: { host: BlockHost }) {
                 </dd>
               </div>
             ))}
-            <div className="mt-2 font-ij-mono text-ij-ink-disabled">{record.id}</div>
+            {/* The footer names the object the way everything else does
+                (DESIGN-THEOREM-URI section 3): the canonical address stands
+                where the bare id used to, and it is copyable. The id is still
+                legible, because it is the address's last segment. */}
+            <div className="mt-2 flex items-center gap-1" data-inspector-address>
+              <span
+                className="min-w-0 flex-1 truncate font-ij-mono text-ij-ink-disabled"
+                title={objectAddress(tenant, record)}
+              >
+                {objectAddress(tenant, record)}
+              </span>
+              <CopyAddressButton
+                address={objectAddress(tenant, record)}
+                name={String(record.properties.title ?? record.id)}
+              />
+            </div>
           </dl>
         </div>
       ) : (

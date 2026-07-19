@@ -1,31 +1,68 @@
-export type TheoremAddress = {
-  tenant: string;
-  kind: string;
-  id: string;
-  graphVersion?: number;
-  span?: string;
-};
+// SOURCING: @commonplace/block-view/addressing. The theorem:// grammar is the
+// shared client helper the design brief names; this file keeps only the
+// expo-router mapping, which is platform routing and not part of the contract.
+/**
+ * Mobile's view of `theorem://` addresses (DESIGN-THEOREM-URI).
+ *
+ * The grammar (emit, parse, span selectors, refusals) lives in
+ * `@commonplace/block-view/addressing` so the engine, the console, the desktop
+ * shell, and this app all agree byte-for-byte. What stays here is the one
+ * mobile-specific concern: which expo-router screen a given kind opens.
+ */
 
-export function theoremUri(address: TheoremAddress): string {
-  const base = `theorem://${encodeURIComponent(address.tenant)}/${encodeURIComponent(address.kind)}/${encodeURIComponent(address.id)}`;
-  const query = address.graphVersion === undefined ? '' : `?v=${address.graphVersion}`;
-  const fragment = address.span ? `#${encodeURIComponent(address.span)}` : '';
-  return `${base}${query}${fragment}`;
-}
+import {
+  encodeSpanSelector,
+  parseTheoremUri,
+  type TheoremAddress,
+} from '@commonplace/block-view/addressing';
 
+export {
+  checkSpanBounds,
+  encodeSpanSelector,
+  extractTheoremAddress,
+  looksLikeTheoremAddress,
+  parseSpanSelector,
+  parseTheoremUri,
+  theoremUri,
+  THEOREM_SCHEME,
+  type AddressRefusal,
+  type AddressRefusalCode,
+  type ParsedAddress,
+  type SpanSelector,
+  type TheoremAddress,
+} from '@commonplace/block-view/addressing';
+
+/**
+ * Map a `theorem://` address onto the expo-router path that opens it.
+ *
+ * Non-addresses pass through untouched so this can sit directly under
+ * `redirectSystemPath` without the caller sniffing first. An address that
+ * cannot be parsed falls back to the root rather than throwing, because this
+ * runs on cold-start intent handling where an exception is a crash.
+ *
+ * The version pin and span selector are carried onto the route as query
+ * parameters. Dropping them would make a deep link lie: `?v=` and `#span=` are
+ * part of what the address means, so a shared clipping must still open at its
+ * span.
+ */
 export function routeForTheoremUri(path: string): string {
   if (!path.toLowerCase().startsWith('theorem:')) return path;
-  try {
-    const url = new URL(path);
-    if (url.protocol !== 'theorem:') return path;
-    const [, encodedKind, encodedId] = url.pathname.split('/');
-    if (!encodedKind || !encodedId) return '/';
-    const kind = decodeURIComponent(encodedKind);
-    const id = decodeURIComponent(encodedId);
-    if (kind === 'proposal' || kind === 'agency.proposal') return `/proposal/${encodeURIComponent(id)}`;
-    if (kind === 'thread' || kind === 'chat.thread') return `/thread/${encodeURIComponent(id)}`;
-    return `/object/${encodeURIComponent(id)}`;
-  } catch {
-    return '/';
-  }
+  const parsed = parseTheoremUri(path);
+  if (!parsed.ok) return '/';
+  return routeForAddress(parsed.address);
+}
+
+function routeForAddress(address: TheoremAddress): string {
+  const id = encodeURIComponent(address.id);
+  const base =
+    address.kind === 'proposal' || address.kind === 'agency.proposal'
+      ? `/proposal/${id}`
+      : address.kind === 'thread' || address.kind === 'chat.thread'
+        ? `/thread/${id}`
+        : `/object/${id}`;
+
+  const query: string[] = [];
+  if (address.graphVersion !== undefined) query.push(`v=${address.graphVersion}`);
+  if (address.span) query.push(`span=${encodeURIComponent(encodeSpanSelector(address.span))}`);
+  return query.length === 0 ? base : `${base}?${query.join('&')}`;
 }

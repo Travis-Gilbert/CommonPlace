@@ -17,6 +17,7 @@ import {
   useShellStore,
   type StagedContextChip,
 } from '@/lib/shell-store';
+import { addressOf } from '@/lib/object-address';
 import { useThreadStore } from '@/lib/thread-store';
 import {
   buildActionPack,
@@ -41,6 +42,7 @@ export function ActionSheet({ host }: { host: BlockHost }) {
 
 function ActionSheetOpen({ host, onClose }: { host: BlockHost; onClose: () => void }) {
   const origin = useShellStore((state) => state.actionSheetOrigin);
+  const tenant = useShellStore((state) => state.tenant);
   const stageInThread = useThreadStore((state) => state.stage);
   const durations = useMotionDurations();
   const [instruction, setInstruction] = useState(origin?.instruction ?? '');
@@ -88,6 +90,7 @@ function ActionSheetOpen({ host, onClose }: { host: BlockHost; onClose: () => vo
               label: String(object.properties.title ?? object.id),
               objectId: object.id,
               objectType: object.type,
+              address: addressOf(tenant, object.type, object.id),
               source: 'auto',
             }),
           );
@@ -98,7 +101,7 @@ function ActionSheetOpen({ host, onClose }: { host: BlockHost; onClose: () => vo
     } finally {
       setSuggesting(false);
     }
-  }, [host, instruction]);
+  }, [host, instruction, tenant]);
 
   const submitSheet = useCallback(async () => {
     const pack = buildActionPack(instruction, chips, destination, followUp);
@@ -115,6 +118,7 @@ function ActionSheetOpen({ host, onClose }: { host: BlockHost; onClose: () => vo
           id: chip.id,
           label: chip.label,
           objectId: chip.objectId,
+          address: chip.address,
         })),
       );
       onClose();
