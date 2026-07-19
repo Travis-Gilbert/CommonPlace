@@ -27,7 +27,7 @@ import {
   SourcesEditor,
 } from './controls';
 import { AssumptionPanel } from './AssumptionPanel';
-import { groupPrograms, humanLifeKind, sourcesOf, stakesOf } from './kinds';
+import { bodyFontClass, groupPrograms, humanLifeKind, sourcesOf, stakesOf } from './kinds';
 import { RepoCard, RepoCardDescription } from '@/components/repo-card';
 import type { ProactivityEdits } from './use-edits';
 
@@ -61,7 +61,7 @@ export function CardAltitude({
   return (
     <div className="flex flex-col gap-6 p-6" data-altitude="card">
       <section className="flex flex-col gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-ij-ink-info">Sources</h3>
+        <h3 className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info">Sources</h3>
         <div className="flex flex-wrap gap-2">
           {sources.map((source) => (
             <div
@@ -79,14 +79,14 @@ export function CardAltitude({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-xs uppercase tracking-wide text-ij-ink-info">What matters to you</h3>
+        <h3 className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info">What matters to you</h3>
         <div className="flex flex-wrap gap-4">
           {stakes.map((stake) => {
             const open = openStake === stake.id;
             return (
               <RepoCard
                 key={stake.id}
-                className={CARD_SIZE}
+                className={`${CARD_SIZE} ${bodyFontClass(stake)}`}
                 dataNode={stake.id}
                 dot="var(--ij-graph)"
                 kind="Stake"
@@ -117,7 +117,7 @@ export function CardAltitude({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-xs uppercase tracking-wide text-ij-ink-info">What it watches for you</h3>
+        <h3 className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info">What it watches for you</h3>
         <div className="flex flex-wrap gap-4">
           {programs.map((program) => {
             const { watch, judgment, response } = program;
@@ -125,7 +125,7 @@ export function CardAltitude({
             return (
               <RepoCard
                 key={program.id}
-                className={CARD_SIZE}
+                className={`${CARD_SIZE} ${bodyFontClass(watch)}`}
                 dot="var(--ij-agent)"
                 kind="Watch"
                 kindTint="bg-ij-agent-tint"

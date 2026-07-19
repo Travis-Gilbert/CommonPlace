@@ -51,17 +51,22 @@ const isParamRecord: FieldGuard = (value) =>
   !Array.isArray(value) &&
   Object.values(value as Record<string, unknown>).every((item) => typeof item === 'string' || typeof item === 'number');
 const isJudgmentClass: FieldGuard = (value) => value === 'interrupt' || value === 'digest' || value === 'silent';
-// The agent-action stack: a list of {id, label} rows. Attention/plan only, so a
-// step can never carry a capability field; the guard admits id and label only.
+// The agent-action stack: a list of typed blocks. Attention/plan only, so a
+// step can never carry a capability field; the guard admits id and label, plus
+// the optional block type (prepare/verify/action/custom) and branch (then/else)
+// with validated values, and nothing else that could widen the effect.
+const RESPONSE_BLOCK_TYPES = new Set(['prepare', 'verify', 'action', 'custom']);
+const STEP_BRANCHES = new Set(['then', 'else']);
 const isStepArray: FieldGuard = (value) =>
   Array.isArray(value) &&
-  value.every(
-    (step) =>
-      typeof step === 'object' &&
-      step !== null &&
-      typeof (step as Record<string, unknown>).id === 'string' &&
-      typeof (step as Record<string, unknown>).label === 'string',
-  );
+  value.every((step) => {
+    if (typeof step !== 'object' || step === null) return false;
+    const record = step as Record<string, unknown>;
+    if (typeof record.id !== 'string' || typeof record.label !== 'string') return false;
+    if (record.type !== undefined && !(typeof record.type === 'string' && RESPONSE_BLOCK_TYPES.has(record.type))) return false;
+    if (record.branch !== undefined && !(typeof record.branch === 'string' && STEP_BRANCHES.has(record.branch))) return false;
+    return true;
+  });
 
 const PATCHABLE_FIELDS: Record<PgNodeKind, Readonly<Record<string, FieldGuard>>> = {
   stake: { disabled: isBoolean },

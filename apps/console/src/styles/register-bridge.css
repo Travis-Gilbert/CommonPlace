@@ -159,12 +159,12 @@
   --ij-ink-info: var(--ij-gray-6);
 }
 
-/* Self-hosted font bridge: next/font/local-style variables from layout.tsx
-   re-point the register faces at the self-hosted Inter and JetBrains Mono
-   families (next/font renames families, so the register's literal "Inter"
-   stack cannot see them without this bridge). */
+/* Self-hosted font bridge: next/font variables from fonts.ts re-point the
+   register faces at the self-hosted IBM Plex Sans and JetBrains Mono families
+   (next/font renames families, so the register's literal stack cannot see them
+   without this bridge). */
 [data-register="intui"] {
-  --ij-font-ui: var(--font-console-inter), "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --ij-font-ui: var(--font-console-plex), "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
   --ij-font-mono: var(--font-console-jbmono), "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
 
@@ -200,15 +200,16 @@
   --cp-presence-commit: #7FE0CF;    /* teal contraction with brightness lift */
   --cp-presence-interrupt: var(--cp-human);
 
-  /* Typography trinity (section 2.3): assigned by speaker on content surfaces.
-     Chrome stays Inter; the trinity governs content only. Human and machine ride
-     the bridged Galley faces (--gy-font-prose is Vollkorn, --gy-font-mono is
-     JetBrains Mono). Agent voice must NOT ride --gy-font-ui: gy-bridge re-points
-     that at the chrome Inter, which would collapse the speaker distinction, so
-     it points at the self-hosted Plex variable from fonts.ts directly. */
-  --cp-font-human: var(--gy-font-prose);   /* Vollkorn: human authorship */
-  --cp-font-agent: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* agent voice */
-  --cp-font-machine: var(--gy-font-mono);  /* JetBrains Mono: machinery, any speaker */
+  /* Typography system (owner direction, 2026-07-18): four faces, assigned by
+     role on content surfaces. Chrome and the agent voice share IBM Plex Sans;
+     human authorship is Manrope (a light sans that reads well as body, ~200);
+     titles are Vollkorn; metadata and machinery are JetBrains Mono. Chrome is
+     itself Plex now, so agent voice and chrome no longer diverge; the faces held
+     distinct are human (Manrope), title (Vollkorn), and machine (JetBrains). */
+  --cp-font-human: var(--font-console-manrope), "Manrope", system-ui, sans-serif; /* human authorship */
+  --cp-font-agent: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* agent voice = chrome */
+  --cp-font-title: var(--font-console-vollkorn), Georgia, "Times New Roman", serif; /* titles */
+  --cp-font-machine: var(--gy-font-mono);  /* JetBrains Mono: metadata + machinery */
 }
 
 /* Speaker register, light mode: the "two values, one token" of section 2.2, now
@@ -237,5 +238,6 @@
 
   --font-cp-human: var(--cp-font-human);
   --font-cp-agent: var(--cp-font-agent);
+  --font-cp-title: var(--cp-font-title);
   --font-cp-machine: var(--cp-font-machine);
 }

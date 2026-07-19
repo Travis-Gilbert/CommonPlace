@@ -97,10 +97,11 @@
   --ij-statusbar-h: 28px;
   --ij-tree-inset: 4px 12px;
 
-  /* Type. Int UI ships Inter for UI at 13px and JetBrains Mono for code.
-     Both are OFL and self hostable. JetBrains Mono is already the porcelain
-     register mono, so only Inter is new. */
-  --ij-font-ui: "Inter", "Inter Variable", -apple-system, "Segoe UI", system-ui, sans-serif;
+  /* Type. The console UI face is IBM Plex Sans at 13px (owner typography
+     direction: chrome and the agent voice share Plex); JetBrains Mono is the
+     metadata and code face. Both are OFL and self hosted; the register bridge
+     re-points these at the next/font families. */
+  --ij-font-ui: "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
   --ij-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   --ij-text-ui: 13px;
   --ij-text-small: 12px;
@@ -122,6 +123,10 @@
   font-family: var(--ij-font-ui);
   font-size: var(--ij-text-ui);
   line-height: var(--ij-leading-ui);
+  /* Kerning and ligatures on across the console (owner typography direction). */
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures contextual;
+  font-feature-settings: "kern", "liga", "clig", "calt";
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -240,16 +240,6 @@ export function seedLayout(): ObjectRef[] {
       } as unknown as JsonValue,
     }),
     ...companionSeeds('proactivity'),
-
-    layoutObject(ACCOUNT_SURFACE_ID, 'surface', {
-      name: 'Account', kind: 'account', role: 'surface', active: false, seed_revision: 2,
-    }, ['account.region-editor']),
-    layoutObject('account.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'account.vi-profile', seed_revision: 2,
-    }, ['account.vi-profile']),
-    layoutObject('account.vi-profile', 'view-instance', {
-      descriptor_id: 'settings.account', title: 'Account', query: { types: ['surface-tool'] } as unknown as JsonValue,
-    }),
   ];
 }
 

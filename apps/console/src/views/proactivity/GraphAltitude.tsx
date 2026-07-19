@@ -14,20 +14,17 @@ import { ViewState } from '../ViewStates';
 import { GraphCanvas } from './GraphCanvas';
 import { layoutGraph, responseStepCount, type GraphLayout } from './graph-layout';
 import {
-  ActionClassEditor,
   AuthorTag,
   BudgetBadge,
   DegradedNote,
   DisableControl,
   DisabledTag,
-  JudgmentClassEditor,
   KindChip,
-  NumberParamEditor,
   PermissionBadge,
-  SourcesEditor,
 } from './controls';
 import { AssumptionPanel } from './AssumptionPanel';
-import { humanLifeKind, sourcesOf } from './kinds';
+import { BlockStack } from './BlockStack';
+import { bodyFontClass, humanLifeKind, sourcesOf } from './kinds';
 import type { ProactivityEdits } from './use-edits';
 
 function structuralSignature(graph: ProactivityGraph): string {
@@ -43,10 +40,12 @@ export function GraphAltitude({
   graph,
   edits,
   contracts,
+  onCompile,
 }: {
   readonly graph: ProactivityGraph;
   readonly edits: ProactivityEdits;
   readonly contracts: readonly EffectContract[];
+  readonly onCompile?: (hint: string) => void;
 }) {
   const [laid, setLaid] = useState<{ layout: GraphLayout; sig: string } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -109,7 +108,7 @@ export function GraphAltitude({
       </p>
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
-          <GraphCanvas layout={layout} selectedId={selectedId} edits={edits} onSelect={setSelectedId} />
+          <GraphCanvas layout={layout} selectedId={selectedId} edits={edits} onSelect={setSelectedId} onCompile={onCompile} />
           {stale ? (
             <div className="absolute left-4 top-4 rounded-ij-arc bg-ij-chrome px-2 py-1 text-xs text-ij-ink-info">
               Updating layout…
@@ -118,7 +117,7 @@ export function GraphAltitude({
         </div>
         {selected ? (
           <aside className="w-rec-side-panel shrink-0 overflow-auto border-l border-ij-divider bg-ij-chrome p-4">
-            <NodeInspector node={selected} graph={graph} edits={edits} contracts={contracts} />
+            <NodeInspector node={selected} graph={graph} edits={edits} contracts={contracts} onCompile={onCompile} />
           </aside>
         ) : null}
       </div>
@@ -131,15 +130,17 @@ function NodeInspector({
   graph,
   edits,
   contracts,
+  onCompile,
 }: {
   readonly node: ProjectedNode;
   readonly graph: ProactivityGraph;
   readonly edits: ProactivityEdits;
   readonly contracts: readonly EffectContract[];
+  readonly onCompile?: (hint: string) => void;
 }) {
   const sources = sourcesOf(graph.nodes);
   return (
-    <div className="flex flex-col gap-3">
+    <div className={`flex flex-col gap-3 ${bodyFontClass(node)}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <KindChip kind={node.kind} />
@@ -157,7 +158,8 @@ function NodeInspector({
 
       {node.kind === 'stake' ? (
         <>
-          <p className="text-sm text-ij-ink">{node.statement}</p>
+          <p className="text-sm text-ij-ink font-cp-title">{node.statement}</p>
+          <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <AssumptionPanel graph={graph} stakeId={node.id} edits={edits} />
         </>
       ) : null}
@@ -168,26 +170,23 @@ function NodeInspector({
 
       {node.kind === 'watch' ? (
         <>
-          <p className="text-sm text-ij-ink">{node.statement}</p>
+          <p className="text-sm text-ij-ink font-cp-title">{node.statement}</p>
           <p className="text-xs text-ij-ink-info">Looks for: {node.condition}</p>
-          <SourcesEditor watch={node} allSources={sources} edits={edits} />
-          {Object.keys(node.conditionParams).map((param) => (
-            <NumberParamEditor key={param} watch={node} param={param} edits={edits} />
-          ))}
+          <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <DegradedNote node={node} />
         </>
       ) : null}
 
       {node.kind === 'judgment' ? (
         <>
-          <JudgmentClassEditor judgment={node} edits={edits} />
+          <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <DegradedNote node={node} />
         </>
       ) : null}
 
       {node.kind === 'response' ? (
         <>
-          <ActionClassEditor response={node} contracts={contracts} edits={edits} />
+          <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <div className="flex flex-wrap items-center gap-2">
             <PermissionBadge response={node} />
             <BudgetBadge response={node} />

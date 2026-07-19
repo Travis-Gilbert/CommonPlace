@@ -88,6 +88,12 @@ importers:
       '@commonplace/theorem-acp':
         specifier: file:../../packages/theorem-acp
         version: link:../../packages/theorem-acp
+      '@dagrejs/dagre':
+        specifier: ^3.0.0
+        version: 3.0.0
+      '@dagrejs/graphlib':
+        specifier: ^4.0.1
+        version: 4.0.1
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
@@ -99,10 +105,10 @@ importers:
         version: 3.14.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@travis-gilbert/markdown-theory':
         specifier: ^0.1.2
-        version: 0.1.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 0.1.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@xyflow/react':
         specifier: ^12.11.2
-        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)

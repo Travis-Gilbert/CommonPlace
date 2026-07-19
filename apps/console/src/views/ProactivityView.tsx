@@ -22,7 +22,7 @@ import { IntentComposer } from './proactivity/IntentComposer';
 import { sourcesOf } from './proactivity/kinds';
 import { useProactivityEdits } from './proactivity/use-edits';
 
-// The graph altitude, and the elkjs layout library it dynamically imports, load
+// The graph altitude, and the dagre layout library it dynamically imports, load
 // only when the graph altitude is opened (PG3: the list renders with no graph
 // bundle). The whole graph chunk is code-split behind this boundary.
 const GraphAltitude = dynamic(() => import('./proactivity/GraphAltitude').then((mod) => mod.GraphAltitude), {
@@ -39,6 +39,10 @@ const ALTITUDES: readonly { readonly id: Altitude; readonly label: string }[] = 
 
 export function ProactivityView({ set, host }: ViewRenderProps) {
   const [altitude, setAltitude] = useState<Altitude>('card');
+  // A compile-only block add (a custom or complex condition) drops a hint into
+  // the intent composer, so arbitrary logic is described and compiled, never a
+  // blank hand-written row (the node-model grammar, custom compiled from intent).
+  const [compileHint, setCompileHint] = useState<string | undefined>(undefined);
   const edits = useProactivityEdits(host);
 
   const refused = set.notes?.includes(REFUSAL_NOTE) ?? false;
@@ -109,7 +113,7 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
             </button>
           ) : null}
         </div>
-        <IntentComposer host={host} sources={sourcesOf(graph.nodes)} contracts={contracts} />
+        <IntentComposer host={host} sources={sourcesOf(graph.nodes)} contracts={contracts} hint={compileHint} />
         {edits.error ? (
           <p className="rounded-ij-arc bg-ij-error-bg px-3 py-1 text-sm text-ij-error" role="alert">
             {edits.error}
@@ -122,7 +126,9 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
 
       <div className="min-h-0 flex-1 overflow-auto">
         {altitude === 'card' ? <CardAltitude graph={graph} edits={edits} contracts={contracts} /> : null}
-        {altitude === 'graph' ? <GraphAltitude graph={graph} edits={edits} contracts={contracts} /> : null}
+        {altitude === 'graph' ? (
+          <GraphAltitude graph={graph} edits={edits} contracts={contracts} onCompile={setCompileHint} />
+        ) : null}
       </div>
     </div>
   );

@@ -31,6 +31,8 @@ function sourceLabel(kind: string): string {
       return 'messages';
     case 'life_call':
       return 'calls';
+    case 'life_clock':
+      return 'clock';
     default:
       return kind;
   }
