@@ -3,7 +3,6 @@ import type { Session } from 'next-auth';
 import {
   configuredServiceTenantMatches,
   filterRunsForTenant,
-  legacyServicePrincipal,
   principalFromSession,
 } from './harness-principal-core';
 
@@ -30,16 +29,6 @@ describe('Harness principal resolution', () => {
     expect(principalFromSession(null)).toBeNull();
     expect(principalFromSession(session('Travis-Gilbert'))).toBeNull();
     expect(principalFromSession(session('default', 'github:123'))).toBeNull();
-  });
-
-  it('keeps the explicit legacy tenant only until GitHub auth is ready', () => {
-    expect(legacyServicePrincipal('Travis-Gilbert', false)).toEqual({
-      tenant: 'Travis-Gilbert',
-      githubLogin: 'Travis-Gilbert',
-      harnessIdentity: 'service:commonplace-console:Travis-Gilbert',
-    });
-    expect(legacyServicePrincipal('default', false)).toBeNull();
-    expect(legacyServicePrincipal('Travis-Gilbert', true)).toBeNull();
   });
 
   it('admits only the configured service tenant to shared object credentials', () => {

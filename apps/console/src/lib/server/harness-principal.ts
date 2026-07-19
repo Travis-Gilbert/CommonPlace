@@ -3,7 +3,6 @@ import { githubTenantSlug } from '@/lib/account-identity';
 import { githubAuthCredentials } from '@/lib/auth-config';
 import {
   configuredServiceTenantMatches as configuredServiceTenantMatchesCore,
-  legacyServicePrincipal,
   principalFromSession,
   type HarnessPrincipal,
 } from '@/lib/harness-principal-core';
@@ -31,11 +30,14 @@ export async function resolveHarnessPrincipal(): Promise<HarnessPrincipalResolut
     AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
     AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
   });
-  const legacy = legacyServicePrincipal(process.env.CONSOLE_HARNESS_TENANT, github !== null);
-  if (legacy) return { ok: true, principal: legacy };
+  if (!github) return unauthenticatedResolution();
   const session = await auth();
   const principal = principalFromSession(session);
   if (principal) return { ok: true, principal };
+  return unauthenticatedResolution();
+}
+
+function unauthenticatedResolution(): HarnessPrincipalResolution {
   return {
     ok: false,
     response: Response.json(

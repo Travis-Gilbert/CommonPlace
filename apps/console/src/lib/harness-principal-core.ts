@@ -17,23 +17,6 @@ export function principalFromSession(session: Session | null): HarnessPrincipal 
   return { tenant, githubLogin, harnessIdentity };
 }
 
-/** Compatibility principal for the pre-login Console. It is admitted only
- * from an explicit non-default deployment tenant, and disappears as soon as
- * GitHub auth is configured. */
-export function legacyServicePrincipal(
-  configuredTenant: unknown,
-  githubAuthConfigured: boolean,
-): HarnessPrincipal | null {
-  if (githubAuthConfigured) return null;
-  const tenant = githubTenantSlug(configuredTenant);
-  if (!tenant) return null;
-  return {
-    tenant,
-    githubLogin: tenant,
-    harnessIdentity: `service:commonplace-console:${tenant}`,
-  };
-}
-
 /** True when the principal matches the deployment's configured service
  *  tenant. Shared object/ACP credentials stay owner-scoped until per-tenant
  *  connectors exist. */
