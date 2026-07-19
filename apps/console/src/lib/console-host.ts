@@ -200,6 +200,24 @@ export class ConsoleBlockHost implements BlockHost {
           added = true;
         }
       }
+      // IA revision 3 moves Workspace onto the durable substrate renderer and
+      // inserts Goal Stack into the primary stripe. Preserve person-sized
+      // panels while migrating only the seeded navigation and tab membership.
+      const workspaceEditor = this.layout.get('region-editor');
+      if (workspaceEditor && !workspaceEditor.children.includes('workspace.vi-substrate')) {
+        workspaceEditor.children.unshift('workspace.vi-substrate');
+        workspaceEditor.properties.active_tab = 'workspace.vi-substrate';
+        workspaceEditor.properties.seed_revision = 3;
+        added = true;
+      }
+      for (const seeded of seed) {
+        if (seeded.type !== 'surface' || typeof seeded.properties.stripe_order !== 'number') continue;
+        const current = this.layout.get(seeded.id);
+        if (current && current.properties.stripe_order !== seeded.properties.stripe_order) {
+          current.properties.stripe_order = seeded.properties.stripe_order;
+          added = true;
+        }
+      }
       if (added) this.persistLayout();
     }
   }

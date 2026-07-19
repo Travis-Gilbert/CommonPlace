@@ -214,7 +214,7 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
   return (
     <Command.Dialog
       open={open}
-      onOpenChange={(nextOpen) => {
+      onOpenChange={(nextOpen: boolean) => {
         if (!nextOpen) close();
       }}
       label="Search"

@@ -22,12 +22,12 @@ async function openSurface(page: Page, id: string) {
 test.describe('Console information architecture', () => {
   test.beforeEach(async ({ page }) => freshLoad(page));
 
-  test('separates five surface radios from three companion toggles', async ({ page }) => {
+  test('separates six surface radios from three companion toggles', async ({ page }) => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
     const surfaces = page.getByRole('radiogroup', { name: 'Surfaces' }).getByRole('radio');
-    await expect(surfaces).toHaveCount(5);
+    await expect(surfaces).toHaveCount(6);
     expect(await surfaces.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))).toEqual([
-      'Chat surface', 'Workspace surface', 'Index surface', 'Documents surface', 'Cards surface',
+      'Chat surface', 'Workspace surface', 'Goal Stack surface', 'Index surface', 'Documents surface', 'Cards surface',
     ]);
     await expect(surfaces.first()).toHaveAttribute('aria-checked', 'true');
     const companions = page.locator('[data-companion-nav]');
@@ -40,9 +40,10 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
     for (const [shortcut, surfaceId] of [
       ['2', 'console-workspace'],
-      ['3', 'console-index'],
-      ['4', 'console-docs'],
-      ['5', 'console-cards'],
+      ['3', 'console-goals'],
+      ['4', 'console-index'],
+      ['5', 'console-docs'],
+      ['6', 'console-cards'],
       ['1', 'console-chat'],
     ] as const) {
       await page.keyboard.press(`Alt+${shortcut}`);
@@ -188,12 +189,12 @@ test.describe('Console information architecture', () => {
     expect((bounds?.x ?? 390) + (bounds?.width ?? 0)).toBeLessThanOrEqual(390);
   });
 
-  test('seeds Workspace with document, code, and compact Thread but no table rail', async ({ page }) => {
+  test('seeds Workspace with the substrate, reference tabs, and compact Thread', async ({ page }) => {
     await openSurface(page, 'console-workspace');
+    await expect(page.locator('[data-workspace-substrate]')).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Console brief' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'surface-tree.ts' })).toBeVisible();
     await expect(page.locator('[data-composer-density="compact"]')).toBeVisible();
-    await expect(page.locator('.galley p').first()).toHaveCSS('font-size', '15px');
     await expect(page.locator('tbody')).toHaveCount(0);
   });
 

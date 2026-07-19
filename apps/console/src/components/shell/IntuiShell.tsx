@@ -51,6 +51,7 @@ const SURFACE_ICONS: Record<string, typeof IconRecords> = {
   cards: IconCards,
   model: IconModel,
   review: IconInspector,
+  goals: IconModel,
 };
 
 /** Region icon slugs carried on the surface object; the glyphs stay in the
@@ -319,7 +320,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     [compact, host, regions.left, regions.right],
   );
 
-  // Alt+1..5 switches the primary surface radio group. Alt+Shift+1..3
+  // Alt+1..6 switches the primary surface radio group. Alt+Shift+1..3
   // toggles the companion group for the active surface.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

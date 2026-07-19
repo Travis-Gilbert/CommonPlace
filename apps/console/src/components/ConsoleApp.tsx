@@ -38,6 +38,7 @@ function convertMessage(message: ThreadMessage): ThreadMessageLike {
     id: message.id,
     role: message.role,
     content: message.parts.map((part) => ({ type: 'text' as const, text: part.text })),
+    metadata: { custom: message.degradation ? { degradation: message.degradation } : {} },
   };
 }
 

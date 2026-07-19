@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
-import { MessagePrimitive, ThreadPrimitive } from '@assistant-ui/react';
+import { MessagePrimitive, ThreadPrimitive, useMessage } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
 import { Composer } from '@/components/composer/Composer';
@@ -48,10 +48,18 @@ function MarkdownText() {
 }
 
 function AssistantMessage() {
+  const degradation = useMessage((message) => message.metadata.custom?.degradation) as
+    | { degraded: true; missingIndexes: string[] }
+    | undefined;
   return (
     <MessagePrimitive.Root>
       <MessageShell>
         <div data-speaker="agent" className="mr-8 px-1 font-cp-agent text-cp-agent">
+          {degradation?.degraded ? (
+            <span className="mb-1 inline-flex rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn" data-ask-degraded>
+              degraded: {degradation.missingIndexes.join(', ')}
+            </span>
+          ) : null}
           <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
         </div>
       </MessageShell>

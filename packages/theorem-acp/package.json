@@ -11,7 +11,10 @@
     "./hosted-client": "./src/hosted-client.ts",
     "./session-manager": "./src/session-manager.ts",
     "./bridge": "./src/bridge.ts",
-    "./identity": "./src/identity.ts"
+    "./identity": "./src/identity.ts",
+    "./plan-state": "./src/plan-state.ts",
+    "./plan-program": "./src/plan-program.ts",
+    "./workspace-state": "./src/workspace-state.ts"
   },
   "scripts": {
     "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"

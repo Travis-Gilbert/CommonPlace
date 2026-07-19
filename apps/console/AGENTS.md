@@ -14,6 +14,12 @@ the primary CommonPlace product surface.
 Railway must deploy this app with `railway.console.toml`; the root
 `railway.toml` belongs to the legacy web service.
 
+Workspace imports require matching path-separator-delimited allowlists on both
+services: `CONSOLE_WORKSPACE_ALLOWED_ROOTS` on this Console and
+`COMMONPLACE_WORKSPACE_ALLOWED_ROOTS` on commonplace-api. The API canonicalizes
+the requested directory before enforcing its list, so symlinks cannot escape
+an allowed root. Production must configure both variables.
+
 ## Composition doctrine
 
 One material system. Two structural sources. Bridged, not blended.
@@ -76,6 +82,7 @@ asks for inspiration, reference, mood, or direction.
 |---|---|---|
 | Split layout, tool window panels | `react-resizable-panels` | split geometry, persisted sizes, 1px `--ij-divider` handles |
 | Search everywhere, palettes | `cmdk` | command list, filtering, keyboard nav |
+| Approval dialog | `cmdk` Dialog | focus-managed, keyboard-selectable one-shot Plan approval and rejection |
 | Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
@@ -97,6 +104,8 @@ asks for inspiration, reference, mood, or direction.
 | Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 | Graph canvas | `@xyflow/react` (React Flow) over `@dagrejs/dagre` (layered ranking) | the proactivity graph, per SPEC-PROACTIVITY-GRAPH-WIRING: dagre computes the layered join topology (roots rank first, sinks last), React Flow owns pan, zoom, selection, and edge routing; nodes and edges are register-styled (base CSS only, `--xy-*` mapped to the register in app.css), dynamic-imported so the sentence and card altitudes load no graph bundle |
 | Graph node and sentence card building blocks | jalco-ui `commit-graph` and `repo-card` (ui.justinlevine.me), structure extraction | the commit-entry node (a response is a stack of agent-action steps a person builds) and the RepoCard sentence card; the jalco layouts are reproduced and every shadcn token re-skinned to the register |
+| Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |
+| Workspace substrate | `@tanstack/react-virtual`, CodeMirror 6 merge, `cmdk`, and Radix Popover | semantic workspace entity tree, virtual rows, local-history revision diff, project Find, readiness detail |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.

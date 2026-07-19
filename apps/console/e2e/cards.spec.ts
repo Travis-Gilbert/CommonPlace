@@ -34,8 +34,8 @@ test.describe('cards, actions, mentions', () => {
   test('the surface rail is the primary nav: far-left, switches screens', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
     await expect(rail).toBeVisible();
-    // The exact five primary surfaces form an APG radio group.
-    await expect(rail.locator('[data-surface-nav]')).toHaveCount(5);
+    // The exact six primary surfaces form an APG radio group.
+    await expect(rail.locator('[data-surface-nav]')).toHaveCount(6);
     await expect(rail.locator('[data-surface-nav="console-chat"]')).toHaveAttribute(
       'aria-checked',
       'true',
