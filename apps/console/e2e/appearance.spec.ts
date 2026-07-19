@@ -67,9 +67,16 @@ test.describe('appearance surface', () => {
 
     const divider = page.locator('[data-panel-resize-handle-id]').first();
     await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+    // HANDOFF-CONSOLE-DIMENSIONALITY named choice 5 restored the Int UI stripe
+    // grammar: a selected stripe button takes a WEAK FILL (--ij-selection,
+    // Blue11 in light) with the glyph at full ink, not the saturated accent
+    // tile with an inverted glyph this line used to pin. The signature being
+    // guarded is "the selected stripe surface is unmistakable", and the weak
+    // fill is how Int UI says that; signatures.spec.ts now gates it on both
+    // themes against the token rather than a hardcoded accent.
     await expect(page.locator('nav button[aria-pressed="true"]').first()).toHaveCSS(
       'background-color',
-      'rgb(53, 116, 240)',
+      'rgb(212, 226, 255)',
     );
     const underline = page.locator('[role="tab"][aria-selected="true"] .h-ij-underline');
     await expect(underline).toHaveCSS('height', '4px');
@@ -87,7 +94,7 @@ test.describe('appearance surface', () => {
     await expect(page.locator('[data-run-widget] svg')).toHaveCSS('color', 'rgb(108, 112, 126)');
     await expect(page.locator('html')).toHaveCSS('font-size', '13px');
     await page.keyboard.press('Alt+Shift+1');
-    await expect(page.locator('[data-companion-nav="files"]')).toHaveCSS('background-color', 'rgb(53, 116, 240)');
+    await expect(page.locator('[data-companion-nav="files"]')).toHaveCSS('background-color', 'rgb(212, 226, 255)');
   });
 
   test('derived controls paint live and disclose a contrast clamp quietly', async ({ page }) => {

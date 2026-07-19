@@ -28,7 +28,7 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
   const showPresence = connection === 'connected' && presenceCount !== null;
 
   return (
-    <footer className="flex h-ij-statusbar shrink-0 items-center gap-3 border-t border-ij-seam bg-ij-chrome px-3 text-ij-ink-info">
+    <footer data-paint-region="status-bar" className="flex h-ij-statusbar shrink-0 items-center gap-3 border-t border-ij-seam bg-ij-chrome px-3 text-ij-ink-info">
       <span
         data-connection={connection}
         style={{ color: connection === 'identity-refused' ? 'var(--ij-error)' : undefined }}

@@ -87,6 +87,15 @@
   --font-ij-ui: var(--ij-font-ui);
   --font-ij-mono: var(--ij-font-mono);
 
+  /* The spacing base (HANDOFF-CONSOLE-DIMENSIONALITY X3.5). Tailwind's scale is
+     rem-derived, and this console sets the root face to the register's 13px, so
+     every stock utility silently resolved off-grid: px-2 computed to 6.5px, not
+     8px. The Twenty structural group states the rule as spacing(n) = n * 4px
+     and every pinned Int UI metric is absolute px, so the base is pinned to
+     --rec-grid. The grid is now the grid rather than a ratio of the type size.
+     Verified by the 4px-grid assertion in signatures.spec.ts. */
+  --spacing: var(--rec-grid);
+
   /* Structural metrics as named spacing so h-ij-row, w-ij-stripe resolve */
   --spacing-ij-row: var(--ij-row-h);
   --spacing-ij-control: var(--ij-control-h);
@@ -95,6 +104,7 @@
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
+  --spacing-ij-toolwindow-header: var(--ij-toolwindow-header-h);
   --spacing-rec-grid: var(--rec-grid);
   --spacing-rec-cell-pad: var(--rec-cell-pad);
   --spacing-rec-utility-col: var(--rec-utility-col);
@@ -102,7 +112,23 @@
   --spacing-rec-sibling-gap: var(--rec-sibling-gap);
 }
 
-/* The learned-register gold pair (HANDOFF-GREENFIELD-CONSOLE named choice 10,
+/* The one shadow token (HANDOFF-CONSOLE-DIMENSIONALITY named choice 3): depth
+   is value, seam, and header, never shadow, so a shadow means "this thing is
+   transient and floats above the plane". Only popovers qualify. Derived from
+   the Int UI popup elevation, expressed in register ink so it re-resolves per
+   theme. Previously the app consumed --ij-material-shadow, which no register
+   file ever defined; those consumers now name this token. */
+[data-register="intui"] {
+  --ij-popover-shadow: 0 4px 12px -2px color-mix(in oklab, var(--ij-ink) 28%, transparent);
+}
+
+/* Composer metrics (HANDOFF-CONSOLE-IA named choices 5 and 6; the material
+   tokens that used to sit here were the 21st source's decoration and were
+   deleted by HANDOFF-CONSOLE-DIMENSIONALITY X1). Structure only: the
+   composer's paint is --ij-raised and --ij-seam-raised, already in the
+   register.
+
+   The learned-register gold pair (HANDOFF-GREENFIELD-CONSOLE named choice 10,
    G2): resolved from the Int UI Yellow ramp, AA on chrome. Yellow6 #D6AE58 on
    Gray2 #2B2D30 computes to 6.6:1 (the contrast gate verifies in CI). The tint
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
@@ -120,18 +146,17 @@
   --ij-composer-gap: 8px;
   --ij-composer-font-size: 16px;
   --ij-composer-font-size-compact: 14px;
-  --ij-composer-shadow: 0 12px 32px -20px color-mix(in oklab, var(--ij-ink) 36%, transparent);
-  --ij-composer-material-shadow: inset 0 1px 0 color-mix(in oklab, var(--ij-ink-bright) 14%, transparent), 0 16px 36px -24px color-mix(in oklab, var(--ij-ink) 48%, transparent);
-  --ij-composer-material: linear-gradient(135deg, color-mix(in oklab, var(--ij-raised) 88%, var(--ij-accent) 12%), color-mix(in oklab, var(--ij-raised) 94%, var(--ij-room) 6%) 52%, color-mix(in oklab, var(--ij-raised) 88%, var(--ij-agent) 12%));
-  --ij-composer-material-overlay: linear-gradient(135deg, color-mix(in oklab, var(--ij-accent) 9%, transparent), transparent 46%, color-mix(in oklab, var(--ij-agent) 8%, transparent));
-  --ij-composer-input-wash: linear-gradient(to top, color-mix(in oklab, var(--ij-editor) 22%, transparent), transparent 58%);
-  --ij-composer-control-material: color-mix(in oklab, var(--ij-editor-line) 84%, var(--ij-raised) 16%);
-  --ij-composer-kbd-material: color-mix(in oklab, var(--ij-editor) 78%, transparent);
-  --ij-composer-send-glow: 0 0 22px color-mix(in oklab, var(--ij-accent) 34%, transparent);
-  --ij-composer-backdrop-blur: 24px;
-  --ij-composer-footer-font-size: 12px;
-  --ij-composer-status-mark-size: 18px;
+  --ij-composer-meta-font-size: 12px;
   --ij-composer-counter-min-width: 48px;
+
+  /* Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI
+     tool window header is a 24px strip, not the 40px main-toolbar height the
+     console had been reusing; the strip is what makes Files, Context and Thread
+     read as named tool windows rather than floating labels. The stripe icon is
+     20px inside the 40px bar (X3.4), one ramp step up from the 16px control
+     glyph, because the stripe is navigation rather than a control cluster. */
+  --ij-toolwindow-header-h: 24px;
+  --ij-stripe-icon: 20px;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);

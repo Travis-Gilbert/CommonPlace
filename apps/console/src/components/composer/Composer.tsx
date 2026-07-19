@@ -1,12 +1,16 @@
 'use client';
 
-// SOURCING: direct adopt-and-edit port of the 21st.dev
-// muhammad-binsalman/glowing-ai-chat-assistant component supplied by Travis.
-// Its material container, input well, grouped control deck, counter, footer,
-// status, and overlay remain the component skeleton. @assistant-ui/react is
-// fitted into those slots so the port is the real Console input. The floating
-// launcher, close behavior, and right docking are removed for the permanent
-// lower-third placement required by HANDOFF-CONSOLE-IA.
+// SOURCING: the sheen canvas material is the surviving port of the 21st.dev
+// muhammad-binsalman/glowing-ai-chat-assistant component supplied by Travis
+// (see ComposerSheenCanvas). HANDOFF-CONSOLE-DIMENSIONALITY X1 subtracted the
+// rest of that source's skeleton: the material container, translucent overlay,
+// input wash, send glow, backdrop blur, character counter, footer row, and
+// status text were the source's decoration laundered through a parallel token
+// family, not this system's grammar. What remains is an instrument panel --
+// --ij-raised surface, --ij-seam-raised border, arc radius, the sheen behind
+// the content -- with @assistant-ui/react fitted into it. The floating
+// launcher, close behavior, and right docking were already removed for the
+// permanent lower-third placement required by HANDOFF-CONSOLE-IA.
 
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
@@ -28,7 +32,6 @@ import {
   IconAttach,
   IconChevronDown,
   IconCommand,
-  IconInfo,
   IconSend,
   IconStop,
 } from '@/components/shell/icons';
@@ -38,6 +41,13 @@ import { useThreadStore } from '@/lib/thread-store';
 import { ComposerSheenCanvas } from './ComposerSheenCanvas';
 
 const MAX_CHARACTERS = 2000;
+/** The counter is not ambient furniture: a live digit readout on every
+ *  keystroke reports a limit nobody is near. It reappears only inside the
+ *  final tenth of the budget, where the number is actually news (X1). */
+const COUNTER_REVEAL_AT = MAX_CHARACTERS * 0.9;
+/** The new-line hint lives on the send control and the first-run empty state
+ *  (X1), so the composer needs no footer row to carry it. */
+export const NEW_LINE_HINT = 'Shift + Enter for a new line';
 
 function AttachmentChip() {
   return (
@@ -230,11 +240,11 @@ export function Composer({
           data-composer
           data-composer-density={compact ? 'compact' : 'full'}
           data-source-component="21st-dev-glowing-ai-chat-assistant"
-          className="composer-shell composer-source-surface relative overflow-hidden border border-ij-seam-raised"
+          data-paint-region="composer"
+          className="composer-shell relative overflow-hidden border border-ij-seam-raised bg-ij-raised"
           onSubmit={() => setCharacterCount(0)}
         >
           <ComposerSheenCanvas streaming={isRunning} />
-          <div aria-hidden="true" className="composer-source-overlay" />
           <div className="relative z-10">
             {staged.length > 0 ? (
               <div className="flex flex-wrap items-center gap-1 border-b border-ij-seam px-2 pt-2" data-thread-staged>
@@ -299,7 +309,7 @@ export function Composer({
               </div>
             ) : null}
             <ComposerPrimitive.Attachments components={{ Attachment: AttachmentChip }} />
-            <div className="composer-source-input-section">
+            <div className="composer-input-section">
               <ComposerPrimitive.Input
                 minRows={compact ? 2 : 4}
                 maxRows={compact ? 4 : 8}
@@ -312,9 +322,8 @@ export function Composer({
                 onChange={(event) => setCharacterCount(event.currentTarget.value.length)}
                 onPaste={onPaste}
               />
-              <div aria-hidden="true" className="composer-source-input-gradient" />
             </div>
-            <div className="composer-source-controls-wrap border-t border-ij-seam">
+            <div className="composer-controls-wrap border-t border-ij-seam">
               <div className="composer-controls">
                 <div className="composer-tool-group" data-composer-tool-group>
                   <ComposerPrimitive.AddAttachment
@@ -340,6 +349,7 @@ export function Composer({
                   <span className="sr-only">Chat destination</span>
                   <select
                     aria-label="Chat destination"
+                    data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}
                     value={mode}
                     onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
                     className="composer-mode-select"
@@ -351,14 +361,20 @@ export function Composer({
                   </select>
                   <IconChevronDown size={13} className="composer-mode-chevron" />
                 </label>
-                <span className="composer-source-character-count" data-composer-character-count aria-live="polite">
-                  <span>{characterCount}</span>/<span>{MAX_CHARACTERS}</span>
-                </span>
-                {compact ? (
-                  <span className="composer-presence" data-presence-mark-placement="composer">
-                    <PresenceMark state={isRunning ? 'composing' : 'idle'} size={22} staticOnly />
+                {characterCount >= COUNTER_REVEAL_AT ? (
+                  <span className="composer-character-count" data-composer-character-count aria-live="polite">
+                    <span>{characterCount}</span>/<span>{MAX_CHARACTERS}</span>
                   </span>
                 ) : null}
+                {/* The one Presence mark. The compact and footer duplicates
+                    collapsed here (X1): the mark is the status, which is its
+                    entire job, so the "ready" status text it used to sit
+                    beside is gone. The web-search capability still needs a
+                    reachable attribute, and it belongs on the control that
+                    actually selects the destination. */}
+                <span className="composer-presence" data-presence-mark-placement="composer">
+                  <PresenceMark state={isRunning ? 'composing' : 'idle'} size={22} staticOnly />
+                </span>
                 {isRunning ? (
                   <ComposerPrimitive.Cancel aria-label="Stop response" title="Stop response" className="composer-send-button">
                     <IconStop size={16} />
@@ -366,28 +382,13 @@ export function Composer({
                 ) : (
                   <ComposerPrimitive.Send
                     aria-label="Send message"
-                    title="Send message"
+                    title={`Send message (${NEW_LINE_HINT})`}
                     disabled={unavailable}
-                    className="composer-send-button composer-source-send"
+                    className="composer-send-button"
                   >
                     <IconSend size={16} />
-                    <span aria-hidden="true" className="composer-source-send-glow" />
                   </ComposerPrimitive.Send>
                 )}
-              </div>
-              <div className="composer-source-footer" data-composer-source-footer>
-                <div className="composer-source-shortcut">
-                  <IconInfo size={13} />
-                  <span>Press <kbd>Shift + Enter</kbd> for a new line</span>
-                </div>
-                <div className="composer-source-status">
-                  <span className="composer-presence" data-presence-mark-placement="composer">
-                    <PresenceMark state={isRunning ? 'composing' : 'idle'} size={18} staticOnly />
-                  </span>
-                  <span data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}>
-                    {isRunning ? 'Working' : mode === 'web' ? 'Web search ready' : 'Theorem ready'}
-                  </span>
-                </div>
               </div>
             </div>
           </div>

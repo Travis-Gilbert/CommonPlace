@@ -17,9 +17,11 @@
     "gate:contrast": "node --experimental-strip-types scripts/check-contrast.mjs",
     "gate:motion": "node scripts/check-motion-inventory.mjs",
     "gate:icons": "node scripts/check-icon-svg.mjs",
+    "gate:tokens": "node scripts/check-token-manifest.mjs",
+    "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion && npm run gate:icons",
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion && npm run gate:icons && npm run gate:tokens",
     "test:e2e": "playwright test"
   },
   "dependencies": {
