@@ -197,6 +197,31 @@ for (const { theme, preset } of THEMES) {
       await expect(header.locator('[data-tool-window-hide]')).toBeVisible();
     });
 
+    // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
+    // asserted by inspection. Tailwind's spacing scale is the 4px grid and the
+    // bridge resets colour, font and radius but deliberately not spacing, so
+    // the grid holds by construction -- this is the gate that keeps it holding.
+    test('rows keep the 24px rhythm and paddings stay on the 4px grid', async ({ page }) => {
+      await page.locator('[data-companion-nav="files"]').click();
+      const row = page.locator('[data-tool-window="files"] [role="treeitem"]').first();
+      if (await row.count()) await expect(row).toHaveCSS('height', '24px');
+
+      const offGrid = await page.evaluate(() => {
+        const offenders: { region: string; property: string; value: string }[] = [];
+        for (const node of document.querySelectorAll<HTMLElement>('[data-paint-region]')) {
+          const styles = getComputedStyle(node);
+          for (const property of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'] as const) {
+            const value = Number.parseFloat(styles[property]);
+            if (Number.isFinite(value) && value % 4 !== 0) {
+              offenders.push({ region: node.dataset.paintRegion ?? '?', property, value: styles[property] });
+            }
+          }
+        }
+        return offenders;
+      });
+      expect(offGrid, 'every named region pads on the 4px grid').toEqual([]);
+    });
+
     // X2 acceptance, on both themes: no named region inherits its background.
     test('every named region declares its paint', async ({ page }) => {
       await expectEveryRegionPainted(page);

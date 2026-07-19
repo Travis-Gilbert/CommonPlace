@@ -87,6 +87,15 @@
   --font-ij-ui: var(--ij-font-ui);
   --font-ij-mono: var(--ij-font-mono);
 
+  /* The spacing base (HANDOFF-CONSOLE-DIMENSIONALITY X3.5). Tailwind's scale is
+     rem-derived, and this console sets the root face to the register's 13px, so
+     every stock utility silently resolved off-grid: px-2 computed to 6.5px, not
+     8px. The Twenty structural group states the rule as spacing(n) = n * 4px
+     and every pinned Int UI metric is absolute px, so the base is pinned to
+     --rec-grid. The grid is now the grid rather than a ratio of the type size.
+     Verified by the 4px-grid assertion in signatures.spec.ts. */
+  --spacing: var(--rec-grid);
+
   /* Structural metrics as named spacing so h-ij-row, w-ij-stripe resolve */
   --spacing-ij-row: var(--ij-row-h);
   --spacing-ij-control: var(--ij-control-h);
