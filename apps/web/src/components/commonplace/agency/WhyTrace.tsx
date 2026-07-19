@@ -28,9 +28,9 @@ export function WhyTrace({
       </button>
       {open ? (
         <div className={styles.whyBody}>
-          <TraceGroup label="Supporting evidence" references={proposal.evidenceRefs} onOpenEvidence={onOpenEvidence} />
-          <TraceGroup label="Disagreeing evidence" references={proposal.counterEvidenceRefs} onOpenEvidence={onOpenEvidence} empty="No disagreement was recorded." />
-          <TraceGroup label="Verifier or solver receipts" references={proposal.verifierReceiptRefs} onOpenEvidence={onOpenEvidence} />
+          <TraceGroup proposal={proposal} label="Supporting evidence" references={proposal.evidenceRefs} onOpenEvidence={onOpenEvidence} />
+          <TraceGroup proposal={proposal} label="Disagreeing evidence" references={proposal.counterEvidenceRefs} onOpenEvidence={onOpenEvidence} empty="No disagreement was recorded." />
+          <TraceGroup proposal={proposal} label="Verifier or solver receipts" references={proposal.verifierReceiptRefs} onOpenEvidence={onOpenEvidence} />
           <div className={styles.traceGroup}>
             <span className={styles.traceLabel}>Assumptions</span>
             {proposal.assumptionEnvironments.length ? (
@@ -58,11 +58,13 @@ export function WhyTrace({
 }
 
 function TraceGroup({
+  proposal,
   label,
   references,
   onOpenEvidence,
   empty = 'None recorded.',
 }: {
+  proposal: AgencyProposalModel;
   label: string;
   references: string[];
   onOpenEvidence?: (proposal: AgencyProposalModel, reference: string) => void;
