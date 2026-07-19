@@ -174,12 +174,29 @@ impl<R: Runtime> Supervisor<R> {
         Ok(())
     }
 
-    /// Take the host down and bring it back. The reader thread's EOF is what
-    /// actually drives the restart, so this only has to kill the process.
+    /// Take the host down and bring it back.
+    ///
+    /// When a host is running, killing it is enough: the reader thread sees EOF
+    /// and the restart path takes over. When there is none — the sidecar was
+    /// missing at startup, or it failed to respawn — this is the chrome's way
+    /// back, which is why `paneHostRestart()` exists in the bridge.
     pub fn restart(self: &Arc<Self>) -> Result<(), String> {
-        if let Some(child) = self.child.lock().unwrap().as_mut() {
-            let _ = child.kill();
+        let running = {
+            let mut child = self.child.lock().unwrap();
+            match child.as_mut() {
+                Some(child) => {
+                    let _ = child.kill();
+                    true
+                }
+                None => false,
+            }
+        };
+        if running {
+            return Ok(());
         }
+        self.stopping.store(false, Ordering::SeqCst);
+        self.start()?;
+        self.reseed();
         Ok(())
     }
 

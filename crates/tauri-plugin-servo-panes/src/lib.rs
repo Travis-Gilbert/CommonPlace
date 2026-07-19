@@ -214,7 +214,14 @@ pub fn init<R: Runtime>(config: HostConfig) -> TauriPlugin<R> {
         .setup(move |app, _api| {
             let parent = parent_surface(app)?;
             let supervisor = Supervisor::new(app.clone(), parent, config.clone());
-            supervisor.start()?;
+            // A missing or broken sidecar must not stop the application from
+            // launching: the chrome is the product, panes are a surface within
+            // it. The commands then refuse with "the pane host is not running",
+            // which is what `pane-bridge.ts` renders as unavailable, and
+            // `paneHostRestart()` is the way back.
+            if let Err(error) = supervisor.start() {
+                eprintln!("[servo-panes] {error}");
+            }
             app.manage(supervisor);
             Ok(())
         })
