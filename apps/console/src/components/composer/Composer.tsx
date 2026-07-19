@@ -240,6 +240,7 @@ export function Composer({
           data-composer
           data-composer-density={compact ? 'compact' : 'full'}
           data-source-component="21st-dev-glowing-ai-chat-assistant"
+          data-paint-region="composer"
           className="composer-shell relative overflow-hidden border border-ij-seam-raised bg-ij-raised"
           onSubmit={() => setCharacterCount(0)}
         >

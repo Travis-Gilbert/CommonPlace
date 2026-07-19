@@ -62,7 +62,7 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
   }, [layoutOpen]);
 
   return (
-    <header className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2">
+    <header data-paint-region="toolbar" className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2">
       <span className="px-2 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
         CommonPlace
       </span>

@@ -30,6 +30,7 @@ import { RecordInspector } from '@/views/RecordInspector';
 import {
   IconCards,
   IconDoc,
+  IconHide,
   IconInspector,
   IconMemory,
   IconModel,
@@ -40,6 +41,11 @@ import {
 } from './icons';
 
 const OVERLAY_BREAKPOINT = 1100;
+
+/** Stripe glyph size (X3.4). The register carries this as --ij-stripe-icon;
+ *  the icon components take a numeric SVG size, so the one place the number is
+ *  restated is here, next to the token it mirrors. */
+const STRIPE_ICON = 20;
 
 /** Surface nav icons by surface kind: the stripe surfaces group (AMENDMENT:
  *  surfaces join the layout switcher AND the stripe surfaces group). */
@@ -97,6 +103,24 @@ function isOpen(region: RegionNode): boolean {
   return region.object.properties.open !== false;
 }
 
+/** The stripe button grammar (X3.4 / named choice 5). Int UI stripe buttons are
+ *  monochrome icons on the ink ladder at rest and take a WEAK FILL when
+ *  selected, with the glyph rising to full ink; they are never saturated accent
+ *  tiles with inverted glyphs, which is what the console had drifted into and
+ *  what made the stripe read as a row of colored chips rather than chrome.
+ *  Domain tint stays a content affordance per the icon policy, so no stripe
+ *  glyph carries a domain color at rest. */
+const STRIPE_BUTTON_CLASS =
+  'flex h-10 w-10 items-center justify-center rounded-ij-arc hover:bg-ij-hover-surface';
+
+function stripeButtonStyle(selected: boolean) {
+  return {
+    color: selected ? 'var(--ij-ink)' : 'var(--ij-ink-info)',
+    background: selected ? 'var(--ij-selection)' : 'transparent',
+    transition: 'var(--rec-clickable-transition)',
+  } as const;
+}
+
 function CompanionButton({
   region,
   index,
@@ -129,14 +153,10 @@ function CompanionButton({
       aria-pressed={open}
       aria-keyshortcuts={`Alt+Shift+${key}`}
       onClick={onToggle}
-      className="flex h-10 w-10 items-center justify-center rounded-ij-arc"
-      style={{
-        color: open ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
-        background: open ? 'var(--ij-accent)' : 'transparent',
-        transition: 'var(--rec-clickable-transition)',
-      }}
+      className={STRIPE_BUTTON_CLASS}
+      style={stripeButtonStyle(open)}
     >
-      <Icon size={16} />
+      <Icon size={STRIPE_ICON} />
     </motion.button>
   );
 }
@@ -186,17 +206,43 @@ function SurfaceNavGroup({
             aria-checked={active}
             aria-keyshortcuts={`Alt+${index + 1}`}
             onClick={() => void switchTo(surface.id)}
-            className="flex h-10 w-10 items-center justify-center rounded-ij-arc"
-            style={{
-              color: active ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
-              background: active ? 'var(--ij-accent)' : 'transparent',
-              transition: 'var(--rec-clickable-transition)',
-            }}
+            className={STRIPE_BUTTON_CLASS}
+            style={stripeButtonStyle(active)}
           >
-            <Icon size={16} />
+            <Icon size={STRIPE_ICON} />
           </motion.button>
         );
       })}
+    </div>
+  );
+}
+
+/** The Int UI tool window header strip (X3.2). A 24px band on chrome carrying
+ *  the title in ink at the register's 13px, a bottom seam, and a right-aligned
+ *  action slot holding the hide affordance. Files, Context and Thread stop
+ *  being floating labels: the strip is what names a tool window and bounds it,
+ *  which is also what gives an EMPTY companion a frame to be empty inside
+ *  (X5.2). The 40px main-toolbar height it replaces belonged to the toolbar. */
+function ToolWindowHeader({ title, onHide }: { title: string; onHide: () => void }) {
+  return (
+    <div
+      data-tool-window-header
+      data-paint-region="tool-window-header"
+      className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2 text-ij-ink"
+      style={{ fontWeight: 'var(--rec-weight-cap)' }}
+    >
+      <span className="min-w-0 flex-1 truncate">{title}</span>
+      <button
+        type="button"
+        data-tool-window-hide
+        aria-label={`Hide ${title}`}
+        title={`Hide ${title}`}
+        onClick={onHide}
+        className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+        style={{ transition: 'var(--rec-clickable-transition)' }}
+      >
+        <IconHide size={14} />
+      </button>
     </div>
   );
 }
@@ -205,10 +251,12 @@ function ToolWindow({
   region,
   host,
   entranceIndex,
+  onHide,
 }: {
   region: RegionNode;
   host: ConsoleBlockHost;
   entranceIndex: number;
+  onHide: () => void;
 }) {
   const durations = useMotionDurations();
   const title = String(region.object.properties.title ?? region.object.id);
@@ -222,11 +270,11 @@ function ToolWindow({
         ease: EASE_OUT,
       }}
       aria-label={`${title} tool window`}
+      data-tool-window={String(region.object.properties.companion ?? region.object.id)}
+      data-paint-region="tool-window"
       className="flex h-full min-h-0 flex-col bg-ij-chrome"
     >
-      <div className="flex h-ij-toolbar shrink-0 items-center border-b border-ij-seam px-3 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-        {title}
-      </div>
+      <ToolWindowHeader title={title} onHide={onHide} />
       <div className="min-h-0 flex-1">
         {region.instances.map((instance) => (
           <ViewInstanceHost key={instance.id} instance={instance} host={host} />
@@ -449,7 +497,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       <div className="flex min-h-0 flex-1">
         {/* The leftmost stripe: screen navigation (surfaces group) on top,
             then the active surface's tool windows, divided. One bar. */}
-        <nav aria-label="Surfaces and companions" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
+        <nav aria-label="Surfaces and companions" data-paint-region="stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
           <SurfaceNavGroup
             surfaces={primarySurfaces}
             activeSurfaceId={activeSurfaceId}
@@ -477,12 +525,22 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
               {editorPane}
               {leftOpen[0] ? (
                 <div className="absolute inset-y-0 left-0 z-30 w-80 border-r border-ij-seam shadow-none">
-                  <ToolWindow region={leftOpen[0]} host={host} entranceIndex={0} />
+                  <ToolWindow
+                    region={leftOpen[0]}
+                    host={host}
+                    entranceIndex={0}
+                    onHide={() => toggle(leftOpen[0])}
+                  />
                 </div>
               ) : null}
               {rightOpen[0] ? (
                 <div className="absolute inset-y-0 right-0 z-30 w-96 border-l border-ij-seam">
-                  <ToolWindow region={rightOpen[0]} host={host} entranceIndex={1} />
+                  <ToolWindow
+                    region={rightOpen[0]}
+                    host={host}
+                    entranceIndex={1}
+                    onHide={() => toggle(rightOpen[0])}
+                  />
                 </div>
               ) : null}
             </>
@@ -493,9 +551,17 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                 const nodes = [];
                 if (index > 0) {
                   nodes.push(
+                    // The companion-to-editor junction (X3.1). This was
+                    // --ij-divider, which resolves to gray-3 in dark: LIGHTER
+                    // than the gray-2 chrome it separates, so the one seam
+                    // between a tool window and the editor ran the Int UI
+                    // inversion backwards. --ij-seam is gray-1 in dark and
+                    // gray-12 in light, darker than chrome in both, which is
+                    // what the inversion assertion checks.
                     <PanelResizeHandle
                       key={`handle-${panel.region.object.id}`}
-                      className="w-px bg-ij-divider data-[resize-handle-state=drag]:bg-ij-accent"
+                      data-panel-seam
+                      className="w-px bg-ij-seam data-[resize-handle-state=drag]:bg-ij-accent"
                     />,
                   );
                 }
@@ -514,6 +580,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                         region={panel.region}
                         host={host}
                         entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
+                        onHide={() => toggle(panel.region)}
                       />
                     )}
                   </Panel>,

@@ -36,12 +36,21 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
     void host.emit({ kind: 'update', id: region.id, patch: { active_tab: id } });
   };
 
+  // The editor island (HANDOFF-CONSOLE-DIMENSIONALITY X3.3). The tab strip sits
+  // on CHROME and the well below it paints --ij-editor, so the well reads as a
+  // plane inset within the chrome rather than continuous with the strip. That
+  // one move is what makes the brightest plane in light (white) and the sunken
+  // plane in dark both read as the work surface. The active tab takes a subtle
+  // --ij-editor background so it joins the well it opens onto, which is the
+  // JetBrains tab contract; the 4px accent underline is unchanged.
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div data-editor-island className="flex h-full min-h-0 flex-col bg-ij-chrome">
       {bare ? null : <div
         role="tablist"
         aria-label="Editor tabs"
-        className="flex h-ij-tab shrink-0 items-end bg-ij-editor"
+        data-editor-tab-strip
+        data-paint-region="tab-strip"
+        className="flex h-ij-tab shrink-0 items-end border-b border-ij-seam bg-ij-chrome"
       >
         {instances.map((instance) => {
           const selected = instance.id === active?.id;
@@ -52,7 +61,11 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
               aria-selected={selected}
               onClick={() => activate(instance.id)}
               className="relative flex h-full items-center gap-2 px-4 text-ij-ink"
-              style={{ opacity: selected ? 1 : 0.75, transition: 'var(--rec-clickable-transition)' }}
+              style={{
+                opacity: selected ? 1 : 0.75,
+                background: selected ? 'var(--ij-editor)' : 'transparent',
+                transition: 'var(--rec-clickable-transition)',
+              }}
             >
               <KindDot kind={kindOf(instance)} />
               {String(instance.properties.title ?? instance.id)}
@@ -66,7 +79,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
           );
         })}
       </div>}
-      <div className={`min-h-0 flex-1 bg-ij-editor ${bare ? '' : 'border-t border-ij-seam'}`}>
+      <div data-editor-well data-paint-region="editor-well" className="min-h-0 flex-1 bg-ij-editor">
         {active ? (
           <motion.div
             key={active.id}

@@ -95,6 +95,7 @@
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
+  --spacing-ij-toolwindow-header: var(--ij-toolwindow-header-h);
   --spacing-rec-grid: var(--rec-grid);
   --spacing-rec-cell-pad: var(--rec-cell-pad);
   --spacing-rec-utility-col: var(--rec-utility-col);
@@ -138,6 +139,15 @@
   --ij-composer-font-size-compact: 14px;
   --ij-composer-meta-font-size: 12px;
   --ij-composer-counter-min-width: 48px;
+
+  /* Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI
+     tool window header is a 24px strip, not the 40px main-toolbar height the
+     console had been reusing; the strip is what makes Files, Context and Thread
+     read as named tool windows rather than floating labels. The stripe icon is
+     20px inside the 40px bar (X3.4), one ramp step up from the 16px control
+     glyph, because the stripe is navigation rather than a control cluster. */
+  --ij-toolwindow-header-h: 24px;
+  --ij-stripe-icon: 20px;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);
