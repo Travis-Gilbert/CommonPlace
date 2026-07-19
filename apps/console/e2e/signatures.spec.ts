@@ -277,7 +277,115 @@ for (const { theme, preset } of THEMES) {
       expect(idle.painted, 'the idle sheen must be visibly painted, not blank').toBeGreaterThan(0);
       expect(idle.frames, 'idle draws once').toBeGreaterThan(0);
     });
+
+    // X1 acceptance: the capture set. The three sheen states must render
+    // VISIBLY, which means mutually distinguishable pixels, not three names for
+    // the same paint. Idle and streaming also land as PNG artifacts so the
+    // side-by-side is inspectable; commit lives for DUR.fast, so it is captured
+    // from the canvas itself rather than raced against the screenshot pipeline.
+    test('the sheen capture set distinguishes idle, streaming and commit', async ({ page }) => {
+      const composer = page.locator('[data-paint-region="composer"]').first();
+      const canvas = page.locator('canvas[data-composer-sheen]').first();
+
+      /** A cheap, stable signature of what the canvas is currently painting. */
+      const signature = () =>
+        canvas.evaluate((node: HTMLCanvasElement) => {
+          const context = node.getContext('2d');
+          const pixels = context?.getImageData(0, 0, node.width, node.height).data;
+          let alpha = 0;
+          let red = 0;
+          let green = 0;
+          let blue = 0;
+          for (let index = 0; index < (pixels?.length ?? 0); index += 4) {
+            const data = pixels as Uint8ClampedArray;
+            alpha += data[index + 3];
+            red += data[index];
+            green += data[index + 1];
+            blue += data[index + 2];
+          }
+          return { alpha, red, green, blue, state: node.dataset.sheenState };
+        });
+
+      const idle = await signature();
+      expect(idle.state).toBe('idle');
+      await expect(composer).toHaveScreenshot(`composer-sheen-idle-${theme}.png`);
+
+      // Hold the stream open so the streaming state is observable rather than
+      // instantaneous.
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await page.route('**/api/chat/stream', async (route) => {
+        await held;
+        await route.fulfill({
+          status: 200,
+          contentType: 'text/event-stream',
+          body: 'event: text\ndata: {"text":"Grounded answer."}\n\n',
+        });
+      });
+
+      const input = page.locator('[data-composer-input]');
+      await input.fill('Show the sheen while the agent works.');
+      await input.press('Enter');
+      await expect(canvas).toHaveAttribute('data-sheen-state', 'streaming');
+      const streaming = await signature();
+      await expect(composer).toHaveScreenshot(`composer-sheen-streaming-${theme}.png`);
+
+      release();
+      await expect(page.getByText('Grounded answer.')).toBeVisible();
+      // The commit flash: sample the canvas inside its own window.
+      const commit = await canvas.evaluate((node: HTMLCanvasElement) => new Promise<{
+        alpha: number;
+        state: string | undefined;
+      }>((resolve) => {
+        const read = () => {
+          const context = node.getContext('2d');
+          const pixels = context?.getImageData(0, 0, node.width, node.height).data;
+          let alpha = 0;
+          for (let index = 3; index < (pixels?.length ?? 0); index += 4) {
+            alpha += (pixels as Uint8ClampedArray)[index];
+          }
+          return { alpha, state: node.dataset.sheenState };
+        };
+        const started = performance.now();
+        const poll = () => {
+          const sample = read();
+          if (sample.state === 'commit' || performance.now() - started > 2000) resolve(sample);
+          else requestAnimationFrame(poll);
+        };
+        poll();
+      }));
+
+      // The three states are distinct paint, not three labels for one wash.
+      expect(idle.alpha, 'idle must paint something').toBeGreaterThan(0);
+      expect(streaming.alpha, 'streaming must paint something').toBeGreaterThan(0);
+      expect(commit.alpha, 'commit must paint something').toBeGreaterThan(0);
+      expect(commit.state, 'the commit state must be reached').toBe('commit');
+      expect(
+        commit.alpha,
+        'commit lifts the wash above idle (0.08 against 0.032 in the canvas budget)',
+      ).toBeGreaterThan(idle.alpha);
+    });
   });
+}
+
+// X4 acceptance: the baseline set covers BOTH themes at 1280 and 1440. The
+// light pair lives in appearance.spec (it predates this pass); the dark pair is
+// captured here so the two themes are gated at the same widths by the same
+// workspace path, which is what stops light from being a variant checked once.
+for (const { theme, preset } of THEMES.filter((entry) => entry.theme === 'dark')) {
+  for (const viewport of [
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`holds the ${viewport.width} ${theme} baseline`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await openWorkspace(page, preset);
+      await expect(page).toHaveScreenshot(`workspace-${viewport.width}-${theme}.png`, { fullPage: true });
+    });
+  }
 }
 
 test.describe('the sheen under reduced motion', () => {

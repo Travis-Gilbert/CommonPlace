@@ -87,16 +87,22 @@ export async function auditPaint(page: Page): Promise<{
  *  A gate that cannot fail is decoration; the probe injects an unpainted region
  *  and requires the scan to catch it before trusting a clean result. */
 export async function expectEveryRegionPainted(page: Page): Promise<void> {
-  const probeCaught = await page.evaluate(() => {
+  // Hostile probe: attach a region that paints nothing, run the REAL scan, and
+  // require it to be reported. Checking only that the probe reads transparent
+  // would test the browser, not the gate.
+  await page.evaluate(() => {
     const probe = document.createElement('div');
     probe.dataset.paintRegion = 'toolbar';
+    probe.id = '__paint-probe';
     probe.style.background = 'transparent';
     document.body.append(probe);
-    const value = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return value === 'rgba(0, 0, 0, 0)';
   });
-  expect(probeCaught, 'the unpainted-region probe must read as transparent or the scan is inert').toBe(true);
+  const probed = await auditPaint(page);
+  await page.evaluate(() => document.getElementById('__paint-probe')?.remove());
+  expect(
+    probed.findings.some((finding) => finding.reason === 'transparent'),
+    'the unpainted-region probe was NOT caught; the paint scan is inert',
+  ).toBe(true);
 
   const { findings, seen } = await auditPaint(page);
   expect(
