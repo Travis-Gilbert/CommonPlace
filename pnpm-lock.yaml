@@ -105,19 +105,16 @@ importers:
         version: 3.14.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@travis-gilbert/markdown-theory':
         specifier: ^0.1.2
-        version: 0.1.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 0.1.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@xyflow/react':
         specifier: ^12.11.2
-        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       d3:
         specifier: ^7.9.0
         version: 7.9.0
-      elkjs:
-        specifier: ^0.9.3
-        version: 0.9.3
       eventsource-parser:
         specifier: ^3.0.0
         version: 3.1.0
@@ -6559,9 +6556,6 @@ packages:
   elementtree@0.1.7:
     resolution: {integrity: sha512-wkgGT6kugeQk/P6VZ/f4T+4HB41BVgNBq5CDIZVbQ02nvTVqAiVTbskxxu3eA/X96lMlfYOwnLQpN2v5E1zDEg==}
     engines: {node: '>= 0.4.0'}
-
-  elkjs@0.9.3:
-    resolution: {integrity: sha512-f/ZeWvW/BCXbhGEf1Ujp29EASo/lk1FDnETgNKwJrsVvGZhUWCZyg3xLJjAsxfOmt8KjswHmI5EwCQcPMpOYhQ==}
 
   embedding-atlas@0.21.0:
     resolution: {integrity: sha512-cjBkZiurZagyGGzKJmpJ8YaZlB6ZbM0mtEp4N1V5HTJArH8VJQWNNqxR1v0k0fpQZaByoLvT37kI972sr/Vawg==}
@@ -18163,8 +18157,6 @@ snapshots:
   elementtree@0.1.7:
     dependencies:
       sax: 1.1.4
-
-  elkjs@0.9.3: {}
 
   embedding-atlas@0.21.0(@uwdata/mosaic-core@0.24.4)(@uwdata/mosaic-spec@0.24.4)(@uwdata/mosaic-sql@0.24.3)(@uwdata/vgplot@0.24.4)(react@19.2.3):
     dependencies:

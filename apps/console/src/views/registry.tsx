@@ -283,6 +283,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   HUNK_REVIEW,
   APPEARANCE,
   PROACTIVITY,
+  ACCOUNT,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

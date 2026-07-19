@@ -18,6 +18,7 @@ import {
 } from '@assistant-ui/react';
 import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
+import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
@@ -96,6 +97,9 @@ export function ConsoleApp() {
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
+            // Fixture seam until session tenant resolution wires through: pass
+            // FIXTURE_TENANT explicitly so an omitted tenant cannot share state.
+            proactivityTenant: FIXTURE_TENANT,
             onTransport: (status) =>
               useShellStore.getState().setConnection(connectionFor(status)),
           })
