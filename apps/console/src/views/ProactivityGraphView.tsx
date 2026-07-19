@@ -240,7 +240,7 @@ export function ProactivityGraphView({ host: _host }: { host: BlockHost }) {
           </div>
         </aside>
       )}
-      {compilationError && <p className="shrink-0 border-b border-ij-seam px-3 py-1 text-xs text-red-700" data-proactivity-compilation-error>{compilationError}</p>}
+      {compilationError && <p className="shrink-0 border-b border-ij-seam px-3 py-1 text-xs text-ij-error" data-proactivity-compilation-error>{compilationError}</p>}
       <div className="min-h-0 flex-1" data-proactivity-canvas>
         <ReactFlow<ProactivityFlowNode>
           nodes={nodes}
