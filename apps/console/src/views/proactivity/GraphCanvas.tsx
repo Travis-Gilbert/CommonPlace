@@ -24,11 +24,13 @@ export function GraphCanvas({
   selectedId,
   edits,
   onSelect,
+  onCompile,
 }: {
   readonly layout: GraphLayout;
   readonly selectedId: string | null;
   readonly edits: ProactivityEdits;
   readonly onSelect: (id: string | null) => void;
+  readonly onCompile?: (hint: string) => void;
 }) {
   const nodes = useMemo<ProactivityRFNode[]>(
     () => layout.nodes.map((node) => ({ ...node, selected: node.id === selectedId })),
@@ -36,7 +38,7 @@ export function GraphCanvas({
   );
 
   return (
-    <GraphInteractionProvider value={{ edits }}>
+    <GraphInteractionProvider value={{ edits, onCompile }}>
     <div className="h-full w-full" role="group" aria-label="The standing proactivity graph">
       <ReactFlow
         nodes={nodes}

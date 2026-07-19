@@ -19,13 +19,29 @@ export function IntentComposer({
   host,
   sources,
   contracts,
+  hint,
 }: {
   readonly host: BlockHost;
   readonly sources: readonly SourceNode[];
   readonly contracts: readonly EffectContract[];
+  /** A prefilled hint from a compile-only block add: opens the composer with the
+   *  hint so a custom or complex condition is described and compiled, never a
+   *  blank hand-written row (the node-model grammar). */
+  readonly hint?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [intent, setIntent] = useState('');
+  // Adjust state during render when the hint prop changes (the React-sanctioned
+  // pattern, not an effect): a compile-only block add opens the composer with the
+  // hint prefilled, without a cascading-render effect.
+  const [seenHint, setSeenHint] = useState<string | undefined>(hint);
+  if (hint !== seenHint) {
+    setSeenHint(hint);
+    if (hint) {
+      setOpen(true);
+      setIntent(hint);
+    }
+  }
   const [result, setResult] = useState<IntentCompileResult | null>(null);
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState<string | null>(null);

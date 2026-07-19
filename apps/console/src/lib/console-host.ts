@@ -24,7 +24,7 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-seed';
 import { ProactivityStore } from './proactivity/store';
-import { FIXTURE_TENANT, seedStandingStructure } from './proactivity/fixtures';
+import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
@@ -123,7 +123,8 @@ export interface ConsoleBlockHostOptions {
   readonly onTransport?: TransportObserver;
   /** The person's resolved tenant for the proactivity graph. A null value is a
    *  refusal (named choice 10): the graph reads and writes are tenant-scoped.
-   *  Defaults to the fixture tenant until real tenant resolution lands. */
+   *  Omitted values default to null. Fixture or test callers that need the
+   *  shared seed must pass FIXTURE_TENANT explicitly. */
   readonly proactivityTenant?: string | null;
 }
 
@@ -146,7 +147,7 @@ export class ConsoleBlockHost implements BlockHost {
     this.registry = registry;
     this.records = options.records ?? null;
     this.observer = options.onTransport;
-    const tenant = options.proactivityTenant === undefined ? FIXTURE_TENANT : options.proactivityTenant;
+    const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).

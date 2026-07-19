@@ -233,7 +233,7 @@ const PROACTIVITY: ViewDescriptor = {
     mode: 'bespoke',
     regime: 'css-vars',
     allowedBespokeReason:
-      'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the elkjs layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+      'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
   },
   render: ProactivityView,
 };

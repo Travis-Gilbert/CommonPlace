@@ -11,6 +11,10 @@ import type { ProactivityEdits } from './use-edits';
 
 export interface GraphInteraction {
   readonly edits: ProactivityEdits | null;
+  /** Open the intent composer prefilled with a hint: a compile-only block add
+   *  (a custom or complex condition) is described and compiled, never a blank
+   *  hand-written row. */
+  readonly onCompile?: (hint: string) => void;
 }
 
 const GraphInteractionContext = createContext<GraphInteraction>({ edits: null });
