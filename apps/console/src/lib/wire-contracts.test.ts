@@ -150,6 +150,17 @@ describe('chat wire contract (R2.2)', () => {
     })).toThrow('Expected a valid chat capability.');
   });
 
+  it('grounds an advertised web-search turn while retaining the user-visible text', () => {
+    const request = readChatRequest({
+      content: [{ type: 'text', text: 'What changed in Rust this week?' }],
+      capability: { kind: 'web' },
+    });
+
+    expect(request.displayText).toBe('What changed in Rust this week?');
+    expect(request.promptText).toContain('supplied live web research evidence');
+    expect(request.promptText).toContain('cite its exact source URLs');
+  });
+
   it('optionally protects the mobile route with the instance api key', () => {
     expect(() => requireMobileApiKey(
       new Request('https://example.test/api/chat/stream', { headers: { 'x-api-key': 'right-key' } }),

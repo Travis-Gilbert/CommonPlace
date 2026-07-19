@@ -53,7 +53,7 @@ function capabilityInstruction(capability: ConsoleChatCapability): string {
     ].join(' ');
   }
   if (capability.kind === 'web') {
-    return 'For this turn, perform live web research and cite the sources used. Refuse explicitly if web access is unavailable.';
+    return 'For this turn, answer from the supplied live web research evidence and cite its exact source URLs. Refuse explicitly if that evidence is unavailable.';
   }
   return 'Treat CommonPlace object mentions in the user request as required grounding. Refuse explicitly if a referenced object cannot be resolved.';
 }

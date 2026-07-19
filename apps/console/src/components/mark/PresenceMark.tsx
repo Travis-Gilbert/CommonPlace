@@ -26,6 +26,8 @@ interface PresenceMarkProps {
   readonly state: MarkState;
   /** Logical size of the square mark stage; about 64 per the addendum. */
   readonly size?: number;
+  /** Compact surfaces use the transparent text fallback to avoid a WebGL stage. */
+  readonly staticOnly?: boolean;
 }
 
 // The static constellations: one per state, rendered as plain text when the
@@ -67,8 +69,14 @@ function StaticConstellation({ state, size }: { state: MarkState; size: number }
   return (
     <pre
       aria-hidden="true"
-      className="pointer-events-none m-0 select-none text-center font-ij-mono leading-none"
-      style={{ width: size, height: size, color: staticMarkColor(state) }}
+      className="pointer-events-none m-0 select-none text-center font-ij-mono"
+      style={{
+        width: size,
+        height: size,
+        color: staticMarkColor(state),
+        fontSize: size / 5,
+        lineHeight: 0.9,
+      }}
       data-mark-state={state}
       data-mark-mode="static"
     >
@@ -77,7 +85,7 @@ function StaticConstellation({ state, size }: { state: MarkState; size: number }
   );
 }
 
-export function PresenceMark({ state, size = 64 }: PresenceMarkProps) {
+export function PresenceMark({ state, size = 64, staticOnly = false }: PresenceMarkProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<MarkState>(state);
   const [mode, setMode] = useState<'pending' | 'live' | 'static'>('pending');
@@ -95,7 +103,7 @@ export function PresenceMark({ state, size = 64 }: PresenceMarkProps) {
     // The capability check and the library load both resolve asynchronously
     // so no state is set synchronously inside the effect body.
     const boot = Promise.resolve().then(() => {
-      if (prefersReducedMotion() || !hasWebGL2()) {
+      if (staticOnly || prefersReducedMotion() || !hasWebGL2()) {
         if (!disposed) setMode('static');
         return null;
       }
@@ -171,7 +179,7 @@ export function PresenceMark({ state, size = 64 }: PresenceMarkProps) {
       disposed = true;
       modifier?.destroy();
     };
-  }, [size]);
+  }, [size, staticOnly]);
 
   if (mode === 'static' ) {
     return (

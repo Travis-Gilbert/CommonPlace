@@ -110,6 +110,28 @@
 [data-register="intui"] {
   --ij-composer-min-h: 48px;
   --ij-composer-max-h: 164px;
+  --ij-composer-full-min-h: calc(var(--ij-composer-min-h) + var(--ij-control-h));
+  --ij-composer-radius: calc(var(--ij-arc) * 2);
+  --ij-composer-control-size: 32px;
+  --ij-composer-control-size-compact: var(--ij-control-h);
+  --ij-composer-pad-x: 16px;
+  --ij-composer-pad-y: 14px;
+  --ij-composer-pad-compact: 10px;
+  --ij-composer-gap: 8px;
+  --ij-composer-font-size: 16px;
+  --ij-composer-font-size-compact: 14px;
+  --ij-composer-shadow: 0 12px 32px -20px color-mix(in oklab, var(--ij-ink) 36%, transparent);
+  --ij-composer-material-shadow: inset 0 1px 0 color-mix(in oklab, var(--ij-ink-bright) 14%, transparent), 0 16px 36px -24px color-mix(in oklab, var(--ij-ink) 48%, transparent);
+  --ij-composer-material: linear-gradient(135deg, color-mix(in oklab, var(--ij-raised) 88%, var(--ij-accent) 12%), color-mix(in oklab, var(--ij-raised) 94%, var(--ij-room) 6%) 52%, color-mix(in oklab, var(--ij-raised) 88%, var(--ij-agent) 12%));
+  --ij-composer-material-overlay: linear-gradient(135deg, color-mix(in oklab, var(--ij-accent) 9%, transparent), transparent 46%, color-mix(in oklab, var(--ij-agent) 8%, transparent));
+  --ij-composer-input-wash: linear-gradient(to top, color-mix(in oklab, var(--ij-editor) 22%, transparent), transparent 58%);
+  --ij-composer-control-material: color-mix(in oklab, var(--ij-editor-line) 84%, var(--ij-raised) 16%);
+  --ij-composer-kbd-material: color-mix(in oklab, var(--ij-editor) 78%, transparent);
+  --ij-composer-send-glow: 0 0 22px color-mix(in oklab, var(--ij-accent) 34%, transparent);
+  --ij-composer-backdrop-blur: 24px;
+  --ij-composer-footer-font-size: 12px;
+  --ij-composer-status-mark-size: 18px;
+  --ij-composer-counter-min-width: 48px;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);

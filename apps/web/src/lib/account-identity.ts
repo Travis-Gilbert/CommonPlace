@@ -1,10 +1,8 @@
-export const OWNER_GITHUB_LOGIN = 'Travis-Gilbert';
-
-export function isOwnerGithubLogin(login: unknown): boolean {
-  return typeof login === 'string' && login.toLowerCase() === OWNER_GITHUB_LOGIN.toLowerCase();
-}
-
-export function githubHarnessIdentity(providerAccountId: unknown): string | undefined {
-  if (typeof providerAccountId !== 'string' || providerAccountId.trim() === '') return undefined;
-  return `github:${providerAccountId.trim()}`;
-}
+// Porting by extraction: legacy callers retain this path while the identity
+// policy lives in the CSS-free contract package shared with apps/console.
+export {
+  OWNER_GITHUB_LOGIN,
+  githubHarnessIdentity,
+  githubTenantSlug,
+  isOwnerGithubLogin,
+} from '@commonplace/theorem-acp/identity';

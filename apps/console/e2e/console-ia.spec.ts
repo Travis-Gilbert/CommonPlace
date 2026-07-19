@@ -63,12 +63,29 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('nav')).toHaveCount(1);
     const composer = page.locator('[data-composer]');
     const input = page.locator('[data-composer-input]');
+    await expect(composer).toHaveAttribute('data-source-component', '21st-dev-glowing-ai-chat-assistant');
+    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-material-texture', 'soft-wash');
+    await expect(page.locator('[data-composer-tool-group]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Attach file' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open action sheet' })).toBeVisible();
+    await expect(page.getByLabel('Chat destination')).toBeVisible();
+    await expect(page.getByLabel('Chat destination')).toHaveValue('theorem');
+    await expect(page.locator('[data-web-search-state]')).toHaveAttribute('data-web-search-state', 'available');
+    await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
+    await expect(page.locator('[data-composer-character-count]')).toHaveText('0/2000');
+    await expect(page.locator('[data-composer-source-footer]')).toContainText('Shift + Enter');
+    await expect(page.locator('[data-composer-source-footer]')).toContainText('Theorem ready');
+    await expect(input).toHaveCSS('font-size', '16px');
     const initial = await input.boundingBox();
     const bounds = await composer.boundingBox();
+    const viewport = page.viewportSize();
     expect(initial?.height ?? 0).toBeGreaterThanOrEqual(48);
     expect(bounds?.width ?? 0).toBeGreaterThan(600);
-    expect(bounds?.height ?? 1000).toBeLessThan(220);
-    expect(bounds?.y ?? 0).toBeGreaterThan(450);
+    expect(bounds?.height ?? 1000).toBeLessThan(280);
+    expect((bounds?.y ?? 0) + ((bounds?.height ?? 0) / 2)).toBeGreaterThan((viewport?.height ?? 0) * (2 / 3));
+    await input.fill('');
+    await input.fill('Material');
+    await expect(page.locator('[data-composer-character-count]')).toHaveText('8/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
     const mention = page.getByText('Ada Lovelace', { exact: true });
@@ -102,6 +119,7 @@ test.describe('Console information architecture', () => {
     await page.locator('[data-chat-starters] button').first().click();
     await expect(page.locator('[data-chat-starters]')).toHaveCount(0);
     await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-state', 'streaming');
+    await expect(page.locator('[data-presence-mark-placement="composer"] [data-mark-state]')).toHaveAttribute('data-mark-state', 'composing');
     await expect(page.locator('[data-search-field]')).toBeVisible();
     await expect(page).toHaveScreenshot('chat-streaming.png', { fullPage: true });
     if (pendingRoute) await pendingRoute.abort('failed');
@@ -130,25 +148,70 @@ test.describe('Console information architecture', () => {
     await expect(page).toHaveScreenshot('chat-plan.png', { fullPage: true });
   });
 
+  test('sends Theorem chat and advertised web search through the hosted stream', async ({ page }) => {
+    const bodies: unknown[] = [];
+    await page.route('**/api/chat/stream', async (route) => {
+      bodies.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        body: 'event: text\ndata: {"text":"Grounded answer."}\n\n',
+      });
+    });
+
+    const input = page.locator('[data-composer-input]');
+    await input.fill('Use Theorem context.');
+    await input.press('Enter');
+    await expect(page.getByText('Grounded answer.')).toBeVisible();
+    expect(bodies[0]).toMatchObject({ content: [{ type: 'text', text: 'Use Theorem context.' }] });
+    expect(bodies[0]).not.toHaveProperty('capability');
+
+    await page.getByLabel('Chat destination').selectOption('web');
+    await expect(page.locator('[data-web-search-state]')).toHaveText('Web search ready');
+    await input.fill('Find the current release notes.');
+    await input.press('Enter');
+    await expect.poll(() => bodies.length).toBe(2);
+    expect(bodies[1]).toMatchObject({
+      content: [{ type: 'text', text: 'Find the current release notes.' }],
+      capability: { kind: 'web' },
+    });
+  });
+
+  test('keeps the destination and Send control reachable on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await page.waitForSelector('[data-composer-sheen]');
+    await expect(page.getByLabel('Chat destination')).toBeVisible();
+    const send = page.getByRole('button', { name: 'Send message' });
+    await expect(send).toBeInViewport();
+    const bounds = await send.boundingBox();
+    expect((bounds?.x ?? 390) + (bounds?.width ?? 0)).toBeLessThanOrEqual(390);
+  });
+
   test('seeds Workspace with document, code, and compact Thread but no table rail', async ({ page }) => {
     await openSurface(page, 'console-workspace');
     await expect(page.getByRole('tab', { name: 'Console brief' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'surface-tree.ts' })).toBeVisible();
     await expect(page.locator('[data-composer-density="compact"]')).toBeVisible();
+    await expect(page.locator('.galley p').first()).toHaveCSS('font-size', '15px');
     await expect(page.locator('tbody')).toHaveCount(0);
   });
 
   test('virtualizes 5000 pinned memory projections and opens a read-only Galley tab', async ({ page }) => {
     await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-files-view]')).toContainText('5000 memory items', { timeout: 15000 });
-    await expect(page.getByRole('treeitem', { name: /no project context/i })).toBeVisible();
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    await expect(page.locator('[data-file-root-status="root-project"]')).toHaveText('Not connected');
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000');
+    await expect(page.locator('[data-file-root-status="root-uploads"]')).toHaveText('Empty');
+    await expect(page.getByRole('treeitem', { name: /no project context/i })).toHaveCount(0);
+    await page.getByRole('treeitem', { name: /^Harness Memory/ }).click();
     await expect(page.getByRole('treeitem', { name: 'topic-0' })).toBeVisible();
     expect(await page.getByRole('treeitem').count()).toBeLessThan(100);
-    await page.getByRole('treeitem', { name: 'Project', exact: true }).focus();
+    await page.getByRole('treeitem', { name: /^Harness Memory/ }).focus();
     await page.keyboard.press('ArrowDown');
-    await expect(page.getByRole('treeitem', { name: 'Harness Memory' })).toBeFocused();
+    await expect(page.getByRole('treeitem', { name: 'topic-0' })).toBeFocused();
     await page.keyboard.press('Home');
-    await expect(page.getByRole('treeitem', { name: 'Project', exact: true })).toBeFocused();
+    await expect(page.getByRole('treeitem', { name: /^Project/ })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
     await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
@@ -168,7 +231,7 @@ test.describe('Console information architecture', () => {
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
     await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-files-view]')).toContainText('5000 memory items', { timeout: 15000 });
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
     await openSurface(page, 'console-cards');
     await page.locator('[data-companion-nav="context"]').click();
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();

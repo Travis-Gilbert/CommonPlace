@@ -19,12 +19,17 @@ import {
   configuredServiceTenantMatches,
   resolveHarnessPrincipal,
 } from '@/lib/server/harness-principal';
+import { loadInstanceCapabilities } from '@/lib/server/instance-capabilities';
+import { loadWebResearch } from '@/lib/server/web-research';
+import { appendWebResearch } from '@/lib/web-research-contract';
+import type { HarnessPrincipal } from '@/lib/harness-principal-core';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    let principal: HarnessPrincipal | null = null;
     const configuredMobileKey = process.env.CONSOLE_MOBILE_API_KEY?.trim();
     const mobileCredential = configuredMobileKey
       ? request.headers.get('x-api-key') === configuredMobileKey
@@ -35,6 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!mobileCredential) {
       const resolution = await resolveHarnessPrincipal();
       if (!resolution.ok) return resolution.response;
+      principal = resolution.principal;
       if (!configuredServiceTenantMatches(resolution.principal)) {
         return Response.json(
           {
@@ -46,9 +52,35 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
     const chat = readChatRequest(await request.json().catch(() => null));
+    let promptText = chat.promptText;
+    if (chat.capability?.kind === 'web') {
+      const capabilities = await loadInstanceCapabilities(principal);
+      if (!capabilities.ok) return capabilities.response;
+      if (!capabilities.capabilities.webSearch) {
+        return Response.json(
+          {
+            error: 'web_search_unavailable',
+            message: 'Web search is unavailable on this connected CommonPlace backend.',
+          },
+          { status: 409 },
+        );
+      }
+      if (!principal) {
+        return Response.json(
+          {
+            error: 'web_search_requires_principal',
+            message: 'Web search requires an authenticated tenant identity.',
+          },
+          { status: 401 },
+        );
+      }
+      const research = await loadWebResearch(chat.displayText, principal, request);
+      if (!research.ok) return research.response;
+      promptText = appendWebResearch(chat.promptText, research.sources);
+    }
     const command: BridgeCommand = {
       type: 'add-message',
-      message: { role: 'user', parts: [{ type: 'text', text: chat.promptText }] },
+      message: { role: 'user', parts: [{ type: 'text', text: promptText }] },
       parentId: null,
       sourceId: null,
       displayText: chat.displayText,

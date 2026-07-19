@@ -66,6 +66,12 @@ Nothing on any surface is hand-rolled. Every visual and behavioral need
 resolves to a row in the library ledger below. A need with no row is a spec
 gap: add the row, with a named source, before writing code.
 
+User-supplied component source is implementation input, not visual inspiration.
+Start from the supplied component's actual structure and behavior, then adapt
+it to the active product contract, runtime primitives, register tokens, and
+responsive placements. Treat it as inspiration only when the user explicitly
+asks for inspiration, reference, mood, or direction.
+
 | Need | Source | Owns |
 |---|---|---|
 | Split layout, tool window panels | `react-resizable-panels` | split geometry, persisted sizes, 1px `--ij-divider` handles |
@@ -73,8 +79,8 @@ gap: add the row, with a named source, before writing code.
 | Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
-| Composer mechanics | `@assistant-ui/react` 0.12 plus 21st.dev `reuno-ui/ai-input` extraction | auto-grow input, attachments, object mentions, mode slot, send behavior |
-| Composer sheen | 21st.dev `muhammad-binsalman/glowing-ai-chat-assistant` material extraction plus hand-roll canvas | register-derived angled low-chroma sheen behind the Composer |
+| Composer mechanics | `@assistant-ui/react` 0.12 plus 21st.dev `reuno-ui/ai-input` extraction | auto-grow input, attachments, object mentions, real Theorem/Web-search destination slot, send behavior |
+| Composer sheen | 21st.dev `muhammad-binsalman/glowing-ai-chat-assistant` material extraction plus hand-roll canvas | register-derived low-chroma material wash and sparse flecks behind the Composer |
 | Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
 | Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |

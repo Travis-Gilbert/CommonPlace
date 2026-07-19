@@ -152,6 +152,26 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
   const error = useThreadStore((state) => state.error);
   const plan = useThreadStore((state) => state.plan);
   const endpoint = chatEndpoint();
+  const [webSearchAvailable, setWebSearchAvailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/capabilities', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return false;
+        const body = (await response.json()) as { web_search?: unknown };
+        return body.web_search === true;
+      })
+      .then((available) => {
+        if (active) setWebSearchAvailable(available);
+      })
+      .catch(() => {
+        if (active) setWebSearchAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (!runtimeAvailable) {
     return (
@@ -183,7 +203,12 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
             Chat endpoint unavailable: configure NEXT_PUBLIC_CONSOLE_CHAT_URL.
           </p>
         ) : null}
-        <Composer host={host} compact={!full} unavailable={!endpoint} />
+        <Composer
+          host={host}
+          compact={!full}
+          unavailable={!endpoint}
+          webSearchAvailable={webSearchAvailable}
+        />
       </div>
     </ThreadPrimitive.Root>
   );
