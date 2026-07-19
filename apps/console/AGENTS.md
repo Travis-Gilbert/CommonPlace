@@ -15,10 +15,13 @@ Railway must deploy this app with `railway.console.toml`; the root
 `railway.toml` belongs to the legacy web service.
 
 Workspace imports require matching path-separator-delimited allowlists on both
-services: `CONSOLE_WORKSPACE_ALLOWED_ROOTS` on this Console and
-`COMMONPLACE_WORKSPACE_ALLOWED_ROOTS` on commonplace-api. The API canonicalizes
-the requested directory before enforcing its list, so symlinks cannot escape
-an allowed root. Production must configure both variables.
+services: `CONSOLE_WORKSPACE_ALLOWED_ROOTS` on this Console and the JSON tenant
+map `COMMONPLACE_WORKSPACE_TENANT_ALLOWED_ROOTS` on commonplace-api. Each API
+map key is the identity-derived tenant and each value is that tenant's array of
+owned roots. The API canonicalizes requested directories, rejects overlapping
+roots across tenants, and prevents symlink escapes. The legacy
+`COMMONPLACE_WORKSPACE_ALLOWED_ROOTS` variable is a single-tenant development
+fallback only. Production must configure the Console list and tenant map.
 
 ## Composition doctrine
 
