@@ -19,6 +19,8 @@ import { AccountView } from './AccountView';
 import { FilesView } from './FilesView';
 import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
+import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
+import { GoalStackView } from './goal-stack/GoalStackView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -238,6 +240,36 @@ const PROACTIVITY: ViewDescriptor = {
   render: ProactivityView,
 };
 
+const WORKSPACE_SUBSTRATE: ViewDescriptor = {
+  id: 'workspace.substrate',
+  name: 'Workspace',
+  accepts: {},
+  emits: ['select', 'open', 'update'],
+  renderer: 'workspace.substrate',
+  source: {
+    package: '@tanstack/react-virtual',
+    component: 'useVirtualizer',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: WorkspaceSubstrateView,
+};
+
+const GOAL_STACK: ViewDescriptor = {
+  id: 'goal.stack',
+  name: 'Goal Stack',
+  accepts: {},
+  emits: ['select', 'invoke_tool', 'update'],
+  renderer: 'goal.stack',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: GoalStackView,
+};
+
 const APPEARANCE: ViewDescriptor = {
   id: 'settings.appearance',
   name: 'Appearance',
@@ -283,6 +315,8 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   HUNK_REVIEW,
   APPEARANCE,
   PROACTIVITY,
+  WORKSPACE_SUBSTRATE,
+  GOAL_STACK,
   ACCOUNT,
 ]);
 

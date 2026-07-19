@@ -136,6 +136,12 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'static two-tone bar',
   },
   {
+    trigger: 'Goal Stack task runs',
+    effect: 'the completed segment of the inbound React Flow edge marches toward the task',
+    spec: 'CSS keyframes in the motion register only; edge geometry and node positions remain still',
+    reducedMotion: 'solid completed segment with no dash movement',
+  },
+  {
     trigger: 'Presence mark states',
     effect: 'glyph constellation cycling (idle, composing), condensation with accent commit flash (acting), settle within one frame (interrupted)',
     spec: 'MARK tokens; canvas drawing, not CSS; never intercepts pointer events',

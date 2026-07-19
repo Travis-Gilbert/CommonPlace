@@ -124,7 +124,7 @@ function companionIds(prefix: string): string[] {
   return [`${prefix}.region-files`, `${prefix}.region-context`, `${prefix}.region-thread`];
 }
 
-/** The durable IA seed: five primary surfaces in stripe order, plus secondary
+/** The durable IA seed: six primary surfaces in stripe order, plus secondary
  * layouts available through the layout switcher and Command mode. */
 export function seedLayout(): ObjectRef[] {
   return [
@@ -143,8 +143,12 @@ export function seedLayout(): ObjectRef[] {
       name: 'Workspace', kind: 'workspace', role: 'surface', stripe_order: 1, active: false, seed_revision: 2,
     }, ['region-editor', ...companionIds('workspace')]),
     layoutObject('region-editor', 'region', {
-      kind: 'editor', size: 72, active_tab: 'vi-brief', seed_revision: 2,
-    }, ['vi-brief', 'vi-code']),
+      kind: 'editor', size: 72, active_tab: 'workspace.vi-substrate', seed_revision: 3,
+    }, ['workspace.vi-substrate', 'vi-brief', 'vi-code']),
+    layoutObject('workspace.vi-substrate', 'view-instance', {
+      descriptor_id: 'workspace.substrate', title: 'Workspace substrate',
+      query: { types: ['surface-tool'] } as unknown as JsonValue,
+    }),
     layoutObject('vi-brief', 'view-instance', {
       descriptor_id: 'markdown.doc', title: 'Console brief',
       query: { types: ['doc'], where: { kind: 'eq', field: 'slug', value: 'console-brief' } } as unknown as JsonValue,
@@ -155,8 +159,20 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('workspace', true),
 
+    layoutObject('console-goals', 'surface', {
+      name: 'Goal Stack', kind: 'goals', role: 'surface', stripe_order: 2, active: false, seed_revision: 3,
+    }, ['goals.region-editor', ...companionIds('goals')]),
+    layoutObject('goals.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'goals.vi-stack', seed_revision: 3,
+    }, ['goals.vi-stack']),
+    layoutObject('goals.vi-stack', 'view-instance', {
+      descriptor_id: 'goal.stack', title: 'Goal Stack',
+      query: { types: ['surface-tool'] } as unknown as JsonValue,
+    }),
+    ...companionSeeds('goals'),
+
     layoutObject('console-index', 'surface', {
-      name: 'Index', kind: 'index', role: 'surface', stripe_order: 2, active: false, seed_revision: 2,
+      name: 'Index', kind: 'index', role: 'surface', stripe_order: 3, active: false, seed_revision: 2,
     }, ['index.region-rail', 'index.region-editor', ...companionIds('index')]),
     ...registerToolWindow({
       id: 'index.region-rail', title: 'Destinations', icon: 'rail', side: 'left', size: 22,
@@ -172,7 +188,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('index'),
 
     layoutObject('console-docs', 'surface', {
-      name: 'Documents', kind: 'documents', role: 'surface', stripe_order: 3, active: false, seed_revision: 2,
+      name: 'Documents', kind: 'documents', role: 'surface', stripe_order: 4, active: false, seed_revision: 2,
     }, ['docs.region-list', 'docs.region-editor', ...companionIds('docs')]),
     ...registerToolWindow({
       id: 'docs.region-list', title: 'Documents', icon: 'docs', side: 'left', size: 22,
@@ -188,7 +204,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('docs'),
 
     layoutObject('console-cards', 'surface', {
-      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 4, active: false, seed_revision: 2,
+      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 5, active: false, seed_revision: 2,
     }, ['cards.region-editor', ...companionIds('cards')]),
     layoutObject('cards.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'cards.vi-grid', seed_revision: 2,

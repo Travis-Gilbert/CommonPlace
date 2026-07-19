@@ -12,6 +12,20 @@
   }
 }
 
+@keyframes goal-edge-march {
+  to {
+    stroke-dashoffset: -0.08;
+  }
+}
+
+.goal-edge-running {
+  animation: goal-edge-march 0.9s linear infinite;
+}
+
+.goal-edge-progress {
+  transition: stroke-dashoffset 0.22s var(--ij-ease);
+}
+
 .ij-progress-indeterminate {
   position: relative;
   overflow: hidden;
@@ -32,5 +46,13 @@
     animation: none;
     width: 100%;
     opacity: 0.6;
+  }
+
+  .goal-edge-running {
+    animation: none;
+  }
+
+  .goal-edge-progress {
+    transition: none;
   }
 }

@@ -77,7 +77,7 @@ describe('thread store', () => {
     vi.stubGlobal('fetch', fetchSpy);
     useThreadStore.getState().setMode('web');
     await useThreadStore.getState().send('Research this change');
-    const init = fetchSpy.mock.calls[0]?.[1];
-    expect(JSON.parse(String(init?.body))).toMatchObject({ capability: { kind: 'web' } });
+    const payloads = fetchSpy.mock.calls.map(([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>);
+    expect(payloads).toContainEqual(expect.objectContaining({ capability: { kind: 'web' } }));
   });
 });

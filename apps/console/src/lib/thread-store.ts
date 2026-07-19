@@ -9,6 +9,10 @@
 
 import { create } from 'zustand';
 import { createParser, type EventSourceMessage } from 'eventsource-parser';
+import {
+  fetchWorkspaceReadiness,
+  type WorkspaceReadiness,
+} from '@commonplace/theorem-acp/workspace-state';
 
 export interface ThreadTextPart {
   readonly type: 'text';
@@ -19,6 +23,12 @@ export interface ThreadMessage {
   id: string;
   role: 'user' | 'assistant';
   parts: ThreadTextPart[];
+  degradation?: ThreadDegradation;
+}
+
+export interface ThreadDegradation {
+  degraded: true;
+  missingIndexes: string[];
 }
 
 export interface AgentPlanStep {
@@ -121,6 +131,13 @@ function planOf(data: string): AgentPlanStep[] | null {
   }
 }
 
+export function askDegradation(readiness: WorkspaceReadiness): ThreadDegradation | undefined {
+  const missing = readiness.capabilities
+    .filter((capability) => capability.capability === 'ask')
+    .flatMap((capability) => capability.missing);
+  return missing.length ? { degraded: true, missingIndexes: [...new Set(missing)] } : undefined;
+}
+
 export const useThreadStore = create<ThreadState>((set, get) => ({
   messages: [],
   isRunning: false,
@@ -167,6 +184,18 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       abort,
       plan: [],
     }));
+    void fetchWorkspaceReadiness()
+      .then((readiness) => {
+        const degradation = askDegradation(readiness);
+        if (!degradation) return;
+        set((state) => ({
+          messages: state.messages.map((message) =>
+            message.id === assistantMessage.id ? { ...message, degradation } : message),
+        }));
+      })
+      .catch(() => {
+        // The answer transport remains usable, but no readiness claim is made.
+      });
 
     // Text deltas buffer in a local accumulator and flush once per animation
     // frame so re-render cost stays flat during fast streams (the streaming

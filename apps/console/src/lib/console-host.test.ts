@@ -48,6 +48,7 @@ describe('ConsoleBlockHost', () => {
       'console-cards',
       'console-chat',
       'console-docs',
+      'console-goals',
       'console-index',
       'console-proactivity',
       'console-review',
@@ -58,7 +59,7 @@ describe('ConsoleBlockHost', () => {
       .filter((surface) => typeof surface.properties.stripe_order === 'number')
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Index', 'Documents', 'Cards',
+        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Documents', 'Cards',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
@@ -87,7 +88,7 @@ describe('ConsoleBlockHost', () => {
     const left = set.objects.find((object) => object.id === 'workspace.region-files')!;
     const editor = set.objects.find((object) => object.id === 'region-editor')!;
     expect(left.relations?.[CONTAINS_EDGE]).toEqual(['vi-code', 'workspace.region-files.view']);
-    expect(editor.relations?.[CONTAINS_EDGE]).toEqual(['vi-brief']);
+    expect(editor.relations?.[CONTAINS_EDGE]).toEqual(['workspace.vi-substrate', 'vi-brief']);
   });
 
   it('notifies layout subscribers on update', async () => {
