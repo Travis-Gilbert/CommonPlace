@@ -176,7 +176,15 @@ test.describe('Console information architecture', () => {
     expect(bodies[0]).not.toHaveProperty('capability');
 
     await page.getByLabel('Chat destination').selectOption('web');
-    await expect(page.locator('[data-web-search-state]')).toHaveText('Web search ready');
+    // X1 deleted the footer status row, so "Web search ready" no longer exists
+    // as text: the mark is the status, which is its entire job. The capability
+    // it advertised still needs a reachable handle, and it now rides the
+    // control that actually selects the destination.
+    await expect(page.locator('[data-web-search-state]')).toHaveAttribute(
+      'data-web-search-state',
+      'available',
+    );
+    await expect(page.getByLabel('Chat destination')).toHaveValue('web');
     await input.fill('Find the current release notes.');
     await input.press('Enter');
     await expect.poll(() => bodies.length).toBe(2);

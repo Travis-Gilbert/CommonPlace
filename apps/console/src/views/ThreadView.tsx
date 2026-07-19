@@ -10,7 +10,8 @@ import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { MessagePrimitive, ThreadPrimitive, useMessage } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
-import { Composer } from '@/components/composer/Composer';
+import { Composer, NEW_LINE_HINT } from '@/components/composer/Composer';
+import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
@@ -106,8 +107,34 @@ function titleOf(object: ObjectRef | undefined, fallback: string): string {
   return String(object?.properties.title ?? object?.properties.name ?? fallback);
 }
 
+/** The starter SLOTS (HANDOFF-CONSOLE-DIMENSIONALITY X5). The empty state gets
+ *  its structure without waiting for wires: the three slots always render, so
+ *  the first-run Chat reads as a quiet room rather than missing paint. A slot
+ *  is disabled until its live suggestion lands and says why in the meantime --
+ *  the REAL refusal, never a placeholder mood -- and flips live when identity
+ *  arrives, per HANDOFF-CONSOLE-IA I2. The resting labels name the shape of the
+ *  offer, which is true before the tenant is known and stays true after. */
+const STARTER_SLOTS = [
+  { id: 'recent-record', resting: 'Review a recent record' },
+  { id: 'recent-document', resting: 'Summarize a recent document' },
+  { id: 'runnable-action', resting: 'Plan an action' },
+] as const;
+
+/** The identity refusal, named exactly as the seam reports it. The console's
+ *  identity-refusal state maps HTTP 403, which the harness principal resolver
+ *  emits as principal_resolution=unauthenticated; that string is what a person
+ *  can act on, so it is what the slot shows. */
+function refusalFor(connection: ConnectionState, endpointMissing: boolean): string | null {
+  if (endpointMissing) return 'Chat endpoint unavailable: configure NEXT_PUBLIC_CONSOLE_CHAT_URL';
+  if (connection === 'identity-refused') return 'principal_resolution=unauthenticated';
+  if (connection === 'disconnected') return 'Disconnected from the object seam';
+  if (connection === 'connecting') return 'Connecting to the object seam';
+  return null;
+}
+
 function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boolean }) {
   const [suggestions, setSuggestions] = useState<readonly StarterSuggestion[]>([]);
+  const connection = useShellStore((state) => state.connection);
 
   useEffect(() => {
     let active = true;
@@ -133,24 +160,42 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
     };
   }, [host]);
 
+  const refusal = refusalFor(connection, disabled);
+
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-ij-ink-info">
-      <p>Start from live tenant context.</p>
-      <div className="flex max-w-3xl flex-wrap justify-center gap-2" data-chat-starters>
-        {suggestions.map((suggestion) => (
-          <button
-            key={suggestion.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => void submitThreadText(suggestion.prompt)}
-            className="rounded-ij-arc border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface disabled:text-ij-ink-disabled"
-            style={{ transition: 'var(--rec-clickable-transition)' }}
-          >
-            {suggestion.label}
-          </button>
-        ))}
+    <div className="flex h-full flex-col justify-end gap-3 px-3 pb-4 text-ij-ink-info" data-chat-empty-state>
+      <p data-chat-empty-lede className="text-ij-ink">Start from live tenant context.</p>
+      <div className="flex flex-wrap gap-2" data-chat-starters>
+        {STARTER_SLOTS.map((slot) => {
+          const live = suggestions.find((suggestion) => suggestion.id === slot.id);
+          // A slot with no live suggestion is refused for a named reason: the
+          // seam's own refusal when there is one, otherwise the plain fact that
+          // tenant context has not arrived.
+          const reason = live ? null : (refusal ?? 'Tenant suggestions are unavailable');
+          return (
+            <button
+              key={slot.id}
+              type="button"
+              data-chat-starter={slot.id}
+              data-starter-refusal={reason ?? undefined}
+              title={reason ?? undefined}
+              disabled={reason !== null}
+              onClick={() => (live ? void submitThreadText(live.prompt) : undefined)}
+              className="rounded-ij-arc border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface disabled:text-ij-ink-disabled"
+              style={{ transition: 'var(--rec-clickable-transition)' }}
+            >
+              {live ? live.label : slot.resting}
+            </button>
+          );
+        })}
       </div>
-      {suggestions.length === 0 ? <p data-starters-unavailable>Tenant suggestions are unavailable.</p> : null}
+      {refusal ? (
+        <p data-starters-unavailable className="font-ij-mono text-ij-ink-disabled">{refusal}</p>
+      ) : null}
+      {/* The new-line hint's second home (X1): the send control's title carries
+          it for people already typing, the first run carries it for people who
+          have not started. */}
+      <p data-composer-hint className="text-ij-ink-disabled">{NEW_LINE_HINT}</p>
     </div>
   );
 }

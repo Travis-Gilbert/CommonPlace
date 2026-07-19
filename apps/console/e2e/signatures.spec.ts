@@ -62,9 +62,33 @@ for (const { theme, preset } of THEMES) {
       const editor = luminance(await resolveToken(page, '--ij-editor'));
       const raised = luminance(await resolveToken(page, '--ij-raised'));
 
+      // The inversion, stated as the pinned register actually holds it. In Int
+      // UI Dark --ij-seam and --ij-editor are BOTH gray-1: the seam beside the
+      // well is the well's own value, and the boundary reads because chrome
+      // (gray-2) is lighter than both. So the rule is "never lighter than a
+      // neighbour, and strictly darker than the chrome it bounds" -- demanding
+      // strictly-darker-than-everything would be asserting against JetBrains
+      // rather than against drift.
       expect(seam, 'seam must be darker than chrome').toBeLessThan(chrome);
-      expect(seam, 'seam must be darker than the editor well').toBeLessThan(editor);
-      expect(seamRaised, 'raised seam must be darker than the raised surface').toBeLessThan(raised);
+      expect(seam, 'seam must never be lighter than the editor well').toBeLessThanOrEqual(editor);
+
+      // --ij-seam-raised is a different job from --ij-seam, and the pinned
+      // register treats it differently. A structural seam separates two planes
+      // of the app and sinks below both. A raised seam is the border of a
+      // surface FLOATING above the plane behind it, so it moves away from its
+      // own surface toward whatever it has to be visible against: gray-4 over
+      // gray-3 in dark (lighter), gray-10 under white in light (darker). The
+      // rule is therefore a measurable separation in the direction the theme
+      // needs, which is what "visible against white" means in light.
+      expect(
+        Math.abs(seamRaised - raised),
+        'the raised seam must separate measurably from the surface it bounds',
+      ).toBeGreaterThan(0.005);
+      if (theme === 'light') {
+        expect(seamRaised, 'in light the raised seam must be darker than the white it bounds').toBeLessThan(raised);
+      } else {
+        expect(seamRaised, 'in dark the raised seam rises off its surface, per Int UI Dark').toBeGreaterThan(raised);
+      }
 
       // The junctions themselves, as rendered rather than as tokens.
       const junctions: { name: string; selector: string; side: string }[] = [
@@ -92,7 +116,10 @@ for (const { theme, preset } of THEMES) {
       await expect(panelSeam, 'the companion-to-editor seam must render').toBeVisible();
       const panelColour = await panelSeam.evaluate((node) => getComputedStyle(node).backgroundColor);
       expect(luminance(panelColour), 'companion-to-editor seam must be darker than chrome').toBeLessThan(chrome);
-      expect(luminance(panelColour), 'companion-to-editor seam must be darker than the editor well').toBeLessThan(editor);
+      expect(
+        luminance(panelColour),
+        'companion-to-editor seam must never be lighter than the editor well',
+      ).toBeLessThanOrEqual(editor);
     });
 
     // Signature 2. The stripe button in its RESTORED grammar (X3.4, named
