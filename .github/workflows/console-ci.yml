@@ -72,6 +72,14 @@ jobs:
         run: node scripts/check-icon-svg.mjs
         working-directory: apps/console
 
+      # HANDOFF-CONSOLE-DIMENSIONALITY X2. The register lint checks the form of
+      # a value, not its provenance; this checks provenance. A component minting
+      # --ij-anything, or a token added to a register without the manifest diff
+      # that reviews it, fails here.
+      - name: Token manifest gate (gate 7)
+        run: node scripts/check-token-manifest.mjs
+        working-directory: apps/console
+
       - name: ESLint (fence in the editor)
         run: pnpm --filter @commonplace/console run lint
 
