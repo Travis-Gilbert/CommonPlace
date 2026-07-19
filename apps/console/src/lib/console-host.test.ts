@@ -69,14 +69,20 @@ describe('ConsoleBlockHost', () => {
       'workspace.region-thread',
     ]);
     expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+    // The Index carries a third surface-role region, the urgent lane, whose
+    // empty state is its designed norm (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0
+    // F5). It is a region rather than a companion because it belongs to this
+    // surface alone; companions ride alongside every surface.
     const index = buildSurfaceTree('console-index', set.objects);
     expect(index!.children.map((child) => child.object.id)).toEqual([
       'index.region-rail',
       'index.region-editor',
+      'index.region-urgent',
       'index.region-files',
       'index.region-context',
       'index.region-thread',
     ]);
+    expect(index!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {

@@ -72,14 +72,7 @@ export function DocListView({ set, host }: ViewRenderProps) {
   );
 }
 
-/** The index.rail descriptor (R3.1): the destination rail names its missing
- *  wire honestly; connectors and the filing engine are out of scope this
- *  round, so no destination data exists to render. */
-export function IndexRailView(_props: ViewRenderProps) {
-  return (
-    <ViewState
-      state="unavailable"
-      capability="destinations (connectors and the filing engine, out of scope this round)"
-    />
-  );
-}
+// The index.rail descriptor used to live here as an honest refusal naming
+// "the filing engine" as its missing capability. That engine landed with
+// SPEC-COMMONPLACE-FILING-AND-INDEX-1.0, so the rail is now real and lives in
+// IndexDestinationsView.tsx.

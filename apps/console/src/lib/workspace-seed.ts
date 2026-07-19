@@ -171,19 +171,33 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('goals'),
 
+    // The Index (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0). The rail names the
+    // shelves; the editor holds the recently-filed ribbon, the digest, and the
+    // rules tab; the urgent lane is its own small tool window whose empty state
+    // is the designed norm. The triage stream used to point at record.table
+    // over 5000 fixture records, which is why seed_revision moves: an existing
+    // arrangement must re-seed to reach the real one.
     layoutObject('console-index', 'surface', {
-      name: 'Index', kind: 'index', role: 'surface', stripe_order: 3, active: false, seed_revision: 2,
-    }, ['index.region-rail', 'index.region-editor', ...companionIds('index')]),
+      name: 'Index', kind: 'index', role: 'surface', stripe_order: 3, active: false, seed_revision: 3,
+    }, ['index.region-rail', 'index.region-editor', 'index.region-urgent', ...companionIds('index')]),
     ...registerToolWindow({
       id: 'index.region-rail', title: 'Destinations', icon: 'rail', side: 'left', size: 22,
       open: true, role: 'surface', descriptorId: 'index.rail', queryTypes: ['record'],
     }),
+    ...registerToolWindow({
+      id: 'index.region-urgent', title: 'Needs you today', icon: 'rail', side: 'right', size: 22,
+      open: true, role: 'surface', descriptorId: 'index.urgent', queryTypes: ['record'],
+    }),
     layoutObject('index.region-editor', 'region', {
-      kind: 'editor', size: 78, active_tab: 'index.vi-stream', seed_revision: 2,
-    }, ['index.vi-stream']),
+      kind: 'editor', size: 56, active_tab: 'index.vi-stream', seed_revision: 3,
+    }, ['index.vi-stream', 'index.vi-rules']),
     layoutObject('index.vi-stream', 'view-instance', {
-      descriptor_id: 'record.table', title: 'Triage stream',
+      descriptor_id: 'index.stream', title: 'Recently filed',
       query: { types: ['record'], live: true } as unknown as JsonValue,
+    }),
+    layoutObject('index.vi-rules', 'view-instance', {
+      descriptor_id: 'index.rules', title: 'Rules',
+      query: { types: ['record'] } as unknown as JsonValue,
     }),
     ...companionSeeds('index'),
 

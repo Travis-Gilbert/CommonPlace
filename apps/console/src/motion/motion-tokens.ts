@@ -168,6 +168,12 @@ export const INTERACTION_INVENTORY = [
     spec: 'GROUND tokens; the only permitted ambient motion; never repaints above a measured negligible idle cost',
     reducedMotion: 'static texture, no repaint loop',
   },
+  {
+    trigger: 'Filing correction accepted',
+    effect: 'the undo toast arrives at the foot of the Index: opacity 0 to 1 plus 4px translate, then stands for its window and leaves',
+    spec: 'DUR.fast, EASE_OUT, transform and opacity only; the toast is time-boxed by the undo window, not by the animation',
+    reducedMotion: 'the toast renders settled and static, and still stands for its full undo window',
+  },
 ] as const;
 
 /**

@@ -22,6 +22,15 @@ export const REGION_PAINT: Record<string, string> = {
   'editor-well': '--ij-editor',
   'status-bar': '--ij-chrome',
   composer: '--ij-raised',
+  // The Index surface. Its three panes sit inside the editor well, so they
+  // carry the well's plane, not chrome: in light that is the brightest plane
+  // and the work surface, which is what the Index is.
+  'filing-index': '--ij-editor',
+  'filing-rules': '--ij-editor',
+  'filing-urgent': '--ij-editor',
+  // The receipt popover is the one transient surface in the Index, which is
+  // also the only place a shadow token is legal there (named choice 3).
+  'filing-receipt': '--ij-raised',
 };
 
 /** Regions that must EXIST on the workspace surface. A region cannot pass the
