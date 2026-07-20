@@ -411,16 +411,16 @@ function CommitDetail({
           className="z-50 w-80 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-3 text-ij-ink shadow-xl"
         >
           <div className="flex flex-col gap-2">
-            <p className={cn('text-sm leading-snug', faces.title)} data-type-role="title" data-type-speaker={faces.speaker}>
+            <p className={cn('text-rec-body leading-snug', faces.title)} data-type-role="title" data-type-speaker={faces.speaker}>
               {commit.message}
             </p>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-ij-ink-info">
+            <div className="flex flex-wrap items-center gap-2 text-rec-machine text-ij-ink-info">
               <span
                 className={cn('inline-flex items-center gap-1.5', faces.body)}
                 data-type-role="body"
                 data-type-speaker={faces.speaker}
               >
-                <span className="flex size-4 items-center justify-center rounded-full bg-ij-chrome font-ij-mono text-xs">
+                <span className="flex size-4 items-center justify-center rounded-full bg-ij-chrome font-ij-mono text-rec-machine">
                   {commit.author.name
                     .split(/\s+/)
                     .map((w) => w[0])
@@ -431,11 +431,11 @@ function CommitDetail({
                 {commit.author.name}
               </span>
               <span className="text-ij-seam-raised">·</span>
-              <code className="rounded-ij-arc bg-ij-chrome px-1 py-0.5 font-ij-mono text-xs" data-type-role="machine">
+              <code className="rounded-ij-arc bg-ij-chrome px-1 py-0.5 font-ij-mono text-rec-machine" data-type-role="machine">
                 {commit.hash.slice(0, hashLength)}
               </code>
             </div>
-            <div className="font-ij-mono text-xs text-ij-ink-info" data-type-role="machine">
+            <div className="font-ij-mono text-rec-machine text-ij-ink-info" data-type-role="machine">
               {formatFullDate(commit.date)}
             </div>
             {(commit.refs || commit.tag) && (
@@ -447,7 +447,7 @@ function CommitDetail({
               </div>
             )}
             {commit.parents.length > 0 && (
-              <div className="font-ij-mono text-xs text-ij-ink-info" data-type-role="machine">
+              <div className="font-ij-mono text-rec-machine text-ij-ink-info" data-type-role="machine">
                 {commit.parents.length === 1 ? 'Parent' : 'Parents'}:{' '}
                 {commit.parents.map((p) => p.slice(0, hashLength)).join(', ')}
               </div>
@@ -483,7 +483,7 @@ export function RefBadge({
       data-slot={tag ? 'commit-tag' : 'commit-ref'}
       data-type-role="machine"
       className={cn(
-        'inline-flex items-center rounded-ij-arc border bg-ij-chrome px-1.5 font-ij-mono text-xs leading-none',
+        'inline-flex items-center rounded-ij-arc border bg-ij-chrome px-1.5 font-ij-mono text-rec-machine leading-none',
         tag ? 'font-semibold' : null,
         dashed ? 'border-dashed' : null,
       )}
@@ -576,13 +576,13 @@ export function CommitRow({
         </div>
       )}
       <p
-        className={cn('min-w-24 flex-1 truncate text-left text-sm text-ij-ink', titleClass ?? laneFaces(lane).title)}
+        className={cn('min-w-24 flex-1 truncate text-left text-rec-body text-ij-ink', titleClass ?? laneFaces(lane).title)}
         data-type-role="title"
         data-type-speaker={laneFaces(lane).speaker}
       >
         {commit.message}
       </p>
-      <div className="flex shrink-0 items-center gap-2 font-ij-mono text-xs text-ij-ink-info">
+      <div className="flex shrink-0 items-center gap-2 font-ij-mono text-rec-machine text-ij-ink-info">
         {/* font-ij-mono on the element, not inherited: the <code> UA rule
             (font-family: monospace) overrides an inherited face, so an
             ancestor class silently loses. The P4 gate caught this. */}
@@ -618,7 +618,7 @@ function CommitGraph({ commits, truncateHash = 7, railWidth = 24, className, ...
       <div
         data-slot="commit-graph"
         className={cn(
-          'flex items-center justify-center rounded-ij-arc border border-ij-seam-raised bg-ij-editor py-10 text-sm text-ij-ink-info',
+          'flex items-center justify-center rounded-ij-arc border border-ij-seam-raised bg-ij-editor py-10 text-rec-body text-ij-ink-info',
           className,
         )}
         {...props}

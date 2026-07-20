@@ -26,4 +26,21 @@
   --rec-weight-regular: 400;
   --rec-weight-medium: 500;
   --rec-weight-cap: 600;
+
+  /* The type ramp (32-HANDOFF-PROACTIVITY-MATERIAL-AND-DENSITY named choice 2).
+     Provenance: TWENTY-APP-VALUES FontCommon, same read. Twenty's body base is
+     13px and its smallest metadata size is 12px; there is no 11px in the
+     system. A ramp needs three rungs to read as a ramp, and the density
+     inversion the handoff names came from having only two: a 16px title
+     dropping straight to 11px mono says "phone" at desktop width because
+     nothing occupies the middle. */
+  --rec-type-title: 15px;
+  --rec-type-body: 13px;
+  /* The machinery floor. Nothing on a record surface renders below this. */
+  --rec-type-machine: 12px;
+
+  /* Row rhythm for a scanned list of like things (the sources panel): Twenty's
+     record row, one grid unit taller than the Int UI 24px control row so a
+     switch sits in it without crowding. */
+  --rec-row-h: 28px;
 }

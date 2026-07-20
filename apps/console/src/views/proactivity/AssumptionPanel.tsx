@@ -39,7 +39,7 @@ export function AssumptionPanel({
             <p className={assumption.pruned ? 'text-ij-ink-disabled line-through' : 'text-ij-ink'}>
               {assumption.statement}
             </p>
-            <p className="text-xs text-ij-ink-info">
+            <p className="text-rec-machine text-ij-ink-info">
               Rests on {assumption.restsOn}.
               {assumption.couldChangeSourceIds.length > 0
                 ? ` Could change from your ${assumption.couldChangeSourceIds.map(sourceLabel).join(' or ')}.`
@@ -48,7 +48,7 @@ export function AssumptionPanel({
           </div>
           <button
             type="button"
-            className="h-ij-control shrink-0 rounded-ij-arc border border-ij-control-border px-2 text-xs text-ij-ink-info hover:bg-ij-hover-surface"
+            className="h-ij-control shrink-0 rounded-ij-arc border border-ij-control-border px-2 text-rec-machine text-ij-ink-info hover:bg-ij-hover-surface"
             onClick={() =>
               void edits.run({
                 action: setPrunedAction(assumption.id, !assumption.pruned),
@@ -62,7 +62,7 @@ export function AssumptionPanel({
         </div>
       ))}
       {stake && !stake.label.complete ? (
-        <p className="text-xs text-ij-warn">
+        <p className="text-rec-machine text-ij-warn">
           More lie beyond what has been explored ({stake.label.prunedCount} pruned). This is not all of them.
         </p>
       ) : null}

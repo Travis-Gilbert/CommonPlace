@@ -77,7 +77,7 @@ function CommitHeader({ view }: { readonly view: CommitView }) {
       <CommitDot lane={facts.lane} lit={facts.isHead} />
       <span
         data-type-role="machine"
-        className={cn('rounded-ij-arc px-1.5 font-ij-mono text-xs font-medium', meta.tint, meta.ink)}
+        className={cn('rounded-ij-arc px-1.5 font-ij-mono text-rec-machine font-medium', meta.tint, meta.ink)}
       >
         {meta.label}
       </span>
@@ -119,7 +119,7 @@ function CommitBody({ view, selected }: { readonly view: CommitView; readonly se
         // The permission clause: what this commit is allowed to do, stated on
         // the commit that would do it and nowhere else (named choice 7).
         <p
-          className={cn('truncate font-ij-mono text-xs', permissionClause(node).ink)}
+          className={cn('truncate font-ij-mono text-rec-machine', permissionClause(node).ink)}
           data-type-role="machine"
           data-permission
         >
@@ -128,7 +128,7 @@ function CommitBody({ view, selected }: { readonly view: CommitView; readonly se
       ) : null}
       {node.degraded.degraded ? (
         <p
-          className={cn('truncate text-xs text-ij-warn', faceClass('body', speakerOf('author' in node ? node : undefined)))}
+          className={cn('truncate text-rec-machine text-ij-warn', faceClass('body', speakerOf('author' in node ? node : undefined)))}
           data-type-role="body"
           data-type-speaker={speakerOf('author' in node ? node : undefined)}
         >
@@ -183,7 +183,7 @@ export function CandidateNode({ data }: NodeProps<CandidateRFNode>) {
     >
       <div className="flex items-center gap-1.5">
         <CommitDot lane="human" />
-        <span data-type-role="machine" className="rounded-ij-arc bg-ij-chrome px-1.5 font-ij-mono text-xs font-medium text-ij-ink-info">
+        <span data-type-role="machine" className="rounded-ij-arc bg-ij-chrome px-1.5 font-ij-mono text-rec-machine font-medium text-ij-ink-info">
           {data.kindLabel}
         </span>
       </div>

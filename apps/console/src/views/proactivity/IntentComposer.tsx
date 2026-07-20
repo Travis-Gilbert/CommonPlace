@@ -23,7 +23,8 @@ export function IntentComposer({
   sources,
   contracts,
   hint,
-  onCandidates,
+  result,
+  onResult,
 }: {
   readonly host: BlockHost;
   readonly sources: readonly SourceNode[];
@@ -32,26 +33,24 @@ export function IntentComposer({
    *  hint so a custom or complex condition is described and compiled, never a
    *  blank hand-written row (the node-model grammar). */
   readonly hint?: string;
-  /** The candidates currently awaiting review, published upward so the graph
-   *  altitude can render them as uncommitted commits ahead of HEAD (P5). The
-   *  composer stays the only place they are produced or resolved; the graph
-   *  only shows them. */
-  readonly onCandidates?: (candidates: readonly StandingNode[]) => void;
+  /** The pending compilation, held by the surface rather than by this
+   *  component. The graph altitude renders the same candidates as uncommitted
+   *  commits ahead of HEAD (P5), and the card altitude unmounts when you switch
+   *  to it: if the review lived here, switching altitudes would strand
+   *  candidates the graph was still showing. One source of truth, held above
+   *  both altitudes. */
+  readonly result: IntentCompileResult | null;
+  readonly onResult: (result: IntentCompileResult | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [intent, setIntent] = useState('');
   // Adjust state during render when the hint prop changes (the React-sanctioned
-  // pattern, not an effect): a compile-only block add opens the composer with the
-  // hint prefilled, without a cascading-render effect.
+  // pattern, not an effect): a compile-only block add prefills the input with the
+  // hint, without a cascading-render effect.
   const [seenHint, setSeenHint] = useState<string | undefined>(hint);
   if (hint !== seenHint) {
     setSeenHint(hint);
-    if (hint) {
-      setOpen(true);
-      setIntent(hint);
-    }
+    if (hint) setIntent(hint);
   }
-  const [result, setResult] = useState<IntentCompileResult | null>(null);
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState<string | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
@@ -61,18 +60,15 @@ export function IntentComposer({
     setCommitted(null);
     setCommitError(null);
     seq.current += 1;
-    const next = stubForme.compileIntent(intent, { sources, contracts, idPrefix: `authored-${seq.current}` });
-    setResult(next);
-    onCandidates?.(next.ok ? next.candidates : []);
+    onResult(stubForme.compileIntent(intent, { sources, contracts, idPrefix: `authored-${seq.current}` }));
   };
 
   const discard = () => {
     // Nothing was emitted, so there is nothing to remove.
-    setResult(null);
+    onResult(null);
     setIntent('');
     setCommitted(null);
     setCommitError(null);
-    onCandidates?.([]);
   };
 
   const commit = async (candidates: readonly StandingNode[]) => {
@@ -95,60 +91,62 @@ export function IntentComposer({
       committedIds.push(...(receipt.value?.target_ids ?? [candidate.id]));
     }
     setCommitting(false);
-    setResult(null);
+    onResult(null);
     setIntent('');
-    onCandidates?.([]);
     setCommitted('Added to your graph. It is now editable like any other node.');
   };
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="rounded-ij-arc border border-ij-control-border bg-ij-editor px-3 py-2 text-sm text-ij-ink hover:bg-ij-hover-surface"
-        onClick={() => setOpen(true)}
-      >
-        I want help with something
-      </button>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2 rounded-ij-arc border border-ij-seam-raised bg-ij-editor p-3" data-intent-composer>
-      <label className="text-xs uppercase tracking-wide text-ij-ink-info" htmlFor="pg-intent">
-        Say what you want, in plain language
-      </label>
-      <textarea
-        id="pg-intent"
-        className="min-h-16 rounded-ij-arc border border-ij-control-border bg-ij-chrome p-2 text-sm text-ij-ink font-ij-ui"
-        placeholder="tell me when anyone I owe work to goes quiet"
-        value={intent}
-        onChange={(event) => setIntent(event.target.value)}
-      />
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2" data-intent-composer>
+      {/* The compile affordance, bounded (32 named choice 6). A screen-wide
+          single-line strip with a vague placeholder is the Composer's silhouette,
+          and this is not the Composer: it is the plain-language compiler, it
+          belongs to this panel, and it says so by being measured, labelled, and
+          seated in the panel's header region. `max-w-2xl` is the 560-to-640
+          measure the handoff specifies. */}
+      <div className="flex max-w-2xl items-end gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <label
+            className="font-ij-mono text-rec-machine uppercase tracking-wide text-ij-ink-info"
+            htmlFor="pg-intent"
+            data-type-role="machine"
+          >
+            Say what you want, in plain language
+          </label>
+          <input
+            id="pg-intent"
+            data-intent-input
+            className="h-ij-control w-full rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-ui text-rec-body text-ij-ink"
+            placeholder="tell me when anyone I owe work to goes quiet"
+            value={intent}
+            onChange={(event) => setIntent(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && intent.trim()) compile();
+            }}
+          />
+        </div>
         <button
           type="button"
-          className="rounded-ij-arc bg-ij-accent px-3 py-1 text-sm text-ij-ink-bright hover:bg-ij-accent-hover"
+          className="h-ij-control shrink-0 rounded-ij-arc bg-ij-accent px-3 text-rec-body text-ij-ink-bright hover:bg-ij-accent-hover disabled:bg-ij-chrome disabled:text-ij-ink-disabled"
+          style={{ transition: 'var(--rec-clickable-transition)' }}
+          disabled={!intent.trim()}
           onClick={compile}
         >
-          Compile it
-        </button>
-        <button type="button" className="rounded-ij-arc px-3 py-1 text-sm text-ij-ink-info" onClick={() => setOpen(false)}>
-          Close
+          Compile
         </button>
       </div>
 
-      {committed ? <p className="text-sm text-ij-ok">{committed}</p> : null}
+      {committed ? <p className="font-cp-agent text-rec-body text-ij-ok" data-type-role="body" data-type-speaker="agent">{committed}</p> : null}
 
       {result && !result.ok ? (
         <div className="rounded-ij-arc bg-ij-warn-bg p-3">
-          <p className="text-sm text-ij-warn">Could not compile: {result.reason}</p>
+          <p className="font-cp-agent text-rec-body text-ij-warn" data-type-role="body" data-type-speaker="agent">Could not compile: {result.reason}</p>
         </div>
       ) : null}
 
       {result && result.ok ? (
-        <div className="flex flex-col gap-2 rounded-ij-arc bg-ij-chrome p-3" data-intent-review>
-          <p className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info" data-type-role="machine">
+        <div className="flex max-w-2xl flex-col gap-2 rounded-ij-arc border border-ij-seam-raised bg-ij-editor p-2" data-intent-review>
+          <p className="font-ij-mono text-rec-machine uppercase tracking-wide text-ij-ink-info" data-type-role="machine">
             Uncommitted, ahead of HEAD
           </p>
           {/* Candidates read as what they are: commits that do not exist yet.
@@ -163,7 +161,7 @@ export function IntentComposer({
               >
                 <span
                   data-type-role="machine"
-                  className={`rounded-ij-arc px-2 py-0 font-ij-mono text-xs ${KIND_META[candidate.kind].tint} ${KIND_META[candidate.kind].ink}`}
+                  className={`rounded-ij-arc px-2 py-0 font-ij-mono text-rec-machine ${KIND_META[candidate.kind].tint} ${KIND_META[candidate.kind].ink}`}
                 >
                   {KIND_META[candidate.kind].label}
                 </span>
@@ -176,21 +174,21 @@ export function IntentComposer({
               </li>
             ))}
           </ul>
-          <p className="text-sm text-ij-ink-info">{result.rationale}</p>
-          {commitError ? <p className="text-sm text-ij-error">{commitError}</p> : null}
+          <p className="font-cp-agent text-rec-body text-ij-ink-info" data-type-role="body" data-type-speaker="agent">{result.rationale}</p>
+          {commitError ? <p className="font-cp-agent text-rec-body text-ij-error" data-type-role="body" data-type-speaker="agent">{commitError}</p> : null}
           <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={committing}
-              className="rounded-ij-arc bg-ij-accent px-3 py-1 text-sm text-ij-ink-bright hover:bg-ij-accent-hover"
+              className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-rec-body text-ij-ink-bright hover:bg-ij-accent-hover"
               onClick={() => void commit(result.candidates)}
             >
               {committing ? 'Committing…' : 'Commit'}
             </button>
-            <button type="button" className="rounded-ij-arc border border-ij-control-border px-3 py-1 text-sm text-ij-ink" onClick={compile}>
+            <button type="button" className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-rec-body text-ij-ink" onClick={compile}>
               Edit and recompile
             </button>
-            <button type="button" className="rounded-ij-arc px-3 py-1 text-sm text-ij-ink-info" onClick={discard}>
+            <button type="button" className="h-ij-control rounded-ij-arc px-3 text-rec-body text-ij-ink-info" onClick={discard}>
               Discard
             </button>
           </div>

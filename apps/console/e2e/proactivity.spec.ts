@@ -17,6 +17,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { expectEveryFaceLawful } from './type-audit';
+import { expectAuthorshipSurvivesGrayscale, expectNoColoredWords } from './color-audit';
 
 /** A fixed instant after the fixture's newest firing (2026-07-18T18:02Z), so
  *  every relative time on the surface is stable and every "Nd ago" is real. */
@@ -73,10 +74,14 @@ async function openGraph(page: Page) {
 
 /** Compile an intent so PG5 candidates exist to render ahead of HEAD. */
 async function compileCandidates(page: Page) {
-  await page.getByRole('button', { name: 'I want help with something' }).click();
   await page.locator('#pg-intent').fill('tell me when anyone I owe work to goes quiet');
-  await page.getByRole('button', { name: 'Compile it' }).click();
+  await page.getByRole('button', { name: 'Compile', exact: true }).click();
   await expect(page.locator('[data-intent-review]')).toBeVisible();
+}
+
+/** A source's consent is a switch now, not a Disable button (Q4). */
+async function toggleSource(page: Page, id: string) {
+  await page.locator(`[data-node="${id}"]`).getByRole('switch').click();
 }
 
 test.describe('Proactivity: the standing program reads as a repository', () => {
@@ -92,18 +97,120 @@ test.describe('Proactivity: the standing program reads as a repository', () => {
     await expect(page.locator('[data-slot="repo-meta"]').first()).toBeVisible();
   });
 
-  test('the cards carry fire count, last fired, budget, and permission in the repo-card slots', async ({ page }) => {
+  test('the cards carry their anchors: tiles, sparkline, clock, spend meter, badges', async ({ page }) => {
     await openProactivity(page);
-    // The star slot is the fire count; the fork slot is when it last fired.
-    await expect(page.getByText(/^fired /).first()).toBeVisible();
-    await expect(page.getByText(/^last /).first()).toBeVisible();
-    // The license slot is the standing budget; the updated slot is permission.
-    await expect(page.getByText(/spend \d+ of \d+/).first()).toBeVisible();
-    await expect(page.getByText('will ask you every time').first()).toBeVisible();
-    // The over-budget program refuses, in the error tone, on its own card.
-    await expect(page.getByText('over budget, not running').first()).toBeVisible();
-    // A never-fired program says so rather than showing a bare zero.
+    // Q3. Every card leads with a kind tile carrying the author's rail.
+    await expect(page.locator('[data-kind-tile="stake"]').first()).toBeVisible();
+    await expect(page.locator('[data-kind-tile="watch"]').first()).toBeVisible();
+    await expect(page.locator('[data-author-rail]').first()).toBeVisible();
+    // The stat run is marks, not sentences: a sparkline, a clock, a meter.
+    await expect(page.locator('[data-fired-sparkline]').first()).toBeVisible();
+    await expect(page.locator('[data-spend-meter]').first()).toBeVisible();
+    // The over-budget meter overruns its track, visibly, rather than saying so.
+    await expect(page.locator('[data-spend-meter][data-over-budget="true"]').first()).toBeVisible();
+    // Every state phrase is a badge (Q3): gold learned, amber refused, neutral ask.
+    await expect(page.locator('[data-state-badge="gold"]').first()).toBeVisible();
+    await expect(page.locator('[data-state-badge="amber"]').first()).toBeVisible();
+    await expect(page.locator('[data-state-badge="neutral"]').first()).toBeVisible();
+    // A never-fired program still says so rather than showing a bare zero.
     await expect(page.getByText('never fired').first()).toBeVisible();
+  });
+
+  test('the surface is bounded in panels, and nothing floats', async ({ page }) => {
+    await openProactivity(page);
+    // Q1. Three panels, each with a header strip and a seam.
+    await expect(page.locator('[data-board-panel]')).toHaveCount(3);
+    await expect(page.locator('[data-board-panel-header]')).toHaveCount(3);
+    await expect(page.getByRole('heading', { name: 'Sources' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What matters to you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What it watches for you' })).toBeVisible();
+    // The board is a content plane with the paper grain behind it.
+    await expect(page.locator('[data-board] [data-grain-canvas]')).toHaveCount(1);
+  });
+
+  test('the type ramp has three rungs and nothing renders below the 12px floor', async ({ page }) => {
+    await openProactivity(page);
+    const ramp = await page.evaluate(() => {
+      const host = document.querySelector('[data-altitude="card"]');
+      if (!host) return { below: [] as string[], sizes: [] as number[], height: 0 };
+      const below: string[] = [];
+      for (const node of host.querySelectorAll<HTMLElement>('*')) {
+        const own = [...node.childNodes]
+          .filter((child) => child.nodeType === Node.TEXT_NODE)
+          .map((child) => child.textContent ?? '')
+          .join('')
+          .trim();
+        if (own.length === 0) continue;
+        const size = Number.parseFloat(getComputedStyle(node).fontSize);
+        if (Number.isFinite(size) && size < 12) below.push(`${size}px: ${own.slice(0, 30)}`);
+      }
+      // The three rungs, measured on one card: title, body, machinery.
+      const card = host.querySelector('[data-slot="repo-card"]');
+      const rung = (selector: string) => {
+        const found = card?.querySelector<HTMLElement>(selector);
+        return found ? Number.parseFloat(getComputedStyle(found).fontSize) : 0;
+      };
+      return {
+        below,
+        sizes: [rung('[data-slot="repo-name"]'), rung('[data-slot="repo-description"]'), rung('[data-slot="repo-meta"]')],
+        height: (host as HTMLElement).scrollHeight,
+      };
+    });
+
+    // Twenty's floor: there is no 11px in the system (Q2).
+    expect(ramp.below, `text below the 12px machinery floor: ${ramp.below.join(' | ')}`).toEqual([]);
+    // Three DISTINCT rungs. Two is what made the proportions feel off: a serif
+    // title dropping straight to mono metadata with nothing in between.
+    const [title, body, machine] = ramp.sizes;
+    expect(title, 'the title rung').toBe(15);
+    expect(body, 'the body rung').toBe(13);
+    expect(machine, 'the machinery rung').toBe(12);
+    expect(new Set(ramp.sizes).size, 'the ramp must have three distinct rungs').toBe(3);
+  });
+
+  test('sources are one panel of switch rows, not a farm of boxes', async ({ page }) => {
+    await openProactivity(page);
+    // Q4. Five rows, five switches, zero Disable buttons on the source panel.
+    await expect(page.locator('[data-source-row]')).toHaveCount(5);
+    await expect(page.locator('[data-source-row] [role="switch"]')).toHaveCount(5);
+    await expect(page.locator('[data-source-row]').getByRole('button', { name: 'Disable' })).toHaveCount(0);
+  });
+
+  test('the compile affordance is bounded, labelled, and not the Composer', async ({ page }) => {
+    await openProactivity(page);
+    // Q5. Labelled, measured, and seated in the watches panel's header region.
+    await expect(page.getByLabel('Say what you want, in plain language')).toBeVisible();
+    const input = page.locator('[data-intent-input]');
+    await expect(input).toBeVisible();
+    const box = await input.boundingBox();
+    const viewport = page.viewportSize();
+    expect(box, 'the compile input must render').not.toBeNull();
+    expect(box!.width, 'the compile input is measured, not a screen-wide strip').toBeLessThan(700);
+    expect(box!.width / (viewport?.width ?? 1440)).toBeLessThan(0.6);
+    // It lives inside the watches panel, which is what makes it that panel's
+    // tool rather than a page-level billboard.
+    await expect(page.locator('[data-board-panel-banner] [data-intent-input]')).toHaveCount(1);
+  });
+
+  test('no semantic color rides small text, and authorship survives grayscale', async ({ page }) => {
+    await openProactivity(page);
+    // Q6 / Q3. Cause 4 and its assertion.
+    await expectNoColoredWords(page, '[data-altitude="card"]');
+    await expectAuthorshipSurvivesGrayscale(page, '[data-altitude="card"]');
+  });
+
+  test('a card face carries at most one button; Disable lives in the overflow', async ({ page }) => {
+    await openProactivity(page);
+    // Q3. The administrative repetition is gone from the faces.
+    await expect(page.locator('[data-slot="repo-card"]').getByRole('button', { name: 'Disable' })).toHaveCount(0);
+    // A program's overflow carries the disables for everything its card shows:
+    // the watch, its judgment, and its response.
+    const program = page.locator('[data-node="pg-watch-appeal"]');
+    await program.locator('[data-overflow-trigger]').click();
+    await expect(page.locator('[data-overflow-menu]')).toBeVisible();
+    // And consent is still one click away, and still round-trips.
+    await page.getByRole('button', { name: 'Disable the watch' }).click();
+    await expect(page.locator('[data-archived="true"]').first()).toBeVisible();
   });
 
   test('a derived watch carries the fork badge and a disabled node the archived badge', async ({ page }) => {
@@ -112,9 +219,12 @@ test.describe('Proactivity: the standing program reads as a repository', () => {
     // stake's label rather than being authored.
     await expect(page.locator('[data-fork="true"]').first()).toBeVisible();
     await expect(page.locator('[data-archived="true"]')).toHaveCount(0);
-    await page.locator('[data-node="pg-source-email"]').getByRole('button', { name: 'Disable' }).click();
-    // Upstream's archived pattern is the disabled state (named choice 5).
-    await expect(page.locator('[data-archived="true"]').first()).toBeVisible();
+    await toggleSource(page, 'pg-source-email');
+    // The switch reports the standing condition it governs.
+    await expect(page.locator('[data-node="pg-source-email"]').getByRole('switch')).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
   });
 
   test('disabling a source degrades its dependent watches with the consequence named', async ({ page }) => {
@@ -123,7 +233,7 @@ test.describe('Proactivity: the standing program reads as a repository', () => {
 
     // Email feeds every watch; disabling it must not silently break them.
     await expect(page.getByText('this can no longer see your email')).toHaveCount(0);
-    await page.locator('[data-node="pg-source-email"]').getByRole('button', { name: 'Disable' }).click();
+    await toggleSource(page, 'pg-source-email');
     await expect(page.getByText('Degraded: this can no longer see your email').first()).toBeVisible();
   });
 
@@ -188,7 +298,7 @@ test.describe('Proactivity: the standing program reads as a repository', () => {
   test('disabling a node renders it as a revert, and undo reverses it', async ({ page }) => {
     await openProactivity(page);
     await expect(page.locator('[data-commit-revert="true"]')).toHaveCount(0);
-    await page.locator('[data-node="pg-source-email"]').getByRole('button', { name: 'Disable' }).click();
+    await toggleSource(page, 'pg-source-email');
     await openGraph(page);
     // Disable IS the revert commit (the mapping table); the undo affordance
     // already on the surface is what reverses it, so no new mutation appears.

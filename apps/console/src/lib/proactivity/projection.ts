@@ -123,7 +123,7 @@ function resolveBudget(contract: EffectContract, budgets: readonly StandingBudge
 
 const NO_DEGRADE: DegradedState = { degraded: false, causeIds: [] };
 
-const NO_FIRINGS: FiringState = { count: 0, executionIds: [] };
+const NO_FIRINGS: FiringState = { count: 0, executionIds: [], firedOn: [] };
 
 /** Fold the firing history into the per-response state the card's stat slots
  *  read (named choice 5). Read-only, like permission and budget beside it. */
@@ -132,8 +132,13 @@ function resolveFirings(responseId: string, firings: readonly StandingFiring[]):
   if (mine.length === 0) return NO_FIRINGS;
   // The history is ordered newest-last by construction; the last entry is the
   // most recent fire, which is what "last fired" means on the card.
-  const lastFiredOn = mine.reduce((latest, firing) => (firing.firedOn > latest ? firing.firedOn : latest), mine[0].firedOn);
-  return { count: mine.length, lastFiredOn, executionIds: mine.map((firing) => firing.id) };
+  const firedOn = mine.map((firing) => firing.firedOn).sort();
+  return {
+    count: mine.length,
+    lastFiredOn: firedOn[firedOn.length - 1],
+    executionIds: mine.map((firing) => firing.id),
+    firedOn,
+  };
 }
 
 /**

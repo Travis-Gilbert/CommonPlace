@@ -33,7 +33,7 @@ import type { ProactivityEdits } from './use-edits';
 
 type SourceProjection = Extract<ProjectedNode, { kind: 'source' }>;
 
-const CHIP = 'shrink-0 rounded-ij-arc bg-ij-chrome px-1.5 text-xs font-medium font-ij-mono text-ij-ink-info';
+const CHIP = 'shrink-0 rounded-ij-arc bg-ij-chrome px-1.5 text-rec-machine font-medium font-ij-mono text-ij-ink-info';
 
 /** The type chip and rail dot: kind reads by the chip label and the dot, never
  *  color alone (the join-honesty rule, applied to blocks). */
@@ -113,7 +113,7 @@ function BlockRow({
       {isStep ? (
         <>
           <input
-            className="min-w-0 flex-1 bg-transparent text-xs text-ij-ink outline-none"
+            className="min-w-0 flex-1 bg-transparent text-rec-machine text-ij-ink outline-none"
             value={label}
             aria-label={`${block.chip} step`}
             disabled={nodeDisabled(node)}
@@ -128,7 +128,7 @@ function BlockRow({
           <button
             type="button"
             aria-label={`Remove ${block.chip} step`}
-            className="shrink-0 text-xs text-ij-ink-info opacity-0 group-hover/block:opacity-100 hover:text-ij-error"
+            className="shrink-0 text-rec-machine text-ij-ink-info opacity-0 group-hover/block:opacity-100 hover:text-ij-error"
             onClick={(event) => {
               event.stopPropagation();
               onRemoveStep?.();
@@ -138,7 +138,7 @@ function BlockRow({
           </button>
         </>
       ) : (
-        <span className="min-w-0 flex-1 truncate text-xs text-ij-ink">{block.label}</span>
+        <span className="min-w-0 flex-1 truncate text-rec-machine text-ij-ink">{block.label}</span>
       )}
 
       {/* Field editors, inspector only: a compact node face stays a legible
@@ -195,7 +195,7 @@ function BlockPalette({
       <button
         type="button"
         aria-expanded={open}
-        className="flex items-center gap-1 text-xs text-ij-ink-info hover:text-ij-ink"
+        className="flex items-center gap-1 text-rec-machine text-ij-ink-info hover:text-ij-ink"
         onClick={(event) => {
           event.stopPropagation();
           setOpen((value) => !value);
@@ -211,7 +211,7 @@ function BlockPalette({
               <button
                 key={type}
                 type="button"
-                className="flex items-center justify-between gap-2 rounded-ij-arc px-2 py-1 text-left text-xs text-ij-ink hover:bg-ij-hover-surface"
+                className="flex items-center justify-between gap-2 rounded-ij-arc px-2 py-1 text-left text-rec-machine text-ij-ink hover:bg-ij-hover-surface"
                 onClick={(event) => {
                   event.stopPropagation();
                   setOpen(false);
@@ -248,7 +248,7 @@ function BranchGroup({
 }) {
   return (
     <div className="ml-2 flex flex-col gap-0.5 border-l border-dashed border-ij-seam-raised pl-2">
-      <span className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info">{branch}</span>
+      <span className="font-ij-mono text-rec-machine uppercase tracking-wide text-ij-ink-info">{branch}</span>
       {blocks.map((block) => (
         <BlockRow key={block.id} block={block} {...row} {...row.stepHandlers(block)} />
       ))}
@@ -316,7 +316,7 @@ export function BlockStack({
 
         {forked ? (
           <div className="flex flex-col gap-0.5">
-            <span className="font-ij-mono text-xs text-ij-ink-info">if</span>
+            <span className="font-ij-mono text-rec-machine text-ij-ink-info">if</span>
             {thenBranch.length > 0 ? (
               <BranchGroup branch="then" blocks={thenBranch} {...row} stepHandlers={stepHandlers} />
             ) : null}
@@ -344,7 +344,7 @@ export function BlockStack({
         <BlockRow key={block.id} block={block} {...row} />
       ))}
       {blocks.length === 0 ? (
-        <span className="text-xs text-ij-ink-info">No blocks yet. Add one from intent.</span>
+        <span className="text-rec-machine text-ij-ink-info">No blocks yet. Add one from intent.</span>
       ) : null}
       <BlockPalette node={node} edits={edits} onCompile={onCompile} steps={steps} />
     </div>

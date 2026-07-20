@@ -150,7 +150,7 @@ export function GraphAltitude({
   return (
     <div className="flex h-full flex-col" data-altitude="graph">
       <p
-        className="border-b border-ij-divider px-6 py-2 font-cp-agent text-xs text-ij-ink-info"
+        className="border-b border-ij-divider px-6 py-2 font-cp-agent text-rec-machine text-ij-ink-info"
         data-type-role="body"
         data-type-speaker="agent"
       >
@@ -171,7 +171,7 @@ export function GraphAltitude({
             onCompile={onCompile}
           />
           {stale ? (
-            <div className="absolute left-4 top-4 rounded-ij-arc bg-ij-chrome px-2 py-1 text-xs text-ij-ink-info">
+            <div className="absolute left-4 top-4 rounded-ij-arc bg-ij-chrome px-2 py-1 text-rec-machine text-ij-ink-info">
               Updating layout…
             </div>
           ) : null}
@@ -212,14 +212,14 @@ function NodeInspector({
       </div>
 
       {node.kind === 'source' ? (
-        <p className="text-sm text-ij-ink">
+        <p className="text-rec-body text-ij-ink">
           {humanLifeKind(node.lifeKind)} ingest: <span className="font-ij-mono text-ij-ink-info">{node.disabled ? 'off' : node.ingest}</span>
         </p>
       ) : null}
 
       {node.kind === 'stake' ? (
         <>
-          <p className="text-sm text-ij-ink font-cp-title">{node.statement}</p>
+          <p className="text-rec-body text-ij-ink font-cp-title">{node.statement}</p>
           <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <AssumptionPanel graph={graph} stakeId={node.id} edits={edits} />
         </>
@@ -231,8 +231,8 @@ function NodeInspector({
 
       {node.kind === 'watch' ? (
         <>
-          <p className="text-sm text-ij-ink font-cp-title">{node.statement}</p>
-          <p className="text-xs text-ij-ink-info">Looks for: {node.condition}</p>
+          <p className="text-rec-body text-ij-ink font-cp-title">{node.statement}</p>
+          <p className="text-rec-machine text-ij-ink-info">Looks for: {node.condition}</p>
           <BlockStack node={node} sources={sources} contracts={contracts} edits={edits} onCompile={onCompile} />
           <DegradedNote node={node} />
         </>

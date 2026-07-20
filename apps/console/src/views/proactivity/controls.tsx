@@ -22,12 +22,12 @@ import type { ProactivityEdits } from './use-edits';
 
 type Projected<K extends ProjectedNode['kind']> = Extract<ProjectedNode, { kind: K }>;
 
-const CONTROL = 'h-ij-control rounded-ij-arc border border-ij-control-border px-2 text-xs text-ij-ink font-ij-ui';
+const CONTROL = 'h-ij-control rounded-ij-arc border border-ij-control-border px-2 text-rec-machine text-ij-ink font-ij-ui';
 
 export function KindChip({ kind }: { readonly kind: ProjectedNode['kind'] }) {
   const meta = KIND_META[kind];
   return (
-    <span className={`inline-flex items-center rounded-ij-arc px-2 py-0 text-xs ${meta.tint} ${meta.ink}`}>
+    <span className={`inline-flex items-center rounded-ij-arc px-2 py-0 text-rec-machine ${meta.tint} ${meta.ink}`}>
       {meta.label}
     </span>
   );
@@ -36,7 +36,7 @@ export function KindChip({ kind }: { readonly kind: ProjectedNode['kind'] }) {
 export function AuthorTag({ author }: { readonly author: 'agent' | 'human' }) {
   if (author !== 'human') return null;
   return (
-    <span className="inline-flex items-center rounded-ij-arc bg-ij-gold-tint px-2 py-0 text-xs text-ij-gold">
+    <span className="inline-flex items-center rounded-ij-arc bg-ij-gold-tint px-2 py-0 text-rec-machine text-ij-gold">
       yours
     </span>
   );
@@ -68,7 +68,7 @@ export function DisableControl({ node, edits }: { readonly node: DisableableNode
 export function DisabledTag({ disabled }: { readonly disabled: boolean }) {
   if (!disabled) return null;
   return (
-    <span className="inline-flex items-center rounded-ij-arc bg-ij-chrome px-2 py-0 text-xs text-ij-ink-disabled">
+    <span className="inline-flex items-center rounded-ij-arc bg-ij-chrome px-2 py-0 text-rec-machine text-ij-ink-disabled">
       disabled
     </span>
   );
@@ -78,7 +78,7 @@ export function DisabledTag({ disabled }: { readonly disabled: boolean }) {
 export function DegradedNote({ node }: { readonly node: ProjectedNode }) {
   if (!node.degraded.degraded) return null;
   return (
-    <p className="text-xs text-ij-warn" role="status">
+    <p className="font-cp-agent text-rec-body text-ij-warn" role="status" data-type-role="body" data-type-speaker="agent">
       Degraded: {node.degraded.consequence}
     </p>
   );
@@ -87,14 +87,14 @@ export function DegradedNote({ node }: { readonly node: ProjectedNode }) {
 /** The permission clause on a response (named choice 7). */
 export function PermissionBadge({ response }: { readonly response: ProjectedResponse }) {
   if (response.budget.overBudget) {
-    return <span className="rounded-ij-arc bg-ij-error-bg px-2 py-0 text-xs text-ij-error">Over budget, not running</span>;
+    return <span className="rounded-ij-arc bg-ij-error-bg px-2 py-0 text-rec-machine text-ij-error">Over budget, not running</span>;
   }
   if (!response.permission.hasGrant) {
-    return <span className="rounded-ij-arc bg-ij-chrome px-2 py-0 text-xs text-ij-accent">Will ask you every time</span>;
+    return <span className="rounded-ij-arc bg-ij-chrome px-2 py-0 text-rec-machine text-ij-accent">Will ask you every time</span>;
   }
   const revocable = response.permission.revocable ? ', revocable' : '';
   return (
-    <span className="rounded-ij-arc bg-ij-gold-tint px-2 py-0 text-xs text-ij-gold">
+    <span className="rounded-ij-arc bg-ij-gold-tint px-2 py-0 text-rec-machine text-ij-gold">
       Can act on its own, granted {response.permission.grantedOn}
       {revocable}
     </span>
@@ -107,7 +107,7 @@ export function BudgetBadge({ response }: { readonly response: ProjectedResponse
   const cap = budget.cap === null ? 'no cap' : `of ${budget.cap}`;
   const tone = budget.overBudget ? 'text-ij-error' : 'text-ij-ink-info';
   return (
-    <span className={`font-ij-mono text-xs ${tone}`} title={`capability ${response.permission.capabilityClass}`}>
+    <span className={`font-ij-mono text-rec-machine ${tone}`} title={`capability ${response.permission.capabilityClass}`}>
       spend {budget.projectedSpend} {cap}
     </span>
   );
@@ -124,7 +124,7 @@ export function JudgmentClassEditor({
   readonly edits: ProactivityEdits;
 }) {
   return (
-    <label className="inline-flex items-center gap-1 text-xs text-ij-ink-info">
+    <label className="inline-flex items-center gap-1 text-rec-machine text-ij-ink-info">
       <span>When it fires</span>
       <select
         className={CONTROL}
@@ -161,7 +161,7 @@ export function NumberParamEditor({
 }) {
   const current = Number(watch.conditionParams[param] ?? 0);
   return (
-    <label className="inline-flex items-center gap-1 text-xs text-ij-ink-info">
+    <label className="inline-flex items-center gap-1 text-rec-machine text-ij-ink-info">
       <span>{param}</span>
       <input
         type="number"
@@ -195,7 +195,7 @@ export function SourcesEditor({
 }) {
   const selected = new Set(watch.sourceIds);
   return (
-    <fieldset className="flex flex-wrap items-center gap-2 text-xs text-ij-ink-info">
+    <fieldset className="flex flex-wrap items-center gap-2 text-rec-machine text-ij-ink-info">
       <legend className="sr-only">Sources this watch reads</legend>
       {allSources.map((source) => {
         const checked = selected.has(source.id);
@@ -237,7 +237,7 @@ export function ActionClassEditor({
   readonly edits: ProactivityEdits;
 }) {
   return (
-    <label className="inline-flex items-center gap-1 text-xs text-ij-ink-info">
+    <label className="inline-flex items-center gap-1 text-rec-machine text-ij-ink-info">
       <span>Then</span>
       <select
         className={CONTROL}

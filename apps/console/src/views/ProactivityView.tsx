@@ -18,8 +18,8 @@ import { graphFromObjects } from '@/lib/proactivity/object-bridge';
 import { REFUSAL_NOTE } from '@/lib/proactivity/store';
 import { ViewState } from './ViewStates';
 import { CardAltitude } from './proactivity/CardAltitude';
-import { IntentComposer } from './proactivity/IntentComposer';
-import { sourcesOf } from './proactivity/kinds';
+import { GrainCanvas } from '@/components/ground/GrainCanvas';
+import type { IntentCompileResult } from '@/lib/proactivity/forme';
 import { useProactivityEdits } from './proactivity/use-edits';
 
 // The graph altitude, and the dagre layout library it dynamically imports, load
@@ -43,10 +43,13 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
   // the intent composer, so arbitrary logic is described and compiled, never a
   // blank hand-written row (the node-model grammar, custom compiled from intent).
   const [compileHint, setCompileHint] = useState<string | undefined>(undefined);
-  // Candidates live here rather than inside the composer, because the graph
-  // altitude renders them as uncommitted commits ahead of HEAD (P5) while the
-  // composer stays the only place they are produced, committed, or discarded.
-  const [candidates, setCandidates] = useState<readonly StandingNode[]>([]);
+  // The pending compilation lives here, above both altitudes. The graph renders
+  // its candidates as uncommitted commits ahead of HEAD (P5) and the card
+  // altitude owns the review that resolves them; holding it in either one would
+  // strand the other when you switch. Candidates are derived, never a second
+  // copy, so the two altitudes cannot disagree about what is pending.
+  const [compilation, setCompilation] = useState<IntentCompileResult | null>(null);
+  const candidates: readonly StandingNode[] = compilation?.ok ? compilation.candidates : [];
   const edits = useProactivityEdits(host);
 
   const refused = set.notes?.includes(REFUSAL_NOTE) ?? false;
@@ -82,7 +85,7 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
 
   return (
     <div className="flex h-full flex-col bg-ij-editor" data-surface="proactivity">
-      <header className="flex flex-col gap-3 border-b border-ij-divider p-4">
+      <header className="flex flex-col gap-2 border-b border-ij-seam bg-ij-chrome px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div
             role="tablist"
@@ -98,7 +101,7 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
                   type="button"
                   aria-selected={selected}
                   tabIndex={selected ? 0 : -1}
-                  className={`rounded-ij-arc px-3 py-1 text-sm ${selected ? 'bg-ij-accent text-ij-ink-bright' : 'text-ij-ink-info hover:bg-ij-hover-surface'}`}
+                  className={`h-ij-control rounded-ij-arc px-3 text-rec-body ${selected ? 'bg-ij-accent text-ij-ink-bright' : 'text-ij-ink-info hover:bg-ij-hover-surface'}`}
                   onClick={() => setAltitude(option.id)}
                   onKeyDown={(event) => onTabKey(event, index)}
                 >
@@ -110,22 +113,15 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
           {edits.canUndo ? (
             <button
               type="button"
-              className="rounded-ij-arc border border-ij-control-border px-3 py-1 text-sm text-ij-ink hover:bg-ij-hover-surface"
+              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-rec-body text-ij-ink hover:bg-ij-hover-surface"
               onClick={() => void edits.undo()}
             >
               Undo {edits.nextUndoLabel}
             </button>
           ) : null}
         </div>
-        <IntentComposer
-          host={host}
-          sources={sourcesOf(graph.nodes)}
-          contracts={contracts}
-          hint={compileHint}
-          onCandidates={setCandidates}
-        />
         {edits.error ? (
-          <p className="rounded-ij-arc bg-ij-error-bg px-3 py-1 text-sm text-ij-error" role="alert">
+          <p className="rounded-ij-arc border border-ij-error bg-ij-error-bg px-2 py-1 text-rec-body text-ij-error" role="alert">
             {edits.error}
             <button type="button" className="ml-2 text-ij-ink-info" onClick={edits.clearError}>
               dismiss
@@ -134,8 +130,23 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
         ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        {altitude === 'card' ? <CardAltitude graph={graph} edits={edits} contracts={contracts} /> : null}
+      {/* The board: a content plane on the chrome ground with the paper grain
+          behind it (Q1). The scroller is absolutely positioned inside so it has
+          a definite height, which is what lets the graph altitude fill it. */}
+      <div className="relative min-h-0 flex-1 bg-ij-chrome" data-board>
+        <GrainCanvas />
+        <div className="absolute inset-0 overflow-auto">
+        {altitude === 'card' ? (
+          <CardAltitude
+            graph={graph}
+            edits={edits}
+            contracts={contracts}
+            host={host}
+            compileHint={compileHint}
+            compilation={compilation}
+            onCompilation={setCompilation}
+          />
+        ) : null}
         {altitude === 'graph' ? (
           <GraphAltitude
             graph={graph}
@@ -145,6 +156,7 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
             onCompile={setCompileHint}
           />
         ) : null}
+        </div>
       </div>
     </div>
   );

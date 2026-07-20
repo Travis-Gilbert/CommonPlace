@@ -110,6 +110,15 @@
   --spacing-rec-utility-col: var(--rec-utility-col);
   --spacing-rec-side-panel: var(--rec-side-panel);
   --spacing-rec-sibling-gap: var(--rec-sibling-gap);
+  --spacing-rec-row: var(--rec-row-h);
+
+  /* The type ramp as utilities: text-rec-title, text-rec-body,
+     text-rec-machine. Emitted from the Twenty structural group so a size is a
+     reviewed token like a color is, and so "no text below 12px" is a property
+     of the vocabulary rather than a rule someone has to remember. */
+  --text-rec-title: var(--rec-type-title);
+  --text-rec-body: var(--rec-type-body);
+  --text-rec-machine: var(--rec-type-machine);
 }
 
 /* The one shadow token (HANDOFF-CONSOLE-DIMENSIONALITY named choice 3): depth

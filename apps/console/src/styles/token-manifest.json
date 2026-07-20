@@ -1552,6 +1552,12 @@
       "note": "spacing(n) = n * 4px",
       "resolvedAlsoIn": []
     },
+    "--rec-row-h": {
+      "file": "src/styles/rec-structural.css",
+      "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
+      "note": "Row rhythm for a scanned list of like things (the sources panel): Twenty's",
+      "resolvedAlsoIn": []
+    },
     "--rec-sibling-gap": {
       "file": "src/styles/rec-structural.css",
       "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
@@ -1562,6 +1568,24 @@
       "file": "src/styles/rec-structural.css",
       "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
       "note": "record detail side panel",
+      "resolvedAlsoIn": []
+    },
+    "--rec-type-body": {
+      "file": "src/styles/rec-structural.css",
+      "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
+      "note": "The type ramp (32-HANDOFF-PROACTIVITY-MATERIAL-AND-DENSITY named choice 2).",
+      "resolvedAlsoIn": []
+    },
+    "--rec-type-machine": {
+      "file": "src/styles/rec-structural.css",
+      "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
+      "note": "The machinery floor. Nothing on a record surface renders below this.",
+      "resolvedAlsoIn": []
+    },
+    "--rec-type-title": {
+      "file": "src/styles/rec-structural.css",
+      "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
+      "note": "The type ramp (32-HANDOFF-PROACTIVITY-MATERIAL-AND-DENSITY named choice 2).",
       "resolvedAlsoIn": []
     },
     "--rec-utility-col": {

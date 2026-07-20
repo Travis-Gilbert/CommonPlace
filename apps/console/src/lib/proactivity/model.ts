@@ -314,6 +314,10 @@ export interface FiringState {
   readonly lastFiredOn?: string;
   /** The ids of the execution commits parented to this response. */
   readonly executionIds: readonly string[];
+  /** When each firing happened, oldest first. The sparkline in the card's stat
+   *  row draws from this: a count says how often, a sparkline says when, and
+   *  "when" is the part that tells you whether a program is still working. */
+  readonly firedOn: readonly string[];
 }
 
 export type ProjectedNode =

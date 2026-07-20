@@ -96,7 +96,7 @@ export function formatRelativeDate(iso: string): string {
  * named choice 5 pairs with the archived badge for a disabled stake, which is
  * why all four variants are kept rather than trimmed to the two in use.
  */
-const repoCardVariants = cva('flex flex-col gap-3 rounded-ij-arc border transition-colors', {
+const repoCardVariants = cva('flex flex-col gap-2 rounded-ij-arc border transition-colors', {
   variants: {
     variant: {
       default: 'border-ij-seam-raised bg-ij-editor hover:border-ij-control-border hover:bg-ij-hover-surface',
@@ -105,9 +105,9 @@ const repoCardVariants = cva('flex flex-col gap-3 rounded-ij-arc border transiti
       muted: 'border-ij-seam bg-ij-chrome opacity-60 hover:opacity-100',
     },
     size: {
-      sm: 'p-3 [&_[data-slot=repo-name]]:text-sm [&_[data-slot=repo-description]]:text-xs [&_[data-slot=repo-meta]]:text-xs',
-      default: 'p-4 [&_[data-slot=repo-name]]:text-sm [&_[data-slot=repo-description]]:text-xs [&_[data-slot=repo-meta]]:text-xs',
-      lg: 'p-5 [&_[data-slot=repo-name]]:text-base [&_[data-slot=repo-description]]:text-sm [&_[data-slot=repo-meta]]:text-xs',
+      sm: 'p-2 [&_[data-slot=repo-name]]:text-rec-body [&_[data-slot=repo-description]]:text-rec-body [&_[data-slot=repo-meta]]:text-rec-machine',
+      default: 'p-3 [&_[data-slot=repo-name]]:text-rec-body [&_[data-slot=repo-description]]:text-rec-body [&_[data-slot=repo-meta]]:text-rec-machine',
+      lg: 'p-3 [&_[data-slot=repo-name]]:text-rec-title [&_[data-slot=repo-description]]:text-rec-body [&_[data-slot=repo-meta]]:text-rec-machine',
     },
   },
   defaultVariants: {
@@ -129,10 +129,18 @@ const TONE_INK: Record<RepoCardTone, string> = {
   error: 'text-ij-error',
 };
 
-/** One entry in upstream's star / fork stat run. */
+/**
+ * One entry in upstream's star / fork stat run.
+ *
+ * `mark` is where the anchors go. Upstream's stat run is a glyph beside a
+ * number, and the version without the glyph is a wireframe of a card rather
+ * than a card: 32's cause 3, "the grammar arrived as skeleton, not material".
+ * A mark can be a stroke primitive, a canvas meter, or a sparkline.
+ */
 export interface RepoCardStat {
   readonly label: string;
   readonly value: string;
+  readonly mark?: React.ReactNode;
   readonly tone?: RepoCardTone;
 }
 
@@ -186,10 +194,16 @@ interface RepoCardProps extends Omit<React.ComponentProps<'div'>, 'children' | '
   readonly bodyClass?: string;
   /** Who these faces claim is speaking, for the P4 gate. */
   readonly speaker?: 'human' | 'agent';
-  /** Right-aligned header content: author tag, disable control. */
+  /** State badges. They wrap on their own line beneath the title. */
   readonly badges?: React.ReactNode;
+  /** The pinned top-right affordance: the card's overflow. */
+  readonly action?: React.ReactNode;
   /** Composed body below the meta row: the inline editors, panels, sub-rows. */
   readonly children?: React.ReactNode;
+  /** The anchor before the name: the kind tile. Upstream leads with the GitHub
+   *  mark, which is the same job (say what kind of object this is before the
+   *  reader parses a word of it). */
+  readonly leading?: React.ReactNode;
 }
 
 /** Upstream's badge shape, with the register's warn family standing in for its
@@ -199,7 +213,7 @@ function StateBadge({ label, tone }: { readonly label: string; readonly tone: 'w
     <span
       data-type-role="machine"
       className={cn(
-        'inline-flex items-center rounded-ij-arc border px-1.5 py-0.5 font-ij-mono text-xs font-medium leading-none',
+        'inline-flex items-center rounded-ij-arc border px-1.5 py-0.5 font-ij-mono text-rec-machine font-medium leading-none',
         tone === 'warn' ? 'border-ij-warn bg-ij-warn-bg text-ij-warn' : 'border-ij-seam-raised bg-ij-chrome text-ij-ink-info',
       )}
     >
@@ -220,7 +234,9 @@ function RepoCard({
   bodyClass = 'font-cp-agent',
   speaker = 'agent',
   badges,
+  action,
   children,
+  leading,
   className,
   ...props
 }: RepoCardProps) {
@@ -238,29 +254,40 @@ function RepoCard({
       className={cn(repoCardVariants({ variant: data.archived ? 'muted' : variant, size, className }))}
       {...props}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          {showLanguage && data.laneInk ? (
-            <span
-              className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: data.laneInk }}
-              aria-hidden="true"
-            />
-          ) : null}
+      {/* DEVIATION from upstream's header row, and the reason for it: upstream
+          names a repository ("owner/repo"), which is short enough to share a
+          line with its badges. A stake names itself in a sentence. Keeping
+          upstream's geometry crushed the title to a couple of words per line,
+          so the title takes the row and the state badges wrap beneath it. The
+          badge SLOT is unchanged; only its line is. */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-start gap-2">
+          {leading ??
+            (showLanguage && data.laneInk ? (
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: data.laneInk }}
+                aria-hidden="true"
+              />
+            ) : null)}
           <span
             data-slot="repo-name"
+            style={{ fontWeight: 'var(--rec-weight-cap)' }}
             data-type-role="title"
             data-type-speaker={speaker}
-            className={cn('min-w-0 font-semibold text-ij-ink', titleClass)}
+            className={cn('min-w-0 flex-1 font-semibold text-ij-ink', titleClass)}
           >
             {data.name}
           </span>
+          {action ? <div className="flex shrink-0 items-center">{action}</div> : null}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {data.archived && <StateBadge label={data.archivedLabel ?? 'Disabled'} tone="warn" />}
-          {data.fork && <StateBadge label={data.forkLabel ?? 'Derived'} tone="muted" />}
-          {badges}
-        </div>
+        {(data.archived || data.fork || badges) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {data.archived && <StateBadge label={data.archivedLabel ?? 'Disabled'} tone="warn" />}
+            {data.fork && <StateBadge label={data.forkLabel ?? 'Derived'} tone="muted" />}
+            {badges}
+          </div>
+        )}
       </div>
 
       {data.description && (
@@ -281,7 +308,7 @@ function RepoCard({
               key={topic}
               data-slot="repo-topic"
               data-type-role="machine"
-              className="inline-flex items-center rounded-full bg-ij-chrome px-2 py-0.5 font-ij-mono text-xs font-medium text-ij-ink-info"
+              className="inline-flex items-center rounded-full bg-ij-chrome px-1.5 font-ij-mono text-rec-machine font-medium text-ij-ink-info"
             >
               {topic}
             </span>
@@ -289,7 +316,7 @@ function RepoCard({
           {hasMoreTopics && (
             <span
               data-type-role="machine"
-              className="inline-flex items-center rounded-full bg-ij-chrome px-2 py-0.5 font-ij-mono text-xs font-medium text-ij-ink-info"
+              className="inline-flex items-center rounded-full bg-ij-chrome px-1.5 font-ij-mono text-rec-machine font-medium text-ij-ink-info"
             >
               +{allTopics.length - maxTopics}
             </span>
@@ -305,8 +332,14 @@ function RepoCard({
         )}
 
         {stats.map((stat) => (
-          <span key={stat.label} className={cn('inline-flex items-center gap-1 tabular-nums', TONE_INK[stat.tone ?? 'info'])}>
-            {stat.label} {stat.value}
+          <span
+            key={stat.label}
+            data-stat={stat.label}
+            className={cn('inline-flex items-center gap-1 tabular-nums', TONE_INK[stat.tone ?? 'info'])}
+          >
+            {stat.mark}
+            {stat.label}
+            {stat.value ? ` ${stat.value}` : null}
           </span>
         ))}
 
