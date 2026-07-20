@@ -1855,8 +1855,11 @@ where
         let request = build_find_request(query, scopes, lanes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        let index = find_index(ctx)?.get(&cp, &FindConfig::default()).map_err(store_err)?;
-        let response = rustyred_thg_find::find(&index.context(), &request);
+        let response = find_index(ctx)?
+            .with(&cp, &FindConfig::default(), |index| {
+                rustyred_thg_find::find(&index.context(), &request)
+            })
+            .map_err(store_err)?;
         Ok(FindResponseGql::from(response))
     }
 
@@ -1874,8 +1877,11 @@ where
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        let index = find_index(ctx)?.get(&cp, &FindConfig::default()).map_err(store_err)?;
-        let response = run_scatter(&index.context(), &request);
+        let response = find_index(ctx)?
+            .with(&cp, &FindConfig::default(), |index| {
+                run_scatter(&index.context(), &request)
+            })
+            .map_err(store_err)?;
         Ok(ScatterResponseGql::from(response))
     }
 
@@ -1895,8 +1901,11 @@ where
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        let index = find_index(ctx)?.get(&cp, &FindConfig::default()).map_err(store_err)?;
-        let response = run_expand(&index.context(), &request, &aspect);
+        let response = find_index(ctx)?
+            .with(&cp, &FindConfig::default(), |index| {
+                run_expand(&index.context(), &request, &aspect)
+            })
+            .map_err(store_err)?;
         Ok(ScatterResponseGql::from(response))
     }
 
