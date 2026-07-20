@@ -26,28 +26,26 @@
 //! copied so the structural lane and the classifier see the real graph. The
 //! trigram and BM25 indexes are built over the same text in the same pass.
 //!
-//! A build costs one full store copy plus two index builds:
-//! O(nodes + edges + text bytes). Paying that per query is not viable, and it
-//! is not what happens: [`FindIndexCache`] keys the projection on the graph
-//! version, so a build happens on the first query after a write and every query
-//! between writes reuses it.
+//! The projection is **maintained, not rebuilt**. [`FindIndexCache`] holds it
+//! across requests and [`FindIndex::refresh`] brings it up to date through two
+//! gates: the store's global version decides whether anything changed at all,
+//! and each node's own version decides whether that node needs re-tokenizing.
+//! Repeated queries between writes cost one integer compare. A write costs a
+//! re-index of what the write touched, not of the corpus.
 //!
-//! The version key is what makes the cache safe. The objection to caching a
-//! projection is that a find answering from a stale index is worse than a slow
-//! find, and that objection is real when invalidation is a list of call sites
-//! somebody has to remember to update. It does not apply to a monotonic counter
-//! the store itself bumps on every write: a stale read is not a bug to avoid
-//! carefully, it is unrepresentable.
+//! The residual O(corpus) cost after a write is the snapshot clone and the
+//! version scan: pointer walks and integer compares, not text processing. That
+//! floor is `GraphStore`'s, not this module's, because there is no changefeed
+//! and no version-filtered node query to ask instead. Closing it means emitting
+//! changes from the store.
 //!
-//! Persisting a flat text property at write time remains the deeper fix, and
-//! belongs in `crates/commonplace`. So does incremental index maintenance
-//! through the `AccessMethod::on_write` hook the trigram index already
-//! implements, which would make a write update the postings instead of
-//! discarding them. This cache bounds the cost without foreclosing either.
+//! Persisting a flat text property at write time remains a separate improvement
+//! and belongs in `crates/commonplace`: it would remove the projection's need to
+//! flatten item bodies at all.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use commonplace::{BlobStore, Commonplace, EmbeddingGraphStore, Item, ITEM_LABEL};
 use rustyred_thg_core::fulltext::FullTextDesignation;
@@ -76,25 +74,123 @@ impl Default for FindConfig {
     }
 }
 
-/// The per-request retrieval projection: a flat-text copy of the store plus the
-/// trigram and BM25 indexes built over it.
+/// The retrieval projection: a flat-text copy of the store plus the trigram and
+/// BM25 indexes built over it.
+///
+/// The projection is maintained, not rebuilt. `indexed` records the graph
+/// version each node was last indexed at, which is what makes
+/// [`FindIndex::refresh`] able to touch only what moved.
 pub struct FindIndex {
     store: InMemoryGraphStore,
     trigram: TrigramIndex,
     edges: Vec<EdgeRecord>,
     lexical: LexicalLane,
+    /// Node id to the `NodeRecord.version` it was last indexed at.
+    indexed: HashMap<String, u64>,
+    /// Graph version this projection was last brought up to date with.
+    /// `None` means nothing has been indexed yet.
+    graph_version: Option<u64>,
+}
+
+/// What one [`FindIndex::refresh`] actually did. Returned so the cost is
+/// observable rather than assumed, and asserted in tests.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RefreshStats {
+    /// Nodes whose version was compared. Zero when the global version gate
+    /// short-circuited before taking a snapshot.
+    pub scanned: usize,
+    /// Nodes re-projected and re-indexed.
+    pub reindexed: usize,
+    /// Nodes dropped from the projection because they left the store.
+    pub removed: usize,
+}
+
+impl RefreshStats {
+    /// True when the projection was already current and no work was done.
+    pub fn was_noop(&self) -> bool {
+        self.scanned == 0 && self.reindexed == 0 && self.removed == 0
+    }
+}
+
+impl Default for FindIndex {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 
 impl FindIndex {
-    /// Project the live store into a searchable index.
+    /// An empty projection. Bring it up to date with [`FindIndex::refresh`].
+    pub fn empty() -> Self {
+        Self {
+            store: InMemoryGraphStore::new(),
+            trigram: TrigramIndex::new(),
+            edges: Vec::new(),
+            lexical: LexicalLane::new(FullTextDesignation {
+                label: ITEM_LABEL.to_string(),
+                property: DEFAULT_TEXT_PROPERTY.to_string(),
+            }),
+            indexed: HashMap::new(),
+            graph_version: None,
+        }
+    }
+
+    /// Project the live store into a searchable index, from cold.
     pub fn build<S, B>(cp: &Commonplace<S, B>, config: &FindConfig) -> GraphStoreResult<Self>
     where
         S: EmbeddingGraphStore,
         B: BlobStore,
     {
-        // One snapshot gives nodes and edges together. Backings that do not
-        // expose snapshots still get nodes (and therefore the match lanes);
-        // only the structural expand and the edge evidence go quiet.
+        let mut index = Self::empty();
+        index.refresh(cp, config)?;
+        Ok(index)
+    }
+
+    /// Bring the projection up to date with the store, touching only what moved.
+    ///
+    /// Two gates, coarse then fine:
+    ///
+    /// 1. The store's global version. If it has not moved, nothing in the graph
+    ///    has changed and there is nothing to do, so this returns without even
+    ///    taking a snapshot. Repeated queries between writes cost one integer
+    ///    compare, which is the case a search box spends its life in.
+    /// 2. Each node's own version. Only nodes whose version differs from the one
+    ///    recorded in `indexed` are re-projected, re-tokenized, and re-indexed.
+    ///    Tokenizing text is the expensive part and it is now proportional to the
+    ///    write, not to the corpus.
+    ///
+    /// The residual O(corpus) work after a write is the snapshot clone and the
+    /// version scan, both of which are pointer walks and integer compares. That
+    /// floor exists because `GraphStore` has no changefeed and no
+    /// version-filtered query; closing it means emitting changes from the store,
+    /// not doing anything smarter here.
+    ///
+    /// ## What the global gate cannot see
+    ///
+    /// `evict_node`, `readmit_node`, `evict_edge`, and `readmit_edge` are
+    /// **deliberately version-neutral**: they are the cold-tier parking path, and
+    /// their contract is to move a record between tiers without making it look
+    /// like an edit. A store that parks a subgraph therefore does not advance
+    /// `stats().version`, and gate one will short-circuit past it.
+    ///
+    /// This is correct for the consumer API, which never parks: every mutation it
+    /// makes goes through `upsert_node` or `upsert_edge`, and a delete is a
+    /// tombstoned upsert, all of which bump the version. If the find projection
+    /// is ever pointed at a store that uses the cold tier, this gate needs a
+    /// second signal and the caller must not assume otherwise.
+    pub fn refresh<S, B>(
+        &mut self,
+        cp: &Commonplace<S, B>,
+        config: &FindConfig,
+    ) -> GraphStoreResult<RefreshStats>
+    where
+        S: EmbeddingGraphStore,
+        B: BlobStore,
+    {
+        let graph_version = cp.store().stats().version;
+        if self.graph_version == Some(graph_version) {
+            return Ok(RefreshStats::default());
+        }
+
         let (nodes, edges) = match cp.store().graph_snapshot() {
             Ok(snapshot) => (snapshot.nodes, snapshot.edges),
             Err(_) => (
@@ -106,43 +202,86 @@ impl FindIndex {
             ),
         };
 
-        let items: HashMap<String, Item> = cp
-            .all_items()?
-            .into_iter()
-            .map(|item| (item.id.clone(), item))
+        let nodes: Vec<NodeRecord> = nodes.into_iter().take(config.node_limit).collect();
+        let mut stats = RefreshStats {
+            scanned: nodes.len(),
+            ..RefreshStats::default()
+        };
+
+        // Which nodes actually moved. A tombstoned node counts as a removal.
+        let live: HashSet<String> = nodes
+            .iter()
+            .filter(|node| !node.tombstone)
+            .map(|node| node.id.clone())
+            .collect();
+        let changed: Vec<&NodeRecord> = nodes
+            .iter()
+            .filter(|node| !node.tombstone)
+            .filter(|node| self.indexed.get(&node.id) != Some(&node.version))
             .collect();
 
-        let mut store = InMemoryGraphStore::new();
-        let mut trigram = TrigramIndex::new();
-        let mut documents: Vec<(String, String)> = Vec::new();
-        for mut node in nodes.into_iter().take(config.node_limit) {
+        // Hydrating items is O(items), so it is paid only when something moved.
+        let items: HashMap<String, Item> = if changed.is_empty() {
+            HashMap::new()
+        } else {
+            cp.all_items()?
+                .into_iter()
+                .map(|item| (item.id.clone(), item))
+                .collect()
+        };
+
+        for node in changed {
+            let mut node = node.clone();
             if let Some(text) = projected_text(&node, items.get(&node.id)) {
                 if let Some(properties) = node.properties.as_object_mut() {
                     properties.insert(DEFAULT_TEXT_PROPERTY.to_string(), json!(text));
                 }
-                trigram.insert(node.id.clone(), &text);
-                documents.push((node.id.clone(), text));
+                // Both indexes replace on insert, so a re-index is an update.
+                self.trigram.insert(node.id.clone(), &text);
+                self.lexical.upsert(&node.id, &text);
+            } else {
+                // A node that lost its text must lose its postings too.
+                self.trigram.remove(node.id.clone());
+                self.lexical.remove(&node.id);
             }
-            store.upsert_node(node)?;
+            self.indexed.insert(node.id.clone(), node.version);
+            self.store.upsert_node(node)?;
+            stats.reindexed += 1;
         }
+
+        // Nodes that left the store, or were tombstoned, leave the indexes.
+        let departed: Vec<String> = self
+            .indexed
+            .keys()
+            .filter(|id| !live.contains(*id))
+            .cloned()
+            .collect();
+        for id in departed {
+            self.trigram.remove(id.clone());
+            self.lexical.remove(&id);
+            self.indexed.remove(&id);
+            self.store.evict_node(&id)?;
+            stats.removed += 1;
+        }
+
+        // Edges carry no text, so they are taken wholesale: the cost is a record
+        // clone, not tokenization, and the structural lane and the classifier
+        // both need the current set.
+        //
+        // An edge whose endpoint left the store is dropped rather than carried.
+        // The projected store enforces referential integrity, so re-upserting a
+        // dangling edge is refused outright; and a classifier that walked one
+        // would be citing evidence that no longer exists.
+        let edges: Vec<EdgeRecord> = edges
+            .into_iter()
+            .filter(|edge| live.contains(&edge.from_id) && live.contains(&edge.to_id))
+            .collect();
         for edge in &edges {
-            store.upsert_edge(edge.clone())?;
+            self.store.upsert_edge(edge.clone())?;
         }
-
-        let lexical = LexicalLane::from_documents(
-            FullTextDesignation {
-                label: ITEM_LABEL.to_string(),
-                property: DEFAULT_TEXT_PROPERTY.to_string(),
-            },
-            documents,
-        );
-
-        Ok(Self {
-            store,
-            trigram,
-            edges,
-            lexical,
-        })
+        self.edges = edges;
+        self.graph_version = Some(graph_version);
+        Ok(stats)
     }
 
     /// Everything the composed executor needs to reach the projected data.
@@ -156,30 +295,17 @@ impl FindIndex {
     }
 }
 
-/// Version-keyed cache of the projection.
+/// Holds the projection across requests and keeps it current.
 ///
-/// `FindIndex::build` is O(corpus): it snapshots the graph, flattens every
-/// item, and builds a trigram index and a BM25 index over the result. Doing
-/// that per query makes a search box rebuild its whole index on every
-/// keystroke, which measured at over 60 seconds on a seeded store.
-///
-/// The graph version is monotonic and bumps on every write, so it is an exact
-/// invalidation key: between writes the projection is reused, and the first
-/// query after a write pays for the rebuild. That turns per-keystroke cost into
-/// per-write cost.
-///
-/// The deeper fix is incremental maintenance through the `AccessMethod::on_write`
-/// hook the trigram index already implements, so a write updates the postings
-/// rather than discarding them. This cache is the bounded version of that and
-/// does not preclude it.
+/// The projection is shared mutable state behind a `Mutex`, and the borrow that
+/// [`FindIndex::context`] hands out cannot outlive the guard. So the cache lends
+/// the index to a closure rather than returning it: the refresh and the query
+/// happen inside one lock, and a caller cannot accidentally hold a stale
+/// reference past the next write.
 #[derive(Default)]
 pub struct FindIndexCache {
-    inner: Mutex<Option<CachedIndex>>,
-}
-
-struct CachedIndex {
-    version: u64,
-    index: Arc<FindIndex>,
+    inner: Mutex<FindIndex>,
+    last: Mutex<RefreshStats>,
 }
 
 impl FindIndexCache {
@@ -187,43 +313,36 @@ impl FindIndexCache {
         Self::default()
     }
 
-    /// The projection for the store as it stands, rebuilding only when the
-    /// graph version has moved.
-    pub fn get<S, B>(
+    /// Refresh the projection, then run `f` against it.
+    pub fn with<S, B, R>(
         &self,
         cp: &Commonplace<S, B>,
         config: &FindConfig,
-    ) -> GraphStoreResult<Arc<FindIndex>>
+        f: impl FnOnce(&FindIndex) -> R,
+    ) -> GraphStoreResult<R>
     where
         S: EmbeddingGraphStore,
         B: BlobStore,
     {
-        let version = cp.store().stats().version;
-        let mut guard = match self.inner.lock() {
+        let mut index = match self.inner.lock() {
             Ok(guard) => guard,
-            // A poisoned cache is a cache, not a corruption: rebuild rather
-            // than failing a read the store can still serve.
+            // A poisoned projection is a cache, not a corruption: carry on and
+            // let the version gates bring it back into line.
             Err(poisoned) => poisoned.into_inner(),
         };
-        if let Some(cached) = guard.as_ref() {
-            if cached.version == version {
-                return Ok(Arc::clone(&cached.index));
-            }
+        let stats = index.refresh(cp, config)?;
+        if let Ok(mut last) = self.last.lock() {
+            *last = stats;
         }
-        let index = Arc::new(FindIndex::build(cp, config)?);
-        *guard = Some(CachedIndex {
-            version,
-            index: Arc::clone(&index),
-        });
-        Ok(index)
+        Ok(f(&index))
     }
 
-    /// Whether a projection is currently held, for tests and diagnostics.
-    pub fn is_warm(&self) -> bool {
-        self.inner
+    /// What the most recent refresh did. For tests and diagnostics.
+    pub fn last_refresh(&self) -> RefreshStats {
+        self.last
             .lock()
-            .map(|guard| guard.is_some())
-            .unwrap_or(false)
+            .map(|stats| *stats)
+            .unwrap_or_default()
     }
 }
 
@@ -286,32 +405,84 @@ mod tests {
     }
 
     #[test]
-    fn the_projection_is_reused_between_writes_and_rebuilt_after_one() {
+    fn a_query_between_writes_reindexes_nothing() {
+        let cp = seeded();
+        let cache = FindIndexCache::new();
+        let config = FindConfig::default();
+
+        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        let cold = cache.last_refresh();
+        assert!(
+            cold.reindexed >= 3,
+            "cold build indexed {} nodes, fewer than the three seeded items",
+            cold.reindexed
+        );
+
+        cache.with(&cp, &config, |index| index.document_count()).expect("warm");
+        let warm = cache.last_refresh();
+        assert!(
+            warm.was_noop(),
+            "a query with no intervening write did work: {warm:?}"
+        );
+        assert_eq!(
+            warm.scanned, 0,
+            "the global version gate should short-circuit before the snapshot"
+        );
+    }
+
+    #[test]
+    fn a_write_reindexes_only_what_it_touched() {
         let mut cp = seeded();
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
-        assert!(!cache.is_warm());
-
-        let first = cache.get(&cp, &config).expect("build");
-        assert!(cache.is_warm());
-        let second = cache.get(&cp, &config).expect("cached");
-        assert!(
-            Arc::ptr_eq(&first, &second),
-            "a second query with no intervening write rebuilt the projection"
-        );
+        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
 
         IngestPipeline::default()
             .ingest(&mut cp, IngestInput::note("Trigrams", "trigram indexes narrow the scan"))
             .expect("ingest");
-        let third = cache.get(&cp, &config).expect("rebuild");
+
+        let count = cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("refresh");
+        let stats = cache.last_refresh();
+        assert_eq!(count, 4, "the new item is searchable");
         assert!(
-            !Arc::ptr_eq(&second, &third),
-            "a write did not invalidate the projection"
+            stats.reindexed <= 2,
+            "one ingest re-indexed {} nodes; it should touch the new item and at \
+             most one node the ingest also rewrote",
+            stats.reindexed
         );
         assert!(
-            third.document_count() > first.document_count(),
-            "the rebuilt projection did not pick up the new item"
+            stats.scanned >= 4,
+            "the version scan should still see the whole corpus"
         );
+    }
+
+    #[test]
+    fn a_tombstoned_node_leaves_the_indexes() {
+        let mut cp = seeded();
+        let cache = FindIndexCache::new();
+        let config = FindConfig::default();
+        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+
+        // A delete is a tombstoned upsert, which bumps the graph version.
+        // `evict_node` deliberately does not: it is cold-tier parking, and the
+        // global gate cannot see it (see `FindIndex::refresh`).
+        let victim = cp.all_items().expect("items")[0].id.clone();
+        let mut record = cp
+            .store()
+            .get_node(&victim)
+            .expect("victim node")
+            .clone();
+        record.tombstone = true;
+        cp.store_mut().upsert_node(record).expect("tombstone");
+
+        let count = cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("refresh");
+        let stats = cache.last_refresh();
+        assert_eq!(stats.removed, 1, "the tombstoned node was not dropped");
+        assert_eq!(count, 2, "the tombstoned item is still searchable");
     }
 
     #[test]
