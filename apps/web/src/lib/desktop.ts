@@ -1,5 +1,6 @@
 'use client';
 
+<<<<<<< HEAD
 // SOURCING: hand-roll — the Tauri IPC surface itself. `@tauri-apps/api` and the
 // per-plugin guest bindings (`@tauri-apps/plugin-deep-link`) are the upstream
 // libraries here, and each is a thin wrapper over the runtime-injected
@@ -8,6 +9,11 @@
 // dependency: apps/web ships the plain web app as well as the desktop shell.
 // Every wrapper below mirrors its upstream binding's command name and payload
 // shape exactly, so the contract is the library's, not ours.
+=======
+// SOURCING: none. Typed IPC transport over the runtime-injected Tauri invoke;
+// binding @tauri-apps/api here is what this module deliberately avoids so the
+// web bundle stays runtime-dependency-free. No upstream component applies.
+>>>>>>> f33f4c7 (feat(search): universal find, scatter SERP, and one-click save)
 
 /**
  * Dependency-free Tauri bridge for CommonPlace desktop mode (SPEC-9 D4/D5).
@@ -175,11 +181,23 @@ export interface AgentIngestionReceipt {
 export type CoBrowseShellEvent = 'cobrowse://stage-focus' | 'cobrowse://navigation';
 
 /**
+<<<<<<< HEAD
  * Every shell event this bridge subscribes to. `deep-link://new-url` is emitted
  * by tauri-plugin-deep-link when a `theorem://` link is opened while the app is
  * running (DESIGN-THEOREM-URI section 3).
  */
 export type DesktopShellEvent = CoBrowseShellEvent | 'deep-link://new-url';
+=======
+ * Margin-recall geometry events (HANDOFF-MARGIN-RECALL D1). `marginrecall://targets`
+ * carries the injected resolver's postback: `{ requestId, targets }`.
+ */
+export type MarginRecallShellEvent =
+  | 'marginrecall://targets'
+  | 'marginrecall://viewport'
+  | 'marginrecall://scroll';
+
+export type DesktopShellEvent = CoBrowseShellEvent | MarginRecallShellEvent;
+>>>>>>> f33f4c7 (feat(search): universal find, scatter SERP, and one-click save)
 
 export async function listenDesktopEvent<T = unknown>(
   event: DesktopShellEvent,
@@ -253,6 +271,93 @@ export const agentTabIngest = (input: {
   title?: string;
   text: string;
 }) => invoke<AgentIngestionReceipt>('agent_tab_ingest', { input });
+
+/* ── Margin recall geometry (HANDOFF-MARGIN-RECALL D1) ──────────────
+ *
+ * The in-page anchoring primitives, mirrored from the shell contract doc
+ * (apps/desktop/src/lib/commands.ts) into the shipped web bridge. A co-browse
+ * tab is an out-of-DOM native webview, so React cannot draw over it: emphasis is
+ * produced by evaluating a resolver and a tint INTO the page, exactly the way
+ * `tab_highlight` already does for element bounding boxes.
+ */
+
+/** A quote to resolve, plus disambiguating context and a character-offset hint. */
+export interface TextTarget {
+  quote: string;
+  prefix?: string;
+  suffix?: string;
+  positionHint?: number;
+}
+
+/** Zero or more viewport rects for one resolved target. Empty rects = unresolved. */
+export interface RectSet {
+  rects: { x: number; y: number; width: number; height: number }[];
+  confidence: number;
+}
+
+/** Rust: `page_identity(tab_id) -> PageIdentity`. */
+export interface PageIdentity {
+  url: string;
+  title: string;
+  contentHash: string;
+}
+
+export const pageIdentity = (tabId: string) =>
+  invoke<PageIdentity>('page_identity', { tabId });
+
+/**
+ * Rust: `resolve_text_targets(tab_id, request_id, target)`. Fire-and-forget: the
+ * rects arrive on `marginrecall://targets` tagged with the request id, so this
+ * wrapper registers the listener BEFORE invoking and settles on the match.
+ */
+export async function resolveTextTargets(
+  tabId: string,
+  targets: TextTarget[],
+): Promise<RectSet[]> {
+  return Promise.all(
+    targets.map(async (target) => {
+      const requestId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `mr-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      let settle: ((value: RectSet) => void) | null = null;
+      const result = new Promise<RectSet>((resolve) => {
+        settle = resolve;
+      });
+      const empty: RectSet = { rects: [], confidence: 0 };
+      let unlisten: (() => void) | null = null;
+      try {
+        unlisten = await listenDesktopEvent<{ requestId: string; targets: RectSet[] }>(
+          'marginrecall://targets',
+          (payload) => {
+            if (payload.requestId !== requestId) return;
+            unlisten?.();
+            settle?.(payload.targets[0] ?? empty);
+          },
+        );
+      } catch {
+        return empty;
+      }
+      void invoke<void>('resolve_text_targets', { tabId, requestId, target }).catch(() => {
+        unlisten?.();
+        settle?.(empty);
+      });
+      return result;
+    }),
+  );
+}
+
+/** Rust: `scroll_to_target(tab_id, target)`. Brings the resolved passage in. */
+export const scrollToTarget = (tabId: string, target: TextTarget) =>
+  invoke<void>('scroll_to_target', { tabId, target });
+
+/** Rust: `tab_tint_targets(tab_id, targets, tier)`. Click-through tint over a text range. */
+export const tabTintTargets = (tabId: string, targets: RectSet[], tier: string) =>
+  invoke<void>('tab_tint_targets', { tabId, targets, tier });
+
+/** Rust: `tab_clear_tint(tab_id)`. */
+export const tabClearTint = (tabId: string) =>
+  invoke<void>('tab_clear_tint', { tabId });
 
 /* ── Co-browse perception contract (HANDOFF-COBROWSE-PRESENCE D1) ──────────
  *

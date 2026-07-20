@@ -195,6 +195,17 @@ export const DEFAULT_RENDERER_CAPABILITIES: RendererCatalog = {
     'evidence_board',
     ['inspect', 'select', 'expand'],
   ),
+  // HANDOFF-SEARCH-CONSTELLATION D2: the projection id the Rust scatter
+  // pipeline compiles to. Graph coordinate space, seeded d3-force layout,
+  // annotation column. Falls back to the evidence board when unsupported.
+  force_graph: sceneCapability(
+    'force_graph',
+    'Constellation',
+    ['graph'],
+    { maxAtoms: 400, maxRelations: 800, maxPayloadBytes: 524_288 },
+    'evidence_board',
+    ['select', 'hover', 'drag', 'zoom', 'open-evidence', 'save', 'ask-follow-up'],
+  ),
   'object.task': objectCapability('object.task', 'Task object', 'task'),
   'object.file': objectCapability('object.file', 'File object', 'file'),
   'object.link': objectCapability('object.link', 'Link object', 'link'),

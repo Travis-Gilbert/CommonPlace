@@ -11393,3 +11393,332 @@ select.cp-input {
     flex-basis: auto;
   }
 }
+
+/* HANDOFF-SEARCH-CONSTELLATION D2, D3, D5: the search constellation.
+   Result nodes sit in the page register. Gold is reserved for what the harness
+   learned, so only memory nodes carry it. Oxblood is the pending decision
+   channel, so only the retry affordance carries it. */
+.commonplace-theme .cp-constellation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  min-height: 360px;
+  padding: var(--cp-space-4);
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  background: var(--cp-card);
+  color: var(--cp-text);
+  font-family: var(--cp-font-body);
+}
+
+.commonplace-theme .cp-constellation-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cp-space-3);
+}
+
+.commonplace-theme .cp-constellation-kicker {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-constellation-toggle {
+  padding: 4px 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 5px;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+  transition: opacity var(--cp-dur-hover) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.commonplace-theme .cp-constellation-toggle:active {
+  transform: scale(var(--cp-press-scale));
+}
+
+.commonplace-theme .cp-constellation-body {
+  display: flex;
+  gap: var(--cp-space-4);
+  align-items: flex-start;
+}
+
+.commonplace-theme .cp-constellation-canvas {
+  flex: 1 1 62%;
+  min-width: 0;
+  aspect-ratio: 880 / 520;
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  background: var(--cp-surface);
+}
+
+.commonplace-theme .cp-constellation-edge-hit {
+  stroke: transparent;
+  stroke-width: 14;
+}
+
+.commonplace-theme .cp-constellation-edge-line {
+  stroke: color-mix(in srgb, var(--cp-text) 26%, transparent);
+  stroke-width: 1.25;
+}
+
+.commonplace-theme .cp-constellation-edge[data-reason='memory_exact_tier'] .cp-constellation-edge-line {
+  stroke: var(--cp-gold);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 4;
+}
+
+.commonplace-theme .cp-constellation-edge[data-active='true'] .cp-constellation-edge-line {
+  stroke: var(--cp-text);
+  stroke-width: 2;
+}
+
+.commonplace-theme .cp-constellation-edge:focus-visible,
+.commonplace-theme .cp-constellation-node:focus-visible {
+  outline: var(--cp-focus-ring-width) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-ring-offset);
+}
+
+.commonplace-theme .cp-constellation-node-shape {
+  fill: var(--cp-card);
+  stroke: var(--cp-border);
+  stroke-width: 1;
+}
+
+.commonplace-theme .cp-constellation-node[data-relation='contradicts'] .cp-constellation-node-shape {
+  stroke: var(--cp-red);
+}
+
+/* Orphan: connected to nothing the person holds yet. A dashed, lighter outline
+   says "standing apart" without dimming the node into an error state. A query
+   with zero graph connection renders every node this way, which is an honest
+   answer rather than a failure. */
+.commonplace-theme .cp-constellation-node[data-relation='orphan'] .cp-constellation-node-shape {
+  stroke: color-mix(in srgb, var(--cp-text) 30%, transparent);
+  stroke-dasharray: 4 3;
+}
+
+/* A node whose host wired the expand gesture. The corner tick is the signifier;
+   the accessible name says the same thing in words. */
+.commonplace-theme .cp-constellation-node[data-expandable='true'] .cp-constellation-node-shape {
+  stroke-linejoin: round;
+}
+
+.commonplace-theme .cp-constellation-node[data-expandable='true'][data-active='true'] .cp-constellation-node-shape {
+  stroke-width: 1.5;
+}
+
+.commonplace-theme .cp-constellation-node[data-active='true'] .cp-constellation-node-shape {
+  stroke: var(--cp-text);
+}
+
+.commonplace-theme .cp-constellation-memory-shape {
+  fill: color-mix(in srgb, var(--cp-gold) 16%, var(--cp-card));
+  stroke: var(--cp-gold);
+  stroke-width: 1.5;
+}
+
+.commonplace-theme .cp-constellation-node-title {
+  fill: var(--cp-text);
+  font-family: var(--cp-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.commonplace-theme .cp-constellation-node-line {
+  fill: var(--cp-text-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+}
+
+.commonplace-theme .cp-constellation-callout line {
+  stroke: var(--cp-text-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.commonplace-theme .cp-constellation-callout text {
+  fill: var(--cp-text);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+}
+
+.commonplace-theme .cp-constellation-annotations {
+  flex: 1 1 38%;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+}
+
+.commonplace-theme .cp-constellation-annotations-title {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-constellation-annotation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commonplace-theme .cp-constellation-annotation {
+  display: flex;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-2);
+  border-radius: 5px;
+  background: var(--cp-surface);
+  font-size: 12px;
+  line-height: 1.45;
+  transition: opacity var(--cp-dur-hover) var(--cp-ease-out);
+}
+
+.commonplace-theme .cp-constellation-annotation[data-active='true'] {
+  background: var(--cp-surface-hover);
+}
+
+.commonplace-theme .cp-constellation-annotation > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.commonplace-theme .cp-constellation-annotation em {
+  color: var(--cp-text-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.commonplace-theme .cp-constellation-annotation-mark {
+  flex: 0 0 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--cp-text) 8%, transparent);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+}
+
+.commonplace-theme .cp-constellation-annotation-memory .cp-constellation-annotation-mark {
+  background: color-mix(in srgb, var(--cp-gold) 24%, transparent);
+  color: var(--cp-text);
+}
+
+.commonplace-theme .cp-constellation-annotation-quiet {
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-constellation-degraded .cp-constellation-annotation {
+  border-left: 1px solid var(--cp-border);
+  color: var(--cp-text-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+}
+
+.commonplace-theme .cp-constellation-wait,
+.commonplace-theme .cp-constellation-empty,
+.commonplace-theme .cp-constellation-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-6) var(--cp-space-4);
+}
+
+.commonplace-theme .cp-constellation-wait-micro {
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-constellation-wait-narration,
+.commonplace-theme .cp-constellation-empty-help {
+  color: var(--cp-text-muted);
+  font-size: 13px;
+}
+
+.commonplace-theme .cp-constellation-empty-form {
+  display: flex;
+  gap: var(--cp-space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.commonplace-theme .cp-constellation-empty-form label {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--cp-text-muted);
+}
+
+.commonplace-theme .cp-constellation-empty-form input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--cp-search-border);
+  border-radius: 5px;
+  background: var(--cp-search-bg);
+  color: var(--cp-text);
+}
+
+.commonplace-theme .cp-constellation-empty-form button,
+.commonplace-theme .cp-constellation-error button {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border: 1px solid var(--cp-accent-line);
+  border-radius: 5px;
+  background: var(--cp-accent-wash);
+  color: var(--cp-accent);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+  transition: transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.commonplace-theme .cp-constellation-error button:active,
+.commonplace-theme .cp-constellation-empty-form button:active {
+  transform: scale(var(--cp-press-scale));
+}
+
+.commonplace-theme .cp-constellation-error-cause {
+  font-size: 13px;
+}
+
+.commonplace-theme .cp-constellation-list-empty {
+  padding: var(--cp-space-4);
+  color: var(--cp-text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .commonplace-theme .cp-constellation-body {
+    flex-direction: column;
+  }
+  .commonplace-theme .cp-constellation-annotations {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commonplace-theme .cp-constellation-toggle,
+  .commonplace-theme .cp-constellation-annotation,
+  .commonplace-theme .cp-constellation-error button,
+  .commonplace-theme .cp-constellation-empty-form button {
+    transition: none;
+  }
+}
