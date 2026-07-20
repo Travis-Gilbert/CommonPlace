@@ -26,15 +26,28 @@
 //! copied so the structural lane and the classifier see the real graph. The
 //! trigram and BM25 indexes are built over the same text in the same pass.
 //!
-//! The cost is one full store copy plus two index builds per `find` call:
-//! O(nodes + edges + text bytes). That is paid deliberately. The alternative —
-//! caching the projection behind the shared store — needs invalidation on every
-//! mutation in the schema, and a find that silently answers from a stale index
-//! is worse than a find that is honest and slower. Persisting a flat text
-//! property at write time is the real fix and belongs in `crates/commonplace`,
-//! not here.
+//! A build costs one full store copy plus two index builds:
+//! O(nodes + edges + text bytes). Paying that per query is not viable, and it
+//! is not what happens: [`FindIndexCache`] keys the projection on the graph
+//! version, so a build happens on the first query after a write and every query
+//! between writes reuses it.
+//!
+//! The version key is what makes the cache safe. The objection to caching a
+//! projection is that a find answering from a stale index is worse than a slow
+//! find, and that objection is real when invalidation is a list of call sites
+//! somebody has to remember to update. It does not apply to a monotonic counter
+//! the store itself bumps on every write: a stale read is not a bug to avoid
+//! carefully, it is unrepresentable.
+//!
+//! Persisting a flat text property at write time remains the deeper fix, and
+//! belongs in `crates/commonplace`. So does incremental index maintenance
+//! through the `AccessMethod::on_write` hook the trigram index already
+//! implements, which would make a write update the postings instead of
+//! discarding them. This cache bounds the cost without foreclosing either.
 
 use std::collections::HashMap;
+
+use std::sync::{Arc, Mutex};
 
 use commonplace::{BlobStore, Commonplace, EmbeddingGraphStore, Item, ITEM_LABEL};
 use rustyred_thg_core::fulltext::FullTextDesignation;
@@ -143,6 +156,77 @@ impl FindIndex {
     }
 }
 
+/// Version-keyed cache of the projection.
+///
+/// `FindIndex::build` is O(corpus): it snapshots the graph, flattens every
+/// item, and builds a trigram index and a BM25 index over the result. Doing
+/// that per query makes a search box rebuild its whole index on every
+/// keystroke, which measured at over 60 seconds on a seeded store.
+///
+/// The graph version is monotonic and bumps on every write, so it is an exact
+/// invalidation key: between writes the projection is reused, and the first
+/// query after a write pays for the rebuild. That turns per-keystroke cost into
+/// per-write cost.
+///
+/// The deeper fix is incremental maintenance through the `AccessMethod::on_write`
+/// hook the trigram index already implements, so a write updates the postings
+/// rather than discarding them. This cache is the bounded version of that and
+/// does not preclude it.
+#[derive(Default)]
+pub struct FindIndexCache {
+    inner: Mutex<Option<CachedIndex>>,
+}
+
+struct CachedIndex {
+    version: u64,
+    index: Arc<FindIndex>,
+}
+
+impl FindIndexCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The projection for the store as it stands, rebuilding only when the
+    /// graph version has moved.
+    pub fn get<S, B>(
+        &self,
+        cp: &Commonplace<S, B>,
+        config: &FindConfig,
+    ) -> GraphStoreResult<Arc<FindIndex>>
+    where
+        S: EmbeddingGraphStore,
+        B: BlobStore,
+    {
+        let version = cp.store().stats().version;
+        let mut guard = match self.inner.lock() {
+            Ok(guard) => guard,
+            // A poisoned cache is a cache, not a corruption: rebuild rather
+            // than failing a read the store can still serve.
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if let Some(cached) = guard.as_ref() {
+            if cached.version == version {
+                return Ok(Arc::clone(&cached.index));
+            }
+        }
+        let index = Arc::new(FindIndex::build(cp, config)?);
+        *guard = Some(CachedIndex {
+            version,
+            index: Arc::clone(&index),
+        });
+        Ok(index)
+    }
+
+    /// Whether a projection is currently held, for tests and diagnostics.
+    pub fn is_warm(&self) -> bool {
+        self.inner
+            .lock()
+            .map(|guard| guard.is_some())
+            .unwrap_or(false)
+    }
+}
+
 /// Run a composed find over the consumer store.
 pub fn find<S, B>(
     cp: &Commonplace<S, B>,
@@ -199,6 +283,35 @@ mod tests {
                 .expect("ingest");
         }
         cp
+    }
+
+    #[test]
+    fn the_projection_is_reused_between_writes_and_rebuilt_after_one() {
+        let mut cp = seeded();
+        let cache = FindIndexCache::new();
+        let config = FindConfig::default();
+        assert!(!cache.is_warm());
+
+        let first = cache.get(&cp, &config).expect("build");
+        assert!(cache.is_warm());
+        let second = cache.get(&cp, &config).expect("cached");
+        assert!(
+            Arc::ptr_eq(&first, &second),
+            "a second query with no intervening write rebuilt the projection"
+        );
+
+        IngestPipeline::default()
+            .ingest(&mut cp, IngestInput::note("Trigrams", "trigram indexes narrow the scan"))
+            .expect("ingest");
+        let third = cache.get(&cp, &config).expect("rebuild");
+        assert!(
+            !Arc::ptr_eq(&second, &third),
+            "a write did not invalidate the projection"
+        );
+        assert!(
+            third.document_count() > first.document_count(),
+            "the rebuilt projection did not pick up the new item"
+        );
     }
 
     #[test]

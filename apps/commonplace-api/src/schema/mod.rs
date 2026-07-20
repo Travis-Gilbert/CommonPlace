@@ -39,7 +39,7 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 pub mod find;
 pub mod scatter;
 
-use crate::find::{find as run_find, FindConfig, FindIndex};
+use crate::find::{FindConfig, FindIndexCache};
 use rustyred_thg_find::{expand as run_expand, scatter as run_scatter};
 use crate::save_url::{save_url as run_save_url, PageSource};
 use find::{
@@ -948,6 +948,17 @@ fn principal(ctx: &Context<'_>) -> Result<Principal> {
         .ok_or_else(|| Error::new("invalid API key"))
 }
 
+/// The retrieval projection cache. Present on every schema built through the
+/// builders below; a schema assembled by hand without one gets a fresh cache
+/// per request rather than a refusal, because a cold cache is correct, just
+/// slower.
+fn find_index(ctx: &Context<'_>) -> Result<Arc<FindIndexCache>> {
+    Ok(ctx
+        .data_opt::<Arc<FindIndexCache>>()
+        .cloned()
+        .unwrap_or_else(|| Arc::new(FindIndexCache::new())))
+}
+
 fn shared<S, B>(ctx: &Context<'_>) -> Result<SharedStore<S, B>>
 where
     S: Send + Sync + 'static,
@@ -1844,7 +1855,8 @@ where
         let request = build_find_request(query, scopes, lanes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        let response = run_find(&cp, &request, &FindConfig::default()).map_err(store_err)?;
+        let index = find_index(ctx)?.get(&cp, &FindConfig::default()).map_err(store_err)?;
+        let response = rustyred_thg_find::find(&index.context(), &request);
         Ok(FindResponseGql::from(response))
     }
 
@@ -1862,7 +1874,7 @@ where
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        let index = FindIndex::build(&cp, &FindConfig::default()).map_err(store_err)?;
+        let index = find_index(ctx)?.get(&cp, &FindConfig::default()).map_err(store_err)?;
         let response = run_scatter(&index.context(), &request);
         Ok(ScatterResponseGql::from(response))
     }
@@ -1883,7 +1895,7 @@ where
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
         let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        let index = FindIndex::build(&cp, &FindConfig::default()).map_err(store_err)?;
+        let index = find_index(ctx)?.get(&cp, &FindConfig::default()).map_err(store_err)?;
         let response = run_expand(&index.context(), &request, &aspect);
         Ok(ScatterResponseGql::from(response))
     }
@@ -2824,6 +2836,7 @@ where
         .data(registry)
         .data(Arc::new(NoModel) as Arc<dyn AnswerModel>)
         .data(page_source)
+        .data(Arc::new(FindIndexCache::new()))
         .finish()
 }
 
@@ -2840,5 +2853,6 @@ where
         .data(store)
         .data(registry)
         .data(model)
+        .data(Arc::new(FindIndexCache::new()))
         .finish()
 }
