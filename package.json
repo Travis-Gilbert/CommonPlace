@@ -23,7 +23,7 @@
     "desktop:build": "npm --prefix apps/desktop run tauri -- build",
     "collab:dev": "npm --prefix apps/commonplace-collab run dev",
     "collab:start": "npm --prefix apps/commonplace-collab run start",
-    "api:dev": "cargo run --manifest-path apps/commonplace-api/Cargo.toml",
+    "api:dev": "cargo run --manifest-path apps/commonplace-api/Cargo.toml --bin commonplace-api",
     "api:test": "cargo test --manifest-path apps/commonplace-api/Cargo.toml",
     "check": "node scripts/update-rustyred-source.mjs --check && cargo test --workspace && npm --prefix packages/block-view-contracts run check",
     "check:rust": "cargo test --workspace"
