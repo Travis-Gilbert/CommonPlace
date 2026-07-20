@@ -1,5 +1,6 @@
-// SOURCING: @playwright/test. Search field oracles prove the durable naming
+// SOURCING: @playwright/test. Search panel oracles prove the durable naming
 // split: discovery owns Command, Search, and Objects; Composer owns generation.
+// Search is keyboard-opened (no durable toolbar field).
 
 import { expect, test, type Page } from '@playwright/test';
 
@@ -11,13 +12,13 @@ async function freshLoad(page: Page) {
   await page.waitForTimeout(600);
 }
 
-test.describe('Search field', () => {
+test.describe('Search panel', () => {
   test.beforeEach(async ({ page }) => freshLoad(page));
 
   test('owns exactly Command, Search, and Objects', async ({ page }) => {
-    const field = page.locator('[data-search-field]');
-    await expect(field).toHaveText('Search, or press Shift Shift');
-    await field.click();
+    await expect(page.locator('[data-search-field]')).toHaveCount(0);
+    await page.keyboard.press('Shift');
+    await page.keyboard.press('Shift');
     const panel = page.locator('[data-search-panel]');
     await expect(panel).toBeVisible();
     await expect(panel.locator('[data-search-mode]')).toHaveCount(3);
@@ -43,7 +44,8 @@ test.describe('Search field', () => {
     await page.getByText('Set theme: GitHub Dark', { exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme-preset', 'github-dark');
 
-    await page.locator('[data-search-field]').click();
+    await page.keyboard.press('Shift');
+    await page.keyboard.press('Shift');
     await page.locator('[data-search-mode="objects"]').click();
     await page.locator('[data-search-panel] input').fill('@Ada');
     await expect(page.locator('[data-search-panel] [cmdk-item]').filter({ hasText: 'Ada Lovelace' })).toBeVisible();
@@ -55,12 +57,12 @@ test.describe('Search field', () => {
     await expect(page.locator('[data-composer-input]')).toBeFocused();
   });
 
-  test('holds field and panel baselines under reduced motion', async ({ page }) => {
+  test('holds the panel baseline under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await page.waitForSelector('[data-shell]');
-    await expect(page.locator('[data-search-field]')).toHaveScreenshot('search-field-collapsed.png');
-    await page.locator('[data-search-field]').click();
+    await page.keyboard.press('Shift');
+    await page.keyboard.press('Shift');
     await expect(page.locator('[data-search-panel]')).toHaveScreenshot('search-panel-expanded.png');
   });
 });

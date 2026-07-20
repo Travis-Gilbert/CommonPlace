@@ -21,7 +21,7 @@ Spec 34 moved shell paint from CSS into a full-viewport shader Material Layer. T
 - Island radius: ~10px (`--ij-island-radius`)
 - Gutters between islands: ~10px (`--ij-island-gutter`), frame visible between
 - Activity bar (stripe): frame-resident, flush to the window edge, not an island
-- Bottom dock: horizontal tool island under the editor (Terminal silhouette)
+- Bottom dock: deferred until a desktop (Tauri) shell designs a Terminal surface; removed from the web console
 - Primary nav rows: 36–40px sitewide (stripe targets and island headers land in this band; list density inside trees may stay on the Twenty 24px rhythm)
 - Compact density (`data-density="compact"`): shorter chrome and tighter gutters
 

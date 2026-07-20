@@ -108,7 +108,6 @@
   --spacing-ij-toolwindow-header: var(--ij-toolwindow-header-h);
   --spacing-ij-nav-row: var(--ij-nav-row-h);
   --spacing-ij-island-gutter: var(--ij-island-gutter);
-  --spacing-ij-bottom-dock: var(--ij-bottom-dock-h);
   --spacing-rec-grid: var(--rec-grid);
   --spacing-rec-cell-pad: var(--rec-cell-pad);
   --spacing-rec-utility-col: var(--rec-utility-col);
@@ -173,9 +172,8 @@
   --ij-ground-terra: #4C271D;
   /* Quieter ground; islands take a hint via --ij-island-terra-tint. */
   --ij-material-glow: 0.32;
-  --ij-material-grain: 0.022;
+  --ij-material-grain: 0.014;
   --ij-island-terra-tint: 0.055;
-  --ij-bottom-dock-h: 148px;
   /* Dialog inset used by cmdk overlays (Goal Stack promotion). */
   --ij-dialog-inset-top: 12%;
   --ij-dialog-width: 40rem;
@@ -189,7 +187,7 @@
 [data-register="intui"][data-theme="light"] {
   --ij-ground-terra: #EACAB4;
   --ij-material-glow: 0.38;
-  --ij-material-grain: 0.03;
+  --ij-material-grain: 0.018;
   --ij-island-terra-tint: 0.045;
   /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
      this is the runtime gate's light-mode clamp, kept outside the pin. */
@@ -206,7 +204,6 @@
   --ij-tab-h: 36px;
   --ij-island-gutter: 8px;
   --ij-stripe-icon: 16px;
-  --ij-bottom-dock-h: 120px;
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink

@@ -2,8 +2,8 @@
 
 // SOURCING: hand-roll (MaterialLayer). Spec 34 + amendment 35, refined for
 // JetBrains Islands: quieter ground pools, island surfaces carry a hint of
-// terracotta, editor islands paint a chrome band for the tab strip. DOM keeps
-// text, focus, and hit-testing only.
+// terracotta, header bands read slightly richer than flatter island bodies.
+// DOM keeps text, focus, and hit-testing only.
 
 import { useEffect, useRef } from 'react';
 
@@ -39,7 +39,7 @@ void main(){
   float g3 = (1. - smoothstep(0., 1.4, length(nuv - vec2(0.55, 0.55)))) * 0.12;
   float t = clamp(g1 + g2 + g3, 0., 1.) * glow;
   vec3 col = mix(cFrame, cTerra, t);
-  col += (hash(uv * 0.9) - .5) * grain * 1.05;
+  col += (hash(uv * 0.9) - .5) * grain * 0.72;
 
   for(int i=0;i<${MAX_ISLANDS};i++){
     if(i>=n) break;
@@ -55,19 +55,25 @@ void main(){
     float cov = 1. - smoothstep(-0.75, 0.75, d);
     if(cov > 0.){
       vec3 base = mix(cTool, cEditor, cls[i]);
-      /* Editor islands: top band reads as chrome (tab strip), well below. */
+      float by = uv.y - isl[i].y;
+      /* Header band vs body: one island, two quiet material registers. */
+      float headerMix = band[i] > 0.5
+        ? (1. - smoothstep(band[i] - 1.0, band[i] + 1.0, by))
+        : 0.;
       if(cls[i] > 0.5 && band[i] > 0.5){
-        float by = uv.y - isl[i].y;
-        base = mix(cTool, cEditor, smoothstep(band[i]-1.0, band[i]+1.0, by));
+        base = mix(cTool, cEditor, 1. - headerMix);
       }
-      float ty = clamp((uv.y - isl[i].y) / max(isl[i].w, 1.), 0., 1.);
+      float ty = clamp(by / max(isl[i].w, 1.), 0., 1.);
       vec3 surf = mix(base + cHiMix, base, smoothstep(0., 0.85, ty));
-      surf += (1. - smoothstep(0., 1.6, uv.y - isl[i].y)) * (dark>.5 ? .045 : .09);
+      /* Body reads flatter / more planar; header keeps a soft lit edge. */
+      surf = mix(surf, base, (1. - headerMix) * 0.22);
+      float sheen = (1. - smoothstep(0., 1.6, by)) * (dark>.5 ? .045 : .09);
+      surf += sheen * mix(0.45, 1.2, headerMix);
       float inner = clamp(-d, 0., 22.);
       surf *= mix(1. - (dark>.5 ? .04 : .025), 1., smoothstep(0., 17., inner));
-      /* Islands carry a hint of the ground warmth: layers of subtlety. */
-      surf = mix(surf, cTerra, islandTint * (0.35 + 0.65 * t));
-      surf += (hash(uv + float(i)*7.13) - .5) * grain;
+      /* Header takes a touch more terracotta; body stays quieter. */
+      surf = mix(surf, cTerra, islandTint * (0.35 + 0.65 * t) * mix(0.7, 1.35, headerMix));
+      surf += (hash(uv + float(i)*7.13) - .5) * grain * mix(0.35, 1.55, headerMix);
       col = mix(col, surf, cov);
     }
   }
@@ -191,9 +197,14 @@ export function MaterialLayer() {
         const h = box.height * dpr;
         const kind = node.dataset.island;
         let bandPx = Number.parseFloat(node.dataset.islandBand ?? '0');
-        if ((!Number.isFinite(bandPx) || bandPx <= 0) && kind === 'editor') {
-          const strip = node.querySelector<HTMLElement>('[data-editor-tab-strip]');
-          bandPx = strip?.getBoundingClientRect().height ?? 0;
+        if (!Number.isFinite(bandPx) || bandPx <= 0) {
+          const header = node.querySelector<HTMLElement>(
+            '[data-island-header], [data-editor-tab-strip], [data-tool-window-header]',
+          );
+          bandPx = header?.getBoundingClientRect().height ?? 0;
+        }
+        if ((!Number.isFinite(bandPx) || bandPx <= 0) && kind === 'tool') {
+          bandPx = cssNumber(rootStyle.getPropertyValue('--ij-toolwindow-header-h'), 36);
         }
         rects.push(x, y, w, h);
         radii.push(radiusPx);
@@ -215,7 +226,7 @@ export function MaterialLayer() {
       const editor = cssToRgb(rootStyle.getPropertyValue('--ij-editor').trim()) ?? [0.118, 0.122, 0.133];
       const hi = dark > 0.5 ? [0.014, 0.014, 0.016] : [0, 0, 0];
       const glow = cssNumber(rootStyle.getPropertyValue('--ij-material-glow'), dark > 0.5 ? 0.32 : 0.38);
-      const grain = cssNumber(rootStyle.getPropertyValue('--ij-material-grain'), 0.022) * (dark > 0.5 ? 1 : 1.3);
+      const grain = cssNumber(rootStyle.getPropertyValue('--ij-material-grain'), 0.014) * (dark > 0.5 ? 1 : 1.3);
       const tint = cssNumber(rootStyle.getPropertyValue('--ij-island-terra-tint'), 0.055);
 
       gl.uniform2f(U('res'), width, height);

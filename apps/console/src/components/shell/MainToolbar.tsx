@@ -3,16 +3,16 @@
 // SOURCING: hand-roll. The Int UI main toolbar with the RunWidget is a named
 // chrome signature; no library models it. Screen navigation lives in the
 // leftmost stripe (the stripe surfaces group), not a toolbar dropdown; the
-// toolbar shows the product name and the active screen as a quiet breadcrumb.
-// The toolbar center hosts the durable Search field. The run widget binds to
-// real run state and renders its empty state otherwise, never a fixture run.
+// toolbar shows the active screen as a quiet breadcrumb. Search is not a
+// durable chrome field: Shift Shift / Ctrl or Cmd K open the Search panel.
+// The run widget binds to real run state and renders its empty state
+// otherwise, never a fixture run.
 
 import { useEffect, useRef, useState } from 'react';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import { useThreadStore } from '@/lib/thread-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
-import { SearchField } from './SearchField';
 import { IconAccount, IconChevronDown, IconRun, IconStop } from './icons';
 
 interface MainToolbarProps {
@@ -65,7 +65,7 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
     <header
       data-paint-region="toolbar"
       data-frame-resident="toolbar"
-      className="flex h-ij-toolbar shrink-0 items-center gap-2 bg-transparent px-ij-island-gutter"
+      className="flex h-ij-toolbar shrink-0 items-center justify-between gap-2 bg-transparent px-ij-island-gutter"
     >
       <div className="relative">
         <button
@@ -120,12 +120,6 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
             ))}
           </div>
         ) : null}
-      </div>
-
-      <div className="mx-2 min-w-0 flex-1">
-        <div className="mx-auto max-w-144">
-          <SearchField />
-        </div>
       </div>
 
       <div className="flex shrink-0 items-center" style={{ gap: 'var(--rec-sibling-gap)' }}>

@@ -48,6 +48,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
         role="tablist"
         aria-label="Editor tabs"
         data-editor-tab-strip
+        data-island-header
         data-paint-region="tab-strip"
         className="flex h-ij-tab shrink-0 items-end border-b border-ij-seam bg-transparent"
       >
