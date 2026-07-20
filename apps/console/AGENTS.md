@@ -50,8 +50,8 @@ One material system. Two structural sources. Bridged, not blended.
 - Documents render through Galley (`@travis-gilbert/markdown-theory`), mounted
   bare inside the shell with the `--gy` bridge resolving its ground and surface
   to the chrome. Prose faces stay Galley's own.
-- Grounds are canvas, chrome is still: ambient motion lives only in the
-  GroundCanvas layer behind the frame. Tool windows, tabs, and controls carry
+- Grounds are canvas, chrome is still: ambient material lives only in the
+  MaterialLayer (WebGL) behind the frame. Tool windows, tabs, and controls carry
   no ambient motion.
 - The agent's visible identity is the Presence mark (textmode.js). No typing
   dots, no bespoke agent spinners, anywhere.
@@ -107,7 +107,7 @@ asks for inspiration, reference, mood, or direction.
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
-| Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
+| Ground / Material Layer | hand-roll (MaterialLayer / GroundCanvas alias) | full-viewport WebGL SDF islands, terracotta ground, edge falloff, grain; DOM shell fills stay transparent |
 | Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |

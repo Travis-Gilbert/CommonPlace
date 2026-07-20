@@ -11,7 +11,11 @@ import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
-import { DocListView, IndexRailView } from './DocListView';
+import { DocListView } from './DocListView';
+import { IndexDestinationsView } from './IndexDestinationsView';
+import { IndexStreamView } from './IndexStreamView';
+import { IndexRulesView } from './IndexRulesView';
+import { UrgentLaneView } from './UrgentLaneView';
 import { CardFullView, CardGridView } from './CardView';
 import { HunkReviewView } from './HunkReviewView';
 import { AppearanceView } from './AppearanceView';
@@ -158,19 +162,71 @@ const DOC_LIST: ViewDescriptor = {
   render: DocListView,
 };
 
+// The Index descriptor family (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0). The
+// arrival state is sorted, so none of these renders a pending queue, and none
+// of them renders a count: the wire contract carries no number for one.
 const INDEX_RAIL: ViewDescriptor = {
   id: 'index.rail',
   name: 'Destinations',
   accepts: {},
-  emits: [],
+  emits: ['select'],
   renderer: 'index.rail',
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
     mode: 'bespoke',
     regime: 'css-vars',
+    allowedBespokeReason:
+      'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
   },
-  render: IndexRailView,
+  render: IndexDestinationsView,
+};
+
+const INDEX_STREAM: ViewDescriptor = {
+  id: 'index.stream',
+  name: 'Recently filed',
+  accepts: {},
+  emits: ['update', 'select'],
+  renderer: 'index.stream',
+  source: {
+    package: '@dnd-kit/core',
+    component: 'DndContext',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: IndexStreamView,
+};
+
+const INDEX_RULES: ViewDescriptor = {
+  id: 'index.rules',
+  name: 'Rules',
+  accepts: {},
+  emits: ['create', 'update', 'delete'],
+  renderer: 'index.rules',
+  source: {
+    package: 'cmdk',
+    component: 'Command',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: IndexRulesView,
+};
+
+const INDEX_URGENT: ViewDescriptor = {
+  id: 'index.urgent',
+  name: 'Needs you today',
+  accepts: {},
+  emits: ['select'],
+  renderer: 'index.urgent',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'A lane whose empty state is its designed norm is a product claim, not a generic list: no library models "reassure, do not gamify".',
+  },
+  render: UrgentLaneView,
 };
 
 // The card engine descriptor family (HANDOFF-CARDS-ACTIONS-MENTIONS K1):
@@ -310,6 +366,9 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   CONTEXT_GRAPH,
   DOC_LIST,
   INDEX_RAIL,
+  INDEX_STREAM,
+  INDEX_RULES,
+  INDEX_URGENT,
   CARD_FULL,
   CARDS_GRID,
   HUNK_REVIEW,

@@ -24,7 +24,7 @@ import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
-import { GroundCanvas } from '@/components/ground/GroundCanvas';
+import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
@@ -154,14 +154,12 @@ export function ConsoleApp({
   }
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-ij-frame">
-      <GroundCanvas />
-      <div className="relative z-10 h-full p-1">
+    <div className="relative h-dvh w-full overflow-hidden bg-ij-frame" data-console-frame>
+      <MaterialLayer />
+      <div className="relative z-10 h-full">
         <SessionProvider>
           <RuntimeBoundary>
-            <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
-              <IntuiShell host={host} />
-            </div>
+            <IntuiShell host={host} />
           </RuntimeBoundary>
         </SessionProvider>
       </div>

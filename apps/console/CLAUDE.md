@@ -50,8 +50,8 @@ One material system. Two structural sources. Bridged, not blended.
 - Documents render through Galley (`@travis-gilbert/markdown-theory`), mounted
   bare inside the shell with the `--gy` bridge resolving its ground and surface
   to the chrome. Prose faces stay Galley's own.
-- Grounds are canvas, chrome is still: ambient motion lives only in the
-  GroundCanvas layer behind the frame. Tool windows, tabs, and controls carry
+- Grounds are canvas, chrome is still: ambient material lives only in the
+  MaterialLayer (WebGL) behind the frame. Tool windows, tabs, and controls carry
   no ambient motion.
 - The agent's visible identity is the Presence mark (textmode.js). No typing
   dots, no bespoke agent spinners, anywhere.
@@ -101,7 +101,7 @@ gap: add the row, with a named source, before writing code.
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
-| Ground texture | hand-roll (GroundCanvas) | the one register-derived ambient canvas behind the frame |
+| Ground / Material Layer | hand-roll (MaterialLayer / GroundCanvas alias) | full-viewport WebGL SDF islands, terracotta ground, edge falloff, grain; DOM shell fills stay transparent |
 | Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |
@@ -110,6 +110,10 @@ gap: add the row, with a named source, before writing code.
 | Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |
 | Workspace substrate | `@tanstack/react-virtual`, CodeMirror 6 merge, `cmdk`, and Radix Popover | semantic workspace entity tree, virtual rows, local-history revision diff, project Find, readiness detail |
 | Graph node and sentence card building blocks | jalco-ui `commit-graph` and `repo-card` (ui.justinlevine.me), structure extraction | the commit-entry node (a response is a stack of agent-action steps a person builds) and the RepoCard sentence card; the jalco layouts are reproduced and every shadcn token re-skinned to the register |
+| Drag-to-correct on the Index ribbon | `@dnd-kit/core` | pointer and keyboard drag of a filed item onto a shelf, with the accessible drag announcement; the same row the Goal Stack's deferred-affordance drag and drop already carries |
+| Filing receipt affordance | Radix Popover | the focus-managed transient "why is this here" surface, and the one place in the Index a shadow token is legal (dimensionality named choice 3) |
+| Undo toast | `motion` (`motion/react`) entrance on the interaction inventory | the time-boxed reversal affordance carrying the receipt, per SPEC-COMMONPLACE-FILING-AND-INDEX-1.0's undo-over-approval law |
+| Filing rule predicates | `cmdk` | predicate selection in the rules author; values stay register controls |
 | Object addressing and copy | `@commonplace/block-view/addressing` (the shared `theorem://` grammar, per DESIGN-THEOREM-URI) plus the platform Clipboard API | every canonical address this app emits, parses, or offers: the inspector footer, the card copy affordance, mention chips, the Composer paste offer, and the Search field's address lane. `src/lib/object-address.ts` is the only place a tenant plus an object becomes an address, and `src/lib/use-copy.ts` is the only clipboard call (the apps/web hook's shape, re-implemented because the import fence is structural) |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is

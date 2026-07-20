@@ -62,12 +62,12 @@ export function staggerDelay(index: number): number {
   return Math.min(index, STAGGER.cap - 1) * STAGGER.step;
 }
 
-/** GroundCanvas pacing: one quiet repaint tick; the only ambient motion. */
+/** Ground / Material Layer: repaint on layout and theme change only. */
 export const GROUND = {
-  /** ms between ambient repaints; slow enough to be negligible at idle */
+  /** ms between dirty-check frames; idle cost stays negligible */
   tickMs: 240,
-  /** drift per tick in device pixels; quiet by construction */
-  drift: 0.18,
+  /** retained for reduced-motion static frame compatibility */
+  drift: 0,
 } as const;
 
 /** Presence mark pacing (G7): glyph cycle and the commit flash. */
@@ -164,9 +164,15 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Ground ambient',
-    effect: 'quiet register-derived texture drift on the GroundCanvas behind the frame',
-    spec: 'GROUND tokens; the only permitted ambient motion; never repaints above a measured negligible idle cost',
-    reducedMotion: 'static texture, no repaint loop',
+    effect: 'WebGL Material Layer paints the frame and islands on layout or theme change; no continuous drift',
+    spec: 'MaterialLayer; the only permitted ambient paint surface; dirty-flag repaint, never continuous animation',
+    reducedMotion: 'static material frame, no extra motion',
+  },
+  {
+    trigger: 'Filing correction accepted',
+    effect: 'the undo toast arrives at the foot of the Index: opacity 0 to 1 plus 4px translate, then stands for its window and leaves',
+    spec: 'DUR.fast, EASE_OUT, transform and opacity only; the toast is time-boxed by the undo window, not by the animation',
+    reducedMotion: 'the toast renders settled and static, and still stands for its full undo window',
   },
 ] as const;
 
@@ -185,9 +191,9 @@ export const INTERACTION_INVENTORY = [
  */
 export const DECLARED_PAINT_SURFACES = [
   {
-    file: 'src/components/ground/GroundCanvas.tsx',
+    file: 'src/components/ground/MaterialLayer.tsx',
     inventory: 'Ground ambient',
-    reason: 'the one permitted ambient surface; sits behind the frame, not in chrome',
+    reason: 'Spec 34/35 Material Layer: WebGL SDF islands and terracotta ground behind the frame',
   },
   {
     file: 'src/components/mark/PresenceMark.tsx',

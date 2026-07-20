@@ -36,21 +36,20 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
     void host.emit({ kind: 'update', id: region.id, patch: { active_tab: id } });
   };
 
-  // The editor island (HANDOFF-CONSOLE-DIMENSIONALITY X3.3). The tab strip sits
-  // on CHROME and the well below it paints --ij-editor, so the well reads as a
-  // plane inset within the chrome rather than continuous with the strip. That
-  // one move is what makes the brightest plane in light (white) and the sunken
-  // plane in dark both read as the work surface. The active tab takes a subtle
-  // --ij-editor background so it joins the well it opens onto, which is the
-  // JetBrains tab contract; the 4px accent underline is unchanged.
+  // Editor island: one SDF rect; MaterialLayer measures the tab strip height
+  // and paints that band as chrome, then the lighter well below.
   return (
-    <div data-editor-island className="flex h-full min-h-0 flex-col bg-ij-chrome">
+    <div
+      data-editor-island
+      data-island="editor"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
+    >
       {bare ? null : <div
         role="tablist"
         aria-label="Editor tabs"
         data-editor-tab-strip
         data-paint-region="tab-strip"
-        className="flex h-ij-tab shrink-0 items-end border-b border-ij-seam bg-ij-chrome"
+        className="flex h-ij-tab shrink-0 items-end border-b border-ij-seam bg-transparent"
       >
         {instances.map((instance) => {
           const selected = instance.id === active?.id;
@@ -79,7 +78,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
           );
         })}
       </div>}
-      <div data-editor-well data-paint-region="editor-well" className="min-h-0 flex-1 bg-ij-editor">
+      <div data-editor-well data-paint-region="editor-well" className="min-h-0 flex-1 bg-transparent">
         {active ? (
           <motion.div
             key={active.id}

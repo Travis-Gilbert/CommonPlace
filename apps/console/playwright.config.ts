@@ -48,6 +48,10 @@ export default defineConfig({
         CONSOLE_E2E_GITHUB_LOGIN: 'Travis-Gilbert',
         CONSOLE_E2E_HARNESS_IDENTITY: 'github:e2e-owner',
         CONSOLE_E2E_PROACTIVITY_FIXTURE: '1',
+        // The filing engine lives in the Theorem repo and is not running in
+        // CI, so the Index reads its non-production fixture. The flag is
+        // checked only outside a production build, so this cannot ship.
+        CONSOLE_E2E_FILING_FIXTURE: '1',
         THEOREM_GRAPHQL_URL: 'http://localhost:50591/graphql',
         THEOREM_ITEM_CHANGEFEED_URL: 'http://localhost:50591/v1/items/stream',
         THEOREM_API_KEY: 'dev-key',

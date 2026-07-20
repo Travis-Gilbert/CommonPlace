@@ -13,6 +13,7 @@ import {
   setAppearancePreference,
   startAppearanceStore,
   useAppearance,
+  type AppearanceDensity,
   type ThemeMode,
 } from '@/lib/appearance-store';
 import { IconMemory } from '@/components/shell/icons';
@@ -21,6 +22,11 @@ const MODES: readonly { id: ThemeMode; label: string }[] = [
   { id: 'auto', label: 'Auto' },
   { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light' },
+];
+
+const DENSITIES: readonly { id: AppearanceDensity; label: string }[] = [
+  { id: 'comfortable', label: 'Comfortable' },
+  { id: 'compact', label: 'Compact' },
 ];
 
 function Slider({
@@ -88,6 +94,25 @@ export function AppearanceView(_props: ViewRenderProps) {
             ))}
           </div>
           <p className="text-ij-ink-info">Resolved to {appearance.resolvedMode}; Auto follows the operating system live.</p>
+        </section>
+
+        <section className="grid gap-3" aria-labelledby="appearance-density-heading">
+          <h2 id="appearance-density-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Density</h2>
+          <div className="flex w-fit gap-1 rounded-ij-arc border border-ij-control-border bg-ij-chrome p-1">
+            {DENSITIES.map((density) => (
+              <button
+                key={density.id}
+                type="button"
+                data-appearance-density={density.id}
+                aria-pressed={preference.density === density.id}
+                onClick={() => setAppearancePreference({ density: density.id })}
+                className="h-ij-control rounded-ij-arc-underline px-4 text-ij-ink-info aria-pressed:bg-ij-selection aria-pressed:text-ij-ink"
+              >
+                {density.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-ij-ink-info">Compact shortens toolbars, headers, and gutters the way JetBrains Compact Mode does.</p>
         </section>
 
         <section className="grid gap-3" aria-labelledby="appearance-presets-heading">

@@ -82,6 +82,7 @@
   /* Radii */
   --radius-ij-arc: var(--ij-arc);
   --radius-ij-arc-underline: var(--ij-arc-underline);
+  --radius-ij-island: var(--ij-island-radius);
 
   /* Type */
   --font-ij-ui: var(--ij-font-ui);
@@ -105,6 +106,9 @@
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
   --spacing-ij-toolwindow-header: var(--ij-toolwindow-header-h);
+  --spacing-ij-nav-row: var(--ij-nav-row-h);
+  --spacing-ij-island-gutter: var(--ij-island-gutter);
+  --spacing-ij-bottom-dock: var(--ij-bottom-dock-h);
   --spacing-rec-grid: var(--rec-grid);
   --spacing-rec-cell-pad: var(--rec-cell-pad);
   --spacing-rec-utility-col: var(--rec-utility-col);
@@ -155,8 +159,26 @@
      read as named tool windows rather than floating labels. The stripe icon is
      20px inside the 40px bar (X3.4), one ramp step up from the 16px control
      glyph, because the stripe is navigation rather than a control cluster. */
-  --ij-toolwindow-header-h: 24px;
+  /* Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px
+     inside the 40px primary-nav target (36-40px sitewide). */
+  --ij-toolwindow-header-h: 36px;
   --ij-stripe-icon: 20px;
+  --ij-nav-row-h: 40px;
+  /* Islands layout (Spec 34 / amendment 35): radius and gutter are material
+     spacing, not the control arc. */
+  --ij-island-radius: 10px;
+  --ij-island-gutter: 10px;
+  /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
+     Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
+  --ij-ground-terra: #4C271D;
+  /* Quieter ground; islands take a hint via --ij-island-terra-tint. */
+  --ij-material-glow: 0.32;
+  --ij-material-grain: 0.022;
+  --ij-island-terra-tint: 0.055;
+  --ij-bottom-dock-h: 148px;
+  /* Dialog inset used by cmdk overlays (Goal Stack promotion). */
+  --ij-dialog-inset-top: 12%;
+  --ij-dialog-width: 40rem;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);
@@ -165,10 +187,26 @@
 }
 
 [data-register="intui"][data-theme="light"] {
+  --ij-ground-terra: #EACAB4;
+  --ij-material-glow: 0.38;
+  --ij-material-grain: 0.03;
+  --ij-island-terra-tint: 0.045;
   /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
      this is the runtime gate's light-mode clamp, kept outside the pin. */
   --ij-gold: #9A6000;
   --ij-gold-tint: #FFF5DB;
+}
+
+/* JetBrains Compact Mode density: shorter chrome, tighter gutters. */
+[data-register="intui"][data-density="compact"] {
+  --ij-toolbar-h: 32px;
+  --ij-statusbar-h: 24px;
+  --ij-toolwindow-header-h: 28px;
+  --ij-nav-row-h: 36px;
+  --ij-tab-h: 36px;
+  --ij-island-gutter: 8px;
+  --ij-stripe-icon: 16px;
+  --ij-bottom-dock-h: 120px;
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink
