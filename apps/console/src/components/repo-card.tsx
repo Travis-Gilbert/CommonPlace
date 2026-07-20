@@ -1,75 +1,330 @@
 'use client';
 
-// SOURCING: jalco-ui RepoCard (ui.justinlevine.me), structure extraction. The
-// jalco card's layout is reproduced here: a bordered card with a header row (a
-// leading dot and kind chip, the title, and right-aligned badges) over a body a
-// caller composes (a muted description, a meta row, expandable content). Every
-// shadcn token from the original (border-border, bg-card, text-primary, the
-// arbitrary text sizes, the raw hex language dot) maps to an Int UI register
-// token, so it clears the register, contrast, and fence gates. The sentence
-// altitude renders each stake and program through it.
+// SOURCING: jalco-ui `@jalco/repo-card` (ui.justinlevine.me, MIT), ADOPTED
+// through the shadcn registry and retokened in place. The CVA variant matrix,
+// the slot anatomy, and the meta-row order are upstream's; only the paint and
+// the data binding change.
 
-import type { ReactNode } from 'react';
+/**
+ * jalco-ui RepoCard, by Justin Levine (ui.justinlevine.me), MIT.
+ *
+ * ADOPTED, not reproduced (31-HANDOFF-PROACTIVITY-COMMIT-LANGUAGE named choice
+ * 1). Entered this tree as `shadcn add @jalco/repo-card` against the `@jalco`
+ * registry in components.json; provenance and license SHA are in NOTICE.md.
+ *
+ * The mapping this card carries (named choice 5): a stake IS the repository.
+ * Every slot upstream built for GitHub carries a proactivity fact instead, and
+ * the slot geometry is why the mapping reads without a caption:
+ *
+ *   repo full name  -> the stake statement, in its author's face
+ *   description     -> "rests on N assumptions"
+ *   topic chips     -> the source chips
+ *   language dot    -> the author dot, in the speaker-register lane color
+ *   star / fork     -> fire count and last fired
+ *   license         -> the standing budget
+ *   updated (clock) -> the permission clause
+ *   archived badge  -> disabled, on upstream's amber pattern + muted variant
+ *   fork badge      -> derived lineage
+ *
+ * Kept verbatim from upstream: `repoCardVariants` (four variants, three sizes,
+ * and the data-slot size selectors), the header/description/topics/meta block
+ * order, the `data-archived` and `data-fork` attributes, `formatCount`, and
+ * `formatRelativeDate`.
+ *
+ * Changed, and why:
+ * 1. Paint. Every shadcn token maps to a register token. Upstream's archived
+ *    badge painted `amber-500` directly; the register's warn family is the
+ *    console's amber, so the badge keeps its pattern and loses its raw palette.
+ *    Upstream's `dark:` variant pairs are dropped because the register already
+ *    swaps by theme, so a `dark:` override would fight the theme engine.
+ * 2. No glyphs. Upstream ships six GitHub-semantic inline SVGs (mark, star,
+ *    fork, license, clock, archive). Decision 12 holds this surface to no new
+ *    glyphs, and those six carry GitHub's meanings, not ours. The slots keep
+ *    their geometry and read in machinery mono instead. The language dot is not
+ *    a glyph and stays.
+ * 3. Data. Upstream is an async server component that fetches api.github.com.
+ *    Upstream already supports skipping that with its `data` prop, and that is
+ *    the path taken here: the fetch and its `lib/github` module are dropped
+ *    (there is no GitHub repository behind a stake), the two pure formatters
+ *    move into this file, and the props become the typed local shape above.
+ * 4. Root element. Upstream's root is an `<a>` to github.com. A stake is not a
+ *    link, so the root is a `div` unless an `href` is supplied, and a
+ *    `children` slot is added below the meta row for the inline editors the
+ *    card altitude composes into it.
+ * 5. Shadows dropped: depth on this surface is value, seam, and header, never
+ *    shadow (HANDOFF-CONSOLE-DIMENSIONALITY named choice 3).
+ */
 
-export interface RepoCardProps {
-  /** The leading domain dot color (a register var), the kind marker. */
-  readonly dot?: string;
-  /** The kind chip, like a repo card's fork/archived badge. */
-  readonly kind?: string;
-  readonly kindTint?: string;
-  readonly kindInk?: string;
-  /** The card title (the repo name slot). Wraps rather than truncates, because a
-   *  stake or watch statement is a sentence, not a short name. */
-  readonly title?: ReactNode;
-  /** Right-aligned header content (author tag, disable control). */
-  readonly badges?: ReactNode;
-  /** For e2e and inspector targeting. */
-  readonly dataNode?: string;
-  /** Extra classes on the card root, e.g. the flex sizing that keeps a card
-   *  card-sized and never full-width (grow basis-80 max-w-md). */
-  readonly className?: string;
-  /** The card body: description, tokens, meta, and expandable panels. */
-  readonly children?: ReactNode;
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+
+/**
+ * Upstream's abbreviating count formatter, verbatim. A fire count is exactly
+ * the quantity it was written for.
+ */
+export function formatCount(count: number): string {
+  if (count >= 1_000_000) {
+    const value = count / 1_000_000;
+    return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}m`;
+  }
+  if (count >= 1_000) {
+    const value = count / 1_000;
+    return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}k`;
+  }
+  return count.toLocaleString('en-US');
 }
 
-/** The muted description slot (a repo card's description line), clamped to two
- *  lines so cards stay card-sized and read at a glance. */
-export function RepoCardDescription({ children }: { readonly children: ReactNode }) {
-  return <p className="line-clamp-2 text-sm text-ij-ink-info">{children}</p>;
+/** Upstream's relative date formatter, verbatim. */
+export function formatRelativeDate(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86_400_000);
+
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 30) return `${diffDays}d ago`;
+  const months = Math.floor(diffDays / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(diffDays / 365);
+  return `${years}y ago`;
 }
 
-/** The muted meta row (a repo card's stars/forks/updated row). */
-export function RepoCardMeta({ children }: { readonly children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-3 text-xs text-ij-ink-info">{children}</div>;
+/**
+ * Upstream's variant matrix, structurally verbatim. `muted` is the variant
+ * named choice 5 pairs with the archived badge for a disabled stake, which is
+ * why all four variants are kept rather than trimmed to the two in use.
+ */
+const repoCardVariants = cva('flex flex-col gap-3 rounded-ij-arc border transition-colors', {
+  variants: {
+    variant: {
+      default: 'border-ij-seam-raised bg-ij-editor hover:border-ij-control-border hover:bg-ij-hover-surface',
+      outline: 'border-ij-seam-raised bg-ij-chrome hover:bg-ij-hover-surface',
+      ghost: 'border-transparent hover:bg-ij-hover-surface',
+      muted: 'border-ij-seam bg-ij-chrome opacity-60 hover:opacity-100',
+    },
+    size: {
+      sm: 'p-3 [&_[data-slot=repo-name]]:text-sm [&_[data-slot=repo-description]]:text-xs [&_[data-slot=repo-meta]]:text-xs',
+      default: 'p-4 [&_[data-slot=repo-name]]:text-sm [&_[data-slot=repo-description]]:text-xs [&_[data-slot=repo-meta]]:text-xs',
+      lg: 'p-5 [&_[data-slot=repo-name]]:text-base [&_[data-slot=repo-description]]:text-sm [&_[data-slot=repo-meta]]:text-xs',
+    },
+  },
+  defaultVariants: {
+    variant: 'default',
+    size: 'default',
+  },
+});
+
+/** The tone a meta entry carries. The accent grammar: a pending ask sits on the
+ *  accent, learned autonomy on gold, a refusal on error, everything else on the
+ *  informational ink. */
+export type RepoCardTone = 'info' | 'accent' | 'gold' | 'warn' | 'error';
+
+const TONE_INK: Record<RepoCardTone, string> = {
+  info: 'text-ij-ink-info',
+  accent: 'text-ij-accent',
+  gold: 'text-ij-gold',
+  warn: 'text-ij-warn',
+  error: 'text-ij-error',
+};
+
+/** One entry in upstream's star / fork stat run. */
+export interface RepoCardStat {
+  readonly label: string;
+  readonly value: string;
+  readonly tone?: RepoCardTone;
 }
 
-export function RepoCard({
-  dot,
-  kind,
-  kindTint = 'bg-ij-chrome',
-  kindInk = 'text-ij-ink-info',
-  title,
+/** What the card renders. Upstream's `GitHubRepoData`, rebound to the mapping
+ *  in the header comment. Every field is optional except the name, so a
+ *  compact row and a full stake card are the same component. */
+export interface RepoCardData {
+  /** The repo-name slot: a stake statement, a watch sentence, a step. */
+  readonly name: React.ReactNode;
+  /** The description slot. */
+  readonly description?: React.ReactNode;
+  /** The topics slot: source chips. */
+  readonly topics?: readonly string[];
+  /** How many topic chips before the overflow chip. @default 4 */
+  readonly maxTopics?: number;
+  /** The language dot: a register value naming the author's lane. */
+  readonly laneInk?: string;
+  /** The language label beside the dot. */
+  readonly laneLabel?: string;
+  /** The star / fork stat run. */
+  readonly stats?: readonly RepoCardStat[];
+  /** The license slot: the standing budget. */
+  readonly license?: string;
+  readonly licenseTone?: RepoCardTone;
+  /** The updated slot, right-aligned: the permission clause. */
+  readonly updated?: string;
+  readonly updatedTone?: RepoCardTone;
+  /** Upstream's archived state: a disabled node. Renders the amber badge. */
+  readonly archived?: boolean;
+  readonly archivedLabel?: string;
+  /** Upstream's fork state: derived lineage. */
+  readonly fork?: boolean;
+  readonly forkLabel?: string;
+}
+
+interface RepoCardProps extends Omit<React.ComponentProps<'div'>, 'children' | 'title'>, VariantProps<typeof repoCardVariants> {
+  readonly data: RepoCardData;
+  /** Show the language dot. @default true */
+  readonly showLanguage?: boolean;
+  /** Show topic chips. @default true */
+  readonly showTopics?: boolean;
+  /** Show the license slot. @default true */
+  readonly showLicense?: boolean;
+  /** Show the updated slot. @default true */
+  readonly showUpdated?: boolean;
+  /** The face the name slot resolves to (the typography law, named choice 4). */
+  readonly titleClass?: string;
+  /** The face the description slot resolves to. Declared rather than inherited:
+   *  the chrome's UI face and the agent's speaking face are different stacks,
+   *  so an element that only inherits is wearing an ungoverned face. */
+  readonly bodyClass?: string;
+  /** Who these faces claim is speaking, for the P4 gate. */
+  readonly speaker?: 'human' | 'agent';
+  /** Right-aligned header content: author tag, disable control. */
+  readonly badges?: React.ReactNode;
+  /** Composed body below the meta row: the inline editors, panels, sub-rows. */
+  readonly children?: React.ReactNode;
+}
+
+/** Upstream's badge shape, with the register's warn family standing in for its
+ *  raw amber. Used for archived (disabled) and fork (derived). */
+function StateBadge({ label, tone }: { readonly label: string; readonly tone: 'warn' | 'muted' }) {
+  return (
+    <span
+      data-type-role="machine"
+      className={cn(
+        'inline-flex items-center rounded-ij-arc border px-1.5 py-0.5 font-ij-mono text-xs font-medium leading-none',
+        tone === 'warn' ? 'border-ij-warn bg-ij-warn-bg text-ij-warn' : 'border-ij-seam-raised bg-ij-chrome text-ij-ink-info',
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function RepoCard({
+  data,
+  variant,
+  size,
+  showLanguage = true,
+  showTopics = true,
+  showLicense = true,
+  showUpdated = true,
+  titleClass,
+  bodyClass = 'font-cp-agent',
+  speaker = 'agent',
   badges,
-  dataNode,
-  className,
   children,
+  className,
+  ...props
 }: RepoCardProps) {
+  const maxTopics = data.maxTopics ?? 4;
+  const allTopics = data.topics ?? [];
+  const topics = allTopics.slice(0, maxTopics);
+  const hasMoreTopics = allTopics.length > maxTopics;
+  const stats = data.stats ?? [];
+
   return (
     <div
-      data-node={dataNode}
-      className={`flex flex-col gap-3 rounded-ij-arc border border-ij-seam-raised bg-ij-editor p-4 hover:border-ij-control-border ${className ?? ''}`}
+      data-slot="repo-card"
+      data-archived={data.archived || undefined}
+      data-fork={data.fork || undefined}
+      className={cn(repoCardVariants({ variant: data.archived ? 'muted' : variant, size, className }))}
+      {...props}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          {dot ? <span className="size-2.5 shrink-0 rounded-full" style={{ background: dot }} aria-hidden="true" /> : null}
-          {kind ? (
-            <span className={`shrink-0 rounded-ij-arc px-1.5 text-xs font-medium ${kindTint} ${kindInk}`}>{kind}</span>
+          {showLanguage && data.laneInk ? (
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: data.laneInk }}
+              aria-hidden="true"
+            />
           ) : null}
-          {title ? <span className="min-w-0 font-cp-title font-semibold text-ij-ink">{title}</span> : null}
+          <span
+            data-slot="repo-name"
+            data-type-role="title"
+            data-type-speaker={speaker}
+            className={cn('min-w-0 font-semibold text-ij-ink', titleClass)}
+          >
+            {data.name}
+          </span>
         </div>
-        {badges ? <div className="flex shrink-0 items-center gap-2">{badges}</div> : null}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {data.archived && <StateBadge label={data.archivedLabel ?? 'Disabled'} tone="warn" />}
+          {data.fork && <StateBadge label={data.forkLabel ?? 'Derived'} tone="muted" />}
+          {badges}
+        </div>
       </div>
+
+      {data.description && (
+        <p
+          data-slot="repo-description"
+          data-type-role="body"
+          data-type-speaker={speaker}
+          className={cn('line-clamp-2 text-ij-ink-info', bodyClass)}
+        >
+          {data.description}
+        </p>
+      )}
+
+      {showTopics && topics.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {topics.map((topic) => (
+            <span
+              key={topic}
+              data-slot="repo-topic"
+              data-type-role="machine"
+              className="inline-flex items-center rounded-full bg-ij-chrome px-2 py-0.5 font-ij-mono text-xs font-medium text-ij-ink-info"
+            >
+              {topic}
+            </span>
+          ))}
+          {hasMoreTopics && (
+            <span
+              data-type-role="machine"
+              className="inline-flex items-center rounded-full bg-ij-chrome px-2 py-0.5 font-ij-mono text-xs font-medium text-ij-ink-info"
+            >
+              +{allTopics.length - maxTopics}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div data-slot="repo-meta" data-type-role="machine" className="flex flex-wrap items-center gap-3 font-ij-mono text-ij-ink-info">
+        {showLanguage && data.laneLabel && (
+          <span className="inline-flex items-center gap-1.5" style={{ color: data.laneInk }}>
+            {data.laneLabel}
+          </span>
+        )}
+
+        {stats.map((stat) => (
+          <span key={stat.label} className={cn('inline-flex items-center gap-1 tabular-nums', TONE_INK[stat.tone ?? 'info'])}>
+            {stat.label} {stat.value}
+          </span>
+        ))}
+
+        {showLicense && data.license && (
+          <span className={cn('inline-flex items-center gap-1', TONE_INK[data.licenseTone ?? 'info'])}>{data.license}</span>
+        )}
+
+        {showUpdated && data.updated && (
+          <span className={cn('ml-auto inline-flex items-center gap-1', TONE_INK[data.updatedTone ?? 'info'])}>
+            {data.updated}
+          </span>
+        )}
+      </div>
+
       {children}
     </div>
   );
 }
+
+export { RepoCard, repoCardVariants };
+export type { RepoCardProps };

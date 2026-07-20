@@ -16,10 +16,12 @@ function nodesOfKind<K extends ProjectedNode['kind']>(kind: K) {
 }
 
 describe('projectProactivityGraph', () => {
-  it('projects all six node kinds', () => {
+  it('projects all seven node kinds', () => {
     const graph = projectFixture();
     const kinds = new Set(graph.nodes.map((node) => node.kind));
-    expect(kinds).toEqual(new Set(['stake', 'source', 'watch', 'judgment', 'response', 'assumption']));
+    // The five authorable kinds plus the two derived ones: assumption, and
+    // execution (a firing, projected as a commit on the agent lane).
+    expect(kinds).toEqual(new Set(['stake', 'source', 'watch', 'judgment', 'response', 'assumption', 'execution']));
   });
 
   it('derives correct edges including the two-sided convergence at a watch', () => {

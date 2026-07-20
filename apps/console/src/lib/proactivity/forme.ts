@@ -51,6 +51,13 @@ export interface FormeEngine {
   compileIntent(intent: string, context: IntentContext): IntentCompileResult;
 }
 
+/** A candidate is authored now, so its commit date is minted at compile time,
+ *  never at module load: the fixtures carry their own dates and this only ever
+ *  stamps what a person just wrote. */
+function authoredToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'intent';
 }
@@ -77,6 +84,7 @@ function authoredTrio(input: {
   readonly queryFamily: WatchNode['queryFamily'];
   readonly actionClass: string;
 }): StandingNode[] {
+  const authoredOn = authoredToday();
   const watch: WatchNode = {
     id: `${input.idPrefix}-watch`,
     kind: 'watch',
@@ -87,6 +95,7 @@ function authoredTrio(input: {
     sourceIds: input.sourceIds,
     queryFamily: input.queryFamily,
     author: 'human',
+    authoredOn,
     disabled: false,
   };
   const judgment: JudgmentNode = {
@@ -96,6 +105,7 @@ function authoredTrio(input: {
     thresholds: input.conditionParams,
     watchId: watch.id,
     author: 'human',
+    authoredOn,
     disabled: false,
   };
   const response: ResponseNode = {
@@ -104,6 +114,7 @@ function authoredTrio(input: {
     actionClass: input.actionClass,
     judgmentId: judgment.id,
     author: 'human',
+    authoredOn,
     disabled: false,
   };
   return [watch, judgment, response];
@@ -181,12 +192,14 @@ export function compileIntent(intent: string, context: IntentContext): IntentCom
       return { ok: false, reason: 'I can make a stake, but I have no notify effect contract to act on it.' };
     }
     const topic = help[1].trim().replace(/[.?!]+$/, '');
+    const authoredOn = authoredToday();
     const stake: StakeNode = {
       id: `${prefix}-stake`,
       kind: 'stake',
       statement: `Get ${topic} resolved`,
       label: { assumptionIds: [], complete: false, prunedCount: 0 },
       author: 'human',
+      authoredOn,
       disabled: false,
     };
     const watch: WatchNode = {
@@ -199,6 +212,7 @@ export function compileIntent(intent: string, context: IntentContext): IntentCom
       sourceIds: sourcesByKinds(context, ['life_email']),
       stakeId: stake.id,
       author: 'human',
+      authoredOn,
       disabled: false,
     };
     const judgment: JudgmentNode = {
@@ -208,6 +222,7 @@ export function compileIntent(intent: string, context: IntentContext): IntentCom
       thresholds: {},
       watchId: watch.id,
       author: 'human',
+      authoredOn,
       disabled: false,
     };
     const response: ResponseNode = {
@@ -216,6 +231,7 @@ export function compileIntent(intent: string, context: IntentContext): IntentCom
       actionClass: 'notify_digest',
       judgmentId: judgment.id,
       author: 'human',
+      authoredOn,
       disabled: false,
     };
     return {

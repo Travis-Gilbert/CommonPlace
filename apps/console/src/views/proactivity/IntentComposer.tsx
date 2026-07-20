@@ -13,13 +13,17 @@ import type { BlockHost } from '@commonplace/block-view/types';
 import type { EffectContract, SourceNode, StandingNode } from '@/lib/proactivity/model';
 import { commitCandidateAction } from '@/lib/proactivity/node-actions';
 import { stubForme, type IntentCompileResult } from '@/lib/proactivity/forme';
+import { CommitRow } from '@/components/commit-graph';
+import { candidateCommit } from './commits';
 import { KIND_META } from './kinds';
+import { faceClass } from './typography';
 
 export function IntentComposer({
   host,
   sources,
   contracts,
   hint,
+  onCandidates,
 }: {
   readonly host: BlockHost;
   readonly sources: readonly SourceNode[];
@@ -28,6 +32,11 @@ export function IntentComposer({
    *  hint so a custom or complex condition is described and compiled, never a
    *  blank hand-written row (the node-model grammar). */
   readonly hint?: string;
+  /** The candidates currently awaiting review, published upward so the graph
+   *  altitude can render them as uncommitted commits ahead of HEAD (P5). The
+   *  composer stays the only place they are produced or resolved; the graph
+   *  only shows them. */
+  readonly onCandidates?: (candidates: readonly StandingNode[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [intent, setIntent] = useState('');
@@ -52,7 +61,9 @@ export function IntentComposer({
     setCommitted(null);
     setCommitError(null);
     seq.current += 1;
-    setResult(stubForme.compileIntent(intent, { sources, contracts, idPrefix: `authored-${seq.current}` }));
+    const next = stubForme.compileIntent(intent, { sources, contracts, idPrefix: `authored-${seq.current}` });
+    setResult(next);
+    onCandidates?.(next.ok ? next.candidates : []);
   };
 
   const discard = () => {
@@ -61,6 +72,7 @@ export function IntentComposer({
     setIntent('');
     setCommitted(null);
     setCommitError(null);
+    onCandidates?.([]);
   };
 
   const commit = async (candidates: readonly StandingNode[]) => {
@@ -85,6 +97,7 @@ export function IntentComposer({
     setCommitting(false);
     setResult(null);
     setIntent('');
+    onCandidates?.([]);
     setCommitted('Added to your graph. It is now editable like any other node.');
   };
 
@@ -135,14 +148,31 @@ export function IntentComposer({
 
       {result && result.ok ? (
         <div className="flex flex-col gap-2 rounded-ij-arc bg-ij-chrome p-3" data-intent-review>
-          <p className="text-xs uppercase tracking-wide text-ij-ink-info">What it made, for your review</p>
-          <ul className="flex flex-col gap-1">
+          <p className="font-ij-mono text-xs uppercase tracking-wide text-ij-ink-info" data-type-role="machine">
+            Uncommitted, ahead of HEAD
+          </p>
+          {/* Candidates read as what they are: commits that do not exist yet.
+              Dashed, on your lane, in the same row grammar the graph uses, so
+              committing them is visibly the same act as any other commit. */}
+          <ul className="flex flex-col gap-1" data-candidate-list>
             {result.candidates.map((candidate) => (
-              <li key={candidate.id} className="flex items-center gap-2 text-sm text-ij-ink">
-                <span className={`rounded-ij-arc px-2 py-0 text-xs ${KIND_META[candidate.kind].tint} ${KIND_META[candidate.kind].ink}`}>
+              <li
+                key={candidate.id}
+                data-candidate={candidate.kind}
+                className="flex items-center gap-2 rounded-ij-arc border border-dashed border-cp-human px-2 py-1"
+              >
+                <span
+                  data-type-role="machine"
+                  className={`rounded-ij-arc px-2 py-0 font-ij-mono text-xs ${KIND_META[candidate.kind].tint} ${KIND_META[candidate.kind].ink}`}
+                >
                   {KIND_META[candidate.kind].label}
                 </span>
-                <span>{'statement' in candidate ? candidate.statement : candidate.kind === 'response' ? candidate.actionClass : candidate.kind}</span>
+                <CommitRow
+                  commit={candidateCommit(candidate)}
+                  lane="human"
+                  titleClass={faceClass('title', 'human')}
+                  dashed
+                />
               </li>
             ))}
           </ul>

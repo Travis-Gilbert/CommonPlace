@@ -10,6 +10,8 @@ import type {
   BudgetState,
   DegradedState,
   EffectContract,
+  ExecutionNode,
+  FiringState,
   Grant,
   PermissionState,
   PgEdge,
@@ -17,6 +19,7 @@ import type {
   ProjectedNode,
   ProjectionResult,
   StandingBudget,
+  StandingFiring,
   StandingNode,
   StandingStructure,
 } from './model';
@@ -41,8 +44,18 @@ function sourceLabel(kind: string): string {
 /** Derive the primary graph edges from the structural fields. The two-sided
  *  convergence is at the watch: `feeds` (source into watch) and `declares`
  *  (stake into its derived watch) both arrive there (named choice 8). */
-function deriveEdges(nodes: readonly StandingNode[]): PgEdge[] {
+function deriveEdges(nodes: readonly StandingNode[], firings: readonly StandingFiring[]): PgEdge[] {
   const edges: PgEdge[] = [];
+  // An execution hangs off the response commit that fired: the lineage the doc
+  // asks for, "parented to the program commit that fired".
+  for (const firing of firings) {
+    edges.push({
+      id: `e-executes-${firing.responseId}-${firing.id}`,
+      from: firing.responseId,
+      to: firing.id,
+      kind: 'executes',
+    });
+  }
   for (const node of nodes) {
     switch (node.kind) {
       case 'assumption':
@@ -109,6 +122,19 @@ function resolveBudget(contract: EffectContract, budgets: readonly StandingBudge
 }
 
 const NO_DEGRADE: DegradedState = { degraded: false, causeIds: [] };
+
+const NO_FIRINGS: FiringState = { count: 0, executionIds: [] };
+
+/** Fold the firing history into the per-response state the card's stat slots
+ *  read (named choice 5). Read-only, like permission and budget beside it. */
+function resolveFirings(responseId: string, firings: readonly StandingFiring[]): FiringState {
+  const mine = firings.filter((firing) => firing.responseId === responseId);
+  if (mine.length === 0) return NO_FIRINGS;
+  // The history is ordered newest-last by construction; the last entry is the
+  // most recent fire, which is what "last fired" means on the card.
+  const lastFiredOn = mine.reduce((latest, firing) => (firing.firedOn > latest ? firing.firedOn : latest), mine[0].firedOn);
+  return { count: mine.length, lastFiredOn, executionIds: mine.map((firing) => firing.id) };
+}
 
 /**
  * Project a tenant's standing structure into the renderable graph. A missing
@@ -188,6 +214,8 @@ export function projectProactivityGraph(
     }
   };
 
+  const firings = structure.firings ?? [];
+
   const nodes: ProjectedNode[] = structure.nodes.map((node) => {
     if (node.kind === 'response') {
       const contract = resolveContract(node.actionClass, structure.effectContracts);
@@ -197,15 +225,36 @@ export function projectProactivityGraph(
         effectContract: contract,
         permission: resolvePermission(contract.capabilityClass, structure.grants),
         budget: resolveBudget(contract, structure.budgets),
+        firing: resolveFirings(node.id, firings),
       };
     }
     return { ...node, degraded: degradedFor(node) };
   });
 
+  // Execution commits, appended after the structure so they read as history
+  // arriving on top of the program rather than as part of it. An execution
+  // whose response is gone is dropped: a commit with no parent is not lineage.
+  const responseIds = new Set(structure.nodes.filter((node) => node.kind === 'response').map((node) => node.id));
+  const executions: ProjectedNode[] = firings
+    .filter((firing) => responseIds.has(firing.responseId))
+    .map((firing) => {
+      const execution: ExecutionNode = {
+        id: firing.id,
+        kind: 'execution',
+        responseId: firing.responseId,
+        firedOn: firing.firedOn,
+        outcome: firing.outcome,
+        note: firing.note,
+        author: 'agent',
+        authoredOn: firing.firedOn,
+      };
+      return { ...execution, degraded: NO_DEGRADE };
+    });
+
   const graph: ProactivityGraph = {
     tenant,
-    nodes,
-    edges: deriveEdges(structure.nodes),
+    nodes: [...nodes, ...executions],
+    edges: deriveEdges(structure.nodes, firings.filter((firing) => responseIds.has(firing.responseId))),
   };
   return graph;
 }

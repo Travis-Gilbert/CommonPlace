@@ -8,8 +8,12 @@
 // projection fills it from fixtures behind this stable interface and lights up
 // unchanged when the kernel lands behind the same block-view seam.
 
-/** The five authorable node kinds plus the one derived kind (the vocabulary). */
-export type PgNodeKind = 'stake' | 'source' | 'watch' | 'judgment' | 'response' | 'assumption';
+/** The five authorable node kinds plus the two derived kinds (the vocabulary).
+ *  `execution` is the second derived kind, added by
+ *  31-HANDOFF-PROACTIVITY-COMMIT-LANGUAGE: a firing is an execution commit on
+ *  the agent lane, parented to the program commit that fired. It is never
+ *  authored, never edited, and never disabled; it is history. */
+export type PgNodeKind = 'stake' | 'source' | 'watch' | 'judgment' | 'response' | 'assumption' | 'execution';
 
 /** Who wrote a node. Human intent is compiled but otherwise indistinguishable
  *  (named choice 4). */
@@ -34,6 +38,18 @@ export type StandingQueryFamily = 'open_loops' | 'deadlines' | 'recurring_charge
 /** The interruption gate class (named choice: "when it bothers you"). */
 export type JudgmentClass = 'interrupt' | 'digest' | 'silent';
 
+/**
+ * When a node entered the standing program, as an ISO date. Every node carries
+ * one because the commit language needs a time on every row: a commit without a
+ * date is not a commit, and a row that shows a time for some kinds and not
+ * others is exactly the accidental variation P4 exists to fail.
+ *
+ * Fixture-supplied here, like `grantedOn` beside it, and read-only: no mutation
+ * writes it, so the grant boundary is untouched. The kernel supplies it when it
+ * lands behind the same block-view seam (verify-first V4 through V9).
+ */
+export type AuthoredOn = string;
+
 // --- The standing structure (what the fixtures hold, pre-projection) ---
 
 /** The ATMS label under a stake (kernel AK5.4). `complete=false` renders
@@ -52,6 +68,7 @@ export interface StakeNode {
   readonly statement: string;
   readonly label: AtmsLabel;
   readonly author: PgAuthor;
+  readonly authoredOn: AuthoredOn;
   readonly disabled: boolean;
 }
 
@@ -67,6 +84,7 @@ export interface AssumptionNode {
    *  view; not a primary graph edge, to keep the join layer crisp). */
   readonly couldChangeSourceIds: readonly string[];
   readonly stakeId: string;
+  readonly authoredOn: AuthoredOn;
   readonly pruned: boolean;
 }
 
@@ -77,6 +95,7 @@ export interface SourceNode {
   readonly lifeKind: LifeSourceKind;
   readonly label: string;
   readonly ingest: IngestState;
+  readonly authoredOn: AuthoredOn;
   readonly disabled: boolean;
 }
 
@@ -96,6 +115,7 @@ export interface WatchNode {
   /** For an authored watch, its standing-query family. */
   readonly queryFamily?: StandingQueryFamily;
   readonly author: PgAuthor;
+  readonly authoredOn: AuthoredOn;
   readonly disabled: boolean;
 }
 
@@ -108,6 +128,7 @@ export interface JudgmentNode {
   /** The watch this judgment gates. */
   readonly watchId: string;
   readonly author: PgAuthor;
+  readonly authoredOn: AuthoredOn;
   readonly disabled: boolean;
 }
 
@@ -146,6 +167,7 @@ export interface ResponseNode {
   /** The judgment upstream of this response. */
   readonly judgmentId: string;
   readonly author: PgAuthor;
+  readonly authoredOn: AuthoredOn;
   readonly disabled: boolean;
   /** The stacked agent-action steps. Absent or empty renders one derived row
    *  (the effect contract's action); a person stacks more to build the action. */
@@ -159,6 +181,46 @@ export type StandingNode =
   | WatchNode
   | JudgmentNode
   | ResponseNode;
+
+/** What a firing did, in the accent grammar: a proposal was raised, the agent
+ *  acted under a standing grant, or the boundary refused it. */
+export type FiringOutcome = 'proposed' | 'acted' | 'refused';
+
+/**
+ * One recorded firing of a response (31-HANDOFF-PROACTIVITY-COMMIT-LANGUAGE:
+ * "a firing is an execution commit on the agent lane"). History, not structure:
+ * nothing authors it, no mutation edits it, and the projection turns it into an
+ * `ExecutionNode` parented to the response commit that fired. The fixture holds
+ * the seam; the channel-3 SSE feed fills it when the wiring spec swaps it live,
+ * and nothing above this line changes when it does.
+ */
+export interface StandingFiring {
+  readonly id: string;
+  /** The response commit this execution is parented to. */
+  readonly responseId: string;
+  readonly firedOn: string;
+  readonly outcome: FiringOutcome;
+  /** What it did, in one plain line. */
+  readonly note: string;
+}
+
+/**
+ * A derived execution commit. Never authored, never disabled: it is what the
+ * agent did, with lineage back to the authorization that permitted it, which is
+ * the second thing the commit mapping buys (the doc's "show deterministically
+ * what the agent did").
+ */
+export interface ExecutionNode {
+  readonly id: string;
+  readonly kind: 'execution';
+  readonly responseId: string;
+  readonly firedOn: string;
+  readonly outcome: FiringOutcome;
+  readonly note: string;
+  /** Always the agent: an execution is the agent's lane by definition. */
+  readonly author: 'agent';
+  readonly authoredOn: AuthoredOn;
+}
 
 // --- Code-owned objects the projection resolves against (kernel AK2, Grants,
 //     the standing budget). These live behind code; the surface reads them and
@@ -206,6 +268,9 @@ export interface StandingStructure {
   readonly effectContracts: readonly EffectContract[];
   readonly grants: readonly Grant[];
   readonly budgets: readonly StandingBudget[];
+  /** The execution history. Absent is an empty history, so a structure written
+   *  before this field still projects. */
+  readonly firings?: readonly StandingFiring[];
 }
 
 // --- The projection output (what the surface renders) ---
@@ -241,24 +306,36 @@ export interface DegradedState {
   readonly causeIds: readonly string[];
 }
 
+/** How often a response has fired and when it last did (named choice 5: the
+ *  fire count and last-fired ride the card's stat slots). Projected from the
+ *  firing history exactly as permission is projected from grants. */
+export interface FiringState {
+  readonly count: number;
+  readonly lastFiredOn?: string;
+  /** The ids of the execution commits parented to this response. */
+  readonly executionIds: readonly string[];
+}
+
 export type ProjectedNode =
   | (StakeNode & { readonly degraded: DegradedState })
   | (AssumptionNode & { readonly degraded: DegradedState })
   | (SourceNode & { readonly degraded: DegradedState })
   | (WatchNode & { readonly degraded: DegradedState })
   | (JudgmentNode & { readonly degraded: DegradedState })
+  | (ExecutionNode & { readonly degraded: DegradedState })
   | (ResponseNode & {
       readonly degraded: DegradedState;
       readonly effectContract: EffectContract;
       readonly permission: PermissionState;
       readonly budget: BudgetState;
+      readonly firing: FiringState;
     });
 
 /** A directed edge in the standing graph. The two-sided convergence lives at
  *  the watch: `feeds` (a source into a watch) and `declares` (a stake into its
  *  derived watch) both arrive there, so a firing requires both (named choice
  *  8). `rests_on` is the stake side origin. */
-export type PgEdgeKind = 'rests_on' | 'feeds' | 'declares' | 'gates' | 'acts';
+export type PgEdgeKind = 'rests_on' | 'feeds' | 'declares' | 'gates' | 'acts' | 'executes';
 
 export interface PgEdge {
   readonly id: string;
@@ -296,13 +373,15 @@ export function isResponse(node: ProjectedNode): node is ProjectedResponse {
 /** Every node kind except assumption carries a disable switch. An assumption's
  *  consent affordance is prune (named choice 6), not disable, so it is excluded
  *  here and the disable control is never rendered for it. */
-export type DisableableNode = Exclude<ProjectedNode, { kind: 'assumption' }>;
+export type DisableableNode = Exclude<ProjectedNode, { kind: 'assumption' } | { kind: 'execution' }>;
 
 export function isDisableable(node: ProjectedNode): node is DisableableNode {
-  return node.kind !== 'assumption';
+  return node.kind !== 'assumption' && node.kind !== 'execution';
 }
 
-/** Safe disabled read across the union (assumptions have no disable switch). */
+/** Safe disabled read across the union. Assumptions have no disable switch (they
+ *  are pruned instead), and an execution is history: you cannot turn off
+ *  something that already happened. */
 export function nodeDisabled(node: ProjectedNode): boolean {
-  return node.kind !== 'assumption' && node.disabled;
+  return isDisableable(node) && node.disabled;
 }

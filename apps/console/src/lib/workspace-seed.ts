@@ -13,6 +13,7 @@
 
 import type { ObjectRef, JsonValue } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
+import { PG_TYPES } from './proactivity/object-bridge';
 
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
@@ -251,7 +252,10 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'proactivity.graph',
       title: 'Proactivity',
       query: {
-        types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption'],
+        // PG_TYPES, not a literal list: a new node kind that the projection
+        // emits but the query never asks for is invisible, and the only way to
+        // make that impossible is to have one list.
+        types: [...PG_TYPES],
         live: true,
       } as unknown as JsonValue,
     }),

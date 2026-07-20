@@ -13,7 +13,7 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import dynamic from 'next/dynamic';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
-import type { EffectContract, ProactivityGraph } from '@/lib/proactivity/model';
+import type { EffectContract, ProactivityGraph, StandingNode } from '@/lib/proactivity/model';
 import { graphFromObjects } from '@/lib/proactivity/object-bridge';
 import { REFUSAL_NOTE } from '@/lib/proactivity/store';
 import { ViewState } from './ViewStates';
@@ -43,6 +43,10 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
   // the intent composer, so arbitrary logic is described and compiled, never a
   // blank hand-written row (the node-model grammar, custom compiled from intent).
   const [compileHint, setCompileHint] = useState<string | undefined>(undefined);
+  // Candidates live here rather than inside the composer, because the graph
+  // altitude renders them as uncommitted commits ahead of HEAD (P5) while the
+  // composer stays the only place they are produced, committed, or discarded.
+  const [candidates, setCandidates] = useState<readonly StandingNode[]>([]);
   const edits = useProactivityEdits(host);
 
   const refused = set.notes?.includes(REFUSAL_NOTE) ?? false;
@@ -113,7 +117,13 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
             </button>
           ) : null}
         </div>
-        <IntentComposer host={host} sources={sourcesOf(graph.nodes)} contracts={contracts} hint={compileHint} />
+        <IntentComposer
+          host={host}
+          sources={sourcesOf(graph.nodes)}
+          contracts={contracts}
+          hint={compileHint}
+          onCandidates={setCandidates}
+        />
         {edits.error ? (
           <p className="rounded-ij-arc bg-ij-error-bg px-3 py-1 text-sm text-ij-error" role="alert">
             {edits.error}
@@ -127,7 +137,13 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
       <div className="min-h-0 flex-1 overflow-auto">
         {altitude === 'card' ? <CardAltitude graph={graph} edits={edits} contracts={contracts} /> : null}
         {altitude === 'graph' ? (
-          <GraphAltitude graph={graph} edits={edits} contracts={contracts} onCompile={setCompileHint} />
+          <GraphAltitude
+            graph={graph}
+            edits={edits}
+            contracts={contracts}
+            candidates={candidates}
+            onCompile={setCompileHint}
+          />
         ) : null}
       </div>
     </div>

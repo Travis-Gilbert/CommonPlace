@@ -11,6 +11,7 @@ import type {
   ProjectedNode,
   ProjectedResponse,
 } from '@/lib/proactivity/model';
+import { faceClass, speakerOf } from './typography';
 
 type Projected<K extends PgNodeKind> = Extract<ProjectedNode, { kind: K }>;
 
@@ -31,16 +32,23 @@ export const KIND_META: Record<PgNodeKind, KindMeta> = {
   judgment: { label: 'Judgment', ink: 'text-ij-room', tint: 'bg-ij-room-tint', shape: 'circle' },
   response: { label: 'Response', ink: 'text-ij-ink', tint: 'bg-ij-raised', shape: 'rounded' },
   assumption: { label: 'Assumption', ink: 'text-ij-ink-info', tint: 'bg-ij-chrome', shape: 'dot' },
+  // The derived execution kind: what the agent actually did. It is history, so
+  // it carries no domain tint of its own and reads on the agent's own register.
+  execution: { label: 'Ran', ink: 'text-cp-agent', tint: 'bg-ij-chrome', shape: 'dot' },
 };
 
-/** The body face for a node's content, by author (the console typography
- *  system): the human speaks in Manrope at an extra-light weight, everyone else
- *  in the chrome/agent Plex (an empty string, which inherits the chrome face).
- *  Titles (font-cp-title, Vollkorn) and metadata (font-ij-mono, JetBrains) are
- *  applied on their own elements and are universal to author. */
+/** The body face for a node's content, by author. This is the `body` row of the
+ *  typography law (see typography.ts, named choice 4), which is now the one
+ *  place the mapping is written; this helper stays as the call-site shorthand
+ *  the surface already uses and delegates rather than restating it. */
 export function bodyFontClass(node: ProjectedNode): string {
-  const author = 'author' in node ? node.author : 'agent';
-  return author === 'human' ? 'font-cp-human font-extralight' : '';
+  return faceClass('body', speakerOf('author' in node ? node : undefined));
+}
+
+/** The title face for a node, by author: Vollkorn for yours, Plex Sans for the
+ *  agent's. A title says who wrote the thing it titles. */
+export function titleFontClass(node: ProjectedNode): string {
+  return faceClass('title', speakerOf('author' in node ? node : undefined));
 }
 
 /** A standing program: a watch and its downstream, plus its stake and sources. */

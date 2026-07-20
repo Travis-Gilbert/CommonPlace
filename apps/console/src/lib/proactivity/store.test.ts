@@ -16,7 +16,7 @@ import {
 } from './node-actions';
 
 const PG_QUERY = {
-  types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption'],
+  types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption', 'pg.execution'],
   live: true,
 } as const;
 
@@ -136,6 +136,7 @@ describe('ProactivityStore', () => {
       sourceIds: ['pg-source-email'],
       queryFamily: 'open_loops',
       author: 'human',
+      authoredOn: '2026-07-19',
       disabled: false,
     } as const;
     const receipt = await Promise.resolve(store.emit(commitCandidateAction(candidate)));

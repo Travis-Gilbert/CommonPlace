@@ -13,6 +13,7 @@ import type {
   EffectContract,
   Grant,
   StandingBudget,
+  StandingFiring,
   StandingNode,
   StandingStructure,
 } from './model';
@@ -33,6 +34,7 @@ const NODES: readonly StandingNode[] = [
       prunedCount: 0,
     },
     author: 'agent',
+    authoredOn: '2026-06-28',
     disabled: false,
   },
   {
@@ -47,6 +49,7 @@ const NODES: readonly StandingNode[] = [
       prunedCount: 2,
     },
     author: 'agent',
+    authoredOn: '2026-05-14',
     disabled: false,
   },
 
@@ -58,6 +61,7 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'the denial letter',
     couldChangeSourceIds: ['pg-source-email'],
     stakeId: 'pg-stake-appeal',
+    authoredOn: '2026-06-28',
     pruned: false,
   },
   {
@@ -67,6 +71,7 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'the last reply header',
     couldChangeSourceIds: ['pg-source-email'],
     stakeId: 'pg-stake-appeal',
+    authoredOn: '2026-06-28',
     pruned: false,
   },
   {
@@ -76,6 +81,7 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'the policy record',
     couldChangeSourceIds: ['pg-source-email'],
     stakeId: 'pg-stake-appeal',
+    authoredOn: '2026-06-28',
     pruned: false,
   },
   {
@@ -85,6 +91,7 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'a note from the provider portal',
     couldChangeSourceIds: ['pg-source-email', 'pg-source-event'],
     stakeId: 'pg-stake-appeal',
+    authoredOn: '2026-06-28',
     pruned: false,
   },
 
@@ -96,6 +103,7 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'the last editor email',
     couldChangeSourceIds: ['pg-source-email'],
     stakeId: 'pg-stake-book',
+    authoredOn: '2026-05-14',
     pruned: false,
   },
   {
@@ -105,6 +113,7 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'the recurring calendar block',
     couldChangeSourceIds: ['pg-source-event'],
     stakeId: 'pg-stake-book',
+    authoredOn: '2026-05-14',
     pruned: false,
   },
   {
@@ -114,18 +123,19 @@ const NODES: readonly StandingNode[] = [
     restsOn: 'the contract',
     couldChangeSourceIds: ['pg-source-email'],
     stakeId: 'pg-stake-book',
+    authoredOn: '2026-05-14',
     pruned: false,
   },
 
   // --- Sources (the four life sources) ---
-  { id: 'pg-source-email', kind: 'source', lifeKind: 'life_email', label: 'Email', ingest: 'live', disabled: false },
-  { id: 'pg-source-event', kind: 'source', lifeKind: 'life_event', label: 'Calendar', ingest: 'live', disabled: false },
-  { id: 'pg-source-sms', kind: 'source', lifeKind: 'life_sms', label: 'Messages', ingest: 'live', disabled: false },
-  { id: 'pg-source-call', kind: 'source', lifeKind: 'life_call', label: 'Calls', ingest: 'live', disabled: false },
+  { id: 'pg-source-email', kind: 'source', lifeKind: 'life_email', label: 'Email', ingest: 'live', authoredOn: '2026-05-02', disabled: false },
+  { id: 'pg-source-event', kind: 'source', lifeKind: 'life_event', label: 'Calendar', ingest: 'live', authoredOn: '2026-05-02', disabled: false },
+  { id: 'pg-source-sms', kind: 'source', lifeKind: 'life_sms', label: 'Messages', ingest: 'live', authoredOn: '2026-05-09', disabled: false },
+  { id: 'pg-source-call', kind: 'source', lifeKind: 'life_call', label: 'Calls', ingest: 'live', authoredOn: '2026-05-09', disabled: false },
   // Time is a fact source, not a trigger (aliveness named choice 3): the Clock
   // emits temporal facts (a cadence tick, a staleness threshold passed) that
   // feed a watch like any other source, so there is no cron block.
-  { id: 'pg-source-clock', kind: 'source', lifeKind: 'life_clock', label: 'Clock', ingest: 'live', disabled: false },
+  { id: 'pg-source-clock', kind: 'source', lifeKind: 'life_clock', label: 'Clock', ingest: 'live', authoredOn: '2026-05-02', disabled: false },
 
   // --- Watches (derived from labels, and authored standing queries) ---
   {
@@ -138,6 +148,7 @@ const NODES: readonly StandingNode[] = [
     sourceIds: ['pg-source-email'],
     stakeId: 'pg-stake-appeal',
     author: 'agent',
+    authoredOn: '2026-06-28',
     disabled: false,
   },
   {
@@ -152,6 +163,7 @@ const NODES: readonly StandingNode[] = [
     sourceIds: ['pg-source-email', 'pg-source-sms', 'pg-source-clock'],
     stakeId: 'pg-stake-book',
     author: 'agent',
+    authoredOn: '2026-05-14',
     disabled: false,
   },
   {
@@ -166,6 +178,7 @@ const NODES: readonly StandingNode[] = [
     sourceIds: ['pg-source-email', 'pg-source-sms'],
     queryFamily: 'open_loops',
     author: 'human',
+    authoredOn: '2026-07-12',
     disabled: false,
   },
   {
@@ -179,23 +192,25 @@ const NODES: readonly StandingNode[] = [
     sourceIds: ['pg-source-email'],
     queryFamily: 'recurring_charges',
     author: 'agent',
+    authoredOn: '2026-06-02',
     disabled: false,
   },
 
   // --- Judgments (when it bothers you) ---
-  { id: 'pg-judg-appeal', kind: 'judgment', judgmentClass: 'interrupt', thresholds: {}, watchId: 'pg-watch-appeal', author: 'agent', disabled: false },
-  { id: 'pg-judg-book', kind: 'judgment', judgmentClass: 'digest', thresholds: {}, watchId: 'pg-watch-book', author: 'agent', disabled: false },
-  { id: 'pg-judg-owe', kind: 'judgment', judgmentClass: 'digest', thresholds: { quietDays: 3 }, watchId: 'pg-watch-owe', author: 'human', disabled: false },
-  { id: 'pg-judg-subs', kind: 'judgment', judgmentClass: 'digest', thresholds: { amount: 20 }, watchId: 'pg-watch-subs', author: 'agent', disabled: false },
+  { id: 'pg-judg-appeal', kind: 'judgment', judgmentClass: 'interrupt', thresholds: {}, watchId: 'pg-watch-appeal', author: 'agent', authoredOn: '2026-06-28', disabled: false },
+  { id: 'pg-judg-book', kind: 'judgment', judgmentClass: 'digest', thresholds: {}, watchId: 'pg-watch-book', author: 'agent', authoredOn: '2026-05-14', disabled: false },
+  { id: 'pg-judg-owe', kind: 'judgment', judgmentClass: 'digest', thresholds: { quietDays: 3 }, watchId: 'pg-watch-owe', author: 'human', authoredOn: '2026-07-12', disabled: false },
+  { id: 'pg-judg-subs', kind: 'judgment', judgmentClass: 'digest', thresholds: { amount: 20 }, watchId: 'pg-watch-subs', author: 'agent', authoredOn: '2026-06-02', disabled: false },
 
   // --- Responses (what it does; each resolves an EffectContract + Grant) ---
-  { id: 'pg-resp-appeal', kind: 'response', actionClass: 'send_email_reply', judgmentId: 'pg-judg-appeal', author: 'agent', disabled: false },
+  { id: 'pg-resp-appeal', kind: 'response', actionClass: 'send_email_reply', judgmentId: 'pg-judg-appeal', author: 'agent', authoredOn: '2026-06-28', disabled: false },
   {
     id: 'pg-resp-book',
     kind: 'response',
     actionClass: 'notify_digest',
     judgmentId: 'pg-judg-book',
     author: 'agent',
+    authoredOn: '2026-05-14',
     disabled: false,
     // A built-up agent action: typed blocks a person stacked on the node (the
     // git-graph building block). prepare assembles, verify checks, and the
@@ -212,6 +227,7 @@ const NODES: readonly StandingNode[] = [
     actionClass: 'draft_nudge',
     judgmentId: 'pg-judg-owe',
     author: 'human',
+    authoredOn: '2026-07-12',
     disabled: false,
     // A branched action: prepare, verify, then a then/else fork that rejoins at
     // the terminal action (the git-graph fork/merge topology).
@@ -222,7 +238,7 @@ const NODES: readonly StandingNode[] = [
       { id: 'pg-resp-owe-s4', label: 'Otherwise, note it silently', type: 'prepare', branch: 'else' },
     ],
   },
-  { id: 'pg-resp-subs', kind: 'response', actionClass: 'push_subscription_alert', judgmentId: 'pg-judg-subs', author: 'agent', disabled: false },
+  { id: 'pg-resp-subs', kind: 'response', actionClass: 'push_subscription_alert', judgmentId: 'pg-judg-subs', author: 'agent', authoredOn: '2026-06-02', disabled: false },
 ];
 
 /** EffectContracts owned by code (kernel AK2). An action class resolves here;
@@ -284,6 +300,20 @@ const BUDGETS: readonly StandingBudget[] = [
   { capabilityClass: 'notify:push', cap: 10, committedSpend: 5 },
 ];
 
+/** The execution history the commit language renders: each firing is an
+ *  execution commit on the agent lane, parented to the response that fired.
+ *  Held in the fixture behind the same seam the rest of this file holds (the
+ *  kernel is ABSENT here); the channel-3 firing feed fills it live and nothing
+ *  above this line changes. `pg-resp-subs` deliberately has no firing: it is
+ *  over budget, so it never ran, and its empty history is the budget boundary
+ *  told in the commit language. */
+const FIRINGS: readonly StandingFiring[] = [
+  { id: 'pg-fire-appeal-1', responseId: 'pg-resp-appeal', firedOn: '2026-07-16T08:20:00.000Z', outcome: 'proposed', note: 'Drafted a reply to the adjuster and asked you first' },
+  { id: 'pg-fire-book-1', responseId: 'pg-resp-book', firedOn: '2026-07-17T09:12:00.000Z', outcome: 'acted', note: "Added the editor's note to your 6pm digest" },
+  { id: 'pg-fire-owe-1', responseId: 'pg-resp-owe', firedOn: '2026-07-18T11:40:00.000Z', outcome: 'proposed', note: 'Drafted a nudge and held it for your approval' },
+  { id: 'pg-fire-book-2', responseId: 'pg-resp-book', firedOn: '2026-07-18T18:02:00.000Z', outcome: 'acted', note: 'Added a cadence reminder to your 6pm digest' },
+];
+
 /** A fresh, deep copy of the fixture standing structure (the store mutates it,
  *  so every construction gets its own). */
 export function seedStandingStructure(): StandingStructure {
@@ -292,5 +322,6 @@ export function seedStandingStructure(): StandingStructure {
     effectContracts: EFFECT_CONTRACTS,
     grants: GRANTS,
     budgets: BUDGETS,
+    firings: FIRINGS,
   });
 }

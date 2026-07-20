@@ -9,10 +9,19 @@
 // identical because nothing animates.
 
 import { useEffect, useMemo, useState } from 'react';
-import { isDisableable, nodeDisabled, type EffectContract, type ProactivityGraph, type ProjectedNode } from '@/lib/proactivity/model';
+import {
+  isDisableable,
+  nodeDisabled,
+  type EffectContract,
+  type ProactivityGraph,
+  type ProjectedNode,
+  type StandingNode,
+} from '@/lib/proactivity/model';
 import { ViewState } from '../ViewStates';
 import { GraphCanvas } from './GraphCanvas';
-import { layoutGraph, responseStepCount, type GraphLayout } from './graph-layout';
+import { NODE_WIDTH, layoutGraph, responseStepCount, type CanvasNode, type GraphLayout } from './graph-layout';
+import { candidateCommit, litLineage, mergeWatchIds, stakeRefIndex, toCommit, type CommitView } from './commits';
+import { KIND_META } from './kinds';
 import {
   AuthorTag,
   BudgetBadge,
@@ -36,15 +45,24 @@ function structuralSignature(graph: ProactivityGraph): string {
   return `${nodes}|${graph.edges.length}`;
 }
 
+/** Candidates sit one layer to the right of everything laid out, which in this
+ *  graph's left-to-right flow is literally "ahead of HEAD". They are not fed to
+ *  dagre: they have no lineage yet, so ranking them would be inventing one. */
+const CANDIDATE_GAP = 96;
+const CANDIDATE_ROW = 60;
+
 export function GraphAltitude({
   graph,
   edits,
   contracts,
+  candidates = [],
   onCompile,
 }: {
   readonly graph: ProactivityGraph;
   readonly edits: ProactivityEdits;
   readonly contracts: readonly EffectContract[];
+  /** PG5 compiler output awaiting commit, rendered as uncommitted commits. */
+  readonly candidates?: readonly StandingNode[];
   readonly onCompile?: (hint: string) => void;
 }) {
   const [laid, setLaid] = useState<{ layout: GraphLayout; sig: string } | null>(null);
@@ -92,6 +110,35 @@ export function GraphAltitude({
     };
   }, [laid, currentById]);
 
+  // The decompile, done once per graph rather than once per node per render:
+  // the lineage and stake-ref indexes are whole-graph questions, so asking them
+  // inside a node renderer would ask them a hundred times per React Flow pass.
+  const commits = useMemo<ReadonlyMap<string, CommitView>>(() => {
+    const merges = mergeWatchIds(graph);
+    const stakeRefs = stakeRefIndex(graph);
+    return new Map(graph.nodes.map((node) => [node.id, toCommit(node, { graph, merges, stakeRefs })]));
+  }, [graph]);
+
+  const lit = useMemo(() => litLineage(graph), [graph]);
+
+  const candidateNodes = useMemo<CanvasNode[]>(() => {
+    if (candidates.length === 0 || !layout) return [];
+    // Ahead of HEAD: one column to the right of everything committed.
+    const x = layout.width + CANDIDATE_GAP;
+    return candidates.map((candidate, index) => ({
+      id: `candidate-${candidate.id}`,
+      type: 'candidate' as const,
+      position: { x, y: index * CANDIDATE_ROW },
+      data: { commit: candidateCommit(candidate), kindLabel: KIND_META[candidate.kind].label },
+      width: NODE_WIDTH,
+      height: CANDIDATE_ROW - 8,
+      draggable: false,
+      connectable: false,
+      deletable: false,
+      selectable: false,
+    }));
+  }, [candidates, layout]);
+
   const selected = selectedId ? graph.nodes.find((node) => node.id === selectedId) ?? null : null;
 
   if (failed) return <ViewState state="error" errorMessage="The graph could not be laid out." />;
@@ -102,13 +149,27 @@ export function GraphAltitude({
 
   return (
     <div className="flex h-full flex-col" data-altitude="graph">
-      <p className="border-b border-ij-divider px-6 py-2 text-xs text-ij-ink-info">
-        Facts arrive from your sources on one side; your stakes rest on assumptions on the other. A watch fires only where
-        both converge (the marked joins).
+      <p
+        className="border-b border-ij-divider px-6 py-2 font-cp-agent text-xs text-ij-ink-info"
+        data-type-role="body"
+        data-type-speaker="agent"
+      >
+        Your standing program, read as a repository. Facts arrive from your sources on one rail; your stakes rest on
+        assumptions on the other. A watch fires only where both converge, which is why those commits are merges. Rail
+        color is authorship: yours, the agent&rsquo;s, or derived.
       </p>
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
-          <GraphCanvas layout={layout} selectedId={selectedId} edits={edits} onSelect={setSelectedId} onCompile={onCompile} />
+          <GraphCanvas
+            layout={layout}
+            candidates={candidateNodes}
+            selectedId={selectedId}
+            edits={edits}
+            commits={commits}
+            lit={lit}
+            onSelect={setSelectedId}
+            onCompile={onCompile}
+          />
           {stale ? (
             <div className="absolute left-4 top-4 rounded-ij-arc bg-ij-chrome px-2 py-1 text-xs text-ij-ink-info">
               Updating layout…

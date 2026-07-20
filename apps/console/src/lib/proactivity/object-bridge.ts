@@ -8,7 +8,9 @@
 import type { JsonValue, ObjectRef } from '@commonplace/block-view/types';
 import type { PgEdge, PgEdgeKind, PgNodeKind, ProactivityGraph, ProjectedNode } from './model';
 
-/** The six object types the surface queries. */
+/** The seven object types the surface queries. `pg.execution` is the execution
+ *  commit a firing appends; it travels the same seam as every other node so the
+ *  view rebuilds history and structure from one query. */
 export const PG_TYPES: readonly string[] = [
   'pg.stake',
   'pg.source',
@@ -16,6 +18,7 @@ export const PG_TYPES: readonly string[] = [
   'pg.judgment',
   'pg.response',
   'pg.assumption',
+  'pg.execution',
 ];
 
 /** Relation label carried on the FROM node for each edge kind. */
@@ -25,6 +28,7 @@ const RELATION_OF: Record<PgEdgeKind, string> = {
   declares: 'DECLARES',
   gates: 'GATES',
   acts: 'ACTS',
+  executes: 'EXECUTES',
 };
 
 const EDGE_OF: Record<string, PgEdgeKind> = {
@@ -33,14 +37,15 @@ const EDGE_OF: Record<string, PgEdgeKind> = {
   DECLARES: 'declares',
   GATES: 'gates',
   ACTS: 'acts',
+  EXECUTES: 'executes',
 };
+
+const PG_KINDS: readonly PgNodeKind[] = ['stake', 'source', 'watch', 'judgment', 'response', 'assumption', 'execution'];
 
 export function pgKind(type: string): PgNodeKind | null {
   if (!type.startsWith('pg.')) return null;
-  const kind = type.slice(3);
-  return kind === 'stake' || kind === 'source' || kind === 'watch' || kind === 'judgment' || kind === 'response' || kind === 'assumption'
-    ? kind
-    : null;
+  const kind = type.slice(3) as PgNodeKind;
+  return PG_KINDS.includes(kind) ? kind : null;
 }
 
 function nodeToProps(node: ProjectedNode, tenant: string): Record<string, JsonValue> {

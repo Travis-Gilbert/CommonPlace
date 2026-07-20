@@ -75,6 +75,11 @@ const PATCHABLE_FIELDS: Record<PgNodeKind, Readonly<Record<string, FieldGuard>>>
   watch: { disabled: isBoolean, sourceIds: isStringArray, conditionParams: isParamRecord },
   judgment: { disabled: isBoolean, judgmentClass: isJudgmentClass, thresholds: isParamRecord },
   response: { disabled: isBoolean, actionClass: isString, steps: isStepArray },
+  // An execution commit is history: it records what the agent did, so nothing
+  // about it is editable. The empty allowlist is the enforcement, not a gap:
+  // every update against an execution is refused by the same path that refuses
+  // any other unlisted field.
+  execution: {},
 };
 
 function matchesWhere(object: ObjectRef, predicate: Predicate | undefined): boolean {
@@ -193,6 +198,7 @@ export class ProactivityStore {
           { edge: 'DECLARES', dir: 'out' },
           { edge: 'GATES', dir: 'out' },
           { edge: 'ACTS', dir: 'out' },
+          { edge: 'EXECUTES', dir: 'out' },
         ],
         axes: {},
         cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',

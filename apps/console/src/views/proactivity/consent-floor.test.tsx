@@ -28,15 +28,25 @@ function fixtureGraph(): ProactivityGraph {
   return graph;
 }
 
-const ALL_KINDS: readonly PgNodeKind[] = ['stake', 'source', 'watch', 'judgment', 'response', 'assumption'];
+const ALL_KINDS: readonly PgNodeKind[] = ['stake', 'source', 'watch', 'judgment', 'response', 'assumption', 'execution'];
 
 describe('consent floor (gate 1)', () => {
-  it('every kind except assumption is disableable, and assumption is prunable', () => {
+  // Updated by design for 31-HANDOFF-PROACTIVITY-COMMIT-LANGUAGE, which adds
+  // `execution` as the second derived kind. The floor itself is unchanged and
+  // is what this now states more precisely: consent applies to what the agent
+  // MAY do, so the two kinds outside it are the two that are not proposals. An
+  // assumption is not a proposal (its affordance is prune), and an execution is
+  // not a proposal either: it already happened. You cannot consent to the past,
+  // and offering a switch that implied you could would be the lie the floor
+  // exists to prevent.
+  it('the authorable kinds are disableable; assumption is prunable and execution is neither', () => {
     for (const kind of ALL_KINDS) {
       const stub = { kind } as ProjectedNode;
       if (kind === 'assumption') {
         expect(isDisableable(stub)).toBe(false);
         expect(setPrunedAction('a', true)).toEqual({ kind: 'update', id: 'a', patch: { pruned: true } });
+      } else if (kind === 'execution') {
+        expect(isDisableable(stub)).toBe(false);
       } else {
         expect(isDisableable(stub)).toBe(true);
       }
@@ -48,8 +58,10 @@ describe('consent floor (gate 1)', () => {
     const markup = renderToStaticMarkup(<CardAltitude graph={graph} edits={NO_EDITS} contracts={[]} />);
     // One disable per disableable node in the fixture; assert the surface
     // renders them (the consent floor is the display and the control together).
+    // The predicate is `isDisableable`, not a hand-listed exclusion, so a new
+    // node kind cannot slip past this count by being forgotten here.
     const disableCount = (markup.match(/>Disable<|>Enable</g) ?? []).length;
-    const disableableNodes = graph.nodes.filter((node) => node.kind !== 'assumption').length;
+    const disableableNodes = graph.nodes.filter(isDisableable).length;
     expect(disableCount).toBe(disableableNodes);
   });
 

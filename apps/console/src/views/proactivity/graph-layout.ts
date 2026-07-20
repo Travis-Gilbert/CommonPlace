@@ -9,11 +9,14 @@
 // dynamically here, so the sentence and card altitudes load no graph bundle
 // (PG3 acceptance).
 
-import { MarkerType, type Edge, type Node } from '@xyflow/react';
+import { type Edge, type Node } from '@xyflow/react';
 import type { PgEdgeKind, ProactivityGraph, ProjectedNode } from '@/lib/proactivity/model';
+import { laneOf, mergeWatchIds } from './commits';
+import { laneColor, type Commit } from '@/components/commit-graph';
 
 /** The data a proactivity React Flow node carries: the projected node and
- *  whether it is the two-sided convergence (rendered as a marked join). */
+ *  whether it is the two-sided convergence (rendered as a true merge commit,
+ *  two rails converging). */
 export interface ProactivityNodeData extends Record<string, unknown> {
   readonly node: ProjectedNode;
   readonly isJoin: boolean;
@@ -21,6 +24,19 @@ export interface ProactivityNodeData extends Record<string, unknown> {
 
 export type ProactivityRFNode = Node<ProactivityNodeData, 'proactivity'>;
 export type ProactivityRFEdge = Edge<{ readonly kind: PgEdgeKind }>;
+
+/** A PG5 candidate: compiled, reviewed, not yet committed. It carries a commit
+ *  and nothing else, because it has no projection behind it yet. */
+export interface CandidateNodeData extends Record<string, unknown> {
+  readonly commit: Commit;
+  readonly kindLabel: string;
+}
+
+export type CandidateRFNode = Node<CandidateNodeData, 'candidate'>;
+
+/** What the canvas renders: the committed program, plus whatever is staged
+ *  ahead of it. */
+export type CanvasNode = ProactivityRFNode | CandidateRFNode;
 
 export interface GraphLayout {
   readonly width: number;
@@ -30,15 +46,22 @@ export interface GraphLayout {
 }
 
 // Node dimensions: every node shares a width; height grows with content. A
-// response is a stack of agent-action steps (the git-graph building block), so
-// it is as tall as its stack; every other kind is a single commit-entry row.
-// elk lays out against these exact dimensions and React Flow renders the nodes
-// at them, so positions stay valid as a person stacks steps higher.
-export const NODE_WIDTH = 248;
-const ROW_HEIGHT = 68;
-const RESPONSE_HEADER = 50;
+// node is a commit row (adopted from the jalco commit-graph), so the width is
+// what a row needs to carry its slots without truncating the message into
+// uselessness: refs, the message, then the machinery run (short id, author,
+// time). A response is additionally a stack of agent-action steps, so it is as
+// tall as its stack. dagre lays out against these exact dimensions and React
+// Flow renders at them, so positions stay valid as a person stacks steps.
+export const NODE_WIDTH = 420;
+// A commit here is two lines: the decorations (kind, merge, refs, tag, spend)
+// and then the message with its machinery run. The decoration line wraps on a
+// response, which carries the most of them, so a response's header is taller.
+const ROW_HEIGHT = 72;
+const RESPONSE_HEADER = 100;
 const STEP_HEIGHT = 26;
 const RESPONSE_ADD = 30;
+/** An execution commit is history, and carries no stack: one row, always. */
+const EXECUTION_HEIGHT = 62;
 
 /** A response node renders one derived row when it has no authored steps. */
 export function responseStepCount(node: ProjectedNode): number {
@@ -47,18 +70,16 @@ export function responseStepCount(node: ProjectedNode): number {
 
 function nodeHeight(node: ProjectedNode): number {
   if (node.kind === 'response') return RESPONSE_HEADER + responseStepCount(node) * STEP_HEIGHT + RESPONSE_ADD;
+  if (node.kind === 'execution') return EXECUTION_HEIGHT;
   return ROW_HEIGHT;
 }
 
-// Edge paint by kind: the two converging streams are tinted so the join at a
-// watch reads as a join, not a pipe (named choice 8). Register tokens only.
-const EDGE_STROKE: Record<PgEdgeKind, string> = {
-  feeds: 'var(--ij-memory)',
-  declares: 'var(--ij-graph)',
-  rests_on: 'var(--ij-ink-info)',
-  gates: 'var(--ij-room)',
-  acts: 'var(--ij-ink-info)',
-};
+// Edge weight by kind. Paint is NOT by kind any more: a rail carries the lane
+// color of its target's author (doc named choice 2), because the rail's job is
+// to say whose history this line of work belongs to. What survives from the
+// kind is emphasis: the two streams that converge at a watch are the load
+// bearing pair, so they draw at full weight and everything else recedes.
+const STRONG_EDGES: ReadonlySet<PgEdgeKind> = new Set<PgEdgeKind>(['feeds', 'declares']);
 
 // dagre ranks by topology: the two root families (sources on the fact side,
 // assumptions on the stake side) have no inbound edges so they land on the first
@@ -67,17 +88,9 @@ const EDGE_STROKE: Record<PgEdgeKind, string> = {
 // No explicit layer constraint is needed, which is why dagre carries the intent
 // that elk expressed with layerConstraint FIRST/LAST.
 
-/** Which watches are the join: an inbound feed (source) and an inbound declare
- *  (stake) both arrive (named choice 8). */
-function joinWatchIds(graph: ProactivityGraph): Set<string> {
-  const fed = new Set<string>();
-  const declared = new Set<string>();
-  for (const edge of graph.edges) {
-    if (edge.kind === 'feeds') fed.add(edge.to);
-    if (edge.kind === 'declares') declared.add(edge.to);
-  }
-  return new Set([...fed].filter((id) => declared.has(id)));
-}
+// Which watches are the join is `mergeWatchIds` in commits.ts: the same
+// question the commit language answers as "which commits are merge commits",
+// asked once so the layout and the row renderer cannot disagree about it.
 
 /**
  * Lay out the graph with dagre's layered ranking and return React Flow nodes and
@@ -92,7 +105,7 @@ export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout>
   g.setGraph({ rankdir: 'LR', nodesep: 28, ranksep: 96, ranker: 'network-simplex' });
   g.setDefaultEdgeLabel(() => ({}));
 
-  const joins = joinWatchIds(graph);
+  const joins = mergeWatchIds(graph);
 
   for (const node of graph.nodes) {
     g.setNode(node.id, { width: NODE_WIDTH, height: nodeHeight(node) });
@@ -124,17 +137,24 @@ export async function layoutGraph(graph: ProactivityGraph): Promise<GraphLayout>
     };
   });
 
+  const byNodeId = new Map(graph.nodes.map((node) => [node.id, node]));
+
   const edges: ProactivityRFEdge[] = graph.edges.map((edge) => {
-    const stroke = EDGE_STROKE[edge.kind];
-    const strong = edge.kind === 'feeds' || edge.kind === 'declares';
+    // The lane color of the TARGET's author: a rail arriving at a commit is
+    // that commit's history arriving, so it wears that commit's speaker.
+    const target = byNodeId.get(edge.to);
+    const stroke = laneColor(target ? laneOf(target) : 'agent');
     return {
       id: edge.id,
       source: edge.from,
       target: edge.to,
-      type: 'smoothstep',
+      // The rail edge: the adopted commit-graph's own cubic, drawn through the
+      // shared `railPath` builder. No arrowheads anywhere: lineage flows by
+      // convention in a commit graph, and an arrowhead would be a second,
+      // weaker claim about the same thing (doc named choice 2).
+      type: 'rail',
       data: { kind: edge.kind },
-      style: { stroke, strokeWidth: strong ? 2 : 1.5 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: stroke, width: 16, height: 16 },
+      style: { stroke, strokeWidth: STRONG_EDGES.has(edge.kind) ? 2 : 1.5 },
       selectable: false,
       focusable: false,
       deletable: false,

@@ -12,7 +12,7 @@ import { isRefusal, type ProactivityGraph } from './model';
 import { setConditionParamsAction } from './node-actions';
 
 const PG_QUERY = {
-  types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption'],
+  types: ['pg.stake', 'pg.source', 'pg.watch', 'pg.judgment', 'pg.response', 'pg.assumption', 'pg.execution'],
   live: true,
 } as const;
 

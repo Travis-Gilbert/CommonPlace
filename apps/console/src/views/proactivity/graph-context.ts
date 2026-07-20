@@ -7,6 +7,7 @@
 // the card and inspector use (named choice 5); there is no second write path.
 
 import { createContext, useContext } from 'react';
+import type { CommitView } from './commits';
 import type { ProactivityEdits } from './use-edits';
 
 export interface GraphInteraction {
@@ -15,6 +16,13 @@ export interface GraphInteraction {
    *  (a custom or complex condition) is described and compiled, never a blank
    *  hand-written row. */
   readonly onCompile?: (hint: string) => void;
+  /** The decompiled commit for every node, indexed by node id. Decompiled once
+   *  per graph in the altitude above, so a hundred rows do not each rebuild the
+   *  lineage index while React Flow is mid-pass. */
+  readonly commits?: ReadonlyMap<string, CommitView>;
+  /** The lineage a firing lit: the path from the watch that fired down to what
+   *  it did (channel 3). Empty when nothing has fired. */
+  readonly lit?: ReadonlySet<string>;
 }
 
 const GraphInteractionContext = createContext<GraphInteraction>({ edits: null });
