@@ -20,7 +20,8 @@ import {
 import { ViewState } from '../ViewStates';
 import { GraphCanvas } from './GraphCanvas';
 import { NODE_WIDTH, layoutGraph, responseStepCount, type CanvasNode, type GraphLayout } from './graph-layout';
-import { candidateCommit, litLineage, mergeWatchIds, stakeRefIndex, toCommit, type CommitView } from './commits';
+import { candidateCommit, commitLog, litLineage, mergeWatchIds, stakeRefIndex, toCommit, type CommitView } from './commits';
+import { CommitGraph } from '@/components/commit-graph';
 import { KIND_META } from './kinds';
 import { CommitPalette } from './board';
 import { IntentComposer } from './IntentComposer';
@@ -137,6 +138,10 @@ export function GraphAltitude({
 
   const lit = useMemo(() => litLineage(graph), [graph]);
 
+  // The log the adopted component draws. Recomputed with the graph, not per
+  // render: computeLayout walks every commit's parents to allocate rails.
+  const log = useMemo(() => commitLog(graph), [graph]);
+
   const candidateNodes = useMemo<CanvasNode[]>(() => {
     if (candidates.length === 0 || !layout) return [];
     // Ahead of HEAD: one column to the right of everything committed.
@@ -213,6 +218,35 @@ export function GraphAltitude({
           </aside>
         ) : null}
       </div>
+
+      {/* The log, drawn by the ADOPTED CommitGraph itself: its rail spine, its
+          lane colors, its curved merges, its commit rows, its popover detail.
+          The canvas above shows TOPOLOGY (which node feeds which); this shows
+          HISTORY (what happened, in order). The repository mapping is not
+          complete without it, and rendering it is also what puts the
+          component's own layout engine and rail renderer on screen rather than
+          leaving them unused in the file.
+
+          Bottom, full width, because that is where IntelliJ puts a Git log and
+          because a rail column plus a message column does not fit in a side
+          panel. */}
+      <section
+        className="flex h-64 shrink-0 flex-col overflow-hidden border-t border-ij-seam bg-ij-chrome"
+        data-commit-log
+      >
+        <header
+          className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam px-2 font-ij-ui text-rec-body text-ij-ink"
+          style={{ fontWeight: 'var(--rec-weight-cap)' }}
+        >
+          <h3>Log</h3>
+          <span className="font-ij-mono text-rec-machine text-ij-ink-info" data-type-role="machine">
+            {log.length} commits
+          </span>
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <CommitGraph commits={log} railWidth={14} className="rounded-none border-0 bg-transparent" />
+        </div>
+      </section>
     </div>
   );
 }

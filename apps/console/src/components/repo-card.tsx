@@ -254,12 +254,19 @@ function RepoCard({
       className={cn(repoCardVariants({ variant: data.archived ? 'muted' : variant, size, className }))}
       {...props}
     >
-      {/* DEVIATION from upstream's header row, and the reason for it: upstream
-          names a repository ("owner/repo"), which is short enough to share a
-          line with its badges. A stake names itself in a sentence. Keeping
-          upstream's geometry crushed the title to a couple of words per line,
-          so the title takes the row and the state badges wrap beneath it. The
-          badge SLOT is unchanged; only its line is. */}
+      {/* FORCED DEVIATION from upstream's header row, held deliberately after
+          trying upstream's geometry and measuring the result.
+          Upstream names a repository: "owner/repo", a short identifier that
+          shares a line with its badges comfortably. This card names a stake or
+          a watch, and those name themselves in SENTENCES. With upstream's row,
+          a card carrying two badges ("Derived" and a permission clause) leaves
+          the title about seventy pixels and it wraps one word per line, which
+          is unreadable and is the opposite of what a card's title is for.
+          So: the leading mark, the title, and the overflow share the row; the
+          state badges take the line beneath. The badge SLOT and its contents
+          are unchanged, and so is every other part of upstream's anatomy. Only
+          the line the badges sit on moves, and only because our titles are
+          prose and upstream's are identifiers. */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-start gap-2">
           {leading ??

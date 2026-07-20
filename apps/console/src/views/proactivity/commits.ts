@@ -233,6 +233,58 @@ export function toCommit(
 }
 
 /**
+ * The commit log: the program's commits in the order `CommitGraph` renders
+ * them, which is topological and newest-first.
+ *
+ * This is what the adopted component was built to draw, and the reason it
+ * exists here. A canvas of positioned nodes shows you TOPOLOGY; a log shows you
+ * HISTORY, with the rail spine, the lane colors, and the curved merges that
+ * make a commit graph legible at a glance. The repository mapping is not
+ * complete without it: you cannot claim the standing program is a repository
+ * and then never show its log.
+ *
+ * Order: sinks first (a response and its executions are the newest thing that
+ * happened), roots last (a source or a stake is where the lineage begins), with
+ * date breaking ties. `computeLayout` allocates rails from this order, so
+ * getting it right is what produces real merges rather than a straight column.
+ */
+export function commitLog(graph: ProactivityGraph): Commit[] {
+  const merges = mergeWatchIds(graph);
+  const stakeRefs = stakeRefIndex(graph);
+
+  // Depth from the roots: how far downstream a commit sits. A response is
+  // deeper than the watch that gates it, which is deeper than the source that
+  // feeds it, so descending depth is newest-first.
+  const parentsOf = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    parentsOf.set(edge.to, [...(parentsOf.get(edge.to) ?? []), edge.from]);
+  }
+  const depth = new Map<string, number>();
+  const depthOf = (id: string, seen: ReadonlySet<string> = new Set()): number => {
+    const cached = depth.get(id);
+    if (cached !== undefined) return cached;
+    // A cycle cannot happen in this projection, but a guard costs nothing and
+    // an infinite recursion in a render path costs everything.
+    if (seen.has(id)) return 0;
+    const next = new Set(seen).add(id);
+    const parents = parentsOf.get(id) ?? [];
+    const value = parents.length === 0 ? 0 : 1 + Math.max(...parents.map((parent) => depthOf(parent, next)));
+    depth.set(id, value);
+    return value;
+  };
+
+  const ordered = [...graph.nodes].sort((a, b) => {
+    const byDepth = depthOf(b.id) - depthOf(a.id);
+    if (byDepth !== 0) return byDepth;
+    const aDate = a.kind === 'execution' ? a.firedOn : a.authoredOn;
+    const bDate = b.kind === 'execution' ? b.firedOn : b.authoredOn;
+    return bDate.localeCompare(aDate);
+  });
+
+  return ordered.map((node) => toCommit(node, { graph, merges, stakeRefs }).commit);
+}
+
+/**
  * The lineage a firing lit (channel 3, rendered): the newest execution commit,
  * the response it is parented to, and everything upstream of that response back
  * to the sources and the stake. Lighting the ancestry rather than the node is
