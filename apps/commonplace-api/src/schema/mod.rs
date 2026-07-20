@@ -36,6 +36,17 @@ use theorem_harness_runtime::{
 use yrs::updates::decoder::Decode;
 use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 
+pub mod find;
+pub mod scatter;
+
+use crate::find::{find as run_find, FindConfig, FindIndex};
+use rustyred_thg_find::{expand as run_expand, scatter as run_scatter};
+use crate::save_url::{save_url as run_save_url, PageSource};
+use find::{
+    build_request as build_find_request, FindLaneGql, FindResponseGql, FindScopeInput,
+    SaveUrlReceiptGql,
+};
+use scatter::{build_request as build_scatter_request, parse_aspect_id, ScatterResponseGql};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
@@ -1815,6 +1826,68 @@ where
         Ok(TheoremAgentRunGql::from_composed(result, evidence_count))
     }
 
+    /// Universal find over the composed retrieval backend: exact, lexical,
+    /// semantic, and structural lanes, widening through the scopes given, and
+    /// admitted under the caller's MMR lambda. Every result carries its lane,
+    /// its scope, its relation to the graph, and the edges supporting that
+    /// reading. SPEC-COMMONPLACE-SEARCH-STACK B3 and B7.
+    async fn find(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        scopes: Option<Vec<FindScopeInput>>,
+        lanes: Option<Vec<FindLaneGql>>,
+        k: Option<i32>,
+        lambda: Option<f64>,
+    ) -> Result<FindResponseGql> {
+        principal(ctx)?;
+        let request = build_find_request(query, scopes, lanes, k, lambda).map_err(Error::new)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let response = run_find(&cp, &request, &FindConfig::default()).map_err(store_err)?;
+        Ok(FindResponseGql::from(response))
+    }
+
+    /// Scatter a query into at most eight named aspects, with the compiled
+    /// force-graph scene. SPEC-COMMONPLACE-SEARCH-STACK B5 and B7.
+    async fn scatter(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        scopes: Option<Vec<FindScopeInput>>,
+        k: Option<i32>,
+        lambda: Option<f64>,
+    ) -> Result<ScatterResponseGql> {
+        principal(ctx)?;
+        let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let index = FindIndex::build(&cp, &FindConfig::default()).map_err(store_err)?;
+        let response = run_scatter(&index.context(), &request);
+        Ok(ScatterResponseGql::from(response))
+    }
+
+    /// Re-scatter inside one aspect. The returned aspects are drawn from that
+    /// aspect's neighborhood, not from the whole corpus.
+    async fn expand(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        aspect_id: String,
+        scopes: Option<Vec<FindScopeInput>>,
+        k: Option<i32>,
+        lambda: Option<f64>,
+    ) -> Result<ScatterResponseGql> {
+        principal(ctx)?;
+        let aspect = parse_aspect_id(aspect_id).map_err(Error::new)?;
+        let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let index = FindIndex::build(&cp, &FindConfig::default()).map_err(store_err)?;
+        let response = run_expand(&index.context(), &request, &aspect);
+        Ok(ScatterResponseGql::from(response))
+    }
+
     /// Proactive briefing: recent, newly-connected, and open-thread items
     /// surfaced from the store without being asked.
     async fn briefing(
@@ -1998,6 +2071,25 @@ where
     B: BlobStore + Send + Sync + 'static,
 {
     /// Auto-structuring ingest: embed, classify, file, link, resolve entities.
+    /// Save the page at `url`: fetch it through RustyWeb, then file it through
+    /// the ingest pipeline. Returns the filed item and the real collection it
+    /// landed in. SPEC-COMMONPLACE-SEARCH-STACK B7, surfaced by F4.
+    async fn save_url(&self, ctx: &Context<'_>, url: String) -> Result<SaveUrlReceiptGql> {
+        let principal = principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        // Tests inject an offline page source through schema data; production
+        // builds the live fetch cascade.
+        let source = match ctx.data_opt::<Arc<PageSource>>() {
+            Some(source) => source.clone(),
+            None => Arc::new(PageSource::live().map_err(|error| Error::new(error.to_string()))?),
+        };
+        let run_id = format!("save-url:{}", principal.id);
+        run_save_url(&store, source.as_ref(), &url, &run_id)
+            .await
+            .map(SaveUrlReceiptGql::from)
+            .map_err(|error| Error::new(error.to_string()))
+    }
+
     async fn ingest(&self, ctx: &Context<'_>, input: IngestInputGql) -> Result<ItemGql> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
@@ -2713,6 +2805,28 @@ where
 /// Build the schema with a specific answer model (for example local Gemma via
 /// an OpenAI-compatible endpoint) for generative answers behind the same
 /// retrieval.
+/// [`build_schema`] with an explicit page source for `saveUrl`.
+///
+/// Production leaves this unset and the resolver builds the live fetch cascade.
+/// The acceptance tests inject an offline source so they never reach the
+/// network.
+pub fn build_schema_with_page_source<S, B>(
+    store: SharedStore<S, B>,
+    registry: Arc<ApiKeyRegistry>,
+    page_source: Arc<PageSource>,
+) -> Schema<Query<S, B>, Mutation<S, B>, EmptySubscription>
+where
+    S: EmbeddingGraphStore + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    Schema::build(Query(PhantomData), Mutation(PhantomData), EmptySubscription)
+        .data(store)
+        .data(registry)
+        .data(Arc::new(NoModel) as Arc<dyn AnswerModel>)
+        .data(page_source)
+        .finish()
+}
+
 pub fn build_schema_with_model<S, B>(
     store: SharedStore<S, B>,
     registry: Arc<ApiKeyRegistry>,

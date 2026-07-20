@@ -14,6 +14,7 @@
 pub mod auth;
 pub mod briefing;
 pub mod discover;
+pub mod find;
 pub mod growth;
 pub mod keystore;
 pub mod mcp;
@@ -22,6 +23,7 @@ pub mod portability;
 pub mod publish;
 pub mod retrieve;
 pub mod salience;
+pub mod save_url;
 pub mod schema;
 pub mod serve;
 pub mod voice;

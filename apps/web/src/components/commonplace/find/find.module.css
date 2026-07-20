@@ -1,0 +1,260 @@
+/* Find overlay (SPEC F1). Register continuous with the co-browse surface
+ * (cobrowse.module.css): oxblood owns the active lane and the contradiction
+ * mark, gold owns the harness saying it already knows this. Tokens come from
+ * commonplace-tokens.css.
+ *
+ * The overlay is a panel attached to the top of the stage, not a modal: the page
+ * behind it stays legible, because a Page-scope hit highlights IN that page and
+ * the reader needs to see it land. */
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: var(--cp-surface, #fbf0e2);
+  border-bottom: 1px solid var(--cp-border, rgba(42, 36, 32, 0.12));
+  box-shadow: 0 8px 20px rgba(42, 36, 32, 0.1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .overlay {
+    animation: find-settle 140ms ease-out;
+  }
+}
+
+@keyframes find-settle {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.queryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.queryInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--cp-border, rgba(42, 36, 32, 0.12));
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: 13px var(--cp-font-body, sans-serif);
+  background: var(--cp-cream, #f8f7f4);
+  color: var(--cp-text, #2a2420);
+}
+
+.queryInput:focus-visible {
+  outline: 2px solid var(--cp-oxblood, #7a2733);
+  outline-offset: 1px;
+}
+
+.escHint {
+  flex: none;
+  font: 11px var(--cp-font-mono, monospace);
+  color: var(--cp-text-muted, #6a5e52);
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.controlLabel {
+  font: 10px var(--cp-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cp-text-muted, #6a5e52);
+}
+
+/* Lane chips and the scope stepper share the segmented grammar of the co-browse
+ * control spectrum, so the stepper reads as its sibling rather than a new idiom. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--cp-border, rgba(42, 36, 32, 0.15));
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+}
+
+.segment {
+  appearance: none;
+  border: none;
+  background: var(--cp-cream, #f8f7f4);
+  color: var(--cp-text-muted, #6a5e52);
+  font: 600 12px var(--cp-font-body, sans-serif);
+  padding: 6px 11px;
+  cursor: pointer;
+}
+
+.segment + .segment {
+  border-left: 1px solid var(--cp-border, rgba(42, 36, 32, 0.12));
+}
+
+.segment[data-state='on'],
+.segment[aria-pressed='true'] {
+  background: var(--cp-oxblood, #7a2733);
+  color: var(--cp-cream, #f8f7f4);
+}
+
+/* The scopes wider than the current one stay visible and dim: the stepper is a
+ * ladder the keystroke climbs, so the remaining rungs should be legible. */
+.segmentBeyond {
+  opacity: 0.55;
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--cp-oxblood, #7a2733);
+  outline-offset: -2px;
+}
+
+.results {
+  max-height: 320px;
+  overflow-y: auto;
+  border-top: 1px solid var(--cp-border-faint, rgba(42, 36, 32, 0.08));
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.row[data-selected='true'] {
+  background: var(--cp-surface-hover, #ebd8c0);
+}
+
+.rowTitle {
+  font: 600 13px var(--cp-font-body, sans-serif);
+  color: var(--cp-text, #2a2420);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowSnippet {
+  grid-column: 2 / 4;
+  font: 12px var(--cp-font-body, sans-serif);
+  color: var(--cp-text-muted, #6a5e52);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badges {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex: none;
+}
+
+.badge {
+  font: 10px var(--cp-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cp-text-muted, #6a5e52);
+  border: 1px solid var(--cp-border, rgba(42, 36, 32, 0.12));
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.badgeLane {
+  color: var(--cp-oxblood, #7a2733);
+  border-color: rgba(var(--cp-oxblood-rgb, 122, 39, 51), 0.35);
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cp-text-muted, #6a5e52);
+}
+
+/* The harness recognizing something it already holds is the gold register. */
+.glyphKnown {
+  color: var(--cp-gold, #c49a4a);
+}
+
+.glyphExtends {
+  color: var(--cp-text, #2a2420);
+}
+
+/* A contradiction is a pending decision, which is oxblood. */
+.glyphContradicts {
+  color: var(--cp-oxblood, #7a2733);
+}
+
+.glyphOrphan {
+  color: var(--cp-text-faint, #73665b);
+}
+
+.notice {
+  padding: 10px 4px;
+  font: 12px var(--cp-font-body, sans-serif);
+  color: var(--cp-text-muted, #6a5e52);
+}
+
+.noticeError {
+  color: var(--cp-oxblood, #7a2733);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* F4 save affordance in the co-browse chrome row. */
+.saveButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  border: 1px solid var(--cp-border, rgba(42, 36, 32, 0.15));
+  border-radius: 7px;
+  padding: 6px 11px;
+  background: var(--cp-cream, #f8f7f4);
+  color: var(--cp-text, #2a2420);
+  font: 600 12px var(--cp-font-body, sans-serif);
+  cursor: pointer;
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid var(--cp-oxblood, #7a2733);
+  outline-offset: 1px;
+}
+
+.saveCollection {
+  font-weight: 700;
+  color: var(--cp-gold, #c49a4a);
+}
