@@ -576,6 +576,14 @@
         "src/styles/int-ui-register-light.css"
       ]
     },
+    "--ij-bottom-dock-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
     "--ij-chrome": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -587,85 +595,85 @@
     },
     "--ij-composer-control-size": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-control-size-compact": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-counter-min-width": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-size": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-size-compact": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-full-min-h": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-gap": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-max-h": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-meta-font-size": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-min-h": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-compact": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-x": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-y": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
     "--ij-composer-radius": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": null,
       "resolvedAlsoIn": []
     },
@@ -688,6 +696,18 @@
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-dialog-inset-top": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
+      "resolvedAlsoIn": []
+    },
+    "--ij-dialog-width": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
       "resolvedAlsoIn": []
     },
     "--ij-divider": {
@@ -716,8 +736,8 @@
     },
     "--ij-editor-line": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
       "resolvedAlsoIn": [
         "src/styles/theme-engine.ts"
       ]
@@ -774,8 +794,8 @@
     },
     "--ij-gold": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css",
         "src/styles/theme-engine.ts"
@@ -783,8 +803,8 @@
     },
     "--ij-gold-tint": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -981,6 +1001,14 @@
         "src/styles/int-ui-register-light.css"
       ]
     },
+    "--ij-ground-terra": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Ground terracotta for the Material Layer shader (proof islands-material-v2).",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
     "--ij-hover-overlay": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -1036,6 +1064,28 @@
         "src/styles/register-bridge.css"
       ]
     },
+    "--ij-island-gutter": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Islands layout (Spec 34 / amendment 35): radius and gutter are material",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-island-radius": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Islands layout (Spec 34 / amendment 35): radius and gutter are material",
+      "resolvedAlsoIn": []
+    },
+    "--ij-island-terra-tint": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
     "--ij-leading-ui": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -1049,6 +1099,22 @@
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
+      ]
+    },
+    "--ij-material-glow": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-material-grain": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
       ]
     },
     "--ij-memory": {
@@ -1084,6 +1150,14 @@
       "note": "Motion inherits console durations so the register does not fork rhythm",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register.css"
+      ]
+    },
+    "--ij-nav-row-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
       ]
     },
     "--ij-ok": {
@@ -1122,7 +1196,7 @@
     },
     "--ij-popover-shadow": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "The one shadow token (HANDOFF-CONSOLE-DIMENSIONALITY named choice 3): depth",
       "resolvedAlsoIn": []
     },
@@ -1360,8 +1434,8 @@
     },
     "--ij-search-match": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
       "resolvedAlsoIn": [
         "src/styles/theme-engine.ts"
       ]
@@ -1390,13 +1464,17 @@
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-stripe-icon": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
-      "resolvedAlsoIn": []
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-stripe-w": {
       "file": "src/styles/int-ui-register.css",
@@ -1408,7 +1486,9 @@
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-teal-2": {
       "file": "src/styles/int-ui-register.css",
@@ -1428,8 +1508,8 @@
     },
     "--ij-text-selection": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
       "resolvedAlsoIn": [
         "src/styles/theme-engine.ts"
       ]
@@ -1450,13 +1530,17 @@
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-toolwindow-header-h": {
       "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI",
-      "resolvedAlsoIn": []
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-tree-inset": {
       "file": "src/styles/int-ui-register.css",

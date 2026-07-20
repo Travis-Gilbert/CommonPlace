@@ -90,11 +90,9 @@ for (const { theme, preset } of THEMES) {
         expect(seamRaised, 'in dark the raised seam rises off its surface, per Int UI Dark').toBeGreaterThan(raised);
       }
 
-      // The junctions themselves, as rendered rather than as tokens.
+      // Island junctions that still carry CSS seams (headers, tabs). Frame-
+      // resident toolbar/status and gutters are painted by the Material Layer.
       const junctions: { name: string; selector: string; side: string }[] = [
-        { name: 'toolbar bottom', selector: '[data-paint-region="toolbar"]', side: 'border-bottom-color' },
-        { name: 'stripe right', selector: '[data-paint-region="stripe"]', side: 'border-right-color' },
-        { name: 'status bar top', selector: '[data-paint-region="status-bar"]', side: 'border-top-color' },
         { name: 'tool window header bottom', selector: '[data-paint-region="tool-window-header"]', side: 'border-bottom-color' },
         { name: 'tab strip bottom', selector: '[data-paint-region="tab-strip"]', side: 'border-bottom-color' },
       ];
@@ -107,19 +105,15 @@ for (const { theme, preset } of THEMES) {
         );
         expect(
           luminance(colour),
-          `${junction.name}: seam ${colour} must be darker than the chrome it bounds`,
+          `${junction.name}: seam ${colour} must be darker than the chrome ladder slot`,
         ).toBeLessThan(chrome);
       }
 
-      // The companion-to-editor boundary is the resize handle.
+      // Companion-to-editor boundary is the island gutter (transparent handle).
       const panelSeam = page.locator('[data-panel-seam]').first();
-      await expect(panelSeam, 'the companion-to-editor seam must render').toBeVisible();
-      const panelColour = await panelSeam.evaluate((node) => getComputedStyle(node).backgroundColor);
-      expect(luminance(panelColour), 'companion-to-editor seam must be darker than chrome').toBeLessThan(chrome);
-      expect(
-        luminance(panelColour),
-        'companion-to-editor seam must never be lighter than the editor well',
-      ).toBeLessThanOrEqual(editor);
+      await expect(panelSeam, 'the companion-to-editor gutter must render').toBeVisible();
+      await expect(panelSeam).toHaveCSS('width', '10px');
+      await expect(panelSeam).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     });
 
     // Signature 2. The stripe button in its RESTORED grammar (X3.4, named
@@ -135,9 +129,11 @@ for (const { theme, preset } of THEMES) {
       await expect(selected).not.toHaveCSS('background-color', accent);
       await expect(selected).toHaveCSS('color', ink);
 
-      // The stripe bar itself keeps its Int UI metrics and chrome ground.
+      // The stripe is frame chrome (flush activity bar), not an island.
       const stripe = page.locator('[data-paint-region="stripe"]');
       await expect(stripe).toHaveCSS('width', '40px');
+      await expect(stripe).toHaveAttribute('data-frame-resident', 'stripe');
+      await expect(stripe).not.toHaveAttribute('data-island');
       const glyph = selected.locator('svg');
       await expect(glyph).toHaveAttribute('width', '20');
 
@@ -150,18 +146,21 @@ for (const { theme, preset } of THEMES) {
     });
 
     // Signature 3. The 4px accent underline on the active editor tab, and the
-    // editor island it sits on (X3.3).
+    // editor island whose fill the Material Layer paints (transparent DOM).
     test('the active tab underline and the editor island hold', async ({ page }) => {
       const accent = await resolveToken(page, '--ij-accent');
-      const chrome = await resolveToken(page, '--ij-chrome');
       const editor = await resolveToken(page, '--ij-editor');
 
       const underline = page.locator('[role="tab"][aria-selected="true"] .h-ij-underline');
       await expect(underline).toHaveCSS('height', '4px');
       await expect(underline).toHaveCSS('background-color', accent);
 
-      await expect(page.locator('[data-paint-region="tab-strip"]')).toHaveCSS('background-color', chrome);
-      await expect(page.locator('[data-paint-region="editor-well"]').first()).toHaveCSS('background-color', editor);
+      await expect(page.locator('[data-paint-region="tab-strip"]')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(page.locator('[data-paint-region="editor-well"]').first()).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(page.locator('[data-island="editor"]')).toBeVisible();
+      await expect(page.locator('[data-bottom-dock]')).toBeVisible();
+      await expect(page.locator('[data-material-layer]')).toBeVisible();
+      await expect(page.locator('[data-frame-resident="stripe"]')).toBeVisible();
       await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveCSS('background-color', editor);
     });
 
@@ -185,12 +184,13 @@ for (const { theme, preset } of THEMES) {
     });
 
     // Signature 5. Type metrics: the register's 13px UI face, and the tool
-    // window header strip at its Int UI 24px (X3.2).
+    // window header strip at 36px Manrope (amendment 35).
     test('type metrics and the tool window header strip hold', async ({ page }) => {
       await expect(page.locator('html')).toHaveCSS('font-size', '13px');
       const header = page.locator('[data-paint-region="tool-window-header"]').first();
-      await expect(header).toHaveCSS('height', '24px');
+      await expect(header).toHaveCSS('height', '36px');
       await expect(header).toHaveCSS('font-size', '13px');
+      await expect(header).toHaveCSS('font-family', /Manrope/i);
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
       // The right-aligned action slot carries the hide affordance.

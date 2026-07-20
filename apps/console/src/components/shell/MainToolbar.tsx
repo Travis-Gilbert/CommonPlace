@@ -62,10 +62,11 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
   }, [layoutOpen]);
 
   return (
-    <header data-paint-region="toolbar" className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2">
-      <span className="px-2 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-        CommonPlace
-      </span>
+    <header
+      data-paint-region="toolbar"
+      data-frame-resident="toolbar"
+      className="flex h-ij-toolbar shrink-0 items-center gap-2 bg-transparent px-ij-island-gutter"
+    >
       <div className="relative">
         <button
           ref={layoutTriggerRef}
@@ -74,8 +75,12 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
           aria-haspopup="menu"
           aria-expanded={layoutOpen}
           onClick={() => setLayoutOpen((value) => !value)}
-          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-          style={{ transition: 'var(--rec-clickable-transition)' }}
+          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 text-ij-ink hover:bg-ij-hover-surface"
+          style={{
+            transition: 'var(--rec-clickable-transition)',
+            fontFamily: 'var(--cp-font-human)',
+            fontWeight: 600,
+          }}
         >
           <span data-active-surface-name>{activeName}</span>
           <IconChevronDown size={13} />

@@ -26,6 +26,7 @@ import { MainToolbar } from './MainToolbar';
 import { StatusBar } from './StatusBar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
+import { BottomDock } from './BottomDock';
 import { RecordInspector } from '@/views/RecordInspector';
 import {
   IconCards,
@@ -111,7 +112,7 @@ function isOpen(region: RegionNode): boolean {
  *  Domain tint stays a content affordance per the icon policy, so no stripe
  *  glyph carries a domain color at rest. */
 const STRIPE_BUTTON_CLASS =
-  'flex h-10 w-10 items-center justify-center rounded-ij-arc hover:bg-ij-hover-surface';
+  'flex h-ij-nav-row w-ij-nav-row items-center justify-center rounded-ij-arc hover:bg-ij-hover-surface';
 
 function stripeButtonStyle(selected: boolean) {
   return {
@@ -217,19 +218,16 @@ function SurfaceNavGroup({
   );
 }
 
-/** The Int UI tool window header strip (X3.2). A 24px band on chrome carrying
- *  the title in ink at the register's 13px, a bottom seam, and a right-aligned
- *  action slot holding the hide affordance. Files, Context and Thread stop
- *  being floating labels: the strip is what names a tool window and bounds it,
- *  which is also what gives an EMPTY companion a frame to be empty inside
- *  (X5.2). The 40px main-toolbar height it replaces belonged to the toolbar. */
+/** The Int UI tool window header strip (amendment 35). A 36px Manrope band
+ *  naming the island; hide affordance on the right. Paint is transparent so
+ *  the Material Layer owns the surface. */
 function ToolWindowHeader({ title, onHide }: { title: string; onHide: () => void }) {
   return (
     <div
       data-tool-window-header
       data-paint-region="tool-window-header"
-      className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2 text-ij-ink"
-      style={{ fontWeight: 'var(--rec-weight-cap)' }}
+      className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam bg-transparent px-3 text-ij-ink"
+      style={{ fontFamily: 'var(--cp-font-human)', fontWeight: 600 }}
     >
       <span className="min-w-0 flex-1 truncate">{title}</span>
       <button
@@ -272,7 +270,8 @@ function ToolWindow({
       aria-label={`${title} tool window`}
       data-tool-window={String(region.object.properties.companion ?? region.object.id)}
       data-paint-region="tool-window"
-      className="flex h-full min-h-0 flex-col bg-ij-chrome"
+      data-island="tool"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
     >
       <ToolWindowHeader title={title} onHide={onHide} />
       <div className="min-h-0 flex-1">
@@ -492,12 +491,23 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   };
 
   return (
-    <div ref={shellRef} data-shell data-compact={compact} data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
+    <div
+      ref={shellRef}
+      data-shell
+      data-compact={compact}
+      data-active-surface={activeSurfaceId}
+      className="relative flex h-full min-h-0 flex-col bg-transparent"
+    >
       <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
       <div className="flex min-h-0 flex-1">
-        {/* The leftmost stripe: screen navigation (surfaces group) on top,
-            then the active surface's tool windows, divided. One bar. */}
-        <nav aria-label="Surfaces and companions" data-paint-region="stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
+        {/* Activity bar is frame chrome: flush left, no island radius, same
+            ground as the gutters. Companions and editor are the islands. */}
+        <nav
+          aria-label="Surfaces and companions"
+          data-paint-region="stripe"
+          data-frame-resident="stripe"
+          className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 bg-transparent py-2"
+        >
           <SurfaceNavGroup
             surfaces={primarySurfaces}
             activeSurfaceId={activeSurfaceId}
@@ -519,81 +529,77 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
           </div>
         </nav>
 
-        <div className="relative min-h-0 min-w-0 flex-1">
-          {compact ? (
-            <>
-              {editorPane}
-              {leftOpen[0] ? (
-                <div className="absolute inset-y-0 left-0 z-30 w-80 border-r border-ij-seam shadow-none">
-                  <ToolWindow
-                    region={leftOpen[0]}
-                    host={host}
-                    entranceIndex={0}
-                    onHide={() => toggle(leftOpen[0])}
-                  />
-                </div>
-              ) : null}
-              {rightOpen[0] ? (
-                <div className="absolute inset-y-0 right-0 z-30 w-96 border-l border-ij-seam">
-                  <ToolWindow
-                    region={rightOpen[0]}
-                    host={host}
-                    entranceIndex={1}
-                    onHide={() => toggle(rightOpen[0])}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
-              {visiblePanels.flatMap((panel, index) => {
-                const isEditor = panel.region === editor;
-                const nodes = [];
-                if (index > 0) {
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter">
+          <div className="relative min-h-0 min-w-0 flex-1">
+            {compact ? (
+              <>
+                {editorPane}
+                {leftOpen[0] ? (
+                  <div className="absolute inset-y-0 left-0 z-30 w-80">
+                    <ToolWindow
+                      region={leftOpen[0]}
+                      host={host}
+                      entranceIndex={0}
+                      onHide={() => toggle(leftOpen[0])}
+                    />
+                  </div>
+                ) : null}
+                {rightOpen[0] ? (
+                  <div className="absolute inset-y-0 right-0 z-30 w-96">
+                    <ToolWindow
+                      region={rightOpen[0]}
+                      host={host}
+                      entranceIndex={1}
+                      onHide={() => toggle(rightOpen[0])}
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
+                {visiblePanels.flatMap((panel, index) => {
+                  const isEditor = panel.region === editor;
+                  const nodes = [];
+                  if (index > 0) {
+                    nodes.push(
+                      <PanelResizeHandle
+                        key={`handle-${panel.region.object.id}`}
+                        data-panel-seam
+                        className="relative w-ij-island-gutter bg-transparent"
+                      />,
+                    );
+                  }
                   nodes.push(
-                    // The companion-to-editor junction (X3.1). This was
-                    // --ij-divider, which resolves to gray-3 in dark: LIGHTER
-                    // than the gray-2 chrome it separates, so the one seam
-                    // between a tool window and the editor ran the Int UI
-                    // inversion backwards. --ij-seam is gray-1 in dark and
-                    // gray-12 in light, darker than chrome in both, which is
-                    // what the inversion assertion checks.
-                    <PanelResizeHandle
-                      key={`handle-${panel.region.object.id}`}
-                      data-panel-seam
-                      className="w-px bg-ij-seam data-[resize-handle-state=drag]:bg-ij-accent"
-                    />,
+                    <Panel
+                      key={panel.region.object.id}
+                      id={panel.region.object.id}
+                      order={orderOf(panel.region)}
+                      defaultSize={(panel.abs / visibleTotal) * 100}
+                      minSize={isEditor ? 30 : 12}
+                    >
+                      {isEditor ? (
+                        editorPane
+                      ) : (
+                        <ToolWindow
+                          region={panel.region}
+                          host={host}
+                          entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
+                          onHide={() => toggle(panel.region)}
+                        />
+                      )}
+                    </Panel>,
                   );
-                }
-                nodes.push(
-                  <Panel
-                    key={panel.region.object.id}
-                    id={panel.region.object.id}
-                    order={orderOf(panel.region)}
-                    defaultSize={(panel.abs / visibleTotal) * 100}
-                    minSize={isEditor ? 30 : 12}
-                  >
-                    {isEditor ? (
-                      editorPane
-                    ) : (
-                      <ToolWindow
-                        region={panel.region}
-                        host={host}
-                        entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
-                        onHide={() => toggle(panel.region)}
-                      />
-                    )}
-                  </Panel>,
-                );
-                return nodes;
-              })}
-            </PanelGroup>
-          )}
-          {selectedRecordId ? (
-            <div className="absolute inset-y-0 right-0 z-40">
-              <RecordInspector host={host} />
-            </div>
-          ) : null}
+                  return nodes;
+                })}
+              </PanelGroup>
+            )}
+            {selectedRecordId ? (
+              <div className="absolute inset-y-0 right-0 z-40">
+                <RecordInspector host={host} />
+              </div>
+            ) : null}
+          </div>
+          <BottomDock />
         </div>
       </div>
       <StatusBar host={host} />

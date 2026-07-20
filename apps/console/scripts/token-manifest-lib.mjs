@@ -36,7 +36,7 @@ export const REGISTER_PROVENANCE = {
   'src/styles/rec-structural.css':
     'TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material',
   'src/styles/register-bridge.css':
-    'Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, and the AMENDMENT-REGISTERS speaker vocabulary',
+    'Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary',
   'src/styles/gy-bridge.css':
     'Galley (@travis-gilbert/markdown-theory) document register, bridged onto the console register',
   'src/styles/galley-register.css':

@@ -1,40 +1,35 @@
 // SOURCING: @playwright/test. The paint audit (HANDOFF-CONSOLE-DIMENSIONALITY
-// X2), shared by the signature gate so it runs identically on both themes.
+// X2), amended by Spec 35 Material Review for the islands Material Layer.
 //
-// The second drift mechanism the handoff names is paint by omission: the
-// register lint forbids wrong colors but never required right ones, so a region
-// that painted nothing inherited white and passed. Dark mode hid this because
-// unpainted regions inherited dark. Light is the X-ray.
-//
-// Every named shell region therefore declares data-paint-region, and this scan
-// asserts the region's computed background actually resolves to the register
-// token it is supposed to carry -- never transparent, never the page default.
+// Two paint contracts now coexist:
+// 1. Shell islands and frame-resident chrome: the Material Layer paints them.
+//    DOM backgrounds must be transparent (inverted lint for those regions).
+// 2. Content instruments (composer, Index panes, receipts): still declare an
+//    explicit register background, never inherit white.
 
 import { expect, type Page } from '@playwright/test';
 
-/** The named-region map. Each region root must paint this token, explicitly. */
+/** Regions whose fill is owned by the WebGL Material Layer. Transparent CSS. */
+export const SHADER_REGIONS = new Set([
+  'toolbar',
+  'stripe',
+  'tool-window',
+  'tool-window-header',
+  'tab-strip',
+  'editor-well',
+  'status-bar',
+]);
+
+/** Content regions that still must paint an explicit register token. */
 export const REGION_PAINT: Record<string, string> = {
-  toolbar: '--ij-chrome',
-  stripe: '--ij-chrome',
-  'tool-window': '--ij-chrome',
-  'tool-window-header': '--ij-chrome',
-  'tab-strip': '--ij-chrome',
-  'editor-well': '--ij-editor',
-  'status-bar': '--ij-chrome',
   composer: '--ij-raised',
-  // The Index surface. Its three panes sit inside the editor well, so they
-  // carry the well's plane, not chrome: in light that is the brightest plane
-  // and the work surface, which is what the Index is.
   'filing-index': '--ij-editor',
   'filing-rules': '--ij-editor',
   'filing-urgent': '--ij-editor',
-  // The receipt popover is the one transient surface in the Index, which is
-  // also the only place a shadow token is legal there (named choice 3).
   'filing-receipt': '--ij-raised',
 };
 
-/** Regions that must EXIST on the workspace surface. A region cannot pass the
- *  audit by not rendering; that is the void the empty-state work is about. */
+/** Regions that must EXIST on the workspace surface. */
 export const REQUIRED_REGIONS = [
   'toolbar',
   'stripe',
@@ -50,7 +45,7 @@ export interface PaintFinding {
   readonly actual: string;
   readonly expected: string;
   readonly token: string;
-  readonly reason: 'transparent' | 'mismatch';
+  readonly reason: 'transparent' | 'mismatch' | 'painted';
 }
 
 /** Runs the scan in the page and returns every region that fails it. */
@@ -58,65 +53,82 @@ export async function auditPaint(page: Page): Promise<{
   findings: PaintFinding[];
   seen: string[];
 }> {
-  return page.evaluate((paintMap) => {
-    const resolve = (token: string) => {
-      const probe = document.createElement('div');
-      probe.style.backgroundColor = `var(${token})`;
-      document.body.append(probe);
-      const value = getComputedStyle(probe).backgroundColor;
-      probe.remove();
-      return value;
-    };
+  return page.evaluate(
+    ({ paintMap, shaderRegions }) => {
+      const resolve = (token: string) => {
+        const probe = document.createElement('div');
+        probe.style.backgroundColor = `var(${token})`;
+        document.body.append(probe);
+        const value = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return value;
+      };
 
-    const TRANSPARENT = new Set(['rgba(0, 0, 0, 0)', 'transparent']);
-    const findings: PaintFinding[] = [];
-    const seen = new Set<string>();
+      const TRANSPARENT = new Set(['rgba(0, 0, 0, 0)', 'transparent']);
+      const findings: PaintFinding[] = [];
+      const seen = new Set<string>();
 
-    for (const [region, token] of Object.entries(paintMap)) {
-      const expected = resolve(token);
-      const nodes = [...document.querySelectorAll<HTMLElement>(`[data-paint-region="${region}"]`)];
-      nodes.forEach((node, index) => {
-        seen.add(region);
-        const actual = getComputedStyle(node).backgroundColor;
-        if (TRANSPARENT.has(actual)) {
-          findings.push({ region, index, actual, expected, token, reason: 'transparent' as const });
-          return;
-        }
-        if (actual !== expected) {
-          findings.push({ region, index, actual, expected, token, reason: 'mismatch' as const });
-        }
-      });
-    }
+      for (const region of shaderRegions) {
+        const nodes = [...document.querySelectorAll<HTMLElement>(`[data-paint-region="${region}"]`)];
+        nodes.forEach((node, index) => {
+          seen.add(region);
+          const actual = getComputedStyle(node).backgroundColor;
+          if (!TRANSPARENT.has(actual)) {
+            findings.push({
+              region,
+              index,
+              actual,
+              expected: 'transparent',
+              token: 'material-layer',
+              reason: 'painted' as const,
+            });
+          }
+        });
+      }
 
-    return { findings, seen: [...seen] };
-  }, REGION_PAINT) as Promise<{ findings: PaintFinding[]; seen: string[] }>;
+      for (const [region, token] of Object.entries(paintMap)) {
+        const expected = resolve(token);
+        const nodes = [...document.querySelectorAll<HTMLElement>(`[data-paint-region="${region}"]`)];
+        nodes.forEach((node, index) => {
+          seen.add(region);
+          const actual = getComputedStyle(node).backgroundColor;
+          if (TRANSPARENT.has(actual)) {
+            findings.push({ region, index, actual, expected, token, reason: 'transparent' as const });
+            return;
+          }
+          if (actual !== expected) {
+            findings.push({ region, index, actual, expected, token, reason: 'mismatch' as const });
+          }
+        });
+      }
+
+      return { findings, seen: [...seen] };
+    },
+    { paintMap: REGION_PAINT, shaderRegions: [...SHADER_REGIONS] },
+  ) as Promise<{ findings: PaintFinding[]; seen: string[] }>;
 }
 
-/** The assertion form, plus the self-test that proves the scan actually fires.
- *  A gate that cannot fail is decoration; the probe injects an unpainted region
- *  and requires the scan to catch it before trusting a clean result. */
+/** Assert shell regions are shader-transparent and content regions stay painted.
+ *  Self-test: inject a painted shell probe and require the scan to catch it. */
 export async function expectEveryRegionPainted(page: Page): Promise<void> {
-  // Hostile probe: attach a region that paints nothing, run the REAL scan, and
-  // require it to be reported. Checking only that the probe reads transparent
-  // would test the browser, not the gate.
   await page.evaluate(() => {
     const probe = document.createElement('div');
     probe.dataset.paintRegion = 'toolbar';
     probe.id = '__paint-probe';
-    probe.style.background = 'transparent';
+    probe.style.background = 'var(--ij-chrome)';
     document.body.append(probe);
   });
   const probed = await auditPaint(page);
   await page.evaluate(() => document.getElementById('__paint-probe')?.remove());
   expect(
-    probed.findings.some((finding) => finding.reason === 'transparent'),
-    'the unpainted-region probe was NOT caught; the paint scan is inert',
+    probed.findings.some((finding) => finding.reason === 'painted'),
+    'the painted-shell-region probe was NOT caught; the paint scan is inert',
   ).toBe(true);
 
   const { findings, seen } = await auditPaint(page);
   expect(
     findings,
-    `regions inheriting paint instead of declaring it: ${JSON.stringify(findings, null, 2)}`,
+    `paint contract failures: ${JSON.stringify(findings, null, 2)}`,
   ).toEqual([]);
   for (const region of REQUIRED_REGIONS) {
     expect(seen, `named region "${region}" did not render at all`).toContain(region);

@@ -254,6 +254,62 @@ body {
   background: var(--ij-frame);
 }
 
+/* Overlay scrollbars (amendment 35): thin IntelliJ-style overlays that do not
+   steal layout width from island content. Register colors only. */
+[data-register='intui'] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ij-gray-5) transparent;
+}
+
+[data-register='intui'] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-register='intui'] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-register='intui'] *::-webkit-scrollbar-thumb {
+  background: var(--ij-gray-5);
+  border-radius: var(--ij-arc-underline);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+[data-register='intui'] *::-webkit-scrollbar-thumb:hover {
+  background: var(--ij-gray-6);
+  background-clip: content-box;
+}
+
+.promotion-dialog-content {
+  top: var(--ij-dialog-inset-top);
+  width: var(--ij-dialog-width);
+}
+
+/* Island gutter: transparent ground, thin accent mid-line on hover/drag. */
+[data-panel-seam] {
+  position: relative;
+}
+
+[data-panel-seam]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background var(--ij-motion) var(--ij-ease);
+}
+
+[data-panel-seam]:hover::after,
+[data-panel-seam][data-resize-handle-state='drag']::after,
+[data-panel-seam][data-resize-handle-active]::after {
+  background: var(--ij-accent);
+}
+
 /* React Flow, themed through the register: edge and selection defaults resolve
    to Int UI tokens (per-edge styles still win), and handles are hidden because
    the proactivity graph is read-and-inspect, not hand-wired. */

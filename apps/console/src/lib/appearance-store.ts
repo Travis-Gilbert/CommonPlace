@@ -18,11 +18,13 @@ import {
 export type ThemeMode = 'auto' | ResolvedThemeMode;
 export type ThemeFamily = 'intellij' | 'github' | 'navy';
 export type AppearancePresetId = 'intellij-dark' | 'intellij-light' | 'github-dark' | 'github-light' | 'navy';
+export type AppearanceDensity = 'comfortable' | 'compact';
 
 export interface AppearancePreference {
   readonly mode: ThemeMode;
   readonly family: ThemeFamily;
   readonly knobs: ThemeKnobs;
+  readonly density: AppearanceDensity;
 }
 
 export interface AppearanceSnapshot {
@@ -56,6 +58,7 @@ const defaultPreference: AppearancePreference = {
   mode: 'auto',
   family: 'intellij',
   knobs: NAVY_KNOBS,
+  density: 'comfortable',
 };
 
 let snapshot: AppearanceSnapshot = {
@@ -84,7 +87,11 @@ function validPreference(value: unknown): AppearancePreference | null {
   if (!['intellij', 'github', 'navy'].includes(String(candidate.family))) return null;
   const knobs = candidate.knobs as Partial<ThemeKnobs> | undefined;
   if (!knobs || ![knobs.tintHue, knobs.tintChroma, knobs.highlightHue].every((item) => typeof item === 'number')) return null;
-  return candidate as AppearancePreference;
+  const density =
+    candidate.density === 'compact' || candidate.density === 'comfortable'
+      ? candidate.density
+      : 'comfortable';
+  return { ...(candidate as AppearancePreference), density };
 }
 
 function readPreference(): AppearancePreference {
@@ -121,6 +128,7 @@ function paint(next: AppearanceSnapshot): void {
   root.dataset.themeFamily = next.preference.family;
   root.dataset.themePreset = next.presetId;
   root.dataset.themeDerived = next.generated ? 'true' : 'false';
+  root.dataset.density = next.preference.density;
   for (const name of GENERATED_THEME_VARIABLES) root.style.removeProperty(name);
   for (const [name, value] of Object.entries(next.generated?.variables ?? {})) {
     root.style.setProperty(name, value);
