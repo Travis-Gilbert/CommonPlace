@@ -26,7 +26,6 @@ import { MainToolbar } from './MainToolbar';
 import { StatusBar } from './StatusBar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
-import { BottomDock } from './BottomDock';
 import { RecordInspector } from '@/views/RecordInspector';
 import {
   IconCards,
@@ -225,6 +224,7 @@ function ToolWindowHeader({ title, onHide }: { title: string; onHide: () => void
   return (
     <div
       data-tool-window-header
+      data-island-header
       data-paint-region="tool-window-header"
       className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam bg-transparent px-3 text-ij-ink"
       style={{ fontFamily: 'var(--cp-font-human)', fontWeight: 600 }}
@@ -599,7 +599,6 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
               </div>
             ) : null}
           </div>
-          <BottomDock />
         </div>
       </div>
       <StatusBar host={host} />

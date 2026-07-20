@@ -59,7 +59,7 @@ test.describe('Console information architecture', () => {
 
   test('keeps Chat measured with one wide, auto-growing Composer', async ({ page }) => {
     await expect(page.locator('[data-chat-starters] button')).toHaveCount(3);
-    await expect(page.locator('[data-search-field]')).toBeVisible();
+    await expect(page.locator('[data-search-field]')).toHaveCount(0);
     await expect(page.locator('[data-presence-mark-placement="composer"]')).toHaveCount(1);
     await expect(page.locator('nav')).toHaveCount(1);
     const composer = page.locator('[data-composer]');
@@ -120,7 +120,7 @@ test.describe('Console information architecture', () => {
     await expect(page).toHaveScreenshot('chat-empty.png', { fullPage: true });
   });
 
-  test('keeps Search visible while streaming and renders in-thread plans', async ({ page }) => {
+  test('keeps Search reachable by keyboard while streaming and renders in-thread plans', async ({ page }) => {
     let pendingRoute: Route | null = null;
     await page.route('**/api/chat/stream', async (route) => {
       pendingRoute = route;
@@ -129,7 +129,11 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-chat-starters]')).toHaveCount(0);
     await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-state', 'streaming');
     await expect(page.locator('[data-presence-mark-placement="composer"] [data-mark-state]')).toHaveAttribute('data-mark-state', 'composing');
-    await expect(page.locator('[data-search-field]')).toBeVisible();
+    await expect(page.locator('[data-search-field]')).toHaveCount(0);
+    await page.keyboard.press('Shift');
+    await page.keyboard.press('Shift');
+    await expect(page.locator('[data-search-panel]')).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page).toHaveScreenshot('chat-streaming.png', { fullPage: true });
     if (pendingRoute) await pendingRoute.abort('failed');
     await page.unroute('**/api/chat/stream');

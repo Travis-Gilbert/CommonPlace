@@ -5,9 +5,9 @@ Date: 2026-07-20
 
 ## Literal state
 
-**Shipped:** WebGL Material Layer with quieter layered terracotta (ground glow ~0.32, island tint hint), stripe as frame-resident activity bar (not an island), bottom Terminal dock silhouette, editor chrome-band + well hierarchy, Compact density in Appearance, gutter accent on hover/drag. Shell fills stay transparent; paint audit inverted for shell regions.
+**Shipped:** WebGL Material Layer with quieter layered terracotta (ground glow ~0.32, island tint hint), stripe as frame-resident activity bar (not an island), editor chrome-band + well hierarchy, Compact density in Appearance, gutter accent on hover/drag. Shell fills stay transparent; paint audit inverted for shell regions. Grain lowered; island headers read slightly richer than flatter island bodies. Toolbar search field removed (Shift Shift / Cmd K still open Search).
 
-**Not shipped:** real Terminal/PTY in the bottom dock (honest empty frame only); fuller light material retune.
+**Not shipped:** Terminal / bottom dock (removed from the web console until a desktop shell designs it); fuller light material retune.
 
 ## Checklist
 

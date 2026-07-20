@@ -1,8 +1,9 @@
 'use client';
 
-// SOURCING: cmdk (ledger row: search everywhere and palettes). The Search
-// field owns Command, Search, and Objects. Generative input lives only in the
-// Composer. Double Shift opens Search and Ctrl or Cmd K opens Command.
+// SOURCING: cmdk (ledger row: search everywhere and palettes). Search owns
+// Command, Search, and Objects as a keyboard-opened panel (no durable toolbar
+// field). Generative input lives only in the Composer. Double Shift opens
+// Search and Ctrl or Cmd K opens Command.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Command } from 'cmdk';
@@ -24,7 +25,6 @@ import { dispatchHunkReviewAction, HUNK_REVIEW_ACTIONS } from '@/views/hunks/hun
 import type { ConsoleBlockHost } from '@/lib/console-host';
 
 const DOUBLE_SHIFT_MS = 400;
-let clickTrigger: HTMLElement | null = null;
 const MODES: readonly { id: SearchFieldMode; label: string; hint: string }[] = [
   { id: 'command', label: 'Command', hint: '>' },
   { id: 'search', label: 'Search', hint: 'Shift Shift' },
@@ -75,26 +75,6 @@ function probeAddress(raw: string, tenant: string): AddressProbe | null {
   };
 }
 
-export function SearchField() {
-  const openSearchPanel = useShellStore((state) => state.openSearchPanel);
-  return (
-    <button
-      type="button"
-      data-search-field
-      aria-label="Search, or press Shift Shift"
-      aria-keyshortcuts="Shift+Shift"
-      onClick={(event) => {
-        clickTrigger = event.currentTarget;
-        openSearchPanel('search');
-      }}
-      className="flex h-ij-control w-full max-w-144 items-center rounded-ij-arc border border-ij-control-border bg-ij-chrome px-3 text-left text-ij-ink-disabled hover:border-ij-seam-raised hover:text-ij-ink-info"
-      style={{ transition: 'var(--rec-clickable-transition)' }}
-    >
-      Search, or press Shift Shift
-    </button>
-  );
-}
-
 export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
   const open = useShellStore((state) => state.searchPanelOpen);
   const mode = useShellStore((state) => state.searchFieldMode);
@@ -118,7 +98,6 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
   const restoreFocus = useCallback(() => {
     const target = previousFocus.current;
     previousFocus.current = null;
-    clickTrigger = null;
     if (target && document.contains(target)) target.focus();
   }, []);
 
@@ -208,7 +187,7 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
 
   useEffect(() => {
     if (open) {
-      if (!previousFocus.current) previousFocus.current = clickTrigger ?? document.activeElement as HTMLElement | null;
+      if (!previousFocus.current) previousFocus.current = document.activeElement as HTMLElement | null;
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open, mode]);

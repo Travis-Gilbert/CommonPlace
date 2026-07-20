@@ -158,9 +158,9 @@ for (const { theme, preset } of THEMES) {
       await expect(page.locator('[data-paint-region="tab-strip"]')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       await expect(page.locator('[data-paint-region="editor-well"]').first()).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       await expect(page.locator('[data-island="editor"]')).toBeVisible();
-      await expect(page.locator('[data-bottom-dock]')).toBeVisible();
       await expect(page.locator('[data-material-layer]')).toBeVisible();
       await expect(page.locator('[data-frame-resident="stripe"]')).toBeVisible();
+      await expect(page.locator('[data-bottom-dock]')).toHaveCount(0);
       await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveCSS('background-color', editor);
     });
 
