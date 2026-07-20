@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "me.travisgilbert.commonplace",
   "build": {
-    "beforeDevCommand": "npm --prefix ../console run dev",
-    "devUrl": "http://localhost:3010",
-    "beforeBuildCommand": "npm --prefix ../console run build:railway",
-    "frontendDist": "http://localhost:3010"
+    "beforeDevCommand": "npm --prefix ../web run dev",
+    "devUrl": "http://localhost:3000/commonplace",
+    "beforeBuildCommand": "npm --prefix ../web run build:desktop",
+    "frontendDist": "../../web/out"
   },
   "app": {
     "windows": [
