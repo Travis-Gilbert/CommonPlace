@@ -307,6 +307,45 @@ test.describe('Proactivity: the standing program reads as a repository', () => {
     await expect(page.locator('[data-commit-revert="true"]')).toHaveCount(0);
   });
 
+  test('the graph carries the commit palette, and it is honest about what it can add', async ({ page }) => {
+    await openProactivity(page);
+    await openGraph(page);
+
+    // Named choice 6: the programming affordance lives on the graph.
+    await expect(page.locator('[data-commit-palette]')).toBeVisible();
+    await expect(page.locator('[data-palette-entry]')).toHaveCount(4);
+    // Two the compiler can honor, two that say why they cannot be authored
+    // alone (a judgment gates a watch; a response acts on a judgment).
+    await expect(page.locator('[data-palette-entry][data-palette-available="true"]')).toHaveCount(2);
+    await expect(page.locator('[data-palette-entry="judgment"]')).toBeDisabled();
+    await expect(page.locator('[data-palette-entry="response"]')).toBeDisabled();
+    await expect(page.locator('[data-palette-entry="judgment"]')).toHaveAttribute('title', /arrives with one/);
+  });
+
+  test('programming by commits: the palette seeds, compiles, and lands on your lane', async ({ page }) => {
+    await openProactivity(page);
+    await openGraph(page);
+
+    // Add a watch: the palette seeds the compile path rather than writing.
+    await page.locator('[data-palette-entry="watch"]').click();
+    await expect(page.locator('[data-intent-input]')).toHaveValue('tell me when ');
+
+    // Describe it, compile it, review it.
+    await page.locator('[data-intent-input]').fill('tell me when anyone I owe work to goes quiet');
+    await page.getByRole('button', { name: 'Compile', exact: true }).click();
+    await expect(page.locator('[data-intent-review]')).toBeVisible();
+
+    // The candidates are uncommitted commits ahead of HEAD, on the graph, now.
+    await expect(page.locator('[data-node-kind="candidate"]').first()).toBeVisible();
+
+    // Committing lands them as real commits on the human lane, without ever
+    // leaving the graph.
+    await page.getByRole('button', { name: 'Commit', exact: true }).click();
+    await expect(page.getByText('Added to your graph.')).toBeVisible();
+    await expect(page.locator('[data-node-kind="candidate"]')).toHaveCount(0);
+    await expect(page.locator('[data-commit-lane="human"]').first()).toBeVisible();
+  });
+
   test('compiled candidates render as uncommitted commits ahead of HEAD, and discard removes them', async ({ page }) => {
     await openProactivity(page);
     await compileCandidates(page);

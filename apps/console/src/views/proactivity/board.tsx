@@ -341,6 +341,83 @@ export function Stat({ children, title }: { readonly children: ReactNode; readon
   );
 }
 
+/* --------------------------------------------------------- commit palette */
+
+/**
+ * The commit palette (31-HANDOFF-PROACTIVITY-COMMIT-LANGUAGE named choice 6):
+ * the programming affordance. This is the half of the model the doc puts first,
+ * "a person can program the agent by adding commits, because the palette of
+ * addable commits is small and legible", and it is what makes the graph a
+ * surface you PROGRAM rather than one you read.
+ *
+ * Every entry opens the same PG5 compile-and-review path and lands through the
+ * same enumerated mutation. Nothing here writes: the palette is a new door to
+ * the same set, exactly as the named choice says.
+ *
+ * On the four entries, honestly. The doc names four, and the compiler this
+ * surface has (`stubForme`, the stand-in until the kernel's Forme lands:
+ * verify-first V9) produces exactly two shapes: a stake with its derived
+ * program, and a standing-query trio. It cannot mint a standalone judgment or
+ * response, because neither exists on its own: a judgment gates a watch, and a
+ * response acts on a judgment, so both arrive WITH the watch that owns them and
+ * are edited on it afterwards.
+ *
+ * Four equal-looking buttons would therefore be two real doors and two that
+ * quietly do the wrong thing. So all four are here, the two the compiler can
+ * honor are live, and the other two say why they are not and what to do
+ * instead. When the kernel's Forme lands behind the same seam they light up
+ * with no change here.
+ */
+export interface PaletteEntry {
+  readonly kind: PgNodeKind;
+  readonly label: string;
+  /** The intent this entry seeds the compiler with, or null when this kind
+   *  cannot be authored on its own. */
+  readonly seed: string | null;
+  /** Why not, when it cannot. Shown rather than hidden. */
+  readonly because?: string;
+}
+
+export const COMMIT_PALETTE: readonly PaletteEntry[] = [
+  { kind: 'stake', label: 'Add a stake', seed: 'help me with ' },
+  { kind: 'watch', label: 'Add a watch', seed: 'tell me when ' },
+  {
+    kind: 'judgment',
+    label: 'Add a judgment',
+    seed: null,
+    because: 'A judgment gates a watch, so it arrives with one. Add a watch, then set when it should bother you.',
+  },
+  {
+    kind: 'response',
+    label: 'Add a response',
+    seed: null,
+    because: 'A response acts on a judgment, so it arrives with one. Add a watch, then choose what it does.',
+  },
+];
+
+export function CommitPalette({ onSeed }: { readonly onSeed: (seed: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1" data-commit-palette>
+      {COMMIT_PALETTE.map((entry) => (
+        <button
+          key={entry.kind}
+          type="button"
+          data-palette-entry={entry.kind}
+          data-palette-available={entry.seed !== null || undefined}
+          disabled={entry.seed === null}
+          title={entry.because ?? `${entry.label}: describe it, review what it compiles to, then commit.`}
+          onClick={() => entry.seed !== null && onSeed(entry.seed)}
+          className="inline-flex h-ij-control items-center gap-1.5 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-ui text-rec-body text-ij-ink hover:bg-ij-hover-surface disabled:cursor-not-allowed disabled:border-ij-seam disabled:bg-ij-chrome disabled:text-ij-ink-disabled"
+          style={{ transition: 'var(--rec-clickable-transition)' }}
+        >
+          <KindTile kind={entry.kind} size="sm" laneInk={entry.seed !== null ? 'var(--cp-human)' : undefined} />
+          {entry.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------- overflow menu */
 
 /**

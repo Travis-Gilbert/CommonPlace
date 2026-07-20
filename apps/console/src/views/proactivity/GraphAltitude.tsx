@@ -22,6 +22,10 @@ import { GraphCanvas } from './GraphCanvas';
 import { NODE_WIDTH, layoutGraph, responseStepCount, type CanvasNode, type GraphLayout } from './graph-layout';
 import { candidateCommit, litLineage, mergeWatchIds, stakeRefIndex, toCommit, type CommitView } from './commits';
 import { KIND_META } from './kinds';
+import { CommitPalette } from './board';
+import { IntentComposer } from './IntentComposer';
+import type { IntentCompileResult } from '@/lib/proactivity/forme';
+import type { BlockHost } from '@commonplace/block-view/types';
 import {
   AuthorTag,
   BudgetBadge,
@@ -57,6 +61,10 @@ export function GraphAltitude({
   contracts,
   candidates = [],
   onCompile,
+  host,
+  compileHint,
+  compilation,
+  onCompilation,
 }: {
   readonly graph: ProactivityGraph;
   readonly edits: ProactivityEdits;
@@ -64,6 +72,14 @@ export function GraphAltitude({
   /** PG5 compiler output awaiting commit, rendered as uncommitted commits. */
   readonly candidates?: readonly StandingNode[];
   readonly onCompile?: (hint: string) => void;
+  /** The graph is a PROGRAMMING surface (named choice 6), so the compile path
+   *  lives here too, not only on the cards. Before this, the compile hint a
+   *  block raised on the graph set state that only the card altitude could
+   *  render, which meant it silently went nowhere. */
+  readonly host: BlockHost;
+  readonly compileHint?: string;
+  readonly compilation: IntentCompileResult | null;
+  readonly onCompilation: (result: IntentCompileResult | null) => void;
 }) {
   const [laid, setLaid] = useState<{ layout: GraphLayout; sig: string } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -149,15 +165,30 @@ export function GraphAltitude({
 
   return (
     <div className="flex h-full flex-col" data-altitude="graph">
-      <p
-        className="border-b border-ij-divider px-6 py-2 font-cp-agent text-rec-machine text-ij-ink-info"
-        data-type-role="body"
-        data-type-speaker="agent"
-      >
-        Your standing program, read as a repository. Facts arrive from your sources on one rail; your stakes rest on
-        assumptions on the other. A watch fires only where both converge, which is why those commits are merges. Rail
-        color is authorship: yours, the agent&rsquo;s, or derived.
-      </p>
+      {/* The programming affordance (named choice 6). A commit palette and the
+          bounded compile input: you add commits, review what they compile to,
+          and commit them, which is what makes this a surface you program rather
+          than one you read. Same PG5 path, same enumerated mutation. */}
+      <div className="flex shrink-0 flex-col gap-2 border-b border-ij-seam bg-ij-chrome px-3 py-2">
+        <p
+          className="font-cp-agent text-rec-machine text-ij-ink-info"
+          data-type-role="body"
+          data-type-speaker="agent"
+        >
+          Your standing program, read as a repository. Facts arrive from your sources on one rail; your stakes rest on
+          assumptions on the other. A watch fires only where both converge, which is why those commits are merges. Rail
+          color is authorship: yours, the agent&rsquo;s, or derived.
+        </p>
+        <CommitPalette onSeed={(seed) => onCompile?.(seed)} />
+        <IntentComposer
+          host={host}
+          sources={sourcesOf(graph.nodes)}
+          contracts={contracts}
+          hint={compileHint}
+          result={compilation}
+          onResult={onCompilation}
+        />
+      </div>
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
           <GraphCanvas

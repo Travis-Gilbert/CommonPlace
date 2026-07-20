@@ -154,6 +154,10 @@ export function ProactivityView({ set, host }: ViewRenderProps) {
             contracts={contracts}
             candidates={candidates}
             onCompile={setCompileHint}
+            host={host}
+            compileHint={compileHint}
+            compilation={compilation}
+            onCompilation={setCompilation}
           />
         ) : null}
         </div>
