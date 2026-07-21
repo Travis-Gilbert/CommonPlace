@@ -210,13 +210,24 @@
   --ij-material-glow: 0.38;
   --ij-material-grain: 0.018;
   --ij-island-terra-tint: 0.045;
-  /* Header over light bases (chrome gray-13 / editor white). */
-  --ij-island-header-tool: #EEF0F3;
-  --ij-island-header-editor: #F2F3F5;
-  /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
-     this is the runtime gate's light-mode clamp, kept outside the pin. */
-  --ij-gold: #9A6000;
+  /* AMENDMENT-01 A3: header one step toward frame, distinct from body without
+     relying on the seam hairline. Tool body gray-12 → header gray-11; editor
+     paper → header gray-12. */
+  --ij-island-header-tool: var(--ij-gray-11);
+  --ij-island-header-editor: var(--ij-gray-12);
+  /* Gold clamp for light tool body (gray-12 after A1); #9A6000 was for gray-13. */
+  --ij-gold: #8F5800;
   --ij-gold-tint: #FFF5DB;
+}
+
+/* Header band paint (AMENDMENT-01 A3). Token path only for the header strip;
+   Material Layer still owns island body and frame. */
+[data-island-shell][data-island='tool'] > [data-island-header] {
+  background-color: var(--ij-island-header-tool);
+}
+
+[data-island-shell][data-island='editor'] > [data-island-header] {
+  background-color: var(--ij-island-header-editor);
 }
 
 /* JetBrains Compact Mode density: shorter chrome, tighter gutters.

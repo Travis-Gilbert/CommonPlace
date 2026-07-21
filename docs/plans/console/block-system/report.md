@@ -7,15 +7,13 @@ a declared block only).
 
 ## Not done (lead)
 
-- **Paper MCP skin extract:** critical for skin work (choice 14). Not run yet;
-  Paper Desktop MCP at `127.0.0.1:29979` is required for extract passes. The
-  in-repo register remains canonical truth; Paper is the design surface and
-  extraction tool. Do not treat Paper as optional.
 - **B10 bottom-band dock:** web shell has no `[data-bottom-dock]` (by design;
   Terminal dock removed). Island → chrome promotion docks into companion tool
   windows instead. A literal bottom band remains a desktop follow-up.
 - **B10 e2e acceptance #7:** Playwright proof of island ↔ stripe round-trip
   with two `ObjectActionReceipt`s is not yet added.
+- **Paper chrome / composer artboards:** IslandShell anatomy extracted; stripe,
+  tool-window, and composer skins are not yet authored in Paper.
 
 ## Shipped
 
@@ -30,7 +28,8 @@ a declared block only).
 | B7 source installs | Shipped: jalco + tnks / linear-combobox / pdfx / command-menu; recursive-dnd vendor ref |
 | B8 declared blocks | Shipped |
 | B9 proving trio | Shipped: records ViewSource → tnks; automation-history → jalco CommitGraph + harness status projection; composer Cmd/Ctrl-L + single unavailable slot |
-| B10 movement and promotion | Shipped (web): IslandGrid sortable rearrange + size snap → `emit`; promotion zones for stripe tray / chrome tools / expand-to-surface; Cards surface uses `kind: grid` with records + cards islands |
+| B10 movement and promotion | Shipped (web): IslandGrid sortable rearrange + size snap → `emit`; promotion zones for stripe tray / chrome tools / expand-to-surface; Cards surface uses `kind: grid` |
+| Paper MCP skin extract | Shipped for IslandShell anatomy: `paper-extract-island-shell.md` + JSX snapshot; register tokens match Paper; error-island radius corrected in Paper (33→10) |
 
 ## Topology note
 

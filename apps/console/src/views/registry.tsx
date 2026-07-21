@@ -33,6 +33,7 @@ import {
   DocumentBlock,
   KanbanBlock,
   TerminalBlock,
+  VideoBlock,
 } from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
 
@@ -477,6 +478,8 @@ const TERMINAL: ViewDescriptor = {
     surfaceClass: 'tool',
     kindGlyph: 'terminal',
     bodyBleed: 'flush',
+    dataNote:
+      'Web edition: textmode (or similar) inside the React canvas. Native shell edition: native terminal surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
   },
   render: TerminalBlock,
 };
@@ -501,6 +504,8 @@ const BROWSER_PANE: ViewDescriptor = {
     surfaceClass: 'tool',
     kindGlyph: 'browser',
     bodyBleed: 'flush',
+    dataNote:
+      'Web edition: Servo render worker (POST /render) into the React canvas. Native shell edition: native Servo surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
   },
   render: BrowserPaneBlock,
 };
@@ -549,6 +554,32 @@ const DOCUMENT_OUTPUT: ViewDescriptor = {
     kindGlyph: 'doc',
   },
   render: DocumentBlock,
+};
+
+const VIDEO: ViewDescriptor = {
+  id: 'video',
+  name: 'Video',
+  accepts: {},
+  emits: ['dispatch', 'open'],
+  renderer: 'video',
+  source: {
+    package: 'remotion-dev/remotion',
+    component: 'Composition',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'compose video',
+    mounts: ['surface', 'island'],
+    sizes: ['w', 'full'],
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'doc',
+    bodyBleed: 'flush',
+    dataNote:
+      'Sibling to the pdfx document block: artifact production with a server-side render pipeline (Remotion → headless browser → MP4). In-app mount is composition preview plus a dispatch render action; the rendered artifact returns with a receipt. Pipeline wiring is a follow-on; this registration reserves the mount with a designed empty state only.',
+  },
+  render: VideoBlock,
 };
 
 const CANVAS: ViewDescriptor = {
@@ -622,6 +653,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   BROWSER_PANE,
   KANBAN,
   DOCUMENT_OUTPUT,
+  VIDEO,
   CANVAS,
   AUTOMATION_HISTORY,
 ]);

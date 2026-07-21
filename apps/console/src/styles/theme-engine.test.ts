@@ -21,8 +21,9 @@ describe('generated console coloration', () => {
   it.each(['dark', 'light'] as const)('keeps the seam darker than adjacent %s surfaces', (mode) => {
     const theme = generateTheme(mode, NAVY_KNOBS);
     const ramp = Array.from({ length: 14 }, (_, index) => lightness(theme.variables[`--ij-gray-${index + 1}`]));
-    const seam = ramp[mode === 'dark' ? 0 : 11];
-    const chrome = ramp[mode === 'dark' ? 1 : 12];
+    // Light seam sits at gray-11 (index 10); tool chrome at gray-12 (index 11).
+    const seam = ramp[mode === 'dark' ? 0 : 10];
+    const chrome = ramp[mode === 'dark' ? 1 : 11];
     expect(seam).toBeLessThan(chrome);
     expect(ramp.every((value, index) => index === 0 || value >= ramp[index - 1])).toBe(true);
     expect(theme.checks.every((check) => check.pass)).toBe(true);

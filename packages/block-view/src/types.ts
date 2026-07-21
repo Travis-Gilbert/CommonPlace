@@ -341,6 +341,11 @@ export interface BlockPresentation {
   readonly kindGlyph?: IslandKindGlyph;
   /** Body pad under the header. Defaults to `inset`. */
   readonly bodyBleed?: IslandBodyBleed;
+  /**
+   * Contract note for implementers (edition split, render pipeline, etc.).
+   * Not shown in chrome; lives on the descriptor for heads.
+   */
+  readonly dataNote?: string;
 }
 
 export interface ViewDescriptor {

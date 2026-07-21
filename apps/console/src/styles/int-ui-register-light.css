@@ -30,15 +30,17 @@
   --ij-purple-2: #643CB8; --ij-purple-7: #DCCBFB; --ij-purple-9: #F5EDFF;
   --ij-teal-2: #077A7F; --ij-teal-7: #B6E4E5;
 
-  /* Light: frame darker than islands so gutters read (choice 8). #DFE1E5
-     clears the 1.20:1 island-to-frame floor against chrome and editor. */
-  --ij-frame: var(--ij-gray-11);
+  /* AMENDMENT-01 A1: decompress light elevation. Verbatim Int UI Light crushed
+     frame/chrome/editor into ~32 luminance of white; islands-on-a-shader need
+     a real step. Editor stays paper (gray-14). Tool drops to gray-12. Frame
+     deepens to gray-10 so gutters and Material Layer shadows read. */
+  --ij-frame: var(--ij-gray-10);
   --ij-editor: var(--ij-gray-14);
-  --ij-chrome: var(--ij-gray-13);
+  --ij-chrome: var(--ij-gray-12);
   --ij-raised: var(--ij-gray-14);
-  --ij-seam: var(--ij-gray-12);
-  --ij-seam-raised: var(--ij-gray-10);
-  --ij-divider: var(--ij-gray-12);
+  --ij-seam: var(--ij-gray-11);
+  --ij-seam-raised: var(--ij-gray-9);
+  --ij-divider: var(--ij-gray-11);
   --ij-control-border: var(--ij-gray-9);
 
   --ij-ink: var(--ij-gray-2);
@@ -54,7 +56,7 @@
   --ij-modified: var(--ij-blue-3);
   --ij-hover-overlay: #0000000D;
   --ij-pressed-overlay: #0000001A;
-  --ij-hover-surface: var(--ij-gray-12);
+  --ij-hover-surface: var(--ij-gray-11);
 
   --ij-error: var(--ij-red-1);      --ij-error-bg: #FFEBEC;
   --ij-warn: var(--ij-yellow-1);    --ij-warn-bg: #FFF5DB;
@@ -68,12 +70,12 @@
 
   --ij-row-yellow: #FFF5DB; --ij-row-green: #E3F7E7; --ij-row-orange: #FFEFE3;
   --ij-row-rose: #FFEBEC;   --ij-row-violet: var(--ij-purple-9); --ij-row-blue: #DAF4F5;
-  --ij-row-gray: var(--ij-gray-12);
+  --ij-row-gray: var(--ij-gray-11);
 
   --ij-progress: var(--ij-blue-4);
   --ij-progress-a: var(--ij-blue-3);
   --ij-progress-b: var(--ij-blue-7);
-  --ij-progress-track: var(--ij-gray-11);
+  --ij-progress-track: var(--ij-gray-10);
 
   color-scheme: light;
 }

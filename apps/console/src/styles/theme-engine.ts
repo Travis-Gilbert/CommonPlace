@@ -102,8 +102,15 @@ const LIGHTNESS_LADDERS: Readonly<Record<ResolvedThemeMode, readonly OklchColor[
 
 const FRAME_ANCHORS: Readonly<Record<ResolvedThemeMode, OklchColor>> = {
   dark: hexToOklch('#393B40'),
-  light: hexToOklch('#DFE1E5'),
+  // AMENDMENT-01 A1: light frame at gray-10 so islands clear the target band.
+  light: hexToOklch('#D3D5DB'),
 };
+
+/** Island-to-frame preferred floor (above the historic 1.20 hug). */
+export const ISLAND_FRAME_TARGET = 1.22;
+
+/** Minimum OKLCH lightness delta between light editor and tool bases. */
+export const MIN_EDITOR_TOOL_OKLCH_DELTA = 0.04;
 
 const TINT_CHROMA_CEILING: Readonly<Record<ResolvedThemeMode, number>> = {
   dark: 0.03,
@@ -192,11 +199,12 @@ export function generateTheme(mode: ResolvedThemeMode, input: ThemeKnobs): Gener
 
   const frameStock = FRAME_ANCHORS[mode];
   variables['--ij-frame'] = knobs.tintChroma === 0
-    ? mode === 'dark' ? '#393B40' : '#DFE1E5'
+    ? mode === 'dark' ? '#393B40' : '#D3D5DB'
     : css(gamutColor(frameStock.l, neutralChroma, knobs.tintHue));
 
   const ink = neutrals[mode === 'dark' ? 11 : 1].color;
-  const chrome = neutrals[mode === 'dark' ? 1 : 12].color;
+  // Light: tool islands use gray-12 (index 11), not gray-13 (AMENDMENT-01 A1).
+  const chrome = neutrals[mode === 'dark' ? 1 : 11].color;
   const editor = neutrals[mode === 'dark' ? 0 : 13].color;
   const frame = knobs.tintChroma === 0 ? frameStock : gamutColor(frameStock.l, neutralChroma, knobs.tintHue);
   const info = neutrals[mode === 'dark' ? 7 : 5].color;
@@ -218,15 +226,32 @@ export function generateTheme(mode: ResolvedThemeMode, input: ThemeKnobs): Gener
   );
   variables['--ij-gold'] = css(gold.color);
   if (gold.clamped) notes.push('Learned-register gold was adjusted to preserve text contrast.');
+  const editorToolDelta = Math.abs(editor.l - chrome.l);
   const checks = [
     check('ink on chrome', ink, chrome, 4.5),
     check('info on chrome', info, chrome, 3),
     check('ink on selection', ink, highlight.color, 4.5),
     check('accent on chrome', accent, chrome, 3),
     check('gold on chrome', gold.color, chrome, 4.5),
-    check('chrome island on frame', chrome, frame, 1.2),
-    check('editor island on frame', editor, frame, 1.2),
+    check('chrome island on frame', chrome, frame, ISLAND_FRAME_TARGET),
+    check('editor island on frame', editor, frame, ISLAND_FRAME_TARGET),
   ];
+  if (mode === 'light' && editorToolDelta < MIN_EDITOR_TOOL_OKLCH_DELTA) {
+    checks.push({
+      name: 'editor vs tool elevation',
+      ratio: editorToolDelta,
+      target: MIN_EDITOR_TOOL_OKLCH_DELTA,
+      pass: false,
+    });
+    notes.push('Light editor and tool bases are too close; raise the elevation step.');
+  } else if (mode === 'light') {
+    checks.push({
+      name: 'editor vs tool elevation',
+      ratio: editorToolDelta,
+      target: MIN_EDITOR_TOOL_OKLCH_DELTA,
+      pass: true,
+    });
+  }
   if (checks.some((candidate) => !candidate.pass)) {
     notes.push('One or more generated pairs reached their safe contrast boundary.');
   }

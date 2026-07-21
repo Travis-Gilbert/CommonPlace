@@ -173,7 +173,7 @@ export function IslandShell({
       <header
         data-island-header
         data-paint-region="island-header"
-        className="flex h-ij-island-header shrink-0 items-center gap-2 border-b border-ij-seam bg-transparent px-3 text-ij-ink"
+        className="flex h-ij-island-header shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
       >
         <span
           data-island-kind-glyph

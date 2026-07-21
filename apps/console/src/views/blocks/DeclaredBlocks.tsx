@@ -42,6 +42,15 @@ export function DocumentBlock(_props: ViewRenderProps) {
   );
 }
 
+export function VideoBlock(_props: ViewRenderProps) {
+  return (
+    <IslandEmptyBody
+      title="Video"
+      detail="Compose video with Remotion. This island is the composition preview; server-side MP4 render dispatches through the object seam later and returns with a receipt. Rendering is not wired yet."
+    />
+  );
+}
+
 export function CanvasBlock(_props: ViewRenderProps) {
   return (
     <IslandEmptyBody
