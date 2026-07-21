@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 
 test('opens Account inside the canonical Console and disables broken GitHub login', async ({ page }) => {
   await page.goto('/');
-  await page.evaluate(() => localStorage.removeItem('commonplace.console.surface.v1'));
+  await page.evaluate(() => localStorage.removeItem('commonplace.console.layout-cache.v1'); localStorage.removeItem('commonplace.console.surface.v1'));
   await page.reload();
   await page.locator('[data-account-trigger]').click();
 

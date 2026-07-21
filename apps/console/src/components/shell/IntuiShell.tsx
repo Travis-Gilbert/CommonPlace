@@ -16,7 +16,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type { ObjectRef } from '@commonplace/block-view/types';
-import { buildSurfaceTree, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
+import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
 import { pathForSurfaceKind, surfaceIdForPath } from '@/lib/surface-routes';
@@ -30,56 +30,11 @@ import { StatusBar } from './StatusBar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
-import {
-  IconCards,
-  IconDoc,
-  IconInspector,
-  IconMemory,
-  IconModel,
-  IconRail,
-  IconRecords,
-  IconRun,
-  IconThread,
-  IconWorkspace,
-} from './icons';
+import { Sidebar, type SidebarRegion } from './Sidebar';
 
 const OVERLAY_BREAKPOINT = 1100;
 
-/** Stripe glyph size (X3.4). The register carries this as --ij-stripe-icon;
- *  the icon components take a numeric SVG size, so the one place the number is
- *  restated is here, next to the token it mirrors. */
-const STRIPE_ICON = 20;
-
-/** Surface nav icons by surface kind: the stripe surfaces group (AMENDMENT:
- *  surfaces join the layout switcher AND the stripe surfaces group). */
-const SURFACE_ICONS: Record<string, typeof IconRecords> = {
-  chat: IconThread,
-  workspace: IconWorkspace,
-  index: IconRail,
-  documents: IconDoc,
-  cards: IconCards,
-  proactivity: IconRail,
-  model: IconModel,
-  review: IconInspector,
-  goals: IconModel,
-};
-
-/** Region icon slugs carried on the surface object; the glyphs stay in the
- *  one chrome icon file. */
-const REGION_ICONS: Record<string, typeof IconRecords> = {
-  records: IconRecords,
-  thread: IconThread,
-  rail: IconRail,
-  docs: IconDoc,
-  files: IconDoc,
-  context: IconMemory,
-  automation: IconRun,
-};
-
-interface RegionNode {
-  readonly object: ObjectRef;
-  readonly instances: readonly ObjectRef[];
-}
+type RegionNode = SidebarRegion;
 
 interface SurfaceRegions {
   readonly left: readonly RegionNode[];
@@ -106,124 +61,6 @@ function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
 
 function isOpen(region: RegionNode): boolean {
   return region.object.properties.open !== false;
-}
-
-/** The stripe button grammar (X3.4 / named choice 5). Int UI stripe buttons are
- *  monochrome icons on the ink ladder at rest and take a WEAK FILL when
- *  selected, with the glyph rising to full ink; they are never saturated accent
- *  tiles with inverted glyphs, which is what the console had drifted into and
- *  what made the stripe read as a row of colored chips rather than chrome.
- *  Domain tint stays a content affordance per the icon policy, so no stripe
- *  glyph carries a domain color at rest. */
-const STRIPE_BUTTON_CLASS =
-  'flex h-ij-nav-row w-ij-nav-row items-center justify-center rounded-ij-arc hover:bg-ij-hover-surface';
-
-function stripeButtonStyle(selected: boolean) {
-  return {
-    color: selected ? 'var(--ij-ink)' : 'var(--ij-ink-info)',
-    background: selected ? 'var(--ij-selection)' : 'transparent',
-    transition: 'var(--rec-clickable-transition)',
-  } as const;
-}
-
-function CompanionButton({
-  region,
-  index,
-  entranceIndex,
-  onToggle,
-}: {
-  region: RegionNode;
-  index: number;
-  entranceIndex: number;
-  onToggle: () => void;
-}) {
-  const durations = useMotionDurations();
-  const title = String(region.object.properties.title ?? region.object.id);
-  const Icon = REGION_ICONS[String(region.object.properties.icon ?? '')] ?? IconRecords;
-  const key = String(index + 1);
-  const open = isOpen(region);
-  return (
-    <motion.button
-      initial={durations.reduced ? false : { opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: seconds(durations.base),
-        delay: seconds(staggerDelay(entranceIndex)),
-        ease: EASE_OUT,
-      }}
-      type="button"
-      data-companion-nav={String(region.object.properties.companion ?? '')}
-      title={`${title} (Alt+Shift+${key})`}
-      aria-label={`${title} companion`}
-      aria-pressed={open}
-      aria-keyshortcuts={`Alt+Shift+${key}`}
-      onClick={onToggle}
-      className={STRIPE_BUTTON_CLASS}
-      style={stripeButtonStyle(open)}
-    >
-      <Icon size={STRIPE_ICON} />
-    </motion.button>
-  );
-}
-
-/** The stripe surfaces group: the top group of the leftmost stripe lists every
- *  seeded surface and switches screens by flipping the active flag through the
- *  host. This is the primary navigation (the AMENDMENT's stripe surfaces
- *  group); it shares the leftmost bar with the active surface's tool windows,
- *  divided, in the JetBrains grouped-stripe manner. */
-function SurfaceNavGroup({
-  surfaces,
-  activeSurfaceId,
-  host,
-}: {
-  surfaces: readonly ObjectRef[];
-  activeSurfaceId: string;
-  host: ConsoleBlockHost;
-}) {
-  const durations = useMotionDurations();
-  const router = useRouter();
-  if (surfaces.length === 0) return null;
-  const switchTo = async (surface: ObjectRef) => {
-    if (surface.id === activeSurfaceId) return;
-    const kind = String(surface.properties.kind ?? '');
-    const path = pathForSurfaceKind(kind);
-    await host.activateSurface(surface.id);
-    if (path) router.push(path);
-  };
-  return (
-    <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col items-center gap-1">
-      {surfaces.map((surface, index) => {
-        const kind = String(surface.properties.kind ?? '');
-        const name = String(surface.properties.name ?? surface.id);
-        const Icon = SURFACE_ICONS[kind] ?? IconWorkspace;
-        const active = surface.id === activeSurfaceId;
-        return (
-          <motion.button
-            key={surface.id}
-            initial={durations.reduced ? false : { opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: seconds(durations.base),
-              delay: seconds(staggerDelay(index)),
-              ease: EASE_OUT,
-            }}
-            type="button"
-            role="radio"
-            data-surface-nav={surface.id}
-            title={name}
-            aria-label={`${name} surface`}
-            aria-checked={active}
-            aria-keyshortcuts={`Alt+${index + 1}`}
-            onClick={() => void switchTo(surface)}
-            className={STRIPE_BUTTON_CLASS}
-            style={stripeButtonStyle(active)}
-          >
-            <Icon size={STRIPE_ICON} />
-          </motion.button>
-        );
-      })}
-    </div>
-  );
 }
 
 /** The Int UI tool window slot. Island chrome lives on IslandShell inside
@@ -310,7 +147,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   );
   const primarySurfaces = useMemo(
     () => surfaces
-      .filter((surface) => typeof surface.properties.stripe_order === 'number')
+      .filter((surface) => pathForSurfaceKind(String(surface.properties.kind ?? '')) !== null)
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order)),
     [surfaces],
   );
@@ -371,8 +208,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     [compact, host, regions.left, regions.right],
   );
 
-  // Alt+1..6 switches the primary surface radio group. Alt+Shift+1..3
-  // toggles the companion group for the active surface.
+  // Alt+1..5 supplements Cmd/Ctrl surface switching on the five routed
+  // surfaces. Alt+Shift+1..3 toggles companions for the active surface.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
@@ -452,20 +289,30 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     },
     [host, visiblePanels, visibleTotal],
   );
+  const chromeRegionIds = useMemo(
+    () => [...regions.left, ...regions.right].map((region) => region.object.id),
+    [regions.left, regions.right],
+  );
+  const landmarkRegion = useMemo(() => {
+    const object = layoutObjects?.find(
+      (candidate) => candidate.type === 'region' && candidate.properties.kind === 'landmarks',
+    );
+    if (!object) return null;
+    const children = object.relations?.[CONTAINS_EDGE] ?? [];
+    const instances = children
+      .map((id) => layoutObjects?.find((candidate) => candidate.id === id))
+      .filter((candidate): candidate is ObjectRef => candidate?.type === 'view-instance');
+    return { object, instances };
+  }, [layoutObjects]);
 
   if (!root || !editor) {
     return <div className="h-full w-full bg-ij-frame" aria-busy="true" />;
   }
 
-  const chromeRegionIds = useMemo(
-    () => [...regions.left, ...regions.right].map((region) => region.object.id),
-    [regions.left, regions.right],
-  );
   const stripeTrayId =
     [...regions.left, ...regions.right].find(
       (region) => region.object.properties.kind === 'stripe-tray',
     )?.object.id ?? null;
-
   const editorPane = (
     <motion.div
       initial={durations.reduced ? false : { opacity: 0 }}
@@ -526,34 +373,15 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     >
       <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
       <div className="flex min-h-0 flex-1">
-        {/* Activity bar is frame chrome: flush left, no island radius, same
-            ground as the gutters. Companions and editor are the islands. */}
-        <nav
-          aria-label="Surfaces and companions"
-          data-paint-region="stripe"
-          data-frame-resident="stripe"
-          className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 bg-transparent py-2"
-        >
-          <SurfaceNavGroup
-            surfaces={primarySurfaces}
-            activeSurfaceId={activeSurfaceId}
-            host={host}
-          />
-          {companions.length > 0 ? (
-            <div aria-hidden className="my-1 h-px w-6 shrink-0 bg-ij-seam" />
-          ) : null}
-          <div aria-label="Companions" className="flex flex-col items-center gap-1">
-          {companions.map((region, index) => (
-            <CompanionButton
-              key={region.object.id}
-              region={region}
-              index={index}
-              entranceIndex={index}
-              onToggle={() => toggle(region)}
-            />
-          ))}
-          </div>
-        </nav>
+        <Sidebar
+          host={host}
+          surfaces={primarySurfaces}
+          companions={companions}
+          activeSurfaceId={activeSurfaceId}
+          landmarksRegion={landmarkRegion}
+          activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+          onToggleCompanion={toggle}
+        />
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter">
           <div className="relative min-h-0 min-w-0 flex-1">

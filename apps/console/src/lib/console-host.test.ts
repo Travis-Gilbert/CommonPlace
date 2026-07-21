@@ -9,12 +9,14 @@ import { afterEach, vi } from 'vitest';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ConsoleBlockHost } from './console-host';
-import { RECORD_COUNT, SURFACE_ID, seedRecords } from './workspace-seed';
+import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
+import { RECORD_COUNT, SURFACE_ID, seedLayout, seedRecords } from './workspace-seed';
 
 const NO_VIEWS = { matchingViews: () => [] };
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  clearLayoutCache();
 });
 
 /** A host with the test-only record pool (the app passes no pool). */
@@ -68,8 +70,9 @@ describe('ConsoleBlockHost', () => {
       'workspace.region-files',
       'workspace.region-context',
       'workspace.region-thread',
+      'workspace.region-automation',
     ]);
-    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(4);
     // The Index carries a third surface-role region, the urgent lane, whose
     // empty state is its designed norm (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0
     // F5). It is a region rather than a companion because it belongs to this
@@ -84,6 +87,33 @@ describe('ConsoleBlockHost', () => {
       'index.region-thread',
     ]);
     expect(index!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+  });
+
+  it('seeds the landmarks region as frame chrome with stripe view instances', () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = host.queryLayout(surfaceQuery());
+    const landmarks = set.objects.find((object) => object.id === 'console.region-landmarks');
+    expect(landmarks?.type).toBe('region');
+    expect(landmarks?.properties.kind).toBe('landmarks');
+    expect(landmarks?.properties.collapsed).toBe(false);
+    expect(landmarks?.relations?.[CONTAINS_EDGE]).toEqual([
+      'console.landmark-chat',
+      'console.landmark-records',
+    ]);
+    const chatLandmark = set.objects.find((object) => object.id === 'console.landmark-chat');
+    expect(chatLandmark?.properties.descriptor_id).toBe('chat.surface');
+    expect(chatLandmark?.properties.pinned).toBe(true);
+  });
+
+  it('migrates landmarks into a persisted arrangement that lacked them', () => {
+    const withoutLandmarks = seedLayout().filter(
+      (object) => !object.id.startsWith('console.region-landmarks') && !object.id.startsWith('console.landmark-'),
+    );
+    writeLayoutCache(withoutLandmarks);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = host.queryLayout(surfaceQuery());
+    expect(set.objects.some((object) => object.id === 'console.region-landmarks')).toBe(true);
+    expect(set.objects.some((object) => object.id === 'console.landmark-chat')).toBe(true);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {

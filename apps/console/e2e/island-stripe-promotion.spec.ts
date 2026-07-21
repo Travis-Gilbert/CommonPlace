@@ -5,7 +5,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 async function freshLoad(page: Page) {
@@ -23,7 +26,7 @@ async function openSurface(page: Page, surfaceId: string) {
   const pathBySurface: Record<string, string> = {
     'console-chat': '/chat',
     'console-workspace': '/workspace',
-    'console-index': '/index',
+    'console-index': '/filing',
     'console-docs': '/documents',
     'console-cards': '/cards',
   };

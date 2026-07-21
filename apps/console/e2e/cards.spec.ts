@@ -15,7 +15,10 @@ async function settled(page: Page) {
 
 async function freshLoad(page: Page) {
   await page.goto('/');
-  await page.evaluate(() => window.localStorage.removeItem('commonplace.console.surface.v1'));
+  await page.evaluate(() => {
+    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
+    window.localStorage.removeItem('commonplace.console.surface.v1');
+  });
   await page.reload();
   await settled(page);
 }
@@ -34,8 +37,8 @@ test.describe('cards, actions, mentions', () => {
   test('the surface rail is the primary nav: far-left, switches screens', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
     await expect(rail).toBeVisible();
-    // The exact six primary surfaces form an APG radio group.
-    await expect(rail.locator('[data-surface-nav]')).toHaveCount(6);
+    // The five routed surfaces form an APG radio group.
+    await expect(rail.locator('[data-surface-nav]')).toHaveCount(5);
     await expect(rail.locator('[data-surface-nav="console-chat"]')).toHaveAttribute(
       'aria-checked',
       'true',
@@ -75,10 +78,13 @@ test.describe('cards, actions, mentions', () => {
     // The arrangement is data: seed a surface hosting card.full over the live
     // task query, exactly as a user arrangement would.
     await page.evaluate(() => {
-      const raw = window.localStorage.getItem('commonplace.console.surface.v1');
-      const objects = raw ? JSON.parse(raw) : [];
+      const key = 'commonplace.console.layout-cache.v1';
+      const snapshot = JSON.parse(window.localStorage.getItem(key) ?? 'null') as
+        | { objects?: Array<{ id: string; type: string; properties: Record<string, unknown>; relations?: Record<string, string[]> }> }
+        | null;
+      const objects = snapshot?.objects ? [...snapshot.objects] : [];
       const filtered = objects.filter(
-        (o: { id: string }) => !['e2e-card-surface', 'e2e.region', 'e2e.vi-card'].includes(o.id),
+        (o) => !['e2e-card-surface', 'e2e.region', 'e2e.vi-card'].includes(o.id),
       );
       for (const object of filtered) {
         if (object.type === 'surface') object.properties.active = false;
@@ -88,7 +94,7 @@ test.describe('cards, actions, mentions', () => {
         { id: 'e2e.region', type: 'region', properties: { kind: 'editor', size: 100, active_tab: 'e2e.vi-card' }, relations: { CONTAINS: ['e2e.vi-card'] } },
         { id: 'e2e.vi-card', type: 'view-instance', properties: { descriptor_id: 'card.full', title: 'Task card', query: { types: ['task'], page: { limit: 1 } } }, relations: { CONTAINS: [] } },
       );
-      window.localStorage.setItem('commonplace.console.surface.v1', JSON.stringify(filtered));
+      window.localStorage.setItem(key, JSON.stringify({ updatedAtMs: Date.now(), objects: filtered }));
     });
     await page.reload();
     await settled(page);
@@ -105,8 +111,11 @@ test.describe('cards, actions, mentions', () => {
 
   test('the grid virtualizes past 200 cards', async ({ page }) => {
     await page.evaluate(() => {
-      const raw = window.localStorage.getItem('commonplace.console.surface.v1');
-      const objects = raw ? JSON.parse(raw) : [];
+      const key = 'commonplace.console.layout-cache.v1';
+      const snapshot = JSON.parse(window.localStorage.getItem(key) ?? 'null') as
+        | { objects?: Array<{ id: string; type: string; properties: Record<string, unknown>; relations?: Record<string, string[]> }> }
+        | null;
+      const objects = snapshot?.objects ? [...snapshot.objects] : [];
       for (const object of objects) {
         if (object.type === 'surface') object.properties.active = false;
       }
@@ -115,7 +124,7 @@ test.describe('cards, actions, mentions', () => {
         { id: 'e2e.grid-region', type: 'region', properties: { kind: 'editor', size: 100, active_tab: 'e2e.vi-grid' }, relations: { CONTAINS: ['e2e.vi-grid'] } },
         { id: 'e2e.vi-grid', type: 'view-instance', properties: { descriptor_id: 'cards.grid', title: 'Grid proof', query: { types: ['record'], page: { limit: 400 } } }, relations: { CONTAINS: [] } },
       );
-      window.localStorage.setItem('commonplace.console.surface.v1', JSON.stringify(objects));
+      window.localStorage.setItem(key, JSON.stringify({ updatedAtMs: Date.now(), objects }));
     });
     await page.reload();
     await settled(page);

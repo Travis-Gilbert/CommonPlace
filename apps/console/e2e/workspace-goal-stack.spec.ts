@@ -12,6 +12,7 @@ async function freshLoad(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.evaluate((key) => {
+    localStorage.removeItem('commonplace.console.layout-cache.v1');
     localStorage.removeItem(key);
     localStorage.removeItem('commonplace.console.workspace.project.v1');
   }, SURFACE_KEY);
@@ -21,7 +22,14 @@ async function freshLoad(page: Page) {
 }
 
 async function openSurface(page: Page, id: string) {
-  await page.locator(`[data-surface-nav="${id}"]`).click();
+  const rail = page.locator(`[data-surface-nav="${id}"]`);
+  if (await rail.count()) {
+    await rail.click();
+  } else {
+    // Goal Stack and other secondary surfaces live in the toolbar switcher.
+    await page.locator('[data-layout-switcher]').click();
+    await page.locator(`[data-layout-option="${id}"]`).click();
+  }
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
 }
 

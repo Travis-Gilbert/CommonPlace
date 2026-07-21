@@ -174,6 +174,12 @@ export const INTERACTION_INVENTORY = [
     spec: 'DUR.fast, EASE_OUT, transform and opacity only; the toast is time-boxed by the undo window, not by the animation',
     reducedMotion: 'the toast renders settled and static, and still stands for its full undo window',
   },
+  {
+    trigger: 'Sidebar collapse toggled',
+    effect: 'sidebar width transitions between expanded and collapsed tokens; labels fade by opacity; row contents do not reflow',
+    spec: 'width and opacity use var(--ij-motion) var(--ij-ease); HANDOFF-CONSOLE-SIDEBAR named choice 6 requires width animation as the one chrome exception to transform-only',
+    reducedMotion: 'width snaps; labels appear or disappear without fade',
+  },
 ] as const;
 
 /**

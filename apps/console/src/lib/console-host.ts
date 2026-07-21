@@ -98,8 +98,14 @@ function matchesPredicate(object: ObjectRef, predicate: Predicate | undefined): 
   if (!predicate) return true;
   switch (predicate.kind) {
     case 'eq':
+      if (predicate.field === 'id') {
+        return object.id === predicate.value || object.properties.id === predicate.value;
+      }
       return object.properties[predicate.field] === predicate.value;
     case 'not_eq':
+      if (predicate.field === 'id') {
+        return object.id !== predicate.value && object.properties.id !== predicate.value;
+      }
       return object.properties[predicate.field] !== predicate.value;
     case 'contains': {
       const value = object.properties[predicate.field];
@@ -155,6 +161,7 @@ export class ConsoleBlockHost implements BlockHost {
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
+  private seedLayoutTask: Promise<void> | null = null;
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -261,6 +268,19 @@ export class ConsoleBlockHost implements BlockHost {
         stripeTray.properties.companion = 'stripe-tray';
         added = true;
       }
+      // SB3: landmarks are global frame chrome, not a child of one surface.
+      // Preserve a person's arrangement while accepting the seeded chrome
+      // region and its fallback view instances on upgrade.
+      const landmarks = this.layout.get('console.region-landmarks');
+      if (landmarks && landmarks.properties.kind !== 'landmarks') {
+        landmarks.properties.kind = 'landmarks';
+        landmarks.properties.seed_revision = 1;
+        added = true;
+      }
+      if (landmarks && typeof landmarks.properties.collapsed !== 'boolean') {
+        landmarks.properties.collapsed = false;
+        added = true;
+      }
       for (const seeded of seed) {
         if (seeded.type !== 'surface' || typeof seeded.properties.stripe_order !== 'number') continue;
         const current = this.layout.get(seeded.id);
@@ -344,9 +364,21 @@ export class ConsoleBlockHost implements BlockHost {
   /** B6: adopt server arrangement when present; otherwise push the local seed. */
   async ensureSeedLayout(): Promise<void> {
     if (this.records !== null) return;
+    if (this.seedLayoutTask) return this.seedLayoutTask;
+    this.seedLayoutTask = this.ensureSeedLayoutOnce();
+    try {
+      await this.seedLayoutTask;
+    } finally {
+      this.seedLayoutTask = null;
+    }
+  }
+
+  private async ensureSeedLayoutOnce(): Promise<void> {
     try {
       const remote = await this.http.query(LAYOUT_QUERY);
-      if (remote.objects.some((object) => object.type === 'surface')) {
+      const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
+      const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
+      if (hasPrimarySurface && hasLandmarks) {
         this.replaceLayout(remote.objects);
         return;
       }
@@ -358,29 +390,35 @@ export class ConsoleBlockHost implements BlockHost {
 
   private async pushLayoutToServer(): Promise<void> {
     const objects = [...this.layout.values()].map(toRef);
-    for (const ref of objects) {
-      const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
-      await this.http.emit({
-        kind: 'create',
-        type: ref.type,
-        props: {
-          id: ref.id,
-          title,
-          ...ref.properties,
-        },
-      });
-    }
+    await Promise.all(
+      objects.map((ref) => {
+        const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
+        return this.http.emit({
+          kind: 'create',
+          type: ref.type,
+          props: {
+            id: ref.id,
+            title,
+            ...ref.properties,
+          },
+        });
+      }),
+    );
+    const moves: Array<Promise<unknown>> = [];
     for (const ref of objects) {
       const children = ref.relations?.[CONTAINS_EDGE] ?? [];
       for (let index = 0; index < children.length; index += 1) {
-        await this.http.emit({
-          kind: 'move',
-          id: children[index]!,
-          new_parent: ref.id,
-          order: index + 1,
-        });
+        moves.push(
+          this.http.emit({
+            kind: 'move',
+            id: children[index]!,
+            new_parent: ref.id,
+            order: index + 1,
+          }),
+        );
       }
     }
+    await Promise.all(moves);
   }
 
   private async writeThroughLayoutUpdates(

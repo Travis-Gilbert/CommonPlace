@@ -5,6 +5,7 @@
 import { expect, test } from '@playwright/test';
 
 const APPEARANCE_KEY = 'commonplace.console.appearance.v1';
+const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const SURFACE_KEY = 'commonplace.console.surface.v1';
 
 async function settled(page: import('@playwright/test').Page) {
@@ -26,10 +27,11 @@ async function selectPreset(page: import('@playwright/test').Page, id: string) {
 test.describe('appearance surface', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(([appearance, surface]) => {
+    await page.evaluate(([appearance, layout, surface]) => {
       localStorage.removeItem(appearance);
+      localStorage.removeItem(layout);
       localStorage.removeItem(surface);
-    }, [APPEARANCE_KEY, SURFACE_KEY]);
+    }, [APPEARANCE_KEY, LAYOUT_CACHE_KEY, SURFACE_KEY]);
     await page.reload();
     await settled(page);
   });
