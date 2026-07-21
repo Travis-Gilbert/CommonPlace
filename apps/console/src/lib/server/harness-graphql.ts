@@ -43,16 +43,26 @@ export async function callHarnessGraphql(
       cache: 'no-store',
       signal: timeout.signal,
     });
+    const passthrough = upstream.status === 401 || upstream.status === 403 ? upstream.clone() : undefined;
     const payload = await upstream.json().catch(() => null) as {
       data?: Record<string, unknown>;
       errors?: Array<{ message?: unknown }>;
       error?: unknown;
     } | null;
-    if (!upstream.ok || payload?.errors || !payload?.data) {
+    if (!upstream.ok) {
       const detail = payload?.errors?.[0]?.message ?? payload?.error;
       return {
         ok: false,
-        status: upstream.ok ? 502 : upstream.status,
+        status: upstream.status,
+        error: typeof detail === 'string' ? detail : 'harness_graphql_failed',
+        response: passthrough,
+      };
+    }
+    if (payload?.errors || !payload?.data) {
+      const detail = payload?.errors?.[0]?.message ?? payload?.error;
+      return {
+        ok: false,
+        status: 502,
         error: typeof detail === 'string' ? detail : 'harness_graphql_failed',
       };
     }
