@@ -27,6 +27,7 @@ import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
+import { useWindowInactiveOverlay } from '@/lib/use-window-inactive';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
 import type { ProactivityGraph } from '@/lib/proactivity/types';
 
@@ -101,6 +102,7 @@ export function ConsoleApp({
   const setPresence = useShellStore((state) => state.setPresence);
   const hydrateProactivity = useProactivityStore((state) => state.hydrate);
   const failProactivity = useProactivityStore((state) => state.fail);
+  useWindowInactiveOverlay();
 
   const host = useMemo(
     () =>
@@ -128,13 +130,21 @@ export function ConsoleApp({
 
   useEffect(() => {
     if (!host) return;
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-layout-ready', '0');
+    }
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
     void host.probe();
     // Seed the backend's document fixtures once so the Documents surface has
     // editable, persistent content (the file-editing wire).
     void host.ensureSeedContent();
+    // B6: layouts as data. Adopt server arrangement or push the local seed.
     let active = true;
+    void host.ensureSeedLayout().finally(() => {
+      if (!active || typeof document === 'undefined') return;
+      document.documentElement.setAttribute('data-layout-ready', '1');
+    });
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {
         if (!active || !response.ok) return;

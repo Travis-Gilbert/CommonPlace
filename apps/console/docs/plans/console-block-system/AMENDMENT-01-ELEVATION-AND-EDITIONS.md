@@ -54,7 +54,7 @@ delegated to the Material Layer paint region and produces no visible delta. Impl
 mechanism: either the Material Layer renders a real delta for `data-paint-region="island-header"`,
 or the header element takes an `--ij-island-header` background token. The DOM-paints-nothing lint
 still holds if the token path is chosen only for the header band and the shader owns everything
-else. Required outcome: in a screenshot, the header band is distinguishable from the body without
+else. Required outcome: in a screenshot, the header band is distinguishable from its body without
 relying on the seam hairline alone.
 
 ### A4. Video block (Remotion)

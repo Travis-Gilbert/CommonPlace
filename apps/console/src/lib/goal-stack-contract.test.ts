@@ -4,7 +4,11 @@ import {
   normalizeCapabilities,
   normalizePlanSnapshot,
   planIsComplete,
+  reportedEdgeProgress,
 } from '@commonplace/theorem-acp/plan-state';
+import { computePlanPath } from '@commonplace/theorem-acp/plan-path';
+import { applyParamBindings, extractParamCandidates } from '@commonplace/theorem-acp/plan-params';
+import { planToProgrammableGraph } from '@commonplace/theorem-acp/plan-program';
 import { edgeProgress } from '@/views/goal-stack/plan-layout';
 
 describe('Goal Stack shared projection', () => {
@@ -24,6 +28,8 @@ describe('Goal Stack shared projection', () => {
         status: 'blocked',
         serves: ['c1'],
         claim_holder: 'github:owner',
+        actor: 'codex',
+        progress_fraction: 0.4,
         changed_paths: ['/repo/README.md'],
         changed_events: [{
           generation: 4,
@@ -36,6 +42,8 @@ describe('Goal Stack shared projection', () => {
       status: 'blocked',
       serves: ['c1'],
       claimHolder: 'github:owner',
+      actor: 'codex',
+      progressFraction: 0.4,
       changedEvents: [
         { path: '/repo/old.ts', generation: 4 },
         { path: '/repo/new.ts', generation: 4 },
@@ -53,23 +61,71 @@ describe('Goal Stack shared projection', () => {
     expect(next.tasks[0].status).toBe('verified');
     expect(planIsComplete(next)).toBe(true);
     expect(edgeProgress('verified')).toBe(1);
+    expect(reportedEdgeProgress({ status: 'running', progressFraction: 0.58 })).toBe(0.58);
+    expect(reportedEdgeProgress({ status: 'running', progressFraction: null })).toBe(0);
   });
 
-  it('preserves capability annotations for admission-aware drag and drop', () => {
+  it('preserves capability annotations and grant state for the four palette groups', () => {
     const capabilities = normalizeCapabilities({
       capabilities: [{
         id: 'github:delete_file',
         title: 'Delete file',
         description: 'Delete one file',
         server_origin: 'github',
+        group: 'connectors',
+        grant_state: 'locked',
+        missing_capability: 'github.write',
         annotations: ['destructive'],
       }],
     });
     expect(capabilities).toEqual([
       expect.objectContaining({
         id: 'github:delete_file',
+        group: 'connectors',
+        grantState: 'locked',
+        missingCapability: 'github.write',
         annotations: { readOnly: false, destructive: true },
       }),
     ]);
+  });
+
+  it('illuminates ancestor and descendant chains for Clew click-to-path', () => {
+    const path = computePlanPath([
+      { id: 'a', dependencies: [] },
+      { id: 'b', dependencies: ['a'] },
+      { id: 'c', dependencies: ['b'] },
+      { id: 'd', dependencies: ['a'] },
+    ], 'b');
+    expect([...path.ancestorIds].sort()).toEqual(['a']);
+    expect([...path.descendantIds].sort()).toEqual(['c']);
+    expect(path.pathNodeIds.has('d')).toBe(false);
+    expect(path.pathEdgeIds.has('dependency:a:b')).toBe(true);
+    expect(path.pathEdgeIds.has('dependency:b:c')).toBe(true);
+  });
+
+  it('extracts promotion parameter candidates from literals and target refs', () => {
+    const snapshot = normalizePlanSnapshot({
+      plan_id: 'plan:promo',
+      plan: { id: 'plan:promo', title: 'Promo', objective: 'x' },
+      tasks: [{
+        id: 'task:1',
+        alias: 'wire',
+        title: 'Wire "staging" to task:release',
+        description: 'Bind theorem:fixture/path',
+        status: 'verified',
+      }],
+    });
+    const candidates = extractParamCandidates(snapshot!);
+    expect(candidates.some((item) => item.value === 'staging' && item.kind === 'literal')).toBe(true);
+    expect(candidates.some((item) => item.value === 'task:release' && item.kind === 'target_ref')).toBe(true);
+    expect(candidates.some((item) => item.value === 'theorem:fixture/path')).toBe(true);
+
+    const staging = candidates.find((item) => item.value === 'staging' && item.kind === 'literal')!;
+    const bound = applyParamBindings(snapshot!, candidates, { [staging.id]: 'production' });
+    expect(bound.tasks[0].title).toContain('production');
+    expect(bound.tasks[0].title).not.toContain('staging');
+    const graph = planToProgrammableGraph(bound);
+    const node = graph.nodes.find((row) => row.id === 'task:1') as { contract?: { name?: string } };
+    expect(node?.contract?.name).toContain('production');
   });
 });

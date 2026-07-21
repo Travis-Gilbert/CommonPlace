@@ -40,6 +40,7 @@ export type TheoremAgentState = {
   messages: TheoremAgentMessage[];
   pendingPermission: PendingPermission | null;
   blockedReason: string | null;
+  bootBrief: string | null;
 };
 
 export type AcpSessionUpdate = {
@@ -70,7 +71,12 @@ export function createTheoremAgentState(
     messages: [],
     pendingPermission: null,
     blockedReason: null,
+    bootBrief: null,
   };
+}
+
+export function setBootBrief(state: TheoremAgentState, bootBrief: string | null): TheoremAgentState {
+  return { ...state, bootBrief };
 }
 
 export function beginTurn(state: TheoremAgentState, text: string): TheoremAgentState {

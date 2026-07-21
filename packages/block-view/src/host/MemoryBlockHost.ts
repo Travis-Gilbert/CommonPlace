@@ -27,6 +27,7 @@ import type {
   Unsubscribe,
   ViewDescriptor,
 } from "../types";
+import { type ChangefeedEventPayload, eventMatchesQuery } from "./changefeed";
 import { makeCell, type Cell, type DbObject, type ObjectGraph, type RelationMeta } from "../database/model";
 
 const PORCELAIN_TOKENS: ThemeTokens = {
@@ -87,6 +88,7 @@ export class MemoryBlockHost implements DbHost {
   private objects: DbObject[];
   private surfaceObjects: readonly ObjectRef[];
   private subs = new Set<() => void>();
+  private liveSubs = new Set<{ query: ObjectQuery; notify: () => void }>();
 
   constructor(graph: ObjectGraph, surfaceObjects: readonly ObjectRef[] = []) {
     this.graph = graph;
@@ -111,13 +113,34 @@ export class MemoryBlockHost implements DbHost {
     for (const cb of this.subs) cb();
   }
 
+  /** Test hook: fan-out a synthetic changefeed event to live subscribers. */
+  emitTestEvent(payload: ChangefeedEventPayload = {}): void {
+    for (const entry of this.liveSubs) {
+      if (eventMatchesQuery(payload, entry.query)) entry.notify();
+    }
+  }
+
+  private subscribeQuery(q: ObjectQuery, cb: (next: ObjectSet) => void): Unsubscribe {
+    const notify = () => cb(this.query(q));
+    if (q.live) {
+      const entry = { query: q, notify };
+      this.liveSubs.add(entry);
+      const stopChange = this.onChange(notify);
+      return () => {
+        this.liveSubs.delete(entry);
+        stopChange();
+      };
+    }
+    return this.onChange(notify);
+  }
+
   query(q: ObjectQuery): ObjectSet {
     if (q.types.some((t) => LAYOUT_TYPES.has(t))) {
       const objects = this.surfaceObjects;
       return {
         objects,
         shape: { types: [...q.types], fields: [], relations: [], axes: {}, cardinality: objects.length ? "many" : "empty" },
-        subscribe: (cb) => this.onChange(() => cb(this.query(q))),
+        subscribe: (cb) => this.subscribeQuery(q, cb),
       };
     }
     const items = this.objects.filter((o) => q.types.length === 0 || q.types.includes(o.typeKey));
@@ -125,7 +148,7 @@ export class MemoryBlockHost implements DbHost {
       items,
       objects: items.map(toRef),
       shape: { types: [...q.types], fields: Object.keys(this.graph.relations), relations: [], axes: {}, cardinality: items.length ? "many" : "empty" },
-      subscribe: (cb) => this.onChange(() => cb(this.query(q))),
+      subscribe: (cb) => this.subscribeQuery(q, cb),
     };
     return set;
   }

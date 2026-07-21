@@ -75,6 +75,14 @@ const PAIRS = [
   { name: 'accent on chrome', foreground: '--ij-accent', background: '--ij-chrome', target: 3 },
   { name: 'ink on editor', foreground: '--ij-ink', background: '--ij-editor', target: 4.5 },
   { name: 'bright ink on accent', foreground: '--ij-ink-bright', background: '--ij-accent', target: 3 },
+  /* HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8: island surfaces vs frame floor. */
+  { name: 'chrome island on frame', foreground: '--ij-chrome', background: '--ij-frame', target: 1.22 },
+  { name: 'editor island on frame', foreground: '--ij-editor', background: '--ij-frame', target: 1.22 },
+  /* HANDOFF-CONSOLE-ISLAND-SHELL: header band over island base (elevation step). */
+  { name: 'island header tool over chrome', foreground: '--ij-island-header-tool', background: '--ij-chrome', target: 1.05 },
+  { name: 'island header editor over editor', foreground: '--ij-island-header-editor', background: '--ij-editor', target: 1.05 },
+  { name: 'ink on island header tool', foreground: '--ij-ink', background: '--ij-island-header-tool', target: 4.5 },
+  { name: 'ink on island header editor', foreground: '--ij-ink', background: '--ij-island-header-editor', target: 4.5 },
 ];
 
 // Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.5, D6): the

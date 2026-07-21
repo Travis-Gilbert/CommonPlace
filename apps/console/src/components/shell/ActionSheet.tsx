@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: motion (motion/react; the sheet entrance is an inventory row) +
-// zustand stores (shell + thread; With me stages visible refs into the
+// Jotai stores (shell + thread; With me stages visible refs into the
 // thread). The action sheet (HANDOFF-CARDS-ACTIONS-MENTIONS K3/K4): instruction plus
 // staged context, and context is never silent. All three entries (/do in the
 // composer, the todo-block action icon, the Action verb on inspector and

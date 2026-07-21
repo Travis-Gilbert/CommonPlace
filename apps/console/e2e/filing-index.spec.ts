@@ -11,6 +11,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function openIndex(page: Page) {
   await page.goto('/');
   await page.evaluate(() => {
+    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
     window.localStorage.removeItem('commonplace.console.surface.v1');
     window.localStorage.removeItem('commonplace.console.filing.law.v1');
   });

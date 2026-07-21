@@ -88,10 +88,6 @@ export function IconMemory(props: IconProps) {
   return <svg {...nounBase({ domain: 'memory', ...props })}><path d="m78.844 695.21 226.08 130.55 226.13-130.55-226.08-130.6zm260.72-190.26v-261.05l225.89 130.45v261.05zm294.98 130.45 225.89-130.4v-261.1l-225.89 130.45zm191.53-451.22-226.08-130.55-226.08 130.55 226.08 130.5zm34.359 962.21v-261.05l-225.89-130.4v261.05zm69.141-261.14v261.14l225.89-130.45v-261.1zm-260.63-190.08 226.08-130.55 226.13 130.55-226.08 130.55zm-398.53 451.22-225.89-130.45v-261.1l225.89 130.4zm69.141-261.05 225.89-130.4v261.05l-225.89 130.4z" /></svg>;
 }
 
-export function IconRail(props: IconProps) {
-  return <IconMemory domain="graph" {...props} />;
-}
-
 /** Stop/search/chevron are state controls, not taxonomy glyphs. */
 export function IconStop(props: IconProps) {
   return <svg {...controlBase(props)}><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor" stroke="none" /></svg>;
@@ -195,6 +191,43 @@ export function IconWorkspace(props: IconProps) {
     <svg {...controlBase(props)}>
       <rect x="2" y="3" width="12" height="10" rx="1.5" />
       <path d="M6.5 3v10" />
+    </svg>
+  );
+}
+
+/** Surface nav: chat, distinct from the threaded conversation companion. */
+export function IconChat(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <path d="M3 4.5h10v7.5H8l-2.5 2v-2H3z" />
+    </svg>
+  );
+}
+
+/** Surface nav: index, a compact relation grid rather than Memory's cubes. */
+export function IconIndex(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <circle cx="4" cy="4" r="1.25" />
+      <circle cx="12" cy="4" r="1.25" />
+      <circle cx="4" cy="12" r="1.25" />
+      <circle cx="12" cy="12" r="1.25" />
+      <path d="M5.25 4h5.5M4 5.25v5.5M12 5.25v5.5M5.25 12h5.5" />
+    </svg>
+  );
+}
+
+/** Legacy rail callers retain the distinct index control silhouette. */
+export function IconRail(props: IconProps) {
+  return <IconIndex {...props} />;
+}
+
+/** Companion nav: files, a folder stroke distinct from the document page. */
+export function IconFiles(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <path d="M2.5 5.25h4l1.25 1.5h5.75v5.75a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z" />
+      <path d="M2.5 5.25v-1a1 1 0 0 1 1-1h2.75l1.25 1.5h4.75a1 1 0 0 1 1 1v1" />
     </svg>
   );
 }

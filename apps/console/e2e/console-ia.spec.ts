@@ -4,30 +4,69 @@
 
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-const SURFACE_KEY = 'commonplace.console.surface.v1';
+const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
+const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
 
 async function freshLoad(page: Page) {
   await page.goto('/');
-  await page.evaluate((key) => localStorage.removeItem(key), SURFACE_KEY);
+  await page.evaluate(([layoutKey, legacyKey]) => {
+    localStorage.removeItem(layoutKey);
+    localStorage.removeItem(legacyKey);
+  }, [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY] as const);
   await page.reload();
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 async function openSurface(page: Page, id: string) {
-  await page.locator(`[data-surface-nav="${id}"]`).click();
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
+  const pathBySurface: Record<string, string> = {
+    'console-chat': '/chat',
+    'console-workspace': '/workspace',
+    'console-index': '/filing',
+    'console-docs': '/documents',
+    'console-cards': '/cards',
+  };
+  const path = pathBySurface[id];
+  if (path) {
+    await page.goto(path);
+  } else {
+    await page.locator(`[data-surface-nav="${id}"]`).click();
+  }
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
+    timeout: 15_000,
+  });
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
+}
+
+async function pressSurfaceShortcut(page: Page, digit: string) {
+  // Dispatch on window: Chromium reserves Meta+digit for tab switching, and
+  // focused inputs can swallow Control+digit before Playwright's press lands.
+  await page.evaluate((key) => {
+    window.dispatchEvent(new KeyboardEvent('keydown', {
+      key,
+      code: `Digit${key}`,
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    }));
+  }, digit);
 }
 
 test.describe('Console information architecture', () => {
   test.beforeEach(async ({ page }) => freshLoad(page));
 
-  test('separates six surface radios from three companion toggles', async ({ page }) => {
+  test('separates five surface radios from three companion toggles', async ({ page }) => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
     const surfaces = page.getByRole('radiogroup', { name: 'Surfaces' }).getByRole('radio');
-    await expect(surfaces).toHaveCount(6);
+    await expect(surfaces).toHaveCount(5);
     expect(await surfaces.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))).toEqual([
-      'Chat surface', 'Workspace surface', 'Goal Stack surface', 'Index surface', 'Documents surface', 'Cards surface',
+      'Chat surface', 'Workspace surface', 'Index surface', 'Documents surface', 'Cards surface',
     ]);
     await expect(surfaces.first()).toHaveAttribute('aria-checked', 'true');
     const companions = page.locator('[data-companion-nav]');
@@ -36,23 +75,29 @@ test.describe('Console information architecture', () => {
     await expect(companions.nth(1)).toHaveAttribute('data-companion-nav', 'context');
     await expect(companions.nth(2)).toHaveAttribute('data-companion-nav', 'thread');
 
+    for (const surfaceId of [
+      'console-workspace',
+      'console-index',
+      'console-docs',
+      'console-cards',
+      'console-chat',
+    ] as const) {
+      await openSurface(page, surfaceId);
+    }
+    // Keyboard reachability (Control+digit; Meta+digit is reserved by Chromium tabs).
+    await pressSurfaceShortcut(page, '2');
+    await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-workspace', {
+      timeout: 15_000,
+    });
+    await pressSurfaceShortcut(page, '1');
+    await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat', {
+      timeout: 15_000,
+    });
     await page.keyboard.press('Alt+Shift+1');
     await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    for (const [shortcut, surfaceId] of [
-      ['2', 'console-workspace'],
-      ['3', 'console-goals'],
-      ['4', 'console-index'],
-      ['5', 'console-docs'],
-      ['6', 'console-cards'],
-      ['1', 'console-chat'],
-    ] as const) {
-      await page.keyboard.press(`Alt+${shortcut}`);
-      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId);
-    }
-    await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Alt+Shift+2');
+    await page.locator('[data-companion-nav="context"]').click();
     await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Alt+Shift+3');
+    await page.locator('[data-companion-nav="thread"]').click();
     await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png');
   });

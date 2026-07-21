@@ -213,7 +213,7 @@
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29",
     "zod": "^3.24.2",
-    "zustand": "^5.0.12"
+    "zustand": "5.0.14"
   },
   "overrides": {
     "@blocksuite/icons": "2.1.75",

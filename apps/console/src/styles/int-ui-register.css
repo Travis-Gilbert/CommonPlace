@@ -29,10 +29,10 @@
   --ij-purple-2: #3B3147; --ij-purple-7: #955AE0; --ij-purple-9: #B589EC;
   --ij-teal-2: #1D3D3B;   --ij-teal-7: #24A394;
 
-  /* The four structural surfaces. The Int UI inversion: seams are DARKER than
-     surfaces. Chrome sits on gray-2, the editor well sinks to gray-1, elevation
-     rises to gray-3, and every border is gray-1 or gray-4, never a light line. */
-  --ij-frame: #131314;              /* window frame tabs, deepest layer */
+  /* The four structural surfaces. Islands reconciliation (HANDOFF-CONSOLE-BLOCK-SYSTEM
+     choice 8): the frame is lighter than islands in dark mode so gutter shadows
+     have a ground light enough to receive them. Islands stay at gray-1 / gray-2. */
+  --ij-frame: #393B40;              /* inverted frame: lighter than island chrome */
   --ij-editor: var(--ij-gray-1);    /* editor well, tab strip background */
   --ij-chrome: var(--ij-gray-2);    /* toolbars, tool windows, status bar */
   --ij-raised: var(--ij-gray-3);    /* popups, tooltips, hover surfaces */

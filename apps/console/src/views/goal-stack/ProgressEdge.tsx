@@ -2,6 +2,8 @@
 
 // SOURCING: @xyflow/react custom edge contract. Both paths use the exact same
 // Bezier geometry; the second path reveals progress through normalized length.
+// Progress is the reported fraction only; easing is CSS transition between
+// reported values and never extrapolates past the latest report.
 
 import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react';
 import { useId } from 'react';
@@ -12,6 +14,7 @@ export function ProgressEdge(props: EdgeProps<GoalFlowEdge>) {
   const [path] = getBezierPath(props);
   const progress = Math.min(1, Math.max(0, props.data?.progress ?? 0));
   const state = props.data?.state ?? 'pending';
+  const onPath = props.data?.onPath !== false;
   const stroke = state === 'failed'
     ? 'var(--ij-error)'
     : state === 'blocked'
@@ -20,7 +23,7 @@ export function ProgressEdge(props: EdgeProps<GoalFlowEdge>) {
       ? 'var(--ij-ok)'
       : 'var(--ij-accent)';
   return (
-    <g data-goal-edge={state} opacity={state === 'superseded' ? 0.36 : 1}>
+    <g data-goal-edge={state} data-on-path={onPath ? 'true' : 'false'} opacity={state === 'superseded' ? 0.36 : onPath ? 1 : 0.22}>
       <defs>
         <mask id={maskId} style={{ maskType: 'alpha' }}>
           <path
@@ -44,7 +47,7 @@ export function ProgressEdge(props: EdgeProps<GoalFlowEdge>) {
         strokeDashoffset={1 - progress}
         className="goal-edge-progress"
       />
-      {state === 'running' ? (
+      {state === 'running' && progress > 0 ? (
         <path
           d={path}
           fill="none"

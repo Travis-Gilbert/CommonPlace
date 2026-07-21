@@ -25,6 +25,17 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import { StatusPanel } from './harness-ux/StatusPanel';
+import { WhyTracePanel } from './harness-ux/WhyTracePanel';
+import {
+  BrowserPaneBlock,
+  CanvasBlock,
+  DocumentBlock,
+  KanbanBlock,
+  TerminalBlock,
+  VideoBlock,
+} from './blocks/DeclaredBlocks';
+import { AutomationHistoryView } from './blocks/AutomationHistoryView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -49,10 +60,19 @@ const RECORD_TABLE: ViewDescriptor = {
   emits: ['select', 'open', 'update'],
   renderer: 'record.table',
   source: {
-    package: '@tanstack/react-table',
-    component: 'useReactTable',
+    package: 'jacksonkasi1/tnks-data-table',
+    component: 'TnksDataTable',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse records',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
+    bodyBleed: 'flush',
   },
   render: RecordTableView,
 };
@@ -69,6 +89,14 @@ const MARKDOWN_DOC: ViewDescriptor = {
     mode: 'wrap',
     regime: 'css-vars',
   },
+  block: {
+    usage: 'read a document',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'doc',
+  },
   render: GalleyDocView,
 };
 
@@ -83,6 +111,14 @@ const CODE_FILE: ViewDescriptor = {
     component: 'EditorView',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect code',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'terminal',
   },
   render: CodeFileView,
 };
@@ -99,6 +135,14 @@ const CHAT_THREAD: ViewDescriptor = {
     mode: 'wrap',
     regime: 'css-vars',
   },
+  block: {
+    usage: 'follow the thread',
+    mounts: ['companion', 'chrome', 'stripe'],
+    sizes: ['m', 'w'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'thread',
+  },
   render: ThreadRender,
 };
 
@@ -110,9 +154,17 @@ const CHAT_SURFACE: ViewDescriptor = {
   renderer: 'chat.surface',
   source: {
     package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    component: 'Composer',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'compose with the agent',
+    mounts: ['surface', 'island', 'stripe'],
+    sizes: ['w', 'full'],
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'thread',
   },
   render: ChatSurfaceRender,
 };
@@ -129,6 +181,14 @@ const FILES_TREE: ViewDescriptor = {
     mode: 'wrap',
     regime: 'css-vars',
   },
+  block: {
+    usage: 'browse files',
+    mounts: ['companion', 'chrome'],
+    sizes: ['m', 'w'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'files',
+  },
   render: FilesRender,
 };
 
@@ -143,6 +203,14 @@ const CONTEXT_GRAPH: ViewDescriptor = {
     component: 'scalePoint',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect context',
+    mounts: ['companion', 'chrome'],
+    sizes: ['m', 'w'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'context',
   },
   render: ContextRender,
 };
@@ -245,6 +313,14 @@ const CARD_FULL: ViewDescriptor = {
     regime: 'css-vars',
     allowedBespokeReason: 'kind-templated card layouts are a domain concept no library models',
   },
+  block: {
+    usage: 'inspect a record card',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['s', 'm', 'sq'],
+    density: 'cozy',
+    surfaceClass: 'editor',
+    kindGlyph: 'cards',
+  },
   render: CardFullView,
 };
 
@@ -259,6 +335,14 @@ const CARDS_GRID: ViewDescriptor = {
     component: 'useVirtualizer',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse record cards',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'cozy',
+    surfaceClass: 'editor',
+    kindGlyph: 'cards',
   },
   render: CardGridView,
 };
@@ -326,6 +410,40 @@ const GOAL_STACK: ViewDescriptor = {
   render: GoalStackView,
 };
 
+const HARNESS_STATUS: ViewDescriptor = {
+  id: 'harness.status',
+  name: 'Harness Status',
+  accepts: {},
+  emits: ['open', 'select', 'update'],
+  renderer: 'harness.status',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The status report is a Harness contract surface with actionable waiting items and backend degradation.',
+  },
+  render: StatusPanel,
+};
+
+const HARNESS_WHY: ViewDescriptor = {
+  id: 'harness.why',
+  name: 'Why Trace',
+  accepts: {},
+  emits: ['open', 'select'],
+  renderer: 'harness.why',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The why trace renders an untransformed Harness explainer payload and optional remedy.',
+  },
+  render: WhyTracePanel,
+};
+
 const APPEARANCE: ViewDescriptor = {
   id: 'settings.appearance',
   name: 'Appearance',
@@ -356,6 +474,174 @@ const ACCOUNT: ViewDescriptor = {
   render: AccountView,
 };
 
+const TERMINAL: ViewDescriptor = {
+  id: 'terminal',
+  name: 'Terminal',
+  accepts: {},
+  emits: ['invoke_tool'],
+  renderer: 'terminal',
+  source: {
+    package: 'textmode.js',
+    component: 'Textmode',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'operate a shell',
+    mounts: ['island', 'surface'],
+    sizes: ['w', 'full'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'terminal',
+    bodyBleed: 'flush',
+    dataNote:
+      'Web edition: textmode (or similar) inside the React canvas. Native shell edition: native terminal surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
+  },
+  render: TerminalBlock,
+};
+
+const BROWSER_PANE: ViewDescriptor = {
+  id: 'browser-pane',
+  name: 'Browser',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'browser-pane',
+  source: {
+    package: 'servo-render-worker',
+    component: 'POST /render',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'view a page',
+    mounts: ['island', 'surface'],
+    sizes: ['w', 'full'],
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'browser',
+    bodyBleed: 'flush',
+    dataNote:
+      'Web edition: Servo render worker (POST /render) into the React canvas. Native shell edition: native Servo surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
+  },
+  render: BrowserPaneBlock,
+};
+
+const KANBAN: ViewDescriptor = {
+  id: 'kanban',
+  name: 'Kanban',
+  accepts: {},
+  emits: ['update', 'move', 'select'],
+  renderer: 'kanban',
+  source: {
+    package: '@dnd-kit/core',
+    component: 'DndContext',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'move work through states',
+    mounts: ['island', 'surface'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'kanban',
+  },
+  render: KanbanBlock,
+};
+
+const DOCUMENT_OUTPUT: ViewDescriptor = {
+  id: 'document',
+  name: 'Document output',
+  accepts: {},
+  emits: ['open', 'dispatch'],
+  renderer: 'document',
+  source: {
+    package: 'akii09/pdfx',
+    component: 'PdfxDocument',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'produce a document',
+    mounts: ['surface', 'island'],
+    sizes: ['m', 'w', 'full'],
+    density: 'cozy',
+    surfaceClass: 'editor',
+    kindGlyph: 'doc',
+  },
+  render: DocumentBlock,
+};
+
+const VIDEO: ViewDescriptor = {
+  id: 'video',
+  name: 'Video',
+  accepts: {},
+  emits: ['dispatch', 'open'],
+  renderer: 'video',
+  source: {
+    package: 'remotion-dev/remotion',
+    component: 'Composition',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'compose video',
+    mounts: ['surface', 'island'],
+    sizes: ['w', 'full'],
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'doc',
+    bodyBleed: 'flush',
+    dataNote:
+      'Sibling to the pdfx document block: artifact production with a server-side render pipeline (Remotion → headless browser → MP4). In-app mount is composition preview plus a dispatch render action; the rendered artifact returns with a receipt. Pipeline wiring is a follow-on; this registration reserves the mount with a designed empty state only.',
+  },
+  render: VideoBlock,
+};
+
+const CANVAS: ViewDescriptor = {
+  id: 'canvas',
+  name: 'Canvas',
+  accepts: {},
+  emits: ['update', 'select', 'open'],
+  renderer: 'canvas',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'arrange spatially',
+    mounts: ['surface'],
+    sizes: ['full'],
+    density: 'both',
+  },
+  render: CanvasBlock,
+};
+
+const AUTOMATION_HISTORY: ViewDescriptor = {
+  id: 'automation.history',
+  name: 'Automation history',
+  accepts: {},
+  emits: ['select', 'open'],
+  renderer: 'automation.history',
+  source: {
+    package: 'jal-co/ui',
+    component: 'commit-graph',
+    mode: 'reskin',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'review automation history',
+    mounts: ['island', 'surface'],
+    sizes: ['m', 'w', 'full'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'automation',
+  },
+  render: AutomationHistoryView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -376,7 +662,16 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   PROACTIVITY,
   WORKSPACE_SUBSTRATE,
   GOAL_STACK,
+  HARNESS_STATUS,
+  HARNESS_WHY,
   ACCOUNT,
+  TERMINAL,
+  BROWSER_PANE,
+  KANBAN,
+  DOCUMENT_OUTPUT,
+  VIDEO,
+  CANVAS,
+  AUTOMATION_HISTORY,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

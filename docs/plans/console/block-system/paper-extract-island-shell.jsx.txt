@@ -1,0 +1,74 @@
+(
+    <div className="[font-synthesis:none] flex overflow-clip flex-col p-6 gap-4 bg-[#393B40] antialiased text-xs/4">
+      <div className="flex w-312 h-fit p-4 gap-1.5 rounded-[48px]">
+        <div className="flex flex-col w-100 h-80 rounded-[10px] overflow-clip shrink-0 bg-[#2B2D30]">
+          <div className="flex items-center h-9 px-3 gap-2 shrink-0 bg-[#34363C] border-b border-b-solid border-b-[#1E1F22]">
+            <div className="shrink-0 rounded-xs bg-[#868A91] size-4" />
+            <div className="grow basis-[0%] inline-block font-['IBMPlexSans-SemiBold','IBM_Plex_Sans',system-ui,sans-serif] font-semibold text-[#DFE1E5] text-[15px]/4.5">
+              Records
+            </div>
+            <div className="inline-block font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] font-features-['tnum'] text-[#868A91] text-[11px]/3.5">
+              12
+            </div>
+          </div>
+          <div className="flex flex-col grow basis-[0%] p-4 gap-2">
+            <div className="h-6 rounded-sm shrink-0 bg-[#393B40]" />
+            <div className="h-6 rounded-sm shrink-0 bg-[#393B40]" />
+            <div className="h-6 w-[round(75%,1px)] rounded-sm shrink-0 bg-[#393B40]" />
+          </div>
+          <div className="flex items-center h-6 px-3 gap-2 shrink-0 border-t border-t-solid border-t-[#1E1F22]">
+            <div className="shrink-0 rounded-[999px] bg-[#57965C] size-1.5" />
+            <div className="inline-block font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] text-[#868A91] text-[11px]/3.5">
+              Live
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col w-100 h-80 rounded-[10px] overflow-clip shrink-0 bg-[#1E1F22]">
+          <div className="flex items-center h-9 px-3 gap-2 shrink-0 bg-[#25262A] border-b border-b-solid border-b-[#1E1F22]">
+            <div className="shrink-0 rounded-xs bg-[#868A91] size-4" />
+            <div className="grow basis-[0%] inline-block font-['IBMPlexSans-SemiBold','IBM_Plex_Sans',system-ui,sans-serif] font-semibold text-[#DFE1E5] text-[15px]/4.5">
+              Cards
+            </div>
+            <div className="inline-block font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] font-features-['tnum'] text-[#868A91] text-[11px]/3.5">
+              8
+            </div>
+          </div>
+          <div className="flex flex-col grow basis-[0%] p-4 gap-2">
+            <div className="flex gap-2">
+              <div className="h-24 grow basis-[0%] rounded-sm bg-[#2B2D30]" />
+              <div className="h-24 grow basis-[0%] rounded-sm bg-[#2B2D30]" />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col w-100 h-80 rounded-[10px] overflow-clip shrink-0 bg-[#2B2D30]">
+          <div className="flex items-center h-9 px-3 gap-2 shrink-0 bg-[#34363C] border-b border-b-solid border-b-[#1E1F22]">
+            <div className="shrink-0 rounded-xs bg-[#868A91] size-4" />
+            <div className="grow basis-[0%] inline-block font-['IBMPlexSans-SemiBold','IBM_Plex_Sans',system-ui,sans-serif] font-semibold text-[#DFE1E5] text-[15px]/4.5">
+              Records
+            </div>
+          </div>
+          <div className="flex flex-col justify-center grow basis-[0%] p-4 gap-3">
+            <div className="inline-block font-['IBMPlexSans-SemiBold','IBM_Plex_Sans',system-ui,sans-serif] font-semibold text-[#DB5C5C] text-xs/4">
+              Something went wrong
+            </div>
+            <div className="inline-block font-['IBMPlexSans-Regular','IBM_Plex_Sans',system-ui,sans-serif] text-[#868A91] text-[13px]/4">
+              The query failed. Use the status line action when available.
+            </div>
+          </div>
+          <div className="flex items-center h-6 px-3 gap-2 shrink-0 border-t border-t-solid border-t-[#1E1F22]">
+            <div className="grow basis-[0%] inline-block font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] text-[#868A91] text-[11px]/3.5">
+              Query failed.
+            </div>
+            <div className="inline-block font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] text-[#3574F0] text-[11px]/3.5">
+              Retry
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+/* Source: Paper get_jsx(format: tailwind) on IslandShell anatomy artboard.
+ * Error island radius corrected in Paper to 10px after extract (was 33px).
+ * Do not ship these hex classes into console components; map through --ij-*.
+ */

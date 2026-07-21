@@ -10,21 +10,25 @@
     "./shape-match": "./src/shape-match.ts",
     "./registry": "./src/registry.ts",
     "./descriptor-contracts": "./src/descriptor-contracts.ts",
+    "./island-class": "./src/island-class.ts",
     "./surface-tree": "./src/surface-tree.ts",
     "./surface-actions": "./src/surface-actions.ts",
     "./database/model": "./src/database/model.ts",
     "./host/http": "./src/host/HttpBlockHost.ts",
     "./host/memory": "./src/host/MemoryBlockHost.ts",
+    "./host/changefeed": "./src/host/changefeed.ts",
     "./host/use-database": "./src/host/useDatabase.ts"
   },
   "scripts": {
-    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": ">=19"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.6"
   }
 }

@@ -101,9 +101,23 @@ const LIGHTNESS_LADDERS: Readonly<Record<ResolvedThemeMode, readonly OklchColor[
 };
 
 const FRAME_ANCHORS: Readonly<Record<ResolvedThemeMode, OklchColor>> = {
-  dark: hexToOklch('#131314'),
-  light: hexToOklch('#EBECF0'),
+  dark: hexToOklch('#393B40'),
+  // AMENDMENT-01 A1: light frame at gray-10 so islands clear the target band.
+  light: hexToOklch('#D3D5DB'),
 };
+
+/** Island-to-frame preferred floor (above the historic 1.20 hug). */
+export const ISLAND_FRAME_TARGET = 1.22;
+
+/** Minimum OKLCH lightness delta between light editor and tool bases. */
+export const MIN_EDITOR_TOOL_OKLCH_DELTA = 0.04;
+
+const TINT_CHROMA_CEILING: Readonly<Record<ResolvedThemeMode, number>> = {
+  dark: 0.03,
+  light: 0.02,
+};
+
+const ACCENT_CHROMA_BAND = { min: 0.04, max: 0.12 } as const;
 
 function css(color: OklchColor): string {
   return `oklch(${(color.l * 100).toFixed(3)}% ${color.c.toFixed(4)} ${color.h.toFixed(2)})`;
@@ -155,19 +169,29 @@ function check(name: string, foreground: OklchColor, background: OklchColor, tar
 
 export function generateTheme(mode: ResolvedThemeMode, input: ThemeKnobs): GeneratedTheme {
   const notes: string[] = [];
+  const chromaCeiling = TINT_CHROMA_CEILING[mode];
   const knobs: ThemeKnobs = {
     tintHue: hue(Number.isFinite(input.tintHue) ? input.tintHue : NAVY_KNOBS.tintHue),
-    tintChroma: clamp(Number.isFinite(input.tintChroma) ? input.tintChroma : 0, 0, 0.04),
+    tintChroma: clamp(Number.isFinite(input.tintChroma) ? input.tintChroma : 0, 0, chromaCeiling),
     highlightHue: hue(Number.isFinite(input.highlightHue) ? input.highlightHue : NAVY_KNOBS.highlightHue),
   };
-  if (knobs.tintChroma !== input.tintChroma) notes.push('Background chroma was limited to the safe 0 to 0.04 range.');
+  if (knobs.tintChroma !== input.tintChroma) {
+    notes.push(`Background chroma was limited to the safe 0 to ${chromaCeiling} range for ${mode}.`);
+  }
 
   const stock = mode === 'dark' ? DARK_NEUTRALS : LIGHT_NEUTRALS;
   const anchors = LIGHTNESS_LADDERS[mode];
+  // Neutrals stay familial: tint hue at 10 to 20 percent of a mid accent chroma.
+  const neutralChroma = knobs.tintChroma === 0
+    ? 0
+    : clamp(knobs.tintChroma, ACCENT_CHROMA_BAND.min * 0.1, ACCENT_CHROMA_BAND.max * 0.2);
   const neutrals = stock.map((hex, index) => {
     const source = anchors[index];
-    if (knobs.tintChroma === 0) return { source: hex, color: source };
-    return { source: css(gamutColor(source.l, knobs.tintChroma, knobs.tintHue)), color: gamutColor(source.l, knobs.tintChroma, knobs.tintHue) };
+    if (neutralChroma === 0) return { source: hex, color: source };
+    return {
+      source: css(gamutColor(source.l, neutralChroma, knobs.tintHue)),
+      color: gamutColor(source.l, neutralChroma, knobs.tintHue),
+    };
   });
   const variables: Record<string, string> = Object.fromEntries(
     neutrals.map((entry, index) => [`--ij-gray-${index + 1}`, entry.source]),
@@ -175,13 +199,16 @@ export function generateTheme(mode: ResolvedThemeMode, input: ThemeKnobs): Gener
 
   const frameStock = FRAME_ANCHORS[mode];
   variables['--ij-frame'] = knobs.tintChroma === 0
-    ? mode === 'dark' ? '#131314' : '#EBECF0'
-    : css(gamutColor(frameStock.l, knobs.tintChroma, knobs.tintHue));
+    ? mode === 'dark' ? '#393B40' : '#D3D5DB'
+    : css(gamutColor(frameStock.l, neutralChroma, knobs.tintHue));
 
   const ink = neutrals[mode === 'dark' ? 11 : 1].color;
-  const chrome = neutrals[mode === 'dark' ? 1 : 12].color;
+  // Light: tool islands use gray-12 (index 11), not gray-13 (AMENDMENT-01 A1).
+  const chrome = neutrals[mode === 'dark' ? 1 : 11].color;
+  const editor = neutrals[mode === 'dark' ? 0 : 13].color;
+  const frame = knobs.tintChroma === 0 ? frameStock : gamutColor(frameStock.l, neutralChroma, knobs.tintHue);
   const info = neutrals[mode === 'dark' ? 7 : 5].color;
-  const highlightSeed = gamutColor(mode === 'dark' ? 0.34 : 0.9, 0.08, knobs.highlightHue);
+  const highlightSeed = gamutColor(mode === 'dark' ? 0.34 : 0.9, clamp(0.08, ACCENT_CHROMA_BAND.min, ACCENT_CHROMA_BAND.max), knobs.highlightHue);
   const highlight = solveBackground(ink, highlightSeed, 4.5, mode === 'dark' ? 'darker' : 'lighter');
   if (highlight.clamped) notes.push('Highlight lightness was adjusted to keep selected text readable.');
   variables['--ij-selection'] = css(highlight.color);
@@ -199,13 +226,32 @@ export function generateTheme(mode: ResolvedThemeMode, input: ThemeKnobs): Gener
   );
   variables['--ij-gold'] = css(gold.color);
   if (gold.clamped) notes.push('Learned-register gold was adjusted to preserve text contrast.');
+  const editorToolDelta = Math.abs(editor.l - chrome.l);
   const checks = [
     check('ink on chrome', ink, chrome, 4.5),
     check('info on chrome', info, chrome, 3),
     check('ink on selection', ink, highlight.color, 4.5),
     check('accent on chrome', accent, chrome, 3),
     check('gold on chrome', gold.color, chrome, 4.5),
+    check('chrome island on frame', chrome, frame, ISLAND_FRAME_TARGET),
+    check('editor island on frame', editor, frame, ISLAND_FRAME_TARGET),
   ];
+  if (mode === 'light' && editorToolDelta < MIN_EDITOR_TOOL_OKLCH_DELTA) {
+    checks.push({
+      name: 'editor vs tool elevation',
+      ratio: editorToolDelta,
+      target: MIN_EDITOR_TOOL_OKLCH_DELTA,
+      pass: false,
+    });
+    notes.push('Light editor and tool bases are too close; raise the elevation step.');
+  } else if (mode === 'light') {
+    checks.push({
+      name: 'editor vs tool elevation',
+      ratio: editorToolDelta,
+      target: MIN_EDITOR_TOOL_OKLCH_DELTA,
+      pass: true,
+    });
+  }
   if (checks.some((candidate) => !candidate.pass)) {
     notes.push('One or more generated pairs reached their safe contrast boundary.');
   }

@@ -275,6 +275,8 @@ const HUNKS = [
   },
 ];
 
+const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
+
 const POOLS = new Map([
   ['record', RECORDS],
   ['person', DOMAIN.filter((o) => o.type === 'person')],
@@ -286,11 +288,55 @@ const POOLS = new Map([
   ['doc', DOCS],
   ['code-file', CODE_FILES],
   ['hunk', HUNKS],
+  // B6 / sidebar acceptance: layout write-through and cleared-cache restore.
+  ['surface', []],
+  ['region', []],
+  ['view-instance', []],
 ]);
 
 /** Every stored object across pools, for id-keyed update. */
 function allStored() {
   return [...POOLS.values()].flat();
+}
+
+function resetLayoutPools() {
+  for (const type of LAYOUT_TYPES) {
+    const pool = POOLS.get(type);
+    if (pool) pool.length = 0;
+  }
+}
+
+function upsertLayoutObject(type, id, properties) {
+  const pool = POOLS.get(type);
+  if (!pool) return null;
+  const index = pool.findIndex((entry) => entry.id === id);
+  if (index >= 0) {
+    pool[index] = {
+      ...pool[index],
+      properties: { ...properties },
+      relations: pool[index].relations ?? { CONTAINS: [] },
+    };
+    return pool[index];
+  }
+  const created = { id, type, properties: { ...properties }, relations: { CONTAINS: [] } };
+  pool.push(created);
+  return created;
+}
+
+function applyMove(action) {
+  const target = allStored().find((entry) => entry.id === action.id);
+  const parent = allStored().find((entry) => entry.id === action.new_parent);
+  if (!target || !parent) return false;
+  for (const entry of allStored()) {
+    if (!Array.isArray(entry.relations?.CONTAINS)) continue;
+    entry.relations.CONTAINS = entry.relations.CONTAINS.filter((childId) => childId !== action.id);
+  }
+  if (!parent.relations) parent.relations = { CONTAINS: [] };
+  if (!Array.isArray(parent.relations.CONTAINS)) parent.relations.CONTAINS = [];
+  // Server CONTAINS order is 1-based fractional rank; convert to splice index.
+  const order = Math.max(0, Math.min((Number(action.order) || 1) - 1, parent.relations.CONTAINS.length));
+  parent.relations.CONTAINS.splice(order, 0, action.id);
+  return true;
 }
 
 function poolFor(types) {
@@ -311,6 +357,9 @@ function matches(object, predicate) {
   if (!predicate) return true;
   switch (predicate.kind) {
     case 'eq':
+      if (predicate.field === 'id') {
+        return object.id === predicate.value || object.properties.id === predicate.value;
+      }
       return object.properties[predicate.field] === predicate.value;
     case 'contains': {
       const value = object.properties[predicate.field];
@@ -343,14 +392,17 @@ function runQuery(query) {
     if (end < objects.length) nextCursor = String(end);
     objects = objects.slice(offset, end);
   }
+  const isLayout = (query.types ?? []).some((type) => LAYOUT_TYPES.has(type));
   return {
     objects,
     shape: {
-      types: query.types?.includes('hunk') ? ['hunk'] : ['record'],
+      types: query.types?.includes('hunk') ? ['hunk'] : isLayout ? [...(query.types ?? [])] : ['record'],
       fields: query.types?.includes('hunk')
         ? ['hunk_id', 'source', 'state', 'target_block', 'after_ref', 'derivation_refs', 'discharge', 'group_id']
-        : ['title', 'kind', 'status', 'updated', 'tags'],
-      relations: [],
+        : isLayout
+          ? ['title', 'name', 'kind', 'descriptor_id', 'collapsed', 'active', 'stripe_order']
+          : ['title', 'kind', 'status', 'updated', 'tags'],
+      relations: isLayout ? ['CONTAINS'] : [],
       axes: {},
       cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
     },
@@ -374,6 +426,12 @@ const server = createServer((request, response) => {
   if (request.method === 'GET' && request.url === '/objects/views') {
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end('[]');
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/objects/test/reset-layout') {
+    resetLayoutPools();
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, note: 'layout pools cleared' }));
     return;
   }
   if (request.method === 'POST' && request.url === '/graphql') {
@@ -436,12 +494,20 @@ const server = createServer((request, response) => {
             return;
           }
           // Create appends to the type's pool (the seed-content path); ids are
-          // deterministic for stable captures.
+          // deterministic for stable captures. Layout creates may carry an
+          // explicit props.id so B6 pushLayoutToServer round-trips.
           if (action.kind === 'create') {
             if (POOLS.has(action.type)) {
               const pool = POOLS.get(action.type);
-              const id = `${action.type}-${pool.length + 1}`;
-              pool.push({ id, type: action.type, properties: { ...action.props }, relations: {} });
+              const id = typeof action.props?.id === 'string'
+                ? action.props.id
+                : `${action.type}-${pool.length + 1}`;
+              const { id: _ignored, ...properties } = action.props ?? {};
+              if (LAYOUT_TYPES.has(action.type)) {
+                upsertLayoutObject(action.type, id, properties);
+              } else {
+                pool.push({ id, type: action.type, properties: { ...properties }, relations: {} });
+              }
               response.writeHead(200, { 'Content-Type': 'application/json' });
               response.end(
                 JSON.stringify({ action_kind: 'create', status: 'applied', target_ids: [id] }),
@@ -451,6 +517,41 @@ const server = createServer((request, response) => {
             response.writeHead(400, { 'Content-Type': 'application/json' });
             response.end(
               JSON.stringify({ action_kind: 'create', status: 'rejected', error: 'unsupported_type' }),
+            );
+            return;
+          }
+          if (action.kind === 'move') {
+            const applied = applyMove(action);
+            response.writeHead(applied ? 200 : 404, { 'Content-Type': 'application/json' });
+            response.end(
+              JSON.stringify({
+                action_kind: 'move',
+                status: applied ? 'applied' : 'rejected',
+                target_ids: applied ? [action.id] : [],
+                error: applied ? undefined : 'move_target_missing',
+              }),
+            );
+            return;
+          }
+          if (action.kind === 'delete') {
+            const target = allStored().find((entry) => entry.id === action.id);
+            if (target && POOLS.has(target.type)) {
+              const pool = POOLS.get(target.type);
+              const index = pool.findIndex((entry) => entry.id === action.id);
+              if (index >= 0) pool.splice(index, 1);
+              for (const entry of allStored()) {
+                if (!Array.isArray(entry.relations?.CONTAINS)) continue;
+                entry.relations.CONTAINS = entry.relations.CONTAINS.filter((childId) => childId !== action.id);
+              }
+              response.writeHead(200, { 'Content-Type': 'application/json' });
+              response.end(
+                JSON.stringify({ action_kind: 'delete', status: 'applied', target_ids: [action.id] }),
+              );
+              return;
+            }
+            response.writeHead(404, { 'Content-Type': 'application/json' });
+            response.end(
+              JSON.stringify({ action_kind: 'delete', status: 'rejected', error: 'target_not_found' }),
             );
             return;
           }

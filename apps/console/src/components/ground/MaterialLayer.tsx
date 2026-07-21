@@ -3,7 +3,9 @@
 // SOURCING: hand-roll (MaterialLayer). Spec 34 + amendment 35, refined for
 // JetBrains Islands: quieter ground pools, island surfaces carry a hint of
 // terracotta, header bands read slightly richer than flatter island bodies.
-// DOM keeps text, focus, and hit-testing only.
+// Owns frame, island fill, and the window-inactive wash (inactiveAlpha).
+// DOM keeps text, focus, and hit-testing only. Paper MCP designs the anatomy;
+// this canvas is the console ground shader (not @paper-design/shaders-react).
 
 import { useEffect, useRef } from 'react';
 
@@ -20,8 +22,9 @@ uniform float cls[${MAX_ISLANDS}];
 uniform float band[${MAX_ISLANDS}];
 uniform int n;
 uniform vec3 cFrame; uniform vec3 cTerra; uniform float glow;
-uniform vec3 cTool; uniform vec3 cEditor; uniform vec3 cHiMix;
+uniform vec3 cTool; uniform vec3 cEditor; uniform vec3 cHeaderTool; uniform vec3 cHeaderEditor; uniform vec3 cHiMix;
 uniform float grain; uniform float dark; uniform float islandTint;
+uniform float inactiveAlpha;
 
 float sdRound(vec2 p, vec2 b, float r){
   vec2 q = abs(p) - b + r;
@@ -55,14 +58,13 @@ void main(){
     float cov = 1. - smoothstep(-0.75, 0.75, d);
     if(cov > 0.){
       vec3 base = mix(cTool, cEditor, cls[i]);
+      vec3 headerBase = mix(cHeaderTool, cHeaderEditor, cls[i]);
       float by = uv.y - isl[i].y;
-      /* Header band vs body: one island, two quiet material registers. */
+      /* Header band vs body: header token over island base. */
       float headerMix = band[i] > 0.5
         ? (1. - smoothstep(band[i] - 1.0, band[i] + 1.0, by))
         : 0.;
-      if(cls[i] > 0.5 && band[i] > 0.5){
-        base = mix(cTool, cEditor, 1. - headerMix);
-      }
+      base = mix(base, headerBase, headerMix);
       float ty = clamp(by / max(isl[i].w, 1.), 0., 1.);
       vec3 surf = mix(base + cHiMix, base, smoothstep(0., 0.85, ty));
       /* Body reads flatter / more planar; header keeps a soft lit edge. */
@@ -75,6 +77,8 @@ void main(){
       surf = mix(surf, cTerra, islandTint * (0.35 + 0.65 * t) * mix(0.7, 1.35, headerMix));
       surf += (hash(uv + float(i)*7.13) - .5) * grain * mix(0.35, 1.55, headerMix);
       col = mix(col, surf, cov);
+      /* Window blur: frame wash over islands only (owns --ij-inactive-alpha). */
+      col = mix(col, cFrame, cov * inactiveAlpha);
     }
   }
   gl_FragColor = vec4(col, 1.);
@@ -224,10 +228,16 @@ export function MaterialLayer() {
       const terra = cssToRgb(rootStyle.getPropertyValue('--ij-ground-terra').trim()) ?? frame;
       const tool = cssToRgb(rootStyle.getPropertyValue('--ij-chrome').trim()) ?? [0.094, 0.098, 0.108];
       const editor = cssToRgb(rootStyle.getPropertyValue('--ij-editor').trim()) ?? [0.118, 0.122, 0.133];
+      const headerTool = cssToRgb(rootStyle.getPropertyValue('--ij-island-header-tool').trim()) ?? tool;
+      const headerEditor = cssToRgb(rootStyle.getPropertyValue('--ij-island-header-editor').trim()) ?? editor;
       const hi = dark > 0.5 ? [0.014, 0.014, 0.016] : [0, 0, 0];
       const glow = cssNumber(rootStyle.getPropertyValue('--ij-material-glow'), dark > 0.5 ? 0.32 : 0.38);
       const grain = cssNumber(rootStyle.getPropertyValue('--ij-material-grain'), 0.014) * (dark > 0.5 ? 1 : 1.3);
       const tint = cssNumber(rootStyle.getPropertyValue('--ij-island-terra-tint'), 0.055);
+      const inactive =
+        document.documentElement.getAttribute('data-window-inactive') === 'true'
+          ? cssNumber(rootStyle.getPropertyValue('--ij-inactive-alpha'), 0.44)
+          : 0;
 
       gl.uniform2f(U('res'), width, height);
       gl.uniform4fv(U('isl'), new Float32Array(rects));
@@ -239,11 +249,14 @@ export function MaterialLayer() {
       gl.uniform3fv(U('cTerra'), new Float32Array(terra));
       gl.uniform3fv(U('cTool'), new Float32Array(tool));
       gl.uniform3fv(U('cEditor'), new Float32Array(editor));
+      gl.uniform3fv(U('cHeaderTool'), new Float32Array(headerTool));
+      gl.uniform3fv(U('cHeaderEditor'), new Float32Array(headerEditor));
       gl.uniform3fv(U('cHiMix'), new Float32Array(hi));
       gl.uniform1f(U('glow'), glow);
       gl.uniform1f(U('grain'), grain);
       gl.uniform1f(U('dark'), dark);
       gl.uniform1f(U('islandTint'), tint);
+      gl.uniform1f(U('inactiveAlpha'), inactive);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
 
@@ -270,7 +283,14 @@ export function MaterialLayer() {
     const themeObserver = new MutationObserver(markDirty);
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme', 'data-register', 'data-density', 'style', 'class'],
+      attributeFilter: [
+        'data-theme',
+        'data-register',
+        'data-density',
+        'data-window-inactive',
+        'style',
+        'class',
+      ],
     });
 
     rafId = requestAnimationFrame(paint);

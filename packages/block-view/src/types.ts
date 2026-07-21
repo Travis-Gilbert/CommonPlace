@@ -284,6 +284,70 @@ export interface ViewSource {
   readonly allowedBespokeReason?: string;
 }
 
+/** Where a block may mount in the console shell (HANDOFF-CONSOLE-BLOCK-SYSTEM). */
+export type MountPoint = "stripe" | "chrome" | "island" | "surface" | "companion";
+
+/** Density grammar for island and surface bodies. */
+export type BlockDensity = "compact" | "cozy" | "both";
+
+/**
+ * Grid spans on the 12-column island grid:
+ * s 3x2, m 4x3, v 3x5 (vertical), sq 4x4, w 6x3, full = surface.
+ */
+export type BlockSize = "s" | "m" | "v" | "sq" | "w" | "full";
+
+/** Island base class for the material layer (HANDOFF-CONSOLE-ISLAND-SHELL). */
+export type IslandSurfaceClass = "editor" | "tool";
+
+/**
+ * Kind glyph key for island headers. Resolved to an icon in the console shell;
+ * declared on the descriptor so hosts do not invent ad hoc id heuristics.
+ */
+export type IslandKindGlyph =
+  | "records"
+  | "cards"
+  | "thread"
+  | "doc"
+  | "memory"
+  | "rail"
+  | "workspace"
+  | "model"
+  | "files"
+  | "context"
+  | "terminal"
+  | "browser"
+  | "kanban"
+  | "automation";
+
+/**
+ * Island body inset vs flush under the header.
+ * `inset` (default) applies body pad; `flush` lets tables and grids go edge to edge.
+ */
+export type IslandBodyBleed = "inset" | "flush";
+
+/** Optional presentation grammar. Absent means surface-only (not a movable island). */
+export interface BlockPresentation {
+  /** Usage-named, verb plus noun (e.g. "browse records"). */
+  readonly usage: string;
+  readonly mounts: readonly MountPoint[];
+  readonly sizes: readonly BlockSize[];
+  readonly density: BlockDensity;
+  /**
+   * Island base class. Defaults to `tool` when omitted.
+   * Homogeneous islands (three or more of one class) are a defect.
+   */
+  readonly surfaceClass?: IslandSurfaceClass;
+  /** Header kind glyph. Defaults to `records` when omitted. */
+  readonly kindGlyph?: IslandKindGlyph;
+  /** Body pad under the header. Defaults to `inset`. */
+  readonly bodyBleed?: IslandBodyBleed;
+  /**
+   * Contract note for implementers (edition split, render pipeline, etc.).
+   * Not shown in chrome; lives on the descriptor for heads.
+   */
+  readonly dataNote?: string;
+}
+
 export interface ViewDescriptor {
   readonly id: string;
   readonly name: string;
@@ -292,4 +356,6 @@ export interface ViewDescriptor {
   readonly renderer: string;
   readonly source: ViewSource;
   readonly render: React.ComponentType<ViewRenderProps>;
+  /** Additive. Descriptors without `block` still register and render inside surfaces. */
+  readonly block?: BlockPresentation;
 }

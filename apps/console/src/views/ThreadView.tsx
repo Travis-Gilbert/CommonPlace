@@ -251,11 +251,6 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
         </div>
       </ThreadPrimitive.Viewport>
       <div className={full ? 'mx-auto mb-24 w-full max-w-4xl px-6' : 'p-2'} data-composer-zone>
-        {!endpoint ? (
-          <p data-chat-unavailable className="mb-1 text-ij-ink-info">
-            Chat endpoint unavailable: configure NEXT_PUBLIC_CONSOLE_CHAT_URL.
-          </p>
-        ) : null}
         <Composer
           host={host}
           compact={!full}

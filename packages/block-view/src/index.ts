@@ -7,6 +7,7 @@
  */
 
 export * from './types';
+export * from './island-class';
 export * from './addressing';
 export * from './shape-match';
 export * from './registry';
@@ -22,4 +23,5 @@ export * from './surface-actions';
 export * from './database/model';
 export * from './host/HttpBlockHost';
 export * from './host/MemoryBlockHost';
+export * from './host/changefeed';
 export * from './host/useDatabase';

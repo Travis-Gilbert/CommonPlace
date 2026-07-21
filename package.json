@@ -25,6 +25,8 @@
     "collab:start": "npm --prefix apps/commonplace-collab run start",
     "api:dev": "cargo run --manifest-path apps/commonplace-api/Cargo.toml --bin commonplace-api",
     "api:test": "cargo test --manifest-path apps/commonplace-api/Cargo.toml",
+    "api:dev:theorem": "cargo run --manifest-path ../Theorem/apps/commonplace-api/Cargo.toml --bin commonplace-api",
+    "api:test:theorem": "cargo test --manifest-path ../Theorem/apps/commonplace-api/Cargo.toml",
     "check": "node scripts/update-rustyred-source.mjs --check && cargo test --workspace && npm --prefix packages/block-view-contracts run check",
     "check:rust": "cargo test --workspace"
   },
@@ -49,7 +51,9 @@
     }
   },
   "dependencies": {
-    "@travis-gilbert/markdown-theory": "0.1.2"
+    "@paper-design/shaders-react": "^0.0.77",
+    "@travis-gilbert/markdown-theory": "0.1.2",
+    "zustand": "5.0.14"
   },
   "devDependencies": {
     "@assistant-ui/store": "0.2.13",
@@ -58,6 +62,7 @@
   },
   "overrides": {
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "zustand": "5.0.14"
   }
 }

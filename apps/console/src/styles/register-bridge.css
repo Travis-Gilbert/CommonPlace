@@ -83,6 +83,8 @@
   --radius-ij-arc: var(--ij-arc);
   --radius-ij-arc-underline: var(--ij-arc-underline);
   --radius-ij-island: var(--ij-island-radius);
+  /* Sidebar rows use the register's 8px component arc. */
+  --radius-ij-sidebar-row: var(--ij-arc);
 
   /* Type */
   --font-ij-ui: var(--ij-font-ui);
@@ -102,12 +104,24 @@
   --spacing-ij-control: var(--ij-control-h);
   --spacing-ij-tab: var(--ij-tab-h);
   --spacing-ij-stripe: var(--ij-stripe-w);
+  --spacing-ij-sidebar-expanded: var(--ij-sidebar-expanded-w);
+  --spacing-ij-sidebar-collapsed: var(--ij-sidebar-collapsed-w);
+  --spacing-ij-sidebar-pip: var(--ij-sidebar-pip-w);
+  --spacing-ij-stripe-icon: var(--ij-stripe-icon);
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
   --spacing-ij-toolwindow-header: var(--ij-toolwindow-header-h);
+  --spacing-ij-island-header: var(--ij-island-header-h);
+  --spacing-ij-island-footer: var(--ij-island-footer-h);
+  --spacing-ij-island-body-pad: var(--ij-island-body-pad);
   --spacing-ij-nav-row: var(--ij-nav-row-h);
   --spacing-ij-island-gutter: var(--ij-island-gutter);
+  --color-ij-island-header-tool: var(--ij-island-header-tool);
+  --color-ij-island-header-editor: var(--ij-island-header-editor);
+  --text-ij-island-title: var(--ij-island-title-size);
+  --text-ij-island-section: var(--ij-island-section-size);
+  --text-ij-island-meta: var(--ij-island-meta-size);
   --spacing-rec-grid: var(--rec-grid);
   --spacing-rec-cell-pad: var(--rec-cell-pad);
   --spacing-rec-utility-col: var(--rec-utility-col);
@@ -137,6 +151,11 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
+  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe. */
+  --ij-sidebar-expanded-w: 264px;
+  --ij-sidebar-collapsed-w: 44px;
+  --ij-sidebar-pip-w: 2px;
+  --ij-stripe-w: var(--ij-sidebar-expanded-w);
   --ij-composer-min-h: 48px;
   --ij-composer-max-h: 164px;
   --ij-composer-full-min-h: calc(var(--ij-composer-min-h) + var(--ij-control-h));
@@ -158,15 +177,28 @@
      read as named tool windows rather than floating labels. The stripe icon is
      20px inside the 40px bar (X3.4), one ramp step up from the 16px control
      glyph, because the stripe is navigation rather than a control cluster. */
-  /* Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px
-     inside the 40px primary-nav target (36-40px sitewide). */
+  /* Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /
+     tool-window metrics. Header is IBM Plex Sans; 36 cozy / 30 compact. */
   --ij-toolwindow-header-h: 36px;
-  --ij-stripe-icon: 20px;
-  --ij-nav-row-h: 40px;
-  /* Islands layout (Spec 34 / amendment 35): radius and gutter are material
-     spacing, not the control arc. */
+  --ij-island-header-h: 36px;
+  --ij-island-footer-h: 24px;
+  --ij-island-body-pad: 16px;
+  --ij-island-title-size: 15px;
+  --ij-island-section-size: 12px;
+  --ij-island-meta-size: 11px;
+  --ij-stripe-icon: 16px;
+  --ij-nav-row-h: 36px;
+  /* Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.
+     Border color equals the island fill (tool = chrome, editor overrides below).
+     No visible stroke; gutters show the frame between islands. */
   --ij-island-radius: 10px;
-  --ij-island-gutter: 10px;
+  --ij-island-gutter: 6px;
+  --ij-inactive-alpha: 0.44;
+  --ij-island-border: var(--ij-chrome);
+  /* Header band: island base raised one elevation step, chroma +0.005..0.010.
+     ToolWindow.Header.background analog. Material Layer consumes these. */
+  --ij-island-header-tool: #34363C;
+  --ij-island-header-editor: #25262A;
   /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
      Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
   --ij-ground-terra: #4C271D;
@@ -184,26 +216,70 @@
   --ij-text-selection: var(--ij-selection);
 }
 
+[data-register="intui"] [data-sidebar-collapsed="true"] {
+  --ij-stripe-w: var(--ij-sidebar-collapsed-w);
+}
+
 [data-register="intui"][data-theme="light"] {
   --ij-ground-terra: #EACAB4;
   --ij-material-glow: 0.38;
   --ij-material-grain: 0.018;
   --ij-island-terra-tint: 0.045;
-  /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
-     this is the runtime gate's light-mode clamp, kept outside the pin. */
-  --ij-gold: #9A6000;
+  /* AMENDMENT-01 A3: header one step toward frame, distinct from body without
+     relying on the seam hairline. Tool body gray-12 → header gray-11; editor
+     paper → header gray-12. */
+  --ij-island-header-tool: var(--ij-gray-11);
+  --ij-island-header-editor: var(--ij-gray-12);
+  /* Gold clamp for light tool body (gray-12 after A1); #9A6000 was for gray-13. */
+  --ij-gold: #8F5800;
   --ij-gold-tint: #FFF5DB;
 }
 
-/* JetBrains Compact Mode density: shorter chrome, tighter gutters. */
+/* Header band paint (AMENDMENT-01 A3). Token path only for the header strip;
+   Material Layer still owns island body and frame. */
+[data-island-shell][data-island='tool'] > [data-island-header] {
+  background-color: var(--ij-island-header-tool);
+}
+
+[data-island-shell][data-island='editor'] > [data-island-header] {
+  background-color: var(--ij-island-header-editor);
+}
+
+/* JetBrains Compact Mode density: shorter chrome, tighter gutters.
+   Island shell compact header is 30px (HANDOFF-CONSOLE-ISLAND-SHELL). */
 [data-register="intui"][data-density="compact"] {
   --ij-toolbar-h: 32px;
   --ij-statusbar-h: 24px;
-  --ij-toolwindow-header-h: 28px;
+  --ij-toolwindow-header-h: 30px;
+  --ij-island-header-h: 30px;
+  --ij-island-body-pad: 10px;
+  --ij-island-title-size: 13px;
   --ij-nav-row-h: 36px;
   --ij-tab-h: 36px;
-  --ij-island-gutter: 8px;
+  --ij-island-gutter: 6px;
   --ij-stripe-icon: 16px;
+}
+
+/* Per-island density when the shell sets data-island-density without a root flip. */
+[data-island-shell][data-island-density="compact"] {
+  --ij-island-header-h: 30px;
+  --ij-island-body-pad: 10px;
+  --ij-island-title-size: 13px;
+}
+
+[data-island-shell][data-island-density="cozy"] {
+  --ij-island-header-h: 36px;
+  --ij-island-body-pad: 16px;
+  --ij-island-title-size: 15px;
+}
+
+/* Choice 8: island border color equals that island's fill token. */
+[data-island="tool"] {
+  --ij-island-border: var(--ij-chrome);
+}
+
+[data-island="editor"] {
+  --ij-island-border: var(--ij-editor);
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink

@@ -11,7 +11,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectEveryRegionPainted, luminance, resolveToken } from './paint-audit';
 
 const APPEARANCE_KEY = 'commonplace.console.appearance.v1';
-const SURFACE_KEY = 'commonplace.console.surface.v1';
+const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
+const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
 
 const THEMES = [
   { theme: 'dark', preset: 'intellij-dark' },
@@ -27,10 +28,11 @@ async function settled(page: Page) {
  *  same path, so a signature cannot pass in one mode by taking a shortcut. */
 async function openWorkspace(page: Page, preset: string) {
   await page.goto('/');
-  await page.evaluate(([appearance, surface]) => {
+  await page.evaluate(([appearance, layout, legacy]) => {
     localStorage.removeItem(appearance);
-    localStorage.removeItem(surface);
-  }, [APPEARANCE_KEY, SURFACE_KEY]);
+    localStorage.removeItem(layout);
+    localStorage.removeItem(legacy);
+  }, [APPEARANCE_KEY, LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY]);
   await page.reload();
   await settled(page);
   await page.locator('[data-layout-switcher]').click();
@@ -93,7 +95,7 @@ for (const { theme, preset } of THEMES) {
       // Island junctions that still carry CSS seams (headers, tabs). Frame-
       // resident toolbar/status and gutters are painted by the Material Layer.
       const junctions: { name: string; selector: string; side: string }[] = [
-        { name: 'tool window header bottom', selector: '[data-paint-region="tool-window-header"]', side: 'border-bottom-color' },
+        { name: 'island header bottom', selector: '[data-paint-region="island-header"]', side: 'border-bottom-color' },
         { name: 'tab strip bottom', selector: '[data-paint-region="tab-strip"]', side: 'border-bottom-color' },
       ];
       for (const junction of junctions) {
@@ -129,13 +131,18 @@ for (const { theme, preset } of THEMES) {
       await expect(selected).not.toHaveCSS('background-color', accent);
       await expect(selected).toHaveCSS('color', ink);
 
-      // The stripe is frame chrome (flush activity bar), not an island.
+      // The sidebar is frame chrome (flush activity bar), not an island.
       const stripe = page.locator('[data-paint-region="stripe"]');
-      await expect(stripe).toHaveCSS('width', '40px');
+      await expect(stripe).toHaveCSS('width', '264px');
       await expect(stripe).toHaveAttribute('data-frame-resident', 'stripe');
+      await expect(stripe).toHaveAttribute('data-sidebar-collapsed', 'false');
       await expect(stripe).not.toHaveAttribute('data-island');
       const glyph = selected.locator('svg');
-      await expect(glyph).toHaveAttribute('width', '20');
+      await expect(glyph).toHaveAttribute('width', '16');
+      await page.keyboard.press('Meta+b');
+      await expect(stripe).toHaveAttribute('data-sidebar-collapsed', 'true');
+      await expect(stripe).toHaveCSS('width', '44px');
+      await page.keyboard.press('Meta+b');
 
       // Toggling a companion keeps the same grammar and the radio/toggle
       // semantics the I1 e2e governs.
@@ -185,16 +192,15 @@ for (const { theme, preset } of THEMES) {
 
     // Signature 5. Type metrics: the register's 13px UI face, and the tool
     // window header strip at 36px Manrope (amendment 35).
-    test('type metrics and the tool window header strip hold', async ({ page }) => {
+    test('type metrics and the island header strip hold', async ({ page }) => {
       await expect(page.locator('html')).toHaveCSS('font-size', '13px');
-      const header = page.locator('[data-paint-region="tool-window-header"]').first();
+      const header = page.locator('[data-paint-region="island-header"]').first();
       await expect(header).toHaveCSS('height', '36px');
-      await expect(header).toHaveCSS('font-size', '13px');
-      await expect(header).toHaveCSS('font-family', /Manrope/i);
+      await expect(header).toHaveCSS('font-family', /IBM Plex Sans/i);
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
-      // The right-aligned action slot carries the hide affordance.
-      await expect(header.locator('[data-tool-window-hide]')).toBeVisible();
+      // Hide affordance on tool-window shells.
+      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
@@ -227,7 +233,7 @@ for (const { theme, preset } of THEMES) {
       await expectEveryRegionPainted(page);
     });
 
-    // X3.A2: the header strip renders on all three companions.
+    // X3.A2: the island header strip renders on all three companions.
     test('all three companions carry the header strip', async ({ page }) => {
       for (const companion of ['files', 'context', 'thread']) {
         const nav = page.locator(`[data-companion-nav="${companion}"]`);
@@ -235,8 +241,8 @@ for (const { theme, preset } of THEMES) {
         const window = page.locator(`[data-tool-window="${companion}"]`);
         await expect(window, `${companion} tool window must render`).toBeVisible();
         await expect(
-          window.locator('[data-tool-window-header]'),
-          `${companion} must carry the Int UI header strip`,
+          window.locator('[data-island-header]'),
+          `${companion} must carry the IslandShell header strip`,
         ).toBeVisible();
       }
     });

@@ -105,4 +105,35 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
+// Typography authorship (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 10): chrome labels
+// use Manrope / Plex, never JetBrains Mono. Flag lines that mark a chrome label
+// role and also apply a mono face.
+const chromeLabelHits = [];
+for (const file of walk(srcRoot)) {
+  if (!/\.(tsx|ts)$/.test(file)) continue;
+  const text = readFileSync(file, 'utf8');
+  const lines = text.split('\n');
+  lines.forEach((line, index) => {
+    const marksChromeLabel =
+      /data-island-header|data-paint-region="island-header"|data-island-title|data-surface-nav/.test(line);
+    const usesMono =
+      /\bfont-ij-mono\b|\bfont-mono\b|JetBrains Mono|--ij-font-mono|--font-console-jbmono/.test(line);
+    if (marksChromeLabel && usesMono) {
+      chromeLabelHits.push({
+        file,
+        line: index + 1,
+        sample: line.trim().slice(0, 80),
+      });
+    }
+  });
+}
+
+if (chromeLabelHits.length > 0) {
+  console.error('Register lint: chrome labels must not use mono:');
+  for (const hit of chromeLabelHits) {
+    console.error(`  ${path.relative(appRoot, hit.file)}:${hit.line} ${hit.sample}`);
+  }
+  process.exit(1);
+}
+
 console.log('Register lint: clean.');

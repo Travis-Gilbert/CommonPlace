@@ -12,6 +12,7 @@ async function freshLoad(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.evaluate((key) => {
+    localStorage.removeItem('commonplace.console.layout-cache.v1');
     localStorage.removeItem(key);
     localStorage.removeItem('commonplace.console.workspace.project.v1');
   }, SURFACE_KEY);
@@ -21,7 +22,14 @@ async function freshLoad(page: Page) {
 }
 
 async function openSurface(page: Page, id: string) {
-  await page.locator(`[data-surface-nav="${id}"]`).click();
+  const rail = page.locator(`[data-surface-nav="${id}"]`);
+  if (await rail.count()) {
+    await rail.click();
+  } else {
+    // Goal Stack and other secondary surfaces live in the toolbar switcher.
+    await page.locator('[data-layout-switcher]').click();
+    await page.locator(`[data-layout-option="${id}"]`).click();
+  }
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
 }
 
@@ -132,6 +140,12 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     }).toBe(true);
     await expect(page.getByText('Delete generated cache')).toBeVisible();
     await expect(page.getByText('destructive').first()).toBeVisible();
+    await expect(page.getByText('locked: plugin.demo.write')).toBeVisible();
+    await page.locator('[data-plan-task="task-wire"]').click();
+    await expect(page.locator('[data-plan-task="task-wire"]')).toHaveAttribute('data-plan-path', 'selected');
+    await expect(page.locator('[data-plan-task="task-index"]')).toHaveAttribute('data-plan-path', 'ancestor');
+    await expect(page.locator('[data-plan-task="task-release"]')).toHaveAttribute('data-plan-path', 'descendant');
+    await expect(page.locator('[data-runs-rail]')).toBeVisible();
     await expect(page).toHaveScreenshot('goal-stack-v2-1440-dark.png', { fullPage: true });
 
     const source = page.getByText('Delete generated cache').locator('..').locator('..');
@@ -353,6 +367,8 @@ function planSnapshot(approved: boolean) {
       serves: ['F4'],
       acceptance_criteria: ['The running edge updates within one poll.'],
       queued_affordances: [],
+      progress_fraction: 0.58,
+      actor: 'codex-runtime',
       admission_requirement: 'admitted',
       claim_holder: 'codex-runtime',
       generation_at_start: 2,
@@ -404,6 +420,18 @@ const capabilityManifest = {
     description: 'Remove a generated cache directory before rebuilding.',
     server_origin: 'theorem-workspace',
     tool_name: 'delete_cache',
+    group: 'affordances',
+    grant_state: 'granted',
     annotations: ['destructive'],
+  }, {
+    id: 'plugin:locked-tool',
+    title: 'Locked plugin tool',
+    description: 'Requires a missing grant and attaches locked.',
+    server_origin: 'plugin-demo',
+    tool_name: 'locked_tool',
+    group: 'plugin_tools',
+    grant_state: 'locked',
+    missing_capability: 'plugin.demo.write',
+    annotations: ['read_only'],
   }],
 };

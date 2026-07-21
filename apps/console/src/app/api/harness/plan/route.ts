@@ -1,5 +1,10 @@
 import { planToProgrammableGraph } from '@commonplace/theorem-acp/plan-program';
 import {
+  applyParamBindings,
+  extractParamCandidates,
+  type ParamCandidate,
+} from '@commonplace/theorem-acp/plan-params';
+import {
   normalizePlanSnapshot,
   planIsComplete,
 } from '@commonplace/theorem-acp/plan-state';
@@ -24,14 +29,22 @@ export async function GET(request: Request): Promise<Response> {
   const manifest = includeManifest
     ? await callHarnessMcp('plan', { action: 'capability_manifest', plan_id: planId })
     : null;
+  const runsRail = includeManifest
+    ? await callHarnessMcp('plan', { action: 'query', plan_id: planId, query: 'progress' })
+    : null;
 
   return Response.json({
     schema: 'commonplace.plan-canvas-poll/1',
     snapshot: snapshot.data,
     events: events.ok ? events.data : { rows: [] },
     capabilities: manifest?.ok ? manifest.data : { capabilities: [] },
+    runsRail: runsRail?.ok ? normalizeRunsFromProgress(runsRail.data, planId, snapshot.data) : [],
     cursor: Math.max(cursor, graphVersion(events.ok ? events.data : null)),
-    degraded: { events: !events.ok, capabilities: includeManifest && !manifest?.ok },
+    degraded: {
+      events: !events.ok,
+      capabilities: includeManifest && !manifest?.ok,
+      runsRail: includeManifest && !runsRail?.ok,
+    },
   });
 }
 
@@ -43,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!planId || !action) {
     return Response.json({ error: 'plan_id_and_action_required' }, { status: 400 });
   }
-  if (action === 'save_as_program') return saveAsProgram(planId);
+  if (action === 'save_as_program') return saveAsProgram(planId, body);
 
   const taskId = validText(body.taskId ?? body.task_id);
   let input: Record<string, unknown>;
@@ -54,7 +67,15 @@ export async function POST(request: Request): Promise<Response> {
       input = {
         action: 'update',
         plan_id: planId,
-        changes: [{ task_id: taskId, queue_affordance: { ref, config: body.config ?? {} } }],
+        changes: [{
+          task_id: taskId,
+          queue_affordance: {
+            ref,
+            config: body.config ?? {},
+            grant_state: validText(body.grantState ?? body.grant_state) ?? 'granted',
+            missing_capability: validText(body.missingCapability ?? body.missing_capability),
+          },
+        }],
       };
       break;
     }
@@ -88,6 +109,14 @@ export async function POST(request: Request): Promise<Response> {
         changes: [{ task_id: taskId, revert_task_file_changes: true }],
       };
       break;
+    case 'revert_mutation':
+      if (!taskId) return Response.json({ error: 'task_required' }, { status: 400 });
+      input = {
+        action: 'update',
+        plan_id: planId,
+        changes: [{ task_id: taskId, revert_mutation: true }],
+      };
+      break;
     case 'replan_subtree':
       if (!taskId) return Response.json({ error: 'task_required' }, { status: 400 });
       input = {
@@ -97,6 +126,91 @@ export async function POST(request: Request): Promise<Response> {
         reason: validText(body.reason) ?? 'Requested from the CommonPlace Goal Stack',
       };
       break;
+    case 'add_task': {
+      const title = validText(body.title);
+      const parentId = validText(body.parentId ?? body.parent_id);
+      if (!title) return Response.json({ error: 'title_required' }, { status: 400 });
+      input = {
+        action: 'add_task',
+        plan_id: planId,
+        alias: slugAlias(title),
+        title,
+        goal: title,
+        dependencies: parentId ? [parentId] : [],
+        provenance: 'human:console',
+        branch: body.branch === true,
+      };
+      break;
+    }
+    case 'complete_task':
+      if (!taskId) return Response.json({ error: 'task_required' }, { status: 400 });
+      input = {
+        action: 'done',
+        plan_id: planId,
+        task_id: taskId,
+        reason: validText(body.receipt) ?? 'Completed from the Goal Stack',
+      };
+      break;
+    case 'skip_task': {
+      const reason = validText(body.reason);
+      if (!taskId || !reason) return Response.json({ error: 'task_and_reason_required' }, { status: 400 });
+      input = {
+        action: 'failed',
+        plan_id: planId,
+        task_id: taskId,
+        reason,
+      };
+      break;
+    }
+    case 'pin_position': {
+      const x = number(body.x);
+      const y = number(body.y);
+      if (!taskId || x === null || y === null) {
+        return Response.json({ error: 'task_and_position_required' }, { status: 400 });
+      }
+      input = {
+        action: 'update',
+        plan_id: planId,
+        changes: [{ task_id: taskId, pin_position: { x, y } }],
+      };
+      break;
+    }
+    case 'consent_proposal':
+    case 'deny_proposal': {
+      const proposalId = validText(body.proposalId ?? body.proposal_id);
+      if (!proposalId) return Response.json({ error: 'proposal_required' }, { status: 400 });
+      input = {
+        action: 'update',
+        plan_id: planId,
+        changes: [{
+          proposal_id: proposalId,
+          proposal_decision: action === 'consent_proposal' ? 'consent' : 'deny',
+        }],
+      };
+      break;
+    }
+    case 'report_progress': {
+      const fraction = number(body.fraction);
+      if (!taskId || fraction === null) {
+        return Response.json({ error: 'task_and_fraction_required' }, { status: 400 });
+      }
+      if (fraction < 0 || fraction > 1) {
+        return Response.json({
+          error: 'plan_action_refused',
+          rule: 'progress_fraction_out_of_range',
+          detail: 'Progress fraction must be within 0..=1.',
+        }, { status: 409 });
+      }
+      input = {
+        action: 'update',
+        plan_id: planId,
+        changes: [{
+          task_id: taskId,
+          progress: { fraction, note: validText(body.note) },
+        }],
+      };
+      break;
+    }
     default:
       return Response.json({ error: 'unsupported_plan_action' }, { status: 400 });
   }
@@ -106,7 +220,7 @@ export async function POST(request: Request): Promise<Response> {
   return refusalResponse(result.data) ?? Response.json({ ok: true, result: result.data });
 }
 
-async function saveAsProgram(planId: string): Promise<Response> {
+async function saveAsProgram(planId: string, body: Record<string, unknown>): Promise<Response> {
   const inspected = await callHarnessMcp('plan', { action: 'inspect', plan_id: planId });
   if (!inspected.ok) return inspected.response;
   const snapshot = normalizePlanSnapshot(inspected.data);
@@ -114,9 +228,20 @@ async function saveAsProgram(planId: string): Promise<Response> {
   if (!planIsComplete(snapshot)) {
     return Response.json({ error: 'plan_not_complete' }, { status: 409 });
   }
+  // Re-extract candidates server-side so reviewed bindings rewrite titles /
+  // descriptions before materialize; client candidates are advisory only.
+  const candidates = extractParamCandidates(snapshot);
+  const bindings = record(body.bindings) ?? {};
+  const bound = applyParamBindings(snapshot, candidates, bindings);
+  const graph = planToProgrammableGraph(bound);
   const program = {
-    ...planToProgrammableGraph(snapshot),
+    ...graph,
     tenant_id: inspected.principal.tenant,
+    metadata: {
+      ...graph.metadata,
+      param_bindings: bindings,
+      param_candidates: candidates.map(serializeCandidate),
+    },
   };
   const result = await callHarnessMcp('programmable_graph_apply', {
     action: 'materialize',
@@ -124,6 +249,42 @@ async function saveAsProgram(planId: string): Promise<Response> {
   });
   if (!result.ok) return result.response;
   return refusalResponse(result.data) ?? Response.json({ ok: true, result: result.data });
+}
+
+function serializeCandidate(candidate: ParamCandidate): Record<string, string> {
+  return {
+    id: candidate.id,
+    kind: candidate.kind,
+    taskId: candidate.taskId,
+    field: candidate.field,
+    value: candidate.value,
+    label: candidate.label,
+  };
+}
+
+function normalizeRunsFromProgress(
+  progressPayload: Record<string, unknown>,
+  planId: string,
+  snapshotData: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const snapshot = normalizePlanSnapshot(snapshotData);
+  if (!snapshot) return [];
+  const done = snapshot.progress.done;
+  const total = snapshot.progress.total;
+  const head = snapshot.tasks.find((task) => task.status === 'running')?.claimHolder
+    ?? snapshot.tasks.find((task) => task.claimHolder)?.claimHolder
+    ?? null;
+  return [{
+    run_id: snapshot.runId ?? planId,
+    plan_id: planId,
+    name: snapshot.title,
+    done,
+    total,
+    completion_fraction: total > 0 ? done / total : 0,
+    head_presence: head,
+    last_event_at: snapshot.events.at(-1)?.at ?? null,
+    progress: progressPayload,
+  }];
 }
 
 function refusalResponse(data: Record<string, unknown>): Response | null {
@@ -159,6 +320,15 @@ function validText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() && value.length <= 512
     ? value.trim()
     : null;
+}
+
+function number(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function slugAlias(title: string): string {
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  return slug || `task-${Date.now()}`;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
