@@ -234,14 +234,18 @@ function ToolWindow({
   host,
   entranceIndex,
   onHide,
+  gridRegionId,
 }: {
   region: RegionNode;
   host: ConsoleBlockHost;
   entranceIndex: number;
   onHide: () => void;
+  /** Grid editor region id for stripe-tray demotion back onto the canvas. */
+  gridRegionId?: string | null;
 }) {
   const durations = useMotionDurations();
   const title = String(region.object.properties.title ?? region.object.id);
+  const isStripeTray = region.object.properties.kind === 'stripe-tray';
   return (
     <motion.section
       initial={durations.reduced ? false : { opacity: 0, y: 4 }}
@@ -264,6 +268,7 @@ function ToolWindow({
             host={host}
             forceShell
             onHide={onHide}
+            returnToGridRegionId={isStripeTray ? (gridRegionId ?? undefined) : undefined}
           />
         ))}
       </div>
@@ -562,6 +567,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                       host={host}
                       entranceIndex={0}
                       onHide={() => toggle(leftOpen[0])}
+                      gridRegionId={editor.object.id}
                     />
                   </div>
                 ) : null}
@@ -572,6 +578,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                       host={host}
                       entranceIndex={1}
                       onHide={() => toggle(rightOpen[0])}
+                      gridRegionId={editor.object.id}
                     />
                   </div>
                 ) : null}
@@ -606,6 +613,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                           host={host}
                           entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
                           onHide={() => toggle(panel.region)}
+                          gridRegionId={editor.object.id}
                         />
                       )}
                     </Panel>,

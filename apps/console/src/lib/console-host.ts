@@ -256,6 +256,11 @@ export class ConsoleBlockHost implements BlockHost {
         cardsSurface.properties.seed_revision = 3;
         added = true;
       }
+      const stripeTray = this.layout.get('cards.region-stripe-tray');
+      if (stripeTray && stripeTray.properties.companion !== 'stripe-tray') {
+        stripeTray.properties.companion = 'stripe-tray';
+        added = true;
+      }
       for (const seeded of seed) {
         if (seeded.type !== 'surface' || typeof seeded.properties.stripe_order !== 'number') continue;
         const current = this.layout.get(seeded.id);

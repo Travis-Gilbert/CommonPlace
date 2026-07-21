@@ -9,6 +9,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { BlockHost, ObjectQuery, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
 import { IslandShell } from '@/components/blocks/IslandShell';
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
+import { recordIslandMoveReceipts } from '@/lib/island-move-receipts';
+import { promoteIslandAction } from '@/lib/island-promotion';
 import { CONSOLE_VIEW_REGISTRY, FallbackCard } from '@/views/registry';
 import { ViewState, type ViewStateKind } from '@/views/ViewStates';
 
@@ -26,6 +28,7 @@ export function ViewInstanceHost({
   onHide,
   forceShell,
   bare,
+  returnToGridRegionId,
 }: {
   instance: ObjectRef;
   host: BlockHost;
@@ -34,6 +37,8 @@ export function ViewInstanceHost({
   forceShell?: boolean;
   /** Render descriptor body only (IslandArrangementHost already wraps IslandShell). */
   bare?: boolean;
+  /** When set, expose Return to grid (stripe tray → grid demotion). */
+  returnToGridRegionId?: string;
 }) {
   const descriptorId = String(instance.properties.descriptor_id ?? '');
   const descriptor = CONSOLE_VIEW_REGISTRY.viewById(descriptorId);
@@ -106,6 +111,36 @@ export function ViewInstanceHost({
       <Render set={set} host={host} />
     ) : null;
 
+  const returnToGrid = returnToGridRegionId ? (
+    <button
+      type="button"
+      data-island-return-to-grid
+      aria-label="Return to grid"
+      title="Return to grid"
+      onClick={() => {
+        void (async () => {
+          const [action] = promoteIslandAction(instance.id, {
+            kind: 'grid',
+            regionId: returnToGridRegionId,
+            order: 0,
+          });
+          if (!action) return;
+          const result = await host.emit(action);
+          if (
+            result.ok &&
+            result.value?.action_kind === 'move' &&
+            result.value.status === 'applied'
+          ) {
+            recordIslandMoveReceipts(1);
+          }
+        })();
+      }}
+      className="rounded-ij-arc-underline px-1.5 font-ij-ui text-ij-island-meta text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+    >
+      Return to grid
+    </button>
+  ) : null;
+
   return (
     <IslandShell
       descriptor={descriptor}
@@ -118,6 +153,7 @@ export function ViewInstanceHost({
       onHide={onHide}
       skeleton={skeletonForKind(descriptor.block?.kindGlyph)}
       draggable={mountsIsland}
+      actions={returnToGrid}
     >
       {body}
     </IslandShell>

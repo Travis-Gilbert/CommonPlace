@@ -1,0 +1,38 @@
+# Paper JSX snapshot: Composer anatomy (Tailwind export, 2026-07-21)
+
+(
+    <div className="[font-synthesis:none] flex overflow-clip w-180 h-fit flex-col p-6 gap-4 bg-[#393B40] antialiased">
+      <div className="flex flex-col gap-1">
+        <div className="font-['IBMPlexSans-SemiBold','IBM_Plex_Sans',system-ui,sans-serif] font-semibold text-[#DFE1E5] text-[15px]/5">
+          Composer anatomy
+        </div>
+        <div className="font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] font-features-['tnum'] text-[#868A91] text-[11px]/4">
+          Cmd/Ctrl-L focus · single input slot · no duplicate banners
+        </div>
+      </div>
+      <div className="flex flex-col p-3 rounded-[10px] gap-2 bg-[#2B2D30] border border-solid border-[#1E1F22]">
+        <div className="flex items-start min-h-18 p-3 rounded-lg gap-2 bg-[#1E1F22]">
+          <div className="grow font-['IBMPlexSans-Regular','IBM_Plex_Sans',system-ui,sans-serif] text-[#868A91] text-sm/5">
+            Ask the console…
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex items-center shrink-0 gap-1">
+            <div className="py-0.5 px-1.5 rounded-sm bg-[#34363C] border border-solid border-[#1E1F22]">
+              <div className="font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] text-[#868A91] text-[11px]/4">
+                ⌘
+              </div>
+            </div>
+            <div className="py-0.5 px-1.5 rounded-sm bg-[#34363C] border border-solid border-[#1E1F22]">
+              <div className="font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] text-[#868A91] text-[11px]/4">
+                L
+              </div>
+            </div>
+          </div>
+          <div className="font-['JetBrainsMono-Regular','JetBrains_Mono',system-ui,sans-serif] text-[#868A91] text-[11px]/4">
+            Focus composer
+          </div>
+        </div>
+      </div>
+    </div>
+  )

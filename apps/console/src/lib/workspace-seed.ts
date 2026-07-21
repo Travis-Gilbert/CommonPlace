@@ -252,6 +252,7 @@ export function seedLayout(): ObjectRef[] {
       side: 'left',
       title: 'Stripe tray',
       icon: 'records',
+      companion: 'stripe-tray',
       size: 12,
       open: false,
       role: 'companion',

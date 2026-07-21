@@ -3,7 +3,7 @@
 // SOURCING: hand-roll. B10 host: mounts IslandGrid for kind=grid regions and
 // writes reorder / resize / promotion through BlockHost.emit (receipted moves).
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { BlockHost, BlockSize, ObjectRef } from '@commonplace/block-view/types';
 import {
   IslandGrid,
@@ -12,6 +12,7 @@ import {
 } from '@/components/blocks/IslandGrid';
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
 import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
+import { recordIslandMoveReceipts } from '@/lib/island-move-receipts';
 import {
   promoteIslandAction,
   readIslandSize,
@@ -38,6 +39,7 @@ export function IslandArrangementHost({
   stripeRegionId = null,
   surfaceEditorRegionId = null,
 }: IslandArrangementHostProps) {
+  const [moveReceiptCount, setMoveReceiptCount] = useState(0);
   const orderedIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
 
   const items = useMemo((): IslandGridItem[] => {
@@ -110,21 +112,44 @@ export function IslandArrangementHost({
 
   const onPromote = useCallback(
     (viewInstanceId: string, zone: IslandPromotionZone) => {
-      const order = 0;
-      const actions = promoteIslandAction(viewInstanceId, {
-        kind: zone.kind,
-        regionId: zone.regionId,
-        order,
-        ...(zone.kind === 'surface' ? { size: 'full' as const } : {}),
-      });
-      for (const action of actions) void host.emit(action);
-      if (zone.kind === 'surface') {
-        void host.emit({
-          kind: 'update',
-          id: zone.regionId,
-          patch: { active_tab: viewInstanceId },
+      void (async () => {
+        const order = 0;
+        const actions = promoteIslandAction(viewInstanceId, {
+          kind: zone.kind,
+          regionId: zone.regionId,
+          order,
+          ...(zone.kind === 'surface' ? { size: 'full' as const } : {}),
         });
-      }
+        let moves = 0;
+        for (const action of actions) {
+          const result = await host.emit(action);
+          if (
+            result.ok &&
+            result.value?.action_kind === 'move' &&
+            result.value.status === 'applied'
+          ) {
+            moves += 1;
+          }
+        }
+        if (zone.kind === 'stripe') {
+          await host.emit({
+            kind: 'update',
+            id: zone.regionId,
+            patch: { open: true },
+          });
+        }
+        if (zone.kind === 'surface') {
+          await host.emit({
+            kind: 'update',
+            id: zone.regionId,
+            patch: { active_tab: viewInstanceId },
+          });
+        }
+        if (moves > 0) {
+          recordIslandMoveReceipts(moves);
+          setMoveReceiptCount((count) => count + moves);
+        }
+      })();
     },
     [host],
   );
@@ -138,7 +163,11 @@ export function IslandArrangementHost({
   }
 
   return (
-    <div data-island-arrangement className="flex h-full min-h-0 flex-col overflow-auto p-ij-island-gutter">
+    <div
+      data-island-arrangement
+      data-island-move-receipt-count={moveReceiptCount}
+      className="flex h-full min-h-0 flex-col overflow-auto p-ij-island-gutter"
+    >
       <IslandGrid
         items={items}
         promotionZones={promotionZones}

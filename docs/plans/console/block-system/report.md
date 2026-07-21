@@ -10,10 +10,6 @@ a declared block only).
 - **B10 bottom-band dock:** web shell has no `[data-bottom-dock]` (by design;
   Terminal dock removed). Island → chrome promotion docks into companion tool
   windows instead. A literal bottom band remains a desktop follow-up.
-- **B10 e2e acceptance #7:** Playwright proof of island ↔ stripe round-trip
-  with two `ObjectActionReceipt`s is not yet added.
-- **Paper chrome / composer artboards:** IslandShell anatomy extracted; stripe,
-  tool-window, and composer skins are not yet authored in Paper.
 
 ## Shipped
 
@@ -28,8 +24,9 @@ a declared block only).
 | B7 source installs | Shipped: jalco + tnks / linear-combobox / pdfx / command-menu; recursive-dnd vendor ref |
 | B8 declared blocks | Shipped |
 | B9 proving trio | Shipped: records ViewSource → tnks; automation-history → jalco CommitGraph + harness status projection; composer Cmd/Ctrl-L + single unavailable slot |
-| B10 movement and promotion | Shipped (web): IslandGrid sortable rearrange + size snap → `emit`; promotion zones for stripe tray / chrome tools / expand-to-surface; Cards surface uses `kind: grid` |
-| Paper MCP skin extract | Shipped for IslandShell anatomy: `paper-extract-island-shell.md` + JSX snapshot; register tokens match Paper; error-island radius corrected in Paper (33→10) |
+| B10 movement and promotion | Shipped (web): IslandGrid sortable rearrange + size snap → `emit`; promotion zones for stripe tray / chrome tools / expand-to-surface; Cards surface uses `kind: grid`; stripe auto-open on promote; Return to grid demotion |
+| B10 e2e acceptance #7 | Shipped: `e2e/island-stripe-promotion.spec.ts` (drag to stripe, return, two move receipts, layout stable after reload) |
+| Paper MCP skin extract | Shipped: IslandShell anatomy + Stripe / Tool window / Composer artboards in Paper file Island Shells; docs `paper-extract-island-shell.md`, `paper-extract-chrome.md` |
 
 ## Topology note
 
