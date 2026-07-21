@@ -12,12 +12,14 @@
 // never a page component.
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import { buildSurfaceTree, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
+import { pathForSurfaceKind, surfaceIdForPath } from '@/lib/surface-routes';
 import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
@@ -176,10 +178,14 @@ function SurfaceNavGroup({
   host: ConsoleBlockHost;
 }) {
   const durations = useMotionDurations();
+  const router = useRouter();
   if (surfaces.length === 0) return null;
-  const switchTo = async (surfaceId: string) => {
-    if (surfaceId === activeSurfaceId) return;
-    await host.activateSurface(surfaceId);
+  const switchTo = async (surface: ObjectRef) => {
+    if (surface.id === activeSurfaceId) return;
+    const kind = String(surface.properties.kind ?? '');
+    const path = pathForSurfaceKind(kind);
+    await host.activateSurface(surface.id);
+    if (path) router.push(path);
   };
   return (
     <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col items-center gap-1">
@@ -205,7 +211,7 @@ function SurfaceNavGroup({
             aria-label={`${name} surface`}
             aria-checked={active}
             aria-keyshortcuts={`Alt+${index + 1}`}
-            onClick={() => void switchTo(surface.id)}
+            onClick={() => void switchTo(surface)}
             className={STRIPE_BUTTON_CLASS}
             style={stripeButtonStyle(active)}
           >
@@ -322,6 +328,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     [surfaces],
   );
 
+  const pathname = usePathname();
+  const router = useRouter();
+
   // Constrained width: tool windows become overlays while stripes remain.
   useEffect(() => {
     const element = shellRef.current;
@@ -340,6 +349,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const activeSurfaceId = useMemo(() => {
     return surfaces.find((object) => object.properties.active === true)?.id ?? SURFACE_ID;
   }, [surfaces]);
+
+  // Deep links and back/forward: the route is the surface radio (B3).
+  useEffect(() => {
+    const routedId = surfaceIdForPath(pathname);
+    if (!routedId || routedId === activeSurfaceId) return;
+    void host.activateSurface(routedId);
+  }, [activeSurfaceId, host, pathname]);
 
   const root = useMemo(
     () => (layoutObjects ? buildSurfaceTree(activeSurfaceId, layoutObjects) : null),
@@ -385,13 +401,16 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       primarySurfaces.forEach((surface, index) => {
         if (event.key === String(index + 1)) {
           event.preventDefault();
+          const kind = String(surface.properties.kind ?? '');
+          const path = pathForSurfaceKind(kind);
           void host.activateSurface(surface.id);
+          if (path) router.push(path);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, host, primarySurfaces, toggle]);
+  }, [companions, host, primarySurfaces, router, toggle]);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {

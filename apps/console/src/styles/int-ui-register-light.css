@@ -30,9 +30,9 @@
   --ij-purple-2: #643CB8; --ij-purple-7: #DCCBFB; --ij-purple-9: #F5EDFF;
   --ij-teal-2: #077A7F; --ij-teal-7: #B6E4E5;
 
-  /* Light preserves the structural inversion: seams are darker than their
-     adjacent surfaces, while the editor is the brightest plane. */
-  --ij-frame: var(--ij-gray-12);
+  /* Light: frame darker than islands so gutters read (choice 8). #DFE1E5
+     clears the 1.20:1 island-to-frame floor against chrome and editor. */
+  --ij-frame: var(--ij-gray-11);
   --ij-editor: var(--ij-gray-14);
   --ij-chrome: var(--ij-gray-13);
   --ij-raised: var(--ij-gray-14);

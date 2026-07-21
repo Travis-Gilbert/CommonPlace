@@ -75,6 +75,9 @@ const PAIRS = [
   { name: 'accent on chrome', foreground: '--ij-accent', background: '--ij-chrome', target: 3 },
   { name: 'ink on editor', foreground: '--ij-ink', background: '--ij-editor', target: 4.5 },
   { name: 'bright ink on accent', foreground: '--ij-ink-bright', background: '--ij-accent', target: 3 },
+  /* HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8: island surfaces vs frame floor. */
+  { name: 'chrome island on frame', foreground: '--ij-chrome', background: '--ij-frame', target: 1.2 },
+  { name: 'editor island on frame', foreground: '--ij-editor', background: '--ij-frame', target: 1.2 },
 ];
 
 // Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.5, D6): the

@@ -28,6 +28,7 @@ import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
+import { useShellStore } from './shell-store';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
@@ -153,7 +154,16 @@ export class ConsoleBlockHost implements BlockHost {
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
       baseUrl: '/api',
+      // Same-origin relay; server maps THEOREM_PROACTIVITY_CHANGEFEED_URL.
+      changefeedUrl: '/api/proactivity/stream',
       onStatus: (status) => this.observer?.(status),
+      onChangefeedStatus: (status) => {
+        if (status === 'stale' || status === 'connecting') {
+          useShellStore.getState().setProgress(status === 'stale' ? 'Live feed stale' : 'Connecting live feed');
+        } else if (status === 'live') {
+          useShellStore.getState().setProgress(null);
+        }
+      },
     });
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();

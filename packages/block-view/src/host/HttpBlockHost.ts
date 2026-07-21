@@ -28,6 +28,10 @@ import type {
   ThemeTokens,
   ViewDescriptor,
 } from '../types';
+import {
+  type ChangefeedConnectionStatus,
+  resolveChangefeedClient,
+} from './changefeed';
 
 const PORCELAIN_TOKENS: ThemeTokens = {
   color: { ground: 'var(--g0)', raised: 'var(--raised)', ink: 'var(--ink)', accent: 'var(--accent)' },
@@ -77,6 +81,10 @@ export interface HttpBlockHostConfig {
   readonly baseUrl: string;
   /** The `x-api-key` the API gates on, if configured. */
   readonly apiKey?: string;
+  /** THEOREM_PROACTIVITY_CHANGEFEED_URL: RustyRed `/v1/proactivity/stream`. */
+  readonly changefeedUrl?: string;
+  /** Changefeed connection health for footer status (not block body errors). */
+  readonly onChangefeedStatus?: (status: ChangefeedConnectionStatus) => void;
   /** Observes every HTTP outcome: the response status, or null when the
    *  request itself failed (network down). Hosts surface transport health
    *  (e.g. 403 as an identity-refused state) without re-wrapping fetch. */
@@ -87,6 +95,7 @@ const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 
 export class HttpBlockHost implements BlockHost {
   readonly tokens: ThemeTokens = PORCELAIN_TOKENS;
+  private readonly changefeed;
 
   /** @param surfaceObjects the arrangement, served locally; only the domain
    *  data (a view-instance's ObjectQuery) travels to the substrate. Once
@@ -94,7 +103,12 @@ export class HttpBlockHost implements BlockHost {
   constructor(
     private readonly config: HttpBlockHostConfig,
     private readonly surfaceObjects: readonly ObjectRef[] = [],
-  ) {}
+  ) {
+    this.changefeed = resolveChangefeedClient({
+      url: this.config.changefeedUrl,
+      onStatus: this.config.onChangefeedStatus,
+    });
+  }
 
   private headers(): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -114,6 +128,11 @@ export class HttpBlockHost implements BlockHost {
         subscribe: () => () => {},
       };
     }
+    const raw = await this.fetchRawObjectSet(query);
+    return this.adapt(raw, query);
+  }
+
+  private async fetchRawObjectSet(query: ObjectQuery): Promise<RawObjectSet> {
     let response: Response;
     try {
       response = await fetch(`${this.config.baseUrl}/objects/query`, {
@@ -127,7 +146,7 @@ export class HttpBlockHost implements BlockHost {
     }
     this.config.onStatus?.(response.status);
     if (!response.ok) throw new Error(`objects/query failed: ${response.status}`);
-    return this.adapt((await response.json()) as RawObjectSet);
+    return (await response.json()) as RawObjectSet;
   }
 
   async emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
@@ -152,9 +171,9 @@ export class HttpBlockHost implements BlockHost {
   }
 
   /** Map the Rust ObjectSet JSON to the web contract: `note` (Option<String>)
-   *  becomes the `notes` array the interpreter renders; add a no-op `subscribe`
-   *  (the host is re-queried on reload rather than pushed). */
-  private adapt(raw: RawObjectSet): ObjectSet {
+   *  becomes the `notes` array the interpreter renders; live queries wire a
+   *  changefeed subscription that re-queries on relevant invalidations. */
+  private adapt(raw: RawObjectSet, query: ObjectQuery): ObjectSet {
     const notes = raw.notes ?? (typeof raw.note === 'string' ? [raw.note] : undefined);
     const objects = (raw.objects ?? []).map((object) => ({
       ...object,
@@ -162,12 +181,25 @@ export class HttpBlockHost implements BlockHost {
     }));
     const cardinality: ObjectCardinality =
       raw.shape?.cardinality ?? (objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many');
-    return {
+    const base: ObjectSet = {
       objects,
       shape: raw.shape ? { ...raw.shape, cardinality } : EMPTY_SHAPE,
       next_cursor: raw.next_cursor,
       notes,
       subscribe: () => () => {},
+    };
+    if (!query.live) return base;
+
+    return {
+      ...base,
+      subscribe: (callback) =>
+        this.changefeed.subscribe(query, () => {
+          void this.fetchRawObjectSet(query)
+            .then((nextRaw) => callback(this.adapt(nextRaw, query)))
+            .catch(() => {
+              // Silent degradation: stale bodies stay intact; status is external.
+            });
+        }),
     };
   }
 }

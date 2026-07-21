@@ -284,6 +284,27 @@ export interface ViewSource {
   readonly allowedBespokeReason?: string;
 }
 
+/** Where a block may mount in the console shell (HANDOFF-CONSOLE-BLOCK-SYSTEM). */
+export type MountPoint = "stripe" | "chrome" | "island" | "surface" | "companion";
+
+/** Density grammar for island and surface bodies. */
+export type BlockDensity = "compact" | "cozy" | "both";
+
+/**
+ * Grid spans on the 12-column island grid:
+ * s 3x2, m 4x3, v 3x5 (vertical), sq 4x4, w 6x3, full = surface.
+ */
+export type BlockSize = "s" | "m" | "v" | "sq" | "w" | "full";
+
+/** Optional presentation grammar. Absent means surface-only (not a movable island). */
+export interface BlockPresentation {
+  /** Usage-named, verb plus noun (e.g. "browse records"). */
+  readonly usage: string;
+  readonly mounts: readonly MountPoint[];
+  readonly sizes: readonly BlockSize[];
+  readonly density: BlockDensity;
+}
+
 export interface ViewDescriptor {
   readonly id: string;
   readonly name: string;
@@ -292,4 +313,6 @@ export interface ViewDescriptor {
   readonly renderer: string;
   readonly source: ViewSource;
   readonly render: React.ComponentType<ViewRenderProps>;
+  /** Additive. Descriptors without `block` still register and render inside surfaces. */
+  readonly block?: BlockPresentation;
 }

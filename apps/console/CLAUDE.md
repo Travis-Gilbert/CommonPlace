@@ -96,7 +96,7 @@ gap: add the row, with a named source, before writing code.
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
 | React lifecycle motion | `motion` (`motion/react`) | entrances per the interaction inventory |
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
-| Client state | `zustand` | run state, shell session state |
+| Client state | `jotai` | shell, thread, memory projection, proactivity (atomFamily / atomWithStorage) |
 | Account identity | Auth.js with GitHub | OAuth, session state, sign-in, sign-out, verified user claims |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |

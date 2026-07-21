@@ -163,10 +163,12 @@
   --ij-toolwindow-header-h: 36px;
   --ij-stripe-icon: 20px;
   --ij-nav-row-h: 40px;
-  /* Islands layout (Spec 34 / amendment 35): radius and gutter are material
-     spacing, not the control arc. */
+  /* Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.
+     Island edge is the frame showing through (border equals island fill). */
   --ij-island-radius: 10px;
-  --ij-island-gutter: 10px;
+  --ij-island-gutter: 6px;
+  --ij-inactive-alpha: 0.44;
+  --ij-island-border: transparent;
   /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
      Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
   --ij-ground-terra: #4C271D;
@@ -202,7 +204,7 @@
   --ij-toolwindow-header-h: 28px;
   --ij-nav-row-h: 36px;
   --ij-tab-h: 36px;
-  --ij-island-gutter: 8px;
+  --ij-island-gutter: 6px;
   --ij-stripe-icon: 16px;
 }
 

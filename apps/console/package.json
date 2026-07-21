@@ -49,6 +49,7 @@
     "cmdk": "^1.1.1",
     "d3": "^7.9.0",
     "eventsource-parser": "^3.0.0",
+    "jotai": "^2.20.2",
     "motion": "^12.35.0",
     "next": "^16.1.6",
     "next-auth": "^5.0.0-beta.30",
@@ -57,8 +58,7 @@
     "react-resizable-panels": "^3.0.6",
     "tailwindcss": "^4.1.18",
     "textmode.js": "^0.17.0",
-    "zod": "^3.25.76",
-    "zustand": "^5.0.12"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

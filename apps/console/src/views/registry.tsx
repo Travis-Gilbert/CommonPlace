@@ -25,6 +25,14 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import {
+  BrowserPaneBlock,
+  CanvasBlock,
+  DocumentBlock,
+  KanbanBlock,
+  TerminalBlock,
+} from './blocks/DeclaredBlocks';
+import { AutomationHistoryView } from './blocks/AutomationHistoryView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -53,6 +61,12 @@ const RECORD_TABLE: ViewDescriptor = {
     component: 'useReactTable',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse records',
+    mounts: ['island', 'surface'],
+    sizes: ['m', 'w', 'full'],
+    density: 'compact',
   },
   render: RecordTableView,
 };
@@ -113,6 +127,12 @@ const CHAT_SURFACE: ViewDescriptor = {
     component: 'ThreadPrimitive',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'compose with the agent',
+    mounts: ['surface', 'island'],
+    sizes: ['w', 'full'],
+    density: 'both',
   },
   render: ChatSurfaceRender,
 };
@@ -326,6 +346,8 @@ const GOAL_STACK: ViewDescriptor = {
   render: GoalStackView,
 };
 
+
+
 const APPEARANCE: ViewDescriptor = {
   id: 'settings.appearance',
   name: 'Appearance',
@@ -356,6 +378,132 @@ const ACCOUNT: ViewDescriptor = {
   render: AccountView,
 };
 
+const TERMINAL: ViewDescriptor = {
+  id: 'terminal',
+  name: 'Terminal',
+  accepts: {},
+  emits: ['invoke_tool'],
+  renderer: 'terminal',
+  source: {
+    package: 'textmode.js',
+    component: 'Textmode',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'operate a shell',
+    mounts: ['island', 'surface'],
+    sizes: ['w', 'full'],
+    density: 'compact',
+  },
+  render: TerminalBlock,
+};
+
+const BROWSER_PANE: ViewDescriptor = {
+  id: 'browser-pane',
+  name: 'Browser',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'browser-pane',
+  source: {
+    package: 'servo-render-worker',
+    component: 'POST /render',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'view a page',
+    mounts: ['island', 'surface'],
+    sizes: ['w', 'full'],
+    density: 'both',
+  },
+  render: BrowserPaneBlock,
+};
+
+const KANBAN: ViewDescriptor = {
+  id: 'kanban',
+  name: 'Kanban',
+  accepts: {},
+  emits: ['update', 'move', 'select'],
+  renderer: 'kanban',
+  source: {
+    package: '@dnd-kit/core',
+    component: 'DndContext',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'move work through states',
+    mounts: ['island', 'surface'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+  },
+  render: KanbanBlock,
+};
+
+const DOCUMENT_OUTPUT: ViewDescriptor = {
+  id: 'document',
+  name: 'Document output',
+  accepts: {},
+  emits: ['open', 'dispatch'],
+  renderer: 'document',
+  source: {
+    package: 'akii09/pdfx',
+    component: 'PDFDocument',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'produce a document',
+    mounts: ['surface', 'island'],
+    sizes: ['m', 'w', 'full'],
+    density: 'cozy',
+  },
+  render: DocumentBlock,
+};
+
+const CANVAS: ViewDescriptor = {
+  id: 'canvas',
+  name: 'Canvas',
+  accepts: {},
+  emits: ['update', 'select', 'open'],
+  renderer: 'canvas',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'arrange spatially',
+    mounts: ['surface'],
+    sizes: ['full'],
+    density: 'both',
+  },
+  render: CanvasBlock,
+};
+
+const AUTOMATION_HISTORY: ViewDescriptor = {
+  id: 'automation.history',
+  name: 'Automation history',
+  accepts: {},
+  emits: ['select', 'open'],
+  renderer: 'automation.history',
+  source: {
+    package: 'jal-co/ui',
+    component: 'commit-graph',
+    mode: 'reskin',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'review automation history',
+    mounts: ['island', 'surface'],
+    sizes: ['m', 'w', 'full'],
+    density: 'compact',
+  },
+  render: AutomationHistoryView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -377,6 +525,12 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   WORKSPACE_SUBSTRATE,
   GOAL_STACK,
   ACCOUNT,
+  TERMINAL,
+  BROWSER_PANE,
+  KANBAN,
+  DOCUMENT_OUTPUT,
+  CANVAS,
+  AUTOMATION_HISTORY,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

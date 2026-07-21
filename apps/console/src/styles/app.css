@@ -292,6 +292,12 @@ body {
   position: relative;
 }
 
+/* Island edge is the frame showing through: no stroke (choice 8). */
+[data-island] {
+  border-color: var(--ij-island-border, transparent);
+  box-shadow: none;
+}
+
 [data-panel-seam]::after {
   content: '';
   position: absolute;
