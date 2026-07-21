@@ -67,7 +67,7 @@ const RECORD_TABLE: ViewDescriptor = {
   },
   block: {
     usage: 'browse records',
-    mounts: ['island', 'surface'],
+    mounts: ['island', 'surface', 'stripe'],
     sizes: ['m', 'w', 'full'],
     density: 'compact',
     surfaceClass: 'tool',
@@ -89,6 +89,14 @@ const MARKDOWN_DOC: ViewDescriptor = {
     mode: 'wrap',
     regime: 'css-vars',
   },
+  block: {
+    usage: 'read a document',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'doc',
+  },
   render: GalleyDocView,
 };
 
@@ -103,6 +111,14 @@ const CODE_FILE: ViewDescriptor = {
     component: 'EditorView',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect code',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'terminal',
   },
   render: CodeFileView,
 };
@@ -121,7 +137,7 @@ const CHAT_THREAD: ViewDescriptor = {
   },
   block: {
     usage: 'follow the thread',
-    mounts: ['companion', 'chrome'],
+    mounts: ['companion', 'chrome', 'stripe'],
     sizes: ['m', 'w'],
     density: 'compact',
     surfaceClass: 'tool',
@@ -144,7 +160,7 @@ const CHAT_SURFACE: ViewDescriptor = {
   },
   block: {
     usage: 'compose with the agent',
-    mounts: ['surface', 'island'],
+    mounts: ['surface', 'island', 'stripe'],
     sizes: ['w', 'full'],
     density: 'both',
     surfaceClass: 'tool',
@@ -299,7 +315,7 @@ const CARD_FULL: ViewDescriptor = {
   },
   block: {
     usage: 'inspect a record card',
-    mounts: ['island', 'surface'],
+    mounts: ['island', 'surface', 'stripe'],
     sizes: ['s', 'm', 'sq'],
     density: 'cozy',
     surfaceClass: 'editor',
@@ -322,7 +338,7 @@ const CARDS_GRID: ViewDescriptor = {
   },
   block: {
     usage: 'browse record cards',
-    mounts: ['island', 'surface'],
+    mounts: ['island', 'surface', 'stripe'],
     sizes: ['m', 'w', 'full'],
     density: 'cozy',
     surfaceClass: 'editor',

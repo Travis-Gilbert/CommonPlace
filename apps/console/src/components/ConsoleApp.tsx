@@ -130,6 +130,9 @@ export function ConsoleApp({
 
   useEffect(() => {
     if (!host) return;
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-layout-ready', '0');
+    }
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
     void host.probe();
@@ -137,8 +140,11 @@ export function ConsoleApp({
     // editable, persistent content (the file-editing wire).
     void host.ensureSeedContent();
     // B6: layouts as data. Adopt server arrangement or push the local seed.
-    void host.ensureSeedLayout();
     let active = true;
+    void host.ensureSeedLayout().finally(() => {
+      if (!active || typeof document === 'undefined') return;
+      document.documentElement.setAttribute('data-layout-ready', '1');
+    });
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {
         if (!active || !response.ok) return;

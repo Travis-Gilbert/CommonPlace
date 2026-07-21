@@ -130,8 +130,26 @@ function companionIds(prefix: string): string[] {
  * layouts available through the layout switcher and Command mode. */
 export function seedLayout(): ObjectRef[] {
   return [
+    layoutObject('console.region-landmarks', 'region', {
+      kind: 'landmarks',
+      title: 'Landmarks',
+      collapsed: false,
+      seed_revision: 1,
+    }, ['console.landmark-chat', 'console.landmark-records']),
+    layoutObject('console.landmark-chat', 'view-instance', {
+      descriptor_id: 'chat.surface',
+      title: 'Chat',
+      pinned: true,
+      query: { types: ['thread'] } as unknown as JsonValue,
+    }),
+    layoutObject('console.landmark-records', 'view-instance', {
+      descriptor_id: 'record.table',
+      title: 'Records',
+      query: { types: ['record'], page: { limit: 100 } } as unknown as JsonValue,
+    }),
+
     layoutObject(SURFACE_ID, 'surface', {
-      name: 'Chat', kind: 'chat', role: 'surface', stripe_order: 0, active: true, seed_revision: 2,
+      name: 'Chat', kind: 'chat', role: 'surface', stripe_order: 0, active: true, seed_revision: 3,
     }, ['chat.region-editor', ...companionIds('chat')]),
     layoutObject('chat.region-editor', 'region', {
       kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,

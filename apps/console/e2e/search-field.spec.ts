@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function freshLoad(page: Page) {
   await page.goto('/');
-  await page.evaluate(() => localStorage.removeItem('commonplace.console.surface.v1'));
+  await page.evaluate(() => localStorage.removeItem('commonplace.console.layout-cache.v1'); localStorage.removeItem('commonplace.console.surface.v1'));
   await page.reload();
   await page.waitForSelector('[data-shell]');
   await page.waitForTimeout(600);

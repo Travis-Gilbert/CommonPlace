@@ -11,7 +11,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectEveryRegionPainted, luminance, resolveToken } from './paint-audit';
 
 const APPEARANCE_KEY = 'commonplace.console.appearance.v1';
-const SURFACE_KEY = 'commonplace.console.surface.v1';
+const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
+const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
 
 const THEMES = [
   { theme: 'dark', preset: 'intellij-dark' },
@@ -27,10 +28,11 @@ async function settled(page: Page) {
  *  same path, so a signature cannot pass in one mode by taking a shortcut. */
 async function openWorkspace(page: Page, preset: string) {
   await page.goto('/');
-  await page.evaluate(([appearance, surface]) => {
+  await page.evaluate(([appearance, layout, legacy]) => {
     localStorage.removeItem(appearance);
-    localStorage.removeItem(surface);
-  }, [APPEARANCE_KEY, SURFACE_KEY]);
+    localStorage.removeItem(layout);
+    localStorage.removeItem(legacy);
+  }, [APPEARANCE_KEY, LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY]);
   await page.reload();
   await settled(page);
   await page.locator('[data-layout-switcher]').click();
@@ -129,13 +131,18 @@ for (const { theme, preset } of THEMES) {
       await expect(selected).not.toHaveCSS('background-color', accent);
       await expect(selected).toHaveCSS('color', ink);
 
-      // The stripe is frame chrome (flush activity bar), not an island.
+      // The sidebar is frame chrome (flush activity bar), not an island.
       const stripe = page.locator('[data-paint-region="stripe"]');
-      await expect(stripe).toHaveCSS('width', '40px');
+      await expect(stripe).toHaveCSS('width', '264px');
       await expect(stripe).toHaveAttribute('data-frame-resident', 'stripe');
+      await expect(stripe).toHaveAttribute('data-sidebar-collapsed', 'false');
       await expect(stripe).not.toHaveAttribute('data-island');
       const glyph = selected.locator('svg');
-      await expect(glyph).toHaveAttribute('width', '20');
+      await expect(glyph).toHaveAttribute('width', '16');
+      await page.keyboard.press('Meta+b');
+      await expect(stripe).toHaveAttribute('data-sidebar-collapsed', 'true');
+      await expect(stripe).toHaveCSS('width', '44px');
+      await page.keyboard.press('Meta+b');
 
       // Toggling a companion keeps the same grammar and the radio/toggle
       // semantics the I1 e2e governs.

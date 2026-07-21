@@ -83,6 +83,8 @@
   --radius-ij-arc: var(--ij-arc);
   --radius-ij-arc-underline: var(--ij-arc-underline);
   --radius-ij-island: var(--ij-island-radius);
+  /* Sidebar rows use the register's 8px component arc. */
+  --radius-ij-sidebar-row: var(--ij-arc);
 
   /* Type */
   --font-ij-ui: var(--ij-font-ui);
@@ -102,6 +104,10 @@
   --spacing-ij-control: var(--ij-control-h);
   --spacing-ij-tab: var(--ij-tab-h);
   --spacing-ij-stripe: var(--ij-stripe-w);
+  --spacing-ij-sidebar-expanded: var(--ij-sidebar-expanded-w);
+  --spacing-ij-sidebar-collapsed: var(--ij-sidebar-collapsed-w);
+  --spacing-ij-sidebar-pip: var(--ij-sidebar-pip-w);
+  --spacing-ij-stripe-icon: var(--ij-stripe-icon);
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
@@ -145,6 +151,11 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
+  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe. */
+  --ij-sidebar-expanded-w: 264px;
+  --ij-sidebar-collapsed-w: 44px;
+  --ij-sidebar-pip-w: 2px;
+  --ij-stripe-w: var(--ij-sidebar-expanded-w);
   --ij-composer-min-h: 48px;
   --ij-composer-max-h: 164px;
   --ij-composer-full-min-h: calc(var(--ij-composer-min-h) + var(--ij-control-h));
@@ -175,8 +186,8 @@
   --ij-island-title-size: 15px;
   --ij-island-section-size: 12px;
   --ij-island-meta-size: 11px;
-  --ij-stripe-icon: 20px;
-  --ij-nav-row-h: 40px;
+  --ij-stripe-icon: 16px;
+  --ij-nav-row-h: 36px;
   /* Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.
      Border color equals the island fill (tool = chrome, editor overrides below).
      No visible stroke; gutters show the frame between islands. */
@@ -203,6 +214,10 @@
   --ij-editor-line: var(--ij-hover-overlay);
   --ij-search-match: var(--ij-selection-inactive);
   --ij-text-selection: var(--ij-selection);
+}
+
+[data-register="intui"] [data-sidebar-collapsed="true"] {
+  --ij-stripe-w: var(--ij-sidebar-collapsed-w);
 }
 
 [data-register="intui"][data-theme="light"] {
