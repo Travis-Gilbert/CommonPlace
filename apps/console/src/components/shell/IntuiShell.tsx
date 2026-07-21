@@ -24,6 +24,7 @@ import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
+import { IslandArrangementHost } from '@/components/blocks/IslandArrangementHost';
 import { MainToolbar } from './MainToolbar';
 import { StatusBar } from './StatusBar';
 import { SearchPanel } from './SearchField';
@@ -32,12 +33,12 @@ import { RecordInspector } from '@/views/RecordInspector';
 import {
   IconCards,
   IconDoc,
-  IconHide,
   IconInspector,
   IconMemory,
   IconModel,
   IconRail,
   IconRecords,
+  IconRun,
   IconThread,
   IconWorkspace,
 } from './icons';
@@ -72,6 +73,7 @@ const REGION_ICONS: Record<string, typeof IconRecords> = {
   docs: IconDoc,
   files: IconDoc,
   context: IconMemory,
+  automation: IconRun,
 };
 
 interface RegionNode {
@@ -94,8 +96,9 @@ function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
       object: child.object,
       instances: child.children.map((candidate) => candidate.object),
     };
-    if (child.object.properties.kind === 'editor') editor = node;
-    else if (child.object.properties.side === 'right') right.push(node);
+    if (child.object.properties.kind === 'editor' || child.object.properties.kind === 'grid') {
+      editor = node;
+    } else if (child.object.properties.side === 'right') right.push(node);
     else left.push(node);
   }
   return { left, right, editor };
@@ -223,34 +226,9 @@ function SurfaceNavGroup({
   );
 }
 
-/** The Int UI tool window header strip (amendment 35). A 36px Manrope band
- *  naming the island; hide affordance on the right. Paint is transparent so
- *  the Material Layer owns the surface. */
-function ToolWindowHeader({ title, onHide }: { title: string; onHide: () => void }) {
-  return (
-    <div
-      data-tool-window-header
-      data-island-header
-      data-paint-region="tool-window-header"
-      className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam bg-transparent px-3 text-ij-ink"
-      style={{ fontFamily: 'var(--cp-font-human)', fontWeight: 600 }}
-    >
-      <span className="min-w-0 flex-1 truncate">{title}</span>
-      <button
-        type="button"
-        data-tool-window-hide
-        aria-label={`Hide ${title}`}
-        title={`Hide ${title}`}
-        onClick={onHide}
-        className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-        style={{ transition: 'var(--rec-clickable-transition)' }}
-      >
-        <IconHide size={14} />
-      </button>
-    </div>
-  );
-}
-
+/** The Int UI tool window slot. Island chrome lives on IslandShell inside
+ *  ViewInstanceHost (HANDOFF-CONSOLE-ISLAND-SHELL remodel); this wrapper is
+ *  layout only and must not paint or register as an island. */
 function ToolWindow({
   region,
   host,
@@ -276,13 +254,17 @@ function ToolWindow({
       aria-label={`${title} tool window`}
       data-tool-window={String(region.object.properties.companion ?? region.object.id)}
       data-paint-region="tool-window"
-      data-island="tool"
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
-      <ToolWindowHeader title={title} onHide={onHide} />
       <div className="min-h-0 flex-1">
         {region.instances.map((instance) => (
-          <ViewInstanceHost key={instance.id} instance={instance} host={host} />
+          <ViewInstanceHost
+            key={instance.id}
+            instance={instance}
+            host={host}
+            forceShell
+            onHide={onHide}
+          />
         ))}
       </div>
     </motion.section>
@@ -470,6 +452,15 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return <div className="h-full w-full bg-ij-frame" aria-busy="true" />;
   }
 
+  const chromeRegionIds = useMemo(
+    () => [...regions.left, ...regions.right].map((region) => region.object.id),
+    [regions.left, regions.right],
+  );
+  const stripeTrayId =
+    [...regions.left, ...regions.right].find(
+      (region) => region.object.properties.kind === 'stripe-tray',
+    )?.object.id ?? null;
+
   const editorPane = (
     <motion.div
       initial={durations.reduced ? false : { opacity: 0 }}
@@ -484,7 +475,18 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       }}
       className="h-full min-h-0"
     >
-      <EditorTabs region={editor.object} instances={editor.instances} host={host} />
+      {editor.object.properties.kind === 'grid' ? (
+        <IslandArrangementHost
+          region={editor.object}
+          instances={editor.instances}
+          host={host}
+          chromeRegionIds={chromeRegionIds}
+          stripeRegionId={stripeTrayId}
+          surfaceEditorRegionId={editor.object.id}
+        />
+      ) : (
+        <EditorTabs region={editor.object} instances={editor.instances} host={host} />
+      )}
     </motion.div>
   );
 

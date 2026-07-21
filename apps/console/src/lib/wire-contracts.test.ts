@@ -103,6 +103,7 @@ function snapshot(text: string, turnStatus: TheoremAgentState['turnStatus']): Th
     ],
     pendingPermission: null,
     blockedReason: null,
+    bootBrief: null,
   };
 }
 

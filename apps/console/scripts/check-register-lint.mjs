@@ -115,7 +115,7 @@ for (const file of walk(srcRoot)) {
   const lines = text.split('\n');
   lines.forEach((line, index) => {
     const marksChromeLabel =
-      /data-tool-window-header|data-paint-region="tool-window-header"|data-surface-nav/.test(line);
+      /data-island-header|data-paint-region="island-header"|data-island-title|data-surface-nav/.test(line);
     const usesMono =
       /\bfont-ij-mono\b|\bfont-mono\b|JetBrains Mono|--ij-font-mono|--font-console-jbmono/.test(line);
     if (marksChromeLabel && usesMono) {

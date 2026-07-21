@@ -25,6 +25,8 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import { StatusPanel } from './harness-ux/StatusPanel';
+import { WhyTracePanel } from './harness-ux/WhyTracePanel';
 import {
   BrowserPaneBlock,
   CanvasBlock,
@@ -57,8 +59,8 @@ const RECORD_TABLE: ViewDescriptor = {
   emits: ['select', 'open', 'update'],
   renderer: 'record.table',
   source: {
-    package: '@tanstack/react-table',
-    component: 'useReactTable',
+    package: 'jacksonkasi1/tnks-data-table',
+    component: 'TnksDataTable',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -67,6 +69,9 @@ const RECORD_TABLE: ViewDescriptor = {
     mounts: ['island', 'surface'],
     sizes: ['m', 'w', 'full'],
     density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
+    bodyBleed: 'flush',
   },
   render: RecordTableView,
 };
@@ -113,6 +118,14 @@ const CHAT_THREAD: ViewDescriptor = {
     mode: 'wrap',
     regime: 'css-vars',
   },
+  block: {
+    usage: 'follow the thread',
+    mounts: ['companion', 'chrome'],
+    sizes: ['m', 'w'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'thread',
+  },
   render: ThreadRender,
 };
 
@@ -124,7 +137,7 @@ const CHAT_SURFACE: ViewDescriptor = {
   renderer: 'chat.surface',
   source: {
     package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    component: 'Composer',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -133,6 +146,8 @@ const CHAT_SURFACE: ViewDescriptor = {
     mounts: ['surface', 'island'],
     sizes: ['w', 'full'],
     density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'thread',
   },
   render: ChatSurfaceRender,
 };
@@ -149,6 +164,14 @@ const FILES_TREE: ViewDescriptor = {
     mode: 'wrap',
     regime: 'css-vars',
   },
+  block: {
+    usage: 'browse files',
+    mounts: ['companion', 'chrome'],
+    sizes: ['m', 'w'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'files',
+  },
   render: FilesRender,
 };
 
@@ -163,6 +186,14 @@ const CONTEXT_GRAPH: ViewDescriptor = {
     component: 'scalePoint',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect context',
+    mounts: ['companion', 'chrome'],
+    sizes: ['m', 'w'],
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'context',
   },
   render: ContextRender,
 };
@@ -265,6 +296,14 @@ const CARD_FULL: ViewDescriptor = {
     regime: 'css-vars',
     allowedBespokeReason: 'kind-templated card layouts are a domain concept no library models',
   },
+  block: {
+    usage: 'inspect a record card',
+    mounts: ['island', 'surface'],
+    sizes: ['s', 'm', 'sq'],
+    density: 'cozy',
+    surfaceClass: 'editor',
+    kindGlyph: 'cards',
+  },
   render: CardFullView,
 };
 
@@ -279,6 +318,14 @@ const CARDS_GRID: ViewDescriptor = {
     component: 'useVirtualizer',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse record cards',
+    mounts: ['island', 'surface'],
+    sizes: ['m', 'w', 'full'],
+    density: 'cozy',
+    surfaceClass: 'editor',
+    kindGlyph: 'cards',
   },
   render: CardGridView,
 };
@@ -346,7 +393,39 @@ const GOAL_STACK: ViewDescriptor = {
   render: GoalStackView,
 };
 
+const HARNESS_STATUS: ViewDescriptor = {
+  id: 'harness.status',
+  name: 'Harness Status',
+  accepts: {},
+  emits: ['open', 'select', 'update'],
+  renderer: 'harness.status',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The status report is a Harness contract surface with actionable waiting items and backend degradation.',
+  },
+  render: StatusPanel,
+};
 
+const HARNESS_WHY: ViewDescriptor = {
+  id: 'harness.why',
+  name: 'Why Trace',
+  accepts: {},
+  emits: ['open', 'select'],
+  renderer: 'harness.why',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The why trace renders an untransformed Harness explainer payload and optional remedy.',
+  },
+  render: WhyTracePanel,
+};
 
 const APPEARANCE: ViewDescriptor = {
   id: 'settings.appearance',
@@ -395,6 +474,9 @@ const TERMINAL: ViewDescriptor = {
     mounts: ['island', 'surface'],
     sizes: ['w', 'full'],
     density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'terminal',
+    bodyBleed: 'flush',
   },
   render: TerminalBlock,
 };
@@ -416,6 +498,9 @@ const BROWSER_PANE: ViewDescriptor = {
     mounts: ['island', 'surface'],
     sizes: ['w', 'full'],
     density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'browser',
+    bodyBleed: 'flush',
   },
   render: BrowserPaneBlock,
 };
@@ -437,6 +522,8 @@ const KANBAN: ViewDescriptor = {
     mounts: ['island', 'surface'],
     sizes: ['m', 'w', 'full'],
     density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'kanban',
   },
   render: KanbanBlock,
 };
@@ -449,7 +536,7 @@ const DOCUMENT_OUTPUT: ViewDescriptor = {
   renderer: 'document',
   source: {
     package: 'akii09/pdfx',
-    component: 'PDFDocument',
+    component: 'PdfxDocument',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -458,6 +545,8 @@ const DOCUMENT_OUTPUT: ViewDescriptor = {
     mounts: ['surface', 'island'],
     sizes: ['m', 'w', 'full'],
     density: 'cozy',
+    surfaceClass: 'editor',
+    kindGlyph: 'doc',
   },
   render: DocumentBlock,
 };
@@ -500,6 +589,8 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
     mounts: ['island', 'surface'],
     sizes: ['m', 'w', 'full'],
     density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'automation',
   },
   render: AutomationHistoryView,
 };
@@ -524,6 +615,8 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   PROACTIVITY,
   WORKSPACE_SUBSTRATE,
   GOAL_STACK,
+  HARNESS_STATUS,
+  HARNESS_WHY,
   ACCOUNT,
   TERMINAL,
   BROWSER_PANE,

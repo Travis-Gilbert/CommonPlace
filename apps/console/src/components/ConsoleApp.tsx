@@ -27,6 +27,7 @@ import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
+import { useWindowInactiveOverlay } from '@/lib/use-window-inactive';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
 import type { ProactivityGraph } from '@/lib/proactivity/types';
 
@@ -101,6 +102,7 @@ export function ConsoleApp({
   const setPresence = useShellStore((state) => state.setPresence);
   const hydrateProactivity = useProactivityStore((state) => state.hydrate);
   const failProactivity = useProactivityStore((state) => state.fail);
+  useWindowInactiveOverlay();
 
   const host = useMemo(
     () =>
@@ -134,6 +136,8 @@ export function ConsoleApp({
     // Seed the backend's document fixtures once so the Documents surface has
     // editable, persistent content (the file-editing wire).
     void host.ensureSeedContent();
+    // B6: layouts as data. Adopt server arrangement or push the local seed.
+    void host.ensureSeedLayout();
     let active = true;
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {

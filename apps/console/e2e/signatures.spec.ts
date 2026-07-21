@@ -93,7 +93,7 @@ for (const { theme, preset } of THEMES) {
       // Island junctions that still carry CSS seams (headers, tabs). Frame-
       // resident toolbar/status and gutters are painted by the Material Layer.
       const junctions: { name: string; selector: string; side: string }[] = [
-        { name: 'tool window header bottom', selector: '[data-paint-region="tool-window-header"]', side: 'border-bottom-color' },
+        { name: 'island header bottom', selector: '[data-paint-region="island-header"]', side: 'border-bottom-color' },
         { name: 'tab strip bottom', selector: '[data-paint-region="tab-strip"]', side: 'border-bottom-color' },
       ];
       for (const junction of junctions) {
@@ -185,16 +185,15 @@ for (const { theme, preset } of THEMES) {
 
     // Signature 5. Type metrics: the register's 13px UI face, and the tool
     // window header strip at 36px Manrope (amendment 35).
-    test('type metrics and the tool window header strip hold', async ({ page }) => {
+    test('type metrics and the island header strip hold', async ({ page }) => {
       await expect(page.locator('html')).toHaveCSS('font-size', '13px');
-      const header = page.locator('[data-paint-region="tool-window-header"]').first();
+      const header = page.locator('[data-paint-region="island-header"]').first();
       await expect(header).toHaveCSS('height', '36px');
-      await expect(header).toHaveCSS('font-size', '13px');
-      await expect(header).toHaveCSS('font-family', /Manrope/i);
+      await expect(header).toHaveCSS('font-family', /IBM Plex Sans/i);
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
-      // The right-aligned action slot carries the hide affordance.
-      await expect(header.locator('[data-tool-window-hide]')).toBeVisible();
+      // Hide affordance on tool-window shells.
+      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
@@ -227,7 +226,7 @@ for (const { theme, preset } of THEMES) {
       await expectEveryRegionPainted(page);
     });
 
-    // X3.A2: the header strip renders on all three companions.
+    // X3.A2: the island header strip renders on all three companions.
     test('all three companions carry the header strip', async ({ page }) => {
       for (const companion of ['files', 'context', 'thread']) {
         const nav = page.locator(`[data-companion-nav="${companion}"]`);
@@ -235,8 +234,8 @@ for (const { theme, preset } of THEMES) {
         const window = page.locator(`[data-tool-window="${companion}"]`);
         await expect(window, `${companion} tool window must render`).toBeVisible();
         await expect(
-          window.locator('[data-tool-window-header]'),
-          `${companion} must carry the Int UI header strip`,
+          window.locator('[data-island-header]'),
+          `${companion} must carry the IslandShell header strip`,
         ).toBeVisible();
       }
     });

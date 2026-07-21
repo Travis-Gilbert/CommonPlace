@@ -1062,10 +1062,26 @@
         "src/styles/register-bridge.css"
       ]
     },
+    "--ij-island-body-pad": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
     "--ij-island-border": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-island-footer-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
       "resolvedAlsoIn": []
     },
     "--ij-island-gutter": {
@@ -1076,16 +1092,60 @@
         "src/styles/register-bridge.css"
       ]
     },
+    "--ij-island-header-editor": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Header band: island base raised one elevation step, chroma +0.005..0.010.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-island-header-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-island-header-tool": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Header band: island base raised one elevation step, chroma +0.005..0.010.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-island-meta-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
+      "resolvedAlsoIn": []
+    },
     "--ij-island-radius": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.",
       "resolvedAlsoIn": []
     },
+    "--ij-island-section-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
+      "resolvedAlsoIn": []
+    },
     "--ij-island-terra-tint": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-island-title-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1159,7 +1219,7 @@
     "--ij-nav-row-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1475,7 +1535,7 @@
     "--ij-stripe-icon": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1541,7 +1601,7 @@
     "--ij-toolwindow-header-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Island headers (amendment 35): 36px Manrope band. Stripe icon stays 20px",
+      "note": "Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]

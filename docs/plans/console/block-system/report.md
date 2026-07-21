@@ -7,27 +7,37 @@ a declared block only).
 
 ## Not done (lead)
 
-- **B6 layouts as data:** `LAYOUT_TYPES` shim still serves surface/region/view-instance
-  from local host state + localStorage. commonplace-api (Theorem) does not yet
-  persist those three types end to end in this session.
-- **B7 source installs:** jal-co/ui, tnks-data-table, blocks.so, linear-combobox,
-  pdfx, recursive-dnd-kanban vendor reference are not installed/reskinned yet.
-- **B9 proving trio (full):** records table and chat composer already render;
-  automation-history is a designed empty / list stub, not jal-co commit-graph.
-- **B10 dnd-kit movement and promotion:** not wired (island lift, grid rearrange,
-  stripe/dock promotion gestures).
-- **Paper MCP skin extract:** not run in this session (register remains truth).
+- **Paper MCP skin extract:** critical for skin work (choice 14). Not run yet;
+  Paper Desktop MCP at `127.0.0.1:29979` is required for extract passes. The
+  in-repo register remains canonical truth; Paper is the design surface and
+  extraction tool. Do not treat Paper as optional.
+- **B10 bottom-band dock:** web shell has no `[data-bottom-dock]` (by design;
+  Terminal dock removed). Island → chrome promotion docks into companion tool
+  windows instead. A literal bottom band remains a desktop follow-up.
+- **B10 e2e acceptance #7:** Playwright proof of island ↔ stripe round-trip
+  with two `ObjectActionReceipt`s is not yet added.
 
 ## Shipped
 
 | Deliverable | State |
 | --- | --- |
-| B1 presentation grammar | Shipped: `MountPoint` / `BlockPresentation` / `blocksForMount`; package tests green |
-| B2 register + gates | Shipped: gutter 6, frame inversion, island border transparent, inactiveAlpha 0.44, 1.20:1 island-to-frame in contrast gate + theme engine clamps; `gates` green |
-| B3 routes | Shipped: `/chat`, `/workspace`, `/index`, `/documents`, `/cards`; root redirects to `/chat`; stripe navigates via router |
-| B4 Jotai | Shipped: four stores under `lib/state/`; zustand removed from package.json |
-| B5 live sets | Shipped: `changefeed.ts`; HttpBlockHost honors `live`; MemoryBlockHost `emitTestEvent`; console host points at `/api/proactivity/stream` |
-| B8 declared blocks | Shipped: terminal, browser-pane, kanban, document, canvas with designed empty bodies; `blocksForMount("island")` includes them |
+| B1 presentation grammar | Shipped |
+| B2 register + gates | Shipped; `gates` green |
+| B3 routes | Shipped |
+| B4 Jotai | Shipped (zustand pin retained for peers) |
+| B5 live sets | Shipped |
+| B6 layouts as data | Shipped |
+| B7 source installs | Shipped: jalco + tnks / linear-combobox / pdfx / command-menu; recursive-dnd vendor ref |
+| B8 declared blocks | Shipped |
+| B9 proving trio | Shipped: records ViewSource → tnks; automation-history → jalco CommitGraph + harness status projection; composer Cmd/Ctrl-L + single unavailable slot |
+| B10 movement and promotion | Shipped (web): IslandGrid sortable rearrange + size snap → `emit`; promotion zones for stripe tray / chrome tools / expand-to-surface; Cards surface uses `kind: grid` with records + cards islands |
+
+## Topology note
+
+B6b HTTP `/objects/*` lives on CommonPlace `apps/commonplace-api` (console
+proxy). Theorem still has other object layers (`ColdObjectStore`,
+commonplace-web atoms, `block_view`). See
+`docs/learnings/2026-07-21-three-object-layers-not-http-only.md`.
 
 ## Supersession note
 

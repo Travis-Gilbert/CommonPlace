@@ -12,6 +12,10 @@
  * BlockHost seam changes — the SurfaceRenderer, the renderers, the surface
  * objects are identical. `viewsFor` returns client descriptors (the renderer
  * keys the module map knows); the server drives query/emit only.
+ *
+ * B6: layout types (surface / region / view-instance) travel the same wire as
+ * domain objects. There is no constructor surface array and no LAYOUT_TYPES
+ * short-circuit.
  */
 
 import type {
@@ -91,19 +95,11 @@ export interface HttpBlockHostConfig {
   readonly onStatus?: (status: number | null) => void;
 }
 
-const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
-
 export class HttpBlockHost implements BlockHost {
   readonly tokens: ThemeTokens = PORCELAIN_TOKENS;
   private readonly changefeed;
 
-  /** @param surfaceObjects the arrangement, served locally; only the domain
-   *  data (a view-instance's ObjectQuery) travels to the substrate. Once
-   *  surface objects are persisted server-side, drop this and query them too. */
-  constructor(
-    private readonly config: HttpBlockHostConfig,
-    private readonly surfaceObjects: readonly ObjectRef[] = [],
-  ) {
+  constructor(private readonly config: HttpBlockHostConfig) {
     this.changefeed = resolveChangefeedClient({
       url: this.config.changefeedUrl,
       onStatus: this.config.onChangefeedStatus,
@@ -117,17 +113,6 @@ export class HttpBlockHost implements BlockHost {
   }
 
   async query(query: ObjectQuery): Promise<ObjectSet> {
-    if (query.types.some((type) => LAYOUT_TYPES.has(type))) {
-      return {
-        objects: this.surfaceObjects,
-        shape: {
-          ...EMPTY_SHAPE,
-          types: [...query.types],
-          cardinality: this.surfaceObjects.length ? 'many' : 'empty',
-        },
-        subscribe: () => () => {},
-      };
-    }
     const raw = await this.fetchRawObjectSet(query);
     return this.adapt(raw, query);
   }

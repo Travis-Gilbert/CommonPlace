@@ -292,11 +292,17 @@ body {
   position: relative;
 }
 
-/* Island edge is the frame showing through: no stroke (choice 8). */
+/* Island border equals island fill (choice 8): consume register token only.
+   Tool/editor overrides live in register-bridge.css. Frame shows in the gutters. */
 [data-island] {
-  border-color: var(--ij-island-border, transparent);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--ij-island-border);
   box-shadow: none;
 }
+
+/* Window blur inactive wash lives in MaterialLayer (inactiveAlpha uniform).
+   `data-window-inactive` on <html> remains the signal; do not paint a DOM ::after. */
 
 [data-panel-seam]::after {
   content: '';

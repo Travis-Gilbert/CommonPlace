@@ -7,6 +7,7 @@
  */
 
 export * from './types';
+export * from './island-class';
 export * from './addressing';
 export * from './shape-match';
 export * from './registry';

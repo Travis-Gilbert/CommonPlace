@@ -45,6 +45,7 @@ interface ToolWindowSeed {
   readonly descriptorId: string;
   readonly companion?: 'files' | 'context' | 'thread';
   readonly queryTypes?: readonly string[];
+  readonly live?: boolean;
 }
 
 /** Register one role-bearing tool window and its descriptor-backed view. */
@@ -77,6 +78,7 @@ export function registerToolWindow(seed: ToolWindowSeed): ObjectRef[] {
             : seed.companion === 'context'
               ? ['context-view']
               : ['surface-tool']),
+        ...(seed.live ? { live: true } : {}),
       } as unknown as JsonValue,
     }),
   ];
@@ -140,8 +142,8 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('chat'),
 
     layoutObject(WORKSPACE_SURFACE_ID, 'surface', {
-      name: 'Workspace', kind: 'workspace', role: 'surface', stripe_order: 1, active: false, seed_revision: 2,
-    }, ['region-editor', ...companionIds('workspace')]),
+      name: 'Workspace', kind: 'workspace', role: 'surface', stripe_order: 1, active: false, seed_revision: 4,
+    }, ['region-editor', ...companionIds('workspace'), 'workspace.region-automation']),
     layoutObject('region-editor', 'region', {
       kind: 'editor', size: 72, active_tab: 'workspace.vi-substrate', seed_revision: 3,
     }, ['workspace.vi-substrate', 'vi-brief', 'vi-code']),
@@ -158,6 +160,18 @@ export function seedLayout(): ObjectRef[] {
       query: { types: ['code-file'], where: { kind: 'eq', field: 'path', value: 'packages/block-view/src/surface-tree.ts' } } as unknown as JsonValue,
     }),
     ...companionSeeds('workspace', true),
+    ...registerToolWindow({
+      id: 'workspace.region-automation',
+      title: 'Automation',
+      icon: 'automation',
+      side: 'left',
+      size: 28,
+      open: false,
+      role: 'companion',
+      descriptorId: 'automation.history',
+      queryTypes: ['run', 'dispatch'],
+      live: true,
+    }),
 
     layoutObject('console-goals', 'surface', {
       name: 'Goal Stack', kind: 'goals', role: 'surface', stripe_order: 2, active: false, seed_revision: 3,
@@ -218,15 +232,30 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('docs'),
 
     layoutObject('console-cards', 'surface', {
-      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 5, active: false, seed_revision: 2,
-    }, ['cards.region-editor', ...companionIds('cards')]),
+      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 5, active: false, seed_revision: 3,
+    }, ['cards.region-editor', 'cards.region-stripe-tray', ...companionIds('cards')]),
     layoutObject('cards.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'cards.vi-grid', seed_revision: 2,
-    }, ['cards.vi-grid']),
+      kind: 'grid', size: 100, seed_revision: 3,
+    }, ['cards.vi-grid', 'cards.vi-records']),
     layoutObject('cards.vi-grid', 'view-instance', {
       descriptor_id: 'cards.grid', title: 'Cards',
       query: { types: ['person', 'task', 'project', 'org'], page: { limit: 400 }, live: true } as unknown as JsonValue,
+      config: { size: 'w' } as unknown as JsonValue,
     }),
+    layoutObject('cards.vi-records', 'view-instance', {
+      descriptor_id: 'record.table', title: 'Records',
+      query: { types: ['record'], page: { limit: 100 }, live: true } as unknown as JsonValue,
+      config: { size: 'm' } as unknown as JsonValue,
+    }),
+    layoutObject('cards.region-stripe-tray', 'region', {
+      kind: 'stripe-tray',
+      side: 'left',
+      title: 'Stripe tray',
+      icon: 'records',
+      size: 12,
+      open: false,
+      role: 'companion',
+    }, []),
     ...companionSeeds('cards'),
 
     layoutObject('console-review', 'surface', {
@@ -270,6 +299,20 @@ export function seedLayout(): ObjectRef[] {
       } as unknown as JsonValue,
     }),
     ...companionSeeds('proactivity'),
+
+    layoutObject('console-harness-status', 'surface', {
+      name: 'Harness Status', kind: 'harness-status', role: 'surface', active: false, seed_revision: 1,
+    }, ['harness-status.region-editor', ...companionIds('harness-status')]),
+    layoutObject('harness-status.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'harness-status.vi-status', seed_revision: 1,
+    }, ['harness-status.vi-status', 'harness-status.vi-why']),
+    layoutObject('harness-status.vi-status', 'view-instance', {
+      descriptor_id: 'harness.status', title: 'Harness Status', query: { types: ['surface-tool'], live: true } as unknown as JsonValue,
+    }),
+    layoutObject('harness-status.vi-why', 'view-instance', {
+      descriptor_id: 'harness.why', title: 'Why Trace', query: { types: ['surface-tool'] } as unknown as JsonValue,
+    }),
+    ...companionSeeds('harness-status'),
 
     layoutObject(ACCOUNT_SURFACE_ID, 'surface', {
       name: 'Account', kind: 'account', role: 'surface', active: false, seed_revision: 2,

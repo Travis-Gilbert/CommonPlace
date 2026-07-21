@@ -28,3 +28,4 @@ Earlier islands-material choices that this handoff replaces:
 ## Status lead
 
 Not done at plan open: B1 through B10. Report updates live in `report.md`.
+B1 through B6 and B8 are shipped (see report); remaining: B7, B9 full, B10.

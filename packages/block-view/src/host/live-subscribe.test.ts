@@ -29,6 +29,27 @@ afterEach(() => {
 });
 
 describe('HttpBlockHost live subscriptions', () => {
+  it('queries layout types over HTTP (no LAYOUT_TYPES shim)', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({
+        objects: [{ id: 'console-chat', type: 'surface', properties: { name: 'Chat' } }],
+        shape: { types: ['surface'], fields: ['name'], relations: [], axes: {}, cardinality: 'one' },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const host = new HttpBlockHost({ baseUrl: '/api' });
+    const set = await host.query({
+      types: ['surface', 'region', 'view-instance'],
+      traverse: [{ edge: 'CONTAINS', dir: 'out' }],
+    });
+    expect(set.objects).toHaveLength(1);
+    expect(set.objects[0]?.id).toBe('console-chat');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/objects/query',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('re-queries on changefeed invalidation without throwing into the block body', async () => {
     let fetchCount = 0;
     vi.stubGlobal('fetch', vi.fn(async () => {

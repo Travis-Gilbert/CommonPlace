@@ -11,11 +11,17 @@ import {
   createTheoremAgentState,
   failTurn,
   resolvePendingPermission,
+  setBootBrief,
   setPendingPermission,
   type AgentProcessKey,
   type PendingPermission,
   type TheoremAgentState,
 } from './state';
+import {
+  createEndpointBootProvider,
+  loadSessionBootBrief,
+  type BootPayloadProvider,
+} from './session-boot';
 
 export type AcquiredAcpSession = {
   client: AcpTransport;
@@ -37,6 +43,11 @@ type ProcessEntry = {
 type PendingDecision = {
   resolve: (decision: 'allow' | 'reject') => void;
   timeout: ReturnType<typeof setTimeout>;
+};
+
+export type AcpSessionManagerOptions = {
+  bootProvider?: BootPayloadProvider | null;
+  bootTokenCap?: number;
 };
 
 class ManagedAcpSession implements AcquiredAcpSession {
@@ -116,6 +127,10 @@ class ManagedAcpSession implements AcquiredAcpSession {
     this.#setState(failTurn(this.#state));
   }
 
+  setBootBrief(bootBrief: string | null): void {
+    this.#setState(setBootBrief(this.#state, bootBrief));
+  }
+
   #setState(state: TheoremAgentState): void {
     this.#state = state;
     for (const listener of this.#listeners) listener(state);
@@ -124,6 +139,8 @@ class ManagedAcpSession implements AcquiredAcpSession {
 
 export class AcpSessionManager {
   #processes = new Map<string, Promise<ProcessEntry>>();
+
+  constructor(readonly options: AcpSessionManagerOptions = {}) {}
 
   async acquire(key: AgentProcessKey): Promise<AcquiredAcpSession> {
     const processKey = serializeKey(key);
@@ -144,6 +161,8 @@ export class AcpSessionManager {
       throw error;
     }
     const session = new ManagedAcpSession(entry.client, sessionId, key);
+    const bootBrief = await this.#loadBootBrief().catch(() => null);
+    session.setBootBrief(bootBrief);
     entry.sessions.set(sessionId, session);
     return session;
   }
@@ -213,6 +232,15 @@ export class AcpSessionManager {
       throw error;
     }
   }
+
+  async #loadBootBrief(): Promise<string | null> {
+    const provider = this.options.bootProvider ?? defaultBootProvider();
+    if (!provider) return null;
+    return loadSessionBootBrief({
+      provider,
+      tokenCap: this.options.bootTokenCap ?? bootTokenCap(),
+    });
+  }
 }
 
 function serializeKey(key: AgentProcessKey): string {
@@ -222,4 +250,23 @@ function serializeKey(key: AgentProcessKey): string {
 function permissionTimeoutMs(): number {
   const configured = Number(process.env.THEOREM_ACP_PERMISSION_TIMEOUT_MS ?? 300_000);
   return Number.isFinite(configured) && configured > 0 ? configured : 300_000;
+}
+
+function bootTokenCap(): number {
+  const configured = Number(process.env.THEOREM_ACP_BOOT_TOKEN_CAP ?? 2000);
+  return Number.isFinite(configured) && configured > 0 ? configured : 2000;
+}
+
+function defaultBootProvider(): BootPayloadProvider | null {
+  const endpoint = bootEndpoint();
+  return endpoint ? createEndpointBootProvider(endpoint) : null;
+}
+
+function bootEndpoint(): string | null {
+  const explicit = process.env.THEOREM_ACP_BOOT_URL?.trim();
+  if (explicit) return explicit;
+  const origin = process.env.CONSOLE_PUBLIC_ORIGIN?.trim()
+    ?? process.env.NEXTAUTH_URL?.trim()
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+  return origin ? `${origin.replace(/\/$/, '')}/api/harness/boot` : null;
 }

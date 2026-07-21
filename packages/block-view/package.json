@@ -10,6 +10,7 @@
     "./shape-match": "./src/shape-match.ts",
     "./registry": "./src/registry.ts",
     "./descriptor-contracts": "./src/descriptor-contracts.ts",
+    "./island-class": "./src/island-class.ts",
     "./surface-tree": "./src/surface-tree.ts",
     "./surface-actions": "./src/surface-actions.ts",
     "./database/model": "./src/database/model.ts",

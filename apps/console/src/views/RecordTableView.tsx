@@ -1,12 +1,11 @@
 'use client';
 
-// SOURCING: @tanstack/react-table (tablecn structure: column defs + manual
-// server-driven sorting/filtering) + @tanstack/react-virtual (row
-// virtualization). The record.table descriptor (G6): fed by the block
-// contract; sort and filter bind to ObjectQuery against the host (the data
-// API seam), never to local demo state. Density is the --rec-* group: rows
-// on the 4px grid, 8px cell padding, 32px utility column, the 0.1s
-// background transition on every clickable row.
+// SOURCING: jacksonkasi1/tnks-data-table structure on @tanstack/react-table +
+// @tanstack/react-virtual (shared shell at components/sources/tnks-data-table).
+// The record.table descriptor (G6 / B9): fed by the block contract; sort and
+// filter bind to ObjectQuery against the host (the data API seam), never to
+// local demo state. Density is the --rec-* group: rows on the 4px grid, cell
+// padding and utility column from register tokens, clickable row transition.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -44,7 +43,7 @@ const STATUS_HUES: Record<string, { tint: string; ink: string }> = {
 function Chip({ label, hue }: { label: string; hue?: { tint: string; ink: string } }) {
   return (
     <span
-      className="inline-flex items-center rounded-ij-arc-underline px-2 leading-5"
+      className="inline-flex items-center px-2 leading-5"
       style={{
         background: hue?.tint ?? 'var(--ij-row-gray)',
         color: hue?.ink ?? 'var(--ij-ink-info)',
@@ -233,24 +232,31 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
   });
 
   if (stateKind === 'error') {
-    return <ViewState state="error" errorMessage="Record query failed." onRetry={() => setSorting([...sorting])} />;
+    return (
+      <ViewState
+        state="error"
+        mode="shell"
+        errorMessage="Record query failed."
+        onRetry={() => setSorting([...sorting])}
+      />
+    );
   }
 
   return (
-    <div ref={containerRef} tabIndex={-1} className="flex h-full flex-col bg-ij-chrome outline-none" data-records-state={stateKind}>
-      <div className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam px-2">
+    <div ref={containerRef} tabIndex={-1} className="flex h-full flex-col outline-none" data-records-state={stateKind}>
+      <div className="flex h-ij-toolbar shrink-0 items-center gap-2 px-2">
         <input
           value={filterText}
           onChange={(event) => setFilterText(event.target.value)}
           placeholder="Filter records"
           aria-label="Filter records by title"
-          className="h-ij-control min-w-0 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-rec-cell-pad text-ij-ink placeholder:text-ij-ink-disabled focus:outline-2 focus:outline-ij-accent"
+          className="h-ij-control min-w-0 flex-1 px-rec-cell-pad text-ij-ink placeholder:text-ij-ink-disabled focus:outline-2 focus:outline-ij-accent"
         />
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
           aria-label="Filter records by status"
-          className="h-ij-control shrink-0 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+          className="h-ij-control shrink-0 px-2 text-ij-ink"
         >
           <option value="">All</option>
           <option value="open">open</option>
@@ -260,13 +266,13 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
         <span className="shrink-0 whitespace-nowrap font-ij-mono text-ij-ink-info">{rows.length}</span>
       </div>
       {stateKind === 'empty' ? (
-        <ViewState state="empty" />
+        <ViewState state="empty" mode="shell" />
       ) : (
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
           <table className="w-full border-collapse" style={{ fontWeight: 'var(--rec-weight-regular)' }}>
-            <thead className="sticky top-0 z-10 bg-ij-chrome">
+            <thead className="sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="flex w-full items-center border-b border-ij-seam">
+                <tr key={headerGroup.id} className="flex w-full items-center">
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
@@ -300,7 +306,7 @@ export function RecordTableView({ set: initialSet, host }: ViewRenderProps) {
                     data-record-id={row.original.id}
                     data-selected={selectedRecordId === row.original.id ? 'true' : undefined}
                     onClick={() => selectRecord(row.original.id)}
-                    className="absolute left-0 top-0 flex w-full cursor-default items-center overflow-hidden border-b border-ij-seam hover:bg-ij-hover-surface data-[selected]:bg-ij-selection"
+                    className="absolute left-0 top-0 flex w-full cursor-default items-center overflow-hidden hover:bg-ij-hover-surface data-[selected]:bg-ij-selection"
                     style={{
                       transform: `translateY(${virtualRow.start}px)`,
                       height: 32,

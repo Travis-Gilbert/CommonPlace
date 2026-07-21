@@ -154,21 +154,21 @@ function ResolvedCard({
     <article
       data-card={size}
       data-card-kind={spec.kind}
-      className="rounded-ij-arc border border-ij-seam-raised bg-ij-raised"
+      className="min-w-0"
     >
-      <header className="flex items-center gap-2 border-b border-ij-divider p-rec-cell-pad">
+      <header className="flex items-center gap-2 p-rec-cell-pad">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={image}
             alt=""
-            className="h-8 w-8 shrink-0 rounded-ij-arc object-cover"
+            className="h-8 w-8 shrink-0 object-cover"
           />
         ) : (
           <span
             aria-hidden
             data-card-no-image
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ij-arc bg-ij-editor font-ij-mono text-ij-ink-info"
+            className="flex h-8 w-8 shrink-0 items-center justify-center font-ij-mono text-ij-ink-info"
           >
             {(title[0] ?? '?').toUpperCase()}
           </span>
@@ -189,7 +189,7 @@ function ResolvedCard({
             <CopyAddressButton
               address={objectAddress(tenant, object)}
               name={title}
-              className="ml-2 inline-flex h-6 w-8 shrink-0 items-center justify-center rounded-ij-arc border border-ij-control-border bg-ij-editor text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
+              className="ml-2 inline-flex h-6 w-8 shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
             />
             <button
               type="button"
@@ -200,7 +200,7 @@ function ResolvedCard({
                 // sheet, with this object pre-staged as the originating chip.
                 openActionSheet({ chips: [objectChip(object.id, object.type, title)] })
               }
-              className="ml-2 h-6 shrink-0 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
+              className="ml-2 h-6 shrink-0 px-2 text-ij-ink-info hover:text-ij-ink focus:outline-2 focus:outline-ij-accent"
               style={{ transition: 'var(--rec-clickable-transition)' }}
             >
               Action
@@ -210,13 +210,13 @@ function ResolvedCard({
       </header>
 
       {fallbackNote ? (
-        <p data-card-fallback-note className="border-b border-ij-divider p-rec-cell-pad text-ij-ink-info">
+        <p data-card-fallback-note className="p-rec-cell-pad text-ij-ink-info">
           {fallbackNote}; showing the generic card.
         </p>
       ) : null}
 
       {size === 'full' && spec.gauges.length > 0 ? (
-        <div className="border-b border-ij-divider p-rec-cell-pad">
+        <div className="p-rec-cell-pad">
           {spec.gauges.map((gauge) => {
             const rawValue = object.properties[gauge.field];
             const value = typeof rawValue === 'number' ? rawValue : 0;
@@ -234,11 +234,12 @@ function ResolvedCard({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-label={gauge.label ?? gauge.field}
-                  className="mt-1 h-1 w-full overflow-hidden rounded-ij-arc-underline bg-ij-editor"
+                  className="mt-1 h-1 w-full overflow-hidden"
+                  style={{ background: 'var(--ij-hover-surface)' }}
                 >
                   <div
-                    className="h-full bg-ij-accent"
-                    style={{ width: `${Math.round(share * 100)}%` }}
+                    className="h-full"
+                    style={{ width: `${Math.round(share * 100)}%`, background: 'var(--ij-accent)' }}
                   />
                 </div>
               </div>
@@ -248,7 +249,7 @@ function ResolvedCard({
       ) : null}
 
       {size === 'full' && facts.length > 0 ? (
-        <dl className="border-b border-ij-divider p-rec-cell-pad">
+        <dl className="p-rec-cell-pad">
           {facts.map((fact) => {
             const value = textValue(object.properties[fact.field]);
             if (!value) return null;
@@ -278,7 +279,7 @@ function ResolvedCard({
                   event.stopPropagation();
                   selectRecord(relatedId, null, chip.targetKind ?? null);
                 }}
-                className="inline-flex h-6 items-center gap-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink hover:bg-ij-hover-surface focus:outline-2 focus:outline-ij-accent"
+                className="inline-flex h-6 items-center gap-1 px-2 text-ij-ink hover:text-ij-accent focus:outline-2 focus:outline-ij-accent"
                 style={{ transition: 'var(--rec-clickable-transition)' }}
               >
                 <span className="text-ij-ink-info">{chip.label ?? chip.edge}</span>
@@ -300,9 +301,9 @@ function ResolvedCard({
  *  template. An empty set renders the shared empty state. */
 export function CardFullView({ set, host }: ViewRenderProps) {
   const object = set.objects[0];
-  if (!object) return <ViewState state="empty" />;
+  if (!object) return <ViewState state="empty" mode="shell" />;
   return (
-    <div className="h-full overflow-y-auto p-3">
+    <div className="h-full overflow-y-auto">
       <RecordCard object={object} host={host} size="full" />
     </div>
   );
@@ -343,13 +344,13 @@ export function CardGridView({ set, host }: ViewRenderProps) {
     overscan: 4,
   });
 
-  if (set.objects.length === 0) return <ViewState state="empty" />;
+  if (set.objects.length === 0) return <ViewState state="empty" mode="shell" />;
 
   return (
     <div
       ref={scrollRef}
       data-cards-grid
-      className="h-full overflow-y-auto bg-ij-chrome p-3"
+      className="h-full overflow-y-auto"
     >
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((row) => (
