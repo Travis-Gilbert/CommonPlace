@@ -7,7 +7,8 @@ import {
   reportedEdgeProgress,
 } from '@commonplace/theorem-acp/plan-state';
 import { computePlanPath } from '@commonplace/theorem-acp/plan-path';
-import { extractParamCandidates } from '@commonplace/theorem-acp/plan-params';
+import { applyParamBindings, extractParamCandidates } from '@commonplace/theorem-acp/plan-params';
+import { planToProgrammableGraph } from '@commonplace/theorem-acp/plan-program';
 import { edgeProgress } from '@/views/goal-stack/plan-layout';
 
 describe('Goal Stack shared projection', () => {
@@ -118,5 +119,13 @@ describe('Goal Stack shared projection', () => {
     expect(candidates.some((item) => item.value === 'staging' && item.kind === 'literal')).toBe(true);
     expect(candidates.some((item) => item.value === 'task:release' && item.kind === 'target_ref')).toBe(true);
     expect(candidates.some((item) => item.value === 'theorem:fixture/path')).toBe(true);
+
+    const staging = candidates.find((item) => item.value === 'staging' && item.kind === 'literal')!;
+    const bound = applyParamBindings(snapshot!, candidates, { [staging.id]: 'production' });
+    expect(bound.tasks[0].title).toContain('production');
+    expect(bound.tasks[0].title).not.toContain('staging');
+    const graph = planToProgrammableGraph(bound);
+    const node = graph.nodes.find((row) => row.id === 'task:1') as { contract?: { name?: string } };
+    expect(node?.contract?.name).toContain('production');
   });
 });

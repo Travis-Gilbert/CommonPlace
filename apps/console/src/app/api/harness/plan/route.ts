@@ -1,5 +1,10 @@
 import { planToProgrammableGraph } from '@commonplace/theorem-acp/plan-program';
 import {
+  applyParamBindings,
+  extractParamCandidates,
+  type ParamCandidate,
+} from '@commonplace/theorem-acp/plan-params';
+import {
   normalizePlanSnapshot,
   planIsComplete,
 } from '@commonplace/theorem-acp/plan-state';
@@ -223,14 +228,19 @@ async function saveAsProgram(planId: string, body: Record<string, unknown>): Pro
   if (!planIsComplete(snapshot)) {
     return Response.json({ error: 'plan_not_complete' }, { status: 409 });
   }
-  const graph = planToProgrammableGraph(snapshot);
+  // Re-extract candidates server-side so reviewed bindings rewrite titles /
+  // descriptions before materialize; client candidates are advisory only.
+  const candidates = extractParamCandidates(snapshot);
+  const bindings = record(body.bindings) ?? {};
+  const bound = applyParamBindings(snapshot, candidates, bindings);
+  const graph = planToProgrammableGraph(bound);
   const program = {
     ...graph,
     tenant_id: inspected.principal.tenant,
     metadata: {
       ...graph.metadata,
-      param_bindings: record(body.bindings) ?? {},
-      param_candidates: Array.isArray(body.candidates) ? body.candidates : [],
+      param_bindings: bindings,
+      param_candidates: candidates.map(serializeCandidate),
     },
   };
   const result = await callHarnessMcp('programmable_graph_apply', {
@@ -239,6 +249,17 @@ async function saveAsProgram(planId: string, body: Record<string, unknown>): Pro
   });
   if (!result.ok) return result.response;
   return refusalResponse(result.data) ?? Response.json({ ok: true, result: result.data });
+}
+
+function serializeCandidate(candidate: ParamCandidate): Record<string, string> {
+  return {
+    id: candidate.id,
+    kind: candidate.kind,
+    taskId: candidate.taskId,
+    field: candidate.field,
+    value: candidate.value,
+    label: candidate.label,
+  };
 }
 
 function normalizeRunsFromProgress(

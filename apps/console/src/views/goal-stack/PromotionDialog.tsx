@@ -4,7 +4,7 @@
 // from plan-params extraction; bindings are reviewed before materialize.
 
 import { Command } from 'cmdk';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ParamCandidate } from '@commonplace/theorem-acp/plan-params';
 
 export function PromotionDialog({
@@ -20,14 +20,16 @@ export function PromotionDialog({
   onClose: () => void;
   onSave: (bindings: Record<string, string>) => void;
 }) {
-  const initial = useMemo(
-    () => Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.value])),
-    [candidates],
-  );
-  const [bindings, setBindings] = useState<Record<string, string>>(initial);
-  const [accepted, setAccepted] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(candidates.map((candidate) => [candidate.id, true])),
-  );
+  const [bindings, setBindings] = useState<Record<string, string>>({});
+  const [accepted, setAccepted] = useState<Record<string, boolean>>({});
+
+  // Reset when opened (or when the candidate set changes) so reopen does not
+  // reuse edits from a prior plan review.
+  useEffect(() => {
+    if (!open) return;
+    setBindings(Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.value])));
+    setAccepted(Object.fromEntries(candidates.map((candidate) => [candidate.id, true])));
+  }, [open, candidates]);
 
   if (!open) return null;
 

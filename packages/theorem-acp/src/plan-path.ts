@@ -41,8 +41,8 @@ export function computePlanPath(
   for (const task of tasks) {
     for (const dependency of task.dependencies) {
       if (!byId.has(dependency)) continue;
-      parentsByChild.set(task.id, [...(parentsByChild.get(task.id) ?? []), dependency]);
-      childrenByParent.set(dependency, [...(childrenByParent.get(dependency) ?? []), task.id]);
+      parentsByChild.get(task.id)!.push(dependency);
+      childrenByParent.get(dependency)!.push(task.id);
     }
   }
 
