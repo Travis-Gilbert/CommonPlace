@@ -23,7 +23,7 @@ export interface AtomStoreFacade<TState extends object> {
 
 export function createAtomStoreFacade<TState extends object>(
   sliceAtoms: SliceAtoms,
-  actions: TState,
+  actions: Partial<TState>,
 ): AtomStoreFacade<TState> {
   const store = getDefaultStore();
   const stateAtom = atom((get) => {

@@ -231,7 +231,7 @@ async function saveAsProgram(planId: string, body: Record<string, unknown>): Pro
   // Re-extract candidates server-side so reviewed bindings rewrite titles /
   // descriptions before materialize; client candidates are advisory only.
   const candidates = extractParamCandidates(snapshot);
-  const bindings = record(body.bindings) ?? {};
+  const bindings = stringBindings(record(body.bindings));
   const bound = applyParamBindings(snapshot, candidates, bindings);
   const graph = planToProgrammableGraph(bound);
   const program = {
@@ -335,4 +335,13 @@ function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function stringBindings(value: Record<string, unknown> | null): Record<string, string> {
+  if (!value) return {};
+  const bindings: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') bindings[key] = entry;
+  }
+  return bindings;
 }
