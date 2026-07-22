@@ -17,6 +17,9 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
 export const ACCOUNT_SURFACE_ID = 'console-account';
+export const TOPICS_SURFACE_ID = 'console-topics';
+export const SURVEY_SURFACE_ID = 'console-survey';
+export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
 
 function layoutObject(
   id: string,
@@ -232,6 +235,38 @@ export function seedLayout(): ObjectRef[] {
       query: { types: ['record'] } as unknown as JsonValue,
     }),
     ...companionSeeds('index'),
+
+    // Topics is the entry point to Indexer. Opening a topic retargets the
+    // Indexer view instance through the persisted surface arrangement.
+    layoutObject(TOPICS_SURFACE_ID, 'surface', {
+      name: 'Topics', kind: 'topics', role: 'surface', active: false, seed_revision: 1,
+    }, ['topics.region-editor', ...companionIds('topics')]),
+    layoutObject('topics.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'topics.vi-list', seed_revision: 1,
+    }, ['topics.vi-list']),
+    layoutObject('topics.vi-list', 'view-instance', {
+      descriptor_id: 'topic.list',
+      title: 'Standing topics',
+      query: { types: ['topic'], live: true } as unknown as JsonValue,
+    }),
+    ...companionSeeds('topics'),
+
+    layoutObject(SURVEY_SURFACE_ID, 'surface', {
+      name: 'Indexer', kind: 'survey', role: 'surface', active: false, seed_revision: 1,
+    }, ['survey.region-editor', ...companionIds('survey')]),
+    layoutObject('survey.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [SURVEY_VIEW_INSTANCE_ID]),
+    layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'survey.board',
+      title: 'Indexer',
+      query: {
+        types: ['topic', 'capture', 'survey-edge'],
+        where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('survey'),
 
     layoutObject('console-docs', 'surface', {
       name: 'Documents', kind: 'documents', role: 'surface', stripe_order: 4, active: false, seed_revision: 2,

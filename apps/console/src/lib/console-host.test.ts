@@ -10,7 +10,14 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ConsoleBlockHost } from './console-host';
 import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
-import { RECORD_COUNT, SURFACE_ID, seedLayout, seedRecords } from './workspace-seed';
+import {
+  RECORD_COUNT,
+  SURFACE_ID,
+  SURVEY_SURFACE_ID,
+  SURVEY_VIEW_INSTANCE_ID,
+  seedLayout,
+  seedRecords,
+} from './workspace-seed';
 
 const NO_VIEWS = { matchingViews: () => [] };
 
@@ -55,6 +62,8 @@ describe('ConsoleBlockHost', () => {
       'console-index',
       'console-proactivity',
       'console-review',
+      'console-survey',
+      'console-topics',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
@@ -114,6 +123,20 @@ describe('ConsoleBlockHost', () => {
     const set = host.queryLayout(surfaceQuery());
     expect(set.objects.some((object) => object.id === 'console.region-landmarks')).toBe(true);
     expect(set.objects.some((object) => object.id === 'console.landmark-chat')).toBe(true);
+    const survey = buildSurfaceTree(SURVEY_SURFACE_ID, set.objects);
+    expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
+  });
+
+  it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = await Promise.resolve(host.query({
+      types: ['topic', 'capture', 'survey-edge'],
+      where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+    }));
+
+    expect(set.objects.filter((object) => object.type === 'topic')).toHaveLength(1);
+    expect(set.objects.filter((object) => object.type === 'capture')).toHaveLength(15);
+    expect(set.objects.filter((object) => object.type === 'survey-edge').length).toBeGreaterThan(0);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {
