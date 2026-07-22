@@ -98,6 +98,7 @@ gap: add the row, with a named source, before writing code.
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
 | Client state | `jotai` | shell, thread, memory projection, proactivity (atomFamily / atomWithStorage) |
 | Account identity | Auth.js with GitHub | OAuth, session state, sign-in, sign-out, verified user claims |
+| Indexer spatial gallery | 21st.dev moazamtrade/3d-image-gallery (catalog 6525) on three, @react-three/fiber, @react-three/drei | golden-ratio 12/16/20 sphere, orbit camera, source capture injection, relationship geometry; scene ground defers to MaterialLayer / transparent DOM |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
@@ -146,6 +147,15 @@ static. Transform and opacity only.
 
 No em or en dashes anywhere: not in code comments, not in UI strings, not in
 markdown. Use colons, periods, commas, semicolons, or parentheses instead.
+
+## Recent decisions
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-07-18 | The user-facing topic result surface is Indexer. Existing `survey.*` identifiers remain stable. | A topic click returns the full indexed evidence corpus. Keeping internal identifiers avoids breaking persisted surface objects while the product language settles. |
+| 2026-07-18 | Indexer keeps the installed 21st.dev golden-ratio sphere. Relationship data may contain cycles and never controls card placement. | The spatial shape is the primary reading surface. Edges stay faint at rest, strengthen on hover, and pin on click. |
+| 2026-07-18 | Indexer pegboard is retired in favor of MaterialLayer grammar. | Source cards and their evidence connections remain the canvas while the transparent scene shell preserves the shared ambient ground. |
+| 2026-07-18 | Hover reveals a capture neighborhood: focused and related sources stay bright, unrelated sources fade, incident edges expose worded reasons. | Relationship Design transparency stage: the system shows what it remembers about connections without shouting at idle. |
 
 ## Gates (all block merge)
 

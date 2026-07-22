@@ -36,10 +36,12 @@ import {
   projectAutomationHistory,
 } from './automation-history-projection';
 import { fetchStatus } from './harness-ux';
+import { seedSurveyObjects } from './surveySeed';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
+const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
 const LAYOUT_QUERY: ObjectQuery = {
   types: ['surface', 'region', 'view-instance'],
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
@@ -155,6 +157,7 @@ export class ConsoleBlockHost implements BlockHost {
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
   private cardTemplates: ObjectRef[];
+  private surveyObjects: ObjectRef[];
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
@@ -190,6 +193,7 @@ export class ConsoleBlockHost implements BlockHost {
     // card engine queries them like any record, and the Model surface edits
     // them later through the same update action.
     this.cardTemplates = seedCardTemplates();
+    this.surveyObjects = seedSurveyObjects();
     this.hydrateLayout();
   }
 
@@ -469,7 +473,8 @@ export class ConsoleBlockHost implements BlockHost {
       query.types.includes('files-view') ||
       query.types.includes('context-view') ||
       query.types.includes('surface-tool') ||
-      query.types.includes(CARD_TEMPLATE_TYPE);
+      query.types.includes(CARD_TEMPLATE_TYPE) ||
+      query.types.some((type) => SURVEY_TYPES.has(type));
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
@@ -479,14 +484,16 @@ export class ConsoleBlockHost implements BlockHost {
       }
       return this.http.query(query);
     }
-    const pool = isRecord
-      ? (this.records ?? [])
-      : isDoc
-        ? this.docs
-        : isCode
-          ? this.codeFiles
-          : query.types.includes(CARD_TEMPLATE_TYPE)
-            ? this.cardTemplates
+    const pool = query.types.some((type) => SURVEY_TYPES.has(type))
+      ? this.surveyObjects.filter((object) => query.types.includes(object.type))
+      : isRecord
+        ? (this.records ?? [])
+        : isDoc
+          ? this.docs
+          : isCode
+            ? this.codeFiles
+            : query.types.includes(CARD_TEMPLATE_TYPE)
+              ? this.cardTemplates
             : [];
     let objects = pool.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
@@ -505,7 +512,9 @@ export class ConsoleBlockHost implements BlockHost {
     }
     const shape: ObjectShape = {
       types: [...query.types],
-      fields: query.types.includes('record') ? [...RECORD_FIELDS] : Object.keys(objects[0]?.properties ?? {}),
+      fields: query.types.includes('record')
+        ? [...RECORD_FIELDS]
+        : [...new Set(objects.flatMap((object) => Object.keys(object.properties)))],
       relations: [],
       axes: {},
       cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
@@ -749,12 +758,13 @@ export class ConsoleBlockHost implements BlockHost {
           return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
-        // seeds); records, docs, and code files ride the wire so edits persist.
-        // In test mode the local pools carry every kind.
+        // seeds) and survey fixtures patch in-session; records, docs, and code
+        // files ride the wire so edits persist. In test mode local pools carry
+        // every kind.
         const updatePools =
           this.records === null
-            ? [this.cardTemplates]
-            : [this.records, this.docs, this.codeFiles, this.cardTemplates];
+            ? [this.cardTemplates, this.surveyObjects]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.surveyObjects];
         for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {

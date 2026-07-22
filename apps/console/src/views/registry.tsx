@@ -36,6 +36,8 @@ import {
   VideoBlock,
 } from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
+import { TopicListView } from './TopicListView';
+import { SurveyView } from './SurveyView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -380,6 +382,38 @@ const PROACTIVITY: ViewDescriptor = {
   render: ProactivityView,
 };
 
+const TOPIC_LIST: ViewDescriptor = {
+  id: 'topic.list',
+  name: 'Standing topics',
+  accepts: { required_types: ['topic'] },
+  emits: ['open', 'update'],
+  renderer: 'topic.list',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'Standing-topic navigation edits the seeded surface arrangement through the object contract.',
+  },
+  render: TopicListView,
+};
+
+const SURVEY_BOARD: ViewDescriptor = {
+  id: 'survey.board',
+  name: 'Indexer',
+  accepts: { required_types: ['capture'], cardinality: 'many' },
+  emits: ['open'],
+  renderer: 'survey.board',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'The spherical topic corpus, semantic zoom ladder, and evidenced connection labels are the Indexer product contract.',
+  },
+  render: SurveyView,
+};
+
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',
@@ -672,6 +706,8 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   VIDEO,
   CANVAS,
   AUTOMATION_HISTORY,
+  TOPIC_LIST,
+  SURVEY_BOARD,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

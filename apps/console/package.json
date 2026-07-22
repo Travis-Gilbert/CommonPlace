@@ -46,6 +46,8 @@
     "@lezer/highlight": "^1.2.1",
     "@radix-ui/react-popover": "^1.1.19",
     "@react-pdf/renderer": "^4.5.1",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
     "@travis-gilbert/markdown-theory": "^0.1.2",
@@ -67,6 +69,7 @@
     "tailwindcss": "^4.1.18",
     "textmode.js": "^0.17.0",
     "zod": "^3.25.76",
+    "three": "0.183.2",
     "zustand": "5.0.14"
   },
   "devDependencies": {
@@ -76,6 +79,7 @@
     "@types/node": "^22.13.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "axe-core": "^4.12.1",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "typescript": "^5.7.3",

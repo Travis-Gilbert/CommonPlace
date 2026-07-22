@@ -211,6 +211,24 @@ export const DECLARED_PAINT_SURFACES = [
     inventory: 'Composer run state changes',
     reason: 'the composer instrument sheen; static at idle, frame loop strictly while streaming (rule 4 narrowing)',
   },
+  {
+    trigger: 'Survey source receives pointer or keyboard focus',
+    effect: 'the billboarded source grows by one restrained scale step',
+    spec: '--ij-motion transform only; source pixels and annotations do not reflow',
+    reducedMotion: 'flat clustered grid, settled and static with no scale change',
+  },
+  {
+    trigger: 'Survey corpus hover reveals neighborhood',
+    effect: 'focused and related sources rise to full opacity while unrelated sources fade; incident edges strengthen and expose their worded reason',
+    spec: '--ij-motion opacity only on source cards; Line opacity for evidence edges; no filter or layout animation',
+    reducedMotion: 'flat clustered grid with the same connection list, no spatial focus fade',
+  },
+  {
+    trigger: 'Survey orbit, pan, or wheel input',
+    effect: 'the R3F camera moves around deterministic spherical capture layers with damped direct manipulation',
+    spec: 'Drei OrbitControls on a demand-driven frame loop; wheel zooms toward the corpus center; no autoplay or ambient scene rotation',
+    reducedMotion: '3D controls are replaced by the complete flat clustered source grid',
+  },
 ] as const;
 
 export interface MotionDurations {
