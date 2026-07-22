@@ -4,34 +4,42 @@
 // from plan-params extraction; bindings are reviewed before materialize.
 
 import { Command } from 'cmdk';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ParamCandidate } from '@commonplace/theorem-acp/plan-params';
 
-export function PromotionDialog({
-  open,
-  candidates,
-  busy,
-  onClose,
-  onSave,
-}: {
+type PromotionDialogProps = {
   open: boolean;
   candidates: readonly ParamCandidate[];
+  sideEffectingRefs: readonly string[];
   busy: boolean;
   onClose: () => void;
   onSave: (bindings: Record<string, string>) => void;
-}) {
-  const [bindings, setBindings] = useState<Record<string, string>>({});
-  const [accepted, setAccepted] = useState<Record<string, boolean>>({});
+};
 
-  // Reset when opened (or when the candidate set changes) so reopen does not
-  // reuse edits from a prior plan review.
-  useEffect(() => {
-    if (!open) return;
-    setBindings(Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.value])));
-    setAccepted(Object.fromEntries(candidates.map((candidate) => [candidate.id, true])));
-  }, [open, candidates]);
+export function PromotionDialog(props: PromotionDialogProps) {
+  if (!props.open) return null;
 
-  if (!open) return null;
+  const candidateKey = props.candidates
+    .map((candidate) => `${candidate.id}:${candidate.value}`)
+    .join('|');
+
+  return <OpenPromotionDialog key={candidateKey} {...props} />;
+}
+
+function OpenPromotionDialog({
+  open,
+  candidates,
+  sideEffectingRefs,
+  busy,
+  onClose,
+  onSave,
+}: PromotionDialogProps) {
+  const [bindings, setBindings] = useState<Record<string, string>>(() =>
+    Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.value])),
+  );
+  const [accepted, setAccepted] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(candidates.map((candidate) => [candidate.id, true])),
+  );
 
   return (
     <Command.Dialog
@@ -46,6 +54,11 @@ export function PromotionDialog({
         <header className="border-b border-ij-divider px-4 py-3">
           <div className="text-ij-ink-info">Save as program</div>
           <h3 className="mt-1" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Review parameter candidates</h3>
+          {sideEffectingRefs.length > 0 ? (
+            <p className="mt-2 text-ij-warn" data-promotion-advisory-warning>
+              External effects stay advisory. The saved program retains {sideEffectingRefs.length} source affordance {sideEffectingRefs.length === 1 ? 'reference' : 'references'} as metadata and cannot execute them.
+            </p>
+          ) : null}
         </header>
         <Command.List className="max-h-96 overflow-auto p-3">
           {candidates.length === 0 ? (

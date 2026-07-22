@@ -6,6 +6,13 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const SURFACE_KEY = 'commonplace.console.surface.v1';
+const SURFACE_PATHS: Readonly<Record<string, string>> = {
+  'console-chat': '/chat',
+  'console-workspace': '/workspace',
+  'console-index': '/filing',
+  'console-docs': '/documents',
+  'console-cards': '/cards',
+};
 
 async function freshLoad(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -17,8 +24,8 @@ async function freshLoad(page: Page) {
     localStorage.removeItem('commonplace.console.workspace.project.v1');
   }, SURFACE_KEY);
   await page.reload();
-  await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await expect(page.locator('[data-shell]')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-layout-ready', '1', { timeout: 30_000 });
 }
 
 async function openSurface(page: Page, id: string) {
@@ -31,6 +38,19 @@ async function openSurface(page: Page, id: string) {
     await page.locator(`[data-layout-option="${id}"]`).click();
   }
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
+  const path = SURFACE_PATHS[id];
+  if (path) await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`));
+}
+
+async function openGoalPlan(page: Page, planId: string) {
+  const activeSurface = await page.locator('[data-shell]').getAttribute('data-active-surface');
+  if (activeSurface !== 'console-goals') await openSurface(page, 'console-goals');
+  const firstTask = page.locator('[data-plan-task]').first();
+  if (!await firstTask.isVisible().catch(() => false)) {
+    await page.locator('input[aria-label="Plan id"]').fill(planId);
+    await page.getByRole('button', { name: 'Open' }).click();
+  }
+  await expect(firstTask).toBeVisible();
 }
 
 test.describe('V2 workspace substrate and Goal Stack', () => {
@@ -109,6 +129,7 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
   });
 
   test('renders the canonical plan DAG and queues a destructive affordance through DnD', async ({ page }) => {
+    test.setTimeout(120_000);
     const actions: Record<string, unknown>[] = [];
     let approvalRecorded = false;
     await page.route('**/api/harness/plan**', async (route) => {
@@ -127,9 +148,7 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     });
 
     await freshLoad(page);
-    await openSurface(page, 'console-goals');
-    await page.locator('input[aria-label="Plan id"]').fill('plan-v2');
-    await page.getByRole('button', { name: 'Open' }).click();
+    await openGoalPlan(page, 'plan-v2');
 
     await expect(page.locator('[data-plan-task="task-index"]')).toBeVisible();
     await expect(page.locator('[data-plan-task="task-release"]')).toBeVisible();
@@ -141,6 +160,8 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await expect(page.getByText('Delete generated cache')).toBeVisible();
     await expect(page.getByText('destructive').first()).toBeVisible();
     await expect(page.getByText('locked: plugin.demo.write')).toBeVisible();
+    await expect(page.locator('[data-plan-task="task-release"] [data-approval-badge="required"]')).toBeVisible();
+    await expect(page.locator('[data-plan-task="task-release"] [data-task-changed]')).toHaveText('Changed');
     await page.locator('[data-plan-task="task-wire"]').click();
     await expect(page.locator('[data-plan-task="task-wire"]')).toHaveAttribute('data-plan-path', 'selected');
     await expect(page.locator('[data-plan-task="task-index"]')).toHaveAttribute('data-plan-path', 'ancestor');
@@ -148,15 +169,25 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await expect(page.locator('[data-runs-rail]')).toBeVisible();
     await expect(page).toHaveScreenshot('goal-stack-v2-1440-dark.png', { fullPage: true });
 
-    const source = page.getByText('Delete generated cache').locator('..').locator('..');
+    const source = page.locator('[data-plan-capability="filesystem:delete-cache"]');
     const target = page.locator('[data-plan-task="task-release"]');
     const sourceBox = await source.boundingBox();
     const targetBox = await target.boundingBox();
     expect(sourceBox).not.toBeNull();
     expect(targetBox).not.toBeNull();
-    await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2);
+    await expect(target).toHaveAttribute('data-plan-status', 'pending');
+    const sourceX = sourceBox!.x + sourceBox!.width / 2;
+    const sourceY = sourceBox!.y + sourceBox!.height / 2;
+    await page.mouse.move(sourceX, sourceY);
     await page.mouse.down();
-    await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 12 });
+    await page.waitForTimeout(100);
+    await page.mouse.move(sourceX + 10, sourceY, { steps: 4 });
+    await page.mouse.move(
+      targetBox!.x + targetBox!.width / 2,
+      targetBox!.y + targetBox!.height / 2,
+      { steps: 24 },
+    );
+    await page.waitForTimeout(200);
     await page.mouse.up();
     await expect.poll(() => actions.at(-1)).toMatchObject({
       planId: 'plan-v2',
@@ -190,6 +221,23 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
       action: 'replan_subtree',
       taskId: 'task-old-release',
     });
+
+    approvalRecorded = false;
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openGoalPlan(page, 'plan-v2');
+    await expect(page.locator('[data-plan-task="task-release"] [data-approval-badge="required"]')).toBeVisible();
+    await page.locator('[data-plan-task="task-wire"]').click();
+    await expect(page).toHaveScreenshot('goal-stack-v2-1024-dark.png', { fullPage: true });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openGoalPlan(page, 'plan-v2');
+    await page.locator('[data-plan-task="task-wire"]').click();
+    await expect.poll(async () => {
+      const tools = await page.locator('[data-goal-stack-panel="tools"]').boundingBox();
+      const canvas = await page.locator('[data-goal-stack-panel="canvas"]').boundingBox();
+      return Boolean(tools && canvas && tools.y < canvas.y);
+    }).toBe(true);
+    await expect(page).toHaveScreenshot('goal-stack-v2-390-dark.png', { fullPage: true });
   });
 });
 
@@ -400,7 +448,8 @@ function planSnapshot(approved: boolean) {
       title: 'Retired release attempt',
       description: 'A prior generation retained for replay and bounded replan.',
       kind: 'regular',
-      lifecycle_status: 'superseded',
+      lifecycle_status: 'cancelled',
+      plan_status: 'superseded',
       dependencies: ['task-wire'],
       serves: ['F4'],
       acceptance_criteria: ['Superseded generations remain inspectable.'],

@@ -159,6 +159,7 @@ export function Sidebar({
   surfaces,
   companions,
   activeSurfaceId,
+  compact,
   landmarksRegion,
   activeGridRegionId,
   onToggleCompanion,
@@ -167,6 +168,7 @@ export function Sidebar({
   readonly surfaces: readonly ObjectRef[];
   readonly companions: readonly SidebarRegion[];
   readonly activeSurfaceId: string;
+  readonly compact: boolean;
   readonly landmarksRegion: SidebarRegion | null;
   readonly activeGridRegionId: string | null;
   readonly onToggleCompanion: (region: SidebarRegion) => void;
@@ -174,7 +176,10 @@ export function Sidebar({
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
-  const [collapsed, setCollapsed] = useState(() => landmarksRegion?.object.properties.collapsed === true);
+  const persistedCollapsed = landmarksRegion?.object.properties.collapsed === true;
+  const [collapseOverride, setCollapseOverride] = useState<boolean | null>(null);
+  const collapsed = collapseOverride ?? persistedCollapsed;
+  const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
   const routedSurfaces = useMemo(
     () => surfaces
@@ -182,7 +187,7 @@ export function Sidebar({
       .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
     [surfaces],
   );
-  const seededLandmarks = landmarksRegion?.instances ?? [];
+  const seededLandmarks = useMemo(() => landmarksRegion?.instances ?? [], [landmarksRegion]);
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
   const initials = (session?.user?.name ?? session?.user?.githubLogin ?? 'CP')
@@ -195,25 +200,20 @@ export function Sidebar({
   const toggleCollapse = useCallback(() => {
     if (!landmarksRegion) return;
     const next = !collapsed;
-    setCollapsed(next);
-    void host.emit({ kind: 'update', id: landmarksRegion.object.id, patch: { collapsed: next } });
+    setCollapseOverride(next);
+    void host.emit({ kind: 'update', id: landmarksRegion.object.id, patch: { collapsed: next } })
+      .finally(() => setCollapseOverride(null));
   }, [collapsed, host, landmarksRegion]);
 
   const switchTo = useCallback((surface: ObjectRef) => {
     if (surface.id === activeSurfaceId) return;
     const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
-    if (path) {
-      // Route first: the pathname effect activates the matching surface. Calling
-      // activateSurface before the URL settles races the effect and reverts.
-      router.push(path);
-      return;
-    }
-    void host.activateSurface(surface.id);
+    // The local radio changes synchronously. Route immediately so navigation is
+    // never gated by the durable write-through; the route effect reasserts the
+    // same surface if a remounted host hydrates older server state.
+    void host.activateSurface(surface.id).catch(() => false);
+    if (path) router.push(path);
   }, [activeSurfaceId, host, router]);
-
-  useEffect(() => {
-    setCollapsed(landmarksRegion?.object.properties.collapsed === true);
-  }, [landmarksRegion?.object.properties.collapsed]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -320,7 +320,7 @@ export function Sidebar({
       aria-label="Surfaces and companions"
       data-paint-region="stripe"
       data-frame-resident="stripe"
-      data-sidebar-collapsed={collapsed}
+      data-sidebar-collapsed={visuallyCollapsed}
       className="flex w-ij-stripe shrink-0 flex-col bg-transparent p-2 font-ij-ui"
       style={{ transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)' }}
     >
@@ -347,17 +347,17 @@ export function Sidebar({
                 background: active ? 'var(--ij-selection)' : 'transparent',
               }}
             >
-              {collapsed && active ? <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" /> : null}
+              {visuallyCollapsed && active ? <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" /> : null}
               <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
               <span
                 className="min-w-0 flex-1 truncate pl-2 text-sm"
-                style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)', fontWeight: active ? 600 : 500 }}
+                style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)', fontWeight: active ? 600 : 500 }}
               >
                 {label}
               </span>
               <span
                 className="shrink-0 font-ij-mono text-ij-island-meta text-ij-ink-info"
-                style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}
+                style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}
               >
                 {index + 1}
               </span>
@@ -388,7 +388,7 @@ export function Sidebar({
               style={{ color: open ? 'var(--ij-ink)' : 'var(--ij-ink-info)', background: open ? 'var(--ij-selection)' : 'transparent' }}
             >
               <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
-              <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
+              <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
             </button>
           );
         })}
@@ -397,7 +397,7 @@ export function Sidebar({
       <SidebarDivider />
 
       <section aria-label="Landmarks" className="min-h-0 flex-1 overflow-y-auto">
-        <h2 className="px-2 font-ij-mono text-ij-island-meta text-ij-ink-info" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>
+        <h2 className="px-2 font-ij-mono text-ij-island-meta text-ij-ink-info" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>
           Landmarks
         </h2>
         <div className="mt-1 flex flex-col gap-0.5">
@@ -420,8 +420,8 @@ export function Sidebar({
                 title={`${label}. Drag to the active grid.`}
               >
                 <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
-                <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
-                {!collapsed ? (
+                <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
+                {!visuallyCollapsed ? (
                   <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                     <button type="button" className="text-ij-ink-info hover:text-ij-ink" onClick={() => pinLandmark(landmark)} aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}>
                       {landmark.properties.pinned === true ? 'Unpin' : 'Pin'}
@@ -432,16 +432,16 @@ export function Sidebar({
               </div>
             );
           })}
-          {landmarks.length === 0 && !collapsed ? <p className="px-2 text-sm text-ij-ink-info">No landmarks yet.</p> : null}
+          {landmarks.length === 0 && !visuallyCollapsed ? <p className="px-2 text-sm text-ij-ink-info">No landmarks yet.</p> : null}
         </div>
       </section>
 
       <div className="mt-2 flex items-center gap-2 px-2 text-ij-ink-info">
-        <button type="button" onClick={toggleCollapse} className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink" title={collapsed ? 'Expand sidebar (Cmd or Ctrl B)' : 'Collapse sidebar (Cmd or Ctrl B)'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          <span aria-hidden>{collapsed ? '›' : '‹'}</span>
+        <button type="button" onClick={toggleCollapse} disabled={compact} className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink disabled:opacity-50" title={compact ? 'Sidebar stays collapsed at this width' : collapsed ? 'Expand sidebar (Cmd or Ctrl B)' : 'Collapse sidebar (Cmd or Ctrl B)'} aria-label={compact ? 'Sidebar collapsed for narrow width' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <span aria-hidden>{visuallyCollapsed ? '›' : '‹'}</span>
         </button>
         <span className="flex size-ij-control shrink-0 items-center justify-center rounded-full bg-ij-raised text-sm text-ij-ink">{initials}</span>
-        <span className="min-w-0 truncate text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
+        <span className="min-w-0 truncate text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
       </div>
     </nav>
   );
