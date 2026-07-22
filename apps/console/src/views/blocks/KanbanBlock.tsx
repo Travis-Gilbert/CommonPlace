@@ -92,6 +92,7 @@ function useContainerChildren(
     };
 
     void Promise.resolve(host.query({ ...LAYOUT_QUERY })).then((set) => {
+      if (!active) return;
       publish(set);
       if (typeof set.subscribe === 'function') {
         unsubscribe = set.subscribe(publish);
