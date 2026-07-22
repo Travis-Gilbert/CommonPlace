@@ -2,7 +2,7 @@
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
 // The sidebar is frame chrome. Native drag events provide the landmark to
-// ground promotion behavior; island moves remain receipted through the host.
+// ground placement behavior; block moves remain receipted through the host.
 
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,8 +11,10 @@ import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/ty
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { pathForSurfaceKind } from '@/lib/surface-routes';
 import { githubTenantSlug } from '@/lib/account-identity';
-import { recordIslandMoveReceipts } from '@/lib/island-move-receipts';
-import { promoteIslandAction } from '@/lib/island-promotion';
+import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import { placeBlockAction } from '@/lib/block-placement';
+import { useShellStore } from '@/lib/shell-store';
+import { useThreadStore } from '@/lib/thread-store';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import {
@@ -23,6 +25,8 @@ import {
   IconIndex,
   IconMemory,
   IconRecords,
+  IconRun,
+  IconStop,
   IconThread,
   IconWorkspace,
 } from './icons';
@@ -191,6 +195,11 @@ export function Sidebar({
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const isRunning = useThreadStore((state) => state.isRunning);
+  const cancelRun = useThreadStore((state) => state.cancel);
+  const connection = useShellStore((state) => state.connection);
+  const setConnection = useShellStore((state) => state.setConnection);
+  const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
 
   const toggleCollapse = useCallback(() => {
     if (!landmarksRegion) return;
@@ -267,15 +276,15 @@ export function Sidebar({
   const promoteToGround = useCallback(async (instanceId: string) => {
     if (!activeGridRegionId) return;
     let moves = 0;
-    for (const action of promoteIslandAction(instanceId, {
-      kind: 'grid',
+    for (const action of placeBlockAction(instanceId, {
+      placement: 'ground',
       regionId: activeGridRegionId,
       order: 0,
     })) {
       const result = await host.emit(action);
       if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') moves += 1;
     }
-    if (moves > 0) recordIslandMoveReceipts(moves);
+    if (moves > 0) recordBlockMoveReceipts(moves);
   }, [activeGridRegionId, host]);
 
   const onLandmarkDragEnd = useCallback((event: DragEvent<HTMLDivElement>, landmark: ObjectRef) => {
@@ -283,7 +292,7 @@ export function Sidebar({
     void (async () => {
       const instanceId = await ensureLandmarkInstance(landmark);
       if (!instanceId) return;
-      if (target?.closest('[data-island-arrangement]')) {
+      if (target?.closest('[data-block-arrangement]')) {
         await promoteToGround(instanceId);
         return;
       }
@@ -320,10 +329,34 @@ export function Sidebar({
       aria-label="Surfaces and companions"
       data-paint-region="stripe"
       data-frame-resident="stripe"
+      data-shell-region="rail"
       data-sidebar-collapsed={collapsed}
       className="flex w-ij-stripe shrink-0 flex-col bg-transparent p-2 font-ij-ui"
       style={{ transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)' }}
     >
+      <div data-rail-actions className="mb-1 flex flex-col gap-0.5">
+        <button
+          type="button"
+          data-run-widget
+          data-running={isRunning ? 'true' : 'false'}
+          aria-label={isRunning ? 'Stop the live run' : 'Run'}
+          onClick={() => (isRunning ? cancelRun() : undefined)}
+          disabled={!isRunning}
+          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 disabled:opacity-75"
+          style={{
+            background: isRunning ? 'var(--ij-running)' : 'var(--ij-raised)',
+            color: isRunning ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
+            transition: 'var(--rec-clickable-transition)',
+          }}
+          title={collapsed ? (isRunning ? 'Stop' : 'Run') : undefined}
+        >
+          {isRunning ? <IconStop size={14} /> : <IconRun size={14} />}
+          <span style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>
+            {isRunning ? 'Running' : 'Run'}
+          </span>
+        </button>
+      </div>
+
       <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col gap-0.5">
         {routedSurfaces.map((surface, index) => {
           const kind = String(surface.properties.kind ?? '');
@@ -404,7 +437,7 @@ export function Sidebar({
           {landmarks.map((landmark) => {
             const descriptorId = String(landmark.properties.descriptor_id ?? '');
             const descriptor = descriptorId
-              ? CONSOLE_VIEW_REGISTRY.blocksForMount('stripe').find((candidate) => candidate.id === descriptorId)
+              ? CONSOLE_VIEW_REGISTRY.blocksForPlacement('rail').find((candidate) => candidate.id === descriptorId)
               : undefined;
             const glyph = descriptor?.block?.kindGlyph ?? String(landmark.properties.kind ?? 'records');
             const Icon = LANDMARK_ICONS[glyph] ?? IconRecords;
@@ -442,6 +475,34 @@ export function Sidebar({
         </button>
         <span className="flex size-ij-control shrink-0 items-center justify-center rounded-full bg-ij-raised text-sm text-ij-ink">{initials}</span>
         <span className="min-w-0 truncate text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
+        {needsReconnect ? (
+          <span data-rail-connection className="ml-auto flex shrink-0 items-center gap-1">
+            <span
+              data-connection={connection}
+              aria-hidden
+              className="size-2 rounded-full"
+              style={{
+                background:
+                  connection === 'identity-refused' ? 'var(--ij-error)' : 'var(--ij-ink-info)',
+              }}
+            />
+            <button
+              type="button"
+              data-connection={connection}
+              onClick={() => {
+                setConnection('connecting');
+                void host.probe();
+              }}
+              className="rounded-ij-arc-underline px-1 text-ij-link hover:bg-ij-hover-surface"
+              style={{
+                opacity: collapsed ? 0 : 1,
+                transition: 'opacity var(--ij-motion) var(--ij-ease)',
+              }}
+            >
+              Reconnect
+            </button>
+          </span>
+        ) : null}
       </div>
     </nav>
   );

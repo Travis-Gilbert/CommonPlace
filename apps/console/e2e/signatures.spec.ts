@@ -200,7 +200,7 @@ for (const { theme, preset } of THEMES) {
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
       // Hide affordance on tool-window shells.
-      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
+      await expect(page.locator('[data-block-hide]').first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
@@ -242,7 +242,7 @@ for (const { theme, preset } of THEMES) {
         await expect(window, `${companion} tool window must render`).toBeVisible();
         await expect(
           window.locator('[data-island-header]'),
-          `${companion} must carry the IslandShell header strip`,
+          `${companion} must carry the BlockShell header strip`,
         ).toBeVisible();
       }
     });

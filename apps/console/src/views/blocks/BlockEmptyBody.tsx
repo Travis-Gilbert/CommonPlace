@@ -3,7 +3,7 @@
 // SOURCING: hand-roll. Designed empty state for declared blocks
 // (HANDOFF-CONSOLE-BLOCK-SYSTEM B8): header band + body, never an error string.
 
-export function IslandEmptyBody({
+export function BlockEmptyBody({
   title,
   detail,
 }: {
@@ -12,7 +12,7 @@ export function IslandEmptyBody({
 }) {
   return (
     <div
-      data-island-empty
+      data-block-empty
       className="flex h-full min-h-0 flex-col items-start justify-center gap-2 px-4 py-6 text-ij-ink"
     >
       <p

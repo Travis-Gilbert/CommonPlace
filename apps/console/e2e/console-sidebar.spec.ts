@@ -106,7 +106,7 @@ test.describe('Console sidebar', () => {
     await page.goto('/cards');
     await settled(page);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-cards');
-    await expect(page.locator('[data-island-arrangement]')).toBeVisible();
+    await expect(page.locator('[data-block-arrangement]')).toBeVisible();
 
     const landmark = page.locator('[data-sidebar-landmark]').first();
     await expect(landmark).toBeVisible({ timeout: 10_000 });
@@ -117,16 +117,16 @@ test.describe('Console sidebar', () => {
       : `console.landmark-record-${landmarkId}`;
 
     await page.evaluate(() => {
-      document.documentElement.setAttribute('data-island-move-receipts', '0');
+      document.documentElement.setAttribute('data-block-move-receipts', '0');
     });
 
-    await landmark.dragTo(page.locator('[data-island-arrangement]'));
+    await landmark.dragTo(page.locator('[data-block-arrangement]'));
 
-    await expect(page.locator(`[data-island-grid-cell="${instanceId}"]`)).toBeVisible({
+    await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 10_000,
     });
     await expect.poll(async () =>
-      page.evaluate(() => document.documentElement.getAttribute('data-island-move-receipts')),
+      page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('1');
 
     const nav = page.locator('nav[aria-label="Surfaces and companions"]');
@@ -142,7 +142,7 @@ test.describe('Console sidebar', () => {
     await settled(page);
     await waitForServerLayout(request);
 
-    await expect(page.locator(`[data-island-grid-cell="${instanceId}"]`)).toBeVisible({
+    await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 15_000,
     });
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');

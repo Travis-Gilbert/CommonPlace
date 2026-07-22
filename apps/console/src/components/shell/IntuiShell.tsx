@@ -24,9 +24,7 @@ import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
-import { IslandArrangementHost } from '@/components/blocks/IslandArrangementHost';
-import { MainToolbar } from './MainToolbar';
-import { StatusBar } from './StatusBar';
+import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
@@ -63,9 +61,9 @@ function isOpen(region: RegionNode): boolean {
   return region.object.properties.open !== false;
 }
 
-/** The Int UI tool window slot. Island chrome lives on IslandShell inside
- *  ViewInstanceHost (HANDOFF-CONSOLE-ISLAND-SHELL remodel); this wrapper is
- *  layout only and must not paint or register as an island. */
+/** The Int UI tool window slot. Block chrome lives on BlockShell inside
+ *  ViewInstanceHost; this wrapper is layout only and must not paint or
+ *  register as a block. */
 function ToolWindow({
   region,
   host,
@@ -289,7 +287,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     },
     [host, visiblePanels, visibleTotal],
   );
-  const chromeRegionIds = useMemo(
+  const dockRegionIds = useMemo(
     () => [...regions.left, ...regions.right].map((region) => region.object.id),
     [regions.left, regions.right],
   );
@@ -328,13 +326,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       className="h-full min-h-0"
     >
       {editor.object.properties.kind === 'grid' ? (
-        <IslandArrangementHost
+        <BlockArrangementHost
           region={editor.object}
           instances={editor.instances}
           host={host}
-          chromeRegionIds={chromeRegionIds}
-          stripeRegionId={stripeTrayId}
-          surfaceEditorRegionId={editor.object.id}
+          dockRegionIds={dockRegionIds}
+          railRegionId={stripeTrayId}
+          fullRegionId={editor.object.id}
         />
       ) : (
         <EditorTabs region={editor.object} instances={editor.instances} host={host} />
@@ -369,73 +367,79 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       data-shell
       data-compact={compact}
       data-active-surface={activeSurfaceId}
-      className="relative flex h-full min-h-0 flex-col bg-transparent"
+      className="relative flex h-full min-h-0 bg-transparent"
     >
-      <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar
-          host={host}
-          surfaces={primarySurfaces}
-          companions={companions}
-          activeSurfaceId={activeSurfaceId}
-          landmarksRegion={landmarkRegion}
-          activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
-          onToggleCompanion={toggle}
-        />
+      <Sidebar
+        host={host}
+        surfaces={primarySurfaces}
+        companions={companions}
+        activeSurfaceId={activeSurfaceId}
+        landmarksRegion={landmarkRegion}
+        activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+        onToggleCompanion={toggle}
+      />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter">
-          <div className="relative min-h-0 min-w-0 flex-1">
-            {compact ? (
-              <>
-                {editorPane}
-                {leftOpen[0] ? (
-                  <div className="absolute inset-y-0 left-0 z-30 w-80">
-                    <ToolWindow
-                      region={leftOpen[0]}
-                      host={host}
-                      entranceIndex={0}
-                      onHide={() => toggle(leftOpen[0])}
-                      gridRegionId={editor.object.id}
-                    />
-                  </div>
-                ) : null}
-                {rightOpen[0] ? (
-                  <div className="absolute inset-y-0 right-0 z-30 w-96">
-                    <ToolWindow
-                      region={rightOpen[0]}
-                      host={host}
-                      entranceIndex={1}
-                      onHide={() => toggle(rightOpen[0])}
-                      gridRegionId={editor.object.id}
-                    />
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
-                {visiblePanels.flatMap((panel, index) => {
-                  const isEditor = panel.region === editor;
-                  const nodes = [];
-                  if (index > 0) {
-                    nodes.push(
-                      <PanelResizeHandle
-                        key={`handle-${panel.region.object.id}`}
-                        data-panel-seam
-                        className="relative w-ij-island-gutter bg-transparent"
-                      />,
-                    );
-                  }
+      <div
+        data-shell-region="ground"
+        className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter"
+      >
+        <div className="relative min-h-0 min-w-0 flex-1">
+          {compact ? (
+            <>
+              {editorPane}
+              {leftOpen[0] ? (
+                <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
+                  <ToolWindow
+                    region={leftOpen[0]}
+                    host={host}
+                    entranceIndex={0}
+                    onHide={() => toggle(leftOpen[0])}
+                    gridRegionId={editor.object.id}
+                  />
+                </div>
+              ) : null}
+              {rightOpen[0] ? (
+                <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
+                  <ToolWindow
+                    region={rightOpen[0]}
+                    host={host}
+                    entranceIndex={1}
+                    onHide={() => toggle(rightOpen[0])}
+                    gridRegionId={editor.object.id}
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
+              {visiblePanels.flatMap((panel, index) => {
+                const isEditor = panel.region === editor;
+                const nodes = [];
+                if (index > 0) {
                   nodes.push(
-                    <Panel
-                      key={panel.region.object.id}
-                      id={panel.region.object.id}
-                      order={orderOf(panel.region)}
-                      defaultSize={(panel.abs / visibleTotal) * 100}
-                      minSize={isEditor ? 30 : 12}
-                    >
-                      {isEditor ? (
-                        editorPane
-                      ) : (
+                    <PanelResizeHandle
+                      key={`handle-${panel.region.object.id}`}
+                      data-panel-seam
+                      className="relative w-ij-island-gutter bg-transparent"
+                    />,
+                  );
+                }
+                nodes.push(
+                  <Panel
+                    key={panel.region.object.id}
+                    id={panel.region.object.id}
+                    order={orderOf(panel.region)}
+                    defaultSize={(panel.abs / visibleTotal) * 100}
+                    minSize={isEditor ? 30 : 12}
+                  >
+                    {isEditor ? (
+                      editorPane
+                    ) : (
+                      <div
+                        data-shell-region="dock"
+                        data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
+                        className="h-full min-h-0"
+                      >
                         <ToolWindow
                           region={panel.region}
                           host={host}
@@ -443,22 +447,21 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                           onHide={() => toggle(panel.region)}
                           gridRegionId={editor.object.id}
                         />
-                      )}
-                    </Panel>,
-                  );
-                  return nodes;
-                })}
-              </PanelGroup>
-            )}
-            {selectedRecordId ? (
-              <div className="absolute inset-y-0 right-0 z-40">
-                <RecordInspector host={host} />
-              </div>
-            ) : null}
-          </div>
+                      </div>
+                    )}
+                  </Panel>,
+                );
+                return nodes;
+              })}
+            </PanelGroup>
+          )}
+          {selectedRecordId ? (
+            <div className="absolute inset-y-0 right-0 z-40">
+              <RecordInspector host={host} />
+            </div>
+          ) : null}
         </div>
       </div>
-      <StatusBar host={host} />
       <SearchPanel host={host} />
       <ActionSheet host={host} />
     </div>

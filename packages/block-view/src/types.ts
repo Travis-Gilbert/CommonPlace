@@ -284,26 +284,53 @@ export interface ViewSource {
   readonly allowedBespokeReason?: string;
 }
 
-/** Where a block may mount in the console shell (HANDOFF-CONSOLE-BLOCK-SYSTEM). */
-export type MountPoint = "stripe" | "chrome" | "island" | "surface" | "companion";
+/**
+ * Where a block may be placed in the console shell
+ * (HANDOFF-CONSOLE-ONE-BLOCK-MODEL). Replaces MountPoint.
+ */
+export type BlockPlacement = "rail" | "dock" | "ground" | "full";
 
-/** Density grammar for island and surface bodies. */
+/** Density grammar for ground and full bodies. */
 export type BlockDensity = "compact" | "cozy" | "both";
 
 /**
- * Grid spans on the 12-column island grid:
- * s 3x2, m 4x3, v 3x5 (vertical), sq 4x4, w 6x3, full = surface.
+ * Named size presets for initial placement and "reset to size" only.
+ * Free geometry uses BlockGeometry; presets are not the constraint set.
+ * Spans on the 12-column canvas: s 3x2, m 4x3, v 3x5, sq 4x4, w 6x3, full 12x12.
  */
 export type BlockSize = "s" | "m" | "v" | "sq" | "w" | "full";
 
-/** Island base class for the material layer (HANDOFF-CONSOLE-ISLAND-SHELL). */
-export type IslandSurfaceClass = "editor" | "tool";
+/** Free placement on the 12-column ground canvas (1-based col/row). */
+export interface BlockGeometry {
+  readonly col: number;
+  readonly row: number;
+  readonly colSpan: number;
+  readonly rowSpan: number;
+}
+
+/** Clamp free resize; minRows defaults from header-fit when omitted on the host. */
+export interface BlockLimits {
+  readonly minCols: number;
+  readonly minRows: number;
+  readonly maxCols?: number;
+  readonly maxRows?: number;
+}
+
+/** Opt-in nested block containers (HANDOFF-CONSOLE-ONE-BLOCK-MODEL choice 7). */
+export interface BlockAcceptsChildren {
+  readonly layout: "grid" | "stack" | "split" | "columns";
+  /** Descriptor ids or `"*"`. Omitted means any block. */
+  readonly accepts?: readonly string[];
+}
+
+/** Block base class for the material paint treatment. */
+export type BlockSurfaceClass = "editor" | "tool";
 
 /**
- * Kind glyph key for island headers. Resolved to an icon in the console shell;
+ * Kind glyph key for block headers. Resolved to an icon in the console shell;
  * declared on the descriptor so hosts do not invent ad hoc id heuristics.
  */
-export type IslandKindGlyph =
+export type BlockKindGlyph =
   | "records"
   | "cards"
   | "thread"
@@ -320,27 +347,32 @@ export type IslandKindGlyph =
   | "automation";
 
 /**
- * Island body inset vs flush under the header.
+ * Block body inset vs flush under the header.
  * `inset` (default) applies body pad; `flush` lets tables and grids go edge to edge.
  */
-export type IslandBodyBleed = "inset" | "flush";
+export type BlockBodyBleed = "inset" | "flush";
 
-/** Optional presentation grammar. Absent means surface-only (not a movable island). */
+/** Optional presentation grammar. Absent means not a movable block. */
 export interface BlockPresentation {
   /** Usage-named, verb plus noun (e.g. "browse records"). */
   readonly usage: string;
-  readonly mounts: readonly MountPoint[];
-  readonly sizes: readonly BlockSize[];
+  readonly placements: readonly BlockPlacement[];
+  /** Shape taken on first place; also the "reset to size" default. */
+  readonly defaultSize: BlockSize;
   readonly density: BlockDensity;
+  /** Free-geometry clamps. Hosts supply header-fit minRows when omitted. */
+  readonly limits?: BlockLimits;
+  /** When set, this block may contain other blocks. */
+  readonly acceptsChildren?: BlockAcceptsChildren;
   /**
-   * Island base class. Defaults to `tool` when omitted.
-   * Homogeneous islands (three or more of one class) are a defect.
+   * Paint base class. Defaults to `tool` when omitted.
+   * Homogeneous ground (three or more of one class) is a defect.
    */
-  readonly surfaceClass?: IslandSurfaceClass;
+  readonly surfaceClass?: BlockSurfaceClass;
   /** Header kind glyph. Defaults to `records` when omitted. */
-  readonly kindGlyph?: IslandKindGlyph;
+  readonly kindGlyph?: BlockKindGlyph;
   /** Body pad under the header. Defaults to `inset`. */
-  readonly bodyBleed?: IslandBodyBleed;
+  readonly bodyBleed?: BlockBodyBleed;
   /**
    * Contract note for implementers (edition split, render pipeline, etc.).
    * Not shown in chrome; lives on the descriptor for heads.
