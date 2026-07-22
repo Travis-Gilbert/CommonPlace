@@ -5,6 +5,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { BlockGeometry, BlockHost, ObjectRef } from '@commonplace/block-view/types';
+import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import {
   BlockCanvas,
   type BlockCanvasItem,
@@ -14,11 +15,14 @@ import { skeletonForKind } from '@/components/blocks/kind-glyph';
 import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import {
+  nestBlockInContainerActions,
   placeBlockAction,
   readBlockGeometry,
   readBlockSize,
+  readConfigRecord,
   reorderBlockActions,
   setBlockGeometryAction,
+  type KanbanColumnId,
 } from '@/lib/block-placement';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 
@@ -111,6 +115,44 @@ export function BlockArrangementHost({
     [host],
   );
 
+  const onNest = useCallback(
+    (childId: string, containerId: string, columnId: string) => {
+      void (async () => {
+        const child = instances.find((instance) => instance.id === childId);
+        const container = instances.find((instance) => instance.id === containerId);
+        if (!container || childId === containerId) return;
+        const column: KanbanColumnId =
+          columnId === 'doing' || columnId === 'done' || columnId === 'todo'
+            ? columnId
+            : 'todo';
+        const order = container.relations?.[CONTAINS_EDGE]?.length ?? 0;
+        const actions = nestBlockInContainerActions(
+          childId,
+          containerId,
+          column,
+          order,
+          child ? readConfigRecord(child) : {},
+        );
+        let moves = 0;
+        for (const action of actions) {
+          const result = await host.emit(action);
+          if (
+            result.ok &&
+            result.value?.action_kind === 'move' &&
+            result.value.status === 'applied'
+          ) {
+            moves += 1;
+          }
+        }
+        if (moves > 0) {
+          recordBlockMoveReceipts(moves);
+          setMoveReceiptCount((count) => count + moves);
+        }
+      })();
+    },
+    [host, instances],
+  );
+
   const onPromote = useCallback(
     (viewInstanceId: string, zone: BlockPlacementZone) => {
       void (async () => {
@@ -175,6 +217,7 @@ export function BlockArrangementHost({
         onReorder={onReorder}
         onGeometryChange={onGeometryChange}
         onPromote={onPromote}
+        onNest={onNest}
       />
     </div>
   );

@@ -61,6 +61,12 @@ export interface BlockCanvasProps {
     viewInstanceId: string,
     zone: BlockPlacementZone,
   ) => void;
+  /** Nest under an acceptsChildren container (durable CONTAINS parenting). */
+  readonly onNest?: (
+    childId: string,
+    containerId: string,
+    columnId: string,
+  ) => void;
   readonly children?: ReactNode;
 }
 
@@ -286,6 +292,7 @@ export function BlockCanvas({
   onGeometryChange,
   onReorder,
   onPromote,
+  onNest,
 }: BlockCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -334,26 +341,16 @@ export function BlockCanvas({
         return;
       }
       if (overData?.type === 'container' && overData.acceptsChildren) {
-        // Innermost container won collision; nesting is recorded on the
-        // container view (kanban membership) via a custom event so the
-        // container body can react without a second DnD tree.
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('commonplace:block-nest', {
-              detail: {
-                childId: activeBlockId,
-                columnId: overData.columnId ?? 'todo',
-                containerViewInstanceId: overData.viewInstanceId,
-              },
-            }),
-          );
+        const containerId = overData.viewInstanceId;
+        if (containerId && containerId !== activeBlockId) {
+          onNest?.(activeBlockId, containerId, overData.columnId ?? 'todo');
         }
         return;
       }
       const overId = String(over.id).replace(/^block:/, '');
       if (overId !== activeBlockId) onReorder?.(activeBlockId, overId);
     },
-    [onPromote, onReorder],
+    [onNest, onPromote, onReorder],
   );
 
   const activeItem = items.find((item) => item.viewInstanceId === activeId) ?? null;

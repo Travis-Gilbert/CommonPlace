@@ -1,32 +1,44 @@
 'use client';
 
 // SOURCING: hand-roll + dnd-kit. First acceptsChildren container
-// (HANDOFF-CONSOLE-ONE-BLOCK-MODEL OB7). Columns accept other blocks;
-// innermost-accepting-container collision lives in block-collision.ts.
+// (HANDOFF-CONSOLE-ONE-BLOCK-MODEL OB7). Children parent under this
+// view-instance via CONTAINS; column lives on child config.kanbanColumn.
 
 import { useDroppable } from '@dnd-kit/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { ViewRenderProps } from '@commonplace/block-view/types';
+import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
+import type { BlockHost, ObjectRef, ObjectSet, ViewRenderProps } from '@commonplace/block-view/types';
+import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
+import {
+  readKanbanColumn,
+  type KanbanColumnId,
+} from '@/lib/block-placement';
 
-const COLUMNS = [
+const COLUMNS: readonly { id: KanbanColumnId; label: string }[] = [
   { id: 'todo', label: 'Todo' },
   { id: 'doing', label: 'Doing' },
   { id: 'done', label: 'Done' },
-] as const;
+];
+
+const LAYOUT_QUERY = {
+  types: ['surface', 'region', 'view-instance'] as const,
+};
 
 function KanbanColumn({
   columnId,
   label,
+  containerId,
   hostDescriptorId,
   children,
 }: {
-  readonly columnId: string;
+  readonly columnId: KanbanColumnId;
   readonly label: string;
+  readonly containerId: string;
   readonly hostDescriptorId: string;
   readonly children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: `container:kanban:${hostDescriptorId}:${columnId}`,
+    id: `container:kanban:${containerId}:${columnId}`,
     data: {
       type: 'container',
       acceptsChildren: true,
@@ -34,6 +46,7 @@ function KanbanColumn({
       layout: 'columns',
       columnId,
       descriptorId: hostDescriptorId,
+      viewInstanceId: containerId,
     },
   });
 
@@ -52,58 +65,95 @@ function KanbanColumn({
   );
 }
 
-export function KanbanBlock({ instance }: ViewRenderProps) {
-  const hostDescriptorId = String(instance.properties.descriptor_id ?? 'kanban');
-  const [membership, setMembership] = useState<Record<string, string>>({});
+function useContainerChildren(
+  host: BlockHost,
+  containerId: string | undefined,
+): readonly ObjectRef[] {
+  const [children, setChildren] = useState<readonly ObjectRef[]>([]);
 
   useEffect(() => {
-    const onNest = (event: Event) => {
-      const detail = (event as CustomEvent<{ childId?: string; columnId?: string }>).detail;
-      if (!detail?.childId || !detail.columnId) return;
-      setMembership((current) => ({ ...current, [detail.childId!]: detail.columnId! }));
+    if (!containerId) {
+      setChildren([]);
+      return;
+    }
+    let active = true;
+    let unsubscribe = () => {};
+
+    const publish = (set: ObjectSet) => {
+      if (!active) return;
+      const byId = new Map(set.objects.map((object) => [object.id, object]));
+      const parent = byId.get(containerId);
+      const ids = parent?.relations?.[CONTAINS_EDGE] ?? [];
+      setChildren(
+        ids
+          .map((id) => byId.get(id))
+          .filter((object): object is ObjectRef => object?.type === 'view-instance'),
+      );
     };
-    window.addEventListener('commonplace:block-nest', onNest);
-    return () => window.removeEventListener('commonplace:block-nest', onNest);
-  }, []);
+
+    void Promise.resolve(host.query({ ...LAYOUT_QUERY })).then((set) => {
+      publish(set);
+      if (typeof set.subscribe === 'function') {
+        unsubscribe = set.subscribe(publish);
+      }
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [containerId, host]);
+
+  return children;
+}
+
+export function KanbanBlock({ host, instance }: ViewRenderProps) {
+  const containerId = instance?.id;
+  const hostDescriptorId = String(instance?.properties.descriptor_id ?? 'kanban');
+  const nested = useContainerChildren(host, containerId);
 
   const byColumn = useMemo(() => {
-    const buckets: Record<string, string[]> = { todo: [], doing: [], done: [] };
-    for (const [childId, columnId] of Object.entries(membership)) {
-      (buckets[columnId] ?? buckets.todo!).push(childId);
+    const buckets: Record<KanbanColumnId, ObjectRef[]> = {
+      todo: [],
+      doing: [],
+      done: [],
+    };
+    for (const child of nested) {
+      buckets[readKanbanColumn(child)].push(child);
     }
     return buckets;
-  }, [membership]);
+  }, [nested]);
+
+  if (!containerId) {
+    return (
+      <p className="p-2 text-sm text-ij-ink-info" data-kanban-missing-instance>
+        Kanban needs a view-instance to parent children.
+      </p>
+    );
+  }
 
   return (
     <div
       data-kanban-board
       data-block-container
+      data-kanban-container={containerId}
       className="flex h-full min-h-0 gap-2 overflow-auto p-2"
-      onDrop={(event) => {
-        event.preventDefault();
-        const childId = event.dataTransfer.getData('text/view-instance-id');
-        const columnId = (event.target as HTMLElement)
-          .closest<HTMLElement>('[data-kanban-column]')
-          ?.dataset.kanbanColumn;
-        if (!childId || !columnId) return;
-        setMembership((current) => ({ ...current, [childId]: columnId }));
-      }}
-      onDragOver={(event) => event.preventDefault()}
     >
       {COLUMNS.map((column) => (
         <KanbanColumn
           key={column.id}
           columnId={column.id}
           label={column.label}
+          containerId={containerId}
           hostDescriptorId={hostDescriptorId}
         >
-          {(byColumn[column.id] ?? []).map((childId) => (
+          {(byColumn[column.id] ?? []).map((child) => (
             <div
-              key={childId}
-              data-kanban-card={childId}
-              className="rounded-ij-arc border border-ij-seam bg-ij-raised px-2 py-1 text-ij-ink"
+              key={child.id}
+              data-kanban-card={child.id}
+              className="min-h-0 overflow-hidden rounded-ij-arc border border-ij-seam"
             >
-              {childId}
+              <ViewInstanceHost instance={child} host={host} bare />
             </div>
           ))}
           {(byColumn[column.id] ?? []).length === 0 ? (

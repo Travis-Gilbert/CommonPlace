@@ -61,6 +61,45 @@ export function setBlockGeometryAction(
   return updateViewInstanceConfigAction(viewInstanceId, { geometry });
 }
 
+export type KanbanColumnId = 'todo' | 'doing' | 'done';
+
+export function readKanbanColumn(instance: ObjectRef): KanbanColumnId {
+  const config = instance.properties.config;
+  if (config && typeof config === 'object' && !Array.isArray(config)) {
+    const column = (config as Record<string, JsonValue>).kanbanColumn;
+    if (column === 'todo' || column === 'doing' || column === 'done') return column;
+  }
+  return 'todo';
+}
+
+export function readConfigRecord(instance: ObjectRef): Record<string, JsonValue> {
+  const config = instance.properties.config;
+  if (config && typeof config === 'object' && !Array.isArray(config)) {
+    return { ...(config as Record<string, JsonValue>) };
+  }
+  return {};
+}
+
+/**
+ * Nest a ground block under a container view-instance (CONTAINS) and stamp
+ * the column id on the child config. Durable across reload via layout persist.
+ */
+export function nestBlockInContainerActions(
+  childId: string,
+  containerId: string,
+  columnId: KanbanColumnId,
+  order: number,
+  existingConfig: Readonly<Record<string, JsonValue>> = {},
+): ObjectAction[] {
+  return [
+    moveSurfaceNodeAction(childId, containerId, order),
+    updateViewInstanceConfigAction(childId, {
+      ...existingConfig,
+      kanbanColumn: columnId,
+    }),
+  ];
+}
+
 export function placeBlockAction(
   viewInstanceId: string,
   target: BlockPlacementTarget,

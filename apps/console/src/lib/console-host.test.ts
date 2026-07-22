@@ -128,6 +128,53 @@ describe('ConsoleBlockHost', () => {
     expect(editor.relations?.[CONTAINS_EDGE]).toEqual(['workspace.vi-substrate', 'vi-brief']);
   });
 
+  it('nests a view-instance under another and merges kanbanColumn into config', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const created = await host.emit({
+      kind: 'create',
+      type: 'view-instance',
+      props: {
+        id: 'vi-kanban-test',
+        descriptor_id: 'kanban',
+        title: 'Board',
+        config: { size: 'w' },
+      },
+    });
+    expect(created.ok).toBe(true);
+    await host.emit({
+      kind: 'move',
+      id: 'vi-kanban-test',
+      new_parent: 'cards.region-editor',
+      order: 0,
+    });
+    const nestMove = await host.emit({
+      kind: 'move',
+      id: 'cards.vi-records',
+      new_parent: 'vi-kanban-test',
+      order: 0,
+    });
+    expect(nestMove.ok).toBe(true);
+    await host.emit({
+      kind: 'update',
+      id: 'cards.vi-records',
+      patch: { config: { kanbanColumn: 'doing' } },
+    });
+    const set = host.queryLayout(surfaceQuery());
+    const kanban = set.objects.find((object) => object.id === 'vi-kanban-test')!;
+    const child = set.objects.find((object) => object.id === 'cards.vi-records')!;
+    expect(kanban.relations?.[CONTAINS_EDGE]).toEqual(['cards.vi-records']);
+    expect(child.properties.config).toMatchObject({ kanbanColumn: 'doing' });
+    // Config merge keeps prior keys when patching column only.
+    expect(
+      typeof child.properties.config === 'object'
+        && child.properties.config
+        && !Array.isArray(child.properties.config)
+        && 'size' in (child.properties.config as object)
+          ? (child.properties.config as { size?: unknown }).size
+          : undefined,
+    ).toBeDefined();
+  });
+
   it('notifies layout subscribers on update', async () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = host.queryLayout(surfaceQuery());

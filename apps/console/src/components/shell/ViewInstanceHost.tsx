@@ -3,9 +3,9 @@
 // SOURCING: @commonplace/block-view (descriptor resolution over ObjectQuery).
 // The marriage requirement (G3): every pane is a view instance resolved by
 // descriptor against the host. Ground blocks render inside BlockShell;
-// full-only placements stay bare.
+// full-only placements stay bare. Query-less containers (kanban) still render.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BlockHost, ObjectQuery, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
 import { BlockShell } from '@/components/blocks/BlockShell';
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
@@ -20,6 +20,19 @@ function instanceQuery(instance: ObjectRef): ObjectQuery | null {
   const types = (raw as { types?: unknown }).types;
   if (!Array.isArray(types)) return null;
   return raw as unknown as ObjectQuery;
+}
+
+function emptyObjectSet(): ObjectSet {
+  return {
+    objects: [],
+    shape: {
+      types: [],
+      fields: [],
+      relations: [],
+      axes: {},
+      cardinality: 'empty',
+    },
+  };
 }
 
 export function ViewInstanceHost({
@@ -43,22 +56,27 @@ export function ViewInstanceHost({
   const descriptorId = String(instance.properties.descriptor_id ?? '');
   const descriptor = CONSOLE_VIEW_REGISTRY.viewById(descriptorId);
   const query = instanceQuery(instance);
-  const [set, setSet] = useState<ObjectSet | null>(null);
+  const [set, setSet] = useState<ObjectSet | null>(() => (query ? null : emptyObjectSet()));
   const [failed, setFailed] = useState(false);
-  const [stateKind, setStateKind] = useState<ViewStateKind>('loading');
+  const [stateKind, setStateKind] = useState<ViewStateKind>(query ? 'loading' : 'populated');
   const [reloadToken, setReloadToken] = useState(0);
 
   const retry = useCallback(() => {
     setFailed(false);
-    setSet(null);
-    setStateKind('loading');
+    setSet(query ? null : emptyObjectSet());
+    setStateKind(query ? 'loading' : 'populated');
     setReloadToken((token) => token + 1);
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     let active = true;
     let unsubscribe: (() => void) | undefined;
-    if (!query) return;
+    if (!query) {
+      setFailed(false);
+      setSet(emptyObjectSet());
+      setStateKind('populated');
+      return;
+    }
     setFailed(false);
     setStateKind('loading');
     Promise.resolve(host.query(query))
@@ -88,27 +106,30 @@ export function ViewInstanceHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, instance, reloadToken]);
 
+  const empty = useMemo(() => emptyObjectSet(), []);
+
   if (!descriptor) return <FallbackCard descriptorId={descriptorId || instance.id} />;
 
   const mountsGround = descriptor.block?.placements.includes('ground') ?? false;
   const useShell = !bare && (forceShell || mountsGround);
   const Render = descriptor.render;
+  const renderSet = set ?? empty;
 
   if (!useShell) {
     if (failed) return <ViewState state="error" errorMessage="View query failed." onRetry={retry} />;
-    if (!query || !set) return <ViewState state="loading" />;
-    return <Render set={set} host={host} />;
+    if (query && !set) return <ViewState state="loading" />;
+    return <Render set={renderSet} host={host} instance={instance} />;
   }
 
   const shellState: ViewStateKind = failed
     ? 'error'
-    : !query || !set
+    : query && !set
       ? 'loading'
       : stateKind;
 
   const body =
-    (shellState === 'populated' || shellState === 'stale') && set ? (
-      <Render set={set} host={host} />
+    shellState === 'populated' || shellState === 'stale' || (!query && shellState !== 'error') ? (
+      <Render set={renderSet} host={host} instance={instance} />
     ) : null;
 
   const returnToGrid = returnToGridRegionId ? (

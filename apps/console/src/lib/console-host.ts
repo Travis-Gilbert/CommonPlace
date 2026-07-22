@@ -743,10 +743,24 @@ export class ConsoleBlockHost implements BlockHost {
       case 'update': {
         const node = this.layout.get(action.id);
         if (node) {
-          node.properties = { ...node.properties, ...action.patch };
+          const patch = { ...action.patch } as Record<string, JsonValue>;
+          if (patch.config && typeof patch.config === 'object' && !Array.isArray(patch.config)) {
+            const previous = node.properties.config;
+            const previousRecord =
+              previous && typeof previous === 'object' && !Array.isArray(previous)
+                ? (previous as Record<string, JsonValue>)
+                : {};
+            patch.config = {
+              ...previousRecord,
+              ...(patch.config as Record<string, JsonValue>),
+            };
+          }
+          node.properties = { ...node.properties, ...patch };
           this.persistLayout();
           this.notifyLayout();
-          return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
+          return this.writeThroughLayoutUpdates([
+            { kind: 'update', id: action.id, patch },
+          ]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
         // seeds); records, docs, and code files ride the wire so edits persist.
