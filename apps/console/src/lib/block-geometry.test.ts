@@ -6,6 +6,7 @@ import {
   clampGeometry,
   geometryFromSize,
   limitsFailHeaderFit,
+  packOrigin,
   resolveLimits,
   sizesFailingHeaderFit,
 } from './block-geometry';
@@ -43,5 +44,15 @@ describe('block-geometry', () => {
     expect(resolveLimits({ minCols: 1, minRows: 0 }).minRows).toBe(1);
     expect(limitsFailHeaderFit({ minCols: 1, minRows: 1 })).toBe(false);
     expect(sizesFailingHeaderFit(['s', 'm', 'v', 'sq', 'w', 'full'])).toEqual([]);
+  });
+
+  it('packs seed origins left to right then next row', () => {
+    expect(packOrigin(0, 'm')).toEqual({ col: 1, row: 1 });
+    expect(packOrigin(1, 'm')).toEqual({ col: 5, row: 1 });
+    expect(packOrigin(2, 'm')).toEqual({ col: 9, row: 1 });
+    expect(packOrigin(3, 'm')).toEqual({ col: 1, row: 4 });
+    expect(packOrigin(0, 'w')).toEqual({ col: 1, row: 1 });
+    expect(packOrigin(1, 'w')).toEqual({ col: 7, row: 1 });
+    expect(packOrigin(2, 'w')).toEqual({ col: 1, row: 4 });
   });
 });

@@ -47,6 +47,23 @@ export function geometryFromSize(
   };
 }
 
+/**
+ * Left-to-right then next-row packing origin for seed geometry when config
+ * has no persisted geometry. Index is among unseeded ground items; size
+ * drives the span used for that packing step.
+ */
+export function packOrigin(
+  index: number,
+  size: BlockSize,
+): { col: number; row: number } {
+  const { cols, rows } = BLOCK_SIZE_SPAN[size];
+  const perRow = Math.max(1, Math.floor(CANVAS_COLS / cols));
+  return {
+    col: (index % perRow) * cols + 1,
+    row: Math.floor(index / perRow) * rows + 1,
+  };
+}
+
 /** Effective limits: descriptor limits with header-fit floor on minRows. */
 export function resolveLimits(limits?: BlockLimits): BlockLimits {
   return {

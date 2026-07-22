@@ -70,12 +70,14 @@ function useContainerChildren(
   containerId: string | undefined,
 ): readonly ObjectRef[] {
   const [children, setChildren] = useState<readonly ObjectRef[]>([]);
+  const [prevContainerId, setPrevContainerId] = useState(containerId);
+  if (containerId !== prevContainerId) {
+    setPrevContainerId(containerId);
+    if (!containerId) setChildren([]);
+  }
 
   useEffect(() => {
-    if (!containerId) {
-      setChildren([]);
-      return;
-    }
+    if (!containerId) return;
     let active = true;
     let unsubscribe = () => {};
 

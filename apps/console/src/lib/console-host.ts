@@ -162,6 +162,8 @@ export class ConsoleBlockHost implements BlockHost {
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
   private seedLayoutTask: Promise<void> | null = null;
+  /** Serializes layout write-through so concurrent updates cannot race on the wire. */
+  private layoutWriteTail: Promise<unknown> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -425,9 +427,19 @@ export class ConsoleBlockHost implements BlockHost {
     actions: ReadonlyArray<ObjectAction>,
   ): Promise<void> {
     if (this.records !== null) return;
-    for (const action of actions) {
-      await this.http.emit(action);
-    }
+    const run = async () => {
+      for (const action of actions) {
+        await this.http.emit(action);
+      }
+    };
+    // Chain all layout writes so out-of-order HTTP completion cannot overwrite
+    // a newer patch with an older one for the same view-instance.
+    const next = this.layoutWriteTail.then(run, run);
+    this.layoutWriteTail = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    await next;
   }
 
   private notifyLayout(): void {

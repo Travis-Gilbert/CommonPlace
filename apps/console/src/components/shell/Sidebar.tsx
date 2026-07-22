@@ -15,9 +15,11 @@ import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
 import { useShellStore } from '@/lib/shell-store';
 import { useThreadStore } from '@/lib/thread-store';
+import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import {
+  IconAccount,
   IconCards,
   IconChat,
   IconDoc,
@@ -30,6 +32,13 @@ import {
   IconThread,
   IconWorkspace,
 } from './icons';
+
+const CONNECTION_LABEL: Record<string, string> = {
+  connected: 'Connected',
+  connecting: 'Connecting',
+  disconnected: 'Disconnected',
+  'identity-refused': 'Identity refused',
+};
 
 export interface SidebarRegion {
   readonly object: ObjectRef;
@@ -178,7 +187,13 @@ export function Sidebar({
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
-  const [collapsed, setCollapsed] = useState(() => landmarksRegion?.object.properties.collapsed === true);
+  const remoteCollapsed = landmarksRegion?.object.properties.collapsed === true;
+  const [collapsed, setCollapsed] = useState(remoteCollapsed);
+  const [prevRemoteCollapsed, setPrevRemoteCollapsed] = useState(remoteCollapsed);
+  if (remoteCollapsed !== prevRemoteCollapsed) {
+    setPrevRemoteCollapsed(remoteCollapsed);
+    setCollapsed(remoteCollapsed);
+  }
   const domainLandmarks = useLandmarkObjects(host);
   const routedSurfaces = useMemo(
     () => surfaces
@@ -199,7 +214,10 @@ export function Sidebar({
   const cancelRun = useThreadStore((state) => state.cancel);
   const connection = useShellStore((state) => state.connection);
   const setConnection = useShellStore((state) => state.setConnection);
+  const progressLabel = useShellStore((state) => state.progressLabel);
   const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
+  const showConnection =
+    needsReconnect || connection === 'connecting' || Boolean(progressLabel);
 
   const toggleCollapse = useCallback(() => {
     if (!landmarksRegion) return;
@@ -219,10 +237,6 @@ export function Sidebar({
     }
     void host.activateSurface(surface.id);
   }, [activeSurfaceId, host, router]);
-
-  useEffect(() => {
-    setCollapsed(landmarksRegion?.object.properties.collapsed === true);
-  }, [landmarksRegion?.object.properties.collapsed]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -474,8 +488,20 @@ export function Sidebar({
           <span aria-hidden>{collapsed ? '›' : '‹'}</span>
         </button>
         <span className="flex size-ij-control shrink-0 items-center justify-center rounded-full bg-ij-raised text-sm text-ij-ink">{initials}</span>
+        <button
+          type="button"
+          data-account-trigger
+          aria-label="Account"
+          aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
+          onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
+          className="flex size-ij-stripe-icon shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink aria-pressed:bg-ij-selection aria-pressed:text-ij-ink"
+          style={{ transition: 'var(--rec-clickable-transition)' }}
+          title="Account"
+        >
+          <IconAccount size={14} />
+        </button>
         <span className="min-w-0 truncate text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
-        {needsReconnect ? (
+        {showConnection ? (
           <span data-rail-connection className="ml-auto flex shrink-0 items-center gap-1">
             <span
               data-connection={connection}
@@ -483,24 +509,42 @@ export function Sidebar({
               className="size-2 rounded-full"
               style={{
                 background:
-                  connection === 'identity-refused' ? 'var(--ij-error)' : 'var(--ij-ink-info)',
+                  connection === 'identity-refused'
+                    ? 'var(--ij-error)'
+                    : connection === 'connecting'
+                      ? 'var(--ij-accent)'
+                      : 'var(--ij-ink-info)',
               }}
             />
-            <button
-              type="button"
-              data-connection={connection}
-              onClick={() => {
-                setConnection('connecting');
-                void host.probe();
-              }}
-              className="rounded-ij-arc-underline px-1 text-ij-link hover:bg-ij-hover-surface"
-              style={{
-                opacity: collapsed ? 0 : 1,
-                transition: 'opacity var(--ij-motion) var(--ij-ease)',
-              }}
-            >
-              Reconnect
-            </button>
+            {needsReconnect ? (
+              <button
+                type="button"
+                data-connection={connection}
+                onClick={() => {
+                  setConnection('connecting');
+                  void host.probe();
+                }}
+                className="rounded-ij-arc-underline px-1 text-ij-link hover:bg-ij-hover-surface"
+                style={{
+                  opacity: collapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
+              >
+                Reconnect
+              </button>
+            ) : (
+              <span
+                data-connection={connection}
+                className="truncate text-ij-island-meta"
+                style={{
+                  opacity: collapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                  color: connection === 'identity-refused' ? 'var(--ij-error)' : undefined,
+                }}
+              >
+                {progressLabel ?? CONNECTION_LABEL[connection] ?? connection}
+              </span>
+            )}
           </span>
         ) : null}
       </div>

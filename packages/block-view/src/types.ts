@@ -271,7 +271,7 @@ export interface BlockHost {
 export interface ViewRenderProps {
   readonly set: ObjectSet;
   readonly host: BlockHost;
-  /** The view-instance being rendered. Required for container parenting. */
+  /** The view-instance being rendered. Optional; required when the view parents children. */
   readonly instance?: ObjectRef;
 }
 

@@ -373,7 +373,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
 
       <div className="grid min-h-0 flex-1 grid-cols-3">
         <div className="col-span-2 grid min-h-0 grid-cols-2 border-r border-ij-seam">
-        <div className="flex min-h-0 flex-col border-r border-ij-seam" aria-label="Project entity tree">
+        <div role="region" className="flex min-h-0 flex-col border-r border-ij-seam" aria-label="Project entity tree">
           <div className="border-b border-ij-seam px-3 py-2">
             <strong>Project model</strong>
             <div className="text-ij-ink-info">Generation {surface?.tree.generation ?? readiness?.generation ?? 0}</div>
@@ -447,7 +447,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
           </div>
         </div>
 
-        <div className="min-h-0 overflow-auto border-r border-ij-seam p-3" aria-label="Workspace entity details">
+        <div role="region" className="min-h-0 overflow-auto border-r border-ij-seam p-3" aria-label="Workspace entity details">
           <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Entity contract</h3>
           {selected ? (
             <dl className="mt-3 grid gap-2">
@@ -478,7 +478,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
         </div>
         </div>
 
-        <div data-block-section="revise" className="flex min-h-0 flex-col" aria-label="Local history">
+        <div role="region" data-block-section="revise" className="flex min-h-0 flex-col" aria-label="Local history">
           <div className="border-b border-ij-seam px-3 py-2">
             <strong>Local history</strong>
             <div className="truncate font-ij-mono text-ij-ink-info">{history?.path ?? 'Select a file'}</div>

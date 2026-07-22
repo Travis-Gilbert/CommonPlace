@@ -20,12 +20,12 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import {
   hasHomogeneousBlockDefect,
   resolveBlockSurfaceClass,
 } from '@commonplace/block-view';
-import type { BlockGeometry, BlockSize, ViewDescriptor } from '@commonplace/block-view/types';
+import type { BlockGeometry, BlockPlacement, BlockSize, ViewDescriptor } from '@commonplace/block-view/types';
 import { BlockShell, type BlockShellProps } from '@/components/blocks/BlockShell';
 import {
   BLOCK_ROW_UNIT_PX,
@@ -183,27 +183,53 @@ function SortableBlockCanvasCell({
     },
   });
   const cellRef = useRef<HTMLDivElement | null>(null);
-  const placement = gridStyleForGeometry(item.geometry);
+  const activeResizeCleanup = useRef<(() => void) | null>(null);
+  const [previewGeometry, setPreviewGeometry] = useState<BlockGeometry | null>(null);
+  const displayGeometry = previewGeometry ?? item.geometry;
+  const placement = gridStyleForGeometry(displayGeometry);
   const limits = item.descriptor.block?.limits;
+
+  useEffect(() => {
+    return () => {
+      activeResizeCleanup.current?.();
+      activeResizeCleanup.current = null;
+    };
+  }, []);
 
   const onResizeStart = useCallback(
     (edge: ResizeEdge, event: ReactPointerEvent<HTMLButtonElement>) => {
       if (!onGeometryChange) return;
+      activeResizeCleanup.current?.();
       const startX = event.clientX;
       const startY = event.clientY;
       const start = item.geometry;
       const cell = cellRef.current;
       const colW = cell ? cell.getBoundingClientRect().width / Math.max(1, start.colSpan) : 80;
       const rowH = BLOCK_ROW_UNIT_PX;
+      let latest = start;
 
       const onMove = (moveEvent: PointerEvent) => {
         const dCol = Math.round((moveEvent.clientX - startX) / colW);
         const dRow = Math.round((moveEvent.clientY - startY) / rowH);
         if (dCol === 0 && dRow === 0) return;
-        const next = clampGeometry(applyEdgeDelta(start, edge, dCol, dRow), limits);
-        onGeometryChange(item.viewInstanceId, next);
+        latest = clampGeometry(applyEdgeDelta(start, edge, dCol, dRow), limits);
+        setPreviewGeometry(latest);
       };
       const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        activeResizeCleanup.current = null;
+        setPreviewGeometry(null);
+        if (
+          latest.col !== start.col ||
+          latest.row !== start.row ||
+          latest.colSpan !== start.colSpan ||
+          latest.rowSpan !== start.rowSpan
+        ) {
+          onGeometryChange(item.viewInstanceId, latest);
+        }
+      };
+      activeResizeCleanup.current = () => {
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
       };
@@ -221,10 +247,10 @@ function SortableBlockCanvasCell({
       }}
       data-block-canvas-cell={item.viewInstanceId}
       data-block-size={item.size}
-      data-block-col={item.geometry.col}
-      data-block-row={item.geometry.row}
-      data-block-col-span={item.geometry.colSpan}
-      data-block-row-span={item.geometry.rowSpan}
+      data-block-col={displayGeometry.col}
+      data-block-row={displayGeometry.row}
+      data-block-col-span={displayGeometry.colSpan}
+      data-block-row-span={displayGeometry.rowSpan}
       className="relative min-h-0 min-w-0"
       style={{
         ...placement,
@@ -337,6 +363,10 @@ export function BlockCanvas({
           }
         | undefined;
       if (overData?.type === 'promote' && overData.zone) {
+        const activeItem = items.find((item) => item.viewInstanceId === activeBlockId);
+        const placements = activeItem?.descriptor.block?.placements;
+        const zoneKind = overData.zone.kind as BlockPlacement;
+        if (!placements?.includes(zoneKind)) return;
         onPromote?.(activeBlockId, overData.zone);
         return;
       }
@@ -350,10 +380,17 @@ export function BlockCanvas({
       const overId = String(over.id).replace(/^block:/, '');
       if (overId !== activeBlockId) onReorder?.(activeBlockId, overId);
     },
-    [onNest, onPromote, onReorder],
+    [items, onNest, onPromote, onReorder],
   );
 
   const activeItem = items.find((item) => item.viewInstanceId === activeId) ?? null;
+  const activePlacements = activeItem?.descriptor.block?.placements;
+  const visiblePromotionZones = useMemo(() => {
+    if (!activeId || !activePlacements) return promotionZones;
+    return promotionZones.filter((zone) =>
+      activePlacements.includes(zone.kind as BlockPlacement),
+    );
+  }, [activeId, activePlacements, promotionZones]);
 
   return (
     <DndContext
@@ -363,9 +400,9 @@ export function BlockCanvas({
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      {promotionZones.length > 0 ? (
+      {visiblePromotionZones.length > 0 ? (
         <div data-block-placement-rail className="mb-2 flex flex-wrap gap-2">
-          {promotionZones.map((zone) => (
+          {visiblePromotionZones.map((zone) => (
             <PromotionDropZone key={zone.id} zone={zone} />
           ))}
         </div>

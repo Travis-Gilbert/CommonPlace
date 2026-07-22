@@ -14,7 +14,9 @@ import {
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
 import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import { geometryFromSize, packOrigin } from '@/lib/block-geometry';
 import {
+  hasPersistedGeometry,
   nestBlockInContainerActions,
   placeBlockAction,
   readBlockGeometry,
@@ -48,13 +50,16 @@ export function BlockArrangementHost({
   const orderedIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
 
   const items = useMemo((): BlockCanvasItem[] => {
+    let packIndex = 0;
     return instances.flatMap((instance) => {
       const descriptorId = String(instance.properties.descriptor_id ?? '');
       const descriptor = CONSOLE_VIEW_REGISTRY.viewById(descriptorId);
       if (!descriptor?.block?.placements.includes('ground')) return [];
       const fallback = descriptor.block?.defaultSize ?? 'm';
       const size = readBlockSize(instance, fallback);
-      const geometry = readBlockGeometry(instance, fallback);
+      const geometry = hasPersistedGeometry(instance)
+        ? readBlockGeometry(instance, fallback)
+        : geometryFromSize(size, packOrigin(packIndex++, size));
       return [
         {
           descriptor,
@@ -110,9 +115,16 @@ export function BlockArrangementHost({
 
   const onGeometryChange = useCallback(
     (viewInstanceId: string, geometry: BlockGeometry) => {
-      void host.emit(setBlockGeometryAction(viewInstanceId, geometry));
+      const instance = instances.find((candidate) => candidate.id === viewInstanceId);
+      void host.emit(
+        setBlockGeometryAction(
+          viewInstanceId,
+          geometry,
+          instance ? readConfigRecord(instance) : {},
+        ),
+      );
     },
-    [host],
+    [host, instances],
   );
 
   const onNest = useCallback(
@@ -156,13 +168,18 @@ export function BlockArrangementHost({
   const onPromote = useCallback(
     (viewInstanceId: string, zone: BlockPlacementZone) => {
       void (async () => {
+        const instance = instances.find((candidate) => candidate.id === viewInstanceId);
         const order = 0;
-        const actions = placeBlockAction(viewInstanceId, {
-          placement: zone.kind,
-          regionId: zone.regionId,
-          order,
-          ...(zone.kind === 'full' ? { size: 'full' as const } : {}),
-        });
+        const actions = placeBlockAction(
+          viewInstanceId,
+          {
+            placement: zone.kind,
+            regionId: zone.regionId,
+            order,
+            ...(zone.kind === 'full' ? { size: 'full' as const } : {}),
+          },
+          instance ? readConfigRecord(instance) : {},
+        );
         let moves = 0;
         for (const action of actions) {
           const result = await host.emit(action);
@@ -194,7 +211,7 @@ export function BlockArrangementHost({
         }
       })();
     },
-    [host],
+    [host, instances],
   );
 
   if (items.length === 0) {

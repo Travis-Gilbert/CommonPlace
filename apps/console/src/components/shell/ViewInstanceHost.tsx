@@ -60,6 +60,22 @@ export function ViewInstanceHost({
   const [failed, setFailed] = useState(false);
   const [stateKind, setStateKind] = useState<ViewStateKind>(query ? 'loading' : 'populated');
   const [reloadToken, setReloadToken] = useState(0);
+  const [prevQueryKey, setPrevQueryKey] = useState<string | null>(() =>
+    query ? JSON.stringify(query) : null,
+  );
+  const queryKey = query ? JSON.stringify(query) : null;
+  if (queryKey !== prevQueryKey) {
+    setPrevQueryKey(queryKey);
+    if (!query) {
+      setFailed(false);
+      setSet(emptyObjectSet());
+      setStateKind('populated');
+    } else {
+      setFailed(false);
+      setSet(null);
+      setStateKind('loading');
+    }
+  }
 
   const retry = useCallback(() => {
     setFailed(false);
@@ -69,16 +85,9 @@ export function ViewInstanceHost({
   }, [query]);
 
   useEffect(() => {
+    if (!query) return;
     let active = true;
     let unsubscribe: (() => void) | undefined;
-    if (!query) {
-      setFailed(false);
-      setSet(emptyObjectSet());
-      setStateKind('populated');
-      return;
-    }
-    setFailed(false);
-    setStateKind('loading');
     Promise.resolve(host.query(query))
       .then((next) => {
         if (!active) return;
@@ -104,7 +113,7 @@ export function ViewInstanceHost({
     };
     // reloadToken forces a requery after Retry; instance identity covers arrangement edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host, instance, reloadToken]);
+  }, [host, instance, reloadToken, queryKey]);
 
   const empty = useMemo(() => emptyObjectSet(), []);
 
@@ -173,7 +182,7 @@ export function ViewInstanceHost({
       live={Boolean(query?.live)}
       onHide={onHide}
       skeleton={skeletonForKind(descriptor.block?.kindGlyph)}
-      draggable={mountsGround}
+      draggable={false}
       actions={returnToGrid}
     >
       {body}

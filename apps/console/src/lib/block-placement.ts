@@ -47,8 +47,10 @@ export function resizeBlockAction(
   viewInstanceId: string,
   size: BlockSize,
   geometry?: BlockGeometry,
+  existingConfig: Readonly<Record<string, JsonValue>> = {},
 ): ObjectAction {
   return updateViewInstanceConfigAction(viewInstanceId, {
+    ...existingConfig,
     size,
     ...(geometry ? { geometry } : {}),
   });
@@ -57,8 +59,12 @@ export function resizeBlockAction(
 export function setBlockGeometryAction(
   viewInstanceId: string,
   geometry: BlockGeometry,
+  existingConfig: Readonly<Record<string, JsonValue>> = {},
 ): ObjectAction {
-  return updateViewInstanceConfigAction(viewInstanceId, { geometry });
+  return updateViewInstanceConfigAction(viewInstanceId, {
+    ...existingConfig,
+    geometry,
+  });
 }
 
 export type KanbanColumnId = 'todo' | 'doing' | 'done';
@@ -103,6 +109,7 @@ export function nestBlockInContainerActions(
 export function placeBlockAction(
   viewInstanceId: string,
   target: BlockPlacementTarget,
+  existingConfig: Readonly<Record<string, JsonValue>> = {},
 ): ObjectAction[] {
   const moves = [moveSurfaceNodeAction(viewInstanceId, target.regionId, target.order)];
   if (target.placement === 'full') {
@@ -113,6 +120,7 @@ export function placeBlockAction(
           viewInstanceId,
           target.size ?? 'full',
           geometry,
+          existingConfig,
         ),
       );
     }
@@ -140,6 +148,21 @@ export function readBlockSize(instance: ObjectRef, fallback: BlockSize = 'm'): B
 
 function readNumber(value: JsonValue | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** True when config carries a complete free geometry record. */
+export function hasPersistedGeometry(instance: ObjectRef): boolean {
+  const config = instance.properties.config;
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
+  const raw = (config as Record<string, JsonValue>).geometry;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const geo = raw as Record<string, JsonValue>;
+  return (
+    readNumber(geo.col) !== null &&
+    readNumber(geo.row) !== null &&
+    readNumber(geo.colSpan) !== null &&
+    readNumber(geo.rowSpan) !== null
+  );
 }
 
 /** Free geometry from config, or derived from size / defaultSize. */

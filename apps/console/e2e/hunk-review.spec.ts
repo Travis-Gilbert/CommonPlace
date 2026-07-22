@@ -5,7 +5,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function openReview(page: Page) {
   await page.goto('/');
-  await page.evaluate(() => window.localStorage.removeItem('commonplace.console.layout-cache.v1'); localStorage.removeItem('commonplace.console.surface.v1'));
+  await page.evaluate(() => {
+    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
+    localStorage.removeItem('commonplace.console.surface.v1');
+  });
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });

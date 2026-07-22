@@ -5,6 +5,8 @@ import {
   readBlockSize,
   readKanbanColumn,
   reorderBlockActions,
+  resizeBlockAction,
+  setBlockGeometryAction,
 } from './block-placement';
 
 describe('block placement', () => {
@@ -30,6 +32,57 @@ describe('block placement', () => {
       id: 'vi-1',
       patch: {
         config: {
+          size: 'full',
+          geometry: { col: 1, row: 1, colSpan: 12, rowSpan: 12 },
+        },
+      },
+    });
+  });
+
+  it('preserves existing config keys when resizing or setting geometry', () => {
+    expect(
+      resizeBlockAction('vi-1', 'w', undefined, { size: 'm', kanbanColumn: 'doing' }),
+    ).toEqual({
+      kind: 'update',
+      id: 'vi-1',
+      patch: { config: { size: 'w', kanbanColumn: 'doing' } },
+    });
+    expect(
+      setBlockGeometryAction(
+        'vi-1',
+        { col: 2, row: 3, colSpan: 4, rowSpan: 3 },
+        { size: 'm', kanbanColumn: 'todo' },
+      ),
+    ).toEqual({
+      kind: 'update',
+      id: 'vi-1',
+      patch: {
+        config: {
+          size: 'm',
+          kanbanColumn: 'todo',
+          geometry: { col: 2, row: 3, colSpan: 4, rowSpan: 3 },
+        },
+      },
+    });
+  });
+
+  it('promotes to full while merging existing config', () => {
+    const actions = placeBlockAction(
+      'vi-1',
+      {
+        placement: 'full',
+        regionId: 'editor-1',
+        order: 0,
+        size: 'full',
+      },
+      { kanbanColumn: 'done', size: 'm' },
+    );
+    expect(actions[1]).toMatchObject({
+      kind: 'update',
+      id: 'vi-1',
+      patch: {
+        config: {
+          kanbanColumn: 'done',
           size: 'full',
           geometry: { col: 1, row: 1, colSpan: 12, rowSpan: 12 },
         },

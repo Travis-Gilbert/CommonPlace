@@ -56,16 +56,15 @@ export function GoalStackView(_props: ViewRenderProps) {
   const [busy, setBusy] = useState(false);
   const [dragged, setDragged] = useState<PlanCapability | null>(null);
   const [promotionOpen, setPromotionOpen] = useState(false);
-  const [pins, setPins] = useState<Map<string, { x: number; y: number }>>(() => new Map());
+  const [pins, setPins] = useState<Map<string, { x: number; y: number }>>(() =>
+    planId ? loadPins(planId) : new Map(),
+  );
+  const [pinsPlanId, setPinsPlanId] = useState(planId);
+  if (pinsPlanId !== planId) {
+    setPinsPlanId(planId);
+    setPins(planId ? loadPins(planId) : new Map());
+  }
   const manifestLoadedRef = useRef(false);
-
-  useEffect(() => {
-    if (!planId) {
-      setPins(new Map());
-      return;
-    }
-    setPins(loadPins(planId));
-  }, [planId]);
 
   useEffect(() => {
     if (!planId) return;
