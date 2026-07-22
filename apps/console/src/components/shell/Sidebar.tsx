@@ -539,7 +539,6 @@ export function Sidebar({
                 style={{
                   opacity: collapsed ? 0 : 1,
                   transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                  color: connection === 'identity-refused' ? 'var(--ij-error)' : undefined,
                 }}
               >
                 {progressLabel ?? CONNECTION_LABEL[connection] ?? connection}

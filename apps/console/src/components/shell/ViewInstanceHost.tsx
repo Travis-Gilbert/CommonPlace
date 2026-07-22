@@ -32,6 +32,7 @@ function emptyObjectSet(): ObjectSet {
       axes: {},
       cardinality: 'empty',
     },
+    subscribe: () => () => {},
   };
 }
 

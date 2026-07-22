@@ -49,11 +49,12 @@ export function resizeBlockAction(
   geometry?: BlockGeometry,
   existingConfig: Readonly<Record<string, JsonValue>> = {},
 ): ObjectAction {
-  return updateViewInstanceConfigAction(viewInstanceId, {
+  const next: Record<string, JsonValue> = {
     ...existingConfig,
     size,
-    ...(geometry ? { geometry } : {}),
-  });
+  };
+  if (geometry) next.geometry = geometry as unknown as JsonValue;
+  return updateViewInstanceConfigAction(viewInstanceId, next);
 }
 
 export function setBlockGeometryAction(
@@ -63,7 +64,7 @@ export function setBlockGeometryAction(
 ): ObjectAction {
   return updateViewInstanceConfigAction(viewInstanceId, {
     ...existingConfig,
-    geometry,
+    geometry: geometry as unknown as JsonValue,
   });
 }
 
