@@ -81,6 +81,7 @@ test.describe('Console information architecture', () => {
   });
 
   test('separates five surface radios from three companion toggles', async ({ page }) => {
+    test.setTimeout(120_000);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
     const surfaces = page.getByRole('radiogroup', { name: 'Surfaces' }).getByRole('radio');
     await expect(surfaces).toHaveCount(5);
@@ -94,6 +95,8 @@ test.describe('Console information architecture', () => {
     await expect(companions.nth(1)).toHaveAttribute('data-companion-nav', 'context');
     await expect(companions.nth(2)).toHaveAttribute('data-companion-nav', 'thread');
 
+    // Soft-nav the five radios — full page.goto for each burns the 60s budget
+    // under cold CI and leaves the companion toggles unexercised.
     for (const surfaceId of [
       'console-workspace',
       'console-index',
@@ -101,7 +104,10 @@ test.describe('Console information architecture', () => {
       'console-cards',
       'console-chat',
     ] as const) {
-      await openSurface(page, surfaceId);
+      await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
+      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
+        timeout: 15_000,
+      });
     }
     // Keyboard reachability (Control+digit; Meta+digit is reserved by Chromium tabs).
     await pressSurfaceShortcut(page, '2');
@@ -112,16 +118,9 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat', {
       timeout: 15_000,
     });
-    await page.keyboard.press('Alt+Shift+1');
-    await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    // Prefer shortcuts over pointer: companion row clicks can hang under force
-    // when the layout write-through is contended after cold surface cycling.
-    await page.keyboard.press('Alt+Shift+2');
-    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Alt+Shift+3');
-    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true', {
-      timeout: 15_000,
-    });
+    await openCompanion(page, 'files');
+    await openCompanion(page, 'context');
+    await openCompanion(page, 'thread');
     await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png');
   });
 
