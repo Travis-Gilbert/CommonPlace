@@ -12,7 +12,7 @@ import { Galley } from '@travis-gilbert/markdown-theory/react';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
+import { markdown as markdownLanguage } from '@codemirror/lang-markdown';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { useAppearance } from '@/lib/appearance-store';
 import { objectChip, useShellStore } from '@/lib/shell-store';
@@ -59,7 +59,7 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
           lineNumbers(),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
-          markdown(),
+          markdownLanguage(),
           ...intuiEditorExtensions(resolvedMode),
           EditorView.lineWrapping,
         ],

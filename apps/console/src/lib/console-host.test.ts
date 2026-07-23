@@ -293,9 +293,9 @@ describe('ConsoleBlockHost', () => {
   it('preserves in-flight doc navigation across ensureSeedLayout adopt', async () => {
     // Doc list navigation patches docs.vi-reader locally while ensureSeedLayout's
     // remote fetch is still in flight; adopting the seed brief must not yank it.
-    let releaseRemote: (() => void) | null = null;
+    const remoteGate: { release: (() => void) | null } = { release: null };
     const remoteReady = new Promise<void>((resolve) => {
-      releaseRemote = resolve;
+      remoteGate.release = resolve;
     });
     const remoteLayout = seedLayout();
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -344,7 +344,7 @@ describe('ConsoleBlockHost', () => {
         },
       },
     });
-    releaseRemote?.();
+    remoteGate.release?.();
     await adopt;
     const reader = host.queryLayout(surfaceQuery()).objects.find((object) => object.id === 'docs.vi-reader');
     expect(reader?.properties.title).toBe('Console punch list');
