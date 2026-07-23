@@ -317,7 +317,8 @@ export type IslandKindGlyph =
   | "terminal"
   | "browser"
   | "kanban"
-  | "automation";
+  | "automation"
+  | "canvas";
 
 /**
  * Island body inset vs flush under the header.

@@ -157,6 +157,12 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'solid completed segment with no dash movement',
   },
   {
+    trigger: 'Data canvas paper ground',
+    effect: 'static Paper DotGrid behind the React Flow pane; register colors for back and fill',
+    spec: 'Paper DotGrid (static; ShaderMount default speed 0); gap 24px; tokens --ij-editor and --ij-seam-raised',
+    reducedMotion: 'same; the pattern is already static',
+  },
+  {
     trigger: 'Presence mark states',
     effect: 'glyph constellation cycling (idle, composing), condensation with accent commit flash (acting), settle within one frame (interrupted)',
     spec: 'MARK tokens; canvas drawing, not CSS; never intercepts pointer events',
