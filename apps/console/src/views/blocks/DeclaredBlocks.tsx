@@ -50,12 +50,3 @@ export function VideoBlock(_props: ViewRenderProps) {
     />
   );
 }
-
-export function CanvasBlock(_props: ViewRenderProps) {
-  return (
-    <IslandEmptyBody
-      title="Canvas"
-      detail="Arrange spatially with @xyflow/react and JSON Canvas interchange."
-    />
-  );
-}

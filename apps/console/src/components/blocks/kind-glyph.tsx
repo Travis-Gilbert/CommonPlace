@@ -23,6 +23,8 @@ export function kindGlyphNode(kind: IslandKindGlyph | undefined): ReactNode {
   switch (kind) {
     case 'cards':
       return <IconCards size={SIZE} />;
+    case 'canvas':
+      return <IconCards size={SIZE} />;
     case 'thread':
       return <IconThread size={SIZE} />;
     case 'doc':
