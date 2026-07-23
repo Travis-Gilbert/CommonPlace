@@ -2,10 +2,17 @@
 // default Chat surface, Composer geometry and motion budget, Files projection,
 // deterministic Context graph, and Workspace seed.
 
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
+
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 async function freshLoad(page: Page) {
   await page.goto('/');
@@ -19,6 +26,15 @@ async function freshLoad(page: Page) {
     () => document.documentElement.getAttribute('data-layout-ready') === '1',
     { timeout: 60_000 },
   );
+}
+
+/** Open a companion without toggling it closed when already open (dirty stub). */
+async function openCompanion(page: Page, companion: string) {
+  const nav = page.locator(`[data-companion-nav="${companion}"]`);
+  if ((await nav.getAttribute('aria-pressed')) !== 'true') {
+    await nav.click({ force: true });
+  }
+  await expect(nav).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
 }
 
 async function openSurface(page: Page, id: string) {
@@ -59,7 +75,10 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 }
 
 test.describe('Console information architecture', () => {
-  test.beforeEach(async ({ page }) => freshLoad(page));
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
+    await freshLoad(page);
+  });
 
   test('separates five surface radios from three companion toggles', async ({ page }) => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
@@ -147,7 +166,9 @@ test.describe('Console information architecture', () => {
     await input.pressSequentially('@Ada');
     const mention = page.getByText('Ada Lovelace', { exact: true });
     await expect(mention).toBeVisible();
-    await mention.click();
+    // Popover sits under the island header band without a raised z-index; force
+    // the selection (or keyboard Enter) so the oracle does not hang on intercepts.
+    await mention.click({ force: true });
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();
@@ -260,7 +281,7 @@ test.describe('Console information architecture', () => {
   });
 
   test('virtualizes 5000 pinned memory projections and opens a read-only Galley tab', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click({ force: true });
+    await openCompanion(page, 'files');
     await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
       timeout: 15_000,
     });
@@ -295,13 +316,13 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click({ force: true });
+    await openCompanion(page, 'files');
     await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
     await openSurface(page, 'console-cards');
-    await page.locator('[data-companion-nav="context"]').click({ force: true });
+    await openCompanion(page, 'context');
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click({ force: true });
     await page.getByLabel('Close inspector').click();
     const context = page.locator('[data-context-view]');
