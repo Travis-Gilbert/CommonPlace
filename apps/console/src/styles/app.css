@@ -244,9 +244,14 @@
   }
 }
 
-html,
-body {
-  height: 100%;
+.thread-jump-strip {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .thread-jump-strip {
+    display: block;
+  }
 }
 
 body {

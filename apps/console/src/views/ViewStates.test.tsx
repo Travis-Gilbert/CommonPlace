@@ -10,14 +10,20 @@ describe('ViewState', () => {
     expect(renderToStaticMarkup(<ViewState state="loading" />)).toContain('Loading');
   });
 
-  it('renders empty', () => {
-    expect(renderToStaticMarkup(<ViewState state="empty" />)).toContain('No records match');
+  it('renders empty with a named no-results cause', () => {
+    const markup = renderToStaticMarkup(<ViewState state="empty" />);
+    expect(markup).toContain('No results.');
+    expect(markup).toContain('data-empty-cause="no-results"');
   });
 
-  it('renders unavailable naming the missing capability', () => {
-    const markup = renderToStaticMarkup(<ViewState state="unavailable" capability="the harness chat endpoint" />);
-    expect(markup).toContain('Unavailable');
+  it('renders unavailable as not-connected with the missing capability', () => {
+    const markup = renderToStaticMarkup(
+      <ViewState state="unavailable" capability="the harness chat endpoint" onRetry={() => {}} />,
+    );
+    expect(markup).toContain('Not connected.');
     expect(markup).toContain('the harness chat endpoint');
+    expect(markup).toContain('data-empty-cause="not-connected"');
+    expect(markup).toContain('Reconnect');
   });
 
   it('renders error with retry in standalone mode', () => {

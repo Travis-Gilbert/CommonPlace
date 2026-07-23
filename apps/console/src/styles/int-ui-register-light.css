@@ -44,14 +44,26 @@
      tool #EEEDE9 is a visible step. The principled home for this is the theme
      engine tint hue set warm; this static override demonstrates the change and
      exercises the register round-trip into Paper. */
+  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), light.
+     Before (light L% approx): editor/raised ~99.7, chrome ~94.6, frame ~87.7 (spread ~12pp).
+     After: sunken ~92, ground ~88, raised ~95, floating ~99.7 (spread widened; keylines on raised+). */
+  --ij-tier-sunken: #D2CEC5;
+  --ij-tier-ground: #D9D6CF;
+  --ij-tier-raised: #EEEDE9;
+  --ij-tier-floating: #FFFEFC;
+  --ij-tier-scrim: color-mix(in oklab, #000000 36%, transparent);
+
   --ij-frame: #D9D6CF;
-  --ij-editor: #FFFEFC;
+  --ij-editor: #D2CEC5;
   --ij-chrome: #EEEDE9;
   --ij-raised: #FFFEFC;
-  --ij-seam: #E4E1DA;
+  --ij-seam: #C9C5BC;
   --ij-seam-raised: var(--ij-gray-9);
-  --ij-divider: #E4E1DA;
+  --ij-divider: #C9C5BC;
   --ij-control-border: var(--ij-gray-9);
+  --ij-keyline: var(--ij-seam-raised);
+  --ij-keyline-focus: var(--ij-accent);
+  --ij-keyline-decorative: color-mix(in oklab, var(--ij-ink) 14%, transparent);
 
   --ij-ink: var(--ij-gray-2);
   --ij-ink-info: var(--ij-gray-6);

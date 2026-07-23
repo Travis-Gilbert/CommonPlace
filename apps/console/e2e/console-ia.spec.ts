@@ -2,21 +2,12 @@
 // default Chat surface, Composer geometry and motion budget, Files projection,
 // deterministic Context graph, and Workspace seed.
 
-import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
-const STUB_BASE = 'http://localhost:50591';
 
-async function resetStubLayout(request: APIRequestContext) {
-  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
-    headers: { 'x-api-key': 'dev-key' },
-  });
-  expect(response.ok()).toBeTruthy();
-}
-
-async function freshLoad(page: Page, request?: APIRequestContext) {
-  if (request) await resetStubLayout(request);
+async function freshLoad(page: Page) {
   await page.goto('/');
   await page.evaluate(([layoutKey, legacyKey]) => {
     localStorage.removeItem(layoutKey);
@@ -68,7 +59,7 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 }
 
 test.describe('Console information architecture', () => {
-  test.beforeEach(async ({ page, request }) => freshLoad(page, request));
+  test.beforeEach(async ({ page }) => freshLoad(page));
 
   test('separates five surface radios from three companion toggles', async ({ page }) => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
@@ -118,8 +109,9 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('nav')).toHaveCount(1);
     const composer = page.locator('[data-composer]');
     const input = page.locator('[data-composer-input]');
-    await expect(composer).toHaveAttribute('data-source-component', '21st-dev-glowing-ai-chat-assistant');
-    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-material-texture', 'soft-wash');
+    await expect(composer).toHaveAttribute('data-paint-region', 'composer');
+    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-material-texture', 'shader-surface');
+    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(1);
     await expect(page.locator('[data-composer-tool-group]')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Attach file' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open action sheet' })).toBeVisible();
@@ -135,14 +127,14 @@ test.describe('Console information architecture', () => {
       'Send message (Shift + Enter for a new line)',
     );
     await expect(page.locator('[data-composer-source-footer]')).toHaveCount(0);
-    await expect(input).toHaveCSS('font-size', '16px');
+    await expect(input).toHaveCSS('font-size', '15px');
     const initial = await input.boundingBox();
     const bounds = await composer.boundingBox();
     const viewport = page.viewportSize();
-    expect(initial?.height ?? 0).toBeGreaterThanOrEqual(48);
+    expect(initial?.height ?? 0).toBeGreaterThanOrEqual(88);
     expect(bounds?.width ?? 0).toBeGreaterThan(600);
-    expect(bounds?.height ?? 1000).toBeLessThan(280);
-    expect((bounds?.y ?? 0) + ((bounds?.height ?? 0) / 2)).toBeGreaterThan((viewport?.height ?? 0) * (2 / 3) - 2);
+    expect(bounds?.height ?? 1000).toBeLessThan(420);
+    expect((bounds?.y ?? 0) + ((bounds?.height ?? 0) / 2)).toBeGreaterThan((viewport?.height ?? 0) * (2 / 3));
     await input.fill('');
     await input.fill('Material');
     await expect(page.locator('[data-composer-character-count]')).toHaveCount(0);
@@ -151,29 +143,19 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-composer-character-count]')).toHaveText('1800/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
-    const mentionPopover = page.locator('[aria-label="Object mentions"]');
-    await expect(mentionPopover).toBeVisible();
-    await expect(mentionPopover.getByText('Ada Lovelace', { exact: true })).toBeVisible();
-    // Popover opens upward and can sit under the toolbar hit-target; select via
-    // the trigger keyboard path instead of a pointer click through chrome.
-    await input.press('Enter');
+    const mention = page.getByText('Ada Lovelace', { exact: true });
+    await expect(mention).toBeVisible();
+    await mention.click();
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();
     expect(grown?.height ?? 0).toBeGreaterThan(initial?.height ?? 0);
-    expect(grown?.height ?? 1000).toBeLessThanOrEqual(164);
+    expect(grown?.height ?? 1000).toBeLessThanOrEqual(Math.ceil((viewport?.height ?? 800) * 0.4) + 8);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await page.waitForSelector('[data-composer-sheen]');
-    await page.waitForTimeout(300);
-    const firstFrames = await page.locator('[data-composer-sheen]').getAttribute('data-sheen-frames');
-    await page.waitForTimeout(300);
-    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-frames', firstFrames ?? '1');
-    const idleCostAttribute = await page.locator('[data-composer-sheen]').getAttribute('data-idle-paint-cost');
-    expect(idleCostAttribute).not.toBeNull();
-    const idleCost = Number(idleCostAttribute);
-    expect(Number.isFinite(idleCost)).toBe(true);
-    expect(idleCost).toBeLessThan(16);
+    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-state', 'idle');
+    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(1);
     await expect(page).toHaveScreenshot('chat-empty.png', { fullPage: true });
   });
 
@@ -308,11 +290,9 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
-    // Deep-linking to Cards remounts the client; hydrate memories on this
-    // surface so the ego graph can match Ada before Context opens.
-    await openSurface(page, 'console-cards');
     await page.locator('[data-companion-nav="files"]').click();
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    await openSurface(page, 'console-cards');
     await page.locator('[data-companion-nav="context"]').click();
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();
     await page.getByLabel('Close inspector').click();

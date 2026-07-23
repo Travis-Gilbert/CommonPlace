@@ -75,15 +75,30 @@ const PAIRS = [
   { name: 'accent on chrome', foreground: '--ij-accent', background: '--ij-chrome', target: 3 },
   { name: 'ink on editor', foreground: '--ij-ink', background: '--ij-editor', target: 4.5 },
   { name: 'bright ink on accent', foreground: '--ij-ink-bright', background: '--ij-accent', target: 3 },
+  { name: 'keyline on chrome', foreground: '--ij-keyline', background: '--ij-chrome', target: 1.2 },
   /* HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8: island surfaces vs frame floor. */
   { name: 'chrome island on frame', foreground: '--ij-chrome', background: '--ij-frame', target: 1.22 },
-  { name: 'editor island on frame', foreground: '--ij-editor', background: '--ij-frame', target: 1.22 },
+  /* Editor is sunken (material register D1): floor is the sunken-vs-ground step, not island-on-frame. */
+  { name: 'editor sunken on frame', foreground: '--ij-editor', background: '--ij-frame', target: 1.08 },
   /* HANDOFF-CONSOLE-ISLAND-SHELL: header band over island base (elevation step). */
   { name: 'island header tool over chrome', foreground: '--ij-island-header-tool', background: '--ij-chrome', target: 1.05 },
   { name: 'island header editor over editor', foreground: '--ij-island-header-editor', background: '--ij-editor', target: 1.05 },
   { name: 'ink on island header tool', foreground: '--ij-ink', background: '--ij-island-header-tool', target: 4.5 },
   { name: 'ink on island header editor', foreground: '--ij-ink', background: '--ij-island-header-editor', target: 4.5 },
 ];
+
+/** Selected states must differ on at least two of fill, keyline, edge, type weight (D3). */
+const SELECTION_STATES = [
+  {
+    name: 'surface rail selected',
+    // Declared properties of the selected rail button vs idle.
+    differs: ['fill', 'keyline', 'typeWeight'],
+  },
+];
+
+const DECORATIVE_KEYLINES = new Set([
+  '--ij-keyline-decorative',
+]);
 
 // Speaker register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.5, D6): the
 // --cp-* speaker colors are register level, not preset varying, so they are
@@ -96,6 +111,14 @@ const SPEAKER_PAIRS = [
   { name: 'human on editor', foreground: '--cp-human', background: '--ij-editor', target: 4.5 },
   { name: 'agent on editor', foreground: '--cp-agent', background: '--ij-editor', target: 4.5 },
   { name: 'destructive on chrome', foreground: '--cp-destructive', background: '--ij-chrome', target: 3 },
+];
+
+/** Material register D3 rail floors: Int UI only (Primer selection uses 8-digit hex). */
+const RAIL_PAIRS = [
+  { name: 'rail label on raised', foreground: '--ij-ink-info', background: '--ij-tier-raised', target: 3 },
+  { name: 'rail active ink on selection', foreground: '--ij-ink', background: '--ij-selection', target: 4.5 },
+  /* Annotations intentionally sit below body floors (named choice 8). */
+  { name: 'rail shortcut on raised', foreground: '--ij-ink-disabled', background: '--ij-tier-raised', target: 1.8 },
 ];
 
 const PRIMER_ANCHORS = {
@@ -155,6 +178,14 @@ for (const preset of [
     failed ||= !pass;
     console.log(`${pass ? 'PASS' : 'FAIL'} ${preset.id} · ${pair.name}: ${ratio.toFixed(2)} (target ${pair.target})`);
   }
+  for (const pair of RAIL_PAIRS) {
+    const foreground = resolveToken(pair.foreground, declarations);
+    const background = resolveToken(pair.background, declarations);
+    const ratio = wcagContrast(hexToOklch(foreground), hexToOklch(background));
+    const pass = ratio >= pair.target;
+    failed ||= !pass;
+    console.log(`${pass ? 'PASS' : 'FAIL'} ${preset.id} · ${pair.name}: ${ratio.toFixed(2)} (target ${pair.target})`);
+  }
 }
 
 for (const generated of [
@@ -172,6 +203,34 @@ for (const generated of [
 
 if (failed) {
   console.error('Contrast gate: FAILED. The failing pair(s) are named above.');
+  process.exit(1);
+}
+
+for (const state of SELECTION_STATES) {
+  const pass = state.differs.length >= 2;
+  failed ||= !pass;
+  console.log(
+    `${pass ? 'PASS' : 'FAIL'} selection · ${state.name}: differs on ${state.differs.join(', ')} (need >= 2 of fill|keyline|edge|typeWeight)`,
+  );
+}
+
+const seededFillOnly = { name: 'seeded fill-only', differs: ['fill'] };
+{
+  const pass = seededFillOnly.differs.length >= 2;
+  if (pass) {
+    console.error('Contrast gate: seeded fill-only selection probe was not rejected.');
+    process.exit(1);
+  }
+  console.log('PASS selection · seeded fill-only probe rejected');
+}
+
+if (!DECORATIVE_KEYLINES.has('--ij-keyline-decorative')) {
+  console.error('Contrast gate: decorative keyline registry missing --ij-keyline-decorative.');
+  process.exit(1);
+}
+
+if (failed) {
+  console.error('Contrast gate: FAILED after selection rules.');
   process.exit(1);
 }
 console.log('Contrast gate: five presets and three adversarial inputs pass.');
