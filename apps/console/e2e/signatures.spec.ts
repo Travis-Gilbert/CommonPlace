@@ -53,7 +53,10 @@ async function openWorkspace(
   await settled(page);
   await page.setViewportSize(viewport);
   await page.locator('[data-layout-switcher]').click();
-  await page.locator('[data-layout-option="console-appearance"]').click();
+  const appearanceOption = page.locator('[data-layout-option="console-appearance"]');
+  await expect(appearanceOption).toBeVisible({ timeout: 15_000 });
+  await appearanceOption.click();
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-appearance', { timeout: 15_000 });
   await expect(page.locator('[data-appearance-view]')).toBeVisible({ timeout: 15_000 });
   await page.locator(`[data-appearance-preset="${preset}"]`).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-preset', preset);
