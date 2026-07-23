@@ -70,6 +70,6 @@ describe('block-geometry', () => {
   });
 
   it('caps maxCols to the canvas width', () => {
-    expect(resolveLimits({ maxCols: 99 }).maxCols).toBe(12);
+    expect(resolveLimits({ minCols: 1, minRows: 1, maxCols: 99 }).maxCols).toBe(12);
   });
 });
