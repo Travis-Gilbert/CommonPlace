@@ -58,6 +58,7 @@ function DraggableCapability({ capability }: { capability: PlanCapability }) {
       value={`${capability.title} ${capability.description} ${capability.serverOrigin} ${capability.group}`}
       {...attributes}
       {...listeners}
+      data-plan-capability={capability.id}
       data-grant={capability.grantState}
       className="mb-1 grid cursor-grab gap-1 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-2 data-[selected=true]:bg-ij-selection"
       style={{ opacity: isDragging ? 0.4 : locked ? 0.72 : 1 }}

@@ -14,7 +14,7 @@ import {
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
 import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
-import { geometryFromSize, packOrigin } from '@/lib/block-geometry';
+import { geometryFromSize, packOrigins } from '@/lib/block-geometry';
 import {
   hasPersistedGeometry,
   nestBlockInContainerActions,
@@ -50,6 +50,16 @@ export function BlockArrangementHost({
   const orderedIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
 
   const items = useMemo((): BlockCanvasItem[] => {
+    const unseededSizes: Array<ReturnType<typeof readBlockSize>> = [];
+    for (const instance of instances) {
+      const descriptorId = String(instance.properties.descriptor_id ?? '');
+      const descriptor = CONSOLE_VIEW_REGISTRY.viewById(descriptorId);
+      if (!descriptor?.block?.placements.includes('ground')) continue;
+      if (hasPersistedGeometry(instance)) continue;
+      const fallback = descriptor.block?.defaultSize ?? 'm';
+      unseededSizes.push(readBlockSize(instance, fallback));
+    }
+    const origins = packOrigins(unseededSizes);
     let packIndex = 0;
     return instances.flatMap((instance) => {
       const descriptorId = String(instance.properties.descriptor_id ?? '');
@@ -59,7 +69,7 @@ export function BlockArrangementHost({
       const size = readBlockSize(instance, fallback);
       const geometry = hasPersistedGeometry(instance)
         ? readBlockGeometry(instance, fallback)
-        : geometryFromSize(size, packOrigin(packIndex++, size));
+        : geometryFromSize(size, origins[packIndex++] ?? { col: 1, row: 1 });
       return [
         {
           descriptor,

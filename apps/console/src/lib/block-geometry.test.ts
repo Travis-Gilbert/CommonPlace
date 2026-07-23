@@ -7,6 +7,7 @@ import {
   geometryFromSize,
   limitsFailHeaderFit,
   packOrigin,
+  packOrigins,
   resolveLimits,
   sizesFailingHeaderFit,
 } from './block-geometry';
@@ -54,5 +55,21 @@ describe('block-geometry', () => {
     expect(packOrigin(0, 'w')).toEqual({ col: 1, row: 1 });
     expect(packOrigin(1, 'w')).toEqual({ col: 7, row: 1 });
     expect(packOrigin(2, 'w')).toEqual({ col: 1, row: 4 });
+  });
+
+  it('packs mixed sizes without overlap', () => {
+    expect(packOrigins(['w', 'm'])).toEqual([
+      { col: 1, row: 1 },
+      { col: 7, row: 1 },
+    ]);
+    expect(packOrigins(['w', 'w', 'm'])).toEqual([
+      { col: 1, row: 1 },
+      { col: 7, row: 1 },
+      { col: 1, row: 4 },
+    ]);
+  });
+
+  it('caps maxCols to the canvas width', () => {
+    expect(resolveLimits({ maxCols: 99 }).maxCols).toBe(12);
   });
 });

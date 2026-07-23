@@ -27,6 +27,7 @@ import {
   type RunRailItem,
 } from '@commonplace/theorem-acp/plan-state';
 import { extractParamCandidates } from '@commonplace/theorem-acp/plan-params';
+import { sideEffectingAffordanceRefs } from '@commonplace/theorem-acp/plan-program';
 import { layoutGoalPlan, type GoalFlowEdge, type GoalFlowNode } from './plan-layout';
 import { ProgressEdge } from './ProgressEdge';
 import { PlanTaskNode } from './PlanTaskNode';
@@ -115,6 +116,10 @@ export function GoalStackView(_props: ViewRenderProps) {
   const complete = snapshot ? planIsComplete(snapshot) : false;
   const candidates = useMemo(
     () => (snapshot ? extractParamCandidates(snapshot) : []),
+    [snapshot],
+  );
+  const sideEffectingRefs = useMemo(
+    () => (snapshot ? sideEffectingAffordanceRefs(snapshot) : []),
     [snapshot],
   );
 
@@ -303,6 +308,7 @@ export function GoalStackView(_props: ViewRenderProps) {
       <PromotionDialog
         open={promotionOpen}
         candidates={candidates}
+        sideEffectingRefs={sideEffectingRefs}
         busy={busy}
         onClose={() => setPromotionOpen(false)}
         onSave={(bindings) => {

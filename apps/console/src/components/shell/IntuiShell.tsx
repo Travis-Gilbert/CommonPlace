@@ -25,8 +25,10 @@ import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/moti
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
 import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
+import { MainToolbar } from './MainToolbar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
+import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
 
@@ -287,9 +289,18 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     },
     [host, visiblePanels, visibleTotal],
   );
+  const stripeTrayId =
+    [...regions.left, ...regions.right].find(
+      (region) => region.object.properties.kind === 'stripe-tray',
+    )?.object.id ?? null;
+  // Stripe-tray is the rail target only; exclude it from dock zones so the
+  // same region is not dual-labeled as both "Move to rail" and "Dock as tool".
   const dockRegionIds = useMemo(
-    () => [...regions.left, ...regions.right].map((region) => region.object.id),
-    [regions.left, regions.right],
+    () =>
+      [...regions.left, ...regions.right]
+        .filter((region) => region.object.id !== stripeTrayId)
+        .map((region) => region.object.id),
+    [regions.left, regions.right, stripeTrayId],
   );
   const landmarkRegion = useMemo(() => {
     const object = layoutObjects?.find(
@@ -307,10 +318,6 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return <div className="h-full w-full bg-ij-frame" aria-busy="true" />;
   }
 
-  const stripeTrayId =
-    [...regions.left, ...regions.right].find(
-      (region) => region.object.properties.kind === 'stripe-tray',
-    )?.object.id ?? null;
   const editorPane = (
     <motion.div
       initial={durations.reduced ? false : { opacity: 0 }}
@@ -367,101 +374,106 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       data-shell
       data-compact={compact}
       data-active-surface={activeSurfaceId}
-      className="relative flex h-full min-h-0 bg-transparent"
+      className="relative flex h-full min-h-0 flex-col bg-transparent"
     >
-      <Sidebar
-        host={host}
-        surfaces={primarySurfaces}
-        companions={companions}
-        activeSurfaceId={activeSurfaceId}
-        landmarksRegion={landmarkRegion}
-        activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
-        onToggleCompanion={toggle}
-      />
+      <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar
+          host={host}
+          surfaces={primarySurfaces}
+          companions={companions}
+          activeSurfaceId={activeSurfaceId}
+          compact={compact}
+          landmarksRegion={landmarkRegion}
+          activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+          onToggleCompanion={toggle}
+        />
 
-      <div
-        data-shell-region="ground"
-        className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter"
-      >
-        <div className="relative min-h-0 min-w-0 flex-1">
-          {compact ? (
-            <>
-              {editorPane}
-              {leftOpen[0] ? (
-                <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
-                  <ToolWindow
-                    region={leftOpen[0]}
-                    host={host}
-                    entranceIndex={0}
-                    onHide={() => toggle(leftOpen[0])}
-                    gridRegionId={editor.object.id}
-                  />
-                </div>
-              ) : null}
-              {rightOpen[0] ? (
-                <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
-                  <ToolWindow
-                    region={rightOpen[0]}
-                    host={host}
-                    entranceIndex={1}
-                    onHide={() => toggle(rightOpen[0])}
-                    gridRegionId={editor.object.id}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
-              {visiblePanels.flatMap((panel, index) => {
-                const isEditor = panel.region === editor;
-                const nodes = [];
-                if (index > 0) {
+        <div
+          data-shell-region="ground"
+          className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter"
+        >
+          <div className="relative min-h-0 min-w-0 flex-1">
+            {compact ? (
+              <>
+                {editorPane}
+                {leftOpen[0] ? (
+                  <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
+                    <ToolWindow
+                      region={leftOpen[0]}
+                      host={host}
+                      entranceIndex={0}
+                      onHide={() => toggle(leftOpen[0])}
+                      gridRegionId={editor.object.id}
+                    />
+                  </div>
+                ) : null}
+                {rightOpen[0] ? (
+                  <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
+                    <ToolWindow
+                      region={rightOpen[0]}
+                      host={host}
+                      entranceIndex={1}
+                      onHide={() => toggle(rightOpen[0])}
+                      gridRegionId={editor.object.id}
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
+                {visiblePanels.flatMap((panel, index) => {
+                  const isEditor = panel.region === editor;
+                  const nodes = [];
+                  if (index > 0) {
+                    nodes.push(
+                      <PanelResizeHandle
+                        key={`handle-${panel.region.object.id}`}
+                        data-panel-seam
+                        className="relative w-ij-island-gutter bg-transparent"
+                      />,
+                    );
+                  }
                   nodes.push(
-                    <PanelResizeHandle
-                      key={`handle-${panel.region.object.id}`}
-                      data-panel-seam
-                      className="relative w-ij-island-gutter bg-transparent"
-                    />,
+                    <Panel
+                      key={panel.region.object.id}
+                      id={panel.region.object.id}
+                      order={orderOf(panel.region)}
+                      defaultSize={(panel.abs / visibleTotal) * 100}
+                      minSize={isEditor ? 30 : 12}
+                    >
+                      {isEditor ? (
+                        editorPane
+                      ) : (
+                        <div
+                          data-shell-region="dock"
+                          data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
+                          className="h-full min-h-0"
+                        >
+                          <ToolWindow
+                            region={panel.region}
+                            host={host}
+                            entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
+                            onHide={() => toggle(panel.region)}
+                            gridRegionId={editor.object.id}
+                          />
+                        </div>
+                      )}
+                    </Panel>,
                   );
-                }
-                nodes.push(
-                  <Panel
-                    key={panel.region.object.id}
-                    id={panel.region.object.id}
-                    order={orderOf(panel.region)}
-                    defaultSize={(panel.abs / visibleTotal) * 100}
-                    minSize={isEditor ? 30 : 12}
-                  >
-                    {isEditor ? (
-                      editorPane
-                    ) : (
-                      <div
-                        data-shell-region="dock"
-                        data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
-                        className="h-full min-h-0"
-                      >
-                        <ToolWindow
-                          region={panel.region}
-                          host={host}
-                          entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
-                          onHide={() => toggle(panel.region)}
-                          gridRegionId={editor.object.id}
-                        />
-                      </div>
-                    )}
-                  </Panel>,
-                );
-                return nodes;
-              })}
-            </PanelGroup>
-          )}
-          {selectedRecordId ? (
-            <div className="absolute inset-y-0 right-0 z-40">
-              <RecordInspector host={host} />
-            </div>
-          ) : null}
+                  return nodes;
+                })}
+              </PanelGroup>
+            )}
+            {selectedRecordId ? (
+              <div className="absolute inset-y-0 right-0 z-40">
+                <RecordInspector host={host} />
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
+      <StatusBar host={host} />
       <SearchPanel host={host} />
       <ActionSheet host={host} />
     </div>

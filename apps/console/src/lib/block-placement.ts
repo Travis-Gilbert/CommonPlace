@@ -180,7 +180,7 @@ export function readBlockGeometry(
       const row = readNumber(geo.row);
       const colSpan = readNumber(geo.colSpan);
       const rowSpan = readNumber(geo.rowSpan);
-      if (col && row && colSpan && rowSpan) {
+      if (col !== null && row !== null && colSpan !== null && rowSpan !== null) {
         return clampGeometry({ col, row, colSpan, rowSpan });
       }
     }

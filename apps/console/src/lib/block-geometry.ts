@@ -49,19 +49,38 @@ export function geometryFromSize(
 
 /**
  * Left-to-right then next-row packing origin for seed geometry when config
- * has no persisted geometry. Index is among unseeded ground items; size
- * drives the span used for that packing step.
+ * has no persisted geometry. Same-size packs use index among unseeded items.
+ * Prefer packOrigins for mixed sizes so spans do not overlap.
  */
 export function packOrigin(
   index: number,
   size: BlockSize,
 ): { col: number; row: number } {
-  const { cols, rows } = BLOCK_SIZE_SPAN[size];
-  const perRow = Math.max(1, Math.floor(CANVAS_COLS / cols));
-  return {
-    col: (index % perRow) * cols + 1,
-    row: Math.floor(index / perRow) * rows + 1,
-  };
+  return packOrigins(Array.from({ length: index + 1 }, () => size))[index]!;
+}
+
+/**
+ * Pack a sequence of named sizes without overlap: advance by each item's
+ * own colSpan, wrapping to the next row when the canvas width is exceeded.
+ */
+export function packOrigins(
+  sizes: readonly BlockSize[],
+): readonly { col: number; row: number }[] {
+  let col = 1;
+  let row = 1;
+  let rowHeight = 0;
+  return sizes.map((size) => {
+    const span = BLOCK_SIZE_SPAN[size];
+    if (col > 1 && col + span.cols - 1 > CANVAS_COLS) {
+      col = 1;
+      row += Math.max(1, rowHeight);
+      rowHeight = 0;
+    }
+    const origin = { col, row };
+    col += span.cols;
+    rowHeight = Math.max(rowHeight, span.rows);
+    return origin;
+  });
 }
 
 /** Effective limits: descriptor limits with header-fit floor on minRows. */
@@ -69,7 +88,7 @@ export function resolveLimits(limits?: BlockLimits): BlockLimits {
   return {
     minCols: Math.max(1, limits?.minCols ?? 1),
     minRows: Math.max(HEADER_FIT_MIN_ROWS, limits?.minRows ?? HEADER_FIT_MIN_ROWS),
-    maxCols: limits?.maxCols ?? CANVAS_COLS,
+    maxCols: Math.min(CANVAS_COLS, limits?.maxCols ?? CANVAS_COLS),
     maxRows: limits?.maxRows,
   };
 }

@@ -218,6 +218,7 @@ function SortableBlockCanvasCell({
       const onUp = () => {
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
         activeResizeCleanup.current = null;
         setPreviewGeometry(null);
         if (
@@ -232,9 +233,11 @@ function SortableBlockCanvasCell({
       activeResizeCleanup.current = () => {
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
       };
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
     },
     [item.geometry, item.viewInstanceId, limits, onGeometryChange],
   );
