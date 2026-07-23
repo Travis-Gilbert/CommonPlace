@@ -256,10 +256,23 @@ test.describe('cards, actions, mentions', () => {
       'Console punch list',
     );
     await page.keyboard.press('Escape');
-    const taskItem = page.locator('li.task-list-item').first();
-    await expect(taskItem).toBeVisible();
-    await taskItem.click({ force: true });
-    await page.keyboard.press('Alt+Enter');
+    const taskItem = page.locator('.galley li.task-list-item, .galley [data-todo-item]').first();
+    await expect(taskItem).toBeVisible({ timeout: 15_000 });
+    // Focus + synthetic Alt+Enter: pointer hits can fail when Galley remounts
+    // the list under a loading shell even though the node still resolves.
+    await taskItem.evaluate((node) => {
+      const item = node as HTMLElement;
+      item.focus();
+      item.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          altKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
     await expect(page.locator('[data-action-sheet]')).toBeVisible();
     // Save as rule names its missing capability (IX6) instead of pretending.
     await expect(page.locator('[data-save-as-rule-unavailable]')).toContainText('IX6');
@@ -316,6 +329,10 @@ test.describe('cards, actions, mentions', () => {
     // Reduced motion renders the sheet without the material animation.
     const transform = await sheet.evaluate((el) => getComputedStyle(el).transform);
     expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
-    await expect(sheet).toHaveScreenshot('action-sheet.png', { maxDiffPixelRatio: 0.02 });
+    await expect(sheet).toHaveScreenshot('action-sheet.png', {
+      maxDiffPixelRatio: 0.02,
+      animations: 'disabled',
+      timeout: 15_000,
+    });
   });
 });

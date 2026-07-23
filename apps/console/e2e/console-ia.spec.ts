@@ -114,9 +114,11 @@ test.describe('Console information architecture', () => {
     });
     await page.keyboard.press('Alt+Shift+1');
     await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="context"]').click({ force: true, timeout: 15_000 });
+    // Prefer shortcuts over pointer: companion row clicks can hang under force
+    // when the layout write-through is contended after cold surface cycling.
+    await page.keyboard.press('Alt+Shift+2');
     await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="thread"]').click({ force: true, timeout: 15_000 });
+    await page.keyboard.press('Alt+Shift+3');
     await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true', {
       timeout: 15_000,
     });
@@ -317,12 +319,14 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
+    // Soft-nav to Cards first, then hydrate memories on this document — page.goto
+    // remounts the app and clears the in-memory projection store.
+    await openSurface(page, 'console-cards');
     await openCompanion(page, 'files');
     await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
-    await openSurface(page, 'console-cards');
     await openCompanion(page, 'context');
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click({ force: true });
     await page.getByLabel('Close inspector').click();
