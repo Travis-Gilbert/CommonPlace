@@ -14,7 +14,6 @@ import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
 import { useShellStore } from '@/lib/shell-store';
-import { useThreadStore } from '@/lib/thread-store';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
@@ -27,8 +26,6 @@ import {
   IconIndex,
   IconMemory,
   IconRecords,
-  IconRun,
-  IconStop,
   IconThread,
   IconWorkspace,
 } from './icons';
@@ -209,8 +206,6 @@ export function Sidebar({
     .join('')
     .slice(0, 2)
     .toUpperCase();
-  const isRunning = useThreadStore((state) => state.isRunning);
-  const cancelRun = useThreadStore((state) => state.cancel);
   const connection = useShellStore((state) => state.connection);
   const setConnection = useShellStore((state) => state.setConnection);
   const progressLabel = useShellStore((state) => state.progressLabel);
@@ -348,29 +343,6 @@ export function Sidebar({
       className="flex w-ij-stripe shrink-0 flex-col bg-transparent p-2 font-ij-ui"
       style={{ transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)' }}
     >
-      <div data-rail-actions className="mb-1 flex flex-col gap-0.5">
-        <button
-          type="button"
-          data-run-widget
-          data-running={isRunning ? 'true' : 'false'}
-          aria-label={isRunning ? 'Stop the live run' : 'Run'}
-          onClick={() => (isRunning ? cancelRun() : undefined)}
-          disabled={!isRunning}
-          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 disabled:opacity-75"
-          style={{
-            background: isRunning ? 'var(--ij-running)' : 'var(--ij-raised)',
-            color: isRunning ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
-            transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)',
-          }}
-          title={visuallyCollapsed ? (isRunning ? 'Stop' : 'Run') : undefined}
-        >
-          {isRunning ? <IconStop size={14} /> : <IconRun size={14} />}
-          <span style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>
-            {isRunning ? 'Running' : 'Run'}
-          </span>
-        </button>
-      </div>
-
       <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col gap-0.5">
         {routedSurfaces.map((surface, index) => {
           const kind = String(surface.properties.kind ?? '');
