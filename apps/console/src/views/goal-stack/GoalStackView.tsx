@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   Background,
   BackgroundVariant,
@@ -27,6 +28,7 @@ import {
   type RunRailItem,
 } from '@commonplace/theorem-acp/plan-state';
 import { extractParamCandidates } from '@commonplace/theorem-acp/plan-params';
+import { sideEffectingAffordanceRefs } from '@commonplace/theorem-acp/plan-program';
 import { layoutGoalPlan, type GoalFlowEdge, type GoalFlowNode } from './plan-layout';
 import { ProgressEdge } from './ProgressEdge';
 import { PlanTaskNode } from './PlanTaskNode';
@@ -58,14 +60,12 @@ export function GoalStackView(_props: ViewRenderProps) {
   const [promotionOpen, setPromotionOpen] = useState(false);
   const [pins, setPins] = useState<Map<string, { x: number; y: number }>>(() => new Map());
   const manifestLoadedRef = useRef(false);
+  const paneDirection = useGoalStackPaneDirection();
 
-  useEffect(() => {
-    if (!planId) {
-      setPins(new Map());
-      return;
-    }
-    setPins(loadPins(planId));
-  }, [planId]);
+  const openPlan = useCallback((nextPlanId: string) => {
+    setPlanId(nextPlanId);
+    setPins(nextPlanId ? loadPins(nextPlanId) : new Map());
+  }, []);
 
   useEffect(() => {
     if (!planId) return;
@@ -116,6 +116,10 @@ export function GoalStackView(_props: ViewRenderProps) {
   const complete = snapshot ? planIsComplete(snapshot) : false;
   const candidates = useMemo(
     () => (snapshot ? extractParamCandidates(snapshot) : []),
+    [snapshot],
+  );
+  const sideEffectingRefs = useMemo(
+    () => (snapshot ? sideEffectingAffordanceRefs(snapshot) : []),
     [snapshot],
   );
 
@@ -177,16 +181,16 @@ export function GoalStackView(_props: ViewRenderProps) {
   return (
     <DndContext onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragged(null)}>
       <section className="flex h-full min-h-0 flex-col bg-ij-editor text-ij-ink" data-goal-stack data-plan-canvas>
-        <header className="flex shrink-0 items-center gap-3 border-b border-ij-seam bg-ij-chrome px-4 py-2">
+        <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-ij-seam bg-ij-chrome px-4 py-2">
           <div>
             <div className="text-ij-ink-info">Goal Stack</div>
             <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>{snapshot?.title ?? 'Open a plan'}</h2>
           </div>
           <form
-            className="ml-auto flex items-center gap-2"
+            className="order-last flex w-full items-center gap-2 sm:order-none sm:ml-auto sm:w-auto"
             onSubmit={(event) => {
               event.preventDefault();
-              if (planInput.trim()) setPlanId(planInput.trim());
+              if (planInput.trim()) openPlan(planInput.trim());
             }}
           >
             <input
@@ -194,7 +198,7 @@ export function GoalStackView(_props: ViewRenderProps) {
               onChange={(event) => setPlanInput(event.target.value)}
               placeholder="Plan id"
               aria-label="Plan id"
-              className="h-ij-control min-w-64 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono focus:outline-2 focus:outline-ij-accent"
+              className="h-ij-control min-w-0 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono focus:outline-2 focus:outline-ij-accent sm:min-w-64 sm:flex-none"
             />
             <button type="submit" className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright">Open</button>
           </form>
@@ -206,20 +210,20 @@ export function GoalStackView(_props: ViewRenderProps) {
           activePlanId={planId}
           onOpen={(nextPlanId) => {
             setPlanInput(nextPlanId);
-            setPlanId(nextPlanId);
+            openPlan(nextPlanId);
           }}
         />
 
         {snapshot ? (
-          <div className="flex shrink-0 items-center gap-3 border-b border-ij-seam bg-ij-chrome px-3 py-1">
-            <span>{progress.done} of {progress.total} verified</span>
-            <span className="text-ij-ink-info">{snapshot.objective}</span>
-            <span className="font-ij-mono text-ij-ink-info">{snapshot.register}</span>
+          <div className="grid shrink-0 grid-cols-2 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-3 py-2 sm:flex sm:gap-3 sm:py-1">
+            <span className="order-1 sm:order-none">{progress.done} of {progress.total} verified</span>
+            <span className="order-3 col-span-2 min-w-0 text-ij-ink-info sm:order-none sm:flex-1">{snapshot.objective}</span>
+            <span className="order-2 justify-self-end font-ij-mono text-ij-ink-info sm:order-none">{snapshot.register}</span>
             <button
               type="button"
               aria-pressed={hideSuperseded}
               onClick={() => setHideSuperseded((value) => !value)}
-              className="ml-auto h-ij-control rounded-ij-arc border border-ij-control-border px-2 hover:bg-ij-hover-surface"
+              className="order-4 h-ij-control w-full rounded-ij-arc border border-ij-control-border px-2 hover:bg-ij-hover-surface sm:order-none sm:w-auto"
             >
               {hideSuperseded ? 'Show prior generations' : 'Hide prior generations'}
             </button>
@@ -227,7 +231,7 @@ export function GoalStackView(_props: ViewRenderProps) {
               type="button"
               disabled={!complete || busy}
               onClick={() => setPromotionOpen(true)}
-              className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
+              className="order-5 h-ij-control w-full rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50 sm:order-none sm:w-auto"
             >
               Save as program
             </button>
@@ -243,47 +247,90 @@ export function GoalStackView(_props: ViewRenderProps) {
         ) : null}
         {error ? <div role="alert" className="border-b border-ij-seam bg-ij-error-bg px-3 py-2 text-ij-error">{error}</div> : null}
 
-        <div className="grid min-h-0 flex-1 grid-cols-4">
-          <aside className="min-h-0 border-r border-ij-seam">
-            <ToolPalette capabilities={capabilities} />
-          </aside>
-          <main className="col-span-2 min-h-0" aria-label="Plan canvas">
-            {snapshot ? (
-              <ReactFlow
-                nodes={nodes.map((node) => ({ ...node, selected: node.id === selectedTaskId }))}
-                edges={edges}
-                nodeTypes={NODE_TYPES}
-                edgeTypes={EDGE_TYPES}
-                fitView
-                fitViewOptions={{ padding: 0.16, minZoom: 0.4, maxZoom: 1 }}
-                minZoom={0.2}
-                maxZoom={1.6}
-                nodesDraggable
-                nodesConnectable={false}
-                onNodeClick={(_event, node) => setSelectedTaskId(node.id)}
-                onNodeDragStop={onNodeDragStop}
-                onPaneClick={() => setSelectedTaskId(null)}
-                proOptions={{ hideAttribution: true }}
-              >
-                <Background variant={BackgroundVariant.Dots} gap={26} size={1} color="var(--ij-seam-raised)" />
-                <Controls showInteractive={false} />
-              </ReactFlow>
-            ) : (
-              <div className="flex h-full items-center justify-center text-ij-ink-info">
-                Enter a Plan id to subscribe to its canonical task graph.
-              </div>
-            )}
-          </main>
-          <aside className="min-h-0 border-l border-ij-seam">
-            <NodeInspector
-              task={selectedTask}
-              busy={busy}
-              mutate={mutate}
-              onAddChild={(parentId, title, branch) => {
-                void mutate('add_task', { parentId, title, branch });
-              }}
+        <div className="min-h-0 flex-1">
+          <PanelGroup
+            key={paneDirection}
+            direction={paneDirection}
+            id={`goal-stack-panes-${paneDirection}`}
+            autoSaveId={`commonplace.goal-stack.panes.${paneDirection}`}
+          >
+            <Panel
+              id="goal-stack-tools"
+              order={1}
+              defaultSize={25}
+              minSize={16}
+              data-goal-stack-panel="tools"
+            >
+              <aside className="h-full min-h-0">
+                <ToolPalette capabilities={capabilities} />
+              </aside>
+            </Panel>
+            <PanelResizeHandle
+              className={paneDirection === 'horizontal'
+                ? 'w-1 bg-ij-seam hover:bg-ij-accent'
+                : 'h-1 bg-ij-seam hover:bg-ij-accent'}
+              data-goal-stack-resize-handle
             />
-          </aside>
+            <Panel
+              id="goal-stack-canvas"
+              order={2}
+              defaultSize={50}
+              minSize={32}
+              data-goal-stack-panel="canvas"
+            >
+              <main className="h-full min-h-0" aria-label="Plan canvas">
+                {snapshot ? (
+                  <ReactFlow
+                    nodes={nodes.map((node) => ({ ...node, selected: node.id === selectedTaskId }))}
+                    edges={edges}
+                    nodeTypes={NODE_TYPES}
+                    edgeTypes={EDGE_TYPES}
+                    fitView
+                    fitViewOptions={{ padding: 0.16, minZoom: 0.4, maxZoom: 1 }}
+                    minZoom={0.2}
+                    maxZoom={1.6}
+                    nodesDraggable
+                    nodesConnectable={false}
+                    onNodeClick={(_event, node) => setSelectedTaskId(node.id)}
+                    onNodeDragStop={onNodeDragStop}
+                    onPaneClick={() => setSelectedTaskId(null)}
+                    proOptions={{ hideAttribution: true }}
+                  >
+                    <Background variant={BackgroundVariant.Dots} gap={26} size={1} color="var(--ij-seam-raised)" />
+                    <Controls showInteractive={false} />
+                  </ReactFlow>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-ij-ink-info">
+                    Enter a Plan id to subscribe to its canonical task graph.
+                  </div>
+                )}
+              </main>
+            </Panel>
+            <PanelResizeHandle
+              className={paneDirection === 'horizontal'
+                ? 'w-1 bg-ij-seam hover:bg-ij-accent'
+                : 'h-1 bg-ij-seam hover:bg-ij-accent'}
+              data-goal-stack-resize-handle
+            />
+            <Panel
+              id="goal-stack-inspector"
+              order={3}
+              defaultSize={25}
+              minSize={16}
+              data-goal-stack-panel="inspector"
+            >
+              <aside className="h-full min-h-0">
+                <NodeInspector
+                  task={selectedTask}
+                  busy={busy}
+                  mutate={mutate}
+                  onAddChild={(parentId, title, branch) => {
+                    void mutate('add_task', { parentId, title, branch });
+                  }}
+                />
+              </aside>
+            </Panel>
+          </PanelGroup>
         </div>
       </section>
       <DragOverlay>
@@ -304,6 +351,7 @@ export function GoalStackView(_props: ViewRenderProps) {
       <PromotionDialog
         open={promotionOpen}
         candidates={candidates}
+        sideEffectingRefs={sideEffectingRefs}
         busy={busy}
         onClose={() => setPromotionOpen(false)}
         onSave={(bindings) => {
@@ -314,6 +362,18 @@ export function GoalStackView(_props: ViewRenderProps) {
       />
     </DndContext>
   );
+}
+
+function useGoalStackPaneDirection(): 'horizontal' | 'vertical' {
+  const [direction, setDirection] = useState<'horizontal' | 'vertical'>('horizontal');
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 899px)');
+    const synchronize = () => setDirection(media.matches ? 'vertical' : 'horizontal');
+    synchronize();
+    media.addEventListener('change', synchronize);
+    return () => media.removeEventListener('change', synchronize);
+  }, []);
+  return direction;
 }
 
 function loadPins(planId: string): Map<string, { x: number; y: number }> {

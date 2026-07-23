@@ -177,9 +177,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   // Deep links and back/forward: the route is the surface radio (B3).
   useEffect(() => {
     const routedId = surfaceIdForPath(pathname);
-    if (!routedId || routedId === activeSurfaceId) return;
-    void host.activateSurface(routedId);
-  }, [activeSurfaceId, host, pathname]);
+    if (routedId) void host.activateSurface(routedId);
+  }, [host, pathname]);
 
   const root = useMemo(
     () => (layoutObjects ? buildSurfaceTree(activeSurfaceId, layoutObjects) : null),
@@ -378,6 +377,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
           surfaces={primarySurfaces}
           companions={companions}
           activeSurfaceId={activeSurfaceId}
+          compact={compact}
           landmarksRegion={landmarkRegion}
           activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
           onToggleCompanion={toggle}
