@@ -37,6 +37,10 @@ import {
 } from './automation-history-projection';
 import { fetchStatus } from './harness-ux';
 import { seedSurveyObjects } from './surveySeed';
+import {
+  filterIndexerObjects,
+  parseIndexerObjectsPayload,
+} from './indexer-projection';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
@@ -128,6 +132,21 @@ function matchesPredicate(object: ObjectRef, predicate: Predicate | undefined): 
     default:
       return true;
   }
+}
+
+function topicIdFromSurveyQuery(query: ObjectQuery): string | undefined {
+  const predicate = query.where;
+  if (!predicate) return undefined;
+  if (predicate.kind === 'eq' && predicate.field === 'topic_id' && typeof predicate.value === 'string') {
+    return predicate.value;
+  }
+  if (predicate.kind === 'and') {
+    for (const clause of predicate.all) {
+      const nested = topicIdFromSurveyQuery({ ...query, where: clause });
+      if (nested) return nested;
+    }
+  }
+  return undefined;
 }
 
 function compareValues(a: JsonValue | undefined, b: JsonValue | undefined): number {
@@ -462,6 +481,8 @@ export class ConsoleBlockHost implements BlockHost {
     // so slug and id predicates behave exactly as the seed path did.
     // Console-owned seeds stay local: card templates (K1, authored objects)
     // and 'thread' (the pane renders its own chat SSE, never the record wire).
+    // Survey types try the live Indexer harness projection first (IX-004), then
+    // fall back to the hermetic seed for e2e and unconfigured harness.
     const testMode = this.records !== null;
     const isRecord = query.types.includes('record');
     const isDoc = query.types.includes('doc');
@@ -473,8 +494,10 @@ export class ConsoleBlockHost implements BlockHost {
       query.types.includes('files-view') ||
       query.types.includes('context-view') ||
       query.types.includes('surface-tool') ||
-      query.types.includes(CARD_TEMPLATE_TYPE) ||
-      query.types.some((type) => SURVEY_TYPES.has(type));
+      query.types.includes(CARD_TEMPLATE_TYPE);
+    if (query.types.some((type) => SURVEY_TYPES.has(type))) {
+      return this.querySurvey(query);
+    }
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
@@ -484,16 +507,14 @@ export class ConsoleBlockHost implements BlockHost {
       }
       return this.http.query(query);
     }
-    const pool = query.types.some((type) => SURVEY_TYPES.has(type))
-      ? this.surveyObjects.filter((object) => query.types.includes(object.type))
-      : isRecord
-        ? (this.records ?? [])
-        : isDoc
-          ? this.docs
-          : isCode
-            ? this.codeFiles
-            : query.types.includes(CARD_TEMPLATE_TYPE)
-              ? this.cardTemplates
+    const pool = isRecord
+      ? (this.records ?? [])
+      : isDoc
+        ? this.docs
+        : isCode
+          ? this.codeFiles
+          : query.types.includes(CARD_TEMPLATE_TYPE)
+            ? this.cardTemplates
             : [];
     let objects = pool.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
@@ -531,6 +552,84 @@ export class ConsoleBlockHost implements BlockHost {
         return () => this.domainSubs.delete(listener);
       },
     };
+  }
+
+  private async querySurvey(query: ObjectQuery): Promise<ObjectSet> {
+    let objects = await this.loadSurveyObjects(query);
+    objects = filterIndexerObjects(objects, query, matchesPredicate);
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    const shape: ObjectShape = {
+      types: [...query.types],
+      fields: [
+        'topic_id',
+        'title',
+        'description',
+        'updated',
+        'capture_count',
+        'status',
+        'excerpt',
+        'source_url',
+        'matched_spans',
+        'from',
+        'to',
+        'reason',
+        'strength',
+      ],
+      relations: [],
+      axes: {},
+      cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+    };
+    return {
+      objects,
+      shape,
+      next_cursor: nextCursor,
+      subscribe: (callback) => {
+        if (!query.live) return () => {};
+        let cancelled = false;
+        const tick = () => {
+          void this.querySurvey(query).then((next) => {
+            if (!cancelled) callback(next);
+          });
+        };
+        const timer = setInterval(tick, 5000);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
+      },
+    };
+  }
+
+  private async loadSurveyObjects(query: ObjectQuery): Promise<ObjectRef[]> {
+    const topicId = topicIdFromSurveyQuery(query);
+    const includeCaptures = query.types.includes('capture') || query.types.includes('survey-edge');
+    try {
+      const params = new URLSearchParams();
+      if (topicId) params.set('topicId', topicId);
+      params.set('includeCaptures', includeCaptures ? '1' : '0');
+      const response = await fetch(`/api/indexer?${params.toString()}`, { cache: 'no-store' });
+      if (response.ok) {
+        const payload = await response.json().catch(() => null);
+        const live = parseIndexerObjectsPayload(payload);
+        if (live.length > 0) return live;
+      }
+    } catch {
+      // Fall through to hermetic seed.
+    }
+    return this.surveyObjects;
   }
 
   private async queryAutomationHistory(query: ObjectQuery): Promise<ObjectSet> {
