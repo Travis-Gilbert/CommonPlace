@@ -32,7 +32,6 @@ import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
 import { clearLayoutCache, readLayoutCache, writeLayoutCache } from './state/layout-cache';
-import { pathForSurfaceKind } from './surface-routes';
 import {
   AUTOMATION_HISTORY_TYPES,
   automationHistoryShape,
