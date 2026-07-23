@@ -1,7 +1,7 @@
 // SOURCING: @xyflow/react wrap. React Flow provides pan, zoom, selection, and edge routing.
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Controls,
   ReactFlow,
@@ -23,29 +23,43 @@ const CANVAS_QUERY = {
 
 const NODE_TYPES = { canvasCard: CanvasCardNode } as unknown as NodeTypes;
 
+function emptyCanvasSet(): ObjectSet {
+  return {
+    objects: [],
+    shape: { types: [...CANVAS_QUERY.types], fields: [], relations: [], axes: {}, cardinality: 'empty' },
+    subscribe: () => () => {},
+  };
+}
+
 function queryCanvas(host: BlockHost): ObjectSet {
   const result = host.query(CANVAS_QUERY);
-  if (result instanceof Promise) {
-    return {
-      objects: [],
-      shape: { types: [...CANVAS_QUERY.types], fields: [], relations: [], axes: {}, cardinality: 'empty' },
-      subscribe: () => () => {},
-    };
-  }
+  if (result instanceof Promise) return emptyCanvasSet();
   return result;
 }
 
+function createCanvasStore(host: BlockHost) {
+  let current = queryCanvas(host);
+  return {
+    getSnapshot: () => current,
+    subscribe: (onStoreChange: () => void) => {
+      current = queryCanvas(host);
+      return current.subscribe((next) => {
+        current = next;
+        onStoreChange();
+      });
+    },
+  };
+}
+
+function useCanvasObjectSet(host: BlockHost): ObjectSet {
+  const store = useMemo(() => createCanvasStore(host), [host]);
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
 export function CanvasView({ host }: ViewRenderProps) {
-  const [set, setSet] = useState<ObjectSet>(() => queryCanvas(host));
+  const set = useCanvasObjectSet(host);
   const [message, setMessage] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const current = queryCanvas(host);
-    setSet(current);
-    return current.subscribe(setSet);
-  }, [host]);
-
   const flow = useMemo(() => canvasFlowFromObjects(set.objects), [set.objects]);
 
   const onNodeDragStop: OnNodeDrag<Node> = useCallback((_, node) => {
@@ -128,22 +142,8 @@ export function CanvasView({ host }: ViewRenderProps) {
               <Controls showInteractive={false} />
             </ReactFlow>
           ) : (
-            <div
-              className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center"
-              data-elevation="sunken"
-              data-empty-cause="no-cards"
-            >
-              <p className="text-ij-ink">No cards on this canvas.</p>
-              <p className="text-ij-ink-info">
-                Cause: not loaded from a .canvas file or graph objects. Import a file to resolve.
-              </p>
-              <button
-                type="button"
-                className="h-ij-control rounded-ij-arc border border-ij-control-border px-2 hover:bg-ij-hover-surface"
-                onClick={() => importRef.current?.click()}
-              >
-                Import .canvas
-              </button>
+            <div className="flex h-full items-center justify-center px-4 text-center text-ij-ink-info">
+              No cards on this canvas. Import a .canvas file or place graph objects.
             </div>
           )}
         </div>

@@ -112,7 +112,9 @@ export function Composer({
   const [characterCount, setCharacterCount] = useState(0);
   const [pasted, setPasted] = useState<PastedAddress | null>(null);
   const [pasteRefusal, setPasteRefusal] = useState<string | null>(null);
-  const [interrupted, setInterrupted] = useState(false);
+  const [interruptedFlag, setInterrupted] = useState(false);
+  // While a run is live, interrupt state is cleared without an effect.
+  const interrupted = isRunning ? false : interruptedFlag;
 
   useEffect(() => {
     let active = true;
@@ -128,10 +130,6 @@ export function Composer({
       active = false;
     };
   }, [host]);
-
-  useEffect(() => {
-    if (isRunning) setInterrupted(false);
-  }, [isRunning]);
 
   const mention = useObjectMentionAdapter(mentions, tenant);
 

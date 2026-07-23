@@ -69,9 +69,16 @@ export function ShaderSurface({
     const host = hostRef.current;
     if (!host) return;
 
+    let cancelled = false;
+    const markFallback = () => {
+      if (!cancelled) setFallback(true);
+    };
+
     if (LIVE_MOUNTS.size >= SHADER_CONTEXT_BUDGET) {
-      setFallback(true);
-      return;
+      queueMicrotask(markFallback);
+      return () => {
+        cancelled = true;
+      };
     }
 
     const back = resolveCssColor(ijVar(colorBack));
@@ -104,23 +111,29 @@ export function ShaderSurface({
     try {
       mount = new ShaderMount(host, dotGridFragmentShader, uniforms, undefined, speed);
     } catch {
-      setFallback(true);
-      return;
+      queueMicrotask(markFallback);
+      return () => {
+        cancelled = true;
+      };
     }
 
     // Motion gate provenance: this file owns a WebGL context via the mount canvas.
     const gl = mount.canvasElement.getContext('webgl') ?? mount.canvasElement.getContext('webgl2');
     if (!gl) {
       mount.dispose();
-      setFallback(true);
-      return;
+      queueMicrotask(markFallback);
+      return () => {
+        cancelled = true;
+      };
     }
 
     const token = {};
     tokenRef.current = token;
     LIVE_MOUNTS.add(token);
     mountRef.current = mount;
-    setFallback(false);
+    queueMicrotask(() => {
+      if (!cancelled) setFallback(false);
+    });
 
     const observer = new MutationObserver(() => {
       const nextBack = getShaderColorFromString(resolveCssColor(ijVar(colorBack)));
@@ -143,6 +156,7 @@ export function ShaderSurface({
     io.observe(host);
 
     return () => {
+      cancelled = true;
       observer.disconnect();
       io.disconnect();
       mount.dispose();
