@@ -224,13 +224,11 @@ export function Sidebar({
   const switchTo = useCallback((surface: ObjectRef) => {
     if (surface.id === activeSurfaceId) return;
     const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
-    if (path) {
-      // Route first: the pathname effect activates the matching surface. Calling
-      // activateSurface before the URL settles races the effect and reverts.
-      router.push(path);
-      return;
-    }
+    // Activate immediately so the rail radio flips before a cold App Router
+    // compile finishes router.push. Then sync the URL when the surface owns a
+    // segment; ensureSeedLayout preserves this local active surface on adopt.
     void host.activateSurface(surface.id);
+    if (path) router.push(path);
   }, [activeSurfaceId, host, router]);
 
   useEffect(() => {

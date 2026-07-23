@@ -18,6 +18,11 @@ async function openIndex(page: Page) {
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForSelector('[data-shell]');
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
   await page.locator('[data-surface-nav="console-index"]').click();
   // Generous, because the first test after the dev server starts pays for the
   // route's cold compile. Later assertions keep the default timeout.

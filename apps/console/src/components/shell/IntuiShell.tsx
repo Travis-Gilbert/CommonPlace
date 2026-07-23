@@ -316,7 +316,19 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [layoutObjects]);
 
   if (!root || !editor) {
-    return <div className="h-full w-full bg-ij-frame" aria-busy="true" />;
+    // Keep data-shell mounted so activation / e2e oracles do not lose the
+    // landmark while the surface tree is still resolving (Appearance, Account,
+    // deep links racing ensureSeedLayout).
+    return (
+      <div
+        ref={shellRef}
+        data-shell
+        data-compact={compact}
+        data-active-surface={activeSurfaceId}
+        className="h-full w-full bg-ij-frame"
+        aria-busy="true"
+      />
+    );
   }
 
   const editorPane = (

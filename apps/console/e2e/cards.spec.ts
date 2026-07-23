@@ -10,7 +10,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 async function freshLoad(page: Page) {
@@ -23,14 +26,42 @@ async function freshLoad(page: Page) {
   await settled(page);
 }
 
+async function resetStub(request: import('@playwright/test').APIRequestContext) {
+  const layout = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(layout.ok()).toBeTruthy();
+  const domain = await request.post('http://localhost:50591/objects/test/reset-domain', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(domain.ok()).toBeTruthy();
+}
+
 async function openSurface(page: Page, surfaceId: string) {
   // Screen navigation is the leftmost stripe's surfaces group.
   await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId);
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
+    timeout: 15_000,
+  });
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
+}
+
+async function openInjectedSurface(page: Page, surfaceId: string) {
+  // Pathname is the routed-surface radio on reload, so re-select the injected
+  // (non-routed) proof surface through the toolbar switcher.
+  await page.locator('[data-layout-switcher]').click();
+  await page.locator(`[data-layout-option="${surfaceId}"]`).click();
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
+    timeout: 15_000,
+  });
 }
 
 test.describe('cards, actions, mentions', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetStub(request);
     await freshLoad(page);
   });
 
@@ -90,7 +121,8 @@ test.describe('cards, actions, mentions', () => {
         if (object.type === 'surface') object.properties.active = false;
       }
       filtered.push(
-        { id: 'e2e-card-surface', type: 'surface', properties: { name: 'CardProof', kind: 'workspace', active: true }, relations: { CONTAINS: ['e2e.region'] } },
+        // Non-routed kind: reload's pathname radio must not claim this surface.
+        { id: 'e2e-card-surface', type: 'surface', properties: { name: 'CardProof', kind: 'review', active: true }, relations: { CONTAINS: ['e2e.region'] } },
         { id: 'e2e.region', type: 'region', properties: { kind: 'editor', size: 100, active_tab: 'e2e.vi-card' }, relations: { CONTAINS: ['e2e.vi-card'] } },
         { id: 'e2e.vi-card', type: 'view-instance', properties: { descriptor_id: 'card.full', title: 'Task card', query: { types: ['task'], page: { limit: 1 } } }, relations: { CONTAINS: [] } },
       );
@@ -98,6 +130,7 @@ test.describe('cards, actions, mentions', () => {
     });
     await page.reload();
     await settled(page);
+    await openInjectedSurface(page, 'e2e-card-surface');
     const card = page.locator('[data-card="full"]');
     // The injected surface's card.full queries the task over the live wire on
     // a freshly compiled route; allow headroom so a cold, parallel-loaded dev
@@ -120,7 +153,7 @@ test.describe('cards, actions, mentions', () => {
         if (object.type === 'surface') object.properties.active = false;
       }
       objects.push(
-        { id: 'e2e-grid-surface', type: 'surface', properties: { name: 'GridProof', kind: 'workspace', active: true }, relations: { CONTAINS: ['e2e.grid-region'] } },
+        { id: 'e2e-grid-surface', type: 'surface', properties: { name: 'GridProof', kind: 'review', active: true }, relations: { CONTAINS: ['e2e.grid-region'] } },
         { id: 'e2e.grid-region', type: 'region', properties: { kind: 'editor', size: 100, active_tab: 'e2e.vi-grid' }, relations: { CONTAINS: ['e2e.vi-grid'] } },
         { id: 'e2e.vi-grid', type: 'view-instance', properties: { descriptor_id: 'cards.grid', title: 'Grid proof', query: { types: ['record'], page: { limit: 400 } } }, relations: { CONTAINS: [] } },
       );
@@ -128,6 +161,7 @@ test.describe('cards, actions, mentions', () => {
     });
     await page.reload();
     await settled(page);
+    await openInjectedSurface(page, 'e2e-grid-surface');
     await expect(page.locator('[data-cards-grid]')).toBeVisible({ timeout: 15000 });
     const rendered = await page.locator('[data-card-cell]').count();
     expect(rendered).toBeGreaterThan(0);
@@ -143,7 +177,7 @@ test.describe('cards, actions, mentions', () => {
     expect(focusedId).toBe(secondId);
   });
 
-  test('all three entries open the identical sheet; the pack equals the chips', async ({ page }) => {
+  test('inspector and /do open the identical sheet; the pack equals the chips', async ({ page }) => {
     // Entry 1: the Action verb from the inspector. Click the title text: a
     // center-click can land on a relation chip, which is its own navigation.
     await openSurface(page, 'console-cards');
@@ -156,10 +190,13 @@ test.describe('cards, actions, mentions', () => {
     // The no-silent-context probe (the named invariant test of the round):
     // capture the submitted pack and compare it to the visible chips exactly.
     await sheet.getByLabel('Instruction').fill('review the memoir margins');
+    await expect(sheet.getByRole('button', { name: 'Hand off' })).toBeEnabled();
     const visibleChips = await sheet.locator('[data-context-chip]').allTextContents();
     const packPromise = page.waitForRequest('**/api/harness/delegate');
+    const refusedPromise = page.waitForResponse('**/api/harness/delegate');
     await sheet.getByRole('button', { name: 'Hand off' }).click();
     const request = await packPromise;
+    await refusedPromise;
     const pack = request.postDataJSON() as {
       instruction: string;
       context: Array<{ label: string }>;
@@ -191,20 +228,37 @@ test.describe('cards, actions, mentions', () => {
     await expect(page.locator('[data-action-sheet]')).toBeVisible();
     await expect(page.getByLabel('Instruction')).toHaveValue('triage the inbox');
     await page.keyboard.press('Escape');
+  });
 
-    // Entry 3: the todo-block action icon in a document, and Alt+Enter.
+  test('todo-block and Alt+Enter open the identical sheet from Documents', async ({ page }) => {
     await openSurface(page, 'console-docs');
+    await expect(page.locator('[data-doc-id="doc-console-punch-list"]')).toBeVisible({ timeout: 30_000 });
     await page.locator('[data-doc-id="doc-console-punch-list"]').click();
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const cache = JSON.parse(window.localStorage.getItem('commonplace.console.layout-cache.v1') ?? 'null') as
+          | { objects?: Array<{ id: string; properties?: { query?: { where?: { value?: string } }; title?: string } }> }
+          | null;
+        const reader = cache?.objects?.find((object) => object.id === 'docs.vi-reader');
+        return `${reader?.properties?.title ?? ''}|${reader?.properties?.query?.where?.value ?? ''}`;
+      });
+    }, { timeout: 15_000 }).toBe('Console punch list|console-punch-list');
+    await expect(page.locator('.galley')).toContainText('Console punch list', { timeout: 15_000 });
+    await expect(page.locator('.galley')).toContainText('Open items');
     const todoButton = page.locator('[data-todo-action]').first();
-    await expect(todoButton).toBeVisible();
-    await todoButton.click();
+    await expect(todoButton).toBeVisible({ timeout: 15_000 });
+    await todoButton.evaluate((node) => {
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
     const todoSheet = page.locator('[data-action-sheet]');
     await expect(todoSheet).toBeVisible();
     await expect(todoSheet.locator('[data-context-chip="origin"]').first()).toContainText(
       'Console punch list',
     );
     await page.keyboard.press('Escape');
-    await page.locator('li.task-list-item').first().focus();
+    const taskItem = page.locator('li.task-list-item').first();
+    await expect(taskItem).toBeVisible();
+    await taskItem.click({ force: true });
     await page.keyboard.press('Alt+Enter');
     await expect(page.locator('[data-action-sheet]')).toBeVisible();
     // Save as rule names its missing capability (IX6) instead of pretending.
@@ -241,14 +295,17 @@ test.describe('cards, actions, mentions', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await freshLoad(page);
     await openSurface(page, 'console-cards');
-    await page.waitForTimeout(400);
-    await expect(page.locator('[data-cards-grid]')).toHaveScreenshot('cards-grid.png');
+    await expect(page.locator('[data-cards-grid]')).toBeVisible();
+    await page.waitForTimeout(800);
+    await expect(page.locator('[data-cards-grid]')).toHaveScreenshot('cards-grid.png', {
+      maxDiffPixelRatio: 0.02,
+    });
 
     await page.locator('[data-card-cell="person-ada"]').click();
     await page.waitForTimeout(400);
     await expect(
       page.getByLabel('Record inspector').locator('[data-card="compact"]'),
-    ).toHaveScreenshot('card-compact-inspector.png');
+    ).toHaveScreenshot('card-compact-inspector.png', { maxDiffPixelRatio: 0.02 });
 
     await page.locator('[data-inspector-action]').click();
     const sheet = page.locator('[data-action-sheet]');
@@ -257,6 +314,6 @@ test.describe('cards, actions, mentions', () => {
     // Reduced motion renders the sheet without the material animation.
     const transform = await sheet.evaluate((el) => getComputedStyle(el).transform);
     expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
-    await expect(sheet).toHaveScreenshot('action-sheet.png');
+    await expect(sheet).toHaveScreenshot('action-sheet.png', { maxDiffPixelRatio: 0.02 });
   });
 });

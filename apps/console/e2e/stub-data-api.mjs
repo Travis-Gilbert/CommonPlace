@@ -137,7 +137,7 @@ const DOMAIN = [
   },
 ];
 
-const MENTION_CANDIDATES = [
+const MENTION_CANDIDATES_SEED = [
   {
     id: 'mention:person-ada:rec-1:ada-lovelace',
     type: 'mention-candidate',
@@ -171,6 +171,14 @@ const MENTION_CANDIDATES = [
     relations: {},
   },
 ];
+
+function cloneMentionCandidates() {
+  return MENTION_CANDIDATES_SEED.map((entry) => ({
+    ...entry,
+    properties: { ...entry.properties },
+    relations: { ...entry.relations },
+  }));
+}
 
 // Documents and code files ride the live wire now (the file-editing fix), so
 // the stub serves them and applies edits in place, exercising the real
@@ -284,7 +292,7 @@ const POOLS = new Map([
   ['org', DOMAIN.filter((o) => o.type === 'org')],
   ['project', DOMAIN.filter((o) => o.type === 'project')],
   ['skill', DOMAIN.filter((o) => o.type === 'skill')],
-  ['mention-candidate', MENTION_CANDIDATES],
+  ['mention-candidate', cloneMentionCandidates()],
   ['doc', DOCS],
   ['code-file', CODE_FILES],
   ['hunk', HUNKS],
@@ -304,6 +312,11 @@ function resetLayoutPools() {
     const pool = POOLS.get(type);
     if (pool) pool.length = 0;
   }
+}
+
+/** Restore mutable domain fixtures (mention confirm/dismiss) to seed status. */
+function resetDomainPools() {
+  POOLS.set('mention-candidate', cloneMentionCandidates());
 }
 
 function upsertLayoutObject(type, id, properties) {
@@ -430,8 +443,15 @@ const server = createServer((request, response) => {
   }
   if (request.method === 'POST' && request.url === '/objects/test/reset-layout') {
     resetLayoutPools();
+    resetDomainPools();
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ ok: true, note: 'layout pools cleared' }));
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/objects/test/reset-domain') {
+    resetDomainPools();
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, note: 'domain fixtures restored' }));
     return;
   }
   if (request.method === 'POST' && request.url === '/graphql') {

@@ -30,6 +30,9 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
     surfaces.find((surface) => surface.id === activeSurfaceId)?.properties.name ?? 'Chat',
   );
   const switchTo = (surfaceId: string) => {
+    // Toolbar switcher activates without routing: secondary surfaces (Appearance,
+    // Account, …) have no segment, and remounting on router.push races e2e.
+    // The stripe rail owns URL sync for the five primary surfaces.
     void host.activateSurface(surfaceId);
     setLayoutOpen(false);
   };

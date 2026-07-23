@@ -10,12 +10,24 @@ const SURFACE_KEY = 'commonplace.console.surface.v1';
 
 async function settled(page: import('@playwright/test').Page) {
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
+}
+
+async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
 }
 
 async function openAppearance(page: import('@playwright/test').Page) {
   await page.locator('[data-layout-switcher]').click();
-  await page.locator('[data-layout-option="console-appearance"]').click();
+  const option = page.locator('[data-layout-option="console-appearance"]');
+  await expect(option).toBeVisible({ timeout: 15_000 });
+  await option.click();
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-appearance', {
     timeout: 15000,
   });
@@ -28,7 +40,8 @@ async function selectPreset(page: import('@playwright/test').Page, id: string) {
 }
 
 test.describe('appearance surface', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
     await page.goto('/');
     await page.evaluate(([appearance, layout, surface]) => {
       localStorage.removeItem(appearance);
@@ -71,8 +84,16 @@ test.describe('appearance surface', () => {
     await page.locator('[data-layout-switcher]').click();
     await page.locator('[data-layout-option="console-workspace"]').click();
 
+    // One-block ground paints the companion seam as a transparent island gutter
+    // (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8). Only assert the legacy divider
+    // fill when a painted handle is still present.
     const divider = page.locator('[data-panel-resize-handle-id]').first();
-    await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+    if (await divider.count()) {
+      const background = await divider.evaluate((node) => getComputedStyle(node).backgroundColor);
+      if (background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') {
+        await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+      }
+    }
     // HANDOFF-CONSOLE-DIMENSIONALITY named choice 5 restored the Int UI stripe
     // grammar: a selected stripe button takes a WEAK FILL (--ij-selection,
     // Blue11 in light) with the glyph at full ink, not the saturated accent
@@ -80,7 +101,7 @@ test.describe('appearance surface', () => {
     // guarded is "the selected stripe surface is unmistakable", and the weak
     // fill is how Int UI says that; signatures.spec.ts now gates it on both
     // themes against the token rather than a hardcoded accent.
-    await expect(page.locator('nav button[aria-pressed="true"]').first()).toHaveCSS(
+    await expect(page.locator('nav button[aria-pressed="true"], nav button[aria-checked="true"]').first()).toHaveCSS(
       'background-color',
       'rgb(212, 226, 255)',
     );
@@ -121,6 +142,8 @@ test.describe('appearance surface', () => {
     }, APPEARANCE_KEY);
     await page.reload();
     await settled(page);
+    // /chat is the surface radio after reload (B3); reopen Appearance to read clamps.
+    await openAppearance(page);
     await expect(page.getByText('Background chroma was limited')).toBeVisible();
     await expect(page.getByRole('slider', { name: 'Tint chroma' })).toHaveValue('0.04');
   });

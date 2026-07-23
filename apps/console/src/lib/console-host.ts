@@ -388,13 +388,52 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        // Keep the locally active surface across remote adoption. Deep links
-        // (/cards, /workspace) and Account / Appearance activation race the
-        // first ensureSeedLayout fetch; a stale remote radio must not yank them.
+        // Snapshot AFTER the await so in-flight local edits (doc navigation,
+        // surface activation) that landed while the remote fetch was pending
+        // survive replaceLayout. A stale remote seed must not yank an open
+        // document back to the brief or undo the active-surface radio.
         const preservedActiveId = [...this.layout.values()].find(
           (node) => node.type === 'surface' && node.properties.active === true,
         )?.id;
+        const localViewOverrides = new Map(
+          [...this.layout.values()]
+            .filter((node) => node.type === 'view-instance')
+            .map((node) => [node.id, {
+              title: node.properties.title,
+              query: node.properties.query,
+            }] as const),
+        );
+        // Keep local-only nodes (in-flight person arrangements, e2e proofs) that
+        // the server has not seen yet; replaceLayout alone would drop them.
+        const remoteIds = new Set(remote.objects.map((object) => object.id));
+        const localOnly = [...this.layout.values()]
+          .filter((node) => !remoteIds.has(node.id))
+          .map((node) => toMutable(toRef(node)));
         this.replaceLayout(remote.objects);
+        for (const node of localOnly) {
+          this.layout.set(node.id, node);
+        }
+        let restored = localOnly.length > 0;
+        for (const [id, override] of localViewOverrides) {
+          const node = this.layout.get(id);
+          if (!node) continue;
+          const remoteQuery = JSON.stringify(node.properties.query ?? null);
+          const localQuery = JSON.stringify(override.query ?? null);
+          const queryChanged = localQuery !== remoteQuery;
+          const titleChanged =
+            override.title !== undefined && override.title !== node.properties.title;
+          if (!queryChanged && !titleChanged) continue;
+          node.properties = {
+            ...node.properties,
+            ...(override.title !== undefined ? { title: override.title } : {}),
+            ...(override.query !== undefined ? { query: override.query } : {}),
+          };
+          restored = true;
+        }
+        if (restored) {
+          this.persistLayout();
+          this.notifyLayout();
+        }
         if (preservedActiveId && this.layout.has(preservedActiveId)) {
           for (const candidate of this.layout.values()) {
             if (candidate.type === 'surface') {

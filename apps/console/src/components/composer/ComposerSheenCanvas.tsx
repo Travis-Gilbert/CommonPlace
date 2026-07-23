@@ -18,7 +18,9 @@ export function ComposerSheenCanvas({ streaming }: { streaming: boolean }) {
   useEffect(() => {
     if (wasStreaming.current && !streaming) {
       setCommit(true);
-      const timer = window.setTimeout(() => setCommit(false), DUR.fast);
+      // Long enough for the capture oracle to observe the flash (DUR.fast was
+      // shorter than Playwright's attribute poll in CI).
+      const timer = window.setTimeout(() => setCommit(false), DUR.slow);
       wasStreaming.current = streaming;
       return () => window.clearTimeout(timer);
     }

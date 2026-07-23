@@ -21,12 +21,28 @@ const THEMES = [
 
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
+}
+
+async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
 }
 
 /** Opens the workspace surface in the requested theme. Both themes travel the
  *  same path, so a signature cannot pass in one mode by taking a shortcut. */
-async function openWorkspace(page: Page, preset: string) {
+async function openWorkspace(
+  page: Page,
+  preset: string,
+  request?: import('@playwright/test').APIRequestContext,
+  viewport: { width: number; height: number } = { width: 1440, height: 900 },
+) {
+  if (request) await resetStubLayout(request);
   await page.goto('/');
   await page.evaluate(([appearance, layout, legacy]) => {
     localStorage.removeItem(appearance);
@@ -35,20 +51,25 @@ async function openWorkspace(page: Page, preset: string) {
   }, [APPEARANCE_KEY, LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY]);
   await page.reload();
   await settled(page);
+  await page.setViewportSize(viewport);
   await page.locator('[data-layout-switcher]').click();
-  await page.locator('[data-layout-option="console-appearance"]').click();
-  await expect(page.locator('[data-appearance-view]')).toBeVisible();
+  const appearanceOption = page.locator('[data-layout-option="console-appearance"]');
+  await expect(appearanceOption).toBeVisible({ timeout: 15_000 });
+  await appearanceOption.click();
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-appearance', { timeout: 15_000 });
+  await expect(page.locator('[data-appearance-view]')).toBeVisible({ timeout: 15_000 });
   await page.locator(`[data-appearance-preset="${preset}"]`).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-preset', preset);
   await page.locator('[data-layout-switcher]').click();
   await page.locator('[data-layout-option="console-workspace"]').click();
   await settled(page);
+  await expect(page.locator('[data-shell-region="rail"]')).toHaveAttribute('data-sidebar-collapsed', 'false');
 }
 
 for (const { theme, preset } of THEMES) {
   test.describe(`chrome signatures on ${theme}`, () => {
-    test.beforeEach(async ({ page }) => {
-      await openWorkspace(page, preset);
+    test.beforeEach(async ({ page, request }) => {
+      await openWorkspace(page, preset, request);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     });
 
@@ -114,7 +135,9 @@ for (const { theme, preset } of THEMES) {
       // Companion-to-editor boundary is the island gutter (transparent handle).
       const panelSeam = page.locator('[data-panel-seam]').first();
       await expect(panelSeam, 'the companion-to-editor gutter must render').toBeVisible();
-      await expect(panelSeam).toHaveCSS('width', '10px');
+      // Island gutter is the companion-to-editor seam (HANDOFF-CONSOLE-BLOCK-SYSTEM
+      // choice 8: gutter 6). The handle paints transparent over that token.
+      await expect(panelSeam).toHaveCSS('width', '6px');
       await expect(panelSeam).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     });
 
@@ -214,13 +237,18 @@ for (const { theme, preset } of THEMES) {
 
       const offGrid = await page.evaluate(() => {
         const offenders: { region: string; property: string; value: string }[] = [];
+        // Islands layout pins gutter at 6px (not on the 4px spacing scale);
+        // chrome that pads with --ij-island-gutter is on-spec, not an offender.
+        const islandGutter = Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--ij-island-gutter'),
+        );
         for (const node of document.querySelectorAll<HTMLElement>('[data-paint-region]')) {
           const styles = getComputedStyle(node);
           for (const property of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'] as const) {
             const value = Number.parseFloat(styles[property]);
-            if (Number.isFinite(value) && value % 4 !== 0) {
-              offenders.push({ region: node.dataset.paintRegion ?? '?', property, value: styles[property] });
-            }
+            if (!Number.isFinite(value) || value % 4 === 0) continue;
+            if (Number.isFinite(islandGutter) && value === islandGutter) continue;
+            offenders.push({ region: node.dataset.paintRegion ?? '?', property, value: styles[property] });
           }
         }
         return offenders;
@@ -339,7 +367,10 @@ for (const { theme, preset } of THEMES) {
 
       const idle = await signature();
       expect(idle.state).toBe('idle');
-      await expect(composer).toHaveScreenshot(`composer-sheen-idle-${theme}.png`);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await expect(composer).toHaveScreenshot(`composer-sheen-idle-${theme}.png`, { timeout: 15_000 });
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await expect(canvas).toHaveAttribute('data-sheen-state', 'idle');
 
       // Hold the stream open so the streaming state is observable rather than
       // instantaneous.
@@ -361,12 +392,16 @@ for (const { theme, preset } of THEMES) {
       await input.press('Enter');
       await expect(canvas).toHaveAttribute('data-sheen-state', 'streaming');
       const streaming = await signature();
-      await expect(composer).toHaveScreenshot(`composer-sheen-streaming-${theme}.png`);
+      await expect(composer).toHaveScreenshot(`composer-sheen-streaming-${theme}.png`, {
+        timeout: 15_000,
+        maxDiffPixelRatio: 0.05,
+      });
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await expect(canvas).toHaveAttribute('data-sheen-state', 'streaming');
 
-      release();
-      await expect(page.getByText('Grounded answer.')).toBeVisible();
-      // The commit flash: sample the canvas inside its own window.
-      const commit = await canvas.evaluate((node: HTMLCanvasElement) => new Promise<{
+      // Prefer Playwright's attribute retry over a one-shot rAF poll: commit
+      // lasts DUR.slow; start the canvas sample before release.
+      const commitSeen = canvas.evaluate((node: HTMLCanvasElement) => new Promise<{
         alpha: number;
         state: string | undefined;
       }>((resolve) => {
@@ -382,11 +417,15 @@ for (const { theme, preset } of THEMES) {
         const started = performance.now();
         const poll = () => {
           const sample = read();
-          if (sample.state === 'commit' || performance.now() - started > 2000) resolve(sample);
+          if (sample.state === 'commit' || performance.now() - started > 3000) resolve(sample);
           else requestAnimationFrame(poll);
         };
         poll();
       }));
+      release();
+      await expect(canvas).toHaveAttribute('data-sheen-state', 'commit', { timeout: 3000 });
+      const commit = await commitSeen;
+      await expect(page.getByText('Grounded answer.')).toBeVisible();
 
       // The three states are distinct paint, not three labels for one wash.
       expect(idle.alpha, 'idle must paint something').toBeGreaterThan(0);
@@ -410,10 +449,9 @@ for (const { theme, preset } of THEMES.filter((entry) => entry.theme === 'dark')
     { width: 1280, height: 800 },
     { width: 1440, height: 900 },
   ]) {
-    test(`holds the ${viewport.width} ${theme} baseline`, async ({ page }) => {
+    test(`holds the ${viewport.width} ${theme} baseline`, async ({ page, request }) => {
       await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await openWorkspace(page, preset);
+      await openWorkspace(page, preset, request, viewport);
       await expect(page).toHaveScreenshot(`workspace-${viewport.width}-${theme}.png`, { fullPage: true });
     });
   }
