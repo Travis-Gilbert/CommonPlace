@@ -290,6 +290,70 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
   });
 
+  it('preserves in-flight doc navigation across ensureSeedLayout adopt', async () => {
+    // Doc list navigation patches docs.vi-reader locally while ensureSeedLayout's
+    // remote fetch is still in flight; adopting the seed brief must not yank it.
+    let releaseRemote: (() => void) | null = null;
+    const remoteReady = new Promise<void>((resolve) => {
+      releaseRemote = resolve;
+    });
+    const remoteLayout = seedLayout();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/objects/query')) {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { types?: string[] };
+        const isLayout = (body.types ?? []).some((type) =>
+          type === 'surface' || type === 'region' || type === 'view-instance',
+        );
+        if (isLayout) {
+          await remoteReady;
+          return new Response(JSON.stringify({
+            objects: remoteLayout,
+            shape: {
+              types: body.types ?? [],
+              fields: [],
+              relations: [],
+              axes: {},
+              cardinality: 'many',
+            },
+          }), { status: 200 });
+        }
+        return new Response(JSON.stringify({
+          objects: [],
+          shape: { types: [], fields: [], relations: [], axes: {}, cardinality: 'empty' },
+        }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({ action_kind: 'update', status: 'applied', target_ids: ['docs.vi-reader'] }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const adopt = host.ensureSeedLayout();
+    await Promise.resolve();
+    await Promise.resolve();
+    await host.emit({
+      kind: 'update',
+      id: 'docs.vi-reader',
+      patch: {
+        title: 'Console punch list',
+        query: {
+          types: ['doc'],
+          where: { kind: 'eq', field: 'slug', value: 'console-punch-list' },
+        },
+      },
+    });
+    releaseRemote?.();
+    await adopt;
+    const reader = host.queryLayout(surfaceQuery()).objects.find((object) => object.id === 'docs.vi-reader');
+    expect(reader?.properties.title).toBe('Console punch list');
+    expect(reader?.properties.query).toMatchObject({
+      types: ['doc'],
+      where: { kind: 'eq', field: 'slug', value: 'console-punch-list' },
+    });
+  });
+
   it('serializes layout write-through so slower first updates cannot race ahead', async () => {
     const order: string[] = [];
     const gate = { releaseFirst: null as (() => void) | null };

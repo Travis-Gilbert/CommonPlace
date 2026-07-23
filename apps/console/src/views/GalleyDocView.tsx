@@ -28,18 +28,18 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
     ? doc.properties.read_only_reason
     : null;
   const [mode, setMode] = useState<Mode>('read');
-  const [text, setText] = useState<string>(() =>
-    typeof doc?.properties.markdown === 'string' ? doc.properties.markdown : '',
-  );
   // Doc navigation patches the reader instance in place (an arrangement
   // edit), so this component does not remount when the document changes.
-  // Deriving during render (the sanctioned adjust-state-on-prop-change
-  // pattern) resets the edited text to the newly selected document.
+  // Sync markdown whenever the resolved doc identity or body changes.
+  const markdown = typeof doc?.properties.markdown === 'string' ? doc.properties.markdown : '';
   const [docId, setDocId] = useState<string | undefined>(doc?.id);
+  const [text, setText] = useState<string>(() => markdown);
   if (doc && doc.id !== docId) {
     setDocId(doc.id);
-    setText(typeof doc.properties.markdown === 'string' ? doc.properties.markdown : '');
+    setText(markdown);
     setMode('read');
+  } else if (doc && mode === 'read' && markdown !== text) {
+    setText(markdown);
   }
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollPos = useRef(0);
@@ -83,68 +83,106 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
 
   // The todo-block entry (HANDOFF-CARDS-ACTIONS-MENTIONS K3): every rendered
   // task-list item gets the action affordance in the paper-plane position,
-  // with Alt+Enter as the shortcut. Galley owns the markup; the decoration
-  // attaches to its .task-list-item output. markdown-theory 0.1.2 styles
-  // that class but its renderer does not yet emit GFM task lists (the same
-  // upstream-gap family as the owl rhythm fix in markdown-theory PR 3), so
-  // until the 0.2.x renderer lands, plain list items that literally begin
-  // with "[ ]" or "[x]" are recognized as todos too.
+  // with Alt+Enter as the shortcut. Galley owns the markup and may replace
+  // list nodes on re-render, so decoration is re-applied via MutationObserver
+  // and actions are delegated from the scroll root.
   useEffect(() => {
     if (mode !== 'read') return;
     const root = scrollRef.current;
     const docId = doc?.id;
     const docTitle = typeof doc?.properties.title === 'string' ? doc.properties.title : docId;
     if (!root || !docId) return;
-    const items = [
-      ...root.querySelectorAll<HTMLElement>('li.task-list-item'),
-      ...[...root.querySelectorAll<HTMLElement>('.galley li:not(.task-list-item)')].filter((li) =>
-        /^\[( |x)\]\s/.test((li.textContent ?? '').trimStart()),
-      ),
-    ];
-    const cleanups: Array<() => void> = [];
-    items.forEach((item) => {
-      const todoText = (item.textContent ?? '').trim();
-      const openFor = () =>
-        useShellStore.getState().openActionSheet({
-          chips: [
-            objectChip(docId, 'doc', docTitle ?? docId),
-            {
-              id: `chip-selection-${docId}-${todoText.slice(0, 24)}`,
-              kind: 'selection',
-              label: todoText,
-              text: todoText,
-              source: 'origin',
-            },
-          ],
-        });
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.dataset.todoAction = '';
-      button.setAttribute('aria-label', 'Hand this todo to the agent');
-      button.textContent = '→';
-      button.className =
-        'ml-2 h-5 rounded-ij-arc px-1 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent';
-      button.addEventListener('click', openFor);
-      const onKey = (event: KeyboardEvent) => {
-        if (event.currentTarget !== event.target) return;
-        if (event.altKey && event.key === 'Enter') {
-          event.preventDefault();
-          event.stopPropagation();
-          openFor();
-        }
-      };
-      item.tabIndex = 0;
-      item.addEventListener('keydown', onKey);
-      item.appendChild(button);
-      cleanups.push(() => {
-        button.removeEventListener('click', openFor);
-        item.removeEventListener('keydown', onKey);
-        button.remove();
-        item.removeAttribute('tabindex');
+
+    const openFor = (todoText: string) => {
+      useShellStore.getState().openActionSheet({
+        chips: [
+          objectChip(docId, 'doc', docTitle ?? docId),
+          {
+            id: `chip-selection-${docId}-${todoText.slice(0, 24)}`,
+            kind: 'selection',
+            label: todoText,
+            text: todoText,
+            source: 'origin',
+          },
+        ],
       });
-    });
-    return () => cleanups.forEach((cleanup) => cleanup());
-  }, [mode, text, doc]);
+    };
+
+    const decorate = () => {
+      const items = [
+        ...root.querySelectorAll<HTMLElement>('li.task-list-item'),
+        ...[...root.querySelectorAll<HTMLElement>('.galley li:not(.task-list-item)')].filter((li) =>
+          /^\[( |x)\]\s/.test((li.textContent ?? '').trimStart()),
+        ),
+      ];
+      for (const item of items) {
+        if (item.querySelector('[data-todo-action]')) continue;
+        const todoText = (item.textContent ?? '').trim();
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.todoAction = '';
+        button.dataset.todoText = todoText;
+        button.setAttribute('aria-label', 'Hand this todo to the agent');
+        button.textContent = '→';
+        button.className =
+          'ml-2 h-5 rounded-ij-arc px-1 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink focus:outline-2 focus:outline-ij-accent';
+        item.tabIndex = 0;
+        item.dataset.todoItem = '';
+        item.dataset.todoText = todoText;
+        item.appendChild(button);
+      }
+    };
+
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest<HTMLElement>('[data-todo-action]');
+      if (!button || !root.contains(button)) return;
+      event.preventDefault();
+      openFor(button.dataset.todoText ?? '');
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.altKey && event.key === 'Enter')) return;
+      const target = event.target as HTMLElement | null;
+      const item = target?.closest<HTMLElement>('[data-todo-item]');
+      if (!item || !root.contains(item)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openFor(item.dataset.todoText ?? (item.textContent ?? '').trim());
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let observer: MutationObserver;
+    const scheduleDecorate = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        observer.disconnect();
+        try {
+          decorate();
+        } finally {
+          observer.observe(root, { childList: true, subtree: true });
+        }
+      }, 0);
+    };
+
+    decorate();
+    observer = new MutationObserver(() => scheduleDecorate());
+    observer.observe(root, { childList: true, subtree: true });
+    root.addEventListener('click', onClick);
+    root.addEventListener('keydown', onKey);
+    return () => {
+      if (timer) clearTimeout(timer);
+      observer.disconnect();
+      root.removeEventListener('click', onClick);
+      root.removeEventListener('keydown', onKey);
+      root.querySelectorAll('[data-todo-action]').forEach((node) => node.remove());
+      root.querySelectorAll<HTMLElement>('[data-todo-item]').forEach((item) => {
+        item.removeAttribute('tabindex');
+        delete item.dataset.todoItem;
+        delete item.dataset.todoText;
+      });
+    };
+  }, [mode, text, doc?.id]);
 
   if (!doc) {
     return <ViewState state="empty" />;

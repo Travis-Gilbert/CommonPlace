@@ -4,7 +4,15 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-async function freshLoad(page: Page) {
+async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
+async function freshLoad(page: Page, request?: import('@playwright/test').APIRequestContext) {
+  if (request) await resetStubLayout(request);
   await page.goto('/');
   await page.evaluate(() => {
     localStorage.removeItem('commonplace.console.layout-cache.v1');
@@ -19,7 +27,7 @@ async function freshLoad(page: Page) {
 }
 
 test.describe('Search panel', () => {
-  test.beforeEach(async ({ page }) => freshLoad(page));
+  test.beforeEach(async ({ page, request }) => freshLoad(page, request));
 
   test('owns exactly Command, Search, and Objects', async ({ page }) => {
     await expect(page.locator('[data-search-field]')).toHaveCount(0);

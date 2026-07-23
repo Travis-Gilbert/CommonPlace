@@ -151,9 +151,12 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-composer-character-count]')).toHaveText('1800/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
-    const mention = page.getByText('Ada Lovelace', { exact: true });
-    await expect(mention).toBeVisible();
-    await mention.click({ force: true });
+    const mentionPopover = page.locator('[aria-label="Object mentions"]');
+    await expect(mentionPopover).toBeVisible();
+    await expect(mentionPopover.getByText('Ada Lovelace', { exact: true })).toBeVisible();
+    // Popover opens upward and can sit under the toolbar hit-target; select via
+    // the trigger keyboard path instead of a pointer click through chrome.
+    await input.press('Enter');
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();
@@ -305,9 +308,11 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
+    // Deep-linking to Cards remounts the client; hydrate memories on this
+    // surface so the ego graph can match Ada before Context opens.
+    await openSurface(page, 'console-cards');
     await page.locator('[data-companion-nav="files"]').click();
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
-    await openSurface(page, 'console-cards');
     await page.locator('[data-companion-nav="context"]').click();
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();
     await page.getByLabel('Close inspector').click();

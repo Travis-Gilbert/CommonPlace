@@ -120,9 +120,12 @@ export function ViewInstanceHost({
       active = false;
       unsubscribe?.();
     };
-    // reloadToken forces a requery after Retry; instance identity covers arrangement edits.
+    // queryKey covers arrangement edits that retarget the pane (doc navigation
+    // patches query in place). Do not depend on `instance` identity: every
+    // layout notify allocates new ObjectRefs and would cancel in-flight
+    // queryLiveDomain fetches, leaving the previous document painted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host, instance, reloadToken, queryKey]);
+  }, [host, reloadToken, queryKey]);
 
   const empty = useMemo(() => emptyObjectSet(), []);
 

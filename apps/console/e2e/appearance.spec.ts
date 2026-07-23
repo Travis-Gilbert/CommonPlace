@@ -16,6 +16,13 @@ async function settled(page: import('@playwright/test').Page) {
   );
 }
 
+async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
 async function openAppearance(page: import('@playwright/test').Page) {
   await page.locator('[data-layout-switcher]').click();
   const option = page.locator('[data-layout-option="console-appearance"]');
@@ -33,7 +40,8 @@ async function selectPreset(page: import('@playwright/test').Page, id: string) {
 }
 
 test.describe('appearance surface', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
     await page.goto('/');
     await page.evaluate(([appearance, layout, surface]) => {
       localStorage.removeItem(appearance);
@@ -76,11 +84,15 @@ test.describe('appearance surface', () => {
     await page.locator('[data-layout-switcher]').click();
     await page.locator('[data-layout-option="console-workspace"]').click();
 
-    // One-block ground may omit panel resize handles; prefer a painted seam when
-    // present, otherwise the stripe selection grammar still gates the theme.
+    // One-block ground paints the companion seam as a transparent island gutter
+    // (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8). Only assert the legacy divider
+    // fill when a painted handle is still present.
     const divider = page.locator('[data-panel-resize-handle-id]').first();
     if (await divider.count()) {
-      await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+      const background = await divider.evaluate((node) => getComputedStyle(node).backgroundColor);
+      if (background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') {
+        await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+      }
     }
     // HANDOFF-CONSOLE-DIMENSIONALITY named choice 5 restored the Int UI stripe
     // grammar: a selected stripe button takes a WEAK FILL (--ij-selection,

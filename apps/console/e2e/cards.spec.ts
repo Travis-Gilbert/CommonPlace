@@ -40,7 +40,13 @@ async function resetStub(request: import('@playwright/test').APIRequestContext) 
 async function openSurface(page: Page, surfaceId: string) {
   // Screen navigation is the leftmost stripe's surfaces group.
   await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId);
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
+    timeout: 15_000,
+  });
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 async function openInjectedSurface(page: Page, surfaceId: string) {
@@ -171,7 +177,7 @@ test.describe('cards, actions, mentions', () => {
     expect(focusedId).toBe(secondId);
   });
 
-  test('all three entries open the identical sheet; the pack equals the chips', async ({ page }) => {
+  test('inspector and /do open the identical sheet; the pack equals the chips', async ({ page }) => {
     // Entry 1: the Action verb from the inspector. Click the title text: a
     // center-click can land on a relation chip, which is its own navigation.
     await openSurface(page, 'console-cards');
@@ -222,15 +228,28 @@ test.describe('cards, actions, mentions', () => {
     await expect(page.locator('[data-action-sheet]')).toBeVisible();
     await expect(page.getByLabel('Instruction')).toHaveValue('triage the inbox');
     await page.keyboard.press('Escape');
+  });
 
-    // Entry 3: the todo-block action icon in a document, and Alt+Enter.
+  test('todo-block and Alt+Enter open the identical sheet from Documents', async ({ page }) => {
     await openSurface(page, 'console-docs');
+    await expect(page.locator('[data-doc-id="doc-console-punch-list"]')).toBeVisible({ timeout: 30_000 });
     await page.locator('[data-doc-id="doc-console-punch-list"]').click();
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const cache = JSON.parse(window.localStorage.getItem('commonplace.console.layout-cache.v1') ?? 'null') as
+          | { objects?: Array<{ id: string; properties?: { query?: { where?: { value?: string } }; title?: string } }> }
+          | null;
+        const reader = cache?.objects?.find((object) => object.id === 'docs.vi-reader');
+        return `${reader?.properties?.title ?? ''}|${reader?.properties?.query?.where?.value ?? ''}`;
+      });
+    }, { timeout: 15_000 }).toBe('Console punch list|console-punch-list');
+    await expect(page.locator('.galley')).toContainText('Console punch list', { timeout: 15_000 });
+    await expect(page.locator('.galley')).toContainText('Open items');
     const todoButton = page.locator('[data-todo-action]').first();
-    await expect(todoButton).toBeVisible();
-    // Docs ground can clip the inline affordance under the reader chrome; force
-    // reaches the control once Playwright has resolved it in the tree.
-    await todoButton.click({ force: true });
+    await expect(todoButton).toBeVisible({ timeout: 15_000 });
+    await todoButton.evaluate((node) => {
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
     const todoSheet = page.locator('[data-action-sheet]');
     await expect(todoSheet).toBeVisible();
     await expect(todoSheet.locator('[data-context-chip="origin"]').first()).toContainText(
