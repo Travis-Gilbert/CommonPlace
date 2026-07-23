@@ -9,11 +9,9 @@
 // otherwise, never a fixture run.
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import { useThreadStore } from '@/lib/thread-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
-import { pathForSurfaceKind } from '@/lib/surface-routes';
 import { IconChevronDown, IconRun, IconStop } from './icons';
 
 interface MainToolbarProps {
@@ -23,7 +21,6 @@ interface MainToolbarProps {
 }
 
 export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProps) {
-  const router = useRouter();
   const [layoutOpen, setLayoutOpen] = useState(false);
   const layoutTriggerRef = useRef<HTMLButtonElement | null>(null);
   const layoutMenuRef = useRef<HTMLDivElement | null>(null);
@@ -33,10 +30,10 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
     surfaces.find((surface) => surface.id === activeSurfaceId)?.properties.name ?? 'Chat',
   );
   const switchTo = (surfaceId: string) => {
-    const surface = surfaces.find((candidate) => candidate.id === surfaceId);
-    const path = pathForSurfaceKind(String(surface?.properties.kind ?? ''));
+    // Toolbar switcher activates without routing: secondary surfaces (Appearance,
+    // Account, …) have no segment, and remounting on router.push races e2e.
+    // The stripe rail owns URL sync for the five primary surfaces.
     void host.activateSurface(surfaceId);
-    if (path) router.push(path);
     setLayoutOpen(false);
   };
 

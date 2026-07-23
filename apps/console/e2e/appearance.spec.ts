@@ -18,7 +18,9 @@ async function settled(page: import('@playwright/test').Page) {
 
 async function openAppearance(page: import('@playwright/test').Page) {
   await page.locator('[data-layout-switcher]').click();
-  await page.locator('[data-layout-option="console-appearance"]').click();
+  const option = page.locator('[data-layout-option="console-appearance"]');
+  await expect(option).toBeVisible({ timeout: 15_000 });
+  await option.click();
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-appearance', {
     timeout: 15000,
   });
