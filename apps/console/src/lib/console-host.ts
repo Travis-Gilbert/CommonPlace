@@ -30,6 +30,7 @@ import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
 import { clearLayoutCache, readLayoutCache, writeLayoutCache } from './state/layout-cache';
+import { pathForSurfaceKind } from './surface-routes';
 import {
   AUTOMATION_HISTORY_TYPES,
   automationHistoryShape,
@@ -381,7 +382,23 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
+        // Prefer a locally active non-routed surface (Appearance, Account, …)
+        // over the remote radio so reload keeps the person's last settings
+        // screen instead of snapping back to Chat.
+        const preserved = [...this.layout.values()].find((node) => {
+          if (node.type !== 'surface' || node.properties.active !== true) return false;
+          return pathForSurfaceKind(String(node.properties.kind ?? '')) === null;
+        });
         this.replaceLayout(remote.objects);
+        if (preserved && this.layout.has(preserved.id)) {
+          for (const candidate of this.layout.values()) {
+            if (candidate.type === 'surface') {
+              candidate.properties.active = candidate.id === preserved.id;
+            }
+          }
+          this.persistLayout();
+          this.notifyLayout();
+        }
         return;
       }
       await this.pushLayoutToServer();
