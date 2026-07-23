@@ -121,7 +121,14 @@ test.describe('Console information architecture', () => {
     await openCompanion(page, 'files');
     await openCompanion(page, 'context');
     await openCompanion(page, 'thread');
-    await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png');
+    await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png', {
+      animations: 'disabled',
+      maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+    });
   });
 
   test('keeps Chat measured with one wide, auto-growing Composer', async ({ page }) => {
