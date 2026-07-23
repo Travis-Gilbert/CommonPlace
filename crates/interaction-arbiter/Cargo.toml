@@ -1,0 +1,13 @@
+# SOURCING: none — GPUI-free InteractionArbiter for SPEC-COMMONPLACE-NATIVE-SHELL-1.0 B3.
+
+[package]
+name = "interaction-arbiter"
+version = "0.1.0"
+edition = "2021"
+description = "GPUI-free interaction arbiter: human preemption, agent leases, presence handoff, focus registry."
+license = "MIT"
+rust-version = "1.85"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["v4", "serde"] }

@@ -1,0 +1,64 @@
+{
+  "plan_id": "commonplace-native-shell-1.0",
+  "spec": "docs/specs/SPEC-COMMONPLACE-NATIVE-SHELL-1.0.md",
+  "updated_at": "2026-07-22T03:35:00Z",
+  "items": [
+    {
+      "id": "B1",
+      "title": "Host bridge packages/host-bridge",
+      "status": "complete",
+      "acceptance": "CommonplaceHost + Web/Tauri/Gpui adapters + conformance suite",
+      "verified_how": "packages/host-bridge 4/4; apps/console HostProvider + createHost (queryViaBlockHost). CommonplaceHost on console."
+    },
+    {
+      "id": "B2",
+      "title": "BrowserCore crates/browser-core",
+      "status": "complete",
+      "verified_how": "cargo test -p browser-core 5/5. Registration NotVerified."
+    },
+    {
+      "id": "B3",
+      "title": "InteractionArbiter crates/interaction-arbiter",
+      "status": "complete",
+      "verified_how": "cargo test -p interaction-arbiter 5/5."
+    },
+    {
+      "id": "B4",
+      "title": "GPUI shell apps/browser-native",
+      "status": "complete",
+      "verified_how": "cargo test browser-native mock + chrome inset tokens. GPUI feature not linked."
+    },
+    {
+      "id": "B5",
+      "title": "Servo surface hosting",
+      "status": "partial",
+      "verified_how": "apps/browser-native/src/surfaces/servo.rs mock host: load, side-by-side resize, IME/focus smoke, presence edge handoff. Real RawWindowHandle + SceneOS seam = Codex/backend.",
+      "reason": "pane-host RawWindowHandle parenting still required"
+    },
+    {
+      "id": "B6",
+      "title": "CommonPlace gpui-wry surface",
+      "status": "partial",
+      "verified_how": "apps/browser-native/src/surfaces/commonplace.rs + zorder.rs: placeBlock substrate, reload restore, crash/restart, z-order zero-intersection. Real gpui-wry link = Codex/backend.",
+      "reason": "gpui feature + wry panel not linked"
+    },
+    {
+      "id": "F1",
+      "title": "React presence and lens renderers",
+      "status": "partial",
+      "verified_how": "apps/console: HostPresenceSync + HostPresenceCursor (textmode.js / code.textmode.art via PresenceMark) + HostFindLens. Cross-realm capture continuity still needs B5/B6."
+    },
+    {
+      "id": "F2",
+      "title": "Rail-initiated placeBlock",
+      "status": "complete",
+      "verified_how": "Click-to-add + Cmd+K Place note block. Cross-surface drag explicitly out of scope (own handoff); dnd-kit/kanban do not unblock it."
+    },
+    {
+      "id": "F3",
+      "title": "Ten-point proof window",
+      "status": "pending",
+      "reason": "requires real B5/B6 parenting"
+    }
+  ]
+}

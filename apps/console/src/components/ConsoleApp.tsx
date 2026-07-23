@@ -18,6 +18,8 @@ import {
 } from '@assistant-ui/react';
 import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
+import { HostProvider } from '@/lib/commonplace-host/HostProvider';
+import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
 import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
@@ -29,6 +31,7 @@ import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
 import type { ProactivityGraph } from '@/lib/proactivity/types';
+import type { OpenTarget } from '@commonplace/host-bridge';
 
 const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
@@ -102,7 +105,7 @@ export function ConsoleApp({
   const hydrateProactivity = useProactivityStore((state) => state.hydrate);
   const failProactivity = useProactivityStore((state) => state.fail);
 
-  const host = useMemo(
+  const blockHost = useMemo(
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
@@ -116,6 +119,33 @@ export function ConsoleApp({
     [mounted],
   );
 
+  const onOpenTarget = useMemo(
+    () => async (target: OpenTarget) => {
+      if (target.kind === 'url' && typeof window !== 'undefined') {
+        window.open(target.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      if (target.kind === 'find') {
+        useShellStore.getState().openSearchPanel('search');
+        return;
+      }
+      if (target.kind === 'ask') {
+        useShellStore.getState().openSearchPanel('command');
+        return;
+      }
+      if (target.kind === 'block') {
+        useShellStore.getState().selectRecord(target.blockId, null, 'note');
+      }
+    },
+    [],
+  );
+
+  const queryObjects = useMemo(() => {
+    if (!blockHost) return undefined;
+    return (q: Parameters<typeof queryViaBlockHost>[1]) =>
+      queryViaBlockHost(blockHost, q);
+  }, [blockHost]);
+
   useEffect(() => {
     return startAppearanceStore();
   }, []);
@@ -127,13 +157,13 @@ export function ConsoleApp({
   }, [failProactivity, hydrateProactivity, initialProactivity]);
 
   useEffect(() => {
-    if (!host) return;
+    if (!blockHost) return;
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
-    void host.probe();
+    void blockHost.probe();
     // Seed the backend's document fixtures once so the Documents surface has
     // editable, persistent content (the file-editing wire).
-    void host.ensureSeedContent();
+    void blockHost.ensureSeedContent();
     let active = true;
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {
@@ -147,9 +177,9 @@ export function ConsoleApp({
     return () => {
       active = false;
     };
-  }, [host, setPresence]);
+  }, [blockHost, setPresence]);
 
-  if (!mounted || !host) {
+  if (!mounted || !blockHost) {
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;
   }
 
@@ -157,13 +187,15 @@ export function ConsoleApp({
     <div className="relative h-dvh w-full overflow-hidden bg-ij-frame">
       <GroundCanvas />
       <div className="relative z-10 h-full p-1">
-        <SessionProvider>
-          <RuntimeBoundary>
-            <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
-              <IntuiShell host={host} />
-            </div>
-          </RuntimeBoundary>
-        </SessionProvider>
+        <HostProvider queryObjects={queryObjects} onOpenTarget={onOpenTarget}>
+          <SessionProvider>
+            <RuntimeBoundary>
+              <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
+                <IntuiShell host={blockHost} />
+              </div>
+            </RuntimeBoundary>
+          </SessionProvider>
+        </HostProvider>
       </div>
     </div>
   );

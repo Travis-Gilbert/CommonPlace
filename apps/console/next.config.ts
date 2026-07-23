@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   output: isStandaloneServerBuild ? 'standalone' : undefined,
   // pnpm installs file: dependencies under node_modules. block-view ships raw
   // TypeScript, so opt it into compilation in addition to normal workspace use.
-  transpilePackages: ['@commonplace/block-view'],
+  transpilePackages: ['@commonplace/block-view', '@commonplace/host-bridge'],
   // The dev-tools indicator is chrome that never exists in production; with it
   // on, dev-mode Playwright captures bake the badge into merge-gate baselines
   // (and it occludes the records table's last row). R4 punch list.

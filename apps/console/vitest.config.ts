@@ -5,6 +5,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@commonplace/host-bridge': path.resolve(
+        __dirname,
+        '../../packages/host-bridge/src/index.ts',
+      ),
     },
   },
   test: {

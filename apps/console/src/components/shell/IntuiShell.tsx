@@ -27,6 +27,10 @@ import { StatusBar } from './StatusBar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
+import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
+import { HostPresenceSync } from '@/components/host/HostPresenceSync';
+import { HostFindLens } from '@/components/host/HostFindLens';
+import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 import {
   IconCards,
   IconDoc,
@@ -594,6 +598,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
               <RecordInspector host={host} />
             </div>
           ) : null}
+          <HostPresenceSync workspaceId="default" surface="commonplace" />
+          <HostPresenceCursor workspaceId="default" surface="commonplace" />
+          <HostFindLens workspaceId="default" surface="commonplace" />
+          <HostCapabilityRailBridge workspaceId="default" />
         </div>
       </div>
       <StatusBar host={host} />

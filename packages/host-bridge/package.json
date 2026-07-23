@@ -1,0 +1,23 @@
+{
+  "name": "@commonplace/host-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-independent CommonplaceHost interface and Web/Tauri/Gpui adapters (SPEC-COMMONPLACE-NATIVE-SHELL-1.0 B1).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./adapters/web": "./src/adapters/web.ts",
+    "./adapters/tauri": "./src/adapters/tauri.ts",
+    "./adapters/gpui": "./src/adapters/gpui.ts",
+    "./loopback": "./src/loopback.ts"
+  },
+  "scripts": {
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit",
+    "test": "npx --yes -p vitest@3.0.5 vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

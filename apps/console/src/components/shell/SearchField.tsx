@@ -22,6 +22,9 @@ import { APPEARANCE_PRESETS, selectAppearancePreset, setAppearancePreference, ty
 import { DUR, EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
 import { dispatchHunkReviewAction, HUNK_REVIEW_ACTIONS } from '@/views/hunks/hunk-actions';
 import type { ConsoleBlockHost } from '@/lib/console-host';
+import { usePlaceBlock } from '@/lib/commonplace-host/usePlaceBlock';
+import { asHostEventPublisher } from '@commonplace/host-bridge';
+import { useHost } from '@/lib/commonplace-host/HostProvider';
 
 const DOUBLE_SHIFT_MS = 400;
 let clickTrigger: HTMLElement | null = null;
@@ -103,6 +106,8 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
   const selectRecord = useShellStore((state) => state.selectRecord);
   const toggleReducedMotionPreview = useShellStore((state) => state.toggleReducedMotionPreview);
   const tenant = useShellStore((state) => state.tenant);
+  const { placeBlock } = usePlaceBlock('default');
+  const commonplaceHost = useHost();
   const durations = useMotionDurations();
   const [text, setText] = useState('');
   const [layout, setLayout] = useState<readonly ObjectRef[]>([]);
@@ -213,6 +218,22 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
     }
   }, [open, mode]);
 
+  // SPEC F1: find in the React realm publishes a HostLens so HostFindLens and
+  // the presence cursor share one continuous highlight handoff.
+  useEffect(() => {
+    const publisher = asHostEventPublisher(commonplaceHost);
+    if (!publisher) return;
+    const quote = text.trim();
+    if (!open || mode !== 'search' || quote.length < 2) {
+      publisher.publishLens('default', { surface: 'commonplace', spans: [] });
+      return;
+    }
+    publisher.publishLens('default', {
+      surface: 'commonplace',
+      spans: [{ start: 0, end: quote.length, quote }],
+    });
+  }, [commonplaceHost, mode, open, text]);
+
   const surfaces = useMemo(() => layout.filter((object) => object.type === 'surface'), [layout]);
   const commands = useMemo<readonly ConsoleCommand[]>(() => {
     const objectById = new Map(layout.map((object) => [object.id, object]));
@@ -254,12 +275,19 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
       ...presetCommands,
       ...modeCommands,
       {
+        id: 'place-host-note',
+        label: 'Place note block',
+        run: () => {
+          void placeBlock({ kind: 'note', attrs: { fromCommand: true } });
+        },
+      },
+      {
         id: 'motion-preview',
         label: 'Toggle reduced motion preview',
         run: toggleReducedMotionPreview,
       },
     ];
-  }, [host, layout, surfaces, toggleReducedMotionPreview]);
+  }, [host, layout, placeBlock, surfaces, toggleReducedMotionPreview]);
 
   const filteredCommands = useMemo(() => {
     const needle = text.trim().toLowerCase();
