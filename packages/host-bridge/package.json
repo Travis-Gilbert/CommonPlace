@@ -10,6 +10,7 @@
     "./adapters/web": "./src/adapters/web.ts",
     "./adapters/tauri": "./src/adapters/tauri.ts",
     "./adapters/gpui": "./src/adapters/gpui.ts",
+    "./adapters/gpui-transport": "./src/adapters/gpui-transport.ts",
     "./loopback": "./src/loopback.ts"
   },
   "scripts": {

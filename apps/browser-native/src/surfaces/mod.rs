@@ -1,10 +1,13 @@
 //! Content-surface hosting contracts for SPEC B5 (Servo) and B6 (gpui-wry).
 //!
-//! Real RawWindowHandle parenting and gpui-wry linking are Codex/backend work
-//! on the Theorem pane-host seam. This module owns the shell-side contracts,
-//! mock hosts, z-order law, and acceptance tests that stay GPUI-free.
+//! This module owns the shell-side contracts, mock hosts, z-order law, and
+//! acceptance tests that stay GPUI-free. Native parent-handle translation lives
+//! in `native_parent`, and the real GPUI plus Wry window path lives in
+//! `crate::native`.
 
 mod commonplace;
+#[cfg(feature = "servo-pane")]
+pub mod native_parent;
 mod servo;
 mod zorder;
 

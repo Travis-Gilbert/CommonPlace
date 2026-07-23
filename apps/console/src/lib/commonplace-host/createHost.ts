@@ -1,10 +1,11 @@
-// SOURCING: @commonplace/host-bridge — factory picks Web vs Tauri vs Gpui
+// SOURCING: @commonplace/host-bridge. Factory picks Web vs Tauri vs Gpui
 // adapter so apps/console never branches on transport at call sites
 // (SPEC-COMMONPLACE-NATIVE-SHELL-1.0 B1). Console is the canonical React host
 // surface; queryObjects is injected from ConsoleBlockHost (not apps/web GraphQL).
 
 import {
   GpuiHostAdapter,
+  WebSocketGpuiTransport,
   TauriHostAdapter,
   WebHostAdapter,
   type CommonplaceHost,
@@ -12,9 +13,10 @@ import {
   type ObjectSet,
   type OpenTarget,
   createLoopbackStore,
+  type GpuiRuntimeConfig,
 } from '@commonplace/host-bridge';
 
-export type HostKind = 'web' | 'tauri' | 'gpui-loopback';
+export type HostKind = 'web' | 'tauri' | 'gpui' | 'gpui-loopback';
 
 export interface CreateHostOptions {
   /** Force a specific adapter (tests / Gpui harness). */
@@ -33,6 +35,16 @@ function isTauriRuntime(): boolean {
     typeof (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ ===
       'object'
   );
+}
+
+function gpuiRuntime(): GpuiRuntimeConfig | null {
+  if (typeof window === 'undefined') return null;
+  const runtime = (
+    window as typeof window & {
+      __COMMONPLACE_NATIVE__?: GpuiRuntimeConfig;
+    }
+  ).__COMMONPLACE_NATIVE__;
+  return runtime ?? null;
 }
 
 async function tauriInvoke<T>(
@@ -63,8 +75,10 @@ export function createHost(options: CreateHostOptions = {}): CommonplaceHost {
       { id: 'pane.browser', paneKind: 'browser', label: 'Browser' },
     ],
   });
+  const nativeRuntime = gpuiRuntime();
   const kind: HostKind =
-    options.kind ?? (isTauriRuntime() ? 'tauri' : 'web');
+    options.kind ??
+    (nativeRuntime ? 'gpui' : isTauriRuntime() ? 'tauri' : 'web');
 
   const openTarget = async (t: OpenTarget) => {
     if (options.onOpenTarget) await options.onOpenTarget(t);
@@ -78,6 +92,13 @@ export function createHost(options: CreateHostOptions = {}): CommonplaceHost {
       await openTarget(t);
     };
     return gpui;
+  }
+
+  if (kind === 'gpui') {
+    if (!nativeRuntime) {
+      throw new Error('GPUI adapter requested without native runtime config');
+    }
+    return new GpuiHostAdapter(new WebSocketGpuiTransport(nativeRuntime));
   }
 
   if (kind === 'tauri') {

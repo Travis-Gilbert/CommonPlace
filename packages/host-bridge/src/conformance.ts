@@ -1,6 +1,6 @@
-// SOURCING: none — pure adapter conformance suite for CommonplaceHost (SPEC B1).
+// SOURCING: none. Pure adapter conformance suite for CommonplaceHost (SPEC B1).
 
-import type { CommonplaceHost } from "./types.js";
+import type { CommonplaceHost } from "./types";
 
 export interface ConformanceResult {
   adapter: string;

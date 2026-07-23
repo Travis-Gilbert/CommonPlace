@@ -1,4 +1,4 @@
-// SOURCING: none — package barrel for @commonplace/host-bridge.
+// SOURCING: none. Package barrel for @commonplace/host-bridge.
 
 export type {
   BlockInstance,
@@ -19,27 +19,34 @@ export type {
   WorkspaceEvent,
   WorkspaceId,
   WorkspaceLayout,
-} from "./types.js";
+} from "./types";
 
 export {
   LoopbackHost,
   createLoopbackStore,
   type LoopbackStore,
-} from "./loopback.js";
+} from "./loopback";
 
-export { WebHostAdapter, type WebHostTransport } from "./adapters/web.js";
-export { TauriHostAdapter, type TauriInvoker } from "./adapters/tauri.js";
-export { GpuiHostAdapter } from "./adapters/gpui.js";
+export { WebHostAdapter, type WebHostTransport } from "./adapters/web";
+export { TauriHostAdapter, type TauriInvoker } from "./adapters/tauri";
+export { GpuiHostAdapter } from "./adapters/gpui";
+export {
+  GPUI_BRIDGE_VERSION,
+  WebSocketGpuiTransport,
+  type GpuiHostMethod,
+  type GpuiHostTransport,
+  type GpuiRuntimeConfig,
+} from "./adapters/gpui-transport";
 
-export { runAdapterConformance } from "./conformance.js";
+export { runAdapterConformance } from "./conformance";
 
 /** Adapters that can push presence/lens into React subscribers (SPEC F1). */
 export type HostEventPublisher = {
   publishPresence(
     workspaceId: string,
-    presence: import("./types.js").HostPresence,
+    presence: import("./types").HostPresence,
   ): void;
-  publishLens(workspaceId: string, lens: import("./types.js").HostLens): void;
+  publishLens(workspaceId: string, lens: import("./types").HostLens): void;
 };
 
 export function asHostEventPublisher(
