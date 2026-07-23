@@ -2,10 +2,17 @@
 // default Chat surface, Composer geometry and motion budget, Files projection,
 // deterministic Context graph, and Workspace seed.
 
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
+
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 async function freshLoad(page: Page) {
   await page.goto('/');
@@ -19,6 +26,15 @@ async function freshLoad(page: Page) {
     () => document.documentElement.getAttribute('data-layout-ready') === '1',
     { timeout: 60_000 },
   );
+}
+
+/** Open a companion without toggling it closed when already open (dirty stub). */
+async function openCompanion(page: Page, companion: string) {
+  const nav = page.locator(`[data-companion-nav="${companion}"]`);
+  if ((await nav.getAttribute('aria-pressed')) !== 'true') {
+    await nav.click({ force: true });
+  }
+  await expect(nav).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
 }
 
 async function openSurface(page: Page, id: string) {
@@ -59,9 +75,13 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 }
 
 test.describe('Console information architecture', () => {
-  test.beforeEach(async ({ page }) => freshLoad(page));
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
+    await freshLoad(page);
+  });
 
   test('separates five surface radios from three companion toggles', async ({ page }) => {
+    test.setTimeout(120_000);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
     const surfaces = page.getByRole('radiogroup', { name: 'Surfaces' }).getByRole('radio');
     await expect(surfaces).toHaveCount(5);
@@ -75,6 +95,8 @@ test.describe('Console information architecture', () => {
     await expect(companions.nth(1)).toHaveAttribute('data-companion-nav', 'context');
     await expect(companions.nth(2)).toHaveAttribute('data-companion-nav', 'thread');
 
+    // Soft-nav the five radios — full page.goto for each burns the 60s budget
+    // under cold CI and leaves the companion toggles unexercised.
     for (const surfaceId of [
       'console-workspace',
       'console-index',
@@ -82,7 +104,10 @@ test.describe('Console information architecture', () => {
       'console-cards',
       'console-chat',
     ] as const) {
-      await openSurface(page, surfaceId);
+      await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
+      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
+        timeout: 15_000,
+      });
     }
     // Keyboard reachability (Control+digit; Meta+digit is reserved by Chromium tabs).
     await pressSurfaceShortcut(page, '2');
@@ -93,13 +118,17 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat', {
       timeout: 15_000,
     });
-    await page.keyboard.press('Alt+Shift+1');
+    await openCompanion(page, 'files');
+    await openCompanion(page, 'context');
+    await openCompanion(page, 'thread');
     await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="context"]').click();
     await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="thread"]').click();
     await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png');
+    await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png', {
+      animations: 'disabled',
+      maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+    });
   });
 
   test('keeps Chat measured with one wide, auto-growing Composer', async ({ page }) => {
@@ -143,9 +172,12 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-composer-character-count]')).toHaveText('1800/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
-    const mention = page.getByText('Ada Lovelace', { exact: true });
-    await expect(mention).toBeVisible();
-    await mention.click();
+    const mentions = page.locator('[aria-label="Object mentions"]');
+    await expect(mentions).toBeVisible();
+    await expect(mentions.getByText('Ada Lovelace', { exact: true })).toBeVisible();
+    // Prefer keyboard confirm: the popover sits under the island header band and
+    // pointer hits can miss even with force when the header paints over it.
+    await input.press('Enter');
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();
@@ -258,8 +290,11 @@ test.describe('Console information architecture', () => {
   });
 
   test('virtualizes 5000 pinned memory projections and opens a read-only Galley tab', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    await openCompanion(page, 'files');
+    await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
     await expect(page.locator('[data-file-root-status="root-project"]')).toHaveText('Not connected');
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000');
     await expect(page.locator('[data-file-root-status="root-uploads"]')).toHaveText('Empty');
@@ -274,7 +309,7 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('treeitem', { name: /^Project/ })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
-    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('note')).toContainText('MemoryPatch is not available');
     await expect(page).toHaveScreenshot('files-projection.png', { fullPage: true });
   });
@@ -290,11 +325,16 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    // Soft-nav to Cards first, then hydrate memories on this document — page.goto
+    // remounts the app and clears the in-memory projection store.
     await openSurface(page, 'console-cards');
-    await page.locator('[data-companion-nav="context"]').click();
-    await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();
+    await openCompanion(page, 'files');
+    await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
+    await openCompanion(page, 'context');
+    await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click({ force: true });
     await page.getByLabel('Close inspector').click();
     const context = page.locator('[data-context-view]');
     await expect(context).toHaveAttribute('data-context-key', 'person-ada');

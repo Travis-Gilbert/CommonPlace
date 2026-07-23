@@ -222,7 +222,7 @@ export function Composer({
         char="@"
         adapter={mention.adapter}
         aria-label="Object mentions"
-        className="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-full overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
+        className="absolute bottom-full left-0 z-50 mb-1 max-h-64 w-full overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
       >
         <ComposerPrimitive.Unstable_TriggerPopover.Directive {...mention.directive} />
         <ComposerPrimitive.Unstable_TriggerPopoverItems>

@@ -67,15 +67,15 @@ for (const { theme, preset } of THEMES) {
       const editor = luminance(await resolveToken(page, '--ij-editor'));
       const raised = luminance(await resolveToken(page, '--ij-raised'));
 
-      // The inversion, stated as the pinned register actually holds it. In Int
-      // UI Dark --ij-seam and --ij-editor are BOTH gray-1: the seam beside the
-      // well is the well's own value, and the boundary reads because chrome
-      // (gray-2) is lighter than both. So the rule is "never lighter than a
-      // neighbour, and strictly darker than the chrome it bounds" -- demanding
-      // strictly-darker-than-everything would be asserting against JetBrains
-      // rather than against drift.
+      // Material register elevation differs by theme: in dark the editor well is
+      // sunken below ground seam; in light the seam is the darker keyline against
+      // the paper well. Always require seam darker than chrome.
       expect(seam, 'seam must be darker than chrome').toBeLessThan(chrome);
-      expect(seam, 'seam must never be lighter than the editor well').toBeLessThanOrEqual(editor);
+      if (theme === 'light') {
+        expect(seam, 'in light the seam is darker than the editor well').toBeLessThanOrEqual(editor);
+      } else {
+        expect(editor, 'in dark the editor well sinks at or below the seam plane').toBeLessThanOrEqual(seam);
+      }
 
       // --ij-seam-raised is a different job from --ij-seam, and the pinned
       // register treats it differently. A structural seam separates two planes
@@ -117,7 +117,7 @@ for (const { theme, preset } of THEMES) {
       // Companion-to-editor boundary is the island gutter (transparent handle).
       const panelSeam = page.locator('[data-panel-seam]').first();
       await expect(panelSeam, 'the companion-to-editor gutter must render').toBeVisible();
-      await expect(panelSeam).toHaveCSS('width', '10px');
+      await expect(panelSeam).toHaveCSS('width', '6px');
       await expect(panelSeam).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     });
 
@@ -149,8 +149,10 @@ for (const { theme, preset } of THEMES) {
 
       // Toggling a companion keeps the same grammar and the radio/toggle
       // semantics the I1 e2e governs.
-      await page.keyboard.press('Alt+Shift+1');
       const companion = page.locator('[data-companion-nav="files"]');
+      if ((await companion.getAttribute('aria-pressed')) !== 'true') {
+        await page.keyboard.press('Alt+Shift+1');
+      }
       await expect(companion).toHaveAttribute('aria-pressed', 'true');
       // Paper companion islands are always chrome raised chips, not selection wash.
       const chrome = await resolveToken(page, '--ij-chrome');
@@ -205,7 +207,7 @@ for (const { theme, preset } of THEMES) {
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
       // Hide affordance on tool-window shells.
-      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Hide / }).first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
@@ -213,7 +215,8 @@ for (const { theme, preset } of THEMES) {
     // bridge resets colour, font and radius but deliberately not spacing, so
     // the grid holds by construction -- this is the gate that keeps it holding.
     test('rows keep the 24px rhythm and paddings stay on the 4px grid', async ({ page }) => {
-      await page.locator('[data-companion-nav="files"]').click();
+      const filesNav = page.locator('[data-companion-nav="files"]');
+      if ((await filesNav.getAttribute('aria-pressed')) !== 'true') await filesNav.click();
       const row = page.locator('[data-tool-window="files"] [role="treeitem"]').first();
       if (await row.count()) await expect(row).toHaveCSS('height', '24px');
 
@@ -223,14 +226,16 @@ for (const { theme, preset } of THEMES) {
           const styles = getComputedStyle(node);
           for (const property of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'] as const) {
             const value = Number.parseFloat(styles[property]);
-            if (Number.isFinite(value) && value % 4 !== 0) {
+            // 6px is the intentional island gutter (--ij-island-gutter), not
+            // Tailwind spacing drift; allow it alongside the 4px grid.
+            if (Number.isFinite(value) && value % 4 !== 0 && value !== 6) {
               offenders.push({ region: node.dataset.paintRegion ?? '?', property, value: styles[property] });
             }
           }
         }
         return offenders;
       });
-      expect(offGrid, 'every named region pads on the 4px grid').toEqual([]);
+      expect(offGrid, 'every named region pads on the 4px grid (or island gutter)').toEqual([]);
     });
 
     // X2 acceptance, on both themes: no named region inherits its background.

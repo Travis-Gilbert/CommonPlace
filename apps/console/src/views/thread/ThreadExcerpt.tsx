@@ -85,7 +85,7 @@ export function ThreadExcerpt({
           </p>
         ) : null
       ) : (
-        <div id={panelId} data-excerpt-body className={`px-3 py-2 ${face}`}>
+        <div id={panelId} data-excerpt-body data-speaker={speaker} className={`px-3 py-2 ${face}`}>
           {children}
         </div>
       )}

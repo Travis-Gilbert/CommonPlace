@@ -166,7 +166,7 @@ function AssistantMessage({ host }: { host: BlockHost }) {
 function AgentPlan({ steps }: { steps: readonly AgentPlanStep[] }) {
   if (steps.length === 0) return null;
   return (
-    <ThreadExcerpt kind="plan" excerptId="agent-plan" speaker="plan" summary={`${steps.length} steps`} defaultCollapsed>
+    <ThreadExcerpt kind="plan" excerptId="agent-plan" speaker="plan" summary={`${steps.length} steps`}>
       <div data-agent-plan aria-label="Agent plan" className="overflow-hidden">
         {steps.map((step) => (
           <div key={step.id} data-plan-status={step.status} className="flex h-ij-row items-center gap-2 border-b border-ij-seam last:border-b-0">

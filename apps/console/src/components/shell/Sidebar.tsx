@@ -263,6 +263,16 @@ export function Sidebar({
     if (path) router.push(path);
   }, [activeSurfaceId, host, router]);
 
+  // Prefetch routed surfaces so Ctrl/Cmd+digit and rail clicks do not stall on
+  // a cold /filing or /documents compile (e2e saw URL lag while the radio
+  // already flipped).
+  useEffect(() => {
+    for (const surface of routedSurfaces) {
+      const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
+      if (path) router.prefetch(path);
+    }
+  }, [routedSurfaces, router]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
