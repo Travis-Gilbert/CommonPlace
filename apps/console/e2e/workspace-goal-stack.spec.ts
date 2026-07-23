@@ -37,9 +37,14 @@ async function openSurface(page: Page, id: string) {
     await page.locator('[data-layout-switcher]').click();
     await page.locator(`[data-layout-option="${id}"]`).click();
   }
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
+    timeout: 15_000,
+  });
   const path = SURFACE_PATHS[id];
-  if (path) await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`));
+  // Rail activate flips before a cold App Router compile finishes router.push.
+  if (path) {
+    await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 30_000 });
+  }
 }
 
 async function openGoalPlan(page: Page, planId: string) {
