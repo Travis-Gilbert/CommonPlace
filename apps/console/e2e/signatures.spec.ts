@@ -27,9 +27,17 @@ async function settled(page: Page) {
   );
 }
 
+async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
+  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
 /** Opens the workspace surface in the requested theme. Both themes travel the
  *  same path, so a signature cannot pass in one mode by taking a shortcut. */
-async function openWorkspace(page: Page, preset: string) {
+async function openWorkspace(page: Page, preset: string, request?: import('@playwright/test').APIRequestContext) {
+  if (request) await resetStubLayout(request);
   await page.goto('/');
   await page.evaluate(([appearance, layout, legacy]) => {
     localStorage.removeItem(appearance);
@@ -38,6 +46,7 @@ async function openWorkspace(page: Page, preset: string) {
   }, [APPEARANCE_KEY, LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY]);
   await page.reload();
   await settled(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator('[data-layout-switcher]').click();
   await page.locator('[data-layout-option="console-appearance"]').click();
   await expect(page.locator('[data-appearance-view]')).toBeVisible();
@@ -46,12 +55,13 @@ async function openWorkspace(page: Page, preset: string) {
   await page.locator('[data-layout-switcher]').click();
   await page.locator('[data-layout-option="console-workspace"]').click();
   await settled(page);
+  await expect(page.locator('[data-shell-region="rail"]')).toHaveAttribute('data-sidebar-collapsed', 'false');
 }
 
 for (const { theme, preset } of THEMES) {
   test.describe(`chrome signatures on ${theme}`, () => {
-    test.beforeEach(async ({ page }) => {
-      await openWorkspace(page, preset);
+    test.beforeEach(async ({ page, request }) => {
+      await openWorkspace(page, preset, request);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     });
 
