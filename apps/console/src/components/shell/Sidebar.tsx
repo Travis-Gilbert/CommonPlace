@@ -2,7 +2,7 @@
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
 // The sidebar is frame chrome. Native drag events provide the landmark to
-// ground promotion behavior; island moves remain receipted through the host.
+// ground placement behavior; block moves remain receipted through the host.
 
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,11 +11,14 @@ import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/ty
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { pathForSurfaceKind } from '@/lib/surface-routes';
 import { githubTenantSlug } from '@/lib/account-identity';
-import { recordIslandMoveReceipts } from '@/lib/island-move-receipts';
-import { promoteIslandAction } from '@/lib/island-promotion';
+import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import { placeBlockAction } from '@/lib/block-placement';
+import { useShellStore } from '@/lib/shell-store';
+import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import {
+  IconAccount,
   IconCards,
   IconChat,
   IconDoc,
@@ -26,6 +29,13 @@ import {
   IconThread,
   IconWorkspace,
 } from './icons';
+
+const CONNECTION_LABEL: Record<string, string> = {
+  connected: 'Connected',
+  connecting: 'Connecting',
+  disconnected: 'Disconnected',
+  'identity-refused': 'Identity refused',
+};
 
 export interface SidebarRegion {
   readonly object: ObjectRef;
@@ -187,7 +197,7 @@ export function Sidebar({
       .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
     [surfaces],
   );
-  const seededLandmarks = useMemo(() => landmarksRegion?.instances ?? [], [landmarksRegion]);
+  const seededLandmarks = landmarksRegion?.instances ?? [];
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
   const initials = (session?.user?.name ?? session?.user?.githubLogin ?? 'CP')
@@ -196,6 +206,12 @@ export function Sidebar({
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const connection = useShellStore((state) => state.connection);
+  const setConnection = useShellStore((state) => state.setConnection);
+  const progressLabel = useShellStore((state) => state.progressLabel);
+  const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
+  const showConnection =
+    needsReconnect || connection === 'connecting' || Boolean(progressLabel);
 
   const toggleCollapse = useCallback(() => {
     if (!landmarksRegion) return;
@@ -208,11 +224,13 @@ export function Sidebar({
   const switchTo = useCallback((surface: ObjectRef) => {
     if (surface.id === activeSurfaceId) return;
     const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
-    // The local radio changes synchronously. Route immediately so navigation is
-    // never gated by the durable write-through; the route effect reasserts the
-    // same surface if a remounted host hydrates older server state.
-    void host.activateSurface(surface.id).catch(() => false);
-    if (path) router.push(path);
+    if (path) {
+      // Route first: the pathname effect activates the matching surface. Calling
+      // activateSurface before the URL settles races the effect and reverts.
+      router.push(path);
+      return;
+    }
+    void host.activateSurface(surface.id);
   }, [activeSurfaceId, host, router]);
 
   useEffect(() => {
@@ -267,15 +285,15 @@ export function Sidebar({
   const promoteToGround = useCallback(async (instanceId: string) => {
     if (!activeGridRegionId) return;
     let moves = 0;
-    for (const action of promoteIslandAction(instanceId, {
-      kind: 'grid',
+    for (const action of placeBlockAction(instanceId, {
+      placement: 'ground',
       regionId: activeGridRegionId,
       order: 0,
     })) {
       const result = await host.emit(action);
       if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') moves += 1;
     }
-    if (moves > 0) recordIslandMoveReceipts(moves);
+    if (moves > 0) recordBlockMoveReceipts(moves);
   }, [activeGridRegionId, host]);
 
   const onLandmarkDragEnd = useCallback((event: DragEvent<HTMLDivElement>, landmark: ObjectRef) => {
@@ -283,7 +301,7 @@ export function Sidebar({
     void (async () => {
       const instanceId = await ensureLandmarkInstance(landmark);
       if (!instanceId) return;
-      if (target?.closest('[data-island-arrangement]')) {
+      if (target?.closest('[data-block-arrangement]')) {
         await promoteToGround(instanceId);
         return;
       }
@@ -320,6 +338,7 @@ export function Sidebar({
       aria-label="Surfaces and companions"
       data-paint-region="stripe"
       data-frame-resident="stripe"
+      data-shell-region="rail"
       data-sidebar-collapsed={visuallyCollapsed}
       className="flex w-ij-stripe shrink-0 flex-col bg-transparent p-2 font-ij-ui"
       style={{ transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)' }}
@@ -404,7 +423,7 @@ export function Sidebar({
           {landmarks.map((landmark) => {
             const descriptorId = String(landmark.properties.descriptor_id ?? '');
             const descriptor = descriptorId
-              ? CONSOLE_VIEW_REGISTRY.blocksForMount('stripe').find((candidate) => candidate.id === descriptorId)
+              ? CONSOLE_VIEW_REGISTRY.blocksForPlacement('rail').find((candidate) => candidate.id === descriptorId)
               : undefined;
             const glyph = descriptor?.block?.kindGlyph ?? String(landmark.properties.kind ?? 'records');
             const Icon = LANDMARK_ICONS[glyph] ?? IconRecords;
@@ -441,7 +460,64 @@ export function Sidebar({
           <span aria-hidden>{visuallyCollapsed ? '›' : '‹'}</span>
         </button>
         <span className="flex size-ij-control shrink-0 items-center justify-center rounded-full bg-ij-raised text-sm text-ij-ink">{initials}</span>
+        <button
+          type="button"
+          data-account-trigger
+          aria-label="Account"
+          aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
+          onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
+          className="flex size-ij-stripe-icon shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink aria-pressed:bg-ij-selection aria-pressed:text-ij-ink"
+          style={{ transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)' }}
+          title="Account"
+        >
+          <IconAccount size={14} />
+        </button>
         <span className="min-w-0 truncate text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
+        {showConnection ? (
+          <span data-rail-connection className="ml-auto flex shrink-0 items-center gap-1">
+            <span
+              data-connection={connection}
+              aria-hidden
+              className="size-2 rounded-full"
+              style={{
+                background:
+                  connection === 'identity-refused'
+                    ? 'var(--ij-error)'
+                    : connection === 'connecting'
+                      ? 'var(--ij-accent)'
+                      : 'var(--ij-ink-info)',
+              }}
+            />
+            {needsReconnect ? (
+              <button
+                type="button"
+                data-connection={connection}
+                onClick={() => {
+                  setConnection('connecting');
+                  void host.probe();
+                }}
+                className="rounded-ij-arc-underline px-1 text-ij-link hover:bg-ij-hover-surface"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
+              >
+                Reconnect
+              </button>
+            ) : (
+              <span
+                data-connection={connection}
+                className="truncate text-ij-island-meta"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
+              >
+                {progressLabel ?? CONNECTION_LABEL[connection] ?? connection}
+              </span>
+            )}
+          </span>
+        ) : null}
       </div>
     </nav>
   );

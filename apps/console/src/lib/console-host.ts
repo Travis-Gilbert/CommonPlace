@@ -168,6 +168,8 @@ export class ConsoleBlockHost implements BlockHost {
   private proactivity: ProactivityStore;
   private canvas: CanvasStore;
   private seedLayoutTask: Promise<void> | null = null;
+  /** Serializes layout write-through so concurrent updates cannot race on the wire. */
+  private layoutWriteTail: Promise<unknown> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -386,7 +388,22 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
+        // Keep the locally active surface across remote adoption. Deep links
+        // (/cards, /workspace) and Account / Appearance activation race the
+        // first ensureSeedLayout fetch; a stale remote radio must not yank them.
+        const preservedActiveId = [...this.layout.values()].find(
+          (node) => node.type === 'surface' && node.properties.active === true,
+        )?.id;
         this.replaceLayout(remote.objects);
+        if (preservedActiveId && this.layout.has(preservedActiveId)) {
+          for (const candidate of this.layout.values()) {
+            if (candidate.type === 'surface') {
+              candidate.properties.active = candidate.id === preservedActiveId;
+            }
+          }
+          this.persistLayout();
+          this.notifyLayout();
+        }
         return;
       }
       await this.pushLayoutToServer();
@@ -432,9 +449,19 @@ export class ConsoleBlockHost implements BlockHost {
     actions: ReadonlyArray<ObjectAction>,
   ): Promise<void> {
     if (this.records !== null) return;
-    for (const action of actions) {
-      await this.http.emit(action);
-    }
+    const run = async () => {
+      for (const action of actions) {
+        await this.http.emit(action);
+      }
+    };
+    // Chain all layout writes so out-of-order HTTP completion cannot overwrite
+    // a newer patch with an older one for the same view-instance.
+    const next = this.layoutWriteTail.then(run, run);
+    this.layoutWriteTail = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    await next;
   }
 
   private notifyLayout(): void {
@@ -752,10 +779,24 @@ export class ConsoleBlockHost implements BlockHost {
       case 'update': {
         const node = this.layout.get(action.id);
         if (node) {
-          node.properties = { ...node.properties, ...action.patch };
+          const patch = { ...action.patch } as Record<string, JsonValue>;
+          if (patch.config && typeof patch.config === 'object' && !Array.isArray(patch.config)) {
+            const previous = node.properties.config;
+            const previousRecord =
+              previous && typeof previous === 'object' && !Array.isArray(previous)
+                ? (previous as Record<string, JsonValue>)
+                : {};
+            patch.config = {
+              ...previousRecord,
+              ...(patch.config as Record<string, JsonValue>),
+            };
+          }
+          node.properties = { ...node.properties, ...patch };
           this.persistLayout();
           this.notifyLayout();
-          return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
+          return this.writeThroughLayoutUpdates([
+            { kind: 'update', id: action.id, patch },
+          ]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
         // seeds); records, docs, and code files ride the wire so edits persist.

@@ -2,15 +2,15 @@
 
 // SOURCING: @commonplace/block-view (descriptor resolution over ObjectQuery).
 // The marriage requirement (G3): every pane is a view instance resolved by
-// descriptor against the host. Island-mounted descriptors render inside
-// IslandShell (HANDOFF-CONSOLE-ISLAND-SHELL); surface-only mounts stay bare.
+// descriptor against the host. Ground blocks render inside BlockShell;
+// full-only placements stay bare. Query-less containers (kanban) still render.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BlockHost, ObjectQuery, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
-import { IslandShell } from '@/components/blocks/IslandShell';
+import { BlockShell } from '@/components/blocks/BlockShell';
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
-import { recordIslandMoveReceipts } from '@/lib/island-move-receipts';
-import { promoteIslandAction } from '@/lib/island-promotion';
+import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import { placeBlockAction } from '@/lib/block-placement';
 import { CONSOLE_VIEW_REGISTRY, FallbackCard } from '@/views/registry';
 import { ViewState, type ViewStateKind } from '@/views/ViewStates';
 
@@ -47,11 +47,11 @@ export function ViewInstanceHost({
   instance: ObjectRef;
   host: BlockHost;
   onHide?: () => void;
-  /** Force IslandShell even when the descriptor omits island mount (tool windows). */
+  /** Force BlockShell even when the descriptor omits ground placement (tool windows). */
   forceShell?: boolean;
-  /** Render descriptor body only (IslandArrangementHost already wraps IslandShell). */
+  /** Render descriptor body only (BlockArrangementHost already wraps BlockShell). */
   bare?: boolean;
-  /** When set, expose Return to grid (stripe tray → grid demotion). */
+  /** When set, expose Return to ground (rail tray to ground move). */
   returnToGridRegionId?: string;
 }) {
   const descriptorId = String(instance.properties.descriptor_id ?? '');
@@ -61,26 +61,29 @@ export function ViewInstanceHost({
   const [failed, setFailed] = useState(false);
   const [stateKind, setStateKind] = useState<ViewStateKind>(query ? 'loading' : 'populated');
   const [reloadToken, setReloadToken] = useState(0);
+  const [prevQueryKey, setPrevQueryKey] = useState<string | null>(() =>
+    query ? JSON.stringify(query) : null,
+  );
   const queryKey = query ? JSON.stringify(query) : null;
-  const [prevQueryKey, setPrevQueryKey] = useState<string | null>(queryKey);
   if (queryKey !== prevQueryKey) {
     setPrevQueryKey(queryKey);
-    setFailed(false);
     if (!query) {
+      setFailed(false);
       setSet(emptyObjectSet());
       setStateKind('populated');
     } else {
+      setFailed(false);
       setSet(null);
       setStateKind('loading');
     }
   }
 
-  const retry = () => {
+  const retry = useCallback(() => {
     setFailed(false);
-    setSet(null);
-    setStateKind('loading');
+    setSet(query ? null : emptyObjectSet());
+    setStateKind(query ? 'loading' : 'populated');
     setReloadToken((token) => token + 1);
-  };
+  }, [query]);
 
   useEffect(() => {
     if (!query) return;
@@ -113,17 +116,19 @@ export function ViewInstanceHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, instance, reloadToken, queryKey]);
 
+  const empty = useMemo(() => emptyObjectSet(), []);
+
   if (!descriptor) return <FallbackCard descriptorId={descriptorId || instance.id} />;
 
-  const mountsIsland = descriptor.block?.mounts.includes('island') ?? false;
-  const useShell = !bare && (forceShell || mountsIsland);
+  const mountsGround = descriptor.block?.placements.includes('ground') ?? false;
+  const useShell = !bare && (forceShell || mountsGround);
   const Render = descriptor.render;
-  const renderSet = set ?? emptyObjectSet();
+  const renderSet = set ?? empty;
 
   if (!useShell) {
     if (failed) return <ViewState state="error" errorMessage="View query failed." onRetry={retry} />;
     if (query && !set) return <ViewState state="loading" />;
-    return <Render set={renderSet} host={host} />;
+    return <Render set={renderSet} host={host} instance={instance} />;
   }
 
   const shellState: ViewStateKind = failed
@@ -133,22 +138,20 @@ export function ViewInstanceHost({
       : stateKind;
 
   const body =
-    (shellState === 'populated' || shellState === 'stale') && set ? (
-      <Render set={set} host={host} />
-    ) : !query ? (
-      <Render set={renderSet} host={host} />
+    shellState === 'populated' || shellState === 'stale' || (!query && shellState !== 'error') ? (
+      <Render set={renderSet} host={host} instance={instance} />
     ) : null;
 
   const returnToGrid = returnToGridRegionId ? (
     <button
       type="button"
-      data-island-return-to-grid
-      aria-label="Return to grid"
-      title="Return to grid"
+      data-block-return-to-ground
+      aria-label="Return to ground"
+      title="Return to ground"
       onClick={() => {
         void (async () => {
-          const [action] = promoteIslandAction(instance.id, {
-            kind: 'grid',
+          const [action] = placeBlockAction(instance.id, {
+            placement: 'ground',
             regionId: returnToGridRegionId,
             order: 0,
           });
@@ -159,18 +162,18 @@ export function ViewInstanceHost({
             result.value?.action_kind === 'move' &&
             result.value.status === 'applied'
           ) {
-            recordIslandMoveReceipts(1);
+            recordBlockMoveReceipts(1);
           }
         })();
       }}
       className="rounded-ij-arc-underline px-1.5 font-ij-ui text-ij-island-meta text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
     >
-      Return to grid
+      Return to ground
     </button>
   ) : null;
 
   return (
-    <IslandShell
+    <BlockShell
       descriptor={descriptor}
       viewInstanceId={instance.id}
       state={shellState}
@@ -180,10 +183,10 @@ export function ViewInstanceHost({
       live={Boolean(query?.live)}
       onHide={onHide}
       skeleton={skeletonForKind(descriptor.block?.kindGlyph)}
-      draggable={mountsIsland}
+      draggable={false}
       actions={returnToGrid}
     >
       {body}
-    </IslandShell>
+    </BlockShell>
   );
 }

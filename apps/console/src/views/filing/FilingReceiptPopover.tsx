@@ -74,7 +74,7 @@ export function FilingReceiptPopover({
   onCorrect,
 }: FilingReceiptPopoverProps) {
   const { show: showLaw, dismiss: dismissLaw } = useFirstUseLaw();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>

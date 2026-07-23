@@ -1,6 +1,6 @@
 // SOURCING: hand-roll. Maps BlockPresentation.kindGlyph to shell icons.
 
-import type { IslandKindGlyph } from '@commonplace/block-view/types';
+import type { BlockKindGlyph } from '@commonplace/block-view/types';
 import type { ReactNode } from 'react';
 import {
   IconCards,
@@ -19,7 +19,7 @@ import {
 const SIZE = 16;
 
 /** Resolve a presentation kindGlyph key to the matching shell icon. */
-export function kindGlyphNode(kind: IslandKindGlyph | undefined): ReactNode {
+export function kindGlyphNode(kind: BlockKindGlyph | undefined): ReactNode {
   switch (kind) {
     case 'cards':
       return <IconCards size={SIZE} />;
@@ -56,7 +56,7 @@ export function kindGlyphNode(kind: IslandKindGlyph | undefined): ReactNode {
 }
 
 export function skeletonForKind(
-  kind: IslandKindGlyph | undefined,
+  kind: BlockKindGlyph | undefined,
 ): 'rows' | 'cards' | 'blank' {
   if (kind === 'cards') return 'cards';
   return 'rows';

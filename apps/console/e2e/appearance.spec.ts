@@ -16,7 +16,10 @@ async function settled(page: import('@playwright/test').Page) {
 async function openAppearance(page: import('@playwright/test').Page) {
   await page.locator('[data-layout-switcher]').click();
   await page.locator('[data-layout-option="console-appearance"]').click();
-  await expect(page.locator('[data-appearance-view]')).toBeVisible();
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-appearance', {
+    timeout: 15000,
+  });
+  await expect(page.locator('[data-appearance-view]')).toBeVisible({ timeout: 15000 });
 }
 
 async function selectPreset(page: import('@playwright/test').Page, id: string) {
@@ -43,7 +46,8 @@ test.describe('appearance surface', () => {
     await page.reload();
     await settled(page);
     await expect(page.locator('html')).toHaveAttribute('data-theme-preset', 'intellij-light');
-    await expect(page.locator('[data-appearance-view]')).toBeVisible();
+    // /chat is the surface radio after reload (B3); reopen Appearance to continue.
+    await openAppearance(page);
 
     await page.keyboard.press('Control+k');
     const input = page.locator('[data-search-panel] input');

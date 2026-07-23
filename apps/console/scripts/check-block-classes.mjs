@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SOURCING: none. Pure logic.
-// Homogeneous-island + perceptual elevation gate (HANDOFF-CONSOLE-ISLAND-SHELL
-// and AMENDMENT-01 A2): three or more islands need two class labels, and the
+// Homogeneous-block + perceptual elevation gate: three or more blocks need two
+// BlockSurfaceClass labels, and the
 // editor/tool base tokens must differ by a visible luminance step.
 
 import { readFileSync } from 'node:fs';
@@ -27,7 +27,7 @@ function relativeLuminance(hex) {
 export const MIN_EDITOR_TOOL_LUMINANCE_DELTA = 0.1;
 
 /**
- * Proving surfaces: editor island (EditorTabs) plus open companions.
+ * Proving surfaces: editor block (EditorTabs) plus open companions.
  * Classes mirror workspace-seed companions (tool) + editor region (editor).
  */
 const PROVING_SURFACES = [
@@ -44,13 +44,13 @@ const PROVING_SURFACES = [
     classes: ['editor', 'tool', 'tool', 'tool'],
   },
   {
-    name: 'island-grid homogeneous defect fixture (must fail the helper)',
+    name: 'block-canvas homogeneous defect fixture (must fail the helper)',
     classes: ['tool', 'tool', 'tool'],
     expectDefect: true,
   },
 ];
 
-function hasHomogeneousIslandDefect(classes) {
+function hasHomogeneousBlockDefect(classes) {
   if (classes.length < 3) return false;
   return new Set(classes).size < 2;
 }
@@ -82,7 +82,7 @@ function readLightBases() {
 const violations = [];
 
 for (const surface of PROVING_SURFACES) {
-  const defect = hasHomogeneousIslandDefect(surface.classes);
+  const defect = hasHomogeneousBlockDefect(surface.classes);
   if (surface.expectDefect) {
     if (!defect) {
       violations.push(
@@ -116,14 +116,14 @@ if (delta < MIN_EDITOR_TOOL_LUMINANCE_DELTA) {
 }
 
 if (violations.length > 0) {
-  console.error('Island class gate failed:');
+  console.error('Block class gate failed:');
   for (const line of violations) console.error(`  - ${line}`);
   console.error(
-    'Fix: three-plus islands need two of {tool, editor}, and light editor/tool bases need a visible luminance step.',
+    'Fix: three-plus blocks need two of {tool, editor}, and light editor/tool bases need a visible luminance step.',
   );
   process.exit(1);
 }
 
 console.log(
-  `Island class gate passed (${PROVING_SURFACES.filter((s) => !s.expectDefect).length} proving surfaces; editor/tool ΔY=${delta.toFixed(3)} ≥ ${MIN_EDITOR_TOOL_LUMINANCE_DELTA}).`,
+  `Block class gate passed (${PROVING_SURFACES.filter((s) => !s.expectDefect).length} proving surfaces; editor/tool ΔY=${delta.toFixed(3)} ≥ ${MIN_EDITOR_TOOL_LUMINANCE_DELTA}).`,
 );

@@ -156,6 +156,7 @@ function ResolvedCard({
       data-card-kind={spec.kind}
       className="min-w-0"
     >
+      <section data-block-section="identity">
       <header className="flex items-center gap-2 p-rec-cell-pad">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -214,7 +215,9 @@ function ResolvedCard({
           {fallbackNote}; showing the generic card.
         </p>
       ) : null}
+      </section>
 
+      <section data-block-section="substance">
       {size === 'full' && spec.gauges.length > 0 ? (
         <div className="p-rec-cell-pad">
           {spec.gauges.map((gauge) => {
@@ -264,7 +267,9 @@ function ResolvedCard({
           })}
         </dl>
       ) : null}
+      </section>
 
+      <section data-block-section="relations">
       {spec.chips.some((chip) => (object.relations?.[chip.edge] ?? []).length > 0) ? (
         <div className="flex flex-wrap gap-1 p-rec-cell-pad">
           {spec.chips.flatMap((chip) =>
@@ -293,6 +298,7 @@ function ResolvedCard({
       <MentionsSection host={host} object={object} />
 
       {children}
+      </section>
     </article>
   );
 }

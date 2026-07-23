@@ -211,8 +211,9 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
 
   const building = readinessIsBuilding(readiness);
   return (
-    <section className="flex h-full min-h-0 flex-col bg-ij-editor text-ij-ink" data-workspace-substrate>
-      <header className="flex shrink-0 items-center gap-3 border-b border-ij-seam bg-ij-chrome px-4 py-2">
+    <section className="flex h-full min-h-0 flex-col bg-transparent text-ij-ink" data-workspace-substrate>
+      <section data-block-section="connect" className="shrink-0">
+      <header className="flex items-center gap-3 border-b border-ij-seam px-4 py-2">
         <div className="min-w-0">
           <div className="text-ij-ink-info">Workspace substrate</div>
           <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>
@@ -274,7 +275,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
         </Popover.Root>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-ij-seam bg-ij-chrome px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-ij-seam px-3 py-2">
         {!projectId ? (
           <>
             <input
@@ -317,9 +318,11 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
           {projectId ? 'Add content root' : 'Create project'}
         </button>
       </div>
+      </section>
 
+      <section data-block-section="browse" className="flex min-h-0 flex-1 flex-col">
       {projectId ? (
-        <Command className="shrink-0 border-b border-ij-seam bg-ij-chrome" shouldFilter={false}>
+        <Command className="shrink-0 border-b border-ij-seam" shouldFilter={false}>
           <form
             className="flex items-center gap-2 px-3 py-2"
             onSubmit={(event) => {
@@ -369,7 +372,8 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
       {error ? <div role="alert" className="border-b border-ij-seam bg-ij-error-bg px-3 py-2 text-ij-error">{error}</div> : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-3">
-        <section className="flex min-h-0 flex-col border-r border-ij-seam bg-ij-chrome" aria-label="Project entity tree">
+        <div className="col-span-2 grid min-h-0 grid-cols-2 border-r border-ij-seam">
+        <div role="region" className="flex min-h-0 flex-col border-r border-ij-seam" aria-label="Project entity tree">
           <div className="border-b border-ij-seam px-3 py-2">
             <strong>Project model</strong>
             <div className="text-ij-ink-info">Generation {surface?.tree.generation ?? readiness?.generation ?? 0}</div>
@@ -441,9 +445,9 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
               })}
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="min-h-0 overflow-auto border-r border-ij-seam p-3" aria-label="Workspace entity details">
+        <div role="region" className="min-h-0 overflow-auto border-r border-ij-seam p-3" aria-label="Workspace entity details">
           <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Entity contract</h3>
           {selected ? (
             <dl className="mt-3 grid gap-2">
@@ -471,10 +475,11 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
               ))}
             </ul>
           </div>
-        </section>
+        </div>
+        </div>
 
-        <section className="flex min-h-0 flex-col" aria-label="Local history">
-          <div className="border-b border-ij-seam bg-ij-chrome px-3 py-2">
+        <div role="region" data-block-section="revise" className="flex min-h-0 flex-col" aria-label="Local history">
+          <div className="border-b border-ij-seam px-3 py-2">
             <strong>Local history</strong>
             <div className="truncate font-ij-mono text-ij-ink-info">{history?.path ?? 'Select a file'}</div>
             <form
@@ -538,8 +543,9 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
               <p className="mt-3 text-ij-warn">Diff unavailable for a binary or oversized revision.</p>
             ) : null}
           </div>
-        </section>
+        </div>
       </div>
+      </section>
     </section>
   );
 }

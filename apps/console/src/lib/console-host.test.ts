@@ -128,6 +128,53 @@ describe('ConsoleBlockHost', () => {
     expect(editor.relations?.[CONTAINS_EDGE]).toEqual(['workspace.vi-substrate', 'vi-brief']);
   });
 
+  it('nests a view-instance under another and merges kanbanColumn into config', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const created = await host.emit({
+      kind: 'create',
+      type: 'view-instance',
+      props: {
+        id: 'vi-kanban-test',
+        descriptor_id: 'kanban',
+        title: 'Board',
+        config: { size: 'w' },
+      },
+    });
+    expect(created.ok).toBe(true);
+    await host.emit({
+      kind: 'move',
+      id: 'vi-kanban-test',
+      new_parent: 'cards.region-editor',
+      order: 0,
+    });
+    const nestMove = await host.emit({
+      kind: 'move',
+      id: 'cards.vi-records',
+      new_parent: 'vi-kanban-test',
+      order: 0,
+    });
+    expect(nestMove.ok).toBe(true);
+    await host.emit({
+      kind: 'update',
+      id: 'cards.vi-records',
+      patch: { config: { kanbanColumn: 'doing' } },
+    });
+    const set = host.queryLayout(surfaceQuery());
+    const kanban = set.objects.find((object) => object.id === 'vi-kanban-test')!;
+    const child = set.objects.find((object) => object.id === 'cards.vi-records')!;
+    expect(kanban.relations?.[CONTAINS_EDGE]).toEqual(['cards.vi-records']);
+    expect(child.properties.config).toMatchObject({ kanbanColumn: 'doing' });
+    // Config merge keeps prior keys when patching column only.
+    expect(
+      typeof child.properties.config === 'object'
+        && child.properties.config
+        && !Array.isArray(child.properties.config)
+        && 'size' in (child.properties.config as object)
+          ? (child.properties.config as { size?: unknown }).size
+          : undefined,
+    ).toBeDefined();
+  });
+
   it('notifies layout subscribers on update', async () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = host.queryLayout(surfaceQuery());
@@ -241,5 +288,54 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
+  });
+
+  it('serializes layout write-through so slower first updates cannot race ahead', async () => {
+    const order: string[] = [];
+    const gate = { releaseFirst: null as (() => void) | null };
+    const firstReleased = new Promise<void>((resolve) => {
+      gate.releaseFirst = resolve;
+    });
+    let actionCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/objects/query') || url.includes('/objects/seed')) {
+        return new Response(JSON.stringify({ objects: [], shape: { types: [], fields: [], relations: [], axes: {}, cardinality: 'empty' } }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        id?: string;
+        patch?: { config?: { stamp?: string } };
+      };
+      actionCalls += 1;
+      const stamp = String(body.patch?.config?.stamp ?? body.id ?? actionCalls);
+      if (actionCalls === 1) {
+        await firstReleased;
+        order.push(`complete:${stamp}`);
+      } else {
+        order.push(`complete:${stamp}`);
+      }
+      return new Response(JSON.stringify({ action_kind: 'update', status: 'applied', target_ids: [body.id] }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const first = host.emit({
+      kind: 'update',
+      id: 'cards.vi-records',
+      patch: { config: { stamp: 'a' } },
+    });
+    // Let the first write enter the chain and hit the delayed fetch.
+    await Promise.resolve();
+    await Promise.resolve();
+    const second = host.emit({
+      kind: 'update',
+      id: 'cards.vi-records',
+      patch: { config: { stamp: 'b' } },
+    });
+    gate.releaseFirst?.();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['complete:a', 'complete:b']);
+    const node = host.queryLayout(surfaceQuery()).objects.find((object) => object.id === 'cards.vi-records');
+    expect(node?.properties.config).toMatchObject({ stamp: 'b' });
   });
 });
