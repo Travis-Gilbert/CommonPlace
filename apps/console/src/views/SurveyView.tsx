@@ -18,6 +18,7 @@ import {
 import dynamic from 'next/dynamic';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { useMotionDurations } from '@/motion/motion-tokens';
+import { objectChip, useShellStore } from '@/lib/shell-store';
 import { ViewState } from './ViewStates';
 import {
   budgetSurveyEdges,
@@ -48,6 +49,11 @@ const SurveyScene3D = dynamic(
 );
 
 type SurveyZoom = 'far' | 'mid';
+
+/** Spatial board budget from DESIGN-SURVEY-SURFACE verify: keep the live
+ *  galaxy interactive at 200+ captures by rendering a capped subset in 3D
+ *  while the flat navigator still lists the full harvest. */
+export const SURVEY_SPATIAL_CAPTURE_BUDGET = 200;
 
 const INDEXER_CAMERA_DISTANCE: Readonly<Record<SurveyZoom, number>> = {
   far: 48,
@@ -187,6 +193,7 @@ function CaptureReadingView({
   readonly onBack: () => void;
   readonly onOpenRelated: (capture: SurveyCapture) => void;
 }) {
+  const openActionSheet = useShellStore((state) => state.openActionSheet);
   const sourceStyle: SourceFrameStyle = { '--survey-source-aspect': String(capture.sourceAspectRatio) };
   const titles = new Map(captures.map((item) => [item.id, item.title]));
   const related = edges
@@ -311,13 +318,21 @@ function CaptureReadingView({
           <h2 className="text-xs uppercase tracking-wider text-ij-ink">Action</h2>
           <button
             type="button"
-            disabled
-            title="The card action runner is not connected in this Console slice"
-            className="mt-2 h-ij-control w-full rounded-ij-arc border border-ij-control-border text-ij-ink-disabled"
+            onClick={() =>
+              openActionSheet({
+                instruction: `Follow up on captured source: ${capture.title}`,
+                chips: [
+                  objectChip(capture.id, 'capture', capture.title),
+                ],
+              })
+            }
+            className="mt-2 h-ij-control w-full rounded-ij-arc border border-ij-control-border text-ij-ink hover:bg-ij-hover-surface"
           >
             /do follow-up
           </button>
-          <p className="mt-2 text-xs text-ij-ink">Action context is carried; execution waits for the card runner.</p>
+          <p className="mt-2 text-xs text-ij-ink">
+            Opens the action sheet with this capture staged. For-me uses the harness delegate when configured.
+          </p>
         </section>
       </aside>
     </div>
@@ -383,6 +398,10 @@ export function SurveyView({ set }: ViewRenderProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { width, webgl, palette } = useSurfaceCapabilities(rootRef);
   const edges = useMemo(() => budgetSurveyEdges(model.edges, 2), [model.edges]);
+  const spatialCaptures = useMemo(
+    () => model.captures.slice(0, SURVEY_SPATIAL_CAPTURE_BUDGET),
+    [model.captures],
+  );
   const topicTitle = model.topic?.title ?? 'Standing topic';
   const constrained = width > 0 && width < 1100;
   const flat = durations.reduced || sceneFailed || webgl === false || constrained;
@@ -409,6 +428,10 @@ export function SurveyView({ set }: ViewRenderProps) {
       />
     );
   }
+
+  const spatialNote = model.captures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
+    ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${model.captures.length} captures in the spatial board`
+    : null;
 
   return (
     <div
@@ -474,7 +497,7 @@ export function SurveyView({ set }: ViewRenderProps) {
           >
             <div data-survey-layout="3d" className="relative h-full min-h-0 overflow-hidden">
               <SurveyScene3D
-                captures={model.captures}
+                captures={spatialCaptures}
                 edges={edges}
                 palette={palette}
                 topicTitle={topicTitle}
@@ -488,7 +511,7 @@ export function SurveyView({ set }: ViewRenderProps) {
                 <SurveySourceNavigator captures={model.captures} onOpen={(capture) => setOpenCaptureId(capture.id)} />
                 <SurveyConnectionNavigator edges={edges} />
                 <div className="pointer-events-none rounded-ij-arc bg-ij-chrome px-3 py-2 text-xs text-ij-ink">
-                  Drag to orbit · Scroll toward center · Hover reveals links · Select a source
+                  {spatialNote ?? 'Drag to orbit · Scroll toward center · Hover reveals links · Select a source'}
                 </div>
               </div>
             </div>
