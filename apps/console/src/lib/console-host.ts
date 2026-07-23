@@ -389,18 +389,17 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        // Prefer a locally active non-routed surface (Appearance, Account, …)
-        // over the remote radio so reload keeps the person's last settings
-        // screen instead of snapping back to Chat.
-        const preserved = [...this.layout.values()].find((node) => {
-          if (node.type !== 'surface' || node.properties.active !== true) return false;
-          return pathForSurfaceKind(String(node.properties.kind ?? '')) === null;
-        });
+        // Keep the locally active surface across remote adoption. Deep links
+        // (/cards, /workspace) and Account / Appearance activation race the
+        // first ensureSeedLayout fetch; a stale remote radio must not yank them.
+        const preservedActiveId = [...this.layout.values()].find(
+          (node) => node.type === 'surface' && node.properties.active === true,
+        )?.id;
         this.replaceLayout(remote.objects);
-        if (preserved && this.layout.has(preserved.id)) {
+        if (preservedActiveId && this.layout.has(preservedActiveId)) {
           for (const candidate of this.layout.values()) {
             if (candidate.type === 'surface') {
-              candidate.properties.active = candidate.id === preserved.id;
+              candidate.properties.active = candidate.id === preservedActiveId;
             }
           }
           this.persistLayout();
