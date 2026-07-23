@@ -160,8 +160,40 @@ function shortcutLabel(index: number): string {
   return `Cmd or Ctrl ${index + 1}`;
 }
 
+/** Paper expanded rail shows ⌘N (JetBrains Mono 11). Title/aria keep the full chord. */
+function shortcutGlyph(index: number): string {
+  return `⌘${index + 1}`;
+}
+
 function SidebarDivider() {
-  return <div aria-hidden className="my-1 h-px w-full shrink-0 bg-ij-seam" />;
+  return (
+    <div
+      aria-hidden
+      className="h-px w-full shrink-0"
+      style={{
+        marginBlock: '4px',
+        background: 'var(--ij-gray-3)',
+      }}
+    />
+  );
+}
+
+function SidebarRowIcon({
+  children,
+  muted,
+}: {
+  readonly children: React.ReactNode;
+  readonly muted?: boolean;
+}) {
+  return (
+    <span
+      className="flex size-ij-stripe-icon shrink-0 items-center justify-center"
+      style={{ color: muted ? 'var(--ij-ink-info)' : 'var(--ij-ink)' }}
+      aria-hidden
+    >
+      {children}
+    </span>
+  );
 }
 
 export function Sidebar({
@@ -338,10 +370,20 @@ export function Sidebar({
       data-frame-resident="stripe"
       data-shell-region="rail"
       data-sidebar-collapsed={visuallyCollapsed}
-      className="flex w-ij-stripe shrink-0 flex-col bg-transparent p-2 font-ij-ui"
-      style={{ transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)' }}
+      className="flex w-ij-stripe shrink-0 flex-col bg-transparent font-ij-ui"
+      style={{
+        padding: 'var(--ij-sidebar-pad)',
+        gap: 'var(--ij-sidebar-zone-gap)',
+        transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)',
+      }}
     >
-      <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col gap-0.5">
+      <div
+        data-surface-rail
+        role="radiogroup"
+        aria-label="Surfaces"
+        className="flex flex-col"
+        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
+      >
         {routedSurfaces.map((surface, index) => {
           const kind = String(surface.properties.kind ?? '');
           const label = titleFor(surface, surface.id);
@@ -358,25 +400,45 @@ export function Sidebar({
               aria-checked={active}
               aria-keyshortcuts={`Control+${index + 1} Meta+${index + 1}`}
               onClick={() => switchTo(surface)}
-              className="group relative flex h-ij-nav-row items-center rounded-ij-sidebar-row px-2 text-left hover:bg-ij-hover-surface"
+              className="group relative flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
+              data-selected={active ? 'true' : undefined}
               style={{
-                color: active ? 'var(--ij-ink)' : 'var(--ij-ink-info)',
+                paddingInline: 'var(--ij-sidebar-pad)',
+                gap: 'var(--ij-sidebar-icon-gap)',
+                color: 'var(--ij-ink)',
                 background: active ? 'var(--ij-selection)' : 'transparent',
+                fontWeight: active ? 600 : 500,
+                fontSize: 'var(--ij-sidebar-label-size)',
+                lineHeight: 'var(--ij-sidebar-label-line)',
               }}
             >
-              {visuallyCollapsed && active ? <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" /> : null}
-              <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
+              {visuallyCollapsed && active ? (
+                <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" />
+              ) : null}
+              <SidebarRowIcon muted={!active}>
+                <Icon size={16} />
+              </SidebarRowIcon>
               <span
-                className="min-w-0 flex-1 truncate pl-2 text-sm"
-                style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)', fontWeight: active ? 600 : 500 }}
+                className="min-w-0 flex-1 truncate"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
               >
                 {label}
               </span>
               <span
-                className="shrink-0 font-ij-mono text-ij-island-meta text-ij-ink-info"
-                style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}
+                className="shrink-0 font-ij-mono tabular-nums"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                  color: 'var(--ij-ink-info)',
+                  fontSize: 'var(--ij-sidebar-shortcut-size)',
+                  lineHeight: '16px',
+                  fontWeight: 400,
+                }}
               >
-                {index + 1}
+                {shortcutGlyph(index)}
               </span>
             </button>
           );
@@ -385,7 +447,11 @@ export function Sidebar({
 
       <SidebarDivider />
 
-      <div aria-label="Companions" className="flex flex-col gap-0.5">
+      <div
+        aria-label="Companions"
+        className="flex flex-col"
+        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
+      >
         {companions.map((region, index) => {
           const companion = String(region.object.properties.companion ?? '');
           const label = titleFor(region.object, companion);
@@ -401,11 +467,30 @@ export function Sidebar({
               aria-pressed={open}
               aria-keyshortcuts={`Alt+Shift+${index + 1}`}
               onClick={() => onToggleCompanion(region)}
-              className="flex h-ij-nav-row items-center rounded-ij-sidebar-row px-2 text-left hover:bg-ij-hover-surface"
-              style={{ color: open ? 'var(--ij-ink)' : 'var(--ij-ink-info)', background: open ? 'var(--ij-selection)' : 'transparent' }}
+              className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
+              data-elevation="raised"
+              style={{
+                paddingInline: 'var(--ij-sidebar-pad)',
+                gap: 'var(--ij-sidebar-icon-gap)',
+                color: 'var(--ij-ink)',
+                background: 'var(--ij-chrome)',
+                fontWeight: 600,
+                fontSize: 'var(--ij-sidebar-label-size)',
+                lineHeight: 'var(--ij-sidebar-label-line)',
+              }}
             >
-              <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
-              <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
+              <SidebarRowIcon>
+                <Icon size={16} />
+              </SidebarRowIcon>
+              <span
+                className="min-w-0 flex-1 truncate"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
+              >
+                {label}
+              </span>
             </button>
           );
         })}
@@ -413,11 +498,24 @@ export function Sidebar({
 
       <SidebarDivider />
 
-      <section aria-label="Landmarks" className="min-h-0 flex-1 overflow-y-auto">
-        <h2 className="px-2 font-ij-mono text-ij-island-meta text-ij-ink-info" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>
+      <section
+        aria-label="Landmarks"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        style={{ gap: '4px' }}
+      >
+        <h2
+          className="font-ij-mono tabular-nums text-ij-ink-info"
+          style={{
+            paddingInline: 'var(--ij-sidebar-pad)',
+            fontSize: 'var(--ij-sidebar-shortcut-size)',
+            lineHeight: '16px',
+            opacity: visuallyCollapsed ? 0 : 1,
+            transition: 'opacity var(--ij-motion) var(--ij-ease)',
+          }}
+        >
           Landmarks
         </h2>
-        <div className="mt-1 flex flex-col gap-0.5">
+        <div className="flex flex-col" style={{ gap: 'var(--ij-sidebar-row-gap)' }}>
           {landmarks.map((landmark) => {
             const descriptorId = String(landmark.properties.descriptor_id ?? '');
             const descriptor = descriptorId
@@ -433,31 +531,110 @@ export function Sidebar({
                 draggable
                 onDragEnd={(event) => onLandmarkDragEnd(event, landmark)}
                 data-sidebar-landmark={landmark.id}
-                className="group flex h-ij-nav-row items-center rounded-ij-sidebar-row px-2 text-ij-ink-info hover:bg-ij-hover-surface"
+                className="group flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
                 title={`${label}. Drag to the active grid.`}
+                style={{
+                  paddingInline: 'var(--ij-sidebar-pad)',
+                  gap: 'var(--ij-sidebar-icon-gap)',
+                  color: 'var(--ij-ink)',
+                  fontWeight: 500,
+                  fontSize: 'var(--ij-sidebar-label-size)',
+                  lineHeight: 'var(--ij-sidebar-label-line)',
+                }}
               >
-                <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
-                <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
+                <SidebarRowIcon muted>
+                  <Icon size={16} />
+                </SidebarRowIcon>
+                <span
+                  className="min-w-0 flex-1 truncate"
+                  style={{
+                    opacity: visuallyCollapsed ? 0 : 1,
+                    transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                  }}
+                >
+                  {label}
+                </span>
                 {!visuallyCollapsed ? (
                   <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button type="button" className="text-ij-ink-info hover:text-ij-ink" onClick={() => pinLandmark(landmark)} aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}>
+                    <button
+                      type="button"
+                      className="text-ij-ink-info hover:text-ij-ink"
+                      onClick={() => pinLandmark(landmark)}
+                      aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}
+                    >
                       {landmark.properties.pinned === true ? 'Unpin' : 'Pin'}
                     </button>
-                    {removable ? <button type="button" className="text-ij-ink-info hover:text-ij-ink" onClick={() => removeLandmark(landmark)} aria-label={`Remove ${label}`}>Remove</button> : null}
+                    {removable ? (
+                      <button
+                        type="button"
+                        className="text-ij-ink-info hover:text-ij-ink"
+                        onClick={() => removeLandmark(landmark)}
+                        aria-label={`Remove ${label}`}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
                   </span>
                 ) : null}
               </div>
             );
           })}
-          {landmarks.length === 0 && !visuallyCollapsed ? <p className="px-2 text-sm text-ij-ink-info">No landmarks yet.</p> : null}
+          {landmarks.length === 0 && !visuallyCollapsed ? (
+            <p
+              className="text-ij-ink-info"
+              style={{
+                paddingInline: 'var(--ij-sidebar-pad)',
+                fontSize: 'var(--ij-sidebar-label-size)',
+              }}
+            >
+              No landmarks yet.
+            </p>
+          ) : null}
         </div>
       </section>
 
-      <div className="mt-2 flex items-center gap-2 px-2 text-ij-ink-info">
-        <button type="button" onClick={toggleCollapse} disabled={compact} className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink disabled:opacity-50" title={compact ? 'Sidebar stays collapsed at this width' : collapsed ? 'Expand sidebar (Cmd or Ctrl B)' : 'Collapse sidebar (Cmd or Ctrl B)'} aria-label={compact ? 'Sidebar collapsed for narrow width' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+      <div
+        className="mt-auto flex shrink-0 items-center"
+        style={{
+          height: 'var(--ij-sidebar-footer-h)',
+          gap: '8px',
+          paddingTop: 'var(--ij-sidebar-pad)',
+          paddingRight: '4px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          disabled={compact}
+          className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink disabled:opacity-50"
+          title={
+            compact
+              ? 'Sidebar stays collapsed at this width'
+              : collapsed
+                ? 'Expand sidebar (Cmd or Ctrl B)'
+                : 'Collapse sidebar (Cmd or Ctrl B)'
+          }
+          aria-label={
+            compact
+              ? 'Sidebar collapsed for narrow width'
+              : collapsed
+                ? 'Expand sidebar'
+                : 'Collapse sidebar'
+          }
+        >
           <span aria-hidden>{visuallyCollapsed ? '›' : '‹'}</span>
         </button>
-        <span className="flex size-ij-control shrink-0 items-center justify-center rounded-full bg-ij-raised text-sm text-ij-ink">{initials}</span>
+        <span
+          className="flex shrink-0 items-center justify-center rounded-full bg-ij-chrome font-semibold text-ij-ink"
+          style={{
+            width: 'var(--ij-sidebar-avatar)',
+            height: 'var(--ij-sidebar-avatar)',
+            fontSize: '12px',
+            lineHeight: '16px',
+          }}
+        >
+          {initials}
+        </span>
         <button
           type="button"
           data-account-trigger
@@ -470,9 +647,21 @@ export function Sidebar({
         >
           <IconAccount size={14} />
         </button>
-        <span className="min-w-0 truncate text-sm" style={{ opacity: visuallyCollapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
+        <span
+          className="min-w-0 flex-1 truncate"
+          style={{
+            opacity: visuallyCollapsed ? 0 : 1,
+            transition: 'opacity var(--ij-motion) var(--ij-ease)',
+            color: 'var(--ij-ink-info)',
+            fontWeight: 500,
+            fontSize: 'var(--ij-sidebar-label-size)',
+            lineHeight: 'var(--ij-sidebar-label-line)',
+          }}
+        >
+          {tenant}
+        </span>
         {showConnection ? (
-          <span data-rail-connection className="ml-auto flex shrink-0 items-center gap-1">
+          <span data-rail-connection className="flex shrink-0 items-center gap-1">
             <span
               data-connection={connection}
               aria-hidden

@@ -1,0 +1,100 @@
+{
+  "plan_slug": "console-chat-surface",
+  "plan_id": "plan-local",
+  "title": "Console chat surface (material-inherited)",
+  "source": [
+    "apps/console/docs/plans/console-block-system/HANDOFF-CONSOLE-CHAT-SURFACE.md",
+    "docs/plans/material-register/SPEC-MATERIAL-REGISTER-1.0.md"
+  ],
+  "substrate_note": "Harness MCP plan create unavailable at planning time; mint Plan node when MCP recovers and re-render this projection.",
+  "status_lead_not_done": [
+    "Multibuffer ThreadView",
+    "Composer anatomy metrics and single status-slot unavailable",
+    "ShaderSurface sheen replacement",
+    "Paper state matrix artboards",
+    "760px thread column",
+    "Substrate Plan node"
+  ],
+  "ui_visual_milestone": {
+    "runtime_complete": "planned",
+    "product_complete": "planned",
+    "vision_complete": "planned_partial_after_slice",
+    "baseline_capture": "planned",
+    "target_references": "partial_existing_paper",
+    "do_not_downgrade": "planned",
+    "reversible_boundary": "planned"
+  },
+  "named_sheen_decision": "replace_ComposerSheenCanvas_with_ShaderSurface",
+  "candidate_deferral": {
+    "id": "defer-forme-receipt-texture",
+    "summary": "Keep tool-receipt excerpts Deterministic until FORME DischargeState is reachable",
+    "needs_user_consent": false,
+    "accepted": "2026-07-23",
+    "followup": "docs/plans/console-chat-surface/FOLLOWUP-FORME-DISCHARGE-TEXTURE.md"
+  },
+  "items": [
+    {
+      "id": "CH0",
+      "content": "Paper state matrix and multibuffer excerpt anatomy; extract jsx/styles",
+      "spec_ref": "handoff choice 8 / CH5",
+      "status": "done",
+      "proof": "Paper artboards Chat composer states + Chat multibuffer excerpts"
+    },
+    {
+      "id": "CH1a",
+      "content": "Replace ComposerSheenCanvas with ShaderSurface; update motion inventory",
+      "spec_ref": "handoff CH1 + material D6",
+      "status": "done",
+      "proof": "gate:motion clean; ComposerSheenCanvas deleted"
+    },
+    {
+      "id": "CH1b",
+      "content": "Composer anatomy metrics, typography, single unavailable status slot",
+      "spec_ref": "handoff choices 2-4",
+      "status": "done",
+      "proof": "status slot data-composer-status; placeholder never errors"
+    },
+    {
+      "id": "CH2",
+      "content": "ThreadView multibuffer excerpts, collapse, object seam, jump strip",
+      "spec_ref": "handoff choice 5",
+      "status": "done",
+      "proof": "ThreadExcerpt.test.tsx; ThreadView excerpts"
+    },
+    {
+      "id": "CH3",
+      "content": "Suggestion chips on token seam",
+      "spec_ref": "handoff choice 6",
+      "status": "done",
+      "proof": "--ij-chat-chip-* tokens on starters"
+    },
+    {
+      "id": "CH4",
+      "content": "Composer/excerpt tokens in registers and bridge; manifest",
+      "spec_ref": "handoff CH4",
+      "status": "done",
+      "proof": "token-manifest 278 tokens; gate:tokens clean"
+    },
+    {
+      "id": "CH5",
+      "content": "Wire idle focused streaming interrupted disabled endpoint-refused once each",
+      "spec_ref": "handoff CH5",
+      "status": "partial",
+      "proof": "data-composer-state + Paper matrix; Playwright e2e not re-run this session"
+    },
+    {
+      "id": "CH6",
+      "content": "760px placement; IslandShell compact zero composer chrome",
+      "spec_ref": "handoff choices 1 and 7",
+      "status": "done",
+      "proof": "--ij-thread-column-max 760; Composer has no IslandShell chrome"
+    },
+    {
+      "id": "CH7",
+      "content": "pnpm gates passes",
+      "spec_ref": "acceptance 7",
+      "status": "done",
+      "proof": "pnpm --filter console run gates"
+    }
+  ]
+}

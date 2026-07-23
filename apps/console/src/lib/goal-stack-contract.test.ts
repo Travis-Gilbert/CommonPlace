@@ -371,5 +371,13 @@ describe('Goal Stack shared projection', () => {
     expect(graph.metadata.source_side_effecting_affordance_refs).toEqual(['github:create_release']);
     expect(task.affordance_id).toBe('plan-task:task:publish');
     expect(task.contract?.capabilities?.[0]?.has_side_effects).toBe(false);
+    const ports = graph.nodes.flatMap((node) => {
+      const record = node as {
+        inputs?: Array<{ shape_id: string }>;
+        outputs?: Array<{ shape_id: string }>;
+      };
+      return [...(record.inputs ?? []), ...(record.outputs ?? [])].map((port) => port.shape_id);
+    });
+    expect(ports.every((shapeId) => shapeId === 'theorem:plan-task@1.0.0')).toBe(true);
   });
 });

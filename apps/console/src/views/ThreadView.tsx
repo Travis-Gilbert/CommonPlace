@@ -1,13 +1,18 @@
 'use client';
 
-// SOURCING: @assistant-ui/react thread and message primitives,
-// @assistant-ui/react-markdown, the shared Composer, and the 21st.dev
-// isaiahBjork agent-plan structure extraction. The Presence mark appears only
-// inside Composer. Streaming text never participates in layout animation.
+// SOURCING: @assistant-ui/react Thread/Message primitives + HANDOFF-CONSOLE-CHAT-SURFACE
+// multibuffer model. Bubbles retired: turns, tools, and objects are excerpts.
+// Composer unavailable notice lives only in the composer status slot.
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
-import { MessagePrimitive, ThreadPrimitive, useMessage } from '@assistant-ui/react';
+import { extractTheoremAddress, theoremUri } from '@commonplace/block-view/addressing';
+import {
+  MessagePrimitive,
+  ThreadPrimitive,
+  useMessage,
+  type ToolCallMessagePartProps,
+} from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
 import { Composer, NEW_LINE_HINT } from '@/components/composer/Composer';
@@ -15,55 +20,145 @@ import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
+import { ObjectExcerpt } from './thread/ObjectExcerpt';
+import { ThreadExcerpt } from './thread/ThreadExcerpt';
 
 export const ThreadRuntimeAvailable = createContext(false);
 
-function MessageShell({ children }: { children: React.ReactNode }) {
-  const durations = useMotionDurations();
-  return (
-    <motion.div
-      initial={durations.reduced ? false : { opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: seconds(durations.base), ease: EASE_OUT }}
-      className="px-3 py-2"
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function UserMessage() {
-  return (
-    <MessagePrimitive.Root>
-      <MessageShell>
-        <div data-speaker="human" className="ml-8 rounded-ij-arc bg-ij-raised px-3 py-2 font-cp-human text-cp-human">
-          <MessagePrimitive.Parts />
-        </div>
-      </MessageShell>
-    </MessagePrimitive.Root>
-  );
+function formatTime(value: unknown): string | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function MarkdownText() {
   return <MarkdownTextPrimitive />;
 }
 
-function AssistantMessage() {
+function ToolCallExcerpt(props: ToolCallMessagePartProps) {
+  const toolName = props.toolName ?? 'tool';
+  const summary = props.argsText?.slice(0, 120) || toolName;
+  const result =
+    typeof props.result === 'string'
+      ? props.result
+      : props.result != null
+        ? JSON.stringify(props.result, null, 2)
+        : null;
+
+  return (
+    <ThreadExcerpt
+      kind="tool"
+      excerptId={`tool-${props.toolCallId ?? toolName}`}
+      speaker={`tool · ${toolName}`}
+      summary={summary}
+      defaultCollapsed
+    >
+      <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">
+        {props.argsText ?? ''}
+        {result ? `\n\n${result}` : ''}
+      </pre>
+    </ThreadExcerpt>
+  );
+}
+
+function MessageObjectExcerpts({ host, text }: { host: BlockHost; text: string }) {
+  const addresses = useMemo(() => {
+    const found: string[] = [];
+    const parts = text.split(/\s+/);
+    for (const part of parts) {
+      const address = extractTheoremAddress(part);
+      if (address) found.push(theoremUri(address));
+    }
+    return [...new Set(found)];
+  }, [text]);
+
+  if (addresses.length === 0) return null;
+  return (
+    <>
+      {addresses.map((address) => (
+        <ObjectExcerpt
+          key={address}
+          host={host}
+          address={address}
+          excerptId={`object-${address}`}
+        />
+      ))}
+    </>
+  );
+}
+
+function UserMessage({ host }: { host: BlockHost }) {
+  const durations = useMotionDurations();
+  const createdAt = useMessage((message) => message.createdAt);
+  const content = useMessage((message) =>
+    message.content
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n'),
+  );
+
+  return (
+    <MessagePrimitive.Root>
+      <motion.div
+        initial={durations.reduced ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: seconds(durations.base), ease: EASE_OUT }}
+      >
+        <ThreadExcerpt
+          kind="human"
+          excerptId={`human-${String(createdAt ?? content.slice(0, 24))}`}
+          speaker="human"
+          timestamp={formatTime(createdAt)}
+        >
+          <MessagePrimitive.Parts />
+          <MessageObjectExcerpts host={host} text={content} />
+        </ThreadExcerpt>
+      </motion.div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage({ host }: { host: BlockHost }) {
+  const durations = useMotionDurations();
+  const createdAt = useMessage((message) => message.createdAt);
   const degradation = useMessage((message) => message.metadata.custom?.degradation) as
     | { degraded: true; missingIndexes: string[] }
     | undefined;
+  const content = useMessage((message) =>
+    message.content
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n'),
+  );
+
   return (
     <MessagePrimitive.Root>
-      <MessageShell>
-        <div data-speaker="agent" className="mr-8 px-1 font-cp-agent text-cp-agent">
+      <motion.div
+        initial={durations.reduced ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: seconds(durations.base), ease: EASE_OUT }}
+      >
+        <ThreadExcerpt
+          kind="agent"
+          excerptId={`agent-${String(createdAt ?? content.slice(0, 24))}`}
+          speaker="agent"
+          timestamp={formatTime(createdAt)}
+        >
           {degradation?.degraded ? (
             <span className="mb-1 inline-flex rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn" data-ask-degraded>
               degraded: {degradation.missingIndexes.join(', ')}
             </span>
           ) : null}
-          <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
-        </div>
-      </MessageShell>
+          <MessagePrimitive.Parts
+            components={{
+              Text: MarkdownText,
+              tools: { Fallback: ToolCallExcerpt },
+            }}
+          />
+          <MessageObjectExcerpts host={host} text={content} />
+        </ThreadExcerpt>
+      </motion.div>
     </MessagePrimitive.Root>
   );
 }
@@ -71,29 +166,29 @@ function AssistantMessage() {
 function AgentPlan({ steps }: { steps: readonly AgentPlanStep[] }) {
   if (steps.length === 0) return null;
   return (
-    <section data-agent-plan aria-label="Agent plan" className="mx-3 my-2 overflow-hidden rounded-ij-arc border border-ij-seam-raised bg-ij-raised">
-      <div className="flex h-ij-control items-center border-b border-ij-seam px-3 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-        Plan
+    <ThreadExcerpt kind="plan" excerptId="agent-plan" speaker="plan" summary={`${steps.length} steps`} defaultCollapsed>
+      <div data-agent-plan aria-label="Agent plan" className="overflow-hidden">
+        {steps.map((step) => (
+          <div key={step.id} data-plan-status={step.status} className="flex h-ij-row items-center gap-2 border-b border-ij-seam last:border-b-0">
+            <span
+              aria-hidden="true"
+              className="size-2 rounded-full"
+              style={{
+                background:
+                  step.status === 'complete'
+                    ? 'var(--ij-success)'
+                    : step.status === 'refused'
+                      ? 'var(--ij-error)'
+                      : 'var(--ij-ink-disabled)',
+              }}
+            />
+            <span className="min-w-0 flex-1 truncate text-ij-ink">{step.label}</span>
+            {step.tool ? <span className="font-ij-mono text-ij-ink-info">{step.tool}</span> : null}
+            <span className="text-ij-ink-disabled">{step.status}</span>
+          </div>
+        ))}
       </div>
-      {steps.map((step) => (
-        <div key={step.id} data-plan-status={step.status} className="flex h-ij-row items-center gap-2 border-b border-ij-seam px-3 last:border-b-0">
-          <span
-            aria-hidden="true"
-            className="size-2 rounded-full"
-            style={{
-              background: step.status === 'complete'
-                ? 'var(--ij-success)'
-                : step.status === 'refused'
-                  ? 'var(--ij-error)'
-                  : 'var(--ij-ink-disabled)',
-            }}
-          />
-          <span className="min-w-0 flex-1 truncate text-ij-ink">{step.label}</span>
-          {step.tool ? <span className="font-ij-mono text-ij-ink-info">{step.tool}</span> : null}
-          <span className="text-ij-ink-disabled">{step.status}</span>
-        </div>
-      ))}
-    </section>
+    </ThreadExcerpt>
   );
 }
 
@@ -107,25 +202,15 @@ function titleOf(object: ObjectRef | undefined, fallback: string): string {
   return String(object?.properties.title ?? object?.properties.name ?? fallback);
 }
 
-/** The starter SLOTS (HANDOFF-CONSOLE-DIMENSIONALITY X5). The empty state gets
- *  its structure without waiting for wires: the three slots always render, so
- *  the first-run Chat reads as a quiet room rather than missing paint. A slot
- *  is disabled until its live suggestion lands and says why in the meantime --
- *  the REAL refusal, never a placeholder mood -- and flips live when identity
- *  arrives, per HANDOFF-CONSOLE-IA I2. The resting labels name the shape of the
- *  offer, which is true before the tenant is known and stays true after. */
 const STARTER_SLOTS = [
   { id: 'recent-record', resting: 'Review a recent record' },
   { id: 'recent-document', resting: 'Summarize a recent document' },
   { id: 'runnable-action', resting: 'Plan an action' },
 ] as const;
 
-/** The identity refusal, named exactly as the seam reports it. The console's
- *  identity-refusal state maps HTTP 403, which the harness principal resolver
- *  emits as principal_resolution=unauthenticated; that string is what a person
- *  can act on, so it is what the slot shows. */
-function refusalFor(connection: ConnectionState, endpointMissing: boolean): string | null {
-  if (endpointMissing) return 'Chat endpoint unavailable: configure NEXT_PUBLIC_CONSOLE_CHAT_URL';
+function chipRefusal(connection: ConnectionState, endpointMissing: boolean): string | null {
+  // Endpoint unavailable is owned by the composer status slot only.
+  if (endpointMissing) return 'Chat endpoint is not configured';
   if (connection === 'identity-refused') return 'principal_resolution=unauthenticated';
   if (connection === 'disconnected') return 'Disconnected from the object seam';
   if (connection === 'connecting') return 'Connecting to the object seam';
@@ -160,7 +245,7 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
     };
   }, [host]);
 
-  const refusal = refusalFor(connection, disabled);
+  const refusal = chipRefusal(connection, disabled);
 
   return (
     <div className="flex h-full flex-col justify-end gap-3 px-3 pb-4 text-ij-ink-info" data-chat-empty-state>
@@ -168,9 +253,6 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
       <div className="flex flex-wrap gap-2" data-chat-starters>
         {STARTER_SLOTS.map((slot) => {
           const live = suggestions.find((suggestion) => suggestion.id === slot.id);
-          // A slot with no live suggestion is refused for a named reason: the
-          // seam's own refusal when there is one, otherwise the plain fact that
-          // tenant context has not arrived.
           const reason = live ? null : (refusal ?? 'Tenant suggestions are unavailable');
           return (
             <button
@@ -181,22 +263,63 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
               title={reason ?? undefined}
               disabled={reason !== null}
               onClick={() => (live ? void submitThreadText(live.prompt) : undefined)}
-              className="rounded-ij-arc border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface disabled:text-ij-ink-disabled"
-              style={{ transition: 'var(--rec-clickable-transition)' }}
+              className="inline-flex items-center border border-ij-control-border bg-ij-raised px-3 font-ij-ui text-ij-ink hover:bg-ij-hover-surface disabled:text-ij-ink-disabled"
+              style={{
+                height: 'var(--ij-chat-chip-h)',
+                fontSize: 'var(--ij-chat-chip-font-size)',
+                borderRadius: 'var(--ij-chat-chip-radius)',
+                transition: 'var(--rec-clickable-transition)',
+              }}
             >
               {live ? live.label : slot.resting}
             </button>
           );
         })}
       </div>
-      {refusal ? (
-        <p data-starters-unavailable className="font-ij-mono text-ij-ink-disabled">{refusal}</p>
-      ) : null}
-      {/* The new-line hint's second home (X1): the send control's title carries
-          it for people already typing, the first run carries it for people who
-          have not started. */}
       <p data-composer-hint className="text-ij-ink-disabled">{NEW_LINE_HINT}</p>
     </div>
+  );
+}
+
+function JumpStrip() {
+  const [headers, setHeaders] = useState<readonly { id: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const read = () => {
+      const roots = [...document.querySelectorAll<HTMLElement>('[data-thread-excerpt]')];
+      setHeaders(
+        roots
+          .filter((node) => node.id)
+          .map((node) => ({
+            id: node.id,
+            label: node.querySelector('[data-excerpt-speaker]')?.textContent?.trim() || node.dataset.threadExcerpt || 'excerpt',
+          })),
+      );
+    };
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  if (headers.length === 0) return null;
+  return (
+    <nav
+      data-thread-jump-strip
+      aria-label="Excerpt jump strip"
+      className="thread-jump-strip absolute top-0 right-0 max-h-full w-28 overflow-y-auto border-l border-ij-seam bg-ij-chrome py-2"
+    >
+      {headers.map((header) => (
+        <a
+          key={header.id}
+          href={`#${header.id}`}
+          className="block truncate px-2 py-1 font-ij-mono text-ij-ink-info hover:text-ij-ink"
+          style={{ fontSize: 'var(--ij-excerpt-header-font-size)' }}
+        >
+          {header.label}
+        </a>
+      ))}
+    </nav>
   );
 }
 
@@ -238,19 +361,36 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
   return (
     <ThreadPrimitive.Root
       data-chat-surface={full ? 'full' : undefined}
-      className={`flex h-full min-h-0 flex-col ${full ? 'bg-ij-editor' : 'bg-ij-chrome'}`}
+      className={`relative flex h-full min-h-0 flex-col ${full ? 'bg-ij-editor' : 'bg-ij-chrome'}`}
     >
       <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto">
-        <div className={`mx-auto flex h-full w-full flex-col ${full ? 'max-w-4xl pt-8' : ''}`}>
+        <div
+          className={`relative mx-auto flex h-full w-full flex-col ${full ? 'pt-8' : ''}`}
+          style={full ? { maxWidth: 'var(--ij-thread-column-max)' } : undefined}
+        >
           <ThreadPrimitive.Empty>
             <StarterSuggestions host={host} disabled={!endpoint} />
           </ThreadPrimitive.Empty>
-          <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage: function BoundUserMessage() {
+                return <UserMessage host={host} />;
+              },
+              AssistantMessage: function BoundAssistantMessage() {
+                return <AssistantMessage host={host} />;
+              },
+            }}
+          />
           <AgentPlan steps={plan} />
           {error ? <div className="px-4 py-1 text-ij-error">{error}</div> : null}
+          {full ? <JumpStrip /> : null}
         </div>
       </ThreadPrimitive.Viewport>
-      <div className={full ? 'mx-auto mb-24 w-full max-w-4xl px-6' : 'p-2'} data-composer-zone>
+      <div
+        className={full ? 'mx-auto mb-24 w-full px-6' : 'p-2'}
+        style={full ? { maxWidth: 'var(--ij-thread-column-max)' } : undefined}
+        data-composer-zone
+      >
         <Composer
           host={host}
           compact={!full}

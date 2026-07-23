@@ -107,6 +107,12 @@
   --spacing-ij-sidebar-expanded: var(--ij-sidebar-expanded-w);
   --spacing-ij-sidebar-collapsed: var(--ij-sidebar-collapsed-w);
   --spacing-ij-sidebar-pip: var(--ij-sidebar-pip-w);
+  --spacing-ij-sidebar-pad: var(--ij-sidebar-pad);
+  --spacing-ij-sidebar-zone-gap: var(--ij-sidebar-zone-gap);
+  --spacing-ij-sidebar-row-gap: var(--ij-sidebar-row-gap);
+  --spacing-ij-sidebar-icon-gap: var(--ij-sidebar-icon-gap);
+  --spacing-ij-sidebar-footer: var(--ij-sidebar-footer-h);
+  --spacing-ij-sidebar-avatar: var(--ij-sidebar-avatar);
   --spacing-ij-stripe-icon: var(--ij-stripe-icon);
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
@@ -137,6 +143,51 @@
    file ever defined; those consumers now name this token. */
 [data-register="intui"] {
   --ij-popover-shadow: 0 4px 12px -2px color-mix(in oklab, var(--ij-ink) 28%, transparent);
+  /* Floating and scrim are the only tiers that may cast shadow (material register D1). */
+  --ij-floating-shadow: var(--ij-popover-shadow);
+  --ij-scrim-fill: var(--ij-tier-scrim);
+
+  /* Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.
+     Regenerated from KIND_GLYPH_ORDER in src/lib/material/kind-hues.ts. Glyph and
+     edge marker only; never a surface fill. */
+  --ij-kind-records: oklch(65% 0.12 0);
+  --ij-kind-cards: oklch(65% 0.12 24);
+  --ij-kind-thread: oklch(65% 0.12 48);
+  --ij-kind-doc: oklch(65% 0.12 72);
+  --ij-kind-memory: oklch(65% 0.12 96);
+  --ij-kind-rail: oklch(65% 0.12 120);
+  --ij-kind-workspace: oklch(65% 0.12 144);
+  --ij-kind-model: oklch(65% 0.12 168);
+  --ij-kind-files: oklch(65% 0.12 192);
+  --ij-kind-context: oklch(65% 0.12 216);
+  --ij-kind-terminal: oklch(65% 0.12 240);
+  --ij-kind-browser: oklch(65% 0.12 264);
+  --ij-kind-kanban: oklch(65% 0.12 288);
+  --ij-kind-automation: oklch(65% 0.12 312);
+  --ij-kind-canvas: oklch(65% 0.12 336);
+}
+
+/* Raised and above: keyline + continuous-curvature corner (Chromium). WebKit
+   degrades to border-radius alone (named choice 3). */
+[data-register="intui"] [data-elevation="raised"],
+[data-register="intui"] [data-elevation="floating"] {
+  border: 1px solid var(--ij-keyline);
+  border-radius: var(--ij-radius-md);
+  corner-shape: var(--ij-corner-raised);
+}
+
+[data-register="intui"] [data-elevation="floating"] {
+  border-radius: var(--ij-radius-lg);
+  box-shadow: var(--ij-floating-shadow);
+}
+
+[data-register="intui"] [data-elevation="sunken"] {
+  background: var(--ij-tier-sunken);
+  border-radius: var(--ij-radius-sm);
+}
+
+[data-register="intui"] [data-elevation="scrim"] {
+  background: var(--ij-scrim-fill);
 }
 
 /* Composer metrics (HANDOFF-CONSOLE-IA named choices 5 and 6; the material
@@ -156,20 +207,42 @@
   --ij-sidebar-collapsed-w: 44px;
   --ij-sidebar-pip-w: 2px;
   --ij-stripe-w: var(--ij-sidebar-expanded-w);
-  --ij-composer-min-h: 48px;
-  --ij-composer-max-h: 164px;
-  --ij-composer-full-min-h: calc(var(--ij-composer-min-h) + var(--ij-control-h));
-  --ij-composer-radius: calc(var(--ij-arc) * 2);
+  /* Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,
+     icon-to-label gap 10, footer 53 with 28 avatar. */
+  --ij-sidebar-pad: 8px;
+  --ij-sidebar-zone-gap: 3px;
+  --ij-sidebar-row-gap: 2px;
+  --ij-sidebar-icon-gap: 10px;
+  --ij-sidebar-footer-h: 53px;
+  --ij-sidebar-avatar: 28px;
+  --ij-sidebar-label-size: 14px;
+  --ij-sidebar-label-line: 20px;
+  --ij-sidebar-shortcut-size: 11px;
+  /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,
+     Manrope 15/500, island radius, 40px instrument row. */
+  --ij-composer-min-h: 88px;
+  --ij-composer-max-h: 40vh;
+  --ij-composer-full-min-h: var(--ij-composer-min-h);
+  --ij-composer-radius: var(--ij-radius-lg);
   --ij-composer-control-size: 32px;
   --ij-composer-control-size-compact: var(--ij-control-h);
   --ij-composer-pad-x: 16px;
   --ij-composer-pad-y: 14px;
   --ij-composer-pad-compact: 10px;
   --ij-composer-gap: 8px;
-  --ij-composer-font-size: 16px;
-  --ij-composer-font-size-compact: 14px;
+  --ij-composer-font-size: 15px;
+  --ij-composer-font-size-compact: 15px;
+  --ij-composer-font-weight: 500;
+  --ij-composer-line-height: 1.5;
+  --ij-composer-instrument-h: 40px;
   --ij-composer-meta-font-size: 12px;
   --ij-composer-counter-min-width: 48px;
+  --ij-thread-column-max: 760px;
+  --ij-excerpt-header-h: 24px;
+  --ij-excerpt-header-font-size: 11px;
+  --ij-chat-chip-h: 32px;
+  --ij-chat-chip-font-size: 13px;
+  --ij-chat-chip-radius: var(--ij-radius-md);
 
   /* Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI
      tool window header is a 24px strip, not the 40px main-toolbar height the
@@ -197,8 +270,8 @@
   --ij-island-border: var(--ij-chrome);
   /* Header band: island base raised one elevation step, chroma +0.005..0.010.
      ToolWindow.Header.background analog. Material Layer consumes these. */
-  --ij-island-header-tool: #34363C;
-  --ij-island-header-editor: #25262A;
+  --ij-island-header-tool: #383B42;
+  --ij-island-header-editor: #18191C;
   /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
      Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
   --ij-ground-terra: #4C271D;

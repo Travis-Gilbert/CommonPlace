@@ -122,9 +122,9 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Composer run state changes',
-    effect: 'low-chroma material wash gains slight strength while streaming and flashes gold once on commit',
-    spec: 'idle draws once; streaming requestAnimationFrame loop only; commit uses DUR.fast',
-    reducedMotion: 'static low-chroma sheen, no frame loop or flash',
+    effect: 'ShaderSurface lit edge on the composer chrome; static at idle, optional speed while streaming',
+    spec: 'ShaderSurface Deterministic material; token-derived colors; content plane above chrome',
+    reducedMotion: 'static lit edge, speed 0',
   },
   {
     trigger: 'Tool card appears in thread',
@@ -213,9 +213,14 @@ export const DECLARED_PAINT_SURFACES = [
     reason: 'the agent identity glyph; canvas drawing per the inventory, never intercepts pointer events',
   },
   {
-    file: 'src/components/composer/ComposerSheenCanvas.tsx',
+    file: 'src/components/material/ShaderSurface.tsx',
     inventory: 'Composer run state changes',
-    reason: 'the composer instrument sheen; static at idle, frame loop strictly while streaming (rule 4 narrowing)',
+    reason: 'HANDOFF-CONSOLE-CHAT-SURFACE CH1: lit edge chrome via ShaderSurface; owns getContext in-file',
+  },
+  {
+    file: 'src/components/material/ShaderSurface.tsx',
+    inventory: 'Data canvas paper ground',
+    reason: 'SPEC-MATERIAL-REGISTER D6: Paper ShaderMount wrapper owns getContext in-file; CanvasPaperGround consumes it',
   },
 ] as const;
 

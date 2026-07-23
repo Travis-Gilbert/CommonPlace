@@ -1,6 +1,48 @@
 import type { PlanCanvasSnapshot, PlanTask } from './plan-state';
 
-const SHAPE_ID = 'theorem.plan-task.v1';
+/** Canonical ShapeId reference registered in theorem-blocks plan_task. */
+export const PLAN_TASK_SHAPE_ID = 'theorem:plan-task@1.0.0';
+
+const SHAPE_ID = PLAN_TASK_SHAPE_ID;
+
+/** Parse `{namespace}:{name}@{major}.{minor}.{patch}` the way ShapeId::parse does. */
+export function parseShapeId(reference: string): {
+  namespace: string;
+  name: string;
+  version: { major: number; minor: number; patch: number };
+} {
+  const at = reference.indexOf('@');
+  if (at < 0) {
+    throw new Error(`shape_reference: missing version separator '@' in \`${reference}\``);
+  }
+  const identity = reference.slice(0, at);
+  const version = reference.slice(at + 1);
+  const colon = identity.indexOf(':');
+  if (colon < 0) {
+    throw new Error(`shape_reference: missing namespace separator ':' in \`${reference}\``);
+  }
+  if (identity.indexOf(':', colon + 1) >= 0) {
+    throw new Error(`shape_reference: namespace:name must contain exactly one ':' in \`${reference}\``);
+  }
+  const namespace = identity.slice(0, colon);
+  const name = identity.slice(colon + 1);
+  if (!namespace || !name) {
+    throw new Error(`shape_reference: empty namespace or name in \`${reference}\``);
+  }
+  const parts = version.split('.');
+  if (parts.length !== 3 || parts.some((part) => !/^\d+$/.test(part))) {
+    throw new Error(`shape_reference: version must be major.minor.patch in \`${reference}\``);
+  }
+  return {
+    namespace,
+    name,
+    version: {
+      major: Number(parts[0]),
+      minor: Number(parts[1]),
+      patch: Number(parts[2]),
+    },
+  };
+}
 
 export interface ProgrammableGraphDefinition {
   tenant_id?: string;

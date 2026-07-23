@@ -29,17 +29,28 @@
   --ij-purple-2: #3B3147; --ij-purple-7: #955AE0; --ij-purple-9: #B589EC;
   --ij-teal-2: #1D3D3B;   --ij-teal-7: #24A394;
 
-  /* The four structural surfaces. Islands reconciliation (HANDOFF-CONSOLE-BLOCK-SYSTEM
-     choice 8): the frame is lighter than islands in dark mode so gutter shadows
-     have a ground light enough to receive them. Islands stay at gray-1 / gray-2. */
-  --ij-frame: #393B40;              /* inverted frame: lighter than island chrome */
-  --ij-editor: var(--ij-gray-1);    /* editor well, tab strip background */
-  --ij-chrome: var(--ij-gray-2);    /* toolbars, tool windows, status bar */
-  --ij-raised: var(--ij-gray-3);    /* popups, tooltips, hover surfaces */
-  --ij-seam: var(--ij-gray-1);      /* structural borders between regions */
-  --ij-seam-raised: var(--ij-gray-4);   /* border on elevated surfaces */
-  --ij-divider: var(--ij-gray-3);   /* one pixel splitters */
-  --ij-control-border: var(--ij-gray-5);
+  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).
+     Before (dark L%): editor 23.95, chrome 29.63, raised/frame 35.23 (spread 11.3pp).
+     After (dark L%): sunken 19.5, ground 24.0, frame 26.9, raised 31.7, floating 40.2 (spread 20.7pp).
+     raised+ carry keylines; only floating and scrim carry shadow. */
+  --ij-tier-sunken: #101112;
+  --ij-tier-ground: #1E1F22;
+  --ij-tier-raised: #2C2F35;
+  --ij-tier-floating: #45484F;
+  --ij-tier-scrim: color-mix(in oklab, #000000 52%, transparent);
+
+  /* Structural surfaces mapped onto the tier axis (hex so gates can resolve). */
+  --ij-frame: #1A1B1E;
+  --ij-editor: #101112;
+  --ij-chrome: #2C2F35;
+  --ij-raised: #45484F;
+  --ij-seam: var(--ij-tier-ground);
+  --ij-seam-raised: #565960;        /* keyline on raised+ */
+  --ij-divider: var(--ij-tier-raised);
+  --ij-control-border: #5C6068;
+  --ij-keyline: var(--ij-seam-raised);
+  --ij-keyline-focus: var(--ij-accent);
+  --ij-keyline-decorative: color-mix(in oklab, var(--ij-ink) 18%, transparent);
 
   /* Ink */
   --ij-ink: var(--ij-gray-12);
@@ -85,8 +96,15 @@
   /* Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,
      List and Tree rowHeight 24, TabbedPane tabHeight 40, EditorTabs underline
      height 4 arc 4, Tree border 4 12 4 12, stripe drop area from ToolWindow) */
+  /* Metrics. --ij-arc remains the mid step; D2 scale expands around it. */
   --ij-arc: 8px;
   --ij-arc-underline: 4px;
+  --ij-radius-xs: 4px;   /* chips, shortcut badges (BlockSize s) */
+  --ij-radius-sm: 6px;   /* rail rows, small controls (BlockSize m) */
+  --ij-radius-md: 8px;   /* panels, cards (BlockSize v/sq) */
+  --ij-radius-lg: 12px;  /* panes, islands (BlockSize w) */
+  --ij-radius-xl: 16px;  /* full surfaces (BlockSize full) */
+  --ij-corner-raised: squircle;
   --ij-control-h: 28px;
   --ij-control-min-w: 72px;
   --ij-row-h: 24px;

@@ -6,6 +6,7 @@
 // footer summary. Blocks never hand-roll state rendering.
 
 import type { ReactNode } from 'react';
+import { EmptyRegion, type EmptyCause } from '@/components/material/EmptyRegion';
 
 export type ViewStateKind =
   | 'loading'
@@ -29,9 +30,15 @@ export interface ViewStateProps {
   readonly mode?: 'standalone' | 'shell';
   /** Skeleton shape hint for loading (island body). */
   readonly skeleton?: 'rows' | 'cards' | 'blank';
-  /** Designed empty copy (B8). Defaults to the generic records empty. */
+  /** Designed empty copy (B8). Defaults come from emptyCause. */
   readonly emptyTitle?: string;
   readonly emptyDetail?: string;
+  /**
+   * Named empty cause (SPEC-MATERIAL-REGISTER D7). Defaults to no-results so
+   * filter empties stay distinguishable from not-connected / not-loaded.
+   */
+  readonly emptyCause?: EmptyCause;
+  readonly emptyActionLabel?: string;
 }
 
 function StateLine({ children, padded }: { children: ReactNode; padded: boolean }) {
@@ -121,6 +128,8 @@ export function ViewState({
   skeleton = 'rows',
   emptyTitle,
   emptyDetail,
+  emptyCause = 'no-results',
+  emptyActionLabel,
 }: ViewStateProps) {
   const padded = mode !== 'shell';
   switch (state) {
@@ -128,28 +137,29 @@ export function ViewState({
       return <LoadingSkeleton skeleton={skeleton} padded={padded} />;
     case 'empty':
       return (
-        <div
-          data-view-state="empty"
-          className={`flex h-full min-h-0 flex-col items-start justify-center gap-2 text-ij-ink${padded ? ' p-ij-island-body-pad' : ''}`}
-        >
-          <p
-            className="text-ij-island-section font-ij-ui text-ij-ink"
-            style={{ fontWeight: 600 }}
-          >
-            {emptyTitle ?? 'No records match.'}
-          </p>
-          {emptyDetail ? (
-            <p className="max-w-prose text-ij-ink-info font-ij-ui">{emptyDetail}</p>
-          ) : null}
+        <div data-view-state="empty" className="h-full min-h-0">
+          <EmptyRegion
+            cause={emptyCause}
+            title={emptyTitle}
+            detail={emptyDetail}
+            actionLabel={emptyActionLabel ?? (onRetry ? 'Retry' : undefined)}
+            onAction={onRetry}
+            className={padded ? 'p-ij-island-body-pad' : ''}
+          />
         </div>
       );
     case 'unavailable':
       return (
-        <StateLine padded={padded}>
-          <span>
-            Unavailable: {capability ?? 'the backing capability'} is not configured.
-          </span>
-        </StateLine>
+        <div data-view-state="unavailable" className="h-full min-h-0">
+          <EmptyRegion
+            cause="not-connected"
+            title="Not connected."
+            detail={`Cause: ${capability ?? 'the backing capability'} is not configured or unreachable.`}
+            actionLabel={onRetry ? (emptyActionLabel ?? 'Reconnect') : undefined}
+            onAction={onRetry}
+            className={padded ? 'p-ij-island-body-pad' : ''}
+          />
+        </div>
       );
     case 'error':
       if (mode === 'shell') {

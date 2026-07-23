@@ -1,8 +1,10 @@
 'use client';
 
-// SOURCING: hand-roll on @dnd-kit/core + @dnd-kit/sortable. Completes
+// SOURCING: hand-roll on @dnd-kit/core + @dnd-kit/sortable (interim). Completes
 // HANDOFF-CONSOLE-ONE-BLOCK-MODEL OB3: free BlockGeometry with edge/corner
 // resize clamped by limits. Placement zones remain for rail / dock / full.
+// Follow-up: bind ground geometry to dockview (FOLLOWUP-DOCKVIEW-GROUND.md);
+// keep @dnd-kit only for nested kanban card/column movement.
 
 import {
   DndContext,

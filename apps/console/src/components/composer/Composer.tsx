@@ -1,16 +1,10 @@
 'use client';
 
-// SOURCING: the sheen canvas material is the surviving port of the 21st.dev
-// muhammad-binsalman/glowing-ai-chat-assistant component supplied by Travis
-// (see ComposerSheenCanvas). HANDOFF-CONSOLE-DIMENSIONALITY X1 subtracted the
-// rest of that source's skeleton: the material container, translucent overlay,
-// input wash, send glow, backdrop blur, character counter, footer row, and
-// status text were the source's decoration laundered through a parallel token
-// family, not this system's grammar. What remains is an instrument panel --
-// --ij-raised surface, --ij-seam-raised border, arc radius, the sheen behind
-// the content -- with @assistant-ui/react fitted into it. The floating
-// launcher, close behavior, and right docking were already removed for the
-// permanent lower-third placement required by HANDOFF-CONSOLE-IA.
+// SOURCING: @assistant-ui/react composer primitives. HANDOFF-CONSOLE-CHAT-SURFACE
+// CH1: instrument panel on raised + keyline, sunken input well, lit top edge
+// from ShaderSurface (SPEC-MATERIAL-REGISTER D6). ComposerSheenCanvas retired:
+// a second 2d paint path fought the context budget and material named choice 7.
+// Unavailable copy lives only in the status slot, never the placeholder.
 
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
@@ -27,7 +21,8 @@ import {
   unstable_useMentionAdapter,
   useComposerRuntime,
 } from '@assistant-ui/react';
-import { PresenceMark } from '@/components/mark/PresenceMark';
+import { PresenceMark, type MarkState } from '@/components/mark/PresenceMark';
+import { ShaderSurface } from '@/components/material/ShaderSurface';
 import {
   IconAttach,
   IconChevronDown,
@@ -38,7 +33,6 @@ import {
 import { objectAddress } from '@/lib/object-address';
 import { useShellStore } from '@/lib/shell-store';
 import { useThreadStore } from '@/lib/thread-store';
-import { ComposerSheenCanvas } from './ComposerSheenCanvas';
 
 const MAX_CHARACTERS = 2000;
 /** The counter is not ambient furniture: a live digit readout on every
@@ -118,6 +112,7 @@ export function Composer({
   const [characterCount, setCharacterCount] = useState(0);
   const [pasted, setPasted] = useState<PastedAddress | null>(null);
   const [pasteRefusal, setPasteRefusal] = useState<string | null>(null);
+  const [interrupted, setInterrupted] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -134,7 +129,19 @@ export function Composer({
     };
   }, [host]);
 
+  useEffect(() => {
+    if (isRunning) setInterrupted(false);
+  }, [isRunning]);
+
   const mention = useObjectMentionAdapter(mentions, tenant);
+
+  const markState: MarkState = interrupted
+    ? 'interrupted'
+    : isRunning
+      ? 'composing'
+      : 'idle';
+
+  const PLACEHOLDER = 'Message the harness. Use @ for objects or /do for an action.';
 
   /** The label a pasted address gets: the object's own title when this console
    *  already holds it, otherwise its kind and id. Never a guess. */
@@ -217,7 +224,7 @@ export function Composer({
         char="@"
         adapter={mention.adapter}
         aria-label="Object mentions"
-        className="absolute bottom-full left-0 z-50 mb-1 max-h-64 w-full overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
+        className="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-full overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
       >
         <ComposerPrimitive.Unstable_TriggerPopover.Directive {...mention.directive} />
         <ComposerPrimitive.Unstable_TriggerPopoverItems>
@@ -239,13 +246,44 @@ export function Composer({
         <ComposerPrimitive.Root
           data-composer
           data-composer-density={compact ? 'compact' : 'full'}
-          data-source-component="21st-dev-glowing-ai-chat-assistant"
+          data-composer-state={
+            unavailable ? 'disabled' : interrupted ? 'interrupted' : isRunning ? 'streaming' : 'idle'
+          }
           data-paint-region="composer"
           className="composer-shell relative overflow-hidden border border-ij-seam-raised bg-ij-raised"
+          data-elevation="raised"
+          style={{ borderRadius: 'var(--ij-composer-radius)' }}
           onSubmit={() => setCharacterCount(0)}
         >
-          <ComposerSheenCanvas streaming={isRunning} />
+          <div
+            data-composer-sheen
+            data-composer-lit-edge
+            data-material-texture="shader-surface"
+            data-sheen-state={unavailable ? 'disabled' : interrupted ? 'interrupted' : isRunning ? 'streaming' : 'idle'}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 z-0 h-1 overflow-hidden"
+          >
+            <ShaderSurface
+              className="h-full w-full"
+              material="Deterministic"
+              colorBack="raised"
+              colorFill="accent"
+              gap={12}
+              size={1.2}
+              staticOnly={!isRunning}
+            />
+          </div>
           <div className="relative z-10">
+            {unavailable ? (
+              <div
+                role="status"
+                data-composer-status
+                className="border-b border-ij-seam px-4 py-2 font-ij-mono text-ij-ink-info"
+                style={{ fontSize: 'var(--ij-excerpt-header-font-size)' }}
+              >
+                Chat endpoint unavailable: configure NEXT_PUBLIC_CONSOLE_CHAT_URL
+              </div>
+            ) : null}
             {staged.length > 0 ? (
               <div className="flex flex-wrap items-center gap-1 border-b border-ij-seam px-2 pt-2" data-thread-staged>
                 {staged.map((ref) => (
@@ -309,21 +347,27 @@ export function Composer({
               </div>
             ) : null}
             <ComposerPrimitive.Attachments components={{ Attachment: AttachmentChip }} />
-            <div className="composer-input-section">
+            <div className="composer-input-section bg-ij-editor" data-elevation="sunken">
               <ComposerPrimitive.Input
-                minRows={compact ? 2 : 4}
-                maxRows={compact ? 4 : 8}
+                minRows={compact ? 2 : 3}
+                maxRows={24}
                 maxLength={MAX_CHARACTERS}
                 disabled={unavailable}
                 data-composer-input
                 data-thread-composer-input
-                placeholder={unavailable ? 'Chat endpoint unavailable' : 'Message the harness. Use @ for objects or /do for an action.'}
-                className="composer-input w-full resize-none bg-transparent text-ij-ink outline-none placeholder:text-ij-ink-disabled"
+                placeholder={PLACEHOLDER}
+                className="composer-input w-full resize-none overflow-y-auto bg-transparent font-cp-human font-medium text-ij-ink outline-none placeholder:font-ij-ui placeholder:font-normal placeholder:text-ij-ink-disabled"
+                style={{
+                  lineHeight: 'var(--ij-composer-line-height)',
+                }}
                 onChange={(event) => setCharacterCount(event.currentTarget.value.length)}
                 onPaste={onPaste}
               />
             </div>
-            <div className="composer-controls-wrap border-t border-ij-seam">
+            <div
+              className="composer-controls-wrap border-t border-ij-seam"
+              style={{ minHeight: 'var(--ij-composer-instrument-h)' }}
+            >
               <div className="composer-controls">
                 <div className="composer-tool-group" data-composer-tool-group>
                   <ComposerPrimitive.AddAttachment
@@ -352,7 +396,8 @@ export function Composer({
                     data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}
                     value={mode}
                     onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
-                    className="composer-mode-select"
+                    className="composer-mode-select font-ij-mono"
+                    style={{ fontSize: 'var(--ij-composer-meta-font-size)' }}
                   >
                     <option value="theorem">Theorem</option>
                     <option value="web" disabled={!webSearchAvailable}>
@@ -366,17 +411,16 @@ export function Composer({
                     <span>{characterCount}</span>/<span>{MAX_CHARACTERS}</span>
                   </span>
                 ) : null}
-                {/* The one Presence mark. The compact and footer duplicates
-                    collapsed here (X1): the mark is the status, which is its
-                    entire job, so the "ready" status text it used to sit
-                    beside is gone. The web-search capability still needs a
-                    reachable attribute, and it belongs on the control that
-                    actually selects the destination. */}
                 <span className="composer-presence" data-presence-mark-placement="composer">
-                  <PresenceMark state={isRunning ? 'composing' : 'idle'} size={22} staticOnly />
+                  <PresenceMark state={markState} size={22} staticOnly />
                 </span>
                 {isRunning ? (
-                  <ComposerPrimitive.Cancel aria-label="Stop response" title="Stop response" className="composer-send-button">
+                  <ComposerPrimitive.Cancel
+                    aria-label="Stop response"
+                    title="Stop response"
+                    className="composer-send-button"
+                    onClick={() => setInterrupted(true)}
+                  >
                     <IconStop size={16} />
                   </ComposerPrimitive.Cancel>
                 ) : (

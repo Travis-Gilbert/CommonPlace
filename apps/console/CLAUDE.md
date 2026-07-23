@@ -89,8 +89,8 @@ gap: add the row, with a named source, before writing code.
 | Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
-| Composer mechanics | `@assistant-ui/react` 0.12 plus 21st.dev `reuno-ui/ai-input` extraction | auto-grow input, attachments, object mentions, real Theorem/Web-search destination slot, send behavior |
-| Composer sheen | 21st.dev `muhammad-binsalman/glowing-ai-chat-assistant` material extraction plus hand-roll canvas | register-derived low-chroma material wash and sparse flecks behind the Composer |
+| Composer mechanics | `@assistant-ui/react` 0.12 | auto-grow input, attachments, object mentions, destination slot, send behavior |
+| Composer lit edge | `ShaderSurface` (`@paper-design/shaders`) | register-derived Deterministic material edge behind the Composer chrome; content plane stays flat above |
 | Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
 | Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
