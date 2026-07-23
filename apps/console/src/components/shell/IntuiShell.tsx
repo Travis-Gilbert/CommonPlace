@@ -175,11 +175,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [surfaces]);
 
   // Deep links and back/forward: the route is the surface radio (B3).
+  // Depend on pathname only so non-routed surfaces (Account, Appearance,
+  // Proactivity) can activate without the current path pulling them back.
   useEffect(() => {
     const routedId = surfaceIdForPath(pathname);
-    if (!routedId || routedId === activeSurfaceId) return;
+    if (!routedId) return;
     void host.activateSurface(routedId);
-  }, [activeSurfaceId, host, pathname]);
+  }, [host, pathname]);
 
   const root = useMemo(
     () => (layoutObjects ? buildSurfaceTree(activeSurfaceId, layoutObjects) : null),
