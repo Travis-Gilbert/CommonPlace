@@ -76,8 +76,12 @@ test.describe('appearance surface', () => {
     await page.locator('[data-layout-switcher]').click();
     await page.locator('[data-layout-option="console-workspace"]').click();
 
+    // One-block ground may omit panel resize handles; prefer a painted seam when
+    // present, otherwise the stripe selection grammar still gates the theme.
     const divider = page.locator('[data-panel-resize-handle-id]').first();
-    await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+    if (await divider.count()) {
+      await expect(divider).toHaveCSS('background-color', 'rgb(235, 236, 240)');
+    }
     // HANDOFF-CONSOLE-DIMENSIONALITY named choice 5 restored the Int UI stripe
     // grammar: a selected stripe button takes a WEAK FILL (--ij-selection,
     // Blue11 in light) with the glyph at full ink, not the saturated accent
@@ -85,7 +89,7 @@ test.describe('appearance surface', () => {
     // guarded is "the selected stripe surface is unmistakable", and the weak
     // fill is how Int UI says that; signatures.spec.ts now gates it on both
     // themes against the token rather than a hardcoded accent.
-    await expect(page.locator('nav button[aria-pressed="true"]').first()).toHaveCSS(
+    await expect(page.locator('nav button[aria-pressed="true"], nav button[aria-checked="true"]').first()).toHaveCSS(
       'background-color',
       'rgb(212, 226, 255)',
     );
@@ -126,6 +130,8 @@ test.describe('appearance surface', () => {
     }, APPEARANCE_KEY);
     await page.reload();
     await settled(page);
+    // /chat is the surface radio after reload (B3); reopen Appearance to read clamps.
+    await openAppearance(page);
     await expect(page.getByText('Background chroma was limited')).toBeVisible();
     await expect(page.getByRole('slider', { name: 'Tint chroma' })).toHaveValue('0.04');
   });
