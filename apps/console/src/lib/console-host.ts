@@ -403,17 +403,42 @@ export class ConsoleBlockHost implements BlockHost {
               query: node.properties.query,
             }] as const),
         );
-        // Keep local-only nodes (in-flight person arrangements, e2e proofs) that
-        // the server has not seen yet; replaceLayout alone would drop them.
+        // Keep local-only nodes (in-flight person arrangements, e2e proofs,
+        // memory tabs) that the server has not seen yet; replaceLayout alone
+        // would drop them. Also remember which parent listed them so CONTAINS
+        // edges survive the adopt.
         const remoteIds = new Set(remote.objects.map((object) => object.id));
         const localOnly = [...this.layout.values()]
           .filter((node) => !remoteIds.has(node.id))
           .map((node) => toMutable(toRef(node)));
+        const localOnlyIds = new Set(localOnly.map((node) => node.id));
+        const parentOfLocal = new Map<string, { parentId: string; index: number }>();
+        const localActiveTabs = new Map<string, string>();
+        for (const parent of this.layout.values()) {
+          parent.children.forEach((childId, index) => {
+            if (localOnlyIds.has(childId)) {
+              parentOfLocal.set(childId, { parentId: parent.id, index });
+            }
+          });
+          const activeTab = parent.properties.active_tab;
+          if (typeof activeTab === 'string' && localOnlyIds.has(activeTab)) {
+            localActiveTabs.set(parent.id, activeTab);
+          }
+        }
         this.replaceLayout(remote.objects);
         for (const node of localOnly) {
           this.layout.set(node.id, node);
         }
-        let restored = localOnly.length > 0;
+        for (const [childId, { parentId, index }] of parentOfLocal) {
+          const parent = this.layout.get(parentId);
+          if (!parent || parent.children.includes(childId)) continue;
+          parent.children.splice(Math.min(index, parent.children.length), 0, childId);
+        }
+        for (const [parentId, activeTab] of localActiveTabs) {
+          const parent = this.layout.get(parentId);
+          if (parent) parent.properties.active_tab = activeTab;
+        }
+        let restored = localOnly.length > 0 || parentOfLocal.size > 0 || localActiveTabs.size > 0;
         for (const [id, override] of localViewOverrides) {
           const node = this.layout.get(id);
           if (!node) continue;

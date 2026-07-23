@@ -89,10 +89,12 @@ test.describe('Console sidebar', () => {
           cancelable: true,
         }));
       }, key);
-      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 15_000 });
+      // Soft nav to /filing and /documents can trail the radio on a cold
+      // compile; wait for the active surface first, then the URL.
       await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
         timeout: 15_000,
       });
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 30_000 });
       await settled(page);
     }
   });

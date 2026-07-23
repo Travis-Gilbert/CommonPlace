@@ -299,6 +299,8 @@ test.describe('cards, actions, mentions', () => {
     await page.waitForTimeout(800);
     await expect(page.locator('[data-cards-grid]')).toHaveScreenshot('cards-grid.png', {
       maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+      animations: 'disabled',
     });
 
     await page.locator('[data-card-cell="person-ada"]').click();

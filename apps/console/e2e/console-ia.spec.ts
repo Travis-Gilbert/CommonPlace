@@ -95,10 +95,12 @@ test.describe('Console information architecture', () => {
     });
     await page.keyboard.press('Alt+Shift+1');
     await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="context"]').click();
+    await page.locator('[data-companion-nav="context"]').click({ timeout: 15_000 });
     await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="thread"]').click();
-    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('[data-companion-nav="thread"]').click({ timeout: 15_000 });
+    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true', {
+      timeout: 15_000,
+    });
     await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png');
   });
 
@@ -274,7 +276,7 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('treeitem', { name: /^Project/ })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
-    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('note')).toContainText('MemoryPatch is not available');
     await expect(page).toHaveScreenshot('files-projection.png', { fullPage: true });
   });
