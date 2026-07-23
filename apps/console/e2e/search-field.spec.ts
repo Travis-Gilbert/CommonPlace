@@ -12,7 +12,10 @@ async function freshLoad(page: Page) {
   });
   await page.reload();
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 test.describe('Search panel', () => {

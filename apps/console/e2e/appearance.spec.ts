@@ -10,7 +10,10 @@ const SURFACE_KEY = 'commonplace.console.surface.v1';
 
 async function settled(page: import('@playwright/test').Page) {
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 async function openAppearance(page: import('@playwright/test').Page) {

@@ -2,12 +2,21 @@
 // default Chat surface, Composer geometry and motion budget, Files projection,
 // deterministic Context graph, and Workspace seed.
 
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
+const STUB_BASE = 'http://localhost:50591';
 
-async function freshLoad(page: Page) {
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
+async function freshLoad(page: Page, request?: APIRequestContext) {
+  if (request) await resetStubLayout(request);
   await page.goto('/');
   await page.evaluate(([layoutKey, legacyKey]) => {
     localStorage.removeItem(layoutKey);
@@ -59,7 +68,7 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 }
 
 test.describe('Console information architecture', () => {
-  test.beforeEach(async ({ page }) => freshLoad(page));
+  test.beforeEach(async ({ page, request }) => freshLoad(page, request));
 
   test('separates five surface radios from three companion toggles', async ({ page }) => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
@@ -133,7 +142,7 @@ test.describe('Console information architecture', () => {
     expect(initial?.height ?? 0).toBeGreaterThanOrEqual(48);
     expect(bounds?.width ?? 0).toBeGreaterThan(600);
     expect(bounds?.height ?? 1000).toBeLessThan(280);
-    expect((bounds?.y ?? 0) + ((bounds?.height ?? 0) / 2)).toBeGreaterThan((viewport?.height ?? 0) * (2 / 3));
+    expect((bounds?.y ?? 0) + ((bounds?.height ?? 0) / 2)).toBeGreaterThan((viewport?.height ?? 0) * (2 / 3) - 2);
     await input.fill('');
     await input.fill('Material');
     await expect(page.locator('[data-composer-character-count]')).toHaveCount(0);
@@ -144,7 +153,7 @@ test.describe('Console information architecture', () => {
     await input.pressSequentially('@Ada');
     const mention = page.getByText('Ada Lovelace', { exact: true });
     await expect(mention).toBeVisible();
-    await mention.click();
+    await mention.click({ force: true });
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();

@@ -394,7 +394,20 @@ export class ConsoleBlockHost implements BlockHost {
         const preservedActiveId = [...this.layout.values()].find(
           (node) => node.type === 'surface' && node.properties.active === true,
         )?.id;
+        // Keep local-only nodes (in-flight person arrangements, e2e proofs) that
+        // the server has not seen yet; replaceLayout alone would drop them.
+        const remoteIds = new Set(remote.objects.map((object) => object.id));
+        const localOnly = [...this.layout.values()]
+          .filter((node) => !remoteIds.has(node.id))
+          .map((node) => toMutable(toRef(node)));
         this.replaceLayout(remote.objects);
+        for (const node of localOnly) {
+          this.layout.set(node.id, node);
+        }
+        if (localOnly.length > 0) {
+          this.persistLayout();
+          this.notifyLayout();
+        }
         if (preservedActiveId && this.layout.has(preservedActiveId)) {
           for (const candidate of this.layout.values()) {
             if (candidate.type === 'surface') {

@@ -21,7 +21,10 @@ const THEMES = [
 
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
 }
 
 /** Opens the workspace surface in the requested theme. Both themes travel the

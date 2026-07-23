@@ -89,16 +89,24 @@ export function ViewInstanceHost({
     if (!query) return;
     let active = true;
     let unsubscribe: (() => void) | undefined;
+    // Companion marker queries (thread/files/context/surface-tool) are not
+    // record sets: the descriptor owns the pane even when the set is empty.
+    const markerQuery = query.types.some((type) =>
+      type === 'thread'
+      || type === 'files-view'
+      || type === 'context-view'
+      || type === 'surface-tool',
+    );
     Promise.resolve(host.query(query))
       .then((next) => {
         if (!active) return;
         setSet(next);
-        setStateKind(next.objects.length === 0 ? 'empty' : 'populated');
+        setStateKind(next.objects.length === 0 && !markerQuery ? 'empty' : 'populated');
         if (typeof next.subscribe === 'function') {
           unsubscribe = next.subscribe((following) => {
             if (!active) return;
             setSet(following);
-            setStateKind(following.objects.length === 0 ? 'empty' : 'populated');
+            setStateKind(following.objects.length === 0 && !markerQuery ? 'empty' : 'populated');
           });
         }
       })
