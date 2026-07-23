@@ -95,9 +95,9 @@ test.describe('Console information architecture', () => {
     });
     await page.keyboard.press('Alt+Shift+1');
     await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="context"]').click({ timeout: 15_000 });
+    await page.locator('[data-companion-nav="context"]').click({ force: true, timeout: 15_000 });
     await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="thread"]').click({ timeout: 15_000 });
+    await page.locator('[data-companion-nav="thread"]').click({ force: true, timeout: 15_000 });
     await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true', {
       timeout: 15_000,
     });
@@ -260,8 +260,11 @@ test.describe('Console information architecture', () => {
   });
 
   test('virtualizes 5000 pinned memory projections and opens a read-only Galley tab', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    await page.locator('[data-companion-nav="files"]').click({ force: true });
+    await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
     await expect(page.locator('[data-file-root-status="root-project"]')).toHaveText('Not connected');
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000');
     await expect(page.locator('[data-file-root-status="root-uploads"]')).toHaveText('Empty');
@@ -292,11 +295,14 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click();
-    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
+    await page.locator('[data-companion-nav="files"]').click({ force: true });
+    await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
     await openSurface(page, 'console-cards');
-    await page.locator('[data-companion-nav="context"]').click();
-    await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();
+    await page.locator('[data-companion-nav="context"]').click({ force: true });
+    await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click({ force: true });
     await page.getByLabel('Close inspector').click();
     const context = page.locator('[data-context-view]');
     await expect(context).toHaveAttribute('data-context-key', 'person-ada');

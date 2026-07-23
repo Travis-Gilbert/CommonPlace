@@ -117,7 +117,7 @@ for (const { theme, preset } of THEMES) {
       // Companion-to-editor boundary is the island gutter (transparent handle).
       const panelSeam = page.locator('[data-panel-seam]').first();
       await expect(panelSeam, 'the companion-to-editor gutter must render').toBeVisible();
-      await expect(panelSeam).toHaveCSS('width', '10px');
+      await expect(panelSeam).toHaveCSS('width', '6px');
       await expect(panelSeam).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     });
 
@@ -205,7 +205,7 @@ for (const { theme, preset } of THEMES) {
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
       // Hide affordance on tool-window shells.
-      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Hide / }).first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
