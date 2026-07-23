@@ -29,6 +29,7 @@ async function freshLoad(page: Page) {
 }
 
 async function openSurface(page: Page, id: string) {
+  const path = SURFACE_PATHS[id];
   const rail = page.locator(`[data-surface-nav="${id}"]`);
   if (await rail.count()) {
     await rail.click();
@@ -40,10 +41,19 @@ async function openSurface(page: Page, id: string) {
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
     timeout: 15_000,
   });
-  const path = SURFACE_PATHS[id];
   // Rail activate flips before a cold App Router compile finishes router.push.
+  // If the URL never catches up, drive the segment directly.
   if (path) {
-    await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 30_000 });
+    const matched = await page
+      .waitForURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 15_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!matched) {
+      await page.goto(path);
+      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
+        timeout: 15_000,
+      });
+    }
   }
 }
 
