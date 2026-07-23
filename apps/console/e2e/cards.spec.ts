@@ -256,12 +256,9 @@ test.describe('cards, actions, mentions', () => {
       'Console punch list',
     );
     await page.keyboard.press('Escape');
-    const taskItem = page.locator('.galley [data-todo-item], .galley li.task-list-item').first();
+    const taskItem = page.locator('.galley [data-todo-item]').first();
     await expect(taskItem).toBeVisible({ timeout: 15_000 });
-    // Focus in-page, then send Alt+Enter through Playwright so the delegated
-    // Galley keydown listener sees a real trusted keyboard event.
-    await taskItem.evaluate((node) => (node as HTMLElement).focus());
-    await page.keyboard.press('Alt+Enter');
+    await taskItem.press('Alt+Enter');
     await expect(page.locator('[data-action-sheet]')).toBeVisible({ timeout: 15_000 });
     // Save as rule names its missing capability (IX6) instead of pretending.
     await expect(page.locator('[data-save-as-rule-unavailable]')).toContainText('IX6');

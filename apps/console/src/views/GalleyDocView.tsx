@@ -129,6 +129,15 @@ export function GalleyDocView({ set, host }: ViewRenderProps) {
         item.tabIndex = 0;
         item.dataset.todoItem = '';
         item.dataset.todoText = todoText;
+        // Item-level handler: Playwright (and real focus) deliver Alt+Enter to the
+        // focused list item; a root-only listener misses when focus is on the item
+        // and the event is not trusted through the scroll container.
+        item.addEventListener('keydown', (event) => {
+          if (!(event.altKey && (event.key === 'Enter' || event.code === 'Enter'))) return;
+          event.preventDefault();
+          event.stopPropagation();
+          openFor(item.dataset.todoText ?? (item.textContent ?? '').trim());
+        });
         item.appendChild(button);
       }
     };
