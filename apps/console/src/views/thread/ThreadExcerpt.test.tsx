@@ -30,6 +30,7 @@ describe('ThreadExcerpt', () => {
       </ThreadExcerpt>,
     );
     expect(markup).toContain('data-excerpt-collapsed="false"');
+    expect(markup).toContain('data-speaker="agent"');
     expect(markup).toContain('agent reply');
   });
 });

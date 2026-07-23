@@ -164,11 +164,12 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-composer-character-count]')).toHaveText('1800/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
-    const mention = page.getByText('Ada Lovelace', { exact: true });
-    await expect(mention).toBeVisible();
-    // Popover sits under the island header band without a raised z-index; force
-    // the selection (or keyboard Enter) so the oracle does not hang on intercepts.
-    await mention.click({ force: true });
+    const mentions = page.locator('[aria-label="Object mentions"]');
+    await expect(mentions).toBeVisible();
+    await expect(mentions.getByText('Ada Lovelace', { exact: true })).toBeVisible();
+    // Prefer keyboard confirm: the popover sits under the island header band and
+    // pointer hits can miss even with force when the header paints over it.
+    await input.press('Enter');
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();

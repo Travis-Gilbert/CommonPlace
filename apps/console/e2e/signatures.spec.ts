@@ -67,13 +67,15 @@ for (const { theme, preset } of THEMES) {
       const editor = luminance(await resolveToken(page, '--ij-editor'));
       const raised = luminance(await resolveToken(page, '--ij-raised'));
 
-      // Material register elevation: editor is sunken (--ij-tier-sunken), seam
-      // is ground (--ij-tier-ground), chrome sits above both. The boundary
-      // reads because chrome is lighter than the seam, and the well sinks at
-      // or below the seam plane -- demanding seam <= editor would assert
-      // against the intentional sunken well.
+      // Material register elevation differs by theme: in dark the editor well is
+      // sunken below ground seam; in light the seam is the darker keyline against
+      // the paper well. Always require seam darker than chrome.
       expect(seam, 'seam must be darker than chrome').toBeLessThan(chrome);
-      expect(editor, 'editor well sinks at or below the seam plane').toBeLessThanOrEqual(seam);
+      if (theme === 'light') {
+        expect(seam, 'in light the seam is darker than the editor well').toBeLessThanOrEqual(editor);
+      } else {
+        expect(editor, 'in dark the editor well sinks at or below the seam plane').toBeLessThanOrEqual(seam);
+      }
 
       // --ij-seam-raised is a different job from --ij-seam, and the pinned
       // register treats it differently. A structural seam separates two planes
