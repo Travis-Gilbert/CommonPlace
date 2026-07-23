@@ -26,11 +26,11 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import { CanvasView } from './canvas/CanvasView';
 import { StatusPanel } from './harness-ux/StatusPanel';
 import { WhyTracePanel } from './harness-ux/WhyTracePanel';
 import {
   BrowserPaneBlock,
-  CanvasBlock,
   DocumentBlock,
   KanbanBlock,
   TerminalBlock,
@@ -638,7 +638,7 @@ const CANVAS: ViewDescriptor = {
   id: 'canvas',
   name: 'Canvas',
   accepts: {},
-  emits: ['update', 'select', 'open'],
+  emits: ['create', 'update', 'move', 'link', 'unlink', 'delete', 'open', 'select'],
   renderer: 'canvas',
   source: {
     package: '@xyflow/react',
@@ -648,11 +648,14 @@ const CANVAS: ViewDescriptor = {
   },
   block: {
     usage: 'arrange spatially',
-    placements: ['full'],
+    placements: ['ground', 'full'],
     defaultSize: 'full',
     density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'canvas',
+    bodyBleed: 'flush',
   },
-  render: CanvasBlock,
+  render: CanvasView,
 };
 
 const AUTOMATION_HISTORY: ViewDescriptor = {

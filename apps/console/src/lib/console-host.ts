@@ -26,6 +26,8 @@ import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_I
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
+import { CanvasStore } from './canvas/store';
+import { CANVAS_TYPES } from './canvas/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
@@ -40,6 +42,7 @@ import { fetchStatus } from './harness-ux';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
+const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
 const LAYOUT_QUERY: ObjectQuery = {
   types: ['surface', 'region', 'view-instance'],
@@ -146,6 +149,8 @@ export interface ConsoleBlockHostOptions {
    *  Omitted values default to null. Fixture or test callers that need the
    *  shared seed must pass FIXTURE_TENANT explicitly. */
   readonly proactivityTenant?: string | null;
+  /** Canvas persistence shares the proactivity tenant unless explicitly set. */
+  readonly canvasTenant?: string | null;
 }
 
 export class ConsoleBlockHost implements BlockHost {
@@ -162,6 +167,7 @@ export class ConsoleBlockHost implements BlockHost {
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
+  private canvas: CanvasStore;
   private seedLayoutTask: Promise<void> | null = null;
   /** Serializes layout write-through so concurrent updates cannot race on the wire. */
   private layoutWriteTail: Promise<unknown> = Promise.resolve();
@@ -172,6 +178,7 @@ export class ConsoleBlockHost implements BlockHost {
     this.observer = options.onTransport;
     const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
+    this.canvas = new CanvasStore(options.canvasTenant === undefined ? tenant : options.canvasTenant);
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
@@ -473,6 +480,7 @@ export class ConsoleBlockHost implements BlockHost {
     // The proactivity graph is projected and served locally from fixtures until
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
+    if (query.types.some((type) => CANVAS_TYPE_SET.has(type) || type === 'canvas')) return this.canvas.query(query);
     if (query.types.includes('memory')) return this.memorySet(query);
     // Automation history: run and dispatch objects projected from harness status
     // (B9). Not a Data API type yet; projecting here is the seam, not a stub.
@@ -748,6 +756,7 @@ export class ConsoleBlockHost implements BlockHost {
     // receipted, reversible mutations on the local projection until the kernel
     // owns them. The store refuses an over-budget action-class edit itself.
     if (this.proactivity.owns(action)) return Promise.resolve(this.proactivity.emit(action));
+    if (this.canvas.owns(action)) return Promise.resolve(this.canvas.emit(action));
 
     switch (action.kind) {
       case 'move': {

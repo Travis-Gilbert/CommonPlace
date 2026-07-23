@@ -91,6 +91,9 @@ importers:
       '@commonplace/block-view':
         specifier: file:../../packages/block-view
         version: file:packages/block-view(react@19.2.3)
+      '@commonplace/json-canvas':
+        specifier: file:../../packages/json-canvas
+        version: link:../../packages/json-canvas
       '@commonplace/theorem-acp':
         specifier: file:../../packages/theorem-acp
         version: link:../../packages/theorem-acp
@@ -112,6 +115,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
+      '@paper-design/shaders-react':
+        specifier: ^0.0.77
+        version: 0.0.77(@types/react@19.2.17)(react@19.2.3)
       '@radix-ui/react-popover':
         specifier: ^1.1.19
         version: 1.1.19(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1050,6 +1056,15 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.8.3
+
+  packages/json-canvas:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.8.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.10(@types/node@22.20.1)(vite@7.3.6(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0))
 
   packages/rustyred-contracts: {}
 
@@ -14578,6 +14593,13 @@ snapshots:
 
   '@panva/hkdf@1.2.1': {}
 
+  '@paper-design/shaders-react@0.0.77(@types/react@19.2.17)(react@19.2.3)':
+    dependencies:
+      '@paper-design/shaders': 0.0.77
+      react: 19.2.3
+    optionalDependencies:
+      '@types/react': 19.2.17
+
   '@paper-design/shaders-react@0.0.77(@types/react@19.2.17)(react@19.2.7)':
     dependencies:
       '@paper-design/shaders': 0.0.77
@@ -15553,7 +15575,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

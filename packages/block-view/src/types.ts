@@ -346,7 +346,8 @@ export type BlockKindGlyph =
   | "terminal"
   | "browser"
   | "kanban"
-  | "automation";
+  | "automation"
+  | "canvas";
 
 /**
  * Block body inset vs flush under the header.
