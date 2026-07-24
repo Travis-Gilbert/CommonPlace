@@ -39,6 +39,14 @@ function readLegacySurface(): ObjectRef[] | null {
 export function readLayoutCache(): readonly ObjectRef[] | null {
   const snapshot = layoutStore.get(layoutCacheAtom);
   if (snapshot?.objects?.length) return snapshot.objects;
+  // atomWithStorage may still be on its initial null before the first
+  // subscriber hydrates. Read localStorage directly so ConsoleBlockHost can
+  // restore the active surface on the first client paint.
+  const fromStorage = readLayoutCacheFromLocalStorage();
+  if (fromStorage?.objects?.length) {
+    layoutStore.set(layoutCacheAtom, fromStorage);
+    return fromStorage.objects;
+  }
   const legacy = readLegacySurface();
   if (legacy) {
     writeLayoutCache(legacy);
@@ -52,6 +60,19 @@ export function readLayoutCache(): readonly ObjectRef[] | null {
     return legacy;
   }
   return null;
+}
+
+function readLayoutCacheFromLocalStorage(): LayoutCacheSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(LAYOUT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LayoutCacheSnapshot;
+    if (!parsed || !Array.isArray(parsed.objects) || parsed.objects.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 /** Persist the arrangement as the fast path in front of server truth. */

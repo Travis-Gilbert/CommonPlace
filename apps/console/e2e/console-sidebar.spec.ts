@@ -51,18 +51,21 @@ test.describe('Console sidebar', () => {
     await freshLoad(page);
   });
 
-  test('expanded labels identify every surface without hover', async ({ page }) => {
+  test('expanded labels identify every place without hover', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
-    await expect(rail.getByRole('radio', { name: 'Chat surface' })).toContainText('Chat');
-    await expect(rail.getByRole('radio', { name: 'Workspace surface' })).toContainText('Workspace');
-    await expect(rail.getByRole('radio', { name: 'Index surface' })).toContainText('Index');
-    await expect(rail.getByRole('radio', { name: 'Documents surface' })).toContainText('Documents');
-    await expect(rail.getByRole('radio', { name: 'Cards surface' })).toContainText('Cards');
-    await expect(page.getByLabel('Landmarks')).toBeVisible();
+    await expect(rail.getByRole('radio', { name: 'Chat place' })).toContainText('Chat');
+    await expect(rail.getByRole('radio', { name: 'Workspace place' })).toContainText('Workspace');
+    await expect(rail.getByRole('radio', { name: 'Filing place' })).toContainText('Filing');
+    await expect(rail.getByRole('radio', { name: 'Canvas place' })).toContainText('Canvas');
+    await expect(rail.getByRole('radio', { name: 'Automation place' })).toContainText('Automation');
+    await expect(rail.getByRole('radio', { name: 'Topics place' })).toContainText('Topics');
+    await expect(rail.getByRole('radio', { name: 'Indexer place' })).toContainText('Indexer');
+    await expect(rail.getByRole('radio', { name: 'Models place' })).toContainText('Models');
+    await expect(page.getByLabel('Pins')).toBeVisible();
   });
 
   test('Cmd or Ctrl B collapses and expands the rail', async ({ page }) => {
-    const nav = page.locator('nav[aria-label="Surfaces and companions"]');
+    const nav = page.locator('nav[aria-label="Places, collections, and pins"]');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
@@ -70,13 +73,16 @@ test.describe('Console sidebar', () => {
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
   });
 
-  test('Cmd or Ctrl 1 through 5 reach all five surfaces', async ({ page }) => {
+  test('Cmd or Ctrl 1 through 8 reach all places', async ({ page }) => {
     const targets = [
       ['1', 'console-chat', '/chat'],
       ['2', 'console-workspace', '/workspace'],
       ['3', 'console-index', '/filing'],
-      ['4', 'console-docs', '/documents'],
-      ['5', 'console-cards', '/cards'],
+      ['4', 'console-canvas', '/canvas'],
+      ['5', 'console-automation', '/automation'],
+      ['6', 'console-topics', '/topics'],
+      ['7', 'console-survey', '/indexer'],
+      ['8', 'console-models', '/models'],
     ] as const;
 
     for (const [key, id, path] of targets) {
@@ -89,10 +95,12 @@ test.describe('Console sidebar', () => {
           cancelable: true,
         }));
       }, key);
-      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 15_000 });
+      // Soft nav to /filing and /documents can trail the radio on a cold
+      // compile; wait for the active surface first, then the URL.
       await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
         timeout: 15_000,
       });
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 30_000 });
       await settled(page);
     }
   });
@@ -106,7 +114,7 @@ test.describe('Console sidebar', () => {
     await page.goto('/cards');
     await settled(page);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-cards');
-    await expect(page.locator('[data-island-arrangement]')).toBeVisible();
+    await expect(page.locator('[data-block-arrangement]')).toBeVisible();
 
     const landmark = page.locator('[data-sidebar-landmark]').first();
     await expect(landmark).toBeVisible({ timeout: 10_000 });
@@ -117,19 +125,19 @@ test.describe('Console sidebar', () => {
       : `console.landmark-record-${landmarkId}`;
 
     await page.evaluate(() => {
-      document.documentElement.setAttribute('data-island-move-receipts', '0');
+      document.documentElement.setAttribute('data-block-move-receipts', '0');
     });
 
-    await landmark.dragTo(page.locator('[data-island-arrangement]'));
+    await landmark.dragTo(page.locator('[data-block-arrangement]'));
 
-    await expect(page.locator(`[data-island-grid-cell="${instanceId}"]`)).toBeVisible({
+    await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 10_000,
     });
     await expect.poll(async () =>
-      page.evaluate(() => document.documentElement.getAttribute('data-island-move-receipts')),
+      page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('1');
 
-    const nav = page.locator('nav[aria-label="Surfaces and companions"]');
+    const nav = page.locator('nav[aria-label="Places, collections, and pins"]');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
     await page.waitForTimeout(400);
@@ -142,10 +150,10 @@ test.describe('Console sidebar', () => {
     await settled(page);
     await waitForServerLayout(request);
 
-    await expect(page.locator(`[data-island-grid-cell="${instanceId}"]`)).toBeVisible({
+    await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 15_000,
     });
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
-    await expect(page.getByLabel('Landmarks')).toBeVisible();
+    await expect(page.getByLabel('Pins')).toBeVisible();
   });
 });

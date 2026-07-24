@@ -1,0 +1,203 @@
+// SOURCING: none. Pure wire-to-wire projection between two pinned contract types.
+
+/**
+ * Projects the search stack's wire responses into the constellation payload the
+ * renderer draws (SPEC F2, HANDOFF-SEARCH-CONSTELLATION D1/D2).
+ *
+ * Two projections, one payload type:
+ *
+ *   layer one   ScatterResponse -> aspects as nodes
+ *   layer two   FindResponse    -> results as nodes
+ *
+ * The evidence rule from D1 is enforced here rather than in the renderer: an
+ * edge exists only when there is something real to cite. Aspect adjacency
+ * carries a weight and nothing else, so an aspect edge survives ONLY when the
+ * two aspects were seeded by a document in common, and the shared document ids
+ * are its evidence refs. A result edge survives only when the response carried a
+ * real graph edge, and that edge's id is its evidence ref. There is no
+ * similarity-only edge by construction, so a query with no graph connection
+ * yields nodes and zero edges rather than a failure.
+ *
+ * Caps are applied through `capConstellationPayload`, so the eight-node and
+ * two-memory-node limits live at the payload boundary exactly as they do for a
+ * backend-authored payload.
+ */
+
+import type {
+  AspectNode,
+  ConstellationEdge,
+  ConstellationNode,
+  ConstellationPayload,
+  FindHit,
+  FindResponse,
+  FindResult,
+  ScatterResponse,
+} from '@commonplace/block-view-contracts/search-stack';
+import { capConstellationPayload } from '@/lib/constellation-payload';
+
+/**
+ * Layer one. Every aspect becomes a node; the aspect's own relation annotation
+ * rides through untouched, so an aspect the graph knows nothing about stays
+ * Orphan rather than being quietly upgraded.
+ */
+export function constellationFromScatter(scatter: ScatterResponse): ConstellationPayload {
+  const nodes: ConstellationNode[] = scatter.aspects.map((aspect, index) => ({
+    id: aspect.id,
+    // An aspect is not a page, so its url is the page that seeded it when there
+    // is one, and an internal scene handle otherwise. The click handler routes
+    // by node id, never by this field.
+    url: topSeedSource(aspect) ?? `commonplace:scene:${scatter.scene?.sceneId ?? scatter.scatterRef}`,
+    title: aspect.label,
+    description: seedSummary(aspect),
+    admittedRank: index + 1,
+    relation: aspect.relation,
+  }));
+
+  const byId = new Map(scatter.aspects.map((aspect) => [aspect.id, aspect] as const));
+  const edges: ConstellationEdge[] = [];
+  const seen = new Set<string>();
+
+  for (const aspect of scatter.aspects) {
+    for (const adjacency of aspect.edges) {
+      const target = byId.get(adjacency.target);
+      if (!target || target.id === aspect.id) continue;
+      const pair = [aspect.id, target.id].sort().join('::');
+      if (seen.has(pair)) continue;
+
+      const shared = sharedDocs(aspect, target);
+      // No shared document means the only thing joining these two aspects is
+      // proximity in the embedding, which D1 refuses to draw.
+      if (shared.length === 0) continue;
+      seen.add(pair);
+      edges.push({
+        source: aspect.id,
+        target: target.id,
+        reason: {
+          type: 'shared_source',
+          text: `Both aspects were seeded by ${describeDocs(shared)}.`,
+          evidenceRefs: shared,
+        },
+      });
+    }
+  }
+
+  return capConstellationPayload({
+    nodes,
+    edges,
+    // Memory nodes are gold because the harness learned them. Nothing in a
+    // scatter response carries a memory atom reference, so emitting one here
+    // would be an invention; an absent gold node is the honest answer.
+    memoryNodes: [],
+    meta: {
+      query: scatter.query,
+      subgraphRef: scatter.scatterRef,
+      // The executor owns the token budget; a client-side projection has no
+      // reading of it, and reporting zero is truer than reporting a guess.
+      tokensAdmitted: 0,
+      tokensDeferred: 0,
+      degradedProviders: scatter.sceneRefusal ? [scatter.sceneRefusal] : [],
+    },
+  });
+}
+
+/**
+ * Layer two. The aspect's find response, drawn as the same constellation the
+ * F5 list reads. One response, two projections, no second retrieval.
+ */
+export function constellationFromFind(find: FindResponse): ConstellationPayload {
+  const results = dedupeByDoc(find.results);
+  const nodes: ConstellationNode[] = results.map((result, index) => ({
+    id: result.hit.doc,
+    url: result.hit.source ?? `commonplace:${result.hit.doc}`,
+    title: result.hit.title ?? result.hit.doc,
+    description: result.hit.snippet,
+    admittedRank: index + 1,
+    relation: result.relation,
+  }));
+
+  const present = new Set(nodes.map((node) => node.id));
+  const edges: ConstellationEdge[] = [];
+  const seen = new Set<string>();
+  const titleOf = new Map(nodes.map((node) => [node.id, node.title] as const));
+
+  for (const result of results) {
+    for (const edge of result.edges) {
+      if (!present.has(edge.fromId) || !present.has(edge.toId)) continue;
+      const key = `${[edge.fromId, edge.toId].sort().join('::')}::${edge.type}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({
+        source: edge.fromId,
+        target: edge.toId,
+        reason: {
+          type: 'graph_edge',
+          text: `${titleOf.get(edge.fromId) ?? edge.fromId} ${edge.type} ${titleOf.get(edge.toId) ?? edge.toId} in your graph.`,
+          evidenceRefs: [edge.id],
+        },
+      });
+    }
+  }
+
+  return capConstellationPayload({
+    nodes,
+    edges,
+    memoryNodes: [],
+    meta: {
+      query: find.query,
+      subgraphRef: find.retrievalRef,
+      tokensAdmitted: 0,
+      tokensDeferred: 0,
+      // A lane that could not run is a degraded provider, and the renderer
+      // already words it in the annotation column.
+      degradedProviders: find.lanes
+        .filter((receipt) => Boolean(receipt.degradedReason))
+        .map((receipt) => `${receipt.lane} lane (${receipt.degradedReason})`),
+    },
+  });
+}
+
+/** The documents two aspects were both seeded by, sorted so the id is stable. */
+function sharedDocs(left: AspectNode, right: AspectNode): string[] {
+  const rightDocs = new Set(right.seedHits.map((hit) => hit.doc));
+  const shared = new Set<string>();
+  for (const hit of left.seedHits) {
+    if (rightDocs.has(hit.doc)) shared.add(hit.doc);
+  }
+  return [...shared].sort();
+}
+
+function describeDocs(docs: readonly string[]): string {
+  if (docs.length === 1) return docs[0];
+  return `${docs.length} documents in common`;
+}
+
+function topSeedSource(aspect: AspectNode): string | undefined {
+  return aspect.seedHits.find((hit: FindHit) => Boolean(hit.source))?.source;
+}
+
+function seedSummary(aspect: AspectNode): string | undefined {
+  const top = aspect.seedHits[0];
+  if (!top) return undefined;
+  const count = aspect.seedHits.length;
+  const noun = count === 1 ? 'seed' : 'seeds';
+  return `${count} ${noun}, from ${top.title ?? top.doc}`;
+}
+
+/**
+ * One node per document. A document can be hit by several lanes; the scene
+ * draws it once, keeping the highest-scored occurrence so the node's relation
+ * and snippet come from the strongest evidence for it.
+ */
+function dedupeByDoc(results: readonly FindResult[]): FindResult[] {
+  const best = new Map<string, FindResult>();
+  for (const result of results) {
+    const current = best.get(result.hit.doc);
+    if (!current || result.score > current.score) best.set(result.hit.doc, result);
+  }
+  // Source order is the ranking; preserve it rather than re-sorting by score.
+  const kept: FindResult[] = [];
+  for (const result of results) {
+    if (best.get(result.hit.doc) === result) kept.push(result);
+  }
+  return kept;
+}

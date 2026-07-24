@@ -19,11 +19,11 @@
 }
 
 .goal-edge-running {
-  animation: goal-edge-march 0.9s linear infinite;
+  animation: goal-edge-march calc(var(--ij-motion) * 5) linear infinite;
 }
 
 .goal-edge-progress {
-  transition: stroke-dashoffset 0.22s var(--ij-ease);
+  transition: stroke-dashoffset var(--ij-motion) var(--ij-ease);
 }
 
 .ij-progress-indeterminate {

@@ -17,7 +17,7 @@ export function ProgressEdge(props: EdgeProps<GoalFlowEdge>) {
   const onPath = props.data?.onPath !== false;
   const stroke = state === 'failed'
     ? 'var(--ij-error)'
-    : state === 'blocked'
+    : state === 'blocked' || state === 'escalated'
       ? 'var(--ij-warn)'
     : state === 'verified'
       ? 'var(--ij-ok)'
@@ -47,7 +47,7 @@ export function ProgressEdge(props: EdgeProps<GoalFlowEdge>) {
         strokeDashoffset={1 - progress}
         className="goal-edge-progress"
       />
-      {state === 'running' && progress > 0 ? (
+      {state === 'running' ? (
         <path
           d={path}
           fill="none"

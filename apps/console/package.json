@@ -18,12 +18,13 @@
     "gate:motion": "node scripts/check-motion-inventory.mjs",
     "gate:icons": "node scripts/check-icon-svg.mjs",
     "gate:tokens": "node scripts/check-token-manifest.mjs",
-    "gate:islands": "node scripts/check-island-classes.mjs",
+    "gate:blocks": "node scripts/check-block-classes.mjs",
     "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:islands",
-    "test:e2e": "playwright test"
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks",
+    "test:e2e": "playwright test",
+    "gate:radius": "node scripts/check-radius-lint.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.12.28",
@@ -38,6 +39,7 @@
     "@codemirror/view": "^6.41.0",
     "@commonplace/block-view": "file:../../packages/block-view",
     "@commonplace/data-model-contracts": "file:../../packages/data-model-contracts",
+    "@commonplace/json-canvas": "file:../../packages/json-canvas",
     "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
     "@dagrejs/dagre": "^3.0.0",
     "@dagrejs/graphlib": "^4.0.1",
@@ -45,6 +47,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@lezer/highlight": "^1.2.1",
+    "@paper-design/shaders-react": "0.0.77",
     "@radix-ui/react-popover": "^1.1.19",
     "@react-pdf/renderer": "^4.5.1",
     "@react-three/drei": "^10.7.7",
@@ -71,7 +74,9 @@
     "textmode.js": "^0.17.0",
     "zod": "^3.25.76",
     "three": "0.183.2",
-    "zustand": "5.0.14"
+    "zustand": "5.0.14",
+    "@paper-design/shaders": "0.0.77",
+    "dockview": "^4.10.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

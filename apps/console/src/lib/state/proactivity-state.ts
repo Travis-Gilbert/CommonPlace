@@ -24,7 +24,7 @@ interface ProactivityState {
 export const proactivityGraphAtom = atom<ProactivityGraph | null>(null);
 export const proactivityStatusAtom = atom<ProactivityStatus>('loading');
 export const proactivityErrorAtom = atom<string | null>(null);
-export const proactivityHighlightedNodeIdsAtom = atom<ReadonlySet<string>>(new Set());
+export const proactivityHighlightedNodeIdsAtom = atom<ReadonlySet<string>>(new Set<string>());
 
 const proactivitySliceAtoms = {
   graph: proactivityGraphAtom,

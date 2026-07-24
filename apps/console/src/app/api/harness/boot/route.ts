@@ -16,9 +16,13 @@ export async function GET(): Promise<Response> {
   if (flat.ok) {
     const boot = normalizeBootPayload(flat.data);
     if (boot) return Response.json(boot);
+  } else if (flat.response.status === 401 || flat.response.status === 403) {
+    return flat.response;
   }
 
-  if (flat.response.status === 401 || flat.response.status === 403) return flat.response;
+  const mcpMissing = flat.ok
+    ? 'boot_projection_invalid'
+    : `mcp:${await responseError(flat.response)}`;
 
   // Fallback: pull a status digest so ACP still gets a bounded orientation brief.
   const graphql = await callHarnessGraphql(
@@ -39,17 +43,14 @@ export async function GET(): Promise<Response> {
       context: null,
       degradation: {
         degraded: true,
-        missing: [
-          'boot_door',
-          ...(flat.ok ? ['boot_projection_invalid'] : [`mcp:${await responseError(flat.response)}`]),
-        ],
+        missing: ['boot_door', mcpMissing],
       },
       generation: 0,
     } satisfies BootPayload);
   }
 
   return Response.json(degradedBoot([
-    `mcp:${await responseError(flat.response)}`,
+    mcpMissing,
     `graphql:${graphql.error}`,
   ]));
 }

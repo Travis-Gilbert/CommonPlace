@@ -12,9 +12,9 @@ import type { ConsoleBlockHost } from '@/lib/console-host';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
   connected: 'Connected',
-  connecting: 'Connecting',
-  disconnected: 'Disconnected',
-  'identity-refused': 'Identity refused',
+  connecting: 'Transport connecting',
+  disconnected: 'Transport disconnected',
+  'identity-refused': 'Authentication refused',
 };
 
 export function StatusBar({ host }: { host: ConsoleBlockHost }) {
@@ -31,10 +31,18 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
     <footer
       data-paint-region="status-bar"
       data-frame-resident="status-bar"
+      data-connection-owner="status-bar"
       className="flex h-ij-statusbar shrink-0 items-center gap-3 bg-transparent px-ij-island-gutter font-ij-mono text-ij-ink-info"
     >
       <span
         data-connection={connection}
+        data-connection-kind={
+          connection === 'identity-refused'
+            ? 'authentication'
+            : connection === 'connected'
+              ? 'transport'
+              : 'transport'
+        }
         style={{ color: connection === 'identity-refused' ? 'var(--ij-error)' : undefined }}
       >
         {CONNECTION_LABEL[connection]}
@@ -53,7 +61,7 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
         </button>
       ) : null}
       {progressLabel ? (
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2" data-connection-kind="query">
           <span className="ij-progress-indeterminate h-1 w-32 rounded-ij-arc-underline" />
           {progressLabel}
         </span>

@@ -12,7 +12,7 @@ import {
 } from '@commonplace/theorem-acp/plan-state';
 import { computePlanPath } from '@commonplace/theorem-acp/plan-path';
 
-export type GoalEdgeState = 'pending' | 'claimed' | 'running' | 'verified' | 'blocked' | 'failed' | 'superseded';
+export type GoalEdgeState = 'pending' | 'claimed' | 'running' | 'verified' | 'blocked' | 'escalated' | 'failed' | 'superseded';
 
 export interface GoalEdgeData extends Record<string, unknown> {
   progress: number;
@@ -152,6 +152,7 @@ function edgeState(status: PlanTaskStatus): GoalEdgeState {
   if (status === 'verified') return 'verified';
   if (status === 'failed') return 'failed';
   if (status === 'blocked') return 'blocked';
+  if (status === 'escalated') return 'escalated';
   if (status === 'superseded') return 'superseded';
   return 'pending';
 }

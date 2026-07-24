@@ -47,8 +47,15 @@ const projected: ObjectRef[] = [
 describe('indexer-projection', () => {
   it('parses Theorem topicIndexerObjects payloads into ObjectRefs', () => {
     const objects = parseIndexerObjectsPayload({ objects: projected });
+    expect(objects).not.toBeNull();
     expect(objects).toHaveLength(2);
-    expect(indexerProjectionIsReadable(objects)).toBe(true);
+    expect(indexerProjectionIsReadable(objects ?? [])).toBe(true);
+  });
+
+  it('returns null for invalid payloads and empty arrays for authoritative empty corpora', () => {
+    expect(parseIndexerObjectsPayload(null)).toBeNull();
+    expect(parseIndexerObjectsPayload({ wrong: true })).toBeNull();
+    expect(parseIndexerObjectsPayload({ objects: [] })).toEqual([]);
   });
 
   it('filters by survey query types and topic_id', () => {

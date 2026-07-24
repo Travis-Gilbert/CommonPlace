@@ -17,6 +17,7 @@ export type PlanTaskStatus =
   | 'verifying'
   | 'verified'
   | 'blocked'
+  | 'escalated'
   | 'failed'
   | 'superseded';
 
@@ -89,6 +90,14 @@ export type PlanChangedEvent = {
   at: string | null;
 };
 
+export type PlanTaskEscalation = {
+  trigger: string;
+  fromHead: string | null;
+  targetHead: string;
+  originatingReceipts: string[];
+  occurredAtMs: number | null;
+};
+
 export type PlanTask = {
   id: string;
   alias: string;
@@ -115,6 +124,8 @@ export type PlanTask = {
   supersededBy: string[];
   changedEvents: PlanChangedEvent[];
   proofStatus: string | null;
+  assignedHead: string | null;
+  escalation: PlanTaskEscalation | null;
 };
 
 export type PlanCanvasSnapshot = {
@@ -225,15 +236,22 @@ export function normalizePlanPoll(
 ): PlanPollResult {
   const events = normalizePlanEvents(payload.events);
   const inspected = normalizePlanSnapshot(payload.snapshot);
-  const folded = previous ? events.reduce(applyPlanEvent, previous) : null;
-  const snapshot = inspected ?? folded;
-  if (!snapshot) throw new Error('Plan stream response did not contain a usable snapshot.');
+  const eventStreamDegraded = record(payload.degraded)?.events === true;
+  const base = inspected ? mergeSnapshotHistory(inspected, previous) : previous;
+  if (!base) throw new Error('Plan stream response did not contain a usable snapshot.');
+  const foldEvents = inspected
+    ? events.filter((event) => event.graphVersion > inspected.streamCursor)
+    : events;
+  const snapshot = foldEvents.reduce(applyPlanEvent, base);
 
-  const cursor = Math.max(
-    snapshot.streamCursor,
-    number(payload.cursor) ?? 0,
-    ...events.map((event) => event.graphVersion),
-  );
+  const explicitCursor = number(payload.cursor);
+  const cursor = eventStreamDegraded
+    ? Math.max(previous?.streamCursor ?? 0, explicitCursor ?? previous?.streamCursor ?? 0)
+    : Math.max(
+        snapshot.streamCursor,
+        explicitCursor ?? 0,
+        ...events.map((event) => event.graphVersion),
+      );
   return {
     snapshot: {
       ...snapshot,
@@ -375,13 +393,21 @@ export function normalizePlanEvents(value: unknown): PlanCanvasEvent[] {
     .map((raw, index) => {
       const item = record(raw);
       if (!item) return null;
-      const detail = record(item.detail) ?? record(item.payload) ?? {};
+      const detail = {
+        ...(record(item.metadata) ?? {}),
+        ...(record(item.payload) ?? {}),
+        ...(record(item.detail) ?? {}),
+      };
       const graphVersion = number(item.graph_version) ?? number(item.graphVersion) ?? 0;
       const transition = text(item.transition) ?? text(item.type) ?? 'plan_changed';
+      const taskId = text(item.task_id) ?? text(item.taskId);
+      const nodeIds = strings(item.node_ids ?? item.nodeIds ?? item.task_ids ?? item.taskIds)
+        .concat(taskId ? [taskId] : [])
+        .map(canonicalTaskRef);
       return {
         id: text(item.event_id) ?? text(item.eventId) ?? `${transition}:${graphVersion}:${index}`,
         transition,
-        nodeIds: strings(item.node_ids ?? item.nodeIds ?? item.task_ids ?? item.taskIds),
+        nodeIds: [...new Set(nodeIds)],
         actor: text(item.actor) ?? text(item.head) ?? null,
         graphVersion,
         at: text(item.created_at) ?? text(item.createdAt) ?? text(item.at) ?? null,
@@ -394,14 +420,28 @@ export function normalizePlanEvents(value: unknown): PlanCanvasEvent[] {
 
 export function applyPlanEvent(snapshot: PlanCanvasSnapshot, event: PlanCanvasEvent): PlanCanvasSnapshot {
   const status = statusForTransition(event.transition, event.detail);
-  const changed = changedEvents(event.detail, event.at);
   const affected = new Set(event.nodeIds);
+  const taskReverts = record(event.detail.task_reverts) ?? record(event.detail.taskReverts);
+  if (taskReverts) {
+    for (const taskId of Object.keys(taskReverts)) affected.add(canonicalTaskRef(taskId));
+  }
+  const detailTaskId = text(event.detail.task_id) ?? text(event.detail.taskId);
+  if (detailTaskId) affected.add(canonicalTaskRef(detailTaskId));
   const tasks = snapshot.tasks.map((task) => {
     if (!affected.has(task.id) && !affected.has(task.alias)) return task;
+    const changed = mergeChangedEvents(
+      changedEvents(event.detail, event.at),
+      changedEvents(taskReverts?.[task.id] ?? taskReverts?.[task.alias], event.at),
+    );
     return {
       ...task,
       ...(status ? { status } : {}),
       ...(event.actor && status === 'claimed' ? { claimHolder: event.actor } : {}),
+      ...(status === 'escalated' ? {
+        claimHolder: null,
+        assignedHead: text(event.detail.target_head) ?? text(event.detail.targetHead) ?? task.assignedHead,
+        escalation: normalizeEscalation(event.detail) ?? task.escalation,
+      } : {}),
       ...(changed.length ? { changedEvents: mergeChangedEvents(task.changedEvents, changed) } : {}),
     };
   });
@@ -413,6 +453,35 @@ export function applyPlanEvent(snapshot: PlanCanvasSnapshot, event: PlanCanvasEv
     progress: { done, total },
     streamCursor: Math.max(snapshot.streamCursor, event.graphVersion),
     events: mergeEvents(snapshot.events, [event]),
+  };
+}
+
+function mergeSnapshotHistory(
+  inspected: PlanCanvasSnapshot,
+  previous: PlanCanvasSnapshot | null,
+): PlanCanvasSnapshot {
+  if (!previous || previous.planId !== inspected.planId) return inspected;
+  const priorTasks = new Map<string, PlanTask>();
+  for (const task of previous.tasks) {
+    priorTasks.set(task.id, task);
+    priorTasks.set(task.alias, task);
+  }
+  return {
+    ...inspected,
+    tasks: inspected.tasks.map((task) => {
+      const prior = priorTasks.get(task.id) ?? priorTasks.get(task.alias);
+      if (!prior) return task;
+      return {
+        ...task,
+        changedEvents: mergeChangedEvents(prior.changedEvents, task.changedEvents),
+        progressFraction: task.progressFraction ?? prior.progressFraction,
+        progressNote: task.progressNote ?? prior.progressNote,
+        assignedHead: task.assignedHead ?? prior.assignedHead,
+        escalation: task.escalation ?? prior.escalation,
+      };
+    }),
+    streamCursor: Math.max(previous.streamCursor, inspected.streamCursor),
+    events: mergeEvents(previous.events, inspected.events),
   };
 }
 
@@ -443,6 +512,15 @@ function normalizeTask(value: unknown): PlanTask | null {
   const admission = snake(text(item.admission_requirement) ?? text(item.admissionRequirement) ?? 'admitted');
   const progress = record(item.progress);
   const position = normalizePosition(item.position ?? item.pinned_position ?? item.pinnedPosition);
+  const assignedHead = text(item.assigned_head) ?? text(item.assignedHead) ?? null;
+  const escalation = normalizeEscalation(item.escalation, assignedHead);
+  const lifecycleStatus = item.lifecycle_status ?? item.lifecycleStatus ?? item.status;
+  const planStatus = item.plan_status ?? item.planStatus;
+  const status = snake(text(lifecycleStatus) ?? '') === 'working' && escalation
+    ? 'escalated'
+    : snake(text(planStatus) ?? '') === 'superseded'
+      ? 'superseded'
+      : normalizeStatus(lifecycleStatus ?? planStatus);
   const fraction = number(item.progress_fraction)
     ?? number(item.progressFraction)
     ?? number(progress?.fraction);
@@ -452,7 +530,7 @@ function normalizeTask(value: unknown): PlanTask | null {
     title: text(item.title) ?? text(item.goal) ?? id,
     description: text(item.description) ?? text(item.goal) ?? '',
     kind: normalizeKind(item.kind ?? item.task_kind ?? item.taskKind),
-    status: normalizeStatus(item.lifecycle_status ?? item.lifecycleStatus ?? item.status),
+    status,
     dependencies: strings(item.dependencies ?? item.depends_on ?? item.dependsOn),
     serves: strings(item.serves ?? item.criterion_ids ?? item.criterionIds),
     acceptanceCriteria: strings(item.acceptance_criteria ?? item.acceptanceCriteria),
@@ -475,6 +553,22 @@ function normalizeTask(value: unknown): PlanTask | null {
       null,
     ),
     proofStatus: text(item.proof_status) ?? text(item.proofStatus) ?? null,
+    assignedHead,
+    escalation,
+  };
+}
+
+function normalizeEscalation(value: unknown, fallbackTarget: string | null = null): PlanTaskEscalation | null {
+  const item = record(value);
+  if (!item) return null;
+  const targetHead = text(item.target_head) ?? text(item.targetHead) ?? fallbackTarget;
+  if (!targetHead) return null;
+  return {
+    trigger: text(item.trigger) ?? 'unspecified',
+    fromHead: text(item.from_head) ?? text(item.fromHead) ?? null,
+    targetHead,
+    originatingReceipts: strings(item.originating_receipts ?? item.originatingReceipts),
+    occurredAtMs: number(item.occurred_at_ms ?? item.occurredAtMs),
   };
 }
 
@@ -584,9 +678,14 @@ function normalizeStatus(value: unknown): PlanTaskStatus {
       return 'verified';
     case 'failed':
     case 'rejected':
+    case 'cancelled':
+    case 'canceled':
       return 'failed';
     case 'blocked':
+    case 'input_required':
       return 'blocked';
+    case 'escalated':
+      return 'escalated';
     case 'superseded':
       return 'superseded';
     default:
@@ -605,6 +704,7 @@ function statusForTransition(transition: string, detail: Record<string, unknown>
   if (value.includes('verify') && !value.includes('verified')) return 'verifying';
   if (value.includes('completed') || value === 'done' || value.includes('verified')) return 'verified';
   if (value.includes('failed') || value.includes('aborted')) return 'failed';
+  if (value.includes('escalat')) return 'escalated';
   if (value.includes('pending') || value.includes('lease_expired')) return 'pending';
   return null;
 }
@@ -627,7 +727,14 @@ function normalizeAnnotations(value: unknown, writebackPolicy?: unknown): Afford
 
 function changedEvents(value: unknown, fallbackAt: string | null): PlanChangedEvent[] {
   const root = record(value);
-  return array(root?.changed_events ?? root?.changedEvents ?? root?.paths ?? value)
+  return array(
+    root?.changed_events
+      ?? root?.changedEvents
+      ?? root?.changed_paths
+      ?? root?.changedPaths
+      ?? root?.paths
+      ?? value,
+  )
     .flatMap((raw) => {
       if (typeof raw === 'string') return [{ path: raw, generation: null, at: fallbackAt }];
       const item = record(raw);
@@ -652,6 +759,12 @@ function mergeEvents(current: PlanCanvasEvent[], incoming: PlanCanvasEvent[]): P
   return [...byId.values()]
     .sort((left, right) => left.graphVersion - right.graphVersion || left.id.localeCompare(right.id))
     .slice(-100);
+}
+
+function canonicalTaskRef(value: string): string {
+  const marker = ':node:';
+  const markerIndex = value.lastIndexOf(marker);
+  return markerIndex >= 0 ? value.slice(markerIndex + marker.length) : value;
 }
 
 function record(value: unknown): Record<string, unknown> | null {

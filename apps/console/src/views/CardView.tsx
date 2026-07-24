@@ -301,7 +301,7 @@ function ResolvedCard({
  *  template. An empty set renders the shared empty state. */
 export function CardFullView({ set, host }: ViewRenderProps) {
   const object = set.objects[0];
-  if (!object) return <ViewState state="empty" mode="shell" />;
+  if (!object) return <ViewState state="empty" mode="shell" emptyCause="not-loaded" />;
   return (
     <div className="h-full overflow-y-auto">
       <RecordCard object={object} host={host} size="full" />

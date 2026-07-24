@@ -467,13 +467,13 @@
     "--ij-arc": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-arc-underline": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-blue-1": {
@@ -576,10 +576,28 @@
         "src/styles/int-ui-register-light.css"
       ]
     },
+    "--ij-chat-chip-font-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-chip-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-chip-radius": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
     "--ij-chrome": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "toolbars, tool windows, status bar",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -588,91 +606,109 @@
     "--ij-composer-control-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-control-size-compact": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-counter-min-width": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-size-compact": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-font-weight": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-full-min-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-gap": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-instrument-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-line-height": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-max-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-meta-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-min-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-compact": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-x": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-y": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-radius": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-control-border": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "The four structural surfaces. Islands reconciliation (HANDOFF-CONSOLE-BLOCK-SYSTEM",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -681,13 +717,19 @@
     "--ij-control-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-control-min-w": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-corner-raised": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-dialog-inset-top": {
@@ -705,7 +747,7 @@
     "--ij-divider": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "one pixel splitters",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -720,7 +762,7 @@
     "--ij-editor": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "editor well, tab strip background",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -752,6 +794,24 @@
         "src/styles/primer-register.css"
       ]
     },
+    "--ij-excerpt-header-font-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-excerpt-header-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-floating-shadow": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Floating and scrim are the only tiers that may cast shadow (material register D1).",
+      "resolvedAlsoIn": []
+    },
     "--ij-focus-ring": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -777,7 +837,7 @@
     "--ij-frame": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "inverted frame: lighter than island chrome",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css",
@@ -1150,6 +1210,120 @@
         "src/styles/register-bridge.css"
       ]
     },
+    "--ij-keyline": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-keyline-decorative": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-keyline-focus": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-kind-automation": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-browser": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-canvas": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-cards": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-context": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-doc": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-files": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-kanban": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-memory": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-model": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-rail": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-records": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-terminal": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-thread": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-kind-workspace": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.",
+      "resolvedAlsoIn": []
+    },
     "--ij-leading-ui": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -1333,10 +1507,40 @@
         "src/styles/int-ui-register-light.css"
       ]
     },
+    "--ij-radius-lg": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "panes, islands (BlockSize w)",
+      "resolvedAlsoIn": []
+    },
+    "--ij-radius-md": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "panels, cards (BlockSize v/sq)",
+      "resolvedAlsoIn": []
+    },
+    "--ij-radius-sm": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "rail rows, small controls (BlockSize m)",
+      "resolvedAlsoIn": []
+    },
+    "--ij-radius-xl": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "full surfaces (BlockSize full)",
+      "resolvedAlsoIn": []
+    },
+    "--ij-radius-xs": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "chips, shortcut badges (BlockSize s)",
+      "resolvedAlsoIn": []
+    },
     "--ij-raised": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "popups, tooltips, hover surfaces",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -1430,7 +1634,7 @@
     "--ij-row-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-row-orange": {
@@ -1478,10 +1682,16 @@
         "src/styles/primer-register.css"
       ]
     },
+    "--ij-scrim-fill": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Floating and scrim are the only tiers that may cast shadow (material register D1).",
+      "resolvedAlsoIn": []
+    },
     "--ij-seam": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "structural borders between regions",
+      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -1490,7 +1700,7 @@
     "--ij-seam-raised": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "border on elevated surfaces",
+      "note": "keyline on raised+",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -1524,6 +1734,12 @@
         "src/styles/theme-engine.ts"
       ]
     },
+    "--ij-sidebar-avatar": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-sidebar-collapsed-w": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
@@ -1536,16 +1752,64 @@
       "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
       "resolvedAlsoIn": []
     },
+    "--ij-sidebar-footer-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-icon-gap": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-label-line": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-label-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-pad": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-sidebar-pip-w": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
       "resolvedAlsoIn": []
     },
+    "--ij-sidebar-row-gap": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-shortcut-size": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-zone-gap": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-statusbar-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1561,7 +1825,7 @@
     "--ij-stripe-w": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1569,7 +1833,7 @@
     "--ij-tab-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1610,10 +1874,56 @@
       "note": "Type. The console UI face is IBM Plex Sans at 13px (owner typography",
       "resolvedAlsoIn": []
     },
+    "--ij-thread-column-max": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-tier-floating": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-tier-ground": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-tier-raised": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-tier-scrim": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
+    "--ij-tier-sunken": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "resolvedAlsoIn": [
+        "src/styles/int-ui-register-light.css"
+      ]
+    },
     "--ij-toolbar-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1629,13 +1939,13 @@
     "--ij-tree-inset": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-underline-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,",
+      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
       "resolvedAlsoIn": []
     },
     "--ij-warn": {

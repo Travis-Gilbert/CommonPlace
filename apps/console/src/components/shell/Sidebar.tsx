@@ -1,21 +1,26 @@
 'use client';
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
-// The sidebar is frame chrome. Native drag events provide the landmark to
-// ground promotion behavior; island moves remain receipted through the host.
+// SPEC-CONSOLE-INFORMATION-ARCHITECTURE-1.0: three rail tiers (Places,
+// Collections, Pins). Companions are dock panels and stay out of the rail.
+// Connection state is owned by StatusBar only (D7).
 
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
 import type { ConsoleBlockHost } from '@/lib/console-host';
-import { pathForSurfaceKind } from '@/lib/surface-routes';
+import { softNavigate } from '@/lib/soft-navigate';
 import { githubTenantSlug } from '@/lib/account-identity';
-import { recordIslandMoveReceipts } from '@/lib/island-move-receipts';
-import { promoteIslandAction } from '@/lib/island-promotion';
+import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import { placeBlockAction } from '@/lib/block-placement';
+import { kindHueCss } from '@/lib/material/kind-hues';
+import { deriveRailCollections, PLACE_ENTRIES, type RailCollection } from '@/lib/rail/rail-model';
+import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import {
+  IconAccount,
   IconCards,
   IconChat,
   IconDoc,
@@ -24,6 +29,7 @@ import {
   IconMemory,
   IconModel,
   IconRecords,
+  IconRun,
   IconThread,
   IconWorkspace,
 } from './icons';
@@ -33,19 +39,23 @@ export interface SidebarRegion {
   readonly instances: readonly ObjectRef[];
 }
 
-const SURFACE_ICONS: Record<string, typeof IconRecords> = {
+const PLACE_ICONS: Record<string, typeof IconRecords> = {
   chat: IconChat,
   workspace: IconWorkspace,
   index: IconIndex,
+  canvas: IconCards,
+  automation: IconRun,
+  topics: IconMemory,
+  survey: IconIndex,
   model: IconModel,
-  documents: IconDoc,
-  cards: IconCards,
 };
 
-const REGION_ICONS: Record<string, typeof IconRecords> = {
-  files: IconFiles,
-  context: IconMemory,
+const COLLECTION_ICONS: Record<string, typeof IconRecords> = {
+  records: IconRecords,
+  cards: IconCards,
   thread: IconThread,
+  doc: IconDoc,
+  files: IconFiles,
 };
 
 const LANDMARK_ICONS: Record<string, typeof IconRecords> = {
@@ -152,15 +162,47 @@ function shortcutLabel(index: number): string {
   return `Cmd or Ctrl ${index + 1}`;
 }
 
+function shortcutGlyph(index: number): string {
+  return `⌘${index + 1}`;
+}
+
 function SidebarDivider() {
-  return <div aria-hidden className="my-1 h-px w-full shrink-0 bg-ij-seam" />;
+  return (
+    <div
+      aria-hidden
+      className="h-px w-full shrink-0"
+      style={{
+        marginBlock: '4px',
+        background: 'var(--ij-gray-3)',
+      }}
+    />
+  );
+}
+
+function SidebarRowIcon({
+  children,
+  muted,
+  hue,
+}: {
+  readonly children: React.ReactNode;
+  readonly muted?: boolean;
+  readonly hue?: string;
+}) {
+  return (
+    <span
+      className="flex size-ij-stripe-icon shrink-0 items-center justify-center"
+      style={{ color: hue ?? (muted ? 'var(--ij-ink-info)' : 'var(--ij-ink)') }}
+      aria-hidden
+    >
+      {children}
+    </span>
+  );
 }
 
 export function Sidebar({
   host,
-  surfaces,
-  companions,
   activeSurfaceId,
+  compact,
   landmarksRegion,
   activeGridRegionId,
   onToggleCompanion,
@@ -171,6 +213,7 @@ export function Sidebar({
   readonly surfaces: readonly ObjectRef[];
   readonly companions: readonly SidebarRegion[];
   readonly activeSurfaceId: string;
+  readonly compact: boolean;
   readonly landmarksRegion: SidebarRegion | null;
   readonly activeGridRegionId: string | null;
   readonly onToggleCompanion: (region: SidebarRegion) => void;
@@ -180,13 +223,9 @@ export function Sidebar({
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
+  const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
-  const routedSurfaces = useMemo(
-    () => surfaces
-      .filter((surface) => pathForSurfaceKind(String(surface.properties.kind ?? '')) !== null)
-      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
-    [surfaces],
-  );
+  const collections = useMemo(() => deriveRailCollections(), []);
   const seededLandmarks = landmarksRegion?.instances ?? [];
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
@@ -201,36 +240,29 @@ export function Sidebar({
     onCollapsedChange(!collapsed);
   }, [collapsed, onCollapsedChange]);
 
-  const switchTo = useCallback((surface: ObjectRef) => {
-    if (surface.id === activeSurfaceId) return;
-    const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
-    if (path) {
-      // Route first: the pathname effect activates the matching surface. Calling
-      // activateSurface before the URL settles races the effect and reverts.
-      router.push(path);
-      return;
+  const routedRailEntries = useMemo(() => [...PLACE_ENTRIES, ...collections], [collections]);
+
+  useEffect(() => {
+    for (const entry of routedRailEntries) {
+      router.prefetch(entry.path);
     }
-    void host.activateSurface(surface.id);
-  }, [activeSurfaceId, host, router]);
+  }, [routedRailEntries, router]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-      if (event.key.toLowerCase() === 'b') {
-        event.preventDefault();
-        toggleCollapse();
-        return;
-      }
-      const index = Number(event.key) - 1;
-      const surface = routedSurfaces[index];
-      if (index >= 0 && surface) {
-        event.preventDefault();
-        switchTo(surface);
-      }
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (event.key.toLowerCase() !== 'b') return;
+      event.preventDefault();
+      toggleCollapse();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [routedSurfaces, switchTo, toggleCollapse]);
+  }, [toggleCollapse]);
+
+  const navigateTo = useCallback((surfaceId: string, path: string) => {
+    void host.activateSurface(surfaceId);
+    void softNavigate(router, path).catch(() => undefined);
+  }, [host, router]);
 
   const ensureLandmarkInstance = useCallback(async (landmark: ObjectRef): Promise<string | null> => {
     if (landmark.type === 'view-instance') return landmark.id;
@@ -265,15 +297,17 @@ export function Sidebar({
   const promoteToGround = useCallback(async (instanceId: string) => {
     if (!activeGridRegionId) return;
     let moves = 0;
-    for (const action of promoteIslandAction(instanceId, {
-      kind: 'grid',
+    for (const action of placeBlockAction(instanceId, {
+      placement: 'ground',
       regionId: activeGridRegionId,
       order: 0,
     })) {
       const result = await host.emit(action);
-      if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') moves += 1;
+      if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
+        moves += 1;
+      }
     }
-    if (moves > 0) recordIslandMoveReceipts(moves);
+    if (moves > 0) recordBlockMoveReceipts(moves);
   }, [activeGridRegionId, host]);
 
   const onLandmarkDragEnd = useCallback((event: DragEvent<HTMLDivElement>, landmark: ObjectRef) => {
@@ -281,7 +315,7 @@ export function Sidebar({
     void (async () => {
       const instanceId = await ensureLandmarkInstance(landmark);
       if (!instanceId) return;
-      if (target?.closest('[data-island-arrangement]')) {
+      if (target?.closest('[data-block-arrangement], [data-ground-canvas], [data-region-kind="grid"], [data-region-kind="editor"]')) {
         await promoteToGround(instanceId);
         return;
       }
@@ -305,7 +339,12 @@ export function Sidebar({
   }, [ensureLandmarkInstance, host, landmarks, landmarksRegion, promoteToGround]);
 
   const pinLandmark = useCallback((landmark: ObjectRef) => {
-    void host.emit({ kind: 'update', id: landmark.id, patch: { pinned: landmark.properties.pinned !== true } });
+    const pinned = landmark.properties.pinned === true;
+    void host.emit({
+      kind: 'update',
+      id: landmark.id,
+      patch: { pinned: !pinned },
+    });
   }, [host]);
 
   const removeLandmark = useCallback((landmark: ObjectRef) => {
@@ -315,49 +354,80 @@ export function Sidebar({
 
   return (
     <nav
-      aria-label="Surfaces and companions"
+      aria-label="Places, collections, and pins"
       data-paint-region="stripe"
       data-frame-resident="stripe"
-      data-sidebar-collapsed={collapsed}
-      className="flex h-full w-full shrink-0 flex-col bg-transparent p-2 font-ij-ui"
-      style={{ transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)' }}
+      data-shell-region="rail"
+      data-sidebar-collapsed={visuallyCollapsed}
+      className="flex h-full w-full shrink-0 flex-col bg-transparent font-ij-ui"
+      style={{
+        padding: 'var(--ij-sidebar-pad)',
+        gap: 'var(--ij-sidebar-zone-gap)',
+        transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)',
+      }}
     >
-      <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col gap-0.5">
-        {routedSurfaces.map((surface, index) => {
-          const kind = String(surface.properties.kind ?? '');
-          const label = titleFor(surface, surface.id);
-          const Icon = SURFACE_ICONS[kind] ?? IconWorkspace;
-          const active = surface.id === activeSurfaceId;
+      <div
+        data-surface-rail
+        data-rail-tier="place"
+        role="radiogroup"
+        aria-label="Places"
+        className="flex flex-col"
+        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
+      >
+        {PLACE_ENTRIES.map((place, index) => {
+          const Icon = PLACE_ICONS[place.kind] ?? IconWorkspace;
+          const active = place.surfaceId === activeSurfaceId;
           return (
             <button
-              key={surface.id}
+              key={place.id}
               type="button"
               role="radio"
-              data-surface-nav={surface.id}
-              title={`${label} (${shortcutLabel(index)})`}
-              aria-label={`${label} surface`}
+              data-rail-tier="place"
+              data-surface-nav={place.surfaceId}
+              title={`${place.label} (${shortcutLabel(index)})`}
+              aria-label={`${place.label} place`}
               aria-checked={active}
               aria-keyshortcuts={`Control+${index + 1} Meta+${index + 1}`}
-              onClick={() => switchTo(surface)}
-              className="group relative flex h-ij-nav-row items-center rounded-ij-sidebar-row px-2 text-left hover:bg-ij-hover-surface"
+              onClick={() => navigateTo(place.surfaceId, place.path)}
+              className="group relative flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
+              data-selected={active ? 'true' : undefined}
               style={{
-                color: active ? 'var(--ij-ink)' : 'var(--ij-ink-info)',
+                paddingInline: 'var(--ij-sidebar-pad)',
+                gap: 'var(--ij-sidebar-icon-gap)',
+                color: 'var(--ij-ink)',
                 background: active ? 'var(--ij-selection)' : 'transparent',
+                fontWeight: active ? 700 : 600,
+                fontSize: 'var(--ij-sidebar-label-size)',
+                lineHeight: 'var(--ij-sidebar-label-line)',
               }}
             >
-              {collapsed && active ? <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" /> : null}
-              <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
+              {visuallyCollapsed && active ? (
+                <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" />
+              ) : null}
+              <SidebarRowIcon muted={!active}>
+                <Icon size={16} />
+              </SidebarRowIcon>
               <span
-                className="min-w-0 flex-1 truncate pl-2 text-sm"
-                style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)', fontWeight: active ? 600 : 500 }}
+                className="min-w-0 flex-1 truncate"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
               >
-                {label}
+                {place.label}
               </span>
               <span
-                className="shrink-0 font-ij-mono text-ij-island-meta text-ij-ink-info"
-                style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}
+                className="shrink-0 font-ij-mono tabular-nums"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                  color: 'var(--ij-ink-info)',
+                  fontSize: 'var(--ij-sidebar-shortcut-size)',
+                  lineHeight: '16px',
+                  fontWeight: 400,
+                }}
               >
-                {index + 1}
+                {shortcutGlyph(index)}
               </span>
             </button>
           );
@@ -366,27 +436,50 @@ export function Sidebar({
 
       <SidebarDivider />
 
-      <div aria-label="Companions" className="flex flex-col gap-0.5">
-        {companions.map((region, index) => {
-          const companion = String(region.object.properties.companion ?? '');
-          const label = titleFor(region.object, companion);
-          const Icon = REGION_ICONS[companion] ?? IconRecords;
-          const open = region.object.properties.open !== false;
+      <div
+        data-rail-tier="collection"
+        aria-label="Collections"
+        className="flex flex-col"
+        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
+      >
+        {collections.map((collection: RailCollection) => {
+          const Icon = COLLECTION_ICONS[collection.kindGlyph] ?? IconRecords;
+          const active = collection.surfaceId === activeSurfaceId;
           return (
             <button
-              key={region.object.id}
+              key={collection.kindGlyph}
               type="button"
-              data-companion-nav={companion}
-              title={`${label} (Alt+Shift+${index + 1})`}
-              aria-label={`${label} companion`}
-              aria-pressed={open}
-              aria-keyshortcuts={`Alt+Shift+${index + 1}`}
-              onClick={() => onToggleCompanion(region)}
-              className="flex h-ij-nav-row items-center rounded-ij-sidebar-row px-2 text-left hover:bg-ij-hover-surface"
-              style={{ color: open ? 'var(--ij-ink)' : 'var(--ij-ink-info)', background: open ? 'var(--ij-selection)' : 'transparent' }}
+              data-rail-tier="collection"
+              data-collection-nav={collection.kindGlyph}
+              data-surface-nav={collection.surfaceId}
+              title={collection.label}
+              aria-label={`${collection.label} collection`}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => navigateTo(collection.surfaceId, collection.path)}
+              className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
+              data-selected={active ? 'true' : undefined}
+              style={{
+                paddingInline: 'var(--ij-sidebar-pad)',
+                gap: 'var(--ij-sidebar-icon-gap)',
+                color: 'var(--ij-ink)',
+                background: active ? 'var(--ij-selection)' : 'transparent',
+                fontWeight: active ? 600 : 500,
+                fontSize: 'var(--ij-sidebar-label-size)',
+                lineHeight: 'var(--ij-sidebar-label-line)',
+              }}
             >
-              <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
-              <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
+              <SidebarRowIcon hue={kindHueCss(collection.kindGlyph)}>
+                <Icon size={16} />
+              </SidebarRowIcon>
+              <span
+                className="min-w-0 flex-1 truncate"
+                style={{
+                  opacity: visuallyCollapsed ? 0 : 1,
+                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                }}
+              >
+                {collection.label}
+              </span>
             </button>
           );
         })}
@@ -394,15 +487,29 @@ export function Sidebar({
 
       <SidebarDivider />
 
-      <section aria-label="Landmarks" className="min-h-0 flex-1 overflow-y-auto">
-        <h2 className="px-2 font-ij-mono text-ij-island-meta text-ij-ink-info" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>
-          Landmarks
+      <section
+        aria-label="Pins"
+        data-rail-tier="pin"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        style={{ gap: '4px' }}
+      >
+        <h2
+          className="font-ij-mono tabular-nums text-ij-ink-info"
+          style={{
+            paddingInline: 'var(--ij-sidebar-pad)',
+            fontSize: 'var(--ij-sidebar-shortcut-size)',
+            lineHeight: '16px',
+            opacity: visuallyCollapsed ? 0 : 1,
+            transition: 'opacity var(--ij-motion) var(--ij-ease)',
+          }}
+        >
+          Pins
         </h2>
-        <div className="mt-1 flex flex-col gap-0.5">
+        <div className="flex flex-col" style={{ gap: 'var(--ij-sidebar-row-gap)' }}>
           {landmarks.map((landmark) => {
             const descriptorId = String(landmark.properties.descriptor_id ?? '');
             const descriptor = descriptorId
-              ? CONSOLE_VIEW_REGISTRY.blocksForMount('stripe').find((candidate) => candidate.id === descriptorId)
+              ? CONSOLE_VIEW_REGISTRY.blocksForPlacement('rail').find((candidate) => candidate.id === descriptorId)
               : undefined;
             const glyph = descriptor?.block?.kindGlyph ?? String(landmark.properties.kind ?? 'records');
             const Icon = LANDMARK_ICONS[glyph] ?? IconRecords;
@@ -413,33 +520,137 @@ export function Sidebar({
                 key={landmark.id}
                 draggable
                 onDragEnd={(event) => onLandmarkDragEnd(event, landmark)}
+                data-rail-tier="pin"
                 data-sidebar-landmark={landmark.id}
-                className="group flex h-ij-nav-row items-center rounded-ij-sidebar-row px-2 text-ij-ink-info hover:bg-ij-hover-surface"
+                className="group flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
                 title={`${label}. Drag to the active grid.`}
+                style={{
+                  paddingInline: 'var(--ij-sidebar-pad)',
+                  gap: 'var(--ij-sidebar-icon-gap)',
+                  color: 'var(--ij-ink-info)',
+                  fontWeight: 400,
+                  fontSize: 'var(--ij-sidebar-label-size)',
+                  lineHeight: 'var(--ij-sidebar-label-line)',
+                }}
               >
-                <span className="flex size-ij-stripe-icon shrink-0 items-center justify-center"><Icon size={16} /></span>
-                <span className="min-w-0 flex-1 truncate pl-2 text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{label}</span>
-                {!collapsed ? (
+                <SidebarRowIcon muted hue={typeof glyph === 'string' ? kindHueCss(glyph as 'records') : undefined}>
+                  <Icon size={16} />
+                </SidebarRowIcon>
+                <span
+                  className="min-w-0 flex-1 truncate"
+                  style={{
+                    opacity: visuallyCollapsed ? 0 : 1,
+                    transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                  }}
+                >
+                  {label}
+                </span>
+                {!visuallyCollapsed ? (
                   <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button type="button" className="text-ij-ink-info hover:text-ij-ink" onClick={() => pinLandmark(landmark)} aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}>
+                    <button
+                      type="button"
+                      className="text-ij-ink-info hover:text-ij-ink"
+                      onClick={() => pinLandmark(landmark)}
+                      aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}
+                    >
                       {landmark.properties.pinned === true ? 'Unpin' : 'Pin'}
                     </button>
-                    {removable ? <button type="button" className="text-ij-ink-info hover:text-ij-ink" onClick={() => removeLandmark(landmark)} aria-label={`Remove ${label}`}>Remove</button> : null}
+                    {removable ? (
+                      <button
+                        type="button"
+                        className="text-ij-ink-info hover:text-ij-ink"
+                        onClick={() => removeLandmark(landmark)}
+                        aria-label={`Remove ${label}`}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
                   </span>
                 ) : null}
               </div>
             );
           })}
-          {landmarks.length === 0 && !collapsed ? <p className="px-2 text-sm text-ij-ink-info">No landmarks yet.</p> : null}
+          {landmarks.length === 0 && !visuallyCollapsed ? (
+            <p
+              className="text-ij-ink-info"
+              style={{
+                paddingInline: 'var(--ij-sidebar-pad)',
+                fontSize: 'var(--ij-sidebar-label-size)',
+              }}
+            >
+              No pins yet.
+            </p>
+          ) : null}
         </div>
       </section>
 
-      <div className="mt-2 flex items-center gap-2 px-2 text-ij-ink-info">
-        <button type="button" onClick={toggleCollapse} className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink" title={collapsed ? 'Expand sidebar (Cmd or Ctrl B)' : 'Collapse sidebar (Cmd or Ctrl B)'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          <span aria-hidden>{collapsed ? '›' : '‹'}</span>
+      <div
+        className="mt-auto flex shrink-0 items-center"
+        style={{
+          height: 'var(--ij-sidebar-footer-h)',
+          gap: '8px',
+          paddingTop: 'var(--ij-sidebar-pad)',
+          paddingRight: '4px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          disabled={compact}
+          className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink disabled:opacity-50"
+          title={
+            compact
+              ? 'Sidebar stays collapsed at this width'
+              : collapsed
+                ? 'Expand sidebar (Cmd or Ctrl B)'
+                : 'Collapse sidebar (Cmd or Ctrl B)'
+          }
+          aria-label={
+            compact
+              ? 'Sidebar collapsed for narrow width'
+              : collapsed
+                ? 'Expand sidebar'
+                : 'Collapse sidebar'
+          }
+        >
+          <span aria-hidden>{visuallyCollapsed ? '›' : '‹'}</span>
         </button>
-        <span className="flex size-ij-control shrink-0 items-center justify-center rounded-full bg-ij-raised text-sm text-ij-ink">{initials}</span>
-        <span className="min-w-0 truncate text-sm" style={{ opacity: collapsed ? 0 : 1, transition: 'opacity var(--ij-motion) var(--ij-ease)' }}>{tenant}</span>
+        <span
+          className="flex shrink-0 items-center justify-center rounded-full bg-ij-chrome font-semibold text-ij-ink"
+          style={{
+            width: 'var(--ij-sidebar-avatar)',
+            height: 'var(--ij-sidebar-avatar)',
+            fontSize: '12px',
+            lineHeight: '16px',
+          }}
+        >
+          {initials}
+        </span>
+        <button
+          type="button"
+          data-account-trigger
+          aria-label="Account"
+          aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
+          onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
+          className="flex size-ij-stripe-icon shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink aria-pressed:bg-ij-selection aria-pressed:text-ij-ink"
+          style={{ transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)' }}
+          title="Account"
+        >
+          <IconAccount size={14} />
+        </button>
+        <span
+          className="min-w-0 flex-1 truncate"
+          style={{
+            opacity: visuallyCollapsed ? 0 : 1,
+            transition: 'opacity var(--ij-motion) var(--ij-ease)',
+            color: 'var(--ij-ink-info)',
+            fontWeight: 500,
+            fontSize: 'var(--ij-sidebar-label-size)',
+            lineHeight: 'var(--ij-sidebar-label-line)',
+          }}
+        >
+          {tenant}
+        </span>
       </div>
     </nav>
   );

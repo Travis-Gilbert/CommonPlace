@@ -53,6 +53,21 @@ function objectsFromPayload(data: Record<string, unknown>): ObjectRef[] {
   }));
 }
 
+const PREVIEW_IMAGE_CONTENT_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+]);
+
+function allowlistedPreviewContentType(contentType: string): string | null {
+  const normalized = contentType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+  if (!PREVIEW_IMAGE_CONTENT_TYPES.has(normalized)) return null;
+  return normalized === 'image/jpg' ? 'image/jpeg' : normalized;
+}
+
 export async function readIndexerPreviewAsset(assetId: string): Promise<
   | { readonly ok: true; readonly contentType: string; readonly bytes: Uint8Array }
   | { readonly ok: false; readonly status: number; readonly error: string }
@@ -105,8 +120,12 @@ export async function readIndexerPreviewAsset(assetId: string): Promise<
         error: typeof detail === 'string' ? detail : 'indexer_preview_unavailable',
       };
     }
+    const allowedType = allowlistedPreviewContentType(contentType);
+    if (!allowedType) {
+      return { ok: false, status: 415, error: 'indexer_preview_content_type_rejected' };
+    }
     const binary = Buffer.from(bytesBase64, 'base64');
-    return { ok: true, contentType, bytes: new Uint8Array(binary) };
+    return { ok: true, contentType: allowedType, bytes: new Uint8Array(binary) };
   } catch {
     return {
       ok: false,

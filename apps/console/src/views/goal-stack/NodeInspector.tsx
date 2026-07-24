@@ -20,7 +20,14 @@ export function NodeInspector({
   const [childTitle, setChildTitle] = useState('');
   const [skipReason, setSkipReason] = useState('');
   if (!task) return <div className="p-3 text-ij-ink-info">Select a plan node.</div>;
-  const agentOwned = Boolean(task.actor && task.actor !== 'human' && !task.actor.startsWith('github:'));
+  const agentOwned = Boolean(task.actor && (
+    task.actor.startsWith('agent:')
+    || ['codex', 'claude-code', 'qwen', 'mistral', 'deepseek', 'minimax', 'gemma-26b', 'glm-5.1']
+      .includes(task.actor)
+  ));
+  const attachmentsEditable = task.status === 'pending' && !task.claimHolder;
+  const taskRevertEligible = task.status === 'failed' || task.status === 'superseded';
+  const hasGenerationWindow = task.generationAtStart !== null && task.generationAtEnd !== null;
   return (
     <section className="h-full min-h-0 overflow-auto bg-ij-chrome p-3" aria-label="Plan node inspector">
       <div className="text-ij-ink-info">{task.kind} task</div>
@@ -30,10 +37,20 @@ export function NodeInspector({
         <Fact label="Status" value={task.status} />
         <Fact label="Actor" value={task.actor ?? 'Unattributed'} />
         <Fact label="Claim holder" value={task.claimHolder ?? 'Unclaimed'} />
+        <Fact label="Assigned head" value={task.assignedHead ?? 'Unassigned'} />
         <Fact label="Progress" value={task.progressFraction === null ? 'No report' : `${Math.round(task.progressFraction * 100)}%`} />
         <Fact label="Serves" value={task.serves.join(', ') || 'No criterion edge'} />
         <Fact label="Generation window" value={`${task.generationAtStart ?? 'none'} to ${task.generationAtEnd ?? 'none'}`} />
       </dl>
+
+      {task.escalation ? (
+        <div className="mt-4 rounded-ij-arc border border-ij-warn bg-ij-warn-bg p-3 text-ij-warn" data-task-escalation-detail>
+          <strong>Escalated to {task.escalation.targetHead}</strong>
+          <p className="mt-1">Trigger: {task.escalation.trigger}</p>
+          <p>From: {task.escalation.fromHead ?? 'Unknown head'}</p>
+          <p>Origin receipts: {task.escalation.originatingReceipts.length || 'none'}</p>
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <strong>Attachments</strong>
@@ -50,8 +67,9 @@ export function NodeInspector({
               {attachment.annotations.destructive ? <span className="text-ij-warn">destructive</span> : null}
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || !attachmentsEditable}
                 onClick={() => mutate('remove_affordance', { taskId: task.id, affordanceRef: attachment.entry })}
+                title={attachmentsEditable ? 'Remove attachment' : 'Attachments can change only while the task is pending and unclaimed.'}
                 className="h-ij-control rounded-ij-arc border border-ij-control-border px-2 hover:bg-ij-hover-surface"
               >
                 Remove
@@ -152,16 +170,22 @@ export function NodeInspector({
           </button>
         ) : null}
 
-        {task.status === 'failed' || task.status === 'blocked' || task.status === 'superseded' ? (
+        {taskRevertEligible ? (
           <>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !hasGenerationWindow}
               onClick={() => mutate('revert_task', { taskId: task.id })}
+              title={hasGenerationWindow
+                ? 'Restore this task generation window'
+                : 'No authoritative task generation window is available.'}
               className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
             >
               Revert this task&apos;s file changes
             </button>
+            {!hasGenerationWindow ? (
+              <p className="text-ij-ink-info">Revert unavailable: this task has no authoritative generation window.</p>
+            ) : null}
             <button
               type="button"
               disabled={busy}
@@ -171,6 +195,16 @@ export function NodeInspector({
               Replan subtree
             </button>
           </>
+        ) : null}
+        {task.status === 'blocked' ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => mutate('replan_subtree', { taskId: task.id })}
+            className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright"
+          >
+            Replan subtree
+          </button>
         ) : null}
       </div>
     </section>

@@ -9,7 +9,7 @@ import {
   CommitGraph,
   type CommitGraphCommit,
 } from '@/components/jalco/commit-graph';
-import { IslandEmptyBody } from './IslandEmptyBody';
+import { BlockEmptyBody } from './BlockEmptyBody';
 
 function toCommit(object: ObjectRef): CommitGraphCommit {
   const refs = Array.isArray(object.properties.refs)
@@ -33,7 +33,7 @@ export function AutomationHistoryView({ set }: ViewRenderProps) {
 
   if (commits.length === 0) {
     return (
-      <IslandEmptyBody
+      <BlockEmptyBody
         title="Automation history"
         detail="No runs or dispatches in the harness status projection yet. When the status seam reports activity, it appears here as a commit rail."
       />

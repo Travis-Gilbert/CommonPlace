@@ -1,6 +1,7 @@
 'use client';
 
 export {
+  ensureMemoryProjection,
   memoryObject,
   memoryObjects,
   projectionPathOf,

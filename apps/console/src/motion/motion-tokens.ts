@@ -122,9 +122,9 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Composer run state changes',
-    effect: 'low-chroma material wash gains slight strength while streaming and flashes gold once on commit',
-    spec: 'idle draws once; streaming requestAnimationFrame loop only; commit uses DUR.fast',
-    reducedMotion: 'static low-chroma sheen, no frame loop or flash',
+    effect: 'ShaderSurface Paper fragment on the composer; static paper-texture at idle, grain-gradient speed while streaming',
+    spec: 'paper-texture / grain-gradient / fluted-glass by composer state; token-derived colors; content plane above',
+    reducedMotion: 'static material, speed 0',
   },
   {
     trigger: 'Tool card appears in thread',
@@ -161,6 +161,12 @@ export const INTERACTION_INVENTORY = [
     effect: 'the completed segment of the inbound React Flow edge marches toward the task',
     spec: 'CSS keyframes in the motion register only; edge geometry and node positions remain still',
     reducedMotion: 'solid completed segment with no dash movement',
+  },
+  {
+    trigger: 'Data canvas paper ground',
+    effect: 'static Paper DotGrid behind the React Flow pane; register colors for back and fill',
+    spec: 'Paper DotGrid from Island Shells extract (size 0.7, gap 32, triangle, speed 0); tokens --ij-editor and --ij-seam-raised',
+    reducedMotion: 'same; the pattern is already static',
   },
   {
     trigger: 'Presence mark states',
@@ -204,6 +210,24 @@ export const INTERACTION_INVENTORY = [
     spec: 'DUR.fast, EASE_OUT via useMotionDurations; transform and opacity only; no width, height, filter, or particle animation',
     reducedMotion: 'panel appears settled with no scale; durations 0',
   },
+  {
+    trigger: 'Survey source receives pointer or keyboard focus',
+    effect: 'the billboarded source grows by one restrained scale step',
+    spec: '--ij-motion transform only; source pixels and annotations do not reflow',
+    reducedMotion: 'flat clustered grid, settled and static with no scale change',
+  },
+  {
+    trigger: 'Survey corpus hover reveals neighborhood',
+    effect: 'focused and related sources rise to full opacity while unrelated sources fade; incident edges strengthen and expose their worded reason',
+    spec: '--ij-motion opacity only on source cards; Line opacity for evidence edges; no filter or layout animation',
+    reducedMotion: 'flat clustered grid with the same connection list, no spatial focus fade',
+  },
+  {
+    trigger: 'Survey orbit, pan, or wheel input',
+    effect: 'the R3F camera moves around deterministic spherical capture layers with damped direct manipulation',
+    spec: 'Drei OrbitControls on a demand-driven frame loop; wheel zooms toward the corpus center; no autoplay or ambient scene rotation',
+    reducedMotion: '3D controls are replaced by the complete flat clustered source grid',
+  },
 ] as const;
 
 /**
@@ -231,9 +255,14 @@ export const DECLARED_PAINT_SURFACES = [
     reason: 'the agent identity glyph; canvas drawing per the inventory, never intercepts pointer events',
   },
   {
-    file: 'src/components/composer/ComposerSheenCanvas.tsx',
+    file: 'src/components/material/ShaderSurface.tsx',
     inventory: 'Composer run state changes',
-    reason: 'the composer instrument sheen; static at idle, frame loop strictly while streaming (rule 4 narrowing)',
+    reason: 'SPEC-CONSOLE-INFORMATION-ARCHITECTURE D5/D6: composer material via ShaderSurface; owns getContext in-file',
+  },
+  {
+    file: 'src/components/material/ShaderSurface.tsx',
+    inventory: 'Data canvas paper ground',
+    reason: 'SPEC-MATERIAL-REGISTER D6: Paper ShaderMount wrapper owns getContext in-file; CanvasPaperGround consumes it',
   },
 ] as const;
 

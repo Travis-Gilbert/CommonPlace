@@ -22,6 +22,7 @@ import {
   putRule,
   useFilingRules,
 } from './filing/filing-client';
+import { AgentAliasPane } from '@/components/agent-address/AgentAliasPane';
 
 const PREDICATE_KINDS: ReadonlyArray<{
   readonly kind: FilingPredicateKind;
@@ -250,6 +251,7 @@ export function IndexRulesView(_props: ViewRenderProps) {
           ))}
         </ul>
       )}
+      <AgentAliasPane />
     </div>
   );
 }

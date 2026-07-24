@@ -1,5 +1,4 @@
-// SOURCING: @playwright/test. B10 acceptance #7: island ↔ stripe round-trip
-// yields two applied move receipts and a stable layout after reload.
+// SOURCING: @playwright/test. Ground to rail round-trip with stable receipts.
 
 import { expect, test, type Page } from '@playwright/test';
 
@@ -16,7 +15,7 @@ async function freshLoad(page: Page) {
   await page.evaluate(() => {
     window.localStorage.removeItem('commonplace.console.layout-cache.v1');
     window.localStorage.removeItem('commonplace.console.surface.v1');
-    document.documentElement.removeAttribute('data-island-move-receipts');
+    document.documentElement.removeAttribute('data-block-move-receipts');
   });
   await page.reload();
   await settled(page);
@@ -39,11 +38,11 @@ async function openSurface(page: Page, surfaceId: string) {
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId);
 }
 
-async function dragIslandToPromote(page: Page, viewInstanceId: string, kind: string) {
+async function dragBlockToPlacement(page: Page, viewInstanceId: string, kind: string) {
   const handle = page.locator(
-    `[data-island-grid-cell="${viewInstanceId}"] [data-island-drag-handle]`,
+    `[data-block-canvas-cell="${viewInstanceId}"] [data-block-drag-handle]`,
   );
-  const zone = page.locator(`[data-island-promote="${kind}"]`);
+  const zone = page.locator(`[data-block-promote="${kind}"]`);
   await expect(handle).toBeVisible();
   await expect(zone).toBeVisible();
   const handleBox = await handle.boundingBox();
@@ -61,47 +60,47 @@ async function dragIslandToPromote(page: Page, viewInstanceId: string, kind: str
   await page.mouse.up();
 }
 
-test.describe('island stripe promotion', () => {
+test.describe('block rail placement', () => {
   test.beforeEach(async ({ page }) => {
     await freshLoad(page);
   });
 
-  test('records island to stripe and back yields two move receipts', async ({ page }) => {
+  test('records ground to rail and back yields two move receipts', async ({ page }) => {
     await openSurface(page, 'console-cards');
-    await expect(page.locator('[data-island-grid]')).toBeVisible();
-    await expect(page.locator('[data-island-grid-cell="cards.vi-records"]')).toBeVisible();
-    await expect(page.locator('[data-island-promote="stripe"]')).toBeVisible();
+    await expect(page.locator('[data-block-canvas]')).toBeVisible();
+    await expect(page.locator('[data-block-canvas-cell="cards.vi-records"]')).toBeVisible();
+    await expect(page.locator('[data-block-promote="rail"]')).toBeVisible();
 
     await page.evaluate(() => {
-      document.documentElement.setAttribute('data-island-move-receipts', '0');
+      document.documentElement.setAttribute('data-block-move-receipts', '0');
     });
 
-    await dragIslandToPromote(page, 'cards.vi-records', 'stripe');
+    await dragBlockToPlacement(page, 'cards.vi-records', 'rail');
 
     await expect(page.locator('[data-tool-window="stripe-tray"]')).toBeVisible({ timeout: 10_000 });
     await expect(
       page.locator('[data-tool-window="stripe-tray"] [data-view-instance="cards.vi-records"]'),
     ).toBeVisible();
-    await expect(page.locator('[data-island-grid-cell="cards.vi-records"]')).toHaveCount(0);
+    await expect(page.locator('[data-block-canvas-cell="cards.vi-records"]')).toHaveCount(0);
     await expect.poll(async () =>
-      page.evaluate(() => document.documentElement.getAttribute('data-island-move-receipts')),
+      page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('1');
 
     await page
-      .locator('[data-tool-window="stripe-tray"] [data-island-return-to-grid]')
+      .locator('[data-tool-window="stripe-tray"] [data-block-return-to-ground]')
       .click();
 
-    await expect(page.locator('[data-island-grid-cell="cards.vi-records"]')).toBeVisible({
+    await expect(page.locator('[data-block-canvas-cell="cards.vi-records"]')).toBeVisible({
       timeout: 10_000,
     });
     await expect.poll(async () =>
-      page.evaluate(() => document.documentElement.getAttribute('data-island-move-receipts')),
+      page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('2');
 
     await page.reload();
     await settled(page);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-cards');
-    await expect(page.locator('[data-island-grid-cell="cards.vi-records"]')).toBeVisible();
+    await expect(page.locator('[data-block-canvas-cell="cards.vi-records"]')).toBeVisible();
     await expect(
       page.locator('[data-tool-window="stripe-tray"] [data-view-instance="cards.vi-records"]'),
     ).toHaveCount(0);

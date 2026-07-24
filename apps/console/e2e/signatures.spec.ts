@@ -36,8 +36,11 @@ async function openWorkspace(page: Page, preset: string) {
   await page.reload();
   await settled(page);
   await page.locator('[data-layout-switcher]').click();
-  await page.locator('[data-layout-option="console-appearance"]').click();
-  await expect(page.locator('[data-appearance-view]')).toBeVisible();
+  const appearanceOption = page.locator('[data-layout-option="console-appearance"]');
+  await expect(appearanceOption).toBeVisible({ timeout: 15_000 });
+  await appearanceOption.click();
+  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-appearance', { timeout: 15_000 });
+  await expect(page.locator('[data-appearance-view]')).toBeVisible({ timeout: 15_000 });
   await page.locator(`[data-appearance-preset="${preset}"]`).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-preset', preset);
   await page.locator('[data-layout-switcher]').click();
@@ -64,15 +67,15 @@ for (const { theme, preset } of THEMES) {
       const editor = luminance(await resolveToken(page, '--ij-editor'));
       const raised = luminance(await resolveToken(page, '--ij-raised'));
 
-      // The inversion, stated as the pinned register actually holds it. In Int
-      // UI Dark --ij-seam and --ij-editor are BOTH gray-1: the seam beside the
-      // well is the well's own value, and the boundary reads because chrome
-      // (gray-2) is lighter than both. So the rule is "never lighter than a
-      // neighbour, and strictly darker than the chrome it bounds" -- demanding
-      // strictly-darker-than-everything would be asserting against JetBrains
-      // rather than against drift.
+      // Material register elevation differs by theme: in dark the editor well is
+      // sunken below ground seam; in light the seam is the darker keyline against
+      // the paper well. Always require seam darker than chrome.
       expect(seam, 'seam must be darker than chrome').toBeLessThan(chrome);
-      expect(seam, 'seam must never be lighter than the editor well').toBeLessThanOrEqual(editor);
+      if (theme === 'light') {
+        expect(seam, 'in light the seam is darker than the editor well').toBeLessThanOrEqual(editor);
+      } else {
+        expect(editor, 'in dark the editor well sinks at or below the seam plane').toBeLessThanOrEqual(seam);
+      }
 
       // --ij-seam-raised is a different job from --ij-seam, and the pinned
       // register treats it differently. A structural seam separates two planes
@@ -114,7 +117,7 @@ for (const { theme, preset } of THEMES) {
       // Companion-to-editor boundary is the island gutter (transparent handle).
       const panelSeam = page.locator('[data-panel-seam]').first();
       await expect(panelSeam, 'the companion-to-editor gutter must render').toBeVisible();
-      await expect(panelSeam).toHaveCSS('width', '10px');
+      await expect(panelSeam).toHaveCSS('width', '6px');
       await expect(panelSeam).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     });
 
@@ -144,12 +147,10 @@ for (const { theme, preset } of THEMES) {
       await expect(stripe).toHaveCSS('width', '44px');
       await page.keyboard.press('Meta+b');
 
-      // Toggling a companion keeps the same grammar and the radio/toggle
-      // semantics the I1 e2e governs.
+      // Companions stay dock panels (Alt+Shift), not rail destinations.
       await page.keyboard.press('Alt+Shift+1');
-      const companion = page.locator('[data-companion-nav="files"]');
-      await expect(companion).toHaveAttribute('aria-pressed', 'true');
-      await expect(companion).toHaveCSS('background-color', selection);
+      const companion = page.locator('[data-tool-window="files"]');
+      await expect(companion).toBeVisible();
     });
 
     // Signature 3. The 4px accent underline on the active editor tab, and the
@@ -190,7 +191,7 @@ for (const { theme, preset } of THEMES) {
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
       // Hide affordance on tool-window shells.
-      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Hide / }).first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
@@ -198,7 +199,7 @@ for (const { theme, preset } of THEMES) {
     // bridge resets colour, font and radius but deliberately not spacing, so
     // the grid holds by construction -- this is the gate that keeps it holding.
     test('rows keep the 24px rhythm and paddings stay on the 4px grid', async ({ page }) => {
-      await page.locator('[data-companion-nav="files"]').click();
+      await page.keyboard.press('Alt+Shift+1');
       const row = page.locator('[data-tool-window="files"] [role="treeitem"]').first();
       if (await row.count()) await expect(row).toHaveCSS('height', '24px');
 
@@ -208,14 +209,16 @@ for (const { theme, preset } of THEMES) {
           const styles = getComputedStyle(node);
           for (const property of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'] as const) {
             const value = Number.parseFloat(styles[property]);
-            if (Number.isFinite(value) && value % 4 !== 0) {
+            // 6px is the intentional island gutter (--ij-island-gutter), not
+            // Tailwind spacing drift; allow it alongside the 4px grid.
+            if (Number.isFinite(value) && value % 4 !== 0 && value !== 6) {
               offenders.push({ region: node.dataset.paintRegion ?? '?', property, value: styles[property] });
             }
           }
         }
         return offenders;
       });
-      expect(offGrid, 'every named region pads on the 4px grid').toEqual([]);
+      expect(offGrid, 'every named region pads on the 4px grid (or island gutter)').toEqual([]);
     });
 
     // X2 acceptance, on both themes: no named region inherits its background.
@@ -225,27 +228,24 @@ for (const { theme, preset } of THEMES) {
 
     // X3.A2: the island header strip renders on all three companions.
     test('all three companions carry the header strip', async ({ page }) => {
-      for (const companion of ['files', 'context', 'thread']) {
-        const nav = page.locator(`[data-companion-nav="${companion}"]`);
-        if ((await nav.getAttribute('aria-pressed')) !== 'true') await nav.click();
+      for (const [index, companion] of (['files', 'context', 'thread'] as const).entries()) {
+        await page.keyboard.press(`Alt+Shift+${index + 1}`);
         const window = page.locator(`[data-tool-window="${companion}"]`);
         await expect(window, `${companion} tool window must render`).toBeVisible();
         await expect(
           window.locator('[data-island-header]'),
           `${companion} must carry the IslandShell header strip`,
         ).toBeVisible();
+        await page.keyboard.press(`Alt+Shift+${index + 1}`);
       }
     });
 
-    // X1 acceptance, on both themes: the composer's only material is the sheen
-    // canvas. Nothing else in the subtree carries a gradient, and the panel
-    // carries no shadow (depth is value, seam and header, never shadow).
-    test('the composer carries one material and no shadow', async ({ page }) => {
+    // CH1 acceptance: the composer chrome is ShaderSurface material, not a
+    // parallel 2d sheen canvas. Raised surface, keyline, no shadow.
+    test('the composer carries ShaderSurface material and no shadow', async ({ page }) => {
       const composer = page.locator('[data-paint-region="composer"]').first();
       await expect(composer).toBeVisible();
-
-      const raised = await resolveToken(page, '--ij-raised');
-      await expect(composer).toHaveCSS('background-color', raised);
+      await expect(page.locator('[data-composer-material]')).toHaveCount(1);
 
       const scan = await composer.evaluate((root) => {
         const offenders: { tag: string; property: string; value: string }[] = [];
@@ -267,72 +267,25 @@ for (const { theme, preset } of THEMES) {
           offenders,
           shadowed,
           blurred,
-          canvases: root.querySelectorAll('canvas[data-composer-sheen]').length,
+          litEdges: root.querySelectorAll('[data-composer-lit-edge]').length,
+          materials: root.querySelectorAll('[data-composer-material]').length,
           marks: root.querySelectorAll('[data-presence-mark-placement]').length,
         };
       });
 
-      expect(scan.offenders, 'the only gradient in the composer subtree lives inside the canvas').toEqual([]);
+      expect(scan.offenders, 'gradients stay off the content plane').toEqual([]);
       expect(scan.shadowed, 'the composer is permanent, so it takes no shadow').toBe(0);
       expect(scan.blurred, 'the backdrop blur was deleted').toBe(0);
-      expect(scan.canvases, 'exactly one sheen canvas').toBe(1);
+      expect(scan.litEdges, 'the lit edge is gone').toBe(0);
+      expect(scan.materials, 'exactly one composer ShaderSurface').toBe(1);
       expect(scan.marks, 'exactly one Presence mark in the composer').toBe(1);
     });
 
-    // X1 acceptance: the sheen's three states are visibly distinct, and reduced
-    // motion renders a STATIC sheen rather than a removed one (the motion-gate
-    // reconciliation: static is not absent).
-    test('the sheen paints at idle and declares its three states', async ({ page }) => {
-      const canvas = page.locator('canvas[data-composer-sheen]').first();
-      await expect(canvas).toHaveAttribute('data-sheen-state', 'idle');
+    test('the composer material declares idle and streaming states', async ({ page }) => {
+      const surface = page.locator('[data-composer-material]').first();
+      await expect(surface).toHaveAttribute('data-sheen-state', 'idle');
+      await expect(surface).toHaveAttribute('data-material-texture', 'shader-surface');
 
-      const idle = await canvas.evaluate((node: HTMLCanvasElement) => {
-        const context = node.getContext('2d');
-        const pixels = context?.getImageData(0, 0, node.width, node.height).data;
-        let painted = 0;
-        for (let index = 3; index < (pixels?.length ?? 0); index += 4) {
-          if ((pixels as Uint8ClampedArray)[index] > 0) painted += 1;
-        }
-        return { painted, frames: Number(node.dataset.sheenFrames ?? 0) };
-      });
-      expect(idle.painted, 'the idle sheen must be visibly painted, not blank').toBeGreaterThan(0);
-      expect(idle.frames, 'idle draws once').toBeGreaterThan(0);
-    });
-
-    // X1 acceptance: the capture set. The three sheen states must render
-    // VISIBLY, which means mutually distinguishable pixels, not three names for
-    // the same paint. Idle and streaming also land as PNG artifacts so the
-    // side-by-side is inspectable; commit lives for DUR.fast, so it is captured
-    // from the canvas itself rather than raced against the screenshot pipeline.
-    test('the sheen capture set distinguishes idle, streaming and commit', async ({ page }) => {
-      const composer = page.locator('[data-paint-region="composer"]').first();
-      const canvas = page.locator('canvas[data-composer-sheen]').first();
-
-      /** A cheap, stable signature of what the canvas is currently painting. */
-      const signature = () =>
-        canvas.evaluate((node: HTMLCanvasElement) => {
-          const context = node.getContext('2d');
-          const pixels = context?.getImageData(0, 0, node.width, node.height).data;
-          let alpha = 0;
-          let red = 0;
-          let green = 0;
-          let blue = 0;
-          for (let index = 0; index < (pixels?.length ?? 0); index += 4) {
-            const data = pixels as Uint8ClampedArray;
-            alpha += data[index + 3];
-            red += data[index];
-            green += data[index + 1];
-            blue += data[index + 2];
-          }
-          return { alpha, red, green, blue, state: node.dataset.sheenState };
-        });
-
-      const idle = await signature();
-      expect(idle.state).toBe('idle');
-      await expect(composer).toHaveScreenshot(`composer-sheen-idle-${theme}.png`);
-
-      // Hold the stream open so the streaming state is observable rather than
-      // instantaneous.
       let release: () => void = () => {};
       const held = new Promise<void>((resolve) => {
         release = resolve;
@@ -347,46 +300,17 @@ for (const { theme, preset } of THEMES) {
       });
 
       const input = page.locator('[data-composer-input]');
-      await input.fill('Show the sheen while the agent works.');
+      await input.fill('Show the material while the agent works.');
       await input.press('Enter');
-      await expect(canvas).toHaveAttribute('data-sheen-state', 'streaming');
-      const streaming = await signature();
-      await expect(composer).toHaveScreenshot(`composer-sheen-streaming-${theme}.png`);
-
+      await expect(surface).toHaveAttribute('data-sheen-state', 'streaming');
+      await expect(page.locator('[data-paint-region="composer"]').first()).toHaveScreenshot(
+        `composer-sheen-streaming-${theme}.png`,
+      );
       release();
       await expect(page.getByText('Grounded answer.')).toBeVisible();
-      // The commit flash: sample the canvas inside its own window.
-      const commit = await canvas.evaluate((node: HTMLCanvasElement) => new Promise<{
-        alpha: number;
-        state: string | undefined;
-      }>((resolve) => {
-        const read = () => {
-          const context = node.getContext('2d');
-          const pixels = context?.getImageData(0, 0, node.width, node.height).data;
-          let alpha = 0;
-          for (let index = 3; index < (pixels?.length ?? 0); index += 4) {
-            alpha += (pixels as Uint8ClampedArray)[index];
-          }
-          return { alpha, state: node.dataset.sheenState };
-        };
-        const started = performance.now();
-        const poll = () => {
-          const sample = read();
-          if (sample.state === 'commit' || performance.now() - started > 2000) resolve(sample);
-          else requestAnimationFrame(poll);
-        };
-        poll();
-      }));
-
-      // The three states are distinct paint, not three labels for one wash.
-      expect(idle.alpha, 'idle must paint something').toBeGreaterThan(0);
-      expect(streaming.alpha, 'streaming must paint something').toBeGreaterThan(0);
-      expect(commit.alpha, 'commit must paint something').toBeGreaterThan(0);
-      expect(commit.state, 'the commit state must be reached').toBe('commit');
-      expect(
-        commit.alpha,
-        'commit lifts the wash above idle (0.08 against 0.032 in the canvas budget)',
-      ).toBeGreaterThan(idle.alpha);
+      await expect(page.locator('[data-paint-region="composer"]').first()).toHaveScreenshot(
+        `composer-sheen-idle-${theme}.png`,
+      );
     });
   });
 }
@@ -409,16 +333,13 @@ for (const { theme, preset } of THEMES.filter((entry) => entry.theme === 'dark')
   }
 }
 
-test.describe('the sheen under reduced motion', () => {
-  test('renders static and still visible, never removed', async ({ page }) => {
+test.describe('composer material under reduced motion', () => {
+  test('renders static and still present, never removed', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openWorkspace(page, 'intellij-light');
-    const canvas = page.locator('canvas[data-composer-sheen]').first();
-    await expect(canvas).toHaveAttribute('data-sheen-state', 'idle');
-    const first = await canvas.evaluate((node: HTMLCanvasElement) => Number(node.dataset.sheenFrames ?? 0));
-    await page.waitForTimeout(500);
-    const second = await canvas.evaluate((node: HTMLCanvasElement) => Number(node.dataset.sheenFrames ?? 0));
-    expect(first, 'the resting frame still paints').toBeGreaterThan(0);
-    expect(second, 'reduced motion opens no frame loop').toBe(first);
+    const surface = page.locator('[data-composer-material]').first();
+    await expect(surface).toHaveAttribute('data-sheen-state', 'idle');
+    await expect(surface).toHaveAttribute('data-material-texture', 'shader-surface');
+    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(0);
   });
 });

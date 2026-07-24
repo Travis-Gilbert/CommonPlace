@@ -13,14 +13,17 @@ export function PlanTaskNode({ data, selected }: NodeProps<GoalFlowNode>) {
   const { isOver, setNodeRef } = useDroppable({
     id: `goal-task:${task.id}`,
     data: { taskId: task.id },
-    disabled: task.status === 'superseded' || task.status === 'verified',
+    disabled: task.status !== 'pending' || Boolean(task.claimHolder),
   });
   const failed = task.status === 'failed';
   const blocked = task.status === 'blocked';
+  const escalated = task.status === 'escalated';
   const verified = task.status === 'verified';
   const running = task.status === 'running' || task.status === 'claimed' || task.status === 'verifying';
-  const ring = failed || blocked
+  const ring = failed
     ? 'var(--ij-error)'
+    : blocked || escalated
+      ? 'var(--ij-warn)'
     : verified
       ? 'var(--ij-ok)'
       : running
@@ -63,6 +66,31 @@ export function PlanTaskNode({ data, selected }: NodeProps<GoalFlowNode>) {
           {actorLabel ? (
             <span className="rounded-ij-arc-underline bg-ij-selection-inactive px-1 font-ij-mono" data-actor-badge>
               {actorLabel}
+            </span>
+          ) : null}
+          {task.admissionRequirement === 'require_approval' ? (
+            <span
+              className="rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn"
+              data-approval-badge={task.approvalReceipt ? 'approved' : 'required'}
+            >
+              {task.approvalReceipt ? 'approved' : 'approval'}
+            </span>
+          ) : null}
+          {task.escalation ? (
+            <span
+              className="rounded-ij-arc-underline bg-ij-warn-bg px-1 font-ij-mono text-ij-warn"
+              data-task-escalation={task.escalation.targetHead}
+              title={`${task.escalation.trigger}: ${task.escalation.fromHead ?? 'unknown'} to ${task.escalation.targetHead}`}
+            >
+              escalated to {task.escalation.targetHead}
+            </span>
+          ) : null}
+          {task.changedEvents.length > 0 ? (
+            <span
+              className="rounded-ij-arc-underline bg-ij-selection-inactive px-1 font-ij-mono"
+              data-task-changed
+            >
+              Changed
             </span>
           ) : null}
           {task.attachments.slice(0, 4).map((attachment) => (

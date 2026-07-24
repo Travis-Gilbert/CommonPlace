@@ -15,6 +15,7 @@ import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
 import { IndexStreamView } from './IndexStreamView';
 import { IndexRulesView } from './IndexRulesView';
+import { MailConnectView, MailReaderView } from './MailConnectView';
 import { UrgentLaneView } from './UrgentLaneView';
 import { CardFullView, CardGridView } from './CardView';
 import { HunkReviewView } from './HunkReviewView';
@@ -25,11 +26,11 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import { CanvasView } from './canvas/CanvasView';
 import { StatusPanel } from './harness-ux/StatusPanel';
 import { WhyTracePanel } from './harness-ux/WhyTracePanel';
 import {
   BrowserPaneBlock,
-  CanvasBlock,
   DocumentBlock,
   KanbanBlock,
   TerminalBlock,
@@ -70,8 +71,8 @@ const RECORD_TABLE: ViewDescriptor = {
   },
   block: {
     usage: 'browse records',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'records',
@@ -94,8 +95,8 @@ const MARKDOWN_DOC: ViewDescriptor = {
   },
   block: {
     usage: 'read a document',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'doc',
@@ -117,8 +118,8 @@ const CODE_FILE: ViewDescriptor = {
   },
   block: {
     usage: 'inspect code',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'terminal',
@@ -140,8 +141,8 @@ const CHAT_THREAD: ViewDescriptor = {
   },
   block: {
     usage: 'follow the thread',
-    mounts: ['companion', 'chrome', 'stripe'],
-    sizes: ['m', 'w'],
+    placements: ['dock', 'rail'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'thread',
@@ -163,8 +164,8 @@ const CHAT_SURFACE: ViewDescriptor = {
   },
   block: {
     usage: 'compose with the agent',
-    mounts: ['surface', 'island', 'stripe'],
-    sizes: ['w', 'full'],
+    placements: ['full', 'ground', 'rail'],
+    defaultSize: 'w',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'thread',
@@ -186,8 +187,8 @@ const FILES_TREE: ViewDescriptor = {
   },
   block: {
     usage: 'browse files',
-    mounts: ['companion', 'chrome'],
-    sizes: ['m', 'w'],
+    placements: ['dock'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'files',
@@ -209,8 +210,8 @@ const CONTEXT_GRAPH: ViewDescriptor = {
   },
   block: {
     usage: 'inspect context',
-    mounts: ['companion', 'chrome'],
-    sizes: ['m', 'w'],
+    placements: ['dock'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'context',
@@ -300,6 +301,40 @@ const INDEX_URGENT: ViewDescriptor = {
   render: UrgentLaneView,
 };
 
+const MAIL_CONNECT: ViewDescriptor = {
+  id: 'mail.connect',
+  name: 'Mail connect',
+  accepts: {},
+  emits: ['update'],
+  renderer: 'mail.connect',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'JMAP connect, mapping, consent, and sync status are a product contract with no ledger library for the multi-step flow.',
+  },
+  render: MailConnectView,
+};
+
+const MAIL_READER: ViewDescriptor = {
+  id: 'mail.reader',
+  name: 'Mail reader',
+  accepts: {},
+  emits: ['select'],
+  renderer: 'mail.reader',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'Minimal mail reader with entity chips, thread rail, and sanitizer policy is bespoke to the JMAP spoke handoff.',
+  },
+  render: MailReaderView,
+};
+
 // The card engine descriptor family (HANDOFF-CARDS-ACTIONS-MENTIONS K1):
 // one engine renders any kind's template. card.full mounts in panes and
 // documents; cards.grid renders an ObjectQuery as faces at Twenty density.
@@ -318,8 +353,8 @@ const CARD_FULL: ViewDescriptor = {
   },
   block: {
     usage: 'inspect a record card',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['s', 'm', 'sq'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 's',
     density: 'cozy',
     surfaceClass: 'editor',
     kindGlyph: 'cards',
@@ -341,8 +376,8 @@ const CARDS_GRID: ViewDescriptor = {
   },
   block: {
     usage: 'browse record cards',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'cozy',
     surfaceClass: 'editor',
     kindGlyph: 'cards',
@@ -429,8 +464,8 @@ const MODEL_STUDIO: ViewDescriptor = {
   },
   block: {
     usage: 'inspect observed model',
-    mounts: ['ground', 'surface'],
-    sizes: ['full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
     density: 'compact',
     surfaceClass: 'editor',
     kindGlyph: 'model',
@@ -547,8 +582,8 @@ const TERMINAL: ViewDescriptor = {
   },
   block: {
     usage: 'operate a shell',
-    mounts: ['island', 'surface'],
-    sizes: ['w', 'full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'w',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'terminal',
@@ -573,8 +608,8 @@ const BROWSER_PANE: ViewDescriptor = {
   },
   block: {
     usage: 'view a page',
-    mounts: ['island', 'surface'],
-    sizes: ['w', 'full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'w',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'browser',
@@ -599,11 +634,12 @@ const KANBAN: ViewDescriptor = {
   },
   block: {
     usage: 'move work through states',
-    mounts: ['island', 'surface'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'kanban',
+    acceptsChildren: { layout: 'columns', accepts: ['*'] },
   },
   render: KanbanBlock,
 };
@@ -622,8 +658,8 @@ const DOCUMENT_OUTPUT: ViewDescriptor = {
   },
   block: {
     usage: 'produce a document',
-    mounts: ['surface', 'island'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['full', 'ground'],
+    defaultSize: 'm',
     density: 'cozy',
     surfaceClass: 'editor',
     kindGlyph: 'doc',
@@ -645,8 +681,8 @@ const VIDEO: ViewDescriptor = {
   },
   block: {
     usage: 'compose video',
-    mounts: ['surface', 'island'],
-    sizes: ['w', 'full'],
+    placements: ['full', 'ground'],
+    defaultSize: 'w',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'doc',
@@ -661,7 +697,7 @@ const CANVAS: ViewDescriptor = {
   id: 'canvas',
   name: 'Canvas',
   accepts: {},
-  emits: ['update', 'select', 'open'],
+  emits: ['create', 'update', 'move', 'link', 'unlink', 'delete', 'open', 'select'],
   renderer: 'canvas',
   source: {
     package: '@xyflow/react',
@@ -671,11 +707,14 @@ const CANVAS: ViewDescriptor = {
   },
   block: {
     usage: 'arrange spatially',
-    mounts: ['surface'],
-    sizes: ['full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
     density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'canvas',
+    bodyBleed: 'flush',
   },
-  render: CanvasBlock,
+  render: CanvasView,
 };
 
 const AUTOMATION_HISTORY: ViewDescriptor = {
@@ -692,8 +731,8 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   },
   block: {
     usage: 'review automation history',
-    mounts: ['island', 'surface'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'automation',
@@ -714,6 +753,8 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   INDEX_STREAM,
   INDEX_RULES,
   INDEX_URGENT,
+  MAIL_CONNECT,
+  MAIL_READER,
   CARD_FULL,
   CARDS_GRID,
   HUNK_REVIEW,
