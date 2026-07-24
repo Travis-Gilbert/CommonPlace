@@ -49,9 +49,9 @@ const LAYOUT_QUERY: ObjectQuery = {
   page: { limit: 500 },
 };
 
-/** Transport health as the host observes it (R2.3): HTTP 403 is the
- *  identity-refusal analog of principal_resolution=unauthenticated. */
-export type TransportObserver = (status: number | null) => void;
+/** Transport health as the host observes it (R2.3 / D5): status plus the
+ *  named error body when the upstream refused with a JSON reason. */
+export type TransportObserver = (status: number | null, error?: string | null) => void;
 
 // The console theme tokens: every value is a register variable reference.
 const INTUI_TOKENS: ThemeTokens = {
@@ -207,9 +207,18 @@ export class ConsoleBlockHost implements BlockHost {
   async probe(): Promise<void> {
     try {
       const response = await fetch('/api/objects/views', { cache: 'no-store' });
-      this.observer?.(response.status);
+      let error: string | null = null;
+      if (!response.ok) {
+        try {
+          const body = (await response.clone().json()) as { error?: unknown };
+          error = typeof body.error === 'string' ? body.error : null;
+        } catch {
+          error = null;
+        }
+      }
+      this.observer?.(response.status, error);
     } catch {
-      this.observer?.(null);
+      this.observer?.(null, 'console_data_api_unreachable');
     }
   }
 

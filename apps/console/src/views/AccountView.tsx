@@ -15,6 +15,12 @@ type ProviderState = 'loading' | 'ready' | 'unconfigured';
 export function AccountView(_props: ViewRenderProps) {
   const { data: session, status } = useSession();
   const [providerState, setProviderState] = useState<ProviderState>('loading');
+  const [credentialMeta, setCredentialMeta] = useState<{
+    keyId: string;
+    tenant: string;
+    expiresAtMs: number | null;
+  } | null>(null);
+  const [credentialError, setCredentialError] = useState<string | null>(null);
   const user = session?.user;
   const login = user?.githubLogin;
   const tenant = githubTenantSlug(login);
@@ -35,6 +41,51 @@ export function AccountView(_props: ViewRenderProps) {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== 'authenticated') {
+      setCredentialMeta(null);
+      setCredentialError(null);
+      return;
+    }
+    let active = true;
+    void fetch('/api/account/credentials', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = (await response.json()) as {
+          keyId?: string;
+          tenant?: string;
+          expiresAtMs?: number | null;
+          error?: string;
+          message?: string;
+          kind?: string;
+        };
+        if (!active) return;
+        if (!response.ok) {
+          setCredentialMeta(null);
+          setCredentialError(body.message ?? body.error ?? 'Credential unavailable');
+          return;
+        }
+        if (body.kind === 'service_key') {
+          setCredentialMeta(null);
+          setCredentialError(null);
+          return;
+        }
+        if (typeof body.keyId === 'string' && typeof body.tenant === 'string') {
+          setCredentialMeta({
+            keyId: body.keyId,
+            tenant: body.tenant,
+            expiresAtMs: typeof body.expiresAtMs === 'number' ? body.expiresAtMs : null,
+          });
+          setCredentialError(null);
+        }
+      })
+      .catch(() => {
+        if (active) setCredentialError('Could not reach credential issuance.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [status]);
 
   const beginGithubSignIn = () => {
     if (providerState !== 'ready') return;
@@ -90,6 +141,41 @@ export function AccountView(_props: ViewRenderProps) {
               >
                 Sign out
               </button>
+              <section
+                className="grid gap-2 rounded-ij-arc bg-ij-editor p-4"
+                aria-labelledby="account-credential-heading"
+              >
+                <h3 id="account-credential-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+                  Object-seam credential
+                </h3>
+                <p className="text-ij-ink-info">
+                  Issued server-side for your tenant. The secret is never shown here after issuance.
+                </p>
+                {credentialError ? (
+                  <p role="status" className="text-ij-warn">{credentialError}</p>
+                ) : credentialMeta ? (
+                  <dl className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-ij-ink-info">Key id</dt>
+                      <dd className="font-ij-mono">{credentialMeta.keyId}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ij-ink-info">Tenant</dt>
+                      <dd className="font-ij-mono">{credentialMeta.tenant}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ij-ink-info">Expires</dt>
+                      <dd className="font-ij-mono">
+                        {credentialMeta.expiresAtMs
+                          ? new Date(credentialMeta.expiresAtMs).toISOString()
+                          : 'none'}
+                      </dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="text-ij-ink-info">Issuing credential...</p>
+                )}
+              </section>
             </div>
           ) : (
             <div className="grid gap-3">

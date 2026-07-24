@@ -22,6 +22,7 @@ import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
+import type { ConnectionState } from '@/lib/state/shell-state';
 import { submitThreadText } from '@/lib/thread-submit';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
@@ -80,9 +81,24 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
 const emptySubscribe = () => () => {};
 
 /** HTTP outcomes from the record wire map onto the named connection states
- *  (R2.3): 401 and 403 are identity-refusal outcomes, null is a dead transport. */
-function connectionFor(status: number | null): 'connected' | 'disconnected' | 'identity-refused' {
-  if (status === 401 || status === 403) return 'identity-refused';
+ *  (R2.3 / HANDOFF-PRINCIPAL-CREDENTIALS D5): four causes, one indicator. */
+function connectionFor(
+  status: number | null,
+  error?: string | null,
+): ConnectionState {
+  if (status === 401 || error === 'principal_resolution=unauthenticated') {
+    return 'unauthenticated';
+  }
+  if (
+    error === 'principal_credential_unavailable' ||
+    error === 'tenant_object_credential_unavailable'
+  ) {
+    return 'credential-unavailable';
+  }
+  if (status === 502 || error === 'console_data_api_unreachable') {
+    return 'disconnected';
+  }
+  if (status === 403) return 'identity-refused';
   if (status !== null && status >= 200 && status < 300) return 'connected';
   return 'disconnected';
 }
@@ -111,8 +127,8 @@ export function ConsoleApp({
             // Fixture seam until session tenant resolution wires through: pass
             // FIXTURE_TENANT explicitly so an omitted tenant cannot share state.
             proactivityTenant: FIXTURE_TENANT,
-            onTransport: (status) =>
-              useShellStore.getState().setConnection(connectionFor(status)),
+            onTransport: (status, error) =>
+              useShellStore.getState().setConnection(connectionFor(status, error)),
           })
         : null,
     [mounted],

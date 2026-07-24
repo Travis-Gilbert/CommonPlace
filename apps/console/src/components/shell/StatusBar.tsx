@@ -6,15 +6,19 @@
 // unauthenticated analog) and Reconnect runs a real health probe. Presence
 // renders only when the harness transport reports it (R2.4); it can never
 // contradict the connection state because it hides unless connected.
+// HANDOFF-PRINCIPAL-CREDENTIALS D5: four causes, one indicator, matching actions.
 
+import { signIn } from 'next-auth/react';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
   connected: 'Connected',
   connecting: 'Transport connecting',
-  disconnected: 'Transport disconnected',
+  disconnected: 'Transport unreachable',
   'identity-refused': 'Authentication refused',
+  'credential-unavailable': 'Credential unavailable',
+  unauthenticated: 'Sign in required',
 };
 
 export function StatusBar({ host }: { host: ConsoleBlockHost }) {
@@ -24,8 +28,26 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
   const presenceCount = useShellStore((state) => state.presenceCount);
   const progressLabel = useShellStore((state) => state.progressLabel);
 
-  const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
   const showPresence = connection === 'connected' && presenceCount !== null;
+  const action =
+    connection === 'unauthenticated'
+      ? { label: 'Sign in', run: () => void signIn('github', { redirectTo: '/' }) }
+      : connection === 'credential-unavailable'
+        ? {
+            label: 'Open Account',
+            run: () => {
+              window.location.assign('/?view=account');
+            },
+          }
+        : connection === 'disconnected' || connection === 'identity-refused'
+          ? {
+              label: 'Reconnect',
+              run: () => {
+                setConnection('connecting');
+                void host.probe();
+              },
+            }
+          : null;
 
   return (
     <footer
@@ -37,27 +59,33 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
       <span
         data-connection={connection}
         data-connection-kind={
-          connection === 'identity-refused'
+          connection === 'unauthenticated' ||
+          connection === 'identity-refused' ||
+          connection === 'credential-unavailable'
             ? 'authentication'
             : connection === 'connected'
               ? 'transport'
               : 'transport'
         }
-        style={{ color: connection === 'identity-refused' ? 'var(--ij-error)' : undefined }}
+        style={{
+          color:
+            connection === 'identity-refused' ||
+            connection === 'unauthenticated' ||
+            connection === 'credential-unavailable'
+              ? 'var(--ij-error)'
+              : undefined,
+        }}
       >
         {CONNECTION_LABEL[connection]}
       </span>
-      {needsReconnect ? (
+      {action ? (
         <button
           type="button"
-          onClick={() => {
-            setConnection('connecting');
-            void host.probe();
-          }}
+          onClick={action.run}
           className="rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
           style={{ transition: 'var(--rec-clickable-transition)' }}
         >
-          Reconnect
+          {action.label}
         </button>
       ) : null}
       {progressLabel ? (

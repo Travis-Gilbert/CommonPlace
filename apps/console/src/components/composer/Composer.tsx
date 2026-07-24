@@ -135,7 +135,10 @@ export function Composer({
   const [focused, setFocused] = useState(false);
   const composerState = unavailable
     ? 'endpoint-refused'
-    : connection === 'identity-refused' || connection === 'disconnected'
+    : connection === 'identity-refused' ||
+      connection === 'unauthenticated' ||
+      connection === 'credential-unavailable' ||
+      connection === 'disconnected'
       ? 'disabled'
       : interrupted
         ? 'interrupted'
