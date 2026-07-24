@@ -60,6 +60,7 @@ describe('ConsoleBlockHost', () => {
       'console-goals',
       'console-harness-status',
       'console-index',
+      'console-models',
       'console-proactivity',
       'console-review',
       'console-survey',
@@ -71,7 +72,7 @@ describe('ConsoleBlockHost', () => {
       .filter((surface) => typeof surface.properties.stripe_order === 'number')
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Documents', 'Cards',
+        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Models', 'Documents', 'Cards',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
@@ -137,6 +138,34 @@ describe('ConsoleBlockHost', () => {
     expect(set.objects.filter((object) => object.type === 'topic')).toHaveLength(1);
     expect(set.objects.filter((object) => object.type === 'capture')).toHaveLength(15);
     expect(set.objects.filter((object) => object.type === 'survey-edge').length).toBeGreaterThan(0);
+  });
+
+  it('keeps declared model overlay metadata synchronized through host actions', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const query = {
+      types: ['field-metadata'],
+      where: { kind: 'eq' as const, field: 'topic_id', value: 'topic-models' },
+    };
+    await host.emit({
+      kind: 'create',
+      type: 'field-metadata',
+      props: {
+        id: 'field-title',
+        topic_id: 'topic-models',
+        key: 'title',
+        label: 'Title',
+      },
+    });
+    let set = await Promise.resolve(host.query(query));
+    expect(set.objects.map((object) => object.id)).toEqual(['field-title']);
+
+    await host.emit({ kind: 'update', id: 'field-title', patch: { label: 'Document title' } });
+    set = await Promise.resolve(host.query(query));
+    expect(set.objects[0]?.properties.label).toBe('Document title');
+
+    await host.emit({ kind: 'delete', id: 'field-title' });
+    set = await Promise.resolve(host.query(query));
+    expect(set.objects).toEqual([]);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {

@@ -38,6 +38,7 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
     "@commonplace/block-view": "file:../../packages/block-view",
+    "@commonplace/data-model-contracts": "file:../../packages/data-model-contracts",
     "@commonplace/json-canvas": "file:../../packages/json-canvas",
     "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
     "@dagrejs/dagre": "^3.0.0",

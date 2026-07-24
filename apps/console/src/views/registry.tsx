@@ -39,6 +39,7 @@ import {
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
 import { TopicListView } from './TopicListView';
 import { SurveyView } from './SurveyView';
+import { ModelView } from './model/ModelView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -449,6 +450,30 @@ const SURVEY_BOARD: ViewDescriptor = {
   render: SurveyView,
 };
 
+const MODEL_STUDIO: ViewDescriptor = {
+  id: 'model.studio',
+  name: 'Models',
+  accepts: { required_types: ['model-scope'] },
+  emits: ['select', 'create', 'update', 'delete'],
+  renderer: 'model.studio',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect observed model',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'editor',
+    kindGlyph: 'model',
+    bodyBleed: 'flush',
+  },
+  render: ModelView,
+};
+
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',
@@ -749,6 +774,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   AUTOMATION_HISTORY,
   TOPIC_LIST,
   SURVEY_BOARD,
+  MODEL_STUDIO,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

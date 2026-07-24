@@ -49,6 +49,14 @@ const PG_TYPE_SET = new Set(PG_TYPES);
 const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
 const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
+const MODEL_METADATA_TYPES = new Set([
+  'model-scope',
+  'object-type-metadata',
+  'field-metadata',
+  'relation-metadata',
+  'view-metadata',
+  'schema-version',
+]);
 const LAYOUT_QUERY: ObjectQuery = {
   types: ['surface', 'region', 'view-instance'],
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
@@ -182,6 +190,7 @@ export class ConsoleBlockHost implements BlockHost {
   private codeFiles: ObjectRef[];
   private cardTemplates: ObjectRef[];
   private surveyObjects: ObjectRef[];
+  private modelMetadata: ObjectRef[] = [];
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
@@ -572,6 +581,9 @@ export class ConsoleBlockHost implements BlockHost {
     if (query.types.some((type) => AUTOMATION_TYPE_SET.has(type))) {
       return this.queryAutomationHistory(query);
     }
+    if (query.types.some((type) => MODEL_METADATA_TYPES.has(type))) {
+      return this.modelMetadataSet(query);
+    }
     // The live wire is the default (R2.1): records, hunks, and every domain
     // kind the seam serves (person, task, mention-candidate, ...) round-trip
     // through the data API proxy. Documents and code files ride the live wire
@@ -708,6 +720,35 @@ export class ConsoleBlockHost implements BlockHost {
           cancelled = true;
           clearInterval(timer);
         };
+      },
+    };
+  }
+
+  private modelMetadataSet(query: ObjectQuery): ObjectSet {
+    const topicId = topicIdFromSurveyQuery(query);
+    const scopeObject: ObjectRef[] = topicId
+      ? [{
+          id: `model-scope:${topicId}`,
+          type: 'model-scope',
+          properties: { topic_id: topicId },
+        }]
+      : [];
+    const objects = [...scopeObject, ...this.modelMetadata]
+      .filter((object) => query.types.includes(object.type))
+      .filter((object) => matchesPredicate(object, query.where));
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: ['topic_id', 'id', 'key', 'label', 'provenance'],
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      subscribe: (callback) => {
+        const listener = () => callback(this.modelMetadataSet(query));
+        this.domainSubs.add(listener);
+        return () => this.domainSubs.delete(listener);
       },
     };
   }
@@ -976,8 +1017,8 @@ export class ConsoleBlockHost implements BlockHost {
         // every kind.
         const updatePools =
           this.records === null
-            ? [this.cardTemplates, this.surveyObjects]
-            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.surveyObjects];
+            ? [this.cardTemplates, this.surveyObjects, this.modelMetadata]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.surveyObjects, this.modelMetadata];
         for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
@@ -990,6 +1031,21 @@ export class ConsoleBlockHost implements BlockHost {
         return Promise.resolve({ ok: false, error: `update target missing: ${action.id}` });
       }
       case 'create': {
+        if (MODEL_METADATA_TYPES.has(action.type)) {
+          const id = typeof action.props.id === 'string'
+            ? action.props.id
+            : `${action.type}:${this.modelMetadata.length + 1}`;
+          const next: ObjectRef = {
+            id,
+            type: action.type,
+            properties: { ...action.props, id },
+          };
+          const existing = this.modelMetadata.findIndex((object) => object.id === id);
+          if (existing >= 0) this.modelMetadata[existing] = next;
+          else this.modelMetadata.push(next);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([id]));
+        }
         if (!LAYOUT_TYPES.has(action.type)) return Promise.resolve(accepted());
         const id = typeof action.props.id === 'string' ? action.props.id : `vi-${this.layout.size + 1}`;
         this.layout.set(id, { id, type: action.type, properties: { ...action.props }, children: [] });
@@ -1000,6 +1056,12 @@ export class ConsoleBlockHost implements BlockHost {
         ]).then(() => applied([id]));
       }
       case 'delete': {
+        const metadataIndex = this.modelMetadata.findIndex((object) => object.id === action.id);
+        if (metadataIndex >= 0) {
+          this.modelMetadata.splice(metadataIndex, 1);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([action.id]));
+        }
         if (!this.layout.has(action.id)) return Promise.resolve(accepted());
         this.layout.delete(action.id);
         for (const candidate of this.layout.values()) {

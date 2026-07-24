@@ -5,6 +5,7 @@ export const SURFACE_ROUTES = [
   { kind: 'chat', path: '/chat', surfaceId: 'console-chat' },
   { kind: 'workspace', path: '/workspace', surfaceId: 'console-workspace' },
   { kind: 'index', path: '/filing', surfaceId: 'console-index' },
+  { kind: 'model', path: '/models', surfaceId: 'console-models' },
   { kind: 'documents', path: '/documents', surfaceId: 'console-docs' },
   { kind: 'cards', path: '/cards', surfaceId: 'console-cards' },
 ] as const;
