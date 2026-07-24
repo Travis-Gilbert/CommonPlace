@@ -16,6 +16,7 @@ test('opens Account inside the canonical Console and disables broken GitHub logi
   await expect(page.locator('[data-account-view]')).toBeVisible();
   const signIn = page.locator('[data-github-sign-in]');
   await expect(signIn).toBeDisabled();
-  await expect(signIn).toHaveText('GitHub login is not configured', { timeout: 15_000 });
+  await expect(signIn).not.toHaveText('Checking GitHub login...', { timeout: 20_000 });
+  await expect(signIn).toHaveText('GitHub login is not configured');
   await expect(page.getByRole('status')).toContainText('disabled');
 });
