@@ -1,20 +1,21 @@
 'use client';
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
-// The sidebar is frame chrome. Native drag events provide the landmark to
-// ground placement behavior; block moves remain receipted through the host.
+// SPEC-CONSOLE-INFORMATION-ARCHITECTURE-1.0: three rail tiers (Places,
+// Collections, Pins). Companions are dock panels and stay out of the rail.
+// Connection state is owned by StatusBar only (D7).
 
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
 import type { ConsoleBlockHost } from '@/lib/console-host';
-import { pathForSurfaceKind } from '@/lib/surface-routes';
 import { softNavigate } from '@/lib/soft-navigate';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
-import { useShellStore } from '@/lib/shell-store';
+import { kindHueCss } from '@/lib/material/kind-hues';
+import { deriveRailCollections, PLACE_ENTRIES, type RailCollection } from '@/lib/rail/rail-model';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
@@ -28,35 +29,33 @@ import {
   IconMemory,
   IconModel,
   IconRecords,
+  IconRun,
   IconThread,
   IconWorkspace,
 } from './icons';
-
-const CONNECTION_LABEL: Record<string, string> = {
-  connected: 'Connected',
-  connecting: 'Connecting',
-  disconnected: 'Disconnected',
-  'identity-refused': 'Identity refused',
-};
 
 export interface SidebarRegion {
   readonly object: ObjectRef;
   readonly instances: readonly ObjectRef[];
 }
 
-const SURFACE_ICONS: Record<string, typeof IconRecords> = {
+const PLACE_ICONS: Record<string, typeof IconRecords> = {
   chat: IconChat,
   workspace: IconWorkspace,
   index: IconIndex,
+  canvas: IconCards,
+  automation: IconRun,
+  topics: IconMemory,
+  survey: IconIndex,
   model: IconModel,
-  documents: IconDoc,
-  cards: IconCards,
 };
 
-const REGION_ICONS: Record<string, typeof IconRecords> = {
-  files: IconFiles,
-  context: IconMemory,
+const COLLECTION_ICONS: Record<string, typeof IconRecords> = {
+  records: IconRecords,
+  cards: IconCards,
   thread: IconThread,
+  doc: IconDoc,
+  files: IconFiles,
 };
 
 const LANDMARK_ICONS: Record<string, typeof IconRecords> = {
@@ -163,7 +162,6 @@ function shortcutLabel(index: number): string {
   return `Cmd or Ctrl ${index + 1}`;
 }
 
-/** Paper expanded rail shows ⌘N (JetBrains Mono 11). Title/aria keep the full chord. */
 function shortcutGlyph(index: number): string {
   return `⌘${index + 1}`;
 }
@@ -184,14 +182,16 @@ function SidebarDivider() {
 function SidebarRowIcon({
   children,
   muted,
+  hue,
 }: {
   readonly children: React.ReactNode;
   readonly muted?: boolean;
+  readonly hue?: string;
 }) {
   return (
     <span
       className="flex size-ij-stripe-icon shrink-0 items-center justify-center"
-      style={{ color: muted ? 'var(--ij-ink-info)' : 'var(--ij-ink)' }}
+      style={{ color: hue ?? (muted ? 'var(--ij-ink-info)' : 'var(--ij-ink)') }}
       aria-hidden
     >
       {children}
@@ -201,13 +201,10 @@ function SidebarRowIcon({
 
 export function Sidebar({
   host,
-  surfaces,
-  companions,
   activeSurfaceId,
   compact,
   landmarksRegion,
   activeGridRegionId,
-  onToggleCompanion,
 }: {
   readonly host: ConsoleBlockHost;
   readonly surfaces: readonly ObjectRef[];
@@ -226,12 +223,7 @@ export function Sidebar({
   const collapsed = collapseOverride ?? persistedCollapsed;
   const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
-  const routedSurfaces = useMemo(
-    () => surfaces
-      .filter((surface) => pathForSurfaceKind(String(surface.properties.kind ?? '')) !== null)
-      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
-    [surfaces],
-  );
+  const collections = useMemo(() => deriveRailCollections(), []);
   const seededLandmarks = landmarksRegion?.instances ?? [];
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
@@ -241,59 +233,41 @@ export function Sidebar({
     .join('')
     .slice(0, 2)
     .toUpperCase();
-  const connection = useShellStore((state) => state.connection);
-  const setConnection = useShellStore((state) => state.setConnection);
-  const progressLabel = useShellStore((state) => state.progressLabel);
-  const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
-  const showConnection =
-    needsReconnect || connection === 'connecting' || Boolean(progressLabel);
 
   const toggleCollapse = useCallback(() => {
     if (!landmarksRegion) return;
     const next = !collapsed;
     setCollapseOverride(next);
-    void host.emit({ kind: 'update', id: landmarksRegion.object.id, patch: { collapsed: next } })
-      .finally(() => setCollapseOverride(null));
+    void host.emit({
+      kind: 'update',
+      id: landmarksRegion.object.id,
+      patch: { collapsed: next },
+    }).finally(() => setCollapseOverride(null));
   }, [collapsed, host, landmarksRegion]);
 
-  const switchTo = useCallback((surface: ObjectRef) => {
-    if (surface.id === activeSurfaceId) return;
-    const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
-    // Activate immediately so the rail radio flips before a cold App Router
-    // compile finishes. softNavigate awaits the URL segment so callers (and
-    // e2e) see path and active surface agree once the push settles.
-    void host.activateSurface(surface.id);
-    if (path) void softNavigate(router, path).catch(() => undefined);
-  }, [activeSurfaceId, host, router]);
+  const routedRailEntries = useMemo(() => [...PLACE_ENTRIES, ...collections], [collections]);
 
-  // Prefetch routed surfaces so Ctrl/Cmd+digit and rail clicks do not stall on
-  // a cold /filing or /documents compile (e2e saw URL lag while the radio
-  // already flipped).
   useEffect(() => {
-    for (const surface of routedSurfaces) {
-      const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
-      if (path) router.prefetch(path);
+    for (const entry of routedRailEntries) {
+      router.prefetch(entry.path);
     }
-  }, [routedSurfaces, router]);
+  }, [routedRailEntries, router]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-      if (event.key.toLowerCase() === 'b') {
-        event.preventDefault();
-        toggleCollapse();
-        return;
-      }
-      const index = Number(event.key) - 1;
-      const surface = routedSurfaces[index];
-      if (index >= 0 && surface) {
-        event.preventDefault();
-        switchTo(surface);
-      }
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (event.key.toLowerCase() !== 'b') return;
+      event.preventDefault();
+      toggleCollapse();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [routedSurfaces, switchTo, toggleCollapse]);
+  }, [toggleCollapse]);
+
+  const navigateTo = useCallback((surfaceId: string, path: string) => {
+    void host.activateSurface(surfaceId);
+    void softNavigate(router, path).catch(() => undefined);
+  }, [host, router]);
 
   const ensureLandmarkInstance = useCallback(async (landmark: ObjectRef): Promise<string | null> => {
     if (landmark.type === 'view-instance') return landmark.id;
@@ -334,7 +308,9 @@ export function Sidebar({
       order: 0,
     })) {
       const result = await host.emit(action);
-      if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') moves += 1;
+      if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
+        moves += 1;
+      }
     }
     if (moves > 0) recordBlockMoveReceipts(moves);
   }, [activeGridRegionId, host]);
@@ -344,7 +320,7 @@ export function Sidebar({
     void (async () => {
       const instanceId = await ensureLandmarkInstance(landmark);
       if (!instanceId) return;
-      if (target?.closest('[data-block-arrangement]')) {
+      if (target?.closest('[data-block-arrangement], [data-ground-canvas], [data-region-kind="grid"], [data-region-kind="editor"]')) {
         await promoteToGround(instanceId);
         return;
       }
@@ -368,7 +344,12 @@ export function Sidebar({
   }, [ensureLandmarkInstance, host, landmarks, landmarksRegion, promoteToGround]);
 
   const pinLandmark = useCallback((landmark: ObjectRef) => {
-    void host.emit({ kind: 'update', id: landmark.id, patch: { pinned: landmark.properties.pinned !== true } });
+    const pinned = landmark.properties.pinned === true;
+    void host.emit({
+      kind: 'update',
+      id: landmark.id,
+      patch: { pinned: !pinned },
+    });
   }, [host]);
 
   const removeLandmark = useCallback((landmark: ObjectRef) => {
@@ -378,7 +359,7 @@ export function Sidebar({
 
   return (
     <nav
-      aria-label="Surfaces and companions"
+      aria-label="Places, collections, and pins"
       data-paint-region="stripe"
       data-frame-resident="stripe"
       data-shell-region="rail"
@@ -392,27 +373,27 @@ export function Sidebar({
     >
       <div
         data-surface-rail
+        data-rail-tier="place"
         role="radiogroup"
-        aria-label="Surfaces"
+        aria-label="Places"
         className="flex flex-col"
         style={{ gap: 'var(--ij-sidebar-row-gap)' }}
       >
-        {routedSurfaces.map((surface, index) => {
-          const kind = String(surface.properties.kind ?? '');
-          const label = titleFor(surface, surface.id);
-          const Icon = SURFACE_ICONS[kind] ?? IconWorkspace;
-          const active = surface.id === activeSurfaceId;
+        {PLACE_ENTRIES.map((place, index) => {
+          const Icon = PLACE_ICONS[place.kind] ?? IconWorkspace;
+          const active = place.surfaceId === activeSurfaceId;
           return (
             <button
-              key={surface.id}
+              key={place.id}
               type="button"
               role="radio"
-              data-surface-nav={surface.id}
-              title={`${label} (${shortcutLabel(index)})`}
-              aria-label={`${label} surface`}
+              data-rail-tier="place"
+              data-surface-nav={place.surfaceId}
+              title={`${place.label} (${shortcutLabel(index)})`}
+              aria-label={`${place.label} place`}
               aria-checked={active}
               aria-keyshortcuts={`Control+${index + 1} Meta+${index + 1}`}
-              onClick={() => switchTo(surface)}
+              onClick={() => navigateTo(place.surfaceId, place.path)}
               className="group relative flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
               data-selected={active ? 'true' : undefined}
               style={{
@@ -420,7 +401,7 @@ export function Sidebar({
                 gap: 'var(--ij-sidebar-icon-gap)',
                 color: 'var(--ij-ink)',
                 background: active ? 'var(--ij-selection)' : 'transparent',
-                fontWeight: active ? 600 : 500,
+                fontWeight: active ? 700 : 600,
                 fontSize: 'var(--ij-sidebar-label-size)',
                 lineHeight: 'var(--ij-sidebar-label-line)',
               }}
@@ -438,7 +419,7 @@ export function Sidebar({
                   transition: 'opacity var(--ij-motion) var(--ij-ease)',
                 }}
               >
-                {label}
+                {place.label}
               </span>
               <span
                 className="shrink-0 font-ij-mono tabular-nums"
@@ -461,38 +442,38 @@ export function Sidebar({
       <SidebarDivider />
 
       <div
-        aria-label="Companions"
+        data-rail-tier="collection"
+        aria-label="Collections"
         className="flex flex-col"
         style={{ gap: 'var(--ij-sidebar-row-gap)' }}
       >
-        {companions.map((region, index) => {
-          const companion = String(region.object.properties.companion ?? '');
-          const label = titleFor(region.object, companion);
-          const Icon = REGION_ICONS[companion] ?? IconRecords;
-          const open = region.object.properties.open !== false;
+        {collections.map((collection: RailCollection) => {
+          const Icon = COLLECTION_ICONS[collection.kindGlyph] ?? IconRecords;
+          const active = collection.surfaceId === activeSurfaceId;
           return (
             <button
-              key={region.object.id}
+              key={collection.kindGlyph}
               type="button"
-              data-companion-nav={companion}
-              title={`${label} (Alt+Shift+${index + 1})`}
-              aria-label={`${label} companion`}
-              aria-pressed={open}
-              aria-keyshortcuts={`Alt+Shift+${index + 1}`}
-              onClick={() => onToggleCompanion(region)}
+              data-rail-tier="collection"
+              data-collection-nav={collection.kindGlyph}
+              data-surface-nav={collection.surfaceId}
+              title={collection.label}
+              aria-label={`${collection.label} collection`}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => navigateTo(collection.surfaceId, collection.path)}
               className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
-              data-elevation="raised"
+              data-selected={active ? 'true' : undefined}
               style={{
                 paddingInline: 'var(--ij-sidebar-pad)',
                 gap: 'var(--ij-sidebar-icon-gap)',
                 color: 'var(--ij-ink)',
-                background: 'var(--ij-chrome)',
-                fontWeight: 600,
+                background: active ? 'var(--ij-selection)' : 'transparent',
+                fontWeight: active ? 600 : 500,
                 fontSize: 'var(--ij-sidebar-label-size)',
                 lineHeight: 'var(--ij-sidebar-label-line)',
               }}
             >
-              <SidebarRowIcon>
+              <SidebarRowIcon hue={kindHueCss(collection.kindGlyph)}>
                 <Icon size={16} />
               </SidebarRowIcon>
               <span
@@ -502,7 +483,7 @@ export function Sidebar({
                   transition: 'opacity var(--ij-motion) var(--ij-ease)',
                 }}
               >
-                {label}
+                {collection.label}
               </span>
             </button>
           );
@@ -512,7 +493,8 @@ export function Sidebar({
       <SidebarDivider />
 
       <section
-        aria-label="Landmarks"
+        aria-label="Pins"
+        data-rail-tier="pin"
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         style={{ gap: '4px' }}
       >
@@ -526,7 +508,7 @@ export function Sidebar({
             transition: 'opacity var(--ij-motion) var(--ij-ease)',
           }}
         >
-          Landmarks
+          Pins
         </h2>
         <div className="flex flex-col" style={{ gap: 'var(--ij-sidebar-row-gap)' }}>
           {landmarks.map((landmark) => {
@@ -543,19 +525,20 @@ export function Sidebar({
                 key={landmark.id}
                 draggable
                 onDragEnd={(event) => onLandmarkDragEnd(event, landmark)}
+                data-rail-tier="pin"
                 data-sidebar-landmark={landmark.id}
                 className="group flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
                 title={`${label}. Drag to the active grid.`}
                 style={{
                   paddingInline: 'var(--ij-sidebar-pad)',
                   gap: 'var(--ij-sidebar-icon-gap)',
-                  color: 'var(--ij-ink)',
-                  fontWeight: 500,
+                  color: 'var(--ij-ink-info)',
+                  fontWeight: 400,
                   fontSize: 'var(--ij-sidebar-label-size)',
                   lineHeight: 'var(--ij-sidebar-label-line)',
                 }}
               >
-                <SidebarRowIcon muted>
+                <SidebarRowIcon muted hue={typeof glyph === 'string' ? kindHueCss(glyph as 'records') : undefined}>
                   <Icon size={16} />
                 </SidebarRowIcon>
                 <span
@@ -600,7 +583,7 @@ export function Sidebar({
                 fontSize: 'var(--ij-sidebar-label-size)',
               }}
             >
-              No landmarks yet.
+              No pins yet.
             </p>
           ) : null}
         </div>
@@ -673,51 +656,6 @@ export function Sidebar({
         >
           {tenant}
         </span>
-        {showConnection ? (
-          <span data-rail-connection className="flex shrink-0 items-center gap-1">
-            <span
-              data-connection={connection}
-              aria-hidden
-              className="size-2 rounded-full"
-              style={{
-                background:
-                  connection === 'identity-refused'
-                    ? 'var(--ij-error)'
-                    : connection === 'connecting'
-                      ? 'var(--ij-accent)'
-                      : 'var(--ij-ink-info)',
-              }}
-            />
-            {needsReconnect ? (
-              <button
-                type="button"
-                data-connection={connection}
-                onClick={() => {
-                  setConnection('connecting');
-                  void host.probe();
-                }}
-                className="rounded-ij-arc-underline px-1 text-ij-link hover:bg-ij-hover-surface"
-                style={{
-                  opacity: visuallyCollapsed ? 0 : 1,
-                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                }}
-              >
-                Reconnect
-              </button>
-            ) : (
-              <span
-                data-connection={connection}
-                className="truncate text-ij-island-meta"
-                style={{
-                  opacity: visuallyCollapsed ? 0 : 1,
-                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                }}
-              >
-                {progressLabel ?? CONNECTION_LABEL[connection] ?? connection}
-              </span>
-            )}
-          </span>
-        ) : null}
       </div>
     </nav>
   );

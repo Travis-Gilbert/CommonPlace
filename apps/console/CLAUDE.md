@@ -90,7 +90,7 @@ gap: add the row, with a named source, before writing code.
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
 | Composer mechanics | `@assistant-ui/react` 0.12 | auto-grow input, attachments, object mentions, destination slot, send behavior |
-| Composer lit edge | `ShaderSurface` (`@paper-design/shaders`) | register-derived Deterministic material edge behind the Composer chrome; content plane stays flat above |
+| Composer material | `ShaderSurface` (`@paper-design/shaders`) | Paper fragments behind the flat Composer: paper-texture idle/focused, grain-gradient streaming, fluted-glass refused; content plane stays above; no lit edge strip |
 | Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
 | Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
@@ -108,7 +108,7 @@ gap: add the row, with a named source, before writing code.
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |
 | Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 | Graph canvas | `@xyflow/react` (React Flow) over `@dagrejs/dagre` (layered ranking) | the proactivity graph, per SPEC-PROACTIVITY-GRAPH-WIRING: dagre computes the layered join topology (roots rank first, sinks last), React Flow owns pan, zoom, selection, and edge routing; nodes and edges are register-styled (base CSS only, `--xy-*` mapped to the register in app.css), dynamic-imported so the sentence and card altitudes load no graph bundle |
-| Data canvas | `@xyflow/react` wrap plus `@commonplace/json-canvas` (JSON Canvas 1.0 interchange) plus `@paper-design/shaders-react` DotGrid ground | graph-native spatial arrangement of ObjectRefs; Obsidian `.canvas` import/export at the edge only; Paper DotGrid (speed=0, register colors) behind the pane; mounts as surface and companion |
+| Data canvas | `@xyflow/react` wrap plus `@commonplace/json-canvas` (JSON Canvas 1.0 interchange) plus Paper DotGrid via `ShaderSurface` | graph-native spatial arrangement of ObjectRefs; Obsidian `.canvas` import/export at the edge only; Island Shells DotGrid extract (size 0.7, gap 32, triangle, speed 0, register colors) behind the pane; mounts as surface and companion |
 | Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |
 | Workspace substrate | `@tanstack/react-virtual`, CodeMirror 6 merge, `cmdk`, and Radix Popover | semantic workspace entity tree, virtual rows, local-history revision diff, project Find, readiness detail |
 | Graph node and sentence card building blocks | jalco-ui `commit-graph` and `repo-card` (ui.justinlevine.me), structure extraction | the commit-entry node (a response is a stack of agent-action steps a person builds) and the RepoCard sentence card; the jalco layouts are reproduced and every shadcn token re-skinned to the register |

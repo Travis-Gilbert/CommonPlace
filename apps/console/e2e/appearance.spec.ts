@@ -121,16 +121,7 @@ test.describe('appearance surface', () => {
     await expect(page.locator('[data-run-widget] svg')).toHaveCSS('color', 'rgb(108, 112, 126)');
     await expect(page.locator('html')).toHaveCSS('font-size', '13px');
     await page.keyboard.press('Alt+Shift+1');
-    // Paper companion chips sit on chrome, not the selection wash.
-    const chrome = await page.evaluate(() => {
-      const probe = document.createElement('div');
-      probe.style.backgroundColor = 'var(--ij-chrome)';
-      document.body.append(probe);
-      const value = getComputedStyle(probe).backgroundColor;
-      probe.remove();
-      return value;
-    });
-    await expect(page.locator('[data-companion-nav="files"]')).toHaveCSS('background-color', chrome);
+    await expect(page.locator('[data-tool-window="files"]')).toBeVisible();
   });
 
   test('derived controls paint live and disclose a contrast clamp quietly', async ({ page }) => {
