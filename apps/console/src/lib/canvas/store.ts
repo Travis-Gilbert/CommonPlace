@@ -95,7 +95,15 @@ export class CanvasStore {
   }
 
   private receipt(actionKind: ObjectActionReceipt['action_kind'], ids: readonly string[]): Result<ObjectActionReceipt> {
-    return { ok: true, value: { action_kind: actionKind, status: 'applied', target_ids: ids } };
+    return {
+      ok: true,
+      value: {
+        action_kind: actionKind,
+        status: 'applied',
+        target_ids: ids,
+        legacy_without_op_range: true,
+      },
+    };
   }
 
   private findCanvas(id: string): GraphCanvas | null {
