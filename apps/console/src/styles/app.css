@@ -51,6 +51,15 @@
   box-shadow: var(--ij-popover-shadow);
 }
 
+.react-flow__edge.model-edge-observed .react-flow__edge-path {
+  stroke: var(--ij-divider);
+  stroke-dasharray: 5 5;
+}
+
+.react-flow__edge.model-edge-declared .react-flow__edge-path {
+  stroke: var(--ij-gold);
+}
+
 .composer-input {
   field-sizing: content;
   min-height: var(--ij-composer-min-h);

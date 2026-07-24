@@ -22,6 +22,7 @@ import {
   IconFiles,
   IconIndex,
   IconMemory,
+  IconModel,
   IconRecords,
   IconThread,
   IconWorkspace,
@@ -36,6 +37,7 @@ const SURFACE_ICONS: Record<string, typeof IconRecords> = {
   chat: IconChat,
   workspace: IconWorkspace,
   index: IconIndex,
+  model: IconModel,
   documents: IconDoc,
   cards: IconCards,
 };

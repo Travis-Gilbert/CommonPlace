@@ -20,6 +20,8 @@ export const ACCOUNT_SURFACE_ID = 'console-account';
 export const TOPICS_SURFACE_ID = 'console-topics';
 export const SURVEY_SURFACE_ID = 'console-survey';
 export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
+export const MODEL_SURFACE_ID = 'console-models';
+export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
 
 function layoutObject(
   id: string,
@@ -268,8 +270,32 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('survey'),
 
+    layoutObject(MODEL_SURFACE_ID, 'surface', {
+      name: 'Models', kind: 'model', role: 'surface', stripe_order: 4, active: false, seed_revision: 1,
+    }, ['models.region-editor', ...companionIds('models')]),
+    layoutObject('models.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [MODEL_VIEW_INSTANCE_ID]),
+    layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'model.studio',
+      title: 'Models',
+      query: {
+        types: [
+          'model-scope',
+          'object-type-metadata',
+          'field-metadata',
+          'relation-metadata',
+          'view-metadata',
+          'schema-version',
+        ],
+        where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('models'),
+
     layoutObject('console-docs', 'surface', {
-      name: 'Documents', kind: 'documents', role: 'surface', stripe_order: 4, active: false, seed_revision: 2,
+      name: 'Documents', kind: 'documents', role: 'surface', stripe_order: 5, active: false, seed_revision: 2,
     }, ['docs.region-list', 'docs.region-editor', ...companionIds('docs')]),
     ...registerToolWindow({
       id: 'docs.region-list', title: 'Documents', icon: 'docs', side: 'left', size: 22,
@@ -285,7 +311,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('docs'),
 
     layoutObject('console-cards', 'surface', {
-      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 5, active: false, seed_revision: 3,
+      name: 'Cards', kind: 'cards', role: 'surface', stripe_order: 6, active: false, seed_revision: 3,
     }, ['cards.region-editor', 'cards.region-stripe-tray', ...companionIds('cards')]),
     layoutObject('cards.region-editor', 'region', {
       kind: 'grid', size: 100, seed_revision: 3,

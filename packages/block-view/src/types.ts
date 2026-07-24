@@ -285,7 +285,7 @@ export interface ViewSource {
 }
 
 /** Where a block may mount in the console shell (HANDOFF-CONSOLE-BLOCK-SYSTEM). */
-export type MountPoint = "stripe" | "chrome" | "island" | "surface" | "companion";
+export type MountPoint = "stripe" | "chrome" | "ground" | "island" | "surface" | "companion";
 
 /** Density grammar for island and surface bodies. */
 export type BlockDensity = "compact" | "cozy" | "both";
