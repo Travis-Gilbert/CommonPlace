@@ -29,21 +29,25 @@
   --ij-purple-2: #3B3147; --ij-purple-7: #955AE0; --ij-purple-9: #B589EC;
   --ij-teal-2: #1D3D3B;   --ij-teal-7: #24A394;
 
-  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).
-     Before (dark L%): editor 23.95, chrome 29.63, raised/frame 35.23 (spread 11.3pp).
-     After (dark L%): sunken 19.5, ground 24.0, frame 26.9, raised 31.7, floating 40.2 (spread 20.7pp).
+  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.
+     Prior expanded ladder put tool chrome above frame and editor below it
+     (two opposite spatial models). Both island classes now sit darker than
+     frame so gutters read as ground: sunken/editor, ground/chrome, frame,
+     raised, floating. Spread pulled toward middle (~14pp vs prior 20.7pp).
      raised+ carry keylines; only floating and scrim carry shadow. */
-  --ij-tier-sunken: #101112;
-  --ij-tier-ground: #1E1F22;
-  --ij-tier-raised: #2C2F35;
-  --ij-tier-floating: #45484F;
+  --ij-tier-sunken: #121314;
+  --ij-tier-ground: #17191C;
+  --ij-tier-frame: #1C1E22;
+  --ij-tier-raised: #2A2D33;
+  --ij-tier-floating: #383B42;
   --ij-tier-scrim: color-mix(in oklab, #000000 52%, transparent);
 
-  /* Structural surfaces mapped onto the tier axis (hex so gates can resolve). */
-  --ij-frame: #1A1B1E;
-  --ij-editor: #101112;
-  --ij-chrome: #2C2F35;
-  --ij-raised: #45484F;
+  /* Structural surfaces mapped onto the tier axis (hex so gates can resolve).
+     Frame is lighter than both island fills (frame-inversion for dark). */
+  --ij-frame: #1C1E22;
+  --ij-editor: #121314;
+  --ij-chrome: #17191C;
+  --ij-raised: #383B42;
   --ij-seam: var(--ij-tier-ground);
   --ij-seam-raised: #565960;        /* keyline on raised+ */
   --ij-divider: var(--ij-tier-raised);
@@ -136,7 +140,8 @@
   --ij-progress-track: var(--ij-gray-4);
 
   color-scheme: dark;
-  background: var(--ij-chrome);
+  /* Unpainted regions are frame/ground, never a tool-island fill. */
+  background: var(--ij-frame);
   color: var(--ij-ink);
   font-family: var(--ij-font-ui);
   font-size: var(--ij-text-ui);

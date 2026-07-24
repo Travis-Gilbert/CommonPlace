@@ -160,7 +160,9 @@ export function seedLayout(): ObjectRef[] {
       kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,
     }, ['chat.vi-surface']),
     layoutObject('chat.vi-surface', 'view-instance', {
-      descriptor_id: 'chat.surface', title: 'Chat', query: { types: ['thread'] } as unknown as JsonValue,
+      descriptor_id: 'chat.surface', title: 'Chat',
+      query: { types: ['thread'] } as unknown as JsonValue,
+      config: { size: 'full' } as unknown as JsonValue,
     }),
     ...companionSeeds('chat'),
 

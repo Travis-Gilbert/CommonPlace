@@ -30,7 +30,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
   const durations = useMotionDurations();
   const activeId = String(region.properties.active_tab ?? instances[0]?.id ?? '');
   const active = instances.find((instance) => instance.id === activeId) ?? instances[0];
-  const bare = region.properties.chrome === 'bare' && instances.length === 1;
+  const bare = instances.length <= 1;
 
   const activate = (id: string) => {
     void host.emit({ kind: 'update', id: region.id, patch: { active_tab: id } });
@@ -42,6 +42,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
     <div
       data-editor-island
       data-island="editor"
+      data-block-size={bare ? 'full' : 'w'}
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
     >
       {bare ? null : <div

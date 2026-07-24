@@ -76,9 +76,9 @@ const PAIRS = [
   { name: 'ink on editor', foreground: '--ij-ink', background: '--ij-editor', target: 4.5 },
   { name: 'bright ink on accent', foreground: '--ij-ink-bright', background: '--ij-accent', target: 3 },
   { name: 'keyline on chrome', foreground: '--ij-keyline', background: '--ij-chrome', target: 1.2 },
-  /* HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8: island surfaces vs frame floor. */
-  { name: 'chrome island on frame', foreground: '--ij-chrome', background: '--ij-frame', target: 1.22 },
-  /* Editor is sunken (material register D1): floor is the sunken-vs-ground step, not island-on-frame. */
+  /* Both island classes sit darker than frame (dark frame-inversion). Floor is
+     the sunken-vs-frame step for tool and editor alike; gutters carry the rest. */
+  { name: 'chrome island on frame', foreground: '--ij-chrome', background: '--ij-frame', target: 1.05 },
   { name: 'editor sunken on frame', foreground: '--ij-editor', background: '--ij-frame', target: 1.08 },
   /* HANDOFF-CONSOLE-ISLAND-SHELL: header band over island base (elevation step). */
   { name: 'island header tool over chrome', foreground: '--ij-island-header-tool', background: '--ij-chrome', target: 1.05 },

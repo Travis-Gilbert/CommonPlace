@@ -13,7 +13,6 @@ import type { ConsoleBlockHost } from '@/lib/console-host';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
-import { kindHueCss } from '@/lib/material/kind-hues';
 import { deriveRailCollections, PLACE_ENTRIES, type RailCollection } from '@/lib/rail/rail-model';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
@@ -422,7 +421,7 @@ export function Sidebar({
                 lineHeight: 'var(--ij-sidebar-label-line)',
               }}
             >
-              <SidebarRowIcon hue={kindHueCss(collection.kindGlyph)}>
+              <SidebarRowIcon muted={!active}>
                 <Icon size={16} />
               </SidebarRowIcon>
               <span
@@ -487,7 +486,7 @@ export function Sidebar({
                   lineHeight: 'var(--ij-sidebar-label-line)',
                 }}
               >
-                <SidebarRowIcon muted hue={typeof glyph === 'string' ? kindHueCss(glyph as 'records') : undefined}>
+                <SidebarRowIcon muted>
                   <Icon size={16} />
                 </SidebarRowIcon>
                 <span

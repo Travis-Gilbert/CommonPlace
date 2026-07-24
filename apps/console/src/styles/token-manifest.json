@@ -1082,7 +1082,7 @@
     "--ij-inactive-alpha": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.",
+      "note": "Islands layout: default mid radius; BlockSize remaps below. Gutter 6.",
       "resolvedAlsoIn": []
     },
     "--ij-ink": {
@@ -1133,7 +1133,7 @@
     "--ij-island-border": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.",
+      "note": "Islands layout: default mid radius; BlockSize remaps below. Gutter 6.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1147,7 +1147,7 @@
     "--ij-island-gutter": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.",
+      "note": "Islands layout: default mid radius; BlockSize remaps below. Gutter 6.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1155,7 +1155,7 @@
     "--ij-island-header-editor": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Header band: island base raised one elevation step, chroma +0.005..0.010.",
+      "note": "Header band: island base raised one elevation step within the sunken side.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1171,7 +1171,7 @@
     "--ij-island-header-tool": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Header band: island base raised one elevation step, chroma +0.005..0.010.",
+      "note": "Header band: island base raised one elevation step within the sunken side.",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1185,8 +1185,10 @@
     "--ij-island-radius": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.",
-      "resolvedAlsoIn": []
+      "note": "Islands layout: default mid radius; BlockSize remaps below. Gutter 6.",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-island-section-size": {
       "file": "src/styles/register-bridge.css",
@@ -1883,15 +1885,21 @@
     "--ij-tier-floating": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
     },
+    "--ij-tier-frame": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
+      "resolvedAlsoIn": []
+    },
     "--ij-tier-ground": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
@@ -1899,7 +1907,7 @@
     "--ij-tier-raised": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
@@ -1907,7 +1915,7 @@
     "--ij-tier-scrim": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
@@ -1915,7 +1923,7 @@
     "--ij-tier-sunken": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1).",
+      "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
