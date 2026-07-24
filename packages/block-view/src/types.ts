@@ -227,6 +227,13 @@ export type ObjectAction =
 export type ActionKind = ObjectAction["kind"];
 export type ObjectActionStatus = "accepted" | "applied" | "deferred";
 
+/** Inclusive hash-chained span of TheoremOp ids produced by a captured action. */
+export interface OpRange {
+  readonly first_op_id: string;
+  readonly last_op_id: string;
+  readonly range_hash: string;
+}
+
 export interface ObjectActionReceipt {
   readonly action_kind: ActionKind;
   readonly status: ObjectActionStatus;
@@ -234,6 +241,14 @@ export interface ObjectActionReceipt {
   readonly graph_transform?: string;
   readonly actor_id?: string;
   readonly note?: string;
+  /**
+   * Present on durable captured emits (`emit_object_action_captured`).
+   * Absent only on explicit legacy receipts; those must be labeled legacy
+   * and must not be treated as ledger-backed.
+   */
+  readonly op_range?: OpRange;
+  /** True when this receipt was minted without an op range (legacy path). */
+  readonly legacy_without_op_range?: boolean;
 }
 
 export interface ThemeTokens {

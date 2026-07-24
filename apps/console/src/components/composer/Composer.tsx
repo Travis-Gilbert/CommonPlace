@@ -131,19 +131,16 @@ export function Composer({
 
   const mention = useObjectMentionAdapter(mentions, tenant);
 
-  const connection = useShellStore((state) => state.connection);
   const [focused, setFocused] = useState(false);
   const composerState = unavailable
     ? 'endpoint-refused'
-    : connection === 'identity-refused' || connection === 'disconnected'
-      ? 'disabled'
-      : interrupted
-        ? 'interrupted'
-        : isRunning
-          ? 'streaming'
-          : focused
-            ? 'focused'
-            : 'idle';
+    : interrupted
+      ? 'interrupted'
+      : isRunning
+        ? 'streaming'
+        : focused
+          ? 'focused'
+          : 'idle';
 
   /** Paper shader binding per IA named choice 6: paper material for writing
    *  states, grain-gradient wave only while streaming, fluted glass when refused. */
@@ -157,15 +154,6 @@ export function Composer({
           colorBack: 'raised',
           colorFill: 'error',
           paper: { roughness: 0.4, fiber: 0.1 },
-        };
-      case 'disabled':
-        return {
-          material: 'Deterministic' as const,
-          paperShader: 'paper-texture' as const,
-          staticOnly: true,
-          colorBack: 'chrome',
-          colorFill: 'seam',
-          paper: { roughness: 0.02, fiber: 0.02, fiberSize: 0.8, contrast: 0.1, crumples: 0 },
         };
       case 'streaming':
         return {
@@ -324,7 +312,6 @@ export function Composer({
           data-elevation="raised"
           style={{
             borderRadius: 'var(--ij-composer-radius)',
-            filter: composerState === 'disabled' ? 'saturate(0.35)' : undefined,
           }}
           onSubmit={() => setCharacterCount(0)}
           onFocusCapture={() => setFocused(true)}
@@ -430,7 +417,7 @@ export function Composer({
                 minRows={compact ? 2 : 3}
                 maxRows={24}
                 maxLength={MAX_CHARACTERS}
-                disabled={unavailable || composerState === 'disabled'}
+                disabled={unavailable}
                 data-composer-input
                 data-thread-composer-input
                 placeholder={PLACEHOLDER}
@@ -450,7 +437,7 @@ export function Composer({
                 <ComposerPrimitive.AddAttachment
                   aria-label="Attach file"
                   title="Upload files"
-                  disabled={unavailable || composerState === 'disabled'}
+                  disabled={unavailable}
                   className="composer-icon-button"
                 >
                   <IconAttach size={16} />
@@ -504,7 +491,7 @@ export function Composer({
                 <ComposerPrimitive.Send
                   aria-label="Send message"
                   title={`Send message (${NEW_LINE_HINT})`}
-                  disabled={unavailable || composerState === 'disabled'}
+                  disabled={unavailable}
                   className="composer-send-button"
                 >
                   <IconSend size={16} />

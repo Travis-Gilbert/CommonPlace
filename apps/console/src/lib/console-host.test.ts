@@ -15,6 +15,7 @@ import {
   SURFACE_ID,
   SURVEY_SURFACE_ID,
   SURVEY_VIEW_INSTANCE_ID,
+  WORKSPACE_SURFACE_ID,
   seedLayout,
   seedRecords,
 } from './workspace-seed';
@@ -68,8 +69,8 @@ describe('ConsoleBlockHost', () => {
       'console-records',
       'console-review',
       'console-survey',
-      'console-topics',
       'console-threads',
+      'console-topics',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
@@ -130,6 +131,50 @@ describe('ConsoleBlockHost', () => {
     expect(set.objects.some((object) => object.id === 'console.landmark-brief')).toBe(true);
     const survey = buildSurfaceTree(SURVEY_SURFACE_ID, set.objects);
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
+  });
+
+  it('detaches the legacy Workspace automation companion after Automation becomes a place', () => {
+    const legacy = seedLayout().map((object) => {
+      if (object.id !== WORKSPACE_SURFACE_ID) return object;
+      const children = object.relations?.[CONTAINS_EDGE] ?? [];
+      return {
+        ...object,
+        relations: { [CONTAINS_EDGE]: [...children, 'workspace.region-automation'] },
+      };
+    });
+    writeLayoutCache([
+      ...legacy,
+      {
+        id: 'workspace.region-automation',
+        type: 'region',
+        properties: {
+          kind: 'tool-window',
+          side: 'right',
+          title: 'Automation',
+          companion: 'automation',
+          role: 'companion',
+          open: true,
+          size: 24,
+        },
+        relations: { [CONTAINS_EDGE]: ['workspace.region-automation.view'] },
+      },
+      {
+        id: 'workspace.region-automation.view',
+        type: 'view-instance',
+        properties: {
+          descriptor_id: 'automation.history',
+          title: 'Automation',
+          query: { types: ['run', 'dispatch'], live: true },
+        },
+      },
+    ]);
+
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = host.queryLayout(surfaceQuery());
+    const workspace = buildSurfaceTree(WORKSPACE_SURFACE_ID, set.objects);
+    expect(workspace!.children.map((child) => child.object.id)).not.toContain('workspace.region-automation');
+    const automation = buildSurfaceTree('console-automation', set.objects);
+    expect(automation!.children.map((child) => child.object.id)).toContain('automation.region-editor');
   });
 
   it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {

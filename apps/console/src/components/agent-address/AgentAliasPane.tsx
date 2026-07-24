@@ -19,11 +19,11 @@ type PaneState =
   | { readonly status: 'error'; readonly message: string }
   | { readonly status: 'ready'; readonly aliases: AgentAliasRow[]; readonly domain: string };
 
-async function fetchAliases(userSlug: string): Promise<{
+async function fetchAliases(): Promise<{
   aliases: AgentAliasRow[];
   domain: string;
 } | null> {
-  const response = await fetch(`/api/agent-address/aliases?userSlug=${encodeURIComponent(userSlug)}`, {
+  const response = await fetch('/api/agent-address/aliases', {
     method: 'GET',
     cache: 'no-store',
   });
@@ -34,7 +34,7 @@ async function fetchAliases(userSlug: string): Promise<{
   return (await response.json()) as { aliases: AgentAliasRow[]; domain: string };
 }
 
-export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: string }) {
+export function AgentAliasPane() {
   const [state, setState] = useState<PaneState>({ status: 'loading' });
   const [alias, setAlias] = useState('');
   const [counterparty, setCounterparty] = useState('');
@@ -43,7 +43,7 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
   const refresh = useCallback(async () => {
     setState({ status: 'loading' });
     try {
-      const data = await fetchAliases(userSlug);
+      const data = await fetchAliases();
       if (!data) {
         setState({ status: 'unconfigured' });
         return;
@@ -55,7 +55,7 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
         message: error instanceof Error ? error.message : 'alias load failed',
       });
     }
-  }, [userSlug]);
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -68,7 +68,7 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
       const response = await fetch('/api/agent-address/aliases', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ alias: alias.trim(), userSlug, counterparty: counterparty.trim() }),
+        body: JSON.stringify({ alias: alias.trim(), counterparty: counterparty.trim() }),
       });
       if (!response.ok) {
         throw new Error(`mint ${response.status}`);
@@ -84,7 +84,7 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
     } finally {
       setBusy(false);
     }
-  }, [alias, counterparty, refresh, userSlug]);
+  }, [alias, counterparty, refresh]);
 
   const revoke = useCallback(
     async (target: string) => {
@@ -136,6 +136,7 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
           <div className="mb-2 flex flex-wrap gap-2">
             <input
               data-agent-alias-input
+              aria-label="Agent alias"
               className="h-ij-control rounded-ij-arc border border-ij-seam bg-ij-chrome px-2"
               placeholder="alias"
               value={alias}
@@ -143,7 +144,8 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
             />
             <input
               data-agent-counterparty-input
-              className="h-ij-control min-w-[12rem] flex-1 rounded-ij-arc border border-ij-seam bg-ij-chrome px-2"
+              aria-label="Counterparty email"
+              className="h-ij-control min-w-48 flex-1 rounded-ij-arc border border-ij-seam bg-ij-chrome px-2"
               placeholder="counterparty email"
               value={counterparty}
               onChange={(event) => setCounterparty(event.target.value)}

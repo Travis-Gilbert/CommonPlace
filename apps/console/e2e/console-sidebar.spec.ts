@@ -58,6 +58,9 @@ test.describe('Console sidebar', () => {
     await expect(rail.getByRole('radio', { name: 'Filing place' })).toContainText('Filing');
     await expect(rail.getByRole('radio', { name: 'Canvas place' })).toContainText('Canvas');
     await expect(rail.getByRole('radio', { name: 'Automation place' })).toContainText('Automation');
+    await expect(rail.getByRole('radio', { name: 'Topics place' })).toContainText('Topics');
+    await expect(rail.getByRole('radio', { name: 'Indexer place' })).toContainText('Indexer');
+    await expect(rail.getByRole('radio', { name: 'Models place' })).toContainText('Models');
     await expect(page.getByLabel('Pins')).toBeVisible();
   });
 
@@ -70,13 +73,16 @@ test.describe('Console sidebar', () => {
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
   });
 
-  test('Cmd or Ctrl 1 through 5 reach all five places', async ({ page }) => {
+  test('Cmd or Ctrl 1 through 8 reach all places', async ({ page }) => {
     const targets = [
       ['1', 'console-chat', '/chat'],
       ['2', 'console-workspace', '/workspace'],
       ['3', 'console-index', '/filing'],
       ['4', 'console-canvas', '/canvas'],
       ['5', 'console-automation', '/automation'],
+      ['6', 'console-topics', '/topics'],
+      ['7', 'console-survey', '/indexer'],
+      ['8', 'console-models', '/models'],
     ] as const;
 
     for (const [key, id, path] of targets) {

@@ -10,13 +10,16 @@ import {
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
 
 describe('rail-model', () => {
-  it('places are the closed five destinations', () => {
+  it('places are the closed routed destinations', () => {
     expect(PLACE_ENTRIES.map((place) => place.label)).toEqual([
       'Chat',
       'Workspace',
       'Filing',
       'Canvas',
       'Automation',
+      'Topics',
+      'Indexer',
+      'Models',
     ]);
   });
 

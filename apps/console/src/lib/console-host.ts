@@ -273,16 +273,12 @@ export class ConsoleBlockHost implements BlockHost {
         workspaceEditor.properties.seed_revision = 3;
         added = true;
       }
-      // B9: attach the automation-history tool window to Workspace when the
-      // region exists but is not yet in the surface CONTAINS list.
+      // IA: Automation is now its own Place. Persisted Workspace layouts from
+      // the companion era must not keep rendering the legacy automation dock.
       const workspaceSurface = this.layout.get(WORKSPACE_SURFACE_ID);
-      if (
-        workspaceSurface &&
-        this.layout.has('workspace.region-automation') &&
-        !workspaceSurface.children.includes('workspace.region-automation')
-      ) {
-        workspaceSurface.children.push('workspace.region-automation');
-        workspaceSurface.properties.seed_revision = 4;
+      if (workspaceSurface?.children.includes('workspace.region-automation')) {
+        workspaceSurface.children = workspaceSurface.children.filter((id) => id !== 'workspace.region-automation');
+        workspaceSurface.properties.seed_revision = 6;
         added = true;
       }
       // B10: Cards surface migrates to a kind=grid region with records island.
