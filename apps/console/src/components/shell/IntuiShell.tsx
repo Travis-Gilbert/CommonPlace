@@ -20,6 +20,7 @@ import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } f
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
 import { pathForSurfaceKind, surfaceIdForPath } from '@/lib/surface-routes';
+import { softNavigate } from '@/lib/soft-navigate';
 import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
@@ -229,7 +230,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
           const kind = String(surface.properties.kind ?? '');
           const path = pathForSurfaceKind(kind);
           void host.activateSurface(surface.id);
-          if (path) router.push(path);
+          if (path) void softNavigate(router, path).catch(() => undefined);
         }
       });
     };

@@ -121,3 +121,42 @@ export function memoryObject(item: HarnessMemoryItem): ObjectRef {
 export function memoryObjects(): ObjectRef[] {
   return useMemoryProjectionStore.getState().items.map(memoryObject);
 }
+
+function errorName(payload: unknown): string {
+  if (payload && typeof payload === 'object' && 'error' in payload) return String(payload.error);
+  return 'memory_projection_unavailable';
+}
+
+/** Shared hydrate for Files and Context. Safe across remounts: concurrent
+ *  callers share one in-flight fetch, and ready projections short-circuit. */
+let hydrateInFlight: Promise<void> | null = null;
+
+export function ensureMemoryProjection(): Promise<void> {
+  const projection = useMemoryProjectionStore.getState();
+  if (projection.status === 'ready') return Promise.resolve();
+  if (projection.status === 'loading' && hydrateInFlight) return hydrateInFlight;
+  if (hydrateInFlight) return hydrateInFlight;
+
+  projection.begin();
+  hydrateInFlight = fetch('/api/harness/memory', { cache: 'no-store' })
+    .then(async (response) => {
+      const payload = (await response.json()) as {
+        tenant?: string;
+        items?: HarnessMemoryItem[];
+        error?: string;
+      };
+      if (!response.ok || !payload.tenant || !Array.isArray(payload.items)) {
+        const refused = response.status === 400 || response.status === 401 || response.status === 403;
+        useMemoryProjectionStore.getState().fail(refused ? 'refused' : 'unavailable', errorName(payload));
+        return;
+      }
+      useMemoryProjectionStore.getState().hydrate(payload.tenant, payload.items);
+    })
+    .catch(() => {
+      useMemoryProjectionStore.getState().fail('unavailable', 'harness_graphql_unreachable');
+    })
+    .finally(() => {
+      hydrateInFlight = null;
+    });
+  return hydrateInFlight;
+}
