@@ -1,0 +1,33 @@
+# Own Cargo workspace for the GPUI native shell (SPEC B4).
+# Default feature = mock (no GPUI link). Optional `gpui` feature reserved for
+# pinned SHA deps documented in PINS.md / src/pins.rs.
+
+[workspace]
+members = ["."]
+resolver = "2"
+
+[package]
+name = "browser-native"
+version = "0.1.0"
+edition = "2021"
+description = "CommonPlace native browser shell: GPUI behind Shell/DockHost/SurfaceHost traits."
+license = "MIT"
+rust-version = "1.85"
+publish = false
+
+[features]
+default = ["mock"]
+# Mock shell: no GPUI / gpui-component / gpui-wry. Acceptance tests use this.
+mock = []
+# Real GPUI link (not wired in this handoff). Pins live in PINS.md / pins.rs.
+gpui = []
+
+[dependencies]
+browser-core = { path = "../../crates/browser-core" }
+interaction-arbiter = { path = "../../crates/interaction-arbiter" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tempfile = "3"

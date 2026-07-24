@@ -1,0 +1,89 @@
+<!--
+Paste into Paper: select artboard "Native window 1440", use write / insert HTML.
+Tokens match apps/web/src/styles/console-register.css.
+Paper rejects margin and display:grid; flex + padding + gap only.
+-->
+<div layer-name="Shell column" style="display:flex; flex-direction:column; width:100%; height:100%; background-color:oklch(91.5% 0.005 72); font-family:'IBM Plex Sans', system-ui, sans-serif; color:oklch(34% 0.012 72);">
+
+  <div layer-name="Title bar" style="display:flex; align-items:center; gap:16px; padding:10px 16px 8px 16px; background-color:oklch(98.9% 0.005 72); border-bottom:1px solid rgba(20,20,19,0.10); flex-shrink:0;">
+    <div layer-name="Traffic lights" style="display:flex; gap:7px; width:52px; flex-shrink:0; align-items:center;">
+      <div style="width:12px; height:12px; border-radius:999px; background-color:oklch(72% 0.12 25);"></div>
+      <div style="width:12px; height:12px; border-radius:999px; background-color:oklch(78% 0.12 85);"></div>
+      <div style="width:12px; height:12px; border-radius:999px; background-color:oklch(72% 0.10 145);"></div>
+    </div>
+    <div layer-name="Brand" style="display:flex; align-items:baseline; gap:10px; flex-shrink:0;">
+      <div style="font-weight:600; font-size:15px; letter-spacing:-0.02em;">CommonPlace</div>
+      <div style="font-weight:400; font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:oklch(56% 0.012 72);">native</div>
+    </div>
+    <div style="flex:1;"></div>
+    <div style="font-family:'JetBrains Mono', monospace; font-size:11px; color:oklch(56% 0.012 72);">session · graph live</div>
+  </div>
+
+  <div layer-name="Omnibox row" style="display:flex; align-items:center; gap:10px; padding:8px 16px; background-color:oklch(96.7% 0.005 72); border-bottom:1px solid rgba(20,20,19,0.10); flex-shrink:0;">
+    <div style="display:flex; gap:4px; flex-shrink:0;">
+      <div style="width:28px; height:28px; border-radius:6px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10); display:flex; align-items:center; justify-content:center; font-size:13px; color:oklch(45% 0.012 72);">←</div>
+      <div style="width:28px; height:28px; border-radius:6px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10); display:flex; align-items:center; justify-content:center; font-size:13px; color:oklch(56% 0.012 72);">→</div>
+    </div>
+    <div layer-name="Omnibox" style="flex:1; display:flex; align-items:center; gap:10px; height:34px; padding:0 12px; border-radius:8px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10);">
+      <div style="font-size:11px; font-weight:500; color:oklch(52.25% 0.06 218); flex-shrink:0;">HTTPS</div>
+      <div style="width:1px; height:16px; background-color:rgba(20,20,19,0.10); flex-shrink:0;"></div>
+      <div style="font-family:'JetBrains Mono', monospace; font-size:12px; flex:1;">example.com/article</div>
+      <div style="font-size:11px; color:oklch(56% 0.012 72); flex-shrink:0;">go · ask · find</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; padding:0 10px; height:28px; border-radius:6px; background-color:color-mix(in oklab, oklch(54.25% 0.12 24) 12%, transparent); flex-shrink:0;">
+      <div style="width:7px; height:7px; border-radius:999px; background-color:oklch(54.25% 0.12 24);"></div>
+      <div style="font-size:11px; font-weight:500; color:oklch(54.25% 0.12 24);">agent acting</div>
+    </div>
+  </div>
+
+  <div layer-name="Permission strip" style="display:flex; align-items:center; gap:12px; padding:8px 16px; background-color:oklch(98.9% 0.005 72); border-bottom:1px solid rgba(20,20,19,0.10); flex-shrink:0;">
+    <div style="font-size:12px; color:oklch(45% 0.012 72); flex:1;">example.com wants to use your camera</div>
+    <div style="display:flex; gap:8px; flex-shrink:0;">
+      <div style="padding:6px 12px; border-radius:6px; border:1px solid rgba(20,20,19,0.10); font-size:12px; font-weight:500; color:oklch(45% 0.012 72);">Deny</div>
+      <div style="padding:6px 12px; border-radius:6px; background-color:oklch(54.25% 0.12 24); font-size:12px; font-weight:500; color:oklch(98.9% 0.005 72);">Allow</div>
+    </div>
+  </div>
+
+  <div layer-name="Body" style="display:flex; flex:1; min-height:0;">
+    <div layer-name="Capability rail" style="width:56px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; padding:12px 8px; background-color:oklch(96.7% 0.005 72); border-right:1px solid rgba(20,20,19,0.10);">
+      <div style="width:40px; height:40px; border-radius:8px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10);"></div>
+      <div style="width:40px; height:40px; border-radius:8px; background-color:color-mix(in oklab, oklch(54.25% 0.12 24) 12%, transparent);"></div>
+      <div style="width:40px; height:40px; border-radius:8px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10);"></div>
+      <div style="flex:1;"></div>
+      <div style="width:40px; height:40px; border-radius:8px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10);"></div>
+    </div>
+
+    <div layer-name="Center dock" style="flex:1; display:flex; flex-direction:column; min-width:0;">
+      <div layer-name="Center tabs" style="display:flex; gap:0; padding:0 8px; background-color:oklch(96.7% 0.005 72); border-bottom:1px solid rgba(20,20,19,0.10); flex-shrink:0;">
+        <div style="padding:10px 14px; font-size:12px; font-weight:500; border-bottom:2px solid oklch(54.25% 0.12 24);">Workspace</div>
+        <div style="padding:10px 14px; font-size:12px; color:oklch(56% 0.012 72);">example.com</div>
+        <div style="padding:10px 14px; font-size:12px; color:oklch(56% 0.012 72);">+</div>
+      </div>
+      <div layer-name="Content hole" style="flex:1; display:flex; background-color:oklch(91.5% 0.005 72);">
+        <div layer-name="CommonPlace surface" style="flex:1; display:flex; flex-direction:column; padding:24px; gap:12px; background-color:oklch(98.9% 0.005 72); border-right:1px solid rgba(20,20,19,0.10);">
+          <div style="font-size:13px; font-weight:500;">Trusted React surface</div>
+          <div style="font-size:12px; color:oklch(56% 0.012 72); line-height:1.45;">Blocks live here. Native chrome never draws over this rectangle.</div>
+          <div style="height:120px; border-radius:4px; background-color:oklch(96.7% 0.005 72); border:1px dashed rgba(20,20,19,0.16);"></div>
+        </div>
+        <div layer-name="Servo surface" style="flex:1; display:flex; flex-direction:column; padding:24px; gap:12px; background-color:oklch(96.7% 0.005 72);">
+          <div style="font-size:13px; font-weight:500;">Servo content</div>
+          <div style="font-size:12px; color:oklch(56% 0.012 72); line-height:1.45;">Untrusted web. Presence overlays draw in-page via SceneOS seam.</div>
+          <div style="height:120px; border-radius:4px; background-color:oklch(98.9% 0.005 72); border:1px solid rgba(20,20,19,0.10);"></div>
+        </div>
+      </div>
+    </div>
+
+    <div layer-name="Evidence dock" style="width:220px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; padding:14px; background-color:oklch(96.7% 0.005 72); border-left:1px solid rgba(20,20,19,0.10);">
+      <div style="font-size:11px; letter-spacing:0.04em; text-transform:uppercase; color:oklch(56% 0.012 72);">Evidence</div>
+      <div style="font-size:12px; color:oklch(45% 0.012 72); line-height:1.4;">Optional right dock. Collapses without overlapping content.</div>
+    </div>
+  </div>
+
+  <div layer-name="Bottom dock" style="display:flex; align-items:center; gap:16px; padding:8px 16px; background-color:oklch(98.9% 0.005 72); border-top:1px solid rgba(20,20,19,0.10); flex-shrink:0;">
+    <div style="font-size:11px; color:oklch(56% 0.012 72);">Downloads</div>
+    <div style="font-size:11px; color:oklch(56% 0.012 72);">Activity</div>
+    <div style="font-size:11px; font-weight:500; color:oklch(54.25% 0.12 24);">1 approval</div>
+    <div style="flex:1;"></div>
+    <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:oklch(56% 0.012 72);">DockArea · persisted</div>
+  </div>
+</div>

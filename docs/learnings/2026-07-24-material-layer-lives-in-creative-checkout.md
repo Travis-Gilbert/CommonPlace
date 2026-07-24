@@ -20,17 +20,23 @@ product checkouts of the CommonPlace app repo on the same machine.
 
 ## Rule
 
-Before console island or material work, confirm the root contains
-`apps/console/src/components/ground/MaterialLayer.tsx`. If that file is missing,
-switch to the Creative/Website CommonPlace checkout before editing tokens or
-shaders.
+Canonical product checkout: Creative/Website CommonPlace (marker
+`.commonplace-canonical` plus
+`apps/console/src/components/ground/MaterialLayer.tsx`). Do not open
+`Tech Dev Local/CommonPlace` as an agent root. `npm run gate:canonical-root`
+fails on a wrong tree. After consolidation, run
+`scripts/retire-techdev-clone.sh` on the Mac host once.
 
 ## Evidence
 
 - Missing in Tech Dev Local checkout: no `MaterialLayer.tsx` under `apps/console`
 - Present in Creative checkout: `apps/console/src/components/ground/MaterialLayer.tsx`
-- Commit that landed the fix on the Creative branch: `e7d593c`
+- Commit that landed the design fix on the Creative branch: `e7d593c`
+- Consolidation plan: `docs/plans/console/37-CHECKOUT-CONSOLIDATION.md`
 
 ## Encoded in
 
 - `docs/learnings/2026-07-24-material-layer-lives-in-creative-checkout.md` (this file)
+- `docs/plans/console/37-CHECKOUT-CONSOLIDATION.md`
+- `.commonplace-canonical`
+- `scripts/assert-canonical-root.mjs`

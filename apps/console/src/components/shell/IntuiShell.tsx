@@ -32,6 +32,10 @@ import { ActionSheet } from './ActionSheet';
 import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
+import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
+import { HostPresenceSync } from '@/components/host/HostPresenceSync';
+import { HostFindLens } from '@/components/host/HostFindLens';
+import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 
 const OVERLAY_BREAKPOINT = 1100;
 
@@ -498,6 +502,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       <StatusBar host={host} />
       <SearchPanel host={host} />
       <ActionSheet host={host} />
+      <HostPresenceSync workspaceId="default" surface="commonplace" />
+      <HostPresenceCursor workspaceId="default" surface="commonplace" />
+      <HostFindLens workspaceId="default" surface="commonplace" />
+      <HostCapabilityRailBridge workspaceId="default" />
     </div>
   );
 }

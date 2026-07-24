@@ -1,5 +1,7 @@
 [workspace]
 members = [
   "crates/commonplace-browser-substrate",
+  "crates/browser-core",
+  "crates/interaction-arbiter",
 ]
 resolver = "2"

@@ -6,6 +6,20 @@ This repository is the product home for CommonPlace: the deployed workspace at
 `travisgilbert.me/commonplace`, its desktop shell, shared UI packages, and the
 contracts it consumes from RustyRed and Theorem.
 
+## Canonical checkout
+
+Day-to-day product work (especially `apps/console` island MaterialLayer) must
+use one primary clone. On the author machine that is:
+
+`/Users/travisgilbert/Tech Dev Local/Creative/Website/CommonPlace`
+
+Sentinel files: `.commonplace-canonical` and
+`apps/console/src/components/ground/MaterialLayer.tsx`.
+`npm --prefix apps/console run gate:canonical-root` fails without them.
+Do not use a second full clone under `Tech Dev Local/CommonPlace` as an agent
+root; retire it with `scripts/retire-techdev-clone.sh` (see
+`docs/plans/console/37-CHECKOUT-CONSOLIDATION.md`).
+
 ## Current foundation
 
 - `apps/web/` is the real Next.js CommonPlace frontend migrated from

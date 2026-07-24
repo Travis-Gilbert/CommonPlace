@@ -22,9 +22,10 @@
     "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks",
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks && npm run gate:canonical-root",
     "test:e2e": "playwright test",
-    "gate:radius": "node scripts/check-radius-lint.mjs"
+    "gate:radius": "node scripts/check-radius-lint.mjs",
+    "gate:canonical-root": "node ../../scripts/assert-canonical-root.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.12.28",
@@ -38,6 +39,7 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
     "@commonplace/block-view": "file:../../packages/block-view",
+    "@commonplace/host-bridge": "file:../../packages/host-bridge",
     "@commonplace/json-canvas": "file:../../packages/json-canvas",
     "@commonplace/multiplex-layers": "file:../../packages/multiplex-layers",
     "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
