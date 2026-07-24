@@ -1,6 +1,7 @@
 // SOURCING: 21st.dev gooey SearchBar (behavior extraction). Restyled to Int UI;
 // gooey SVG, particles, rainbow gradients, width expand, and lucide dropped.
-// Filters the open standing-topic harvest only — not global shell Search.
+// Local suggestions filter the open standing-topic harvest; Enter / Search
+// commits a live RustyWeb query projected onto the Indexer board.
 
 'use client';
 
@@ -30,6 +31,9 @@ export interface SurveyIndexerSearchProps {
   readonly query: string;
   readonly onQueryChange: (query: string) => void;
   readonly onSelectCapture?: (captureId: string) => void;
+  /** Commit the current query to live RustyWeb search (Enter / Search). */
+  readonly onLiveSearch?: (query: string) => void;
+  readonly searching?: boolean;
   readonly className?: string;
   readonly placeholder?: string;
 }
@@ -128,8 +132,10 @@ export function SurveyIndexerSearch({
   query,
   onQueryChange,
   onSelectCapture,
+  onLiveSearch,
+  searching = false,
   className,
-  placeholder = 'Filter captures',
+  placeholder = 'Search harvest or the web',
 }: SurveyIndexerSearchProps) {
   const durations = useMotionDurations();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -139,7 +145,7 @@ export function SurveyIndexerSearch({
     () => (focused ? suggestIndexerCaptures(captures, query) : []),
     [captures, focused, query],
   );
-  const listOpen = focused && normalize(query).length > 0;
+  const listOpen = focused && normalize(query).length > 0 && !searching;
 
   const applySuggestion = (suggestion: IndexerSearchSuggestion) => {
     onQueryChange(suggestion.value);
@@ -150,13 +156,29 @@ export function SurveyIndexerSearch({
     inputRef.current?.blur();
   };
 
+  const commitLiveSearch = () => {
+    const needle = query.trim();
+    if (!needle || !onLiveSearch) return;
+    setFocused(false);
+    inputRef.current?.blur();
+    onLiveSearch(needle);
+  };
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (onLiveSearch && query.trim()) {
+      commitLiveSearch();
+      return;
+    }
     const first = suggestions[0];
     if (first) applySuggestion(first);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && onLiveSearch && query.trim() && !(listOpen && suggestions[activeIndex])) {
+      // Enter with a query commits live search unless a suggestion is actively chosen.
+      return;
+    }
     if (!listOpen || suggestions.length === 0) {
       if (event.key === 'Escape') {
         onQueryChange('');
@@ -175,7 +197,7 @@ export function SurveyIndexerSearch({
       setActiveIndex((current) => (current - 1 + suggestions.length) % suggestions.length);
       return;
     }
-    if (event.key === 'Enter' && suggestions[activeIndex]) {
+    if (event.key === 'Enter' && suggestions[activeIndex] && !onLiveSearch) {
       event.preventDefault();
       applySuggestion(suggestions[activeIndex]!);
       return;
@@ -205,11 +227,13 @@ export function SurveyIndexerSearch({
           type="search"
           value={query}
           placeholder={placeholder}
-          aria-label="Filter Indexer captures"
+          aria-label="Search Indexer captures and the web"
+          aria-busy={searching || undefined}
           aria-expanded={listOpen}
           aria-controls="indexer-search-suggestions"
           aria-autocomplete="list"
           autoComplete="off"
+          disabled={searching}
           onChange={(event) => {
             onQueryChange(event.target.value);
             setActiveIndex(0);
@@ -220,9 +244,14 @@ export function SurveyIndexerSearch({
             window.setTimeout(() => setFocused(false), DUR.fast);
           }}
           onKeyDown={onKeyDown}
-          className="survey-focusable min-w-0 flex-1 bg-transparent text-sm text-ij-ink outline-none placeholder:text-ij-ink-disabled"
+          className="survey-focusable min-w-0 flex-1 bg-transparent text-sm text-ij-ink outline-none placeholder:text-ij-ink-disabled disabled:opacity-60"
         />
-        {query ? (
+        {searching ? (
+          <span className="shrink-0 font-ij-mono text-[10px] uppercase tracking-wider text-ij-gold">
+            Searching
+          </span>
+        ) : null}
+        {query && !searching ? (
           <button
             type="button"
             onClick={() => {
@@ -232,6 +261,14 @@ export function SurveyIndexerSearch({
             className="survey-focusable shrink-0 rounded-ij-arc px-2 text-xs text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
           >
             Clear
+          </button>
+        ) : null}
+        {onLiveSearch && query.trim() && !searching ? (
+          <button
+            type="submit"
+            className="survey-focusable shrink-0 rounded-ij-arc px-2 text-xs text-ij-ink hover:bg-ij-hover-surface"
+          >
+            Search
           </button>
         ) : null}
       </form>

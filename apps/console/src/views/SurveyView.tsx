@@ -31,6 +31,7 @@ import {
   filterSurveyCaptures,
   SurveyIndexerSearch,
 } from './survey/SurveyIndexerSearch';
+import { fetchIndexerLiveSearch } from '@/lib/indexer-live-search-client';
 import {
   SurveySourceArtifact,
   SurveySourceCard,
@@ -400,33 +401,100 @@ export function SurveyView({ set }: ViewRenderProps) {
   const [sceneFailed, setSceneFailed] = useState(false);
   const [metrics, setMetrics] = useState<SurveySceneMetrics | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [liveCaptures, setLiveCaptures] = useState<readonly SurveyCapture[] | null>(null);
+  const [liveQuery, setLiveQuery] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { width, webgl, palette } = useSurfaceCapabilities(rootRef);
-  const filteredCaptures = useMemo(
-    () => filterSurveyCaptures(model.captures, searchQuery),
-    [model.captures, searchQuery],
-  );
+
+  const handleQueryChange = useCallback((next: string) => {
+    setSearchQuery(next);
+    if (!next.trim()) {
+      setLiveCaptures(null);
+      setLiveQuery(null);
+      setSearchError(null);
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
+      setSearching(false);
+    } else if (liveQuery && next.trim() !== liveQuery) {
+      // Typing after a live projection falls back to local filter until Search.
+      setLiveCaptures(null);
+      setLiveQuery(null);
+      setSearchError(null);
+    }
+  }, [liveQuery]);
+
+  const runLiveSearch = useCallback(async (query: string) => {
+    const topicId = model.topic?.id;
+    if (!topicId) {
+      setSearchError('Open a standing topic before searching the web.');
+      return;
+    }
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSearching(true);
+    setSearchError(null);
+    setSearchQuery(query);
+    const result = await fetchIndexerLiveSearch({
+      query,
+      topicId,
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted) return;
+    setSearching(false);
+    searchAbortRef.current = null;
+    if (!result.ok) {
+      if (result.error === 'aborted') return;
+      setLiveCaptures(null);
+      setLiveQuery(null);
+      setSearchError(result.message);
+      return;
+    }
+    setLiveCaptures(result.captures);
+    setLiveQuery(result.query);
+    setResetKey((current) => current + 1);
+  }, [model.topic?.id]);
+
+  const filteredCaptures = useMemo(() => {
+    if (liveCaptures) return liveCaptures;
+    return filterSurveyCaptures(model.captures, searchQuery);
+  }, [liveCaptures, model.captures, searchQuery]);
   const filteredCaptureIds = useMemo(
     () => new Set(filteredCaptures.map((capture) => capture.id)),
     [filteredCaptures],
   );
   const filteredEdges = useMemo(
-    () => budgetSurveyEdges(
-      model.edges.filter(
-        (edge) => filteredCaptureIds.has(edge.from) && filteredCaptureIds.has(edge.to),
-      ),
-      2,
-    ),
-    [model.edges, filteredCaptureIds],
+    () => {
+      if (liveCaptures) return [];
+      return budgetSurveyEdges(
+        model.edges.filter(
+          (edge) => filteredCaptureIds.has(edge.from) && filteredCaptureIds.has(edge.to),
+        ),
+        2,
+      );
+    },
+    [liveCaptures, model.edges, filteredCaptureIds],
   );
   const filteredClusters = useMemo(
-    () => model.clusters
-      .map((cluster) => ({
-        ...cluster,
-        captures: cluster.captures.filter((capture) => filteredCaptureIds.has(capture.id)),
-      }))
-      .filter((cluster) => cluster.captures.length > 0),
-    [model.clusters, filteredCaptureIds],
+    () => {
+      if (liveCaptures) {
+        return [{
+          id: 'live-search',
+          label: 'Live search',
+          captures: [...liveCaptures],
+        }];
+      }
+      return model.clusters
+        .map((cluster) => ({
+          ...cluster,
+          captures: cluster.captures.filter((capture) => filteredCaptureIds.has(capture.id)),
+        }))
+        .filter((cluster) => cluster.captures.length > 0);
+    },
+    [liveCaptures, model.clusters, filteredCaptureIds],
   );
   const spatialCaptures = useMemo(
     () => filteredCaptures.slice(0, SURVEY_SPATIAL_CAPTURE_BUDGET),
@@ -436,7 +504,11 @@ export function SurveyView({ set }: ViewRenderProps) {
   const constrained = width > 0 && width < 1100;
   const flat = durations.reduced || sceneFailed || webgl === false || constrained;
   const sceneReady = !flat && webgl === true && palette !== null;
-  const openCapture = model.captures.find((capture) => capture.id === openCaptureId) ?? null;
+  const catalogCaptures = useMemo(
+    () => (liveCaptures ? [...model.captures, ...liveCaptures] : model.captures),
+    [liveCaptures, model.captures],
+  );
+  const openCapture = catalogCaptures.find((capture) => capture.id === openCaptureId) ?? null;
   const handleFallback = useCallback(() => setSceneFailed(true), []);
   const handleMetrics = useCallback((next: SurveySceneMetrics) => {
     setMetrics((current) => (
@@ -451,7 +523,7 @@ export function SurveyView({ set }: ViewRenderProps) {
     return (
       <CaptureReadingView
         capture={openCapture}
-        captures={model.captures}
+        captures={catalogCaptures}
         edges={budgetSurveyEdges(model.edges, 2)}
         onBack={() => setOpenCaptureId(null)}
         onOpenRelated={(next) => setOpenCaptureId(next.id)}
@@ -459,11 +531,17 @@ export function SurveyView({ set }: ViewRenderProps) {
     );
   }
 
-  const spatialNote = filteredCaptures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
-    ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${filteredCaptures.length} matching captures in the spatial board`
-    : searchQuery.trim()
-      ? `${filteredCaptures.length} of ${model.captures.length} captures match`
-      : null;
+  const spatialNote = liveCaptures
+    ? (
+      liveCaptures.length === 0
+        ? `No live sources for “${liveQuery ?? searchQuery.trim()}”`
+        : `Live RustyWeb · ${liveCaptures.length} source${liveCaptures.length === 1 ? '' : 's'}`
+    )
+    : filteredCaptures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
+      ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${filteredCaptures.length} matching captures in the spatial board`
+      : searchQuery.trim()
+        ? `${filteredCaptures.length} of ${model.captures.length} captures match · Enter searches the web`
+        : null;
 
   return (
     <div
@@ -471,6 +549,7 @@ export function SurveyView({ set }: ViewRenderProps) {
       className="relative flex h-full min-h-0 flex-col"
       data-survey
       data-indexer
+      data-indexer-search-mode={liveCaptures ? 'live' : searchQuery.trim() ? 'filter' : 'idle'}
       data-reduced-motion={durations.reduced ? 'true' : 'false'}
       data-scene-mode={flat ? 'flat' : sceneReady ? '3d' : 'loading'}
       data-scene-calls={metrics?.calls}
@@ -483,9 +562,16 @@ export function SurveyView({ set }: ViewRenderProps) {
           <SurveyIndexerSearch
             captures={model.captures}
             query={searchQuery}
-            onQueryChange={setSearchQuery}
+            onQueryChange={handleQueryChange}
             onSelectCapture={setOpenCaptureId}
+            onLiveSearch={runLiveSearch}
+            searching={searching}
           />
+          {searchError ? (
+            <p className="mt-2 rounded-ij-arc bg-ij-chrome px-3 py-2 text-xs text-ij-ink" role="status">
+              {searchError}
+            </p>
+          ) : null}
         </div>
         <div
           className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1 rounded-ij-arc bg-ij-chrome p-1"
@@ -519,14 +605,27 @@ export function SurveyView({ set }: ViewRenderProps) {
             data-survey-layout="empty-filter"
             className="flex h-full flex-col items-center justify-center gap-3 text-sm text-ij-ink"
           >
-            <p>No captures match “{searchQuery.trim()}”.</p>
+            <p>
+              {liveCaptures
+                ? `No live sources for “${liveQuery ?? searchQuery.trim()}”.`
+                : `No captures match “${searchQuery.trim()}”.`}
+            </p>
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
+              onClick={() => handleQueryChange('')}
               className="survey-focusable h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-ij-ink hover:bg-ij-hover-surface"
             >
-              Clear filter
+              Clear search
             </button>
+            {!liveCaptures && searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => void runLiveSearch(searchQuery.trim())}
+                className="survey-focusable h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-ij-ink hover:bg-ij-hover-surface"
+              >
+                Search the web
+              </button>
+            ) : null}
           </div>
         ) : flat ? (
           <FlatSurvey
