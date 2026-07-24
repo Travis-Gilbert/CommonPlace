@@ -26,8 +26,6 @@ import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_I
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
-import { CanvasStore } from './canvas/store';
-import { CANVAS_TYPES } from './canvas/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
@@ -46,7 +44,6 @@ import {
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
-const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
 const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
 const MODEL_METADATA_TYPES = new Set([
@@ -177,8 +174,6 @@ export interface ConsoleBlockHostOptions {
    *  Omitted values default to null. Fixture or test callers that need the
    *  shared seed must pass FIXTURE_TENANT explicitly. */
   readonly proactivityTenant?: string | null;
-  /** Canvas persistence shares the proactivity tenant unless explicitly set. */
-  readonly canvasTenant?: string | null;
 }
 
 export class ConsoleBlockHost implements BlockHost {
@@ -198,10 +193,7 @@ export class ConsoleBlockHost implements BlockHost {
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
-  private canvas: CanvasStore;
   private seedLayoutTask: Promise<void> | null = null;
-  /** Serializes layout write-through so concurrent updates cannot race on the wire. */
-  private layoutWriteTail: Promise<unknown> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -209,7 +201,6 @@ export class ConsoleBlockHost implements BlockHost {
     this.observer = options.onTransport;
     const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
-    this.canvas = new CanvasStore(options.canvasTenant === undefined ? tenant : options.canvasTenant);
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
@@ -273,12 +264,16 @@ export class ConsoleBlockHost implements BlockHost {
         workspaceEditor.properties.seed_revision = 3;
         added = true;
       }
-      // IA: Automation is now its own Place. Persisted Workspace layouts from
-      // the companion era must not keep rendering the legacy automation dock.
+      // B9: attach the automation-history tool window to Workspace when the
+      // region exists but is not yet in the surface CONTAINS list.
       const workspaceSurface = this.layout.get(WORKSPACE_SURFACE_ID);
-      if (workspaceSurface?.children.includes('workspace.region-automation')) {
-        workspaceSurface.children = workspaceSurface.children.filter((id) => id !== 'workspace.region-automation');
-        workspaceSurface.properties.seed_revision = 6;
+      if (
+        workspaceSurface &&
+        this.layout.has('workspace.region-automation') &&
+        !workspaceSurface.children.includes('workspace.region-automation')
+      ) {
+        workspaceSurface.children.push('workspace.region-automation');
+        workspaceSurface.properties.seed_revision = 4;
         added = true;
       }
       // B10: Cards surface migrates to a kind=grid region with records island.
@@ -417,86 +412,7 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        // Snapshot AFTER the await so in-flight local edits (doc navigation,
-        // surface activation) that landed while the remote fetch was pending
-        // survive replaceLayout. A stale remote seed must not yank an open
-        // document back to the brief or undo the active-surface radio.
-        const preservedActiveId = [...this.layout.values()].find(
-          (node) => node.type === 'surface' && node.properties.active === true,
-        )?.id;
-        const localViewOverrides = new Map(
-          [...this.layout.values()]
-            .filter((node) => node.type === 'view-instance')
-            .map((node) => [node.id, {
-              title: node.properties.title,
-              query: node.properties.query,
-            }] as const),
-        );
-        // Keep local-only nodes (in-flight person arrangements, e2e proofs,
-        // memory tabs) that the server has not seen yet; replaceLayout alone
-        // would drop them. Also remember which parent listed them so CONTAINS
-        // edges survive the adopt.
-        const remoteIds = new Set(remote.objects.map((object) => object.id));
-        const localOnly = [...this.layout.values()]
-          .filter((node) => !remoteIds.has(node.id))
-          .map((node) => toMutable(toRef(node)));
-        const localOnlyIds = new Set(localOnly.map((node) => node.id));
-        const parentOfLocal = new Map<string, { parentId: string; index: number }>();
-        const localActiveTabs = new Map<string, string>();
-        for (const parent of this.layout.values()) {
-          parent.children.forEach((childId, index) => {
-            if (localOnlyIds.has(childId)) {
-              parentOfLocal.set(childId, { parentId: parent.id, index });
-            }
-          });
-          const activeTab = parent.properties.active_tab;
-          if (typeof activeTab === 'string' && localOnlyIds.has(activeTab)) {
-            localActiveTabs.set(parent.id, activeTab);
-          }
-        }
         this.replaceLayout(remote.objects);
-        for (const node of localOnly) {
-          this.layout.set(node.id, node);
-        }
-        for (const [childId, { parentId, index }] of parentOfLocal) {
-          const parent = this.layout.get(parentId);
-          if (!parent || parent.children.includes(childId)) continue;
-          parent.children.splice(Math.min(index, parent.children.length), 0, childId);
-        }
-        for (const [parentId, activeTab] of localActiveTabs) {
-          const parent = this.layout.get(parentId);
-          if (parent) parent.properties.active_tab = activeTab;
-        }
-        let restored = localOnly.length > 0 || parentOfLocal.size > 0 || localActiveTabs.size > 0;
-        for (const [id, override] of localViewOverrides) {
-          const node = this.layout.get(id);
-          if (!node) continue;
-          const remoteQuery = JSON.stringify(node.properties.query ?? null);
-          const localQuery = JSON.stringify(override.query ?? null);
-          const queryChanged = localQuery !== remoteQuery;
-          const titleChanged =
-            override.title !== undefined && override.title !== node.properties.title;
-          if (!queryChanged && !titleChanged) continue;
-          node.properties = {
-            ...node.properties,
-            ...(override.title !== undefined ? { title: override.title } : {}),
-            ...(override.query !== undefined ? { query: override.query } : {}),
-          };
-          restored = true;
-        }
-        if (restored) {
-          this.persistLayout();
-          this.notifyLayout();
-        }
-        if (preservedActiveId && this.layout.has(preservedActiveId)) {
-          for (const candidate of this.layout.values()) {
-            if (candidate.type === 'surface') {
-              candidate.properties.active = candidate.id === preservedActiveId;
-            }
-          }
-          this.persistLayout();
-          this.notifyLayout();
-        }
         return;
       }
       await this.pushLayoutToServer();
@@ -542,19 +458,9 @@ export class ConsoleBlockHost implements BlockHost {
     actions: ReadonlyArray<ObjectAction>,
   ): Promise<void> {
     if (this.records !== null) return;
-    const run = async () => {
-      for (const action of actions) {
-        await this.http.emit(action);
-      }
-    };
-    // Chain all layout writes so out-of-order HTTP completion cannot overwrite
-    // a newer patch with an older one for the same view-instance.
-    const next = this.layoutWriteTail.then(run, run);
-    this.layoutWriteTail = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    await next;
+    for (const action of actions) {
+      await this.http.emit(action);
+    }
   }
 
   private notifyLayout(): void {
@@ -571,7 +477,6 @@ export class ConsoleBlockHost implements BlockHost {
     // The proactivity graph is projected and served locally from fixtures until
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
-    if (query.types.some((type) => CANVAS_TYPE_SET.has(type) || type === 'canvas')) return this.canvas.query(query);
     if (query.types.includes('memory')) return this.memorySet(query);
     // Automation history: run and dispatch objects projected from harness status
     // (B9). Not a Data API type yet; projecting here is the seam, not a stub.
@@ -761,7 +666,7 @@ export class ConsoleBlockHost implements BlockHost {
       if (response.ok) {
         const payload = await response.json().catch(() => null);
         const live = parseIndexerObjectsPayload(payload);
-        // Authoritative empty corpora stay empty; seed only on invalid/unavailable.
+        // Authoritative empty corpora stay empty; seed only on invalid or unavailable.
         if (live !== null) return live;
       }
     } catch {
@@ -965,7 +870,6 @@ export class ConsoleBlockHost implements BlockHost {
     // receipted, reversible mutations on the local projection until the kernel
     // owns them. The store refuses an over-budget action-class edit itself.
     if (this.proactivity.owns(action)) return Promise.resolve(this.proactivity.emit(action));
-    if (this.canvas.owns(action)) return Promise.resolve(this.canvas.emit(action));
 
     switch (action.kind) {
       case 'move': {
@@ -990,24 +894,10 @@ export class ConsoleBlockHost implements BlockHost {
       case 'update': {
         const node = this.layout.get(action.id);
         if (node) {
-          const patch = { ...action.patch } as Record<string, JsonValue>;
-          if (patch.config && typeof patch.config === 'object' && !Array.isArray(patch.config)) {
-            const previous = node.properties.config;
-            const previousRecord =
-              previous && typeof previous === 'object' && !Array.isArray(previous)
-                ? (previous as Record<string, JsonValue>)
-                : {};
-            patch.config = {
-              ...previousRecord,
-              ...(patch.config as Record<string, JsonValue>),
-            };
-          }
-          node.properties = { ...node.properties, ...patch };
+          node.properties = { ...node.properties, ...action.patch };
           this.persistLayout();
           this.notifyLayout();
-          return this.writeThroughLayoutUpdates([
-            { kind: 'update', id: action.id, patch },
-          ]).then(() => applied([action.id]));
+          return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
         // seeds) and survey fixtures patch in-session; records, docs, and code

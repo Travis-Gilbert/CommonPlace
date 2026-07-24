@@ -205,6 +205,9 @@ export function Sidebar({
   compact,
   landmarksRegion,
   activeGridRegionId,
+  onToggleCompanion,
+  collapsed,
+  onCollapsedChange,
 }: {
   readonly host: ConsoleBlockHost;
   readonly surfaces: readonly ObjectRef[];
@@ -214,13 +217,12 @@ export function Sidebar({
   readonly landmarksRegion: SidebarRegion | null;
   readonly activeGridRegionId: string | null;
   readonly onToggleCompanion: (region: SidebarRegion) => void;
+  readonly collapsed: boolean;
+  readonly onCollapsedChange: (collapsed: boolean) => void;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
-  const persistedCollapsed = landmarksRegion?.object.properties.collapsed === true;
-  const [collapseOverride, setCollapseOverride] = useState<boolean | null>(null);
-  const collapsed = collapseOverride ?? persistedCollapsed;
   const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
   const collections = useMemo(() => deriveRailCollections(), []);
@@ -235,15 +237,8 @@ export function Sidebar({
     .toUpperCase();
 
   const toggleCollapse = useCallback(() => {
-    if (!landmarksRegion) return;
-    const next = !collapsed;
-    setCollapseOverride(next);
-    void host.emit({
-      kind: 'update',
-      id: landmarksRegion.object.id,
-      patch: { collapsed: next },
-    }).finally(() => setCollapseOverride(null));
-  }, [collapsed, host, landmarksRegion]);
+    onCollapsedChange(!collapsed);
+  }, [collapsed, onCollapsedChange]);
 
   const routedRailEntries = useMemo(() => [...PLACE_ENTRIES, ...collections], [collections]);
 
@@ -364,11 +359,11 @@ export function Sidebar({
       data-frame-resident="stripe"
       data-shell-region="rail"
       data-sidebar-collapsed={visuallyCollapsed}
-      className="flex w-ij-stripe shrink-0 flex-col bg-transparent font-ij-ui"
+      className="flex h-full w-full shrink-0 flex-col bg-transparent font-ij-ui"
       style={{
         padding: 'var(--ij-sidebar-pad)',
         gap: 'var(--ij-sidebar-zone-gap)',
-        transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)',
+        transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)',
       }}
     >
       <div

@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
@@ -30,7 +30,6 @@ import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { MainToolbar } from './MainToolbar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
-import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
 
@@ -331,6 +330,45 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return { object, instances };
   }, [layoutObjects]);
 
+  const sidebarPanelRef = useRef<ImperativePanelHandle | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => landmarkRegion?.object.properties.collapsed === true,
+  );
+
+  const persistSidebarCollapsed = useCallback((next: boolean) => {
+    setSidebarCollapsed(next);
+    if (!landmarkRegion) return;
+    if (landmarkRegion.object.properties.collapsed === next) return;
+    void host.emit({ kind: 'update', id: landmarkRegion.object.id, patch: { collapsed: next } });
+  }, [host, landmarkRegion]);
+
+  const applySidebarCollapsed = useCallback((next: boolean) => {
+    const panel = sidebarPanelRef.current;
+    if (!panel) {
+      persistSidebarCollapsed(next);
+      return;
+    }
+    if (next) {
+      if (panel.isCollapsed()) persistSidebarCollapsed(true);
+      else panel.collapse();
+      return;
+    }
+    if (panel.isCollapsed()) panel.expand();
+    else persistSidebarCollapsed(false);
+  }, [persistSidebarCollapsed]);
+
+  useEffect(() => {
+    const next = landmarkRegion?.object.properties.collapsed === true;
+    setSidebarCollapsed(next);
+    const panel = sidebarPanelRef.current;
+    if (!panel) return;
+    if (next) {
+      if (!panel.isCollapsed()) panel.collapse();
+    } else if (panel.isCollapsed()) {
+      panel.expand();
+    }
+  }, [landmarkRegion?.object.properties.collapsed]);
+
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
     // landmark while the surface tree is still resolving (Appearance, Account,
@@ -406,103 +444,129 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       className="relative flex h-full min-h-0 flex-col bg-transparent"
     >
       <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar
-          host={host}
-          surfaces={primarySurfaces}
-          companions={companions}
-          activeSurfaceId={activeSurfaceId}
-          compact={compact}
-          landmarksRegion={landmarkRegion}
-          activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
-          onToggleCompanion={toggle}
-        />
-
-        <div
-          data-shell-region="ground"
-          className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter"
+      <PanelGroup
+        id="console-shell-columns"
+        direction="horizontal"
+        className="flex min-h-0 flex-1"
+        autoSaveId="console-shell-sidebar"
+      >
+        <Panel
+          id="console-sidebar"
+          ref={sidebarPanelRef}
+          order={1}
+          defaultSize={20}
+          minSize={12}
+          maxSize={32}
+          collapsible
+          collapsedSize={3}
+          className="min-h-0"
+          onCollapse={() => persistSidebarCollapsed(true)}
+          onExpand={() => persistSidebarCollapsed(false)}
         >
-          <div className="relative min-h-0 min-w-0 flex-1">
-            {compact ? (
-              <>
-                {editorPane}
-                {leftOpen[0] ? (
-                  <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
-                    <ToolWindow
-                      region={leftOpen[0]}
-                      host={host}
-                      entranceIndex={0}
-                      onHide={() => toggle(leftOpen[0])}
-                      gridRegionId={editor.object.id}
-                    />
-                  </div>
-                ) : null}
-                {rightOpen[0] ? (
-                  <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
-                    <ToolWindow
-                      region={rightOpen[0]}
-                      host={host}
-                      entranceIndex={1}
-                      onHide={() => toggle(rightOpen[0])}
-                      gridRegionId={editor.object.id}
-                    />
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
-                {visiblePanels.flatMap((panel, index) => {
-                  const isEditor = panel.region === editor;
-                  const nodes = [];
-                  if (index > 0) {
+          <Sidebar
+            host={host}
+            surfaces={primarySurfaces}
+            companions={companions}
+            activeSurfaceId={activeSurfaceId}
+            compact={compact}
+            landmarksRegion={landmarkRegion}
+            activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+            onToggleCompanion={toggle}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={applySidebarCollapsed}
+          />
+        </Panel>
+        <PanelResizeHandle
+          data-shell-sidebar-seam
+          className="relative w-ij-island-gutter bg-transparent"
+          aria-label="Resize sidebar"
+        />
+        <Panel id="console-editor-well" order={2} defaultSize={80} minSize={48} className="min-h-0 min-w-0">
+          <div
+            data-shell-region="ground"
+            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
+          >
+            <div className="relative min-h-0 min-w-0 flex-1">
+              {compact ? (
+                <>
+                  {editorPane}
+                  {leftOpen[0] ? (
+                    <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
+                      <ToolWindow
+                        region={leftOpen[0]}
+                        host={host}
+                        entranceIndex={0}
+                        onHide={() => toggle(leftOpen[0])}
+                        gridRegionId={editor.object.id}
+                      />
+                    </div>
+                  ) : null}
+                  {rightOpen[0] ? (
+                    <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
+                      <ToolWindow
+                        region={rightOpen[0]}
+                        host={host}
+                        entranceIndex={1}
+                        onHide={() => toggle(rightOpen[0])}
+                        gridRegionId={editor.object.id}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
+                  {visiblePanels.flatMap((panel, index) => {
+                    const isEditor = panel.region === editor;
+                    const nodes = [];
+                    if (index > 0) {
+                      nodes.push(
+                        <PanelResizeHandle
+                          key={`handle-${panel.region.object.id}`}
+                          data-panel-seam
+                          className="relative w-ij-island-gutter bg-transparent"
+                        />,
+                      );
+                    }
                     nodes.push(
-                      <PanelResizeHandle
-                        key={`handle-${panel.region.object.id}`}
-                        data-panel-seam
-                        className="relative w-ij-island-gutter bg-transparent"
-                      />,
+                      <Panel
+                        key={panel.region.object.id}
+                        id={panel.region.object.id}
+                        order={orderOf(panel.region)}
+                        defaultSize={(panel.abs / visibleTotal) * 100}
+                        minSize={isEditor ? 30 : 12}
+                      >
+                        {isEditor ? (
+                          editorPane
+                        ) : (
+                          <div
+                            data-shell-region="dock"
+                            data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
+                            className="h-full min-h-0"
+                          >
+                            <ToolWindow
+                              region={panel.region}
+                              host={host}
+                              entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
+                              onHide={() => toggle(panel.region)}
+                              gridRegionId={editor.object.id}
+                            />
+                          </div>
+                        )}
+                      </Panel>,
                     );
-                  }
-                  nodes.push(
-                    <Panel
-                      key={panel.region.object.id}
-                      id={panel.region.object.id}
-                      order={orderOf(panel.region)}
-                      defaultSize={(panel.abs / visibleTotal) * 100}
-                      minSize={isEditor ? 30 : 12}
-                    >
-                      {isEditor ? (
-                        editorPane
-                      ) : (
-                        <div
-                          data-shell-region="dock"
-                          data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
-                          className="h-full min-h-0"
-                        >
-                          <ToolWindow
-                            region={panel.region}
-                            host={host}
-                            entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
-                            onHide={() => toggle(panel.region)}
-                            gridRegionId={editor.object.id}
-                          />
-                        </div>
-                      )}
-                    </Panel>,
-                  );
-                  return nodes;
-                })}
-              </PanelGroup>
-            )}
-            {selectedRecordId ? (
-              <div className="absolute inset-y-0 right-0 z-40">
-                <RecordInspector host={host} />
-              </div>
-            ) : null}
+                    return nodes;
+                  })}
+                </PanelGroup>
+              )}
+              {selectedRecordId ? (
+                <div className="absolute inset-y-0 right-0 z-40">
+                  <RecordInspector host={host} />
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </div>
-      <StatusBar host={host} />
+        </Panel>
+      </PanelGroup>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
     </div>

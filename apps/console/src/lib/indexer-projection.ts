@@ -18,7 +18,7 @@ function isObjectRef(value: unknown): value is ObjectRef {
 /**
  * Parse a live Indexer payload.
  * Returns `null` when the payload is invalid so callers can fall back to seed.
- * Returns an array (including empty) when the live response is authoritative.
+ * Returns an array, including empty, when the live response is authoritative.
  */
 export function parseIndexerObjectsPayload(payload: unknown): ObjectRef[] | null {
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return null;

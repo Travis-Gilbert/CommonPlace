@@ -15,7 +15,6 @@ import {
   SURFACE_ID,
   SURVEY_SURFACE_ID,
   SURVEY_VIEW_INSTANCE_ID,
-  WORKSPACE_SURFACE_ID,
   seedLayout,
   seedRecords,
 } from './workspace-seed';
@@ -133,50 +132,6 @@ describe('ConsoleBlockHost', () => {
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
   });
 
-  it('detaches the legacy Workspace automation companion after Automation becomes a place', () => {
-    const legacy = seedLayout().map((object) => {
-      if (object.id !== WORKSPACE_SURFACE_ID) return object;
-      const children = object.relations?.[CONTAINS_EDGE] ?? [];
-      return {
-        ...object,
-        relations: { [CONTAINS_EDGE]: [...children, 'workspace.region-automation'] },
-      };
-    });
-    writeLayoutCache([
-      ...legacy,
-      {
-        id: 'workspace.region-automation',
-        type: 'region',
-        properties: {
-          kind: 'tool-window',
-          side: 'right',
-          title: 'Automation',
-          companion: 'automation',
-          role: 'companion',
-          open: true,
-          size: 24,
-        },
-        relations: { [CONTAINS_EDGE]: ['workspace.region-automation.view'] },
-      },
-      {
-        id: 'workspace.region-automation.view',
-        type: 'view-instance',
-        properties: {
-          descriptor_id: 'automation.history',
-          title: 'Automation',
-          query: { types: ['run', 'dispatch'], live: true },
-        },
-      },
-    ]);
-
-    const host = new ConsoleBlockHost(NO_VIEWS);
-    const set = host.queryLayout(surfaceQuery());
-    const workspace = buildSurfaceTree(WORKSPACE_SURFACE_ID, set.objects);
-    expect(workspace!.children.map((child) => child.object.id)).not.toContain('workspace.region-automation');
-    const automation = buildSurfaceTree('console-automation', set.objects);
-    expect(automation!.children.map((child) => child.object.id)).toContain('automation.region-editor');
-  });
-
   it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = await Promise.resolve(host.query({
@@ -227,53 +182,6 @@ describe('ConsoleBlockHost', () => {
     const editor = set.objects.find((object) => object.id === 'region-editor')!;
     expect(left.relations?.[CONTAINS_EDGE]).toEqual(['vi-code', 'workspace.region-files.view']);
     expect(editor.relations?.[CONTAINS_EDGE]).toEqual(['workspace.vi-substrate', 'vi-brief']);
-  });
-
-  it('nests a view-instance under another and merges kanbanColumn into config', async () => {
-    const host = new ConsoleBlockHost(NO_VIEWS);
-    const created = await host.emit({
-      kind: 'create',
-      type: 'view-instance',
-      props: {
-        id: 'vi-kanban-test',
-        descriptor_id: 'kanban',
-        title: 'Board',
-        config: { size: 'w' },
-      },
-    });
-    expect(created.ok).toBe(true);
-    await host.emit({
-      kind: 'move',
-      id: 'vi-kanban-test',
-      new_parent: 'cards.region-editor',
-      order: 0,
-    });
-    const nestMove = await host.emit({
-      kind: 'move',
-      id: 'cards.vi-records',
-      new_parent: 'vi-kanban-test',
-      order: 0,
-    });
-    expect(nestMove.ok).toBe(true);
-    await host.emit({
-      kind: 'update',
-      id: 'cards.vi-records',
-      patch: { config: { kanbanColumn: 'doing' } },
-    });
-    const set = host.queryLayout(surfaceQuery());
-    const kanban = set.objects.find((object) => object.id === 'vi-kanban-test')!;
-    const child = set.objects.find((object) => object.id === 'cards.vi-records')!;
-    expect(kanban.relations?.[CONTAINS_EDGE]).toEqual(['cards.vi-records']);
-    expect(child.properties.config).toMatchObject({ kanbanColumn: 'doing' });
-    // Config merge keeps prior keys when patching column only.
-    expect(
-      typeof child.properties.config === 'object'
-        && child.properties.config
-        && !Array.isArray(child.properties.config)
-        && 'size' in (child.properties.config as object)
-          ? (child.properties.config as { size?: unknown }).size
-          : undefined,
-    ).toBeDefined();
   });
 
   it('notifies layout subscribers on update', async () => {
@@ -389,118 +297,5 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
-  });
-
-  it('preserves in-flight doc navigation across ensureSeedLayout adopt', async () => {
-    // Doc list navigation patches docs.vi-reader locally while ensureSeedLayout's
-    // remote fetch is still in flight; adopting the seed brief must not yank it.
-    const remoteGate: { release: (() => void) | null } = { release: null };
-    const remoteReady = new Promise<void>((resolve) => {
-      remoteGate.release = resolve;
-    });
-    const remoteLayout = seedLayout();
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes('/objects/query')) {
-        const body = JSON.parse(String(init?.body ?? '{}')) as { types?: string[] };
-        const isLayout = (body.types ?? []).some((type) =>
-          type === 'surface' || type === 'region' || type === 'view-instance',
-        );
-        if (isLayout) {
-          await remoteReady;
-          return new Response(JSON.stringify({
-            objects: remoteLayout,
-            shape: {
-              types: body.types ?? [],
-              fields: [],
-              relations: [],
-              axes: {},
-              cardinality: 'many',
-            },
-          }), { status: 200 });
-        }
-        return new Response(JSON.stringify({
-          objects: [],
-          shape: { types: [], fields: [], relations: [], axes: {}, cardinality: 'empty' },
-        }), { status: 200 });
-      }
-      return new Response(
-        JSON.stringify({ action_kind: 'update', status: 'applied', target_ids: ['docs.vi-reader'] }),
-        { status: 200 },
-      );
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const host = new ConsoleBlockHost(NO_VIEWS);
-    const adopt = host.ensureSeedLayout();
-    await Promise.resolve();
-    await Promise.resolve();
-    await host.emit({
-      kind: 'update',
-      id: 'docs.vi-reader',
-      patch: {
-        title: 'Console punch list',
-        query: {
-          types: ['doc'],
-          where: { kind: 'eq', field: 'slug', value: 'console-punch-list' },
-        },
-      },
-    });
-    remoteGate.release?.();
-    await adopt;
-    const reader = host.queryLayout(surfaceQuery()).objects.find((object) => object.id === 'docs.vi-reader');
-    expect(reader?.properties.title).toBe('Console punch list');
-    expect(reader?.properties.query).toMatchObject({
-      types: ['doc'],
-      where: { kind: 'eq', field: 'slug', value: 'console-punch-list' },
-    });
-  });
-
-  it('serializes layout write-through so slower first updates cannot race ahead', async () => {
-    const order: string[] = [];
-    const gate = { releaseFirst: null as (() => void) | null };
-    const firstReleased = new Promise<void>((resolve) => {
-      gate.releaseFirst = resolve;
-    });
-    let actionCalls = 0;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes('/objects/query') || url.includes('/objects/seed')) {
-        return new Response(JSON.stringify({ objects: [], shape: { types: [], fields: [], relations: [], axes: {}, cardinality: 'empty' } }), { status: 200 });
-      }
-      const body = JSON.parse(String(init?.body ?? '{}')) as {
-        kind?: string;
-        id?: string;
-        patch?: { config?: { stamp?: string } };
-      };
-      actionCalls += 1;
-      const stamp = String(body.patch?.config?.stamp ?? body.id ?? actionCalls);
-      if (actionCalls === 1) {
-        await firstReleased;
-        order.push(`complete:${stamp}`);
-      } else {
-        order.push(`complete:${stamp}`);
-      }
-      return new Response(JSON.stringify({ action_kind: 'update', status: 'applied', target_ids: [body.id] }), { status: 200 });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const host = new ConsoleBlockHost(NO_VIEWS);
-    const first = host.emit({
-      kind: 'update',
-      id: 'cards.vi-records',
-      patch: { config: { stamp: 'a' } },
-    });
-    // Let the first write enter the chain and hit the delayed fetch.
-    await Promise.resolve();
-    await Promise.resolve();
-    const second = host.emit({
-      kind: 'update',
-      id: 'cards.vi-records',
-      patch: { config: { stamp: 'b' } },
-    });
-    gate.releaseFirst?.();
-    await Promise.all([first, second]);
-    expect(order).toEqual(['complete:a', 'complete:b']);
-    const node = host.queryLayout(surfaceQuery()).objects.find((object) => object.id === 'cards.vi-records');
-    expect(node?.properties.config).toMatchObject({ stamp: 'b' });
   });
 });
