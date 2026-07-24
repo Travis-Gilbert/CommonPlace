@@ -19,8 +19,9 @@ import type { ObjectRef } from '@commonplace/block-view/types';
 import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
-import { pathForSurfaceKind, surfaceIdForPath } from '@/lib/surface-routes';
 import { softNavigate } from '@/lib/soft-navigate';
+import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
+import { surfaceIdForPath } from '@/lib/surface-routes';
 import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
@@ -148,8 +149,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   );
   const primarySurfaces = useMemo(
     () => surfaces
-      .filter((surface) => pathForSurfaceKind(String(surface.properties.kind ?? '')) !== null)
-      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order)),
+      .filter((surface) => PLACE_ENTRIES.some((place) => place.surfaceId === surface.id))
+      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
     [surfaces],
   );
 
@@ -210,10 +211,26 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     [compact, host, regions.left, regions.right],
   );
 
-  // Alt+1..5 supplements Cmd/Ctrl surface switching on the five routed
-  // surfaces. Alt+Shift+1..3 toggles companions for the active surface.
+  useEffect(() => {
+    for (const place of PLACE_ENTRIES) {
+      router.prefetch(place.path);
+    }
+  }, [router]);
+
+  // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
+  // companions for the active surface (dock panels; not rail destinations).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+        const digit = Number(event.key);
+        if (digit >= 1 && digit <= PLACE_ENTRIES.length) {
+          event.preventDefault();
+          const place = PLACE_ENTRIES[digit - 1];
+          void host.activateSurface(place.surfaceId);
+          void softNavigate(router, place.path).catch(() => undefined);
+        }
+        return;
+      }
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.shiftKey) {
         companions.forEach((region, index) => {
@@ -224,19 +241,17 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
         });
         return;
       }
-      primarySurfaces.forEach((surface, index) => {
+      PLACE_ENTRIES.forEach((place, index) => {
         if (event.key === String(index + 1)) {
           event.preventDefault();
-          const kind = String(surface.properties.kind ?? '');
-          const path = pathForSurfaceKind(kind);
-          void host.activateSurface(surface.id);
-          if (path) void softNavigate(router, path).catch(() => undefined);
+          void host.activateSurface(place.surfaceId);
+          void softNavigate(router, place.path).catch(() => undefined);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, host, primarySurfaces, router, toggle]);
+  }, [companions, host, router, toggle]);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {

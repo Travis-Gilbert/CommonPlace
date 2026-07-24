@@ -122,9 +122,9 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Composer run state changes',
-    effect: 'ShaderSurface lit edge on the composer chrome; static at idle, optional speed while streaming',
-    spec: 'ShaderSurface Deterministic material; token-derived colors; content plane above chrome',
-    reducedMotion: 'static lit edge, speed 0',
+    effect: 'ShaderSurface Paper fragment on the composer; static paper-texture at idle, grain-gradient speed while streaming',
+    spec: 'paper-texture / grain-gradient / fluted-glass by composer state; token-derived colors; content plane above',
+    reducedMotion: 'static material, speed 0',
   },
   {
     trigger: 'Tool card appears in thread',
@@ -159,7 +159,7 @@ export const INTERACTION_INVENTORY = [
   {
     trigger: 'Data canvas paper ground',
     effect: 'static Paper DotGrid behind the React Flow pane; register colors for back and fill',
-    spec: 'Paper DotGrid (static; ShaderMount default speed 0); gap 24px; tokens --ij-editor and --ij-seam-raised',
+    spec: 'Paper DotGrid from Island Shells extract (size 0.7, gap 32, triangle, speed 0); tokens --ij-editor and --ij-seam-raised',
     reducedMotion: 'same; the pattern is already static',
   },
   {
@@ -233,7 +233,7 @@ export const DECLARED_PAINT_SURFACES = [
   {
     file: 'src/components/material/ShaderSurface.tsx',
     inventory: 'Composer run state changes',
-    reason: 'HANDOFF-CONSOLE-CHAT-SURFACE CH1: lit edge chrome via ShaderSurface; owns getContext in-file',
+    reason: 'SPEC-CONSOLE-INFORMATION-ARCHITECTURE D5/D6: composer material via ShaderSurface; owns getContext in-file',
   },
   {
     file: 'src/components/material/ShaderSurface.tsx',

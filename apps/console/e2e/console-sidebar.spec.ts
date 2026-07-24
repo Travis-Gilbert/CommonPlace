@@ -51,18 +51,18 @@ test.describe('Console sidebar', () => {
     await freshLoad(page);
   });
 
-  test('expanded labels identify every surface without hover', async ({ page }) => {
+  test('expanded labels identify every place without hover', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
-    await expect(rail.getByRole('radio', { name: 'Chat surface' })).toContainText('Chat');
-    await expect(rail.getByRole('radio', { name: 'Workspace surface' })).toContainText('Workspace');
-    await expect(rail.getByRole('radio', { name: 'Index surface' })).toContainText('Index');
-    await expect(rail.getByRole('radio', { name: 'Documents surface' })).toContainText('Documents');
-    await expect(rail.getByRole('radio', { name: 'Cards surface' })).toContainText('Cards');
-    await expect(page.getByLabel('Landmarks')).toBeVisible();
+    await expect(rail.getByRole('radio', { name: 'Chat place' })).toContainText('Chat');
+    await expect(rail.getByRole('radio', { name: 'Workspace place' })).toContainText('Workspace');
+    await expect(rail.getByRole('radio', { name: 'Filing place' })).toContainText('Filing');
+    await expect(rail.getByRole('radio', { name: 'Canvas place' })).toContainText('Canvas');
+    await expect(rail.getByRole('radio', { name: 'Automation place' })).toContainText('Automation');
+    await expect(page.getByLabel('Pins')).toBeVisible();
   });
 
   test('Cmd or Ctrl B collapses and expands the rail', async ({ page }) => {
-    const nav = page.locator('nav[aria-label="Surfaces and companions"]');
+    const nav = page.locator('nav[aria-label="Places, collections, and pins"]');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
@@ -70,13 +70,13 @@ test.describe('Console sidebar', () => {
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
   });
 
-  test('Cmd or Ctrl 1 through 5 reach all five surfaces', async ({ page }) => {
+  test('Cmd or Ctrl 1 through 5 reach all five places', async ({ page }) => {
     const targets = [
       ['1', 'console-chat', '/chat'],
       ['2', 'console-workspace', '/workspace'],
       ['3', 'console-index', '/filing'],
-      ['4', 'console-docs', '/documents'],
-      ['5', 'console-cards', '/cards'],
+      ['4', 'console-canvas', '/canvas'],
+      ['5', 'console-automation', '/automation'],
     ] as const;
 
     for (const [key, id, path] of targets) {
@@ -131,7 +131,7 @@ test.describe('Console sidebar', () => {
       page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('1');
 
-    const nav = page.locator('nav[aria-label="Surfaces and companions"]');
+    const nav = page.locator('nav[aria-label="Places, collections, and pins"]');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
     await page.waitForTimeout(400);
@@ -148,6 +148,6 @@ test.describe('Console sidebar', () => {
       timeout: 15_000,
     });
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
-    await expect(page.getByLabel('Landmarks')).toBeVisible();
+    await expect(page.getByLabel('Pins')).toBeVisible();
   });
 });

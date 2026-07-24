@@ -54,25 +54,30 @@ describe('ConsoleBlockHost', () => {
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
       'console-account',
       'console-appearance',
+      'console-automation',
+      'console-canvas',
       'console-cards',
       'console-chat',
       'console-docs',
+      'console-files',
       'console-goals',
       'console-harness-status',
       'console-index',
       'console-models',
       'console-proactivity',
+      'console-records',
       'console-review',
       'console-survey',
       'console-topics',
+      'console-threads',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
     expect(surfaces
-      .filter((surface) => typeof surface.properties.stripe_order === 'number')
+      .filter((surface) => surface.properties.role === 'place')
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Models', 'Documents', 'Cards',
+        'Chat', 'Workspace', 'Filing', 'Canvas', 'Automation', 'Topics', 'Indexer', 'Models',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
@@ -80,9 +85,8 @@ describe('ConsoleBlockHost', () => {
       'workspace.region-files',
       'workspace.region-context',
       'workspace.region-thread',
-      'workspace.region-automation',
     ]);
-    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(4);
+    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
     // The Index carries a third surface-role region, the urgent lane, whose
     // empty state is its designed norm (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0
     // F5). It is a region rather than a companion because it belongs to this
@@ -107,12 +111,12 @@ describe('ConsoleBlockHost', () => {
     expect(landmarks?.properties.kind).toBe('landmarks');
     expect(landmarks?.properties.collapsed).toBe(false);
     expect(landmarks?.relations?.[CONTAINS_EDGE]).toEqual([
-      'console.landmark-chat',
-      'console.landmark-records',
+      'console.landmark-brief',
+      'console.landmark-code',
     ]);
-    const chatLandmark = set.objects.find((object) => object.id === 'console.landmark-chat');
-    expect(chatLandmark?.properties.descriptor_id).toBe('chat.surface');
-    expect(chatLandmark?.properties.pinned).toBe(true);
+    const briefLandmark = set.objects.find((object) => object.id === 'console.landmark-brief');
+    expect(briefLandmark?.properties.descriptor_id).toBe('markdown.doc');
+    expect(briefLandmark?.properties.pinned).toBe(true);
   });
 
   it('migrates landmarks into a persisted arrangement that lacked them', () => {
@@ -123,7 +127,7 @@ describe('ConsoleBlockHost', () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = host.queryLayout(surfaceQuery());
     expect(set.objects.some((object) => object.id === 'console.region-landmarks')).toBe(true);
-    expect(set.objects.some((object) => object.id === 'console.landmark-chat')).toBe(true);
+    expect(set.objects.some((object) => object.id === 'console.landmark-brief')).toBe(true);
     const survey = buildSurfaceTree(SURVEY_SURFACE_ID, set.objects);
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
   });
