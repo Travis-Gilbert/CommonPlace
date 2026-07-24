@@ -232,7 +232,7 @@ button.row:active {
   text-transform: uppercase;
 }
 
-.relationBadge[data-relation='contradicts'] {
+.relationBadge[data-relation='CONTRADICTS'] {
   border-color: var(--cp-red-line);
   color: var(--cp-red);
 }
@@ -318,7 +318,7 @@ button.row:active {
   stroke: var(--cp-text);
 }
 
-.dockedMapNode[data-relation='contradicts'] {
+.dockedMapNode[data-relation='CONTRADICTS'] {
   stroke: var(--cp-red);
 }
 

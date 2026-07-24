@@ -21,7 +21,7 @@ describe('scatter projection (layer one)', () => {
     const payload = constellationFromScatter(fixtureScatter('membrane', 0.5));
     expect(payload.nodes).toHaveLength(3);
     expect(payload.nodes.map((node) => node.title)).toContain('Budget discipline');
-    expect(payload.nodes.find((node) => node.title === 'Open frontier')?.relation).toBe('orphan');
+    expect(payload.nodes.find((node) => node.title === 'Open frontier')?.relation).toBe('ORPHAN');
   });
 
   it('draws an aspect edge only when the two aspects share a seed document', () => {
@@ -45,7 +45,7 @@ describe('scatter projection (layer one)', () => {
 
   it('carries the retrieval reference as the subgraph reference', () => {
     const scatter = fixtureScatter('membrane', 0.5);
-    expect(constellationFromScatter(scatter).meta.subgraphRef).toBe(scatter.retrievalRef);
+    expect(constellationFromScatter(scatter).meta.subgraphRef).toBe(scatter.scatterRef);
   });
 
   it('emits no memory node rather than a placeholder gold node', () => {
@@ -66,12 +66,12 @@ describe('find projection (layer two)', () => {
     const payload = constellationFromFind(fixtureOrphanFind('membrane'));
     expect(payload.nodes.length).toBeGreaterThan(0);
     expect(payload.edges).toHaveLength(0);
-    expect(payload.nodes.every((node) => node.relation === 'orphan')).toBe(true);
+    expect(payload.nodes.every((node) => node.relation === 'ORPHAN')).toBe(true);
   });
 
   it('surfaces a degraded lane as a degraded provider', () => {
     const payload = constellationFromFind(fixtureAspectFind('membrane budget', 0.5));
-    expect(payload.meta.degradedProviders.join(' ')).toContain('structural');
+    expect(payload.meta.degradedProviders.join(' ')).toContain('STRUCTURAL');
   });
 
   it('caps the scene at the result node limit', () => {
@@ -93,7 +93,7 @@ describe('find projection (layer two)', () => {
       ...base,
       results: [
         base.results[0],
-        { ...base.results[0], score: 0.1, hit: { ...base.results[0].hit, lane: 'semantic' } },
+        { ...base.results[0], score: 0.1, hit: { ...base.results[0].hit, lane: 'SEMANTIC' } },
       ],
     };
     const payload = constellationFromFind(duplicated);

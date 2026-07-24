@@ -44,14 +44,14 @@ const PAGE_RESULT: FindResult = {
     doc: FIXTURE_PAGE_NODE_ID,
     // "budget" as it appears in the second sentence of FIXTURE_PAGE_TEXT.
     byteRange: { start: 59, end: 65 },
-    lane: 'exact',
-    scope: { kind: 'page', nodeId: FIXTURE_PAGE_NODE_ID },
+    lane: 'EXACT',
+    scope: { kind: 'PAGE', nodeId: FIXTURE_PAGE_NODE_ID },
     snippet: 'threshold. A budget is a promise about attention',
     title: 'The membrane admits by budget',
     source: 'https://commonplace.local/fixtures/membrane',
   },
   score: 0.97,
-  relation: 'known',
+  relation: 'KNOWN',
   edges: [],
 };
 
@@ -59,14 +59,14 @@ const SESSION_RESULT: FindResult = {
   hit: {
     doc: 'cp-fixture-session-note',
     byteRange: { start: 0, end: 14 },
-    lane: 'semantic',
-    scope: { kind: 'session', nodeIds: [FIXTURE_PAGE_NODE_ID, 'cp-fixture-session-note'] },
+    lane: 'SEMANTIC',
+    scope: { kind: 'SESSION', nodeIds: [FIXTURE_PAGE_NODE_ID, 'cp-fixture-session-note'] },
     snippet: 'Attention budget notes from this session',
     title: 'Attention budget',
     source: 'https://commonplace.local/fixtures/session-note',
   },
   score: 0.81,
-  relation: 'extends',
+  relation: 'EXTENDS',
   edges: [
     {
       id: 'edge-fixture-extends',
@@ -86,14 +86,14 @@ const CORPUS_RESULT: FindResult = {
   hit: {
     doc: FIXTURE_SAVED_ITEM_ID,
     byteRange: { start: 12, end: 18 },
-    lane: 'lexical',
-    scope: { kind: 'corpus' },
+    lane: 'LEXICAL',
+    scope: { kind: 'CORPUS' },
     snippet: 'Saved page: budget discipline in retrieval systems',
     title: 'Budget discipline in retrieval systems',
     source: 'https://example.com/budget-discipline',
   },
   score: 0.68,
-  relation: 'contradicts',
+  relation: 'CONTRADICTS',
   edges: [
     {
       id: 'edge-fixture-contradicts',
@@ -109,22 +109,22 @@ const WEB_RESULT: FindResult = {
   hit: {
     doc: 'cp-fixture-web',
     byteRange: { start: 0, end: 6 },
-    lane: 'structural',
-    scope: { kind: 'web' },
+    lane: 'STRUCTURAL',
+    scope: { kind: 'WEB' },
     snippet: 'budget-aware retrieval, an open frontier',
     title: 'Budget-aware retrieval',
     source: 'https://example.org/budget-aware-retrieval',
   },
   score: 0.44,
-  relation: 'orphan',
+  relation: 'ORPHAN',
   edges: [],
 };
 
 const BY_SCOPE: Record<FindScopeKind, readonly FindResult[]> = {
-  page: [PAGE_RESULT],
-  session: [SESSION_RESULT],
-  corpus: [CORPUS_RESULT],
-  web: [WEB_RESULT],
+  PAGE: [PAGE_RESULT],
+  SESSION: [SESSION_RESULT],
+  CORPUS: [CORPUS_RESULT],
+  WEB: [WEB_RESULT],
 };
 
 /**
@@ -158,7 +158,7 @@ export function fixtureFind(request: FindRequest): FindResponse {
     query: request.query,
     results,
     lanes,
-    scopesSearched: scopeKinds,
+    scopesSearched: scopeKinds.map((kind) => kind.toLowerCase()),
     lambda: request.lambda,
     retrievalRef: `fixture-retrieval-${scopeKinds.join('-') || 'none'}`,
   };
@@ -184,28 +184,25 @@ export const FIXTURE_ASPECTS: readonly AspectNode[] = [
     id: 'aspect-budget',
     label: 'Budget discipline',
     seedHits: [PAGE_RESULT.hit, CORPUS_RESULT.hit],
-    relation: 'known',
+    relation: 'KNOWN',
     edges: [
       { target: 'aspect-attention', weight: 0.71 },
       { target: 'aspect-frontier', weight: 0.22 },
     ],
-    labeledBy: 'deterministic',
   },
   {
     id: 'aspect-attention',
     label: 'Attention as a promise',
     seedHits: [PAGE_RESULT.hit, SESSION_RESULT.hit],
-    relation: 'extends',
+    relation: 'EXTENDS',
     edges: [{ target: 'aspect-budget', weight: 0.71 }],
-    labeledBy: 'deterministic',
   },
   {
     id: 'aspect-frontier',
     label: 'Open frontier',
     seedHits: [WEB_RESULT.hit],
-    relation: 'orphan',
+    relation: 'ORPHAN',
     edges: [{ target: 'aspect-budget', weight: 0.22 }],
-    labeledBy: 'deterministic',
   },
 ];
 
@@ -216,8 +213,11 @@ export function fixtureScatter(query: string, lambda: number): ScatterResponse {
     query,
     aspects: FIXTURE_ASPECTS.slice(0, MAX_ASPECTS),
     lambda,
-    scene: { sceneId: 'fixture-scene-1', url: 'https://commonplace.local/scenes/fixture-scene-1' },
-    retrievalRef: FIXTURE_SCATTER_RETRIEVAL_REF,
+    labeler: 'deterministic',
+    scopesSearched: ['corpus'],
+    scene: { sceneId: 'fixture-scene-1', package: { id: 'fixture-scene-1' } },
+    sceneRefusal: null,
+    scatterRef: FIXTURE_SCATTER_RETRIEVAL_REF,
   };
 }
 
@@ -230,23 +230,24 @@ export function fixtureExpand(query: string, aspect: string, lambda: number): Sc
         id: `${aspect}-a`,
         label: 'Deferral, not refusal',
         seedHits: [CORPUS_RESULT.hit],
-        relation: 'extends',
+        relation: 'EXTENDS',
         edges: [],
-        labeledBy: 'deterministic',
       },
       {
         id: `${aspect}-b`,
         label: 'Budget as a promise',
         seedHits: [PAGE_RESULT.hit],
-        relation: 'known',
+        relation: 'KNOWN',
         edges: [],
-        labeledBy: 'deterministic',
       },
     ],
     lambda,
-    scene: { sceneId: 'fixture-scene-2', url: 'https://commonplace.local/scenes/fixture-scene-2' },
+    labeler: 'deterministic',
+    scopesSearched: ['corpus'],
+    scene: { sceneId: 'fixture-scene-2', package: { id: 'fixture-scene-2' } },
+    sceneRefusal: null,
     expandedFrom: aspect,
-    retrievalRef: 'fixture-scatter-2',
+    scatterRef: 'fixture-scatter-2',
   };
 }
 
@@ -256,7 +257,7 @@ export function fixtureOrphanFind(query: string): FindResponse {
     query,
     results: [PAGE_RESULT, SESSION_RESULT, CORPUS_RESULT, WEB_RESULT].map((result) => ({
       ...result,
-      relation: 'orphan' as const,
+      relation: 'ORPHAN' as const,
       edges: [],
     })),
     lanes: [],
@@ -272,9 +273,9 @@ export function fixtureAspectFind(query: string, lambda: number): FindResponse {
     query,
     results: [PAGE_RESULT, CORPUS_RESULT, SESSION_RESULT],
     lanes: [
-      { lane: 'exact', seeded: 2, admitted: 1 },
-      { lane: 'semantic', seeded: 1, admitted: 1 },
-      { lane: 'structural', seeded: 1, admitted: 0, degradedReason: 'web lane timed out' },
+      { lane: 'EXACT', seeded: 2, admitted: 1 },
+      { lane: 'SEMANTIC', seeded: 1, admitted: 1 },
+      { lane: 'STRUCTURAL', seeded: 1, admitted: 0, degradedReason: 'web lane timed out' },
     ],
     scopesSearched: ['corpus', 'web'],
     lambda,

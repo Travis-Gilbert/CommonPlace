@@ -20,10 +20,10 @@ import type { GraphRelation } from '@commonplace/block-view-contracts/search-sta
 import styles from './find.module.css';
 
 const GLYPHS = {
-  known: { Icon: CircleCheck, className: styles.glyphKnown, label: 'Known' },
-  extends: { Icon: GitBranchPlus, className: styles.glyphExtends, label: 'Extends' },
-  contradicts: { Icon: Zap, className: styles.glyphContradicts, label: 'Contradicts' },
-  orphan: { Icon: CircleDashed, className: styles.glyphOrphan, label: 'Orphan' },
+  KNOWN: { Icon: CircleCheck, className: styles.glyphKnown, label: 'Known' },
+  EXTENDS: { Icon: GitBranchPlus, className: styles.glyphExtends, label: 'Extends' },
+  CONTRADICTS: { Icon: Zap, className: styles.glyphContradicts, label: 'Contradicts' },
+  ORPHAN: { Icon: CircleDashed, className: styles.glyphOrphan, label: 'Orphan' },
 } as const satisfies Record<GraphRelation, { Icon: unknown; className: string; label: string }>;
 
 export function relationLabel(relation: GraphRelation): string {

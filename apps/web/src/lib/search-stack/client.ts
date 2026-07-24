@@ -16,22 +16,23 @@
  *
  * The documents name exactly what this client expects of `apps/commonplace-api`:
  *
- *   query find(query: String!, scopes: [FindScopeInput!], lanes: [String!],
+ *   query find(query: String!, scopes: [FindScopeInput!], lanes: [FindLane!],
  *              k: Int, lambda: Float): FindResponse!
  *     FindResponse  { query results lanes scopesSearched lambda retrievalRef }
  *     FindResult    { hit score relation edges }
  *     FindHit       { doc byteRange { start end } lane scope snippet title source }
- *     FindScope     { kind nodeId nodeIds }   (kind: page|session|corpus|web)
+ *     FindScope     { kind nodeId nodeIds }   (kind: PAGE|SESSION|CORPUS|WEB)
  *     LaneReceipt   { lane seeded admitted degradedReason }
  *     EdgeRef       { id fromId toId type confidence }
  *
- *   query scatter(query: String!, k: Int, lambda: Float): ScatterResponse!
- *   query expand(retrievalRef: String!, aspect: String!, k: Int,
- *                lambda: Float): ScatterResponse!
- *     ScatterResponse { query aspects lambda scene expandedFrom retrievalRef }
- *     AspectNode      { id label seedHits relation edges labeledBy }
+ *   query scatter(query: String!, scopes: [FindScopeInput!], k: Int,
+ *                 lambda: Float): ScatterResponse!
+ *   query expand(query: String!, aspectId: String!, scopes: [FindScopeInput!],
+ *                k: Int, lambda: Float): ScatterResponse!
+ *     ScatterResponse { query aspects lambda labeler scopesSearched scene sceneRefusal expandedFrom scatterRef }
+ *     AspectNode      { id label seedHits relation edges }
  *     AspectEdge      { target weight }
- *     SceneRef        { sceneId url }
+ *     SceneRef        { sceneId package }
  *
  *   mutation saveUrl(url: String!): SaveUrlReceipt!
  *     SaveUrlReceipt { itemId collectionId collectionName title url }
@@ -77,14 +78,16 @@ const SCATTER_FIELDS = `
     id
     label
     relation
-    labeledBy
     edges { target weight }
     seedHits { ${HIT_FIELDS} }
   }
   lambda
-  scene { sceneId url }
+  labeler
+  scopesSearched
+  scene { sceneId package }
+  sceneRefusal
   expandedFrom
-  retrievalRef
+  scatterRef
 `;
 
 const SAVE_URL_FIELDS = 'itemId collectionId collectionName title url';
@@ -98,10 +101,10 @@ interface FindScopeInput {
 
 export function scopeToInput(scope: FindScope): FindScopeInput {
   switch (scope.kind) {
-    case 'page':
-      return { kind: 'page', nodeId: scope.nodeId };
-    case 'session':
-      return { kind: 'session', nodeIds: scope.nodeIds };
+    case 'PAGE':
+      return { kind: 'PAGE', nodeId: scope.nodeId };
+    case 'SESSION':
+      return { kind: 'SESSION', nodeIds: scope.nodeIds };
     default:
       return { kind: scope.kind };
   }
@@ -117,7 +120,7 @@ export async function runFind(
   options: { signal?: AbortSignal } = {},
 ): Promise<FindResponse> {
   const data = await gql<{ find: FindResponse }>(
-    `query($query:String!,$scopes:[FindScopeInput!],$lanes:[String!],$k:Int,$lambda:Float){
+    `query($query:String!,$scopes:[FindScopeInput!],$lanes:[FindLane!],$k:Int,$lambda:Float){
        find(query:$query, scopes:$scopes, lanes:$lanes, k:$k, lambda:$lambda){ ${FIND_FIELDS} }
      }`,
     {
@@ -134,6 +137,7 @@ export async function runFind(
 
 export interface ScatterRequest {
   readonly query: string;
+  readonly scopes?: readonly FindScope[];
   /** Aspect count. The executor caps it at MAX_ASPECTS regardless. */
   readonly k: number;
   /** MMR convergence dial. 1.0 converges, 0.0 maximizes aspect spread. */
@@ -146,19 +150,24 @@ export async function runScatter(
   options: { signal?: AbortSignal } = {},
 ): Promise<ScatterResponse> {
   const data = await gql<{ scatter: ScatterResponse }>(
-    `query($query:String!,$k:Int,$lambda:Float){
-       scatter(query:$query, k:$k, lambda:$lambda){ ${SCATTER_FIELDS} }
+    `query($query:String!,$scopes:[FindScopeInput!],$k:Int,$lambda:Float){
+       scatter(query:$query, scopes:$scopes, k:$k, lambda:$lambda){ ${SCATTER_FIELDS} }
      }`,
-    { query: request.query, k: request.k, lambda: request.lambda },
+    {
+      query: request.query,
+      scopes: request.scopes?.map(scopeToInput),
+      k: request.k,
+      lambda: request.lambda,
+    },
     options,
   );
   return data.scatter;
 }
 
 export interface ExpandRequest {
-  /** The retrieval the aspect belongs to, so the executor re-scatters in place. */
-  readonly retrievalRef: string;
-  readonly aspect: AspectId;
+  readonly query: string;
+  readonly aspectId: AspectId;
+  readonly scopes?: readonly FindScope[];
   readonly k: number;
   readonly lambda: number;
 }
@@ -173,12 +182,13 @@ export async function runExpand(
   options: { signal?: AbortSignal } = {},
 ): Promise<ScatterResponse> {
   const data = await gql<{ expand: ScatterResponse }>(
-    `query($retrievalRef:String!,$aspect:String!,$k:Int,$lambda:Float){
-       expand(retrievalRef:$retrievalRef, aspect:$aspect, k:$k, lambda:$lambda){ ${SCATTER_FIELDS} }
+    `query($query:String!,$aspectId:String!,$scopes:[FindScopeInput!],$k:Int,$lambda:Float){
+       expand(query:$query, aspectId:$aspectId, scopes:$scopes, k:$k, lambda:$lambda){ ${SCATTER_FIELDS} }
      }`,
     {
-      retrievalRef: request.retrievalRef,
-      aspect: request.aspect,
+      query: request.query,
+      aspectId: request.aspectId,
+      scopes: request.scopes?.map(scopeToInput),
       k: request.k,
       lambda: request.lambda,
     },

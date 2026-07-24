@@ -708,11 +708,11 @@ export function edgeAnnotation(edge: ConstellationEdge): string {
 
 function relationSentence(relation: ConstellationNode['relation']): string {
   switch (relation) {
-    case 'known':
+    case 'KNOWN':
       return 'You already know this';
-    case 'extends':
+    case 'EXTENDS':
       return 'This extends what you know';
-    case 'contradicts':
+    case 'CONTRADICTS':
       return 'This contradicts what you know';
     default:
       return 'This connects to nothing you hold yet';

@@ -48,8 +48,8 @@ beforeEach(() => {
   runFind.mockImplementation(async (request: { query: string; lambda: number }) =>
     fixtureAspectFind(request.query, request.lambda),
   );
-  runExpand.mockImplementation(async (request: { aspect: string; lambda: number }) =>
-    fixtureExpand('membrane', request.aspect, request.lambda),
+  runExpand.mockImplementation(async (request: { aspectId: string; lambda: number }) =>
+    fixtureExpand('membrane', request.aspectId, request.lambda),
   );
 });
 
@@ -286,7 +286,7 @@ describe('zero graph connection', () => {
     if (scene.kind !== 'success') throw new Error('expected success');
     expect(scene.payload.nodes.length).toBeGreaterThan(0);
     expect(scene.payload.edges).toHaveLength(0);
-    expect(scene.payload.nodes.every((node) => node.relation === 'orphan')).toBe(true);
+    expect(scene.payload.nodes.every((node) => node.relation === 'ORPHAN')).toBe(true);
   });
 });
 

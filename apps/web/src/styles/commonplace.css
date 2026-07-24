@@ -11490,7 +11490,7 @@ select.cp-input {
   stroke-width: 1;
 }
 
-.commonplace-theme .cp-constellation-node[data-relation='contradicts'] .cp-constellation-node-shape {
+.commonplace-theme .cp-constellation-node[data-relation='CONTRADICTS'] .cp-constellation-node-shape {
   stroke: var(--cp-red);
 }
 
@@ -11498,7 +11498,7 @@ select.cp-input {
    says "standing apart" without dimming the node into an error state. A query
    with zero graph connection renders every node this way, which is an honest
    answer rather than a failure. */
-.commonplace-theme .cp-constellation-node[data-relation='orphan'] .cp-constellation-node-shape {
+.commonplace-theme .cp-constellation-node[data-relation='ORPHAN'] .cp-constellation-node-shape {
   stroke: color-mix(in srgb, var(--cp-text) 30%, transparent);
   stroke-dasharray: 4 3;
 }

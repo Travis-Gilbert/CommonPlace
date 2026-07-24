@@ -62,8 +62,8 @@ beforeEach(() => {
   searchClient.runFind.mockImplementation(async (request: { query: string; lambda: number }) =>
     fixtureAspectFind(request.query, request.lambda),
   );
-  searchClient.runExpand.mockImplementation(async (request: { aspect: string; lambda: number }) =>
-    fixtureExpand('membrane', request.aspect, request.lambda),
+  searchClient.runExpand.mockImplementation(async (request: { aspectId: string; lambda: number }) =>
+    fixtureExpand('membrane', request.aspectId, request.lambda),
   );
   useSearchStack.getState().reset();
 });
@@ -181,7 +181,7 @@ describe('the expand gesture', () => {
     });
     await waitFor(() => expect(searchClient.runExpand).toHaveBeenCalledTimes(1));
     expect(searchClient.runExpand).toHaveBeenCalledWith(
-      expect.objectContaining({ aspect: 'aspect-budget' }),
+      expect.objectContaining({ aspectId: 'aspect-budget' }),
     );
 
     await waitFor(() => expect(screen.queryAllByText('Budget discipline')).toHaveLength(0));
@@ -226,7 +226,7 @@ describe('zero graph connection', () => {
     await waitFor(() => {
       const nodes = sceneNodes(container);
       expect(nodes.length).toBeGreaterThan(0);
-      expect(nodes.every((node) => node.dataset.relation === 'orphan')).toBe(true);
+      expect(nodes.every((node) => node.dataset.relation === 'ORPHAN')).toBe(true);
     });
     // No edge was drawn, and the surface says so instead of erroring.
     expect(container.querySelectorAll('.cp-constellation-edge')).toHaveLength(0);

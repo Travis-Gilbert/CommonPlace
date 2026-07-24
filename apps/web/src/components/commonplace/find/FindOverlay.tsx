@@ -144,6 +144,11 @@ function FindResults({ find }: { find: FindOverlayState }) {
 
   return (
     <>
+      {find.selectionError ? (
+        <div className={`${styles.notice} ${styles.noticeError}`}>
+          {find.selectionError}
+        </div>
+      ) : null}
       {results.map((result, index) => (
         <FindRow
           key={`${result.hit.doc}-${result.hit.byteRange.start}-${index}`}

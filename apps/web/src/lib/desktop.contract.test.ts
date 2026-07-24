@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Contract test (HANDOFF-COBROWSE-PRESENCE D1): deserializes a browse-with-me
  * response captured from the real engine handler. The fixture is emitted by
@@ -6,9 +7,15 @@
  * regenerate it there whenever the engine contract changes.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import captured from './__fixtures__/browse-with-me.captured.json';
-import { parseBrowsePerception, proposedActionOf } from './desktop';
+import { parseBrowsePerception, proposedActionOf, resolveTextTargets } from './desktop';
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  delete (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+});
 
 describe('browse-with-me contract (captured from the real handler)', () => {
   it('deserializes the preview response with no unknown left on the path', () => {
@@ -46,5 +53,32 @@ describe('browse-with-me contract (captured from the real handler)', () => {
   it('rejects a drifted body loudly', () => {
     expect(() => parseBrowsePerception({ run_id: 42 })).toThrow(/run_id/);
     expect(() => parseBrowsePerception(null)).toThrow();
+  });
+});
+
+describe('margin-recall target resolution', () => {
+  it('times out to an empty rect set and unregisters the listener', async () => {
+    vi.useFakeTimers();
+    const invoke = vi.fn(async (cmd: string) =>
+      cmd === 'plugin:event|listen' ? 42 : undefined,
+    );
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: {
+        invoke,
+        transformCallback: vi.fn(() => 7),
+      },
+    });
+
+    const result = resolveTextTargets('tab-1', [{ quote: 'needle' }]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(result).resolves.toEqual([{ rects: [], confidence: 0 }]);
+    expect(invoke).toHaveBeenCalledWith('plugin:event|unlisten', {
+      event: 'marginrecall://targets',
+      eventId: 42,
+    });
   });
 });

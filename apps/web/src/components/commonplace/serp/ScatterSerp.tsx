@@ -115,6 +115,7 @@ export default function ScatterSerp({ sessionId, onOpenPage }: ScatterSerpProps)
     ) : (
       <AspectRoster
         aspects={scatter?.aspects ?? []}
+        labeler={scatter?.labeler}
         onOpen={(id) => void state.selectAspect(id)}
         onExpand={(id) => void state.expandAspect(id)}
         expanding={state.expanding}
@@ -185,11 +186,13 @@ export default function ScatterSerp({ sessionId, onOpenPage }: ScatterSerpProps)
  */
 function AspectRoster({
   aspects,
+  labeler,
   onOpen,
   onExpand,
   expanding,
 }: {
   aspects: readonly AspectNode[];
+  labeler?: string;
   onOpen: (id: string) => void;
   onExpand: (id: string) => void;
   expanding: string | null;
@@ -213,7 +216,7 @@ function AspectRoster({
                 <span className={styles.rowSource}>
                   {aspect.seedHits.length === 1 ? '1 seed' : `${aspect.seedHits.length} seeds`}
                 </span>
-                <span className={styles.rowSource}>labeled by {aspect.labeledBy}</span>
+                {labeler ? <span className={styles.rowSource}>labeled by {labeler}</span> : null}
               </span>
             </span>
             <span className={styles.rowActions}>

@@ -1,6 +1,5 @@
 'use client';
 
-<<<<<<< HEAD
 // SOURCING: hand-roll — the Tauri IPC surface itself. `@tauri-apps/api` and the
 // per-plugin guest bindings (`@tauri-apps/plugin-deep-link`) are the upstream
 // libraries here, and each is a thin wrapper over the runtime-injected
@@ -8,12 +7,8 @@
 // injected surface directly so the web bundle carries no `@tauri-apps/*`
 // dependency: apps/web ships the plain web app as well as the desktop shell.
 // Every wrapper below mirrors its upstream binding's command name and payload
-// shape exactly, so the contract is the library's, not ours.
-=======
-// SOURCING: none. Typed IPC transport over the runtime-injected Tauri invoke;
-// binding @tauri-apps/api here is what this module deliberately avoids so the
-// web bundle stays runtime-dependency-free. No upstream component applies.
->>>>>>> f33f4c7 (feat(search): universal find, scatter SERP, and one-click save)
+// shape exactly, so the contract is the library's, not ours. Margin-recall
+// geometry commands and deep-link helpers share this bridge.
 
 /**
  * Dependency-free Tauri bridge for CommonPlace desktop mode (SPEC-9 D4/D5).
@@ -181,23 +176,20 @@ export interface AgentIngestionReceipt {
 export type CoBrowseShellEvent = 'cobrowse://stage-focus' | 'cobrowse://navigation';
 
 /**
-<<<<<<< HEAD
- * Every shell event this bridge subscribes to. `deep-link://new-url` is emitted
- * by tauri-plugin-deep-link when a `theorem://` link is opened while the app is
- * running (DESIGN-THEOREM-URI section 3).
- */
-export type DesktopShellEvent = CoBrowseShellEvent | 'deep-link://new-url';
-=======
  * Margin-recall geometry events (HANDOFF-MARGIN-RECALL D1). `marginrecall://targets`
  * carries the injected resolver's postback: `{ requestId, targets }`.
+ * `deep-link://new-url` is emitted by tauri-plugin-deep-link when a `theorem://`
+ * link is opened while the app is running (DESIGN-THEOREM-URI section 3).
  */
 export type MarginRecallShellEvent =
   | 'marginrecall://targets'
   | 'marginrecall://viewport'
   | 'marginrecall://scroll';
 
-export type DesktopShellEvent = CoBrowseShellEvent | MarginRecallShellEvent;
->>>>>>> f33f4c7 (feat(search): universal find, scatter SERP, and one-click save)
+export type DesktopShellEvent =
+  | CoBrowseShellEvent
+  | MarginRecallShellEvent
+  | 'deep-link://new-url';
 
 export async function listenDesktopEvent<T = unknown>(
   event: DesktopShellEvent,
@@ -305,6 +297,8 @@ export interface PageIdentity {
 export const pageIdentity = (tabId: string) =>
   invoke<PageIdentity>('page_identity', { tabId });
 
+const RESOLVE_TEXT_TARGET_TIMEOUT_MS = 2000;
+
 /**
  * Rust: `resolve_text_targets(tab_id, request_id, target)`. Fire-and-forget: the
  * rects arrive on `marginrecall://targets` tagged with the request id, so this
@@ -320,27 +314,39 @@ export async function resolveTextTargets(
         typeof crypto !== 'undefined' && 'randomUUID' in crypto
           ? crypto.randomUUID()
           : `mr-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const empty: RectSet = { rects: [], confidence: 0 };
       let settle: ((value: RectSet) => void) | null = null;
       const result = new Promise<RectSet>((resolve) => {
         settle = resolve;
       });
-      const empty: RectSet = { rects: [], confidence: 0 };
       let unlisten: (() => void) | null = null;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      let settled = false;
+      const finish = (value: RectSet) => {
+        if (settled) return;
+        settled = true;
+        if (timeout) clearTimeout(timeout);
+        unlisten?.();
+        unlisten = null;
+        settle?.(value);
+      };
+
       try {
         unlisten = await listenDesktopEvent<{ requestId: string; targets: RectSet[] }>(
           'marginrecall://targets',
           (payload) => {
             if (payload.requestId !== requestId) return;
-            unlisten?.();
-            settle?.(payload.targets[0] ?? empty);
+            finish(payload.targets[0] ?? empty);
           },
         );
       } catch {
-        return empty;
+        finish(empty);
+        return result;
       }
+
+      timeout = setTimeout(() => finish(empty), RESOLVE_TEXT_TARGET_TIMEOUT_MS);
       void invoke<void>('resolve_text_targets', { tabId, requestId, target }).catch(() => {
-        unlisten?.();
-        settle?.(empty);
+        finish(empty);
       });
       return result;
     }),

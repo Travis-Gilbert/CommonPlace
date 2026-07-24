@@ -13,27 +13,27 @@
 
 export const COMMONPLACE_SEARCH_STACK_CONTRACT_VERSION = 'commonplace-search-stack/v1';
 
-/** Which match lane produced a hit. */
-export type FindLane = 'exact' | 'lexical' | 'semantic' | 'structural';
+/** Which match lane produced a hit. GraphQL enum values are uppercase on the wire. */
+export type FindLane = 'EXACT' | 'LEXICAL' | 'SEMANTIC' | 'STRUCTURAL';
 
-/** Scope kinds, in widening order. */
-export type FindScopeKind = 'page' | 'session' | 'corpus' | 'web';
+/** Scope kinds, in widening order. GraphQL enum values are uppercase on the wire. */
+export type FindScopeKind = 'PAGE' | 'SESSION' | 'CORPUS' | 'WEB';
 
 /** Widening order the scope stepper walks. Index is the rank. */
-export const FIND_SCOPE_ORDER: readonly FindScopeKind[] = ['page', 'session', 'corpus', 'web'];
+export const FIND_SCOPE_ORDER: readonly FindScopeKind[] = ['PAGE', 'SESSION', 'CORPUS', 'WEB'];
 
 export type FindScope =
-  | { readonly kind: 'page'; readonly nodeId: string }
-  | { readonly kind: 'session'; readonly nodeIds: readonly string[] }
-  | { readonly kind: 'corpus' }
-  | { readonly kind: 'web' };
+  | { readonly kind: 'PAGE'; readonly nodeId: string }
+  | { readonly kind: 'SESSION'; readonly nodeIds: readonly string[] }
+  | { readonly kind: 'CORPUS' }
+  | { readonly kind: 'WEB' };
 
 /**
  * How a result stands against what the person already knows. This is an
- * annotation, never a filter: `orphan` is an honest answer and the result is
+ * annotation, never a filter: `ORPHAN` is an honest answer and the result is
  * still in the response.
  */
-export type GraphRelation = 'known' | 'extends' | 'contradicts' | 'orphan';
+export type GraphRelation = 'KNOWN' | 'EXTENDS' | 'CONTRADICTS' | 'ORPHAN';
 
 /** A reference to a graph edge carried as evidence. */
 export interface EdgeRef {
@@ -92,7 +92,8 @@ export interface FindResponse {
   readonly query: string;
   readonly results: readonly FindResult[];
   readonly lanes: readonly LaneReceipt[];
-  readonly scopesSearched: readonly FindScopeKind[];
+  /** Executor receipt values. Rust currently reports lowercase scope names here. */
+  readonly scopesSearched: readonly string[];
   readonly lambda: number;
   /** Stable id for the retrieval, used for provenance and cache keys. */
   readonly retrievalRef: string;
@@ -118,23 +119,26 @@ export interface AspectNode {
   readonly seedHits: readonly FindHit[];
   readonly relation: GraphRelation;
   readonly edges: readonly AspectEdge[];
-  /** Which labeler produced `label`. Never a placeholder. */
-  readonly labeledBy: 'deterministic' | 'mistral';
 }
 
 export interface SceneRef {
   readonly sceneId: string;
-  readonly url: string;
+  /** Serialized ScenePackageV2 from the Rust GraphQL Json wrapper. */
+  readonly package: unknown;
 }
 
 export interface ScatterResponse {
   readonly query: string;
   readonly aspects: readonly AspectNode[];
   readonly lambda: number;
-  readonly scene: SceneRef;
+  /** Which labeler named these aspects. Never a placeholder. */
+  readonly labeler: string;
+  readonly scopesSearched: readonly string[];
+  readonly scene: SceneRef | null;
+  readonly sceneRefusal?: string | null;
   /** Present on an `expand` response: which aspect was re-scattered. */
   readonly expandedFrom?: AspectId;
-  readonly retrievalRef: string;
+  readonly scatterRef: string;
 }
 
 // ---------------------------------------------------------------------------

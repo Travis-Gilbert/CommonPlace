@@ -86,6 +86,21 @@ function Harness({ pageText }: { pageText?: string }) {
   );
 }
 
+function HarnessWithoutOpener({ pageText }: { pageText?: string }) {
+  const find = useFindOverlay({
+    tabId: TAB_ID,
+    pageNodeId: FIXTURE_PAGE_NODE_ID,
+    sessionNodeIds: [FIXTURE_PAGE_NODE_ID],
+    pageText,
+  });
+  return (
+    <>
+      <span data-testid="scope">{find.scope}</span>
+      <FindOverlay find={find} />
+    </>
+  );
+}
+
 /** The Find keystroke. Fired with both modifiers so `mod` resolves either way. */
 function pressFind() {
   fireEvent.keyDown(document, { key: 'f', code: 'KeyF', metaKey: true, ctrlKey: true });
@@ -105,6 +120,11 @@ beforeEach(() => {
   searchClient.runFind.mockImplementation(async (request: Parameters<typeof fixtureFind>[0]) =>
     fixtureFind(request),
   );
+  bridge.scrollToTarget.mockResolvedValue(undefined);
+  bridge.resolveTextTargets.mockResolvedValue([
+    { rects: [{ x: 1, y: 2, width: 3, height: 4 }], confidence: 1 },
+  ]);
+  bridge.tabTintTargets.mockResolvedValue(undefined);
   vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 
@@ -116,25 +136,25 @@ afterEach(() => {
 
 describe('scope stepper', () => {
   it('widens Page to Session to Corpus to Web and stops at Web', () => {
-    expect(widenScope('page')).toBe('session');
-    expect(widenScope('session')).toBe('corpus');
-    expect(widenScope('corpus')).toBe('web');
-    expect(widenScope('web')).toBe('web');
-    expect(FIND_SCOPE_ORDER).toEqual(['page', 'session', 'corpus', 'web']);
+    expect(widenScope('PAGE')).toBe('SESSION');
+    expect(widenScope('SESSION')).toBe('CORPUS');
+    expect(widenScope('CORPUS')).toBe('WEB');
+    expect(widenScope('WEB')).toBe('WEB');
+    expect(FIND_SCOPE_ORDER).toEqual(['PAGE', 'SESSION', 'CORPUS', 'WEB']);
   });
 
   it('widens one step per repeat keystroke and holds at Web', () => {
     render(<Harness />);
     pressFind();
-    expect(screen.getByTestId('scope').textContent).toBe('page');
+    expect(screen.getByTestId('scope').textContent).toBe('PAGE');
     pressFind();
-    expect(screen.getByTestId('scope').textContent).toBe('session');
+    expect(screen.getByTestId('scope').textContent).toBe('SESSION');
     pressFind();
-    expect(screen.getByTestId('scope').textContent).toBe('corpus');
+    expect(screen.getByTestId('scope').textContent).toBe('CORPUS');
     pressFind();
-    expect(screen.getByTestId('scope').textContent).toBe('web');
+    expect(screen.getByTestId('scope').textContent).toBe('WEB');
     pressFind();
-    expect(screen.getByTestId('scope').textContent).toBe('web');
+    expect(screen.getByTestId('scope').textContent).toBe('WEB');
   });
 });
 
@@ -189,6 +209,70 @@ describe('the overlay', () => {
     expect(tintedTab).toBe(TAB_ID);
     expect(rects[0].rects.length).toBeGreaterThan(0);
     expect(onOpenItem).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a notice when a Page hit cannot be located on the page', async () => {
+    bridge.resolveTextTargets.mockResolvedValueOnce([{ rects: [], confidence: 0 }]);
+    render(<Harness pageText={FIXTURE_PAGE_TEXT} />);
+    pressFind();
+    await type('budget');
+    await waitFor(() => expect(screen.getByText('The membrane admits by budget')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('The membrane admits by budget'));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('Could not locate the selected passage on the page.')).toBeTruthy(),
+    );
+  });
+
+  it('surfaces a notice when a non-Page result has no workspace opener', async () => {
+    render(<HarnessWithoutOpener pageText={FIXTURE_PAGE_TEXT} />);
+    pressFind();
+    await type('budget');
+    pressFind();
+    pressFind();
+    await act(async () => {
+      vi.advanceTimersByTime(250);
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Budget discipline in retrieval systems')).toBeTruthy(),
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Budget discipline in retrieval systems'));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('No workspace opener is available for this result.')).toBeTruthy(),
+    );
+  });
+
+  it('clears a selection notice after a successful selection', async () => {
+    bridge.resolveTextTargets
+      .mockResolvedValueOnce([{ rects: [], confidence: 0 }])
+      .mockResolvedValueOnce([{ rects: [{ x: 1, y: 2, width: 3, height: 4 }], confidence: 1 }]);
+    render(<Harness pageText={FIXTURE_PAGE_TEXT} />);
+    pressFind();
+    await type('budget');
+    await waitFor(() => expect(screen.getByText('The membrane admits by budget')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('The membrane admits by budget'));
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Could not locate the selected passage on the page.')).toBeTruthy(),
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('The membrane admits by budget'));
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByText('Could not locate the selected passage on the page.')).toBeNull(),
+    );
+    await waitFor(() => expect(bridge.tabTintTargets).toHaveBeenCalled());
   });
 
   it('surfaces the saved fixture item once the scope widens to Corpus, and opens it', async () => {

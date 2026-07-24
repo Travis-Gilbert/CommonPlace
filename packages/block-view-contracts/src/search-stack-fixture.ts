@@ -35,7 +35,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://www.nature.com/favicon.ico',
     description: 'Field data on 1,000 hour damp heat exposure.',
     admittedRank: 1,
-    relation: 'extends',
+    relation: 'EXTENDS',
   },
   {
     id: 'r2',
@@ -44,7 +44,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://www.science.org/favicon.ico',
     description: 'Ion migration drives the wide bandgap subcell loss.',
     admittedRank: 2,
-    relation: 'known',
+    relation: 'KNOWN',
   },
   {
     id: 'r3',
@@ -53,7 +53,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://pubs.rsc.org/favicon.ico',
     description: 'Edge seal chemistry against moisture ingress.',
     admittedRank: 3,
-    relation: 'extends',
+    relation: 'EXTENDS',
   },
   {
     id: 'r4',
@@ -62,7 +62,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://www.nrel.gov/favicon.ico',
     description: 'Certified record trajectory for tandem architectures.',
     admittedRank: 4,
-    relation: 'known',
+    relation: 'KNOWN',
   },
   {
     id: 'r5',
@@ -71,7 +71,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://joule.cell.com/favicon.ico',
     description: 'Delamination at the recombination junction.',
     admittedRank: 5,
-    relation: 'contradicts',
+    relation: 'CONTRADICTS',
   },
   {
     id: 'r6',
@@ -80,7 +80,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://www.pvel.com/favicon.ico',
     description: 'Independent accelerated stress test results.',
     admittedRank: 6,
-    relation: 'known',
+    relation: 'KNOWN',
   },
   {
     id: 'r7',
@@ -89,7 +89,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://www.osti.gov/favicon.ico',
     description: 'Proposed ISO style protocol for stack level ageing.',
     admittedRank: 7,
-    relation: 'extends',
+    relation: 'EXTENDS',
   },
   {
     id: 'r8',
@@ -98,7 +98,7 @@ export const CONSTELLATION_RESULT_NODES: readonly ConstellationNode[] = [
     favicon: 'https://arxiv.org/favicon.ico',
     description: 'No shared source with the rest of the admitted set.',
     admittedRank: 8,
-    relation: 'orphan',
+    relation: 'ORPHAN',
   },
 ];
 
@@ -195,7 +195,7 @@ export const CONSTELLATION_FULL_FIXTURE: ConstellationPayload = {
 
 /** Honest zero edge constellation: admitted results that do not relate. */
 export const CONSTELLATION_ZERO_EDGE_FIXTURE: ConstellationPayload = {
-  nodes: CONSTELLATION_RESULT_NODES.slice(0, 4).map((node) => ({ ...node, relation: 'orphan' })),
+  nodes: CONSTELLATION_RESULT_NODES.slice(0, 4).map((node) => ({ ...node, relation: 'ORPHAN' })),
   edges: [],
   memoryNodes: [],
   meta: { ...META, query: 'unrelated survey of tandem vendors' },
@@ -221,21 +221,21 @@ export const CONSTELLATION_OVERSIZED_FIXTURE: ConstellationPayload = {
       url: 'https://example.org/overflow-nine',
       title: 'Ninth admitted result',
       admittedRank: 9,
-      relation: 'known',
+      relation: 'KNOWN',
     },
     {
       id: 'r10',
       url: 'https://example.org/overflow-ten',
       title: 'Tenth admitted result',
       admittedRank: 10,
-      relation: 'known',
+      relation: 'KNOWN',
     },
     {
       id: 'r11',
       url: 'https://example.org/overflow-eleven',
       title: 'Eleventh admitted result',
       admittedRank: 11,
-      relation: 'orphan',
+      relation: 'ORPHAN',
     },
   ],
   edges: [

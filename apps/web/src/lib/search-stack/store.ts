@@ -164,8 +164,8 @@ export function createSearchStackStore(storageKey = LAMBDA_STORAGE_KEY): SearchS
           try {
             const response = await runFind({
               query,
-              scopes: [{ kind: 'corpus' }, { kind: 'web' }],
-              lanes: ['exact', 'lexical', 'semantic', 'structural'],
+              scopes: [{ kind: 'CORPUS' }, { kind: 'WEB' }],
+              lanes: ['EXACT', 'LEXICAL', 'SEMANTIC', 'STRUCTURAL'],
               k: ASPECT_RESULT_K,
               lambda: state.lambda,
             });
@@ -199,8 +199,9 @@ export function createSearchStackStore(storageKey = LAMBDA_STORAGE_KEY): SearchS
           set({ expanding: aspect, error: null });
           try {
             const expansion = await runExpand({
-              retrievalRef: response.retrievalRef,
-              aspect,
+              query: response.query,
+              aspectId: aspect,
+              scopes: [{ kind: 'CORPUS' }, { kind: 'WEB' }],
               k: MAX_ASPECTS,
               lambda: state.lambda,
             });
@@ -313,7 +314,7 @@ export function selectedFindOf(state: SearchStackState): FindResponse | undefine
  * session's origin.
  */
 export function currentSubgraphRef(state: SearchStackState): string | undefined {
-  return selectedFindOf(state)?.retrievalRef ?? scatterOf(state)?.retrievalRef;
+  return selectedFindOf(state)?.retrievalRef ?? scatterOf(state)?.scatterRef;
 }
 
 /**
@@ -384,7 +385,7 @@ export function spliceExpansion(
     aspects,
     lambda: expansion.lambda,
     expandedFrom: aspect,
-    retrievalRef: expansion.retrievalRef,
+    scatterRef: expansion.scatterRef,
   };
 }
 

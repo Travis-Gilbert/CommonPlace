@@ -42,7 +42,7 @@ describe('the ranked row', () => {
           ...RESPONSE.results[0],
           hit: {
             ...RESPONSE.results[0].hit,
-            lane: 'semantic',
+            lane: 'SEMANTIC',
             snippet: 'a passage about attention with no shared characters',
           },
         },
@@ -68,7 +68,7 @@ describe('the ranked row', () => {
     const rows = screen.getAllByRole('button');
     expect(within(rows[0]).getByText('Known')).toBeTruthy();
     // The contradicting corpus result is badged and marked as such.
-    const contradicting = rows.find((row) => row.dataset.relation === 'contradicts');
+    const contradicting = rows.find((row) => row.dataset.relation === 'CONTRADICTS');
     expect(contradicting).toBeTruthy();
     expect(within(contradicting as HTMLElement).getByText('Contradicts')).toBeTruthy();
   });
@@ -92,7 +92,7 @@ describe('the ranked row', () => {
     render(<AspectList response={orphan} />);
     const rows = screen.getAllByRole('button');
     expect(rows).toHaveLength(orphan.results.length);
-    expect(rows.every((row) => row.dataset.relation === 'orphan')).toBe(true);
+    expect(rows.every((row) => row.dataset.relation === 'ORPHAN')).toBe(true);
   });
 
   it('renders an honest empty state rather than an empty list', () => {

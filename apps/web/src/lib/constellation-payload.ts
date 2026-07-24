@@ -28,7 +28,7 @@ import {
 } from '@commonplace/block-view-contracts/search-stack';
 import type { ScenePackageV2 } from '@/lib/scene-package';
 
-const RELATIONS: readonly GraphRelation[] = ['known', 'extends', 'contradicts', 'orphan'];
+const RELATIONS: readonly GraphRelation[] = ['KNOWN', 'EXTENDS', 'CONTRADICTS', 'ORPHAN'];
 const EDGE_REASON_TYPES: readonly EdgeReasonType[] = [
   'field_fact_intersect',
   'citation',
