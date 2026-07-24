@@ -27,6 +27,10 @@ export const SCENE_RENDERER_REGISTRY: Record<string, SceneRendererEntry> = {
     lazy(() => import('./renderers/GraphNeighborhoodRenderer')),
     { requiresWebGL: true },
   ),
+  force_graph: rendererEntry(
+    'force_graph',
+    lazy(() => import('./renderers/ConstellationRenderer')),
+  ),
   table: rendererEntry('table', lazy(() => import('./renderers/TableRenderer'))),
   chart: rendererEntry('chart', lazy(() => import('./renderers/ChartRenderer'))),
   mechanism_diagram: rendererEntry(

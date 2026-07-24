@@ -1,0 +1,348 @@
+'use client';
+
+// SOURCING: react-hotkeys-hook (keystroke binding, already a dependency and the
+// project's standard for hotkeys: CommandPalette, Editor, StudioLayout). The rest
+// is find-overlay state, a domain concept no library models.
+
+/**
+ * Find overlay state machine (SPEC F1).
+ *
+ * The Find keystroke opens the overlay over whatever the co-browse stage is
+ * showing. Repeat-invoking it WIDENS the scope one step along
+ * `FIND_SCOPE_ORDER` (Page, Session, Corpus, Web) and stops at Web: the
+ * keystroke is a widening gesture, not a toggle, because narrowing back down is
+ * what closing and reopening already means.
+ *
+ * Selecting a hit does something different per scope, and that difference is the
+ * point of the scope badge:
+ *   Page   scroll the passage into view and tint it, through the Rust in-page
+ *          primitives. The page is an out-of-DOM webview, so React cannot draw
+ *          the highlight; `byteRangeToTextTarget` converts the executor's byte
+ *          range into the quote-plus-context anchor the resolver understands.
+ *   other  open the item in the workspace.
+ *
+ * Escape closes and returns focus to the page by re-activating the stage tab.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
+import {
+  FIND_SCOPE_ORDER,
+  type FindLane,
+  type FindResponse,
+  type FindResult,
+  type FindScope,
+  type FindScopeKind,
+} from '@commonplace/block-view-contracts/search-stack';
+import { viewState, type ViewState } from '@/lib/commonplace-view-state';
+import { runFind } from '@/lib/search-stack/client';
+import { byteRangeToTextTarget } from '@/lib/search-stack/byte-range-target';
+import {
+  resolveTextTargets,
+  scrollToTarget,
+  tabClearTint,
+  tabSetActive,
+  tabTintTargets,
+  type RectSet,
+  type TextTarget,
+} from '@/lib/desktop';
+
+/** The lanes the chips expose. `lexical` and `structural` ride the same chips as
+ *  their user-facing names: Exact covers exact plus lexical, Graph is structural. */
+export type LaneChip = 'exact' | 'semantic' | 'graph';
+
+export const LANE_CHIPS: readonly LaneChip[] = ['exact', 'semantic', 'graph'];
+
+export const LANE_CHIP_LABEL: Record<LaneChip, string> = {
+  exact: 'Exact',
+  semantic: 'Semantic',
+  graph: 'Graph',
+};
+
+/** Which wire lanes each chip admits. */
+export const LANES_FOR_CHIP: Record<LaneChip, readonly FindLane[]> = {
+  exact: ['EXACT', 'LEXICAL'],
+  semantic: ['SEMANTIC'],
+  graph: ['STRUCTURAL'],
+};
+
+export const SCOPE_LABEL: Record<FindScopeKind, string> = {
+  PAGE: 'Page',
+  SESSION: 'Session',
+  CORPUS: 'Corpus',
+  WEB: 'Web',
+};
+
+/** Widen one step and stop at the last scope. Pure, so the stepper is testable. */
+export function widenScope(current: FindScopeKind): FindScopeKind {
+  const index = FIND_SCOPE_ORDER.indexOf(current);
+  if (index < 0) return FIND_SCOPE_ORDER[0];
+  return FIND_SCOPE_ORDER[Math.min(index + 1, FIND_SCOPE_ORDER.length - 1)];
+}
+
+/** Every scope up to and including `kind`: widening adds reach, it does not move it. */
+export function scopesUpTo(
+  kind: FindScopeKind,
+  context: { pageNodeId?: string | null; sessionNodeIds?: readonly string[] },
+): FindScope[] {
+  const upTo = FIND_SCOPE_ORDER.slice(0, FIND_SCOPE_ORDER.indexOf(kind) + 1);
+  return upTo.flatMap<FindScope>((scopeKind) => {
+    switch (scopeKind) {
+      case 'PAGE':
+        return context.pageNodeId ? [{ kind: 'PAGE', nodeId: context.pageNodeId }] : [];
+      case 'SESSION':
+        return [{ kind: 'SESSION', nodeIds: context.sessionNodeIds ?? [] }];
+      case 'CORPUS':
+        return [{ kind: 'CORPUS' }];
+      default:
+        return [{ kind: 'WEB' }];
+    }
+  });
+}
+
+/** Chip set to the wire lane list the request carries. */
+export function lanesForChips(chips: readonly LaneChip[]): FindLane[] {
+  return chips.flatMap((chip) => [...LANES_FOR_CHIP[chip]]);
+}
+
+/** Which chip a returned hit belongs to, for the lane badge. */
+export function chipForLane(lane: FindLane): LaneChip {
+  if (lane === 'SEMANTIC') return 'semantic';
+  if (lane === 'STRUCTURAL') return 'graph';
+  return 'exact';
+}
+
+const DEBOUNCE_MS = 180;
+const DEFAULT_K = 20;
+/** MMR convergence for the overlay: a list wants relevance, not spread. */
+const DEFAULT_LAMBDA = 0.8;
+/** Tint tier the in-page primitive paints a selected Page hit with. */
+const HIT_TINT_TIER = 'active';
+
+export interface FindOverlayContext {
+  /** The co-browse stage tab, or null when no page is loaded. */
+  tabId: string | null;
+  /** Graph id of the page on the stage; absent means Page scope has nothing to search. */
+  pageNodeId?: string | null;
+  /** The session's node ids, for Session scope. */
+  sessionNodeIds?: readonly string[];
+  /** The stage page's indexed text, when the surface already has it. Lets the
+   *  byte range be sliced exactly instead of recovered from the snippet. */
+  pageText?: string | null;
+  /** Open a non-Page hit in the workspace. */
+  onOpenItem?: (result: FindResult) => void;
+}
+
+export interface FindOverlay {
+  open: boolean;
+  query: string;
+  setQuery: (query: string) => void;
+  scope: FindScopeKind;
+  /** Explicit scope pick from the stepper control (the keystroke widens instead). */
+  setScope: (scope: FindScopeKind) => void;
+  chips: LaneChip[];
+  setChips: (chips: LaneChip[]) => void;
+  state: ViewState<FindResponse>;
+  selectionError: string | null;
+  /** Act on a hit: Page scrolls and tints in-page, everything else opens the item. */
+  select: (result: FindResult) => Promise<void>;
+  close: () => void;
+  /** The widening gesture, exposed so the overlay's own keystroke can reuse it. */
+  widen: () => void;
+}
+
+export function useFindOverlay(context: FindOverlayContext): FindOverlay {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [scope, setScope] = useState<FindScopeKind>('PAGE');
+  const [chips, setChips] = useState<LaneChip[]>([...LANE_CHIPS]);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+  // The answer to one specific ask, tagged with the ask it answers. Keying the
+  // answer means a stale response from a superseded query can never be shown:
+  // it simply fails to match the current ask key and is ignored.
+  const [answered, setAnswered] = useState<{
+    key: string;
+    state: ViewState<FindResponse>;
+  } | null>(null);
+
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  // The latest context and query, read by the callbacks. Written after commit,
+  // never during render, so a concurrent render cannot observe a torn value.
+  const contextRef = useRef(context);
+  const queryRef = useRef(query);
+  useEffect(() => {
+    contextRef.current = context;
+    queryRef.current = query;
+  });
+
+  const widen = useCallback(() => {
+    setSelectionError(null);
+    setScope((current) => widenScope(current));
+  }, []);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setAnswered(null);
+    setSelectionError(null);
+    // Returning focus to the page means re-activating the stage webview: it owns
+    // its own OS-level focus, so blurring the overlay alone would leave keystrokes
+    // going nowhere.
+    const tabId = contextRef.current.tabId;
+    if (tabId) {
+      void tabClearTint(tabId).catch(() => undefined);
+      void tabSetActive(tabId).catch(() => undefined);
+    }
+  }, []);
+
+  // The Find keystroke. First press opens at Page scope; each repeat widens one
+  // step and stops at Web.
+  useHotkeys(
+    'mod+f',
+    (event) => {
+      event.preventDefault();
+      if (openRef.current) widen();
+      else {
+        setScope('PAGE');
+        setOpen(true);
+        setSelectionError(null);
+      }
+    },
+    { enableOnFormTags: true },
+  );
+
+  useHotkeys('escape', () => close(), { enabled: open, enableOnFormTags: true }, [open, close]);
+
+  const lanes = useMemo(() => lanesForChips(chips), [chips]);
+
+  // Callers pass `sessionNodeIds` as an inline array, so its identity changes on
+  // every render. Key the memo on its CONTENT: an identity-keyed memo would
+  // rebuild `scopes` each render, re-run the search effect, set state, and spin.
+  const sessionNodeIds = context.sessionNodeIds ?? [];
+  const sessionKey = JSON.stringify(sessionNodeIds);
+  const pageNodeId = context.pageNodeId ?? null;
+  const scopes = useMemo(
+    () => scopesUpTo(scope, { pageNodeId, sessionNodeIds }),
+    [scope, pageNodeId, sessionKey],
+  );
+
+  // The request this overlay is currently asking, or null when there is nothing
+  // to ask. Identity of the ask, so the answer can be matched back to it.
+  const trimmedQuery = query.trim();
+  const askable = open && trimmedQuery.length > 0 && scopes.length > 0 && lanes.length > 0;
+  const askKey = askable ? JSON.stringify({ trimmedQuery, scopes, lanes }) : null;
+
+  const effectiveState: ViewState<FindResponse> = !askable
+    ? viewState.empty()
+    : answered?.key === askKey
+      ? answered.state
+      : // An unanswered ask IS the loading state. Deriving it rather than writing
+        // it keeps the effect free of synchronous setState, which would otherwise
+        // cascade a render every time the query changed.
+        viewState.loading();
+
+  useEffect(() => {
+    if (!askKey) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      runFind(
+        { query: trimmedQuery, scopes, lanes, k: DEFAULT_K, lambda: DEFAULT_LAMBDA },
+        { signal: controller.signal },
+      )
+        .then((response) => {
+          if (controller.signal.aborted) return;
+          setAnswered({
+            key: askKey,
+            state: response.results.length > 0 ? viewState.success(response) : viewState.empty(),
+          });
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          setAnswered({ key: askKey, state: viewState.error(String(error)) });
+        });
+    }, DEBOUNCE_MS);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [askKey, trimmedQuery, scopes, lanes]);
+
+  const updateQuery = useCallback((next: string) => {
+    setSelectionError(null);
+    setQuery(next);
+  }, []);
+
+  const updateScope = useCallback((next: FindScopeKind) => {
+    setSelectionError(null);
+    setScope(next);
+  }, []);
+
+  const updateChips = useCallback((next: LaneChip[]) => {
+    setSelectionError(null);
+    setChips(next);
+  }, []);
+
+  const select = useCallback(async (result: FindResult) => {
+    const { tabId, pageText, onOpenItem } = contextRef.current;
+    setSelectionError(null);
+    if (result.hit.scope.kind !== 'PAGE') {
+      if (onOpenItem) {
+        onOpenItem(result);
+      } else {
+        setSelectionError('No workspace opener is available for this result.');
+      }
+      return;
+    }
+    if (!tabId) {
+      onOpenItem?.(result);
+      setSelectionError('No active page tab is available for this page result.');
+      return;
+    }
+    const target: TextTarget | null = byteRangeToTextTarget(result.hit, {
+      documentText: pageText ?? undefined,
+      query: queryRef.current,
+    });
+    if (!target) {
+      onOpenItem?.(result);
+      setSelectionError('Could not derive a text target for this hit.');
+      return;
+    }
+    // Scroll first so the tint lands on rects that are actually in the viewport.
+    try {
+      await scrollToTarget(tabId, target);
+    } catch {
+      setSelectionError('Could not scroll to the selected passage.');
+      return;
+    }
+    const resolved: RectSet[] = await resolveTextTargets(tabId, [target]).catch(() => []);
+    const located = resolved.filter((set) => set.rects.length > 0);
+    if (located.length === 0) {
+      onOpenItem?.(result);
+      setSelectionError('Could not locate the selected passage on the page.');
+      return;
+    }
+    try {
+      await tabTintTargets(tabId, located, HIT_TINT_TIER);
+    } catch {
+      setSelectionError('Could not tint the selected passage.');
+    }
+  }, []);
+
+  return {
+    open,
+    query,
+    setQuery: updateQuery,
+    scope,
+    setScope: updateScope,
+    chips,
+    setChips: updateChips,
+    state: effectiveState,
+    selectionError,
+    select,
+    close,
+    widen,
+  };
+}

@@ -10,7 +10,7 @@
  * never the headline.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { useSessionRail } from '@/lib/carry/useBundle';
 import type { SessionRailKind } from '@/lib/carry/session-rail';
@@ -49,19 +49,28 @@ export function SessionRail({
   sessionId,
   title = 'Session',
   defaultOpen = false,
+  mapSlot,
 }: {
   sessionId: string | null;
   title?: string;
   defaultOpen?: boolean;
+  /**
+   * The docked constellation map (HANDOFF-SEARCH-CONSTELLATION D4). It sits
+   * above the timeline because it is where the session came from, and it keeps
+   * the rail mounted even before the first entry lands: a session that started
+   * from a constellation has something to show from its first click.
+   */
+  mapSlot?: ReactNode;
 }) {
   const entries = useSessionRail(sessionId);
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (!sessionId || entries.length === 0) return null;
+  if (!sessionId || (entries.length === 0 && !mapSlot)) return null;
 
   return (
     <div className={styles.rail}>
+      {mapSlot}
       <button
         type="button"
         className={styles.toggle}
