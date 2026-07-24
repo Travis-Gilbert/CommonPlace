@@ -10,7 +10,14 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ConsoleBlockHost } from './console-host';
 import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
-import { RECORD_COUNT, SURFACE_ID, seedLayout, seedRecords } from './workspace-seed';
+import {
+  RECORD_COUNT,
+  SURFACE_ID,
+  SURVEY_SURFACE_ID,
+  SURVEY_VIEW_INSTANCE_ID,
+  seedLayout,
+  seedRecords,
+} from './workspace-seed';
 
 const NO_VIEWS = { matchingViews: () => [] };
 
@@ -53,8 +60,11 @@ describe('ConsoleBlockHost', () => {
       'console-goals',
       'console-harness-status',
       'console-index',
+      'console-models',
       'console-proactivity',
       'console-review',
+      'console-survey',
+      'console-topics',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
@@ -62,7 +72,7 @@ describe('ConsoleBlockHost', () => {
       .filter((surface) => typeof surface.properties.stripe_order === 'number')
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Documents', 'Cards',
+        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Models', 'Documents', 'Cards',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
@@ -114,6 +124,48 @@ describe('ConsoleBlockHost', () => {
     const set = host.queryLayout(surfaceQuery());
     expect(set.objects.some((object) => object.id === 'console.region-landmarks')).toBe(true);
     expect(set.objects.some((object) => object.id === 'console.landmark-chat')).toBe(true);
+    const survey = buildSurfaceTree(SURVEY_SURFACE_ID, set.objects);
+    expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
+  });
+
+  it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = await Promise.resolve(host.query({
+      types: ['topic', 'capture', 'survey-edge'],
+      where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+    }));
+
+    expect(set.objects.filter((object) => object.type === 'topic')).toHaveLength(1);
+    expect(set.objects.filter((object) => object.type === 'capture')).toHaveLength(15);
+    expect(set.objects.filter((object) => object.type === 'survey-edge').length).toBeGreaterThan(0);
+  });
+
+  it('keeps declared model overlay metadata synchronized through host actions', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const query = {
+      types: ['field-metadata'],
+      where: { kind: 'eq' as const, field: 'topic_id', value: 'topic-models' },
+    };
+    await host.emit({
+      kind: 'create',
+      type: 'field-metadata',
+      props: {
+        id: 'field-title',
+        topic_id: 'topic-models',
+        key: 'title',
+        label: 'Title',
+      },
+    });
+    let set = await Promise.resolve(host.query(query));
+    expect(set.objects.map((object) => object.id)).toEqual(['field-title']);
+
+    await host.emit({ kind: 'update', id: 'field-title', patch: { label: 'Document title' } });
+    set = await Promise.resolve(host.query(query));
+    expect(set.objects[0]?.properties.label).toBe('Document title');
+
+    await host.emit({ kind: 'delete', id: 'field-title' });
+    set = await Promise.resolve(host.query(query));
+    expect(set.objects).toEqual([]);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {

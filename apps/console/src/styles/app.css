@@ -51,6 +51,15 @@
   box-shadow: var(--ij-popover-shadow);
 }
 
+.react-flow__edge.model-edge-observed .react-flow__edge-path {
+  stroke: var(--ij-divider);
+  stroke-dasharray: 5 5;
+}
+
+.react-flow__edge.model-edge-declared .react-flow__edge-path {
+  stroke: var(--ij-gold);
+}
+
 .composer-input {
   field-sizing: content;
   min-height: var(--ij-composer-min-h);
@@ -347,4 +356,120 @@ body {
 .react-flow__node:focus,
 .react-flow__node:focus-visible {
   outline: none;
+}
+
+/* Survey source artifacts. R3F owns world geometry. These rules own only the
+   DOM artifacts billboarded into that space and their flat fallback. */
+.survey-source-card {
+  aspect-ratio: var(--survey-source-aspect);
+}
+
+.survey-source-card[data-spatial='true'] {
+  width: auto;
+  height: min(var(--survey-source-card-h), calc(var(--survey-card-w) / var(--survey-source-aspect)));
+  transform-origin: center;
+}
+
+.stellar-gallery {
+  background: transparent;
+}
+
+/* MaterialLayer owns the ambient ground (Paper-designed anatomy, Spec 34).
+   The gallery shell stays transparent so terracotta, grain, and island body
+   show through the clear R3F canvas. */
+.stellar-gallery-ground,
+.stellar-gallery-pegboard {
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.stellar-gallery-card-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stellar-gallery-card-frame .survey-source-card[data-spatial='true'] {
+  width: 100%;
+  height: 100%;
+}
+
+.survey-source-card[data-spatial='false'] {
+  width: 100%;
+  min-height: var(--survey-source-card-min-h);
+}
+
+.survey-source-navigator-list {
+  width: var(--survey-card-w);
+}
+
+.survey-source-header {
+  border-bottom: 1px solid var(--ij-divider);
+  background: var(--ij-chrome);
+  color: var(--ij-ink);
+}
+
+.survey-source-code-line {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.survey-source-document-sheet {
+  width: calc(100% - var(--rec-grid) * 8);
+  min-height: calc(100% - var(--rec-grid) * 10);
+}
+
+.survey-source-receipt-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.survey-source-fact {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.survey-source-dot-field {
+  width: calc(var(--rec-grid) * 16);
+}
+
+.survey-open-source {
+  max-width: var(--survey-open-source-max);
+}
+
+.survey-open-source-frame {
+  aspect-ratio: var(--survey-source-aspect);
+}
+
+[data-survey-layout='3d'] {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+[data-survey-layout='3d'] canvas {
+  touch-action: none;
+}
+
+.survey-source-annotations {
+  min-height: calc(var(--rec-grid) * 14);
+}
+
+.survey-open-rail {
+  width: var(--survey-open-rail);
+}
+
+.survey-metadata-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+.survey-flat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--survey-card-w), 1fr));
+  gap: calc(var(--rec-grid) * 4);
+}
+
+.survey-focusable:focus-visible {
+  outline: var(--ij-focus-ring);
+  outline-offset: var(--survey-focus-offset);
 }

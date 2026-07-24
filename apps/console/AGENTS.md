@@ -118,6 +118,7 @@ asks for inspiration, reference, mood, or direction.
 | Object addressing and copy | `@commonplace/block-view/addressing` (the shared `theorem://` grammar, per DESIGN-THEOREM-URI) plus the platform Clipboard API | every canonical address this app emits, parses, or offers: the inspector footer, the card copy affordance, mention chips, the Composer paste offer, and the Search field's address lane. `src/lib/object-address.ts` is the only place a tenant plus an object becomes an address, and `src/lib/use-copy.ts` is the only clipboard call (the apps/web hook's shape, re-implemented because the import fence is structural) |
 | Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |
 | Workspace substrate | `@tanstack/react-virtual`, CodeMirror 6 merge, `cmdk`, and Radix Popover | semantic workspace entity tree, virtual rows, local-history revision diff, project Find, readiness detail |
+| Indexer spatial gallery | 21st.dev moazamtrade/3d-image-gallery (catalog 6525) on three, @react-three/fiber, @react-three/drei | golden-ratio 12/16/20 sphere, orbit camera, source capture injection, relationship geometry; scene ground defers to MaterialLayer / transparent DOM |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.
@@ -149,6 +150,15 @@ static. Transform and opacity only.
 
 No em or en dashes anywhere: not in code comments, not in UI strings, not in
 markdown. Use colons, periods, commas, semicolons, or parentheses instead.
+
+## Recent decisions
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-07-18 | The user-facing topic result surface is Indexer. Existing `survey.*` identifiers remain stable. | A topic click returns the full indexed evidence corpus. Keeping internal identifiers avoids breaking persisted surface objects while the product language settles. |
+| 2026-07-18 | Indexer keeps the installed 21st.dev golden-ratio sphere. Relationship data may contain cycles and never controls card placement. | The spatial shape is the primary reading surface. Edges stay faint at rest, strengthen on hover, and pin on click. |
+| 2026-07-18 | Indexer pegboard is retired in favor of MaterialLayer grammar. | Source cards and their evidence connections remain the canvas while the transparent scene shell preserves the shared ambient ground. |
+| 2026-07-18 | Hover reveals a capture neighborhood: focused and related sources stay bright, unrelated sources fade, incident edges expose worded reasons. | Relationship Design transparency stage: the system shows what it remembers about connections without shouting at idle. |
 
 ## Gates (all block merge)
 
