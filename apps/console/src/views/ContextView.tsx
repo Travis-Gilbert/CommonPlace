@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { scalePoint } from 'd3';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { useShellStore } from '@/lib/shell-store';
-import { useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
+import { ensureMemoryProjection, useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
 import { openMemoryTab } from './FilesView';
 
 interface ContextNode {
@@ -48,6 +48,10 @@ export function ContextView({ host }: { host: BlockHost }) {
   const selectRecord = useShellStore((state) => state.selectRecord);
   const memories = useMemoryProjectionStore((state) => state.items);
   const [candidates, setCandidates] = useState<readonly ObjectRef[]>([]);
+
+  useEffect(() => {
+    void ensureMemoryProjection();
+  }, []);
 
   useEffect(() => {
     if (!selected) return;

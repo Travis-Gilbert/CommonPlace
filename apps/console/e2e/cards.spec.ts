@@ -259,22 +259,7 @@ test.describe('cards, actions, mentions', () => {
     const taskItem = page.locator('.galley [data-todo-item]').first();
     await expect(taskItem).toBeVisible({ timeout: 15_000 });
     await taskItem.press('Alt+Enter');
-    const sheet = page.locator('[data-action-sheet]');
-    if (!(await sheet.isVisible().catch(() => false))) {
-      // Fallback: dispatch on the focused item (item-level keydown handler).
-      await taskItem.evaluate((node) => {
-        node.dispatchEvent(
-          new KeyboardEvent('keydown', {
-            key: 'Enter',
-            code: 'Enter',
-            altKey: true,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
-      });
-    }
-    await expect(sheet).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-action-sheet]')).toBeVisible({ timeout: 15_000 });
     // Save as rule names its missing capability (IX6) instead of pretending.
     await expect(page.locator('[data-save-as-rule-unavailable]')).toContainText('IX6');
   });

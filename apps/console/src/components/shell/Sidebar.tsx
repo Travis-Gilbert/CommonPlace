@@ -10,6 +10,7 @@ import { useSession } from 'next-auth/react';
 import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { pathForSurfaceKind } from '@/lib/surface-routes';
+import { softNavigate } from '@/lib/soft-navigate';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
@@ -257,10 +258,10 @@ export function Sidebar({
     if (surface.id === activeSurfaceId) return;
     const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
     // Activate immediately so the rail radio flips before a cold App Router
-    // compile finishes router.push. Then sync the URL when the surface owns a
-    // segment; ensureSeedLayout preserves this local active surface on adopt.
+    // compile finishes. softNavigate awaits the URL segment so callers (and
+    // e2e) see path and active surface agree once the push settles.
     void host.activateSurface(surface.id);
-    if (path) router.push(path);
+    if (path) void softNavigate(router, path).catch(() => undefined);
   }, [activeSurfaceId, host, router]);
 
   // Prefetch routed surfaces so Ctrl/Cmd+digit and rail clicks do not stall on

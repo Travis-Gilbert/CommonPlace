@@ -46,6 +46,22 @@ async function openSurface(page: Page, id: string) {
     'console-cards': '/cards',
   };
   const path = pathBySurface[id];
+  const rail = page.locator(`[data-surface-nav="${id}"]`);
+  // Prefer soft-nav so the memory projection store survives surface switches.
+  if (await rail.count()) {
+    await rail.click();
+    await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
+      timeout: 15_000,
+    });
+    if (path) {
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 30_000 });
+    }
+    await page.waitForFunction(
+      () => document.documentElement.getAttribute('data-layout-ready') === '1',
+      { timeout: 60_000 },
+    );
+    return;
+  }
   if (path) {
     await page.goto(path);
   } else {
@@ -325,20 +341,14 @@ test.describe('Console information architecture', () => {
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
-    // Soft-nav to Cards first, then hydrate memories on this document — page.goto
-    // remounts the app and clears the in-memory projection store.
     await openSurface(page, 'console-cards');
-    await openCompanion(page, 'files');
-    await expect(page.locator('[data-tool-window="files"], [data-files-view]').first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 30_000 });
     await openCompanion(page, 'context');
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click({ force: true });
     await page.getByLabel('Close inspector').click();
     const context = page.locator('[data-context-view]');
     await expect(context).toHaveAttribute('data-context-key', 'person-ada');
-    await expect(context.locator('circle[fill="var(--ij-gold)"]')).toHaveCount(2);
+    // ContextView ensures memory projection hydrate; wait for gold memory nodes.
+    await expect(context.locator('circle[fill="var(--ij-gold)"]')).toHaveCount(2, { timeout: 30_000 });
     expect(await context.locator('circle').count()).toBeLessThanOrEqual(11);
     await expect(context.getByText(/Connected by works at|Memory mentions/).first()).toBeVisible();
     await expect(context).toHaveScreenshot('context-graph.png');
