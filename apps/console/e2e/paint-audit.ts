@@ -19,7 +19,6 @@ export const SHADER_REGIONS = new Set([
   'island-footer',
   'tab-strip',
   'editor-well',
-  'status-bar',
 ]);
 
 /** Content regions that still must paint an explicit register token. */
@@ -38,7 +37,6 @@ export const REQUIRED_REGIONS = [
   'tool-window',
   'island-header',
   'editor-well',
-  'status-bar',
 ];
 
 export interface PaintFinding {

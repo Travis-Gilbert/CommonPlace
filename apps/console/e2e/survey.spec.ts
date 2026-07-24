@@ -67,7 +67,6 @@ test.describe('Indexer research surface', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSurvey(page);
 
-    await expect(page.getByRole('heading', { name: 'Evidence centered research surfaces' })).toBeVisible();
     const survey = page.locator('[data-survey]');
     await expect(survey).toHaveAttribute('data-scene-mode', '3d');
     await expect(page.getByRole('application', { name: /Three dimensional Indexer/ })).toBeVisible();

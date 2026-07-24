@@ -92,8 +92,8 @@ test.describe('appearance surface', () => {
       return value;
     });
     expect(running).toBe('rgb(31, 117, 54)');
-    await expect(page.locator('[data-run-widget]')).toHaveCSS('height', '28px');
-    await expect(page.locator('[data-run-widget] svg')).toHaveCSS('color', 'rgb(108, 112, 126)');
+    await expect(page.locator('[data-run-widget]')).toHaveCount(0);
+    await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '28px');
     await expect(page.locator('html')).toHaveCSS('font-size', '13px');
     await page.keyboard.press('Alt+Shift+1');
     await expect(page.locator('[data-companion-nav="files"]')).toHaveCSS('background-color', 'rgb(212, 226, 255)');

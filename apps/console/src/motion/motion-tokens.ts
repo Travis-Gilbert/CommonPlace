@@ -140,15 +140,21 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Run state change (RunWidget)',
-    effect: 'color swap to --ij-running',
-    spec: 'instant color set; no pulse, no spin',
-    reducedMotion: 'same',
+    effect: 'removed from chrome; run state lives in the composer/thread instrument',
+    spec: 'n/a — MainToolbar no longer mounts a Run widget',
+    reducedMotion: 'n/a',
   },
   {
     trigger: 'Status bar indeterminate progress',
-    effect: 'Blue9 to Blue5 gradient sweep on the progress track',
-    spec: 'CSS keyframes in this register only, GROUND-quiet; one ambient max per viewport shared with the ground',
-    reducedMotion: 'static two-tone bar',
+    effect: 'removed from chrome; transport status is no longer a durable footer',
+    spec: 'n/a — IntuiShell no longer mounts StatusBar',
+    reducedMotion: 'n/a',
+  },
+  {
+    trigger: 'Sidebar collapse and resize',
+    effect: 'sidebar panel collapses to icon rail and expands; drag seam adjusts share; labels fade by opacity',
+    spec: 'react-resizable-panels shell columns; Cmd/Ctrl B toggles; HANDOFF-CONSOLE-SIDEBAR named choice 6',
+    reducedMotion: 'size snaps; labels appear or disappear without fade',
   },
   {
     trigger: 'Goal Stack task runs',
@@ -175,10 +181,28 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'the toast renders settled and static, and still stands for its full undo window',
   },
   {
-    trigger: 'Sidebar collapse toggled',
-    effect: 'sidebar width transitions between expanded and collapsed tokens; labels fade by opacity; row contents do not reflow',
-    spec: 'width and opacity use var(--ij-motion) var(--ij-ease); HANDOFF-CONSOLE-SIDEBAR named choice 6 requires width animation as the one chrome exception to transform-only',
-    reducedMotion: 'width snaps; labels appear or disappear without fade',
+    trigger: 'Survey source receives pointer or keyboard focus',
+    effect: 'the billboarded source grows by one restrained scale step',
+    spec: '--ij-motion transform only; source pixels and annotations do not reflow',
+    reducedMotion: 'flat clustered grid, settled and static with no scale change',
+  },
+  {
+    trigger: 'Survey corpus hover reveals neighborhood',
+    effect: 'focused and related sources rise to full opacity while unrelated sources fade; incident edges strengthen and expose their worded reason',
+    spec: '--ij-motion opacity only on source cards; Line opacity for evidence edges; no filter or layout animation',
+    reducedMotion: 'flat clustered grid with the same connection list, no spatial focus fade',
+  },
+  {
+    trigger: 'Survey orbit, pan, or wheel input',
+    effect: 'the R3F camera moves around deterministic spherical capture layers with damped direct manipulation',
+    spec: 'Drei OrbitControls on a demand-driven frame loop; wheel zooms toward the corpus center; no autoplay or ambient scene rotation',
+    reducedMotion: '3D controls are replaced by the complete flat clustered source grid',
+  },
+  {
+    trigger: 'Indexer harvest search focus or suggestions open',
+    effect: 'suggestion panel fades in (opacity) with optional 0.98 to 1 scale; clear and match feedback use opacity only',
+    spec: 'DUR.fast, EASE_OUT via useMotionDurations; transform and opacity only; no width, height, filter, or particle animation',
+    reducedMotion: 'panel appears settled with no scale; durations 0',
   },
 ] as const;
 
@@ -210,24 +234,6 @@ export const DECLARED_PAINT_SURFACES = [
     file: 'src/components/composer/ComposerSheenCanvas.tsx',
     inventory: 'Composer run state changes',
     reason: 'the composer instrument sheen; static at idle, frame loop strictly while streaming (rule 4 narrowing)',
-  },
-  {
-    trigger: 'Survey source receives pointer or keyboard focus',
-    effect: 'the billboarded source grows by one restrained scale step',
-    spec: '--ij-motion transform only; source pixels and annotations do not reflow',
-    reducedMotion: 'flat clustered grid, settled and static with no scale change',
-  },
-  {
-    trigger: 'Survey corpus hover reveals neighborhood',
-    effect: 'focused and related sources rise to full opacity while unrelated sources fade; incident edges strengthen and expose their worded reason',
-    spec: '--ij-motion opacity only on source cards; Line opacity for evidence edges; no filter or layout animation',
-    reducedMotion: 'flat clustered grid with the same connection list, no spatial focus fade',
-  },
-  {
-    trigger: 'Survey orbit, pan, or wheel input',
-    effect: 'the R3F camera moves around deterministic spherical capture layers with damped direct manipulation',
-    spec: 'Drei OrbitControls on a demand-driven frame loop; wheel zooms toward the corpus center; no autoplay or ambient scene rotation',
-    reducedMotion: '3D controls are replaced by the complete flat clustered source grid',
   },
 ] as const;
 

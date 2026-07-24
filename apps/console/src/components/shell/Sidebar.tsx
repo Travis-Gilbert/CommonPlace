@@ -164,6 +164,8 @@ export function Sidebar({
   landmarksRegion,
   activeGridRegionId,
   onToggleCompanion,
+  collapsed,
+  onCollapsedChange,
 }: {
   readonly host: ConsoleBlockHost;
   readonly surfaces: readonly ObjectRef[];
@@ -172,11 +174,12 @@ export function Sidebar({
   readonly landmarksRegion: SidebarRegion | null;
   readonly activeGridRegionId: string | null;
   readonly onToggleCompanion: (region: SidebarRegion) => void;
+  readonly collapsed: boolean;
+  readonly onCollapsedChange: (collapsed: boolean) => void;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
-  const [collapsed, setCollapsed] = useState(() => landmarksRegion?.object.properties.collapsed === true);
   const domainLandmarks = useLandmarkObjects(host);
   const routedSurfaces = useMemo(
     () => surfaces
@@ -195,11 +198,8 @@ export function Sidebar({
     .toUpperCase();
 
   const toggleCollapse = useCallback(() => {
-    if (!landmarksRegion) return;
-    const next = !collapsed;
-    setCollapsed(next);
-    void host.emit({ kind: 'update', id: landmarksRegion.object.id, patch: { collapsed: next } });
-  }, [collapsed, host, landmarksRegion]);
+    onCollapsedChange(!collapsed);
+  }, [collapsed, onCollapsedChange]);
 
   const switchTo = useCallback((surface: ObjectRef) => {
     if (surface.id === activeSurfaceId) return;
@@ -212,10 +212,6 @@ export function Sidebar({
     }
     void host.activateSurface(surface.id);
   }, [activeSurfaceId, host, router]);
-
-  useEffect(() => {
-    setCollapsed(landmarksRegion?.object.properties.collapsed === true);
-  }, [landmarksRegion?.object.properties.collapsed]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -323,8 +319,8 @@ export function Sidebar({
       data-paint-region="stripe"
       data-frame-resident="stripe"
       data-sidebar-collapsed={collapsed}
-      className="flex w-ij-stripe shrink-0 flex-col bg-transparent p-2 font-ij-ui"
-      style={{ transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)' }}
+      className="flex h-full w-full shrink-0 flex-col bg-transparent p-2 font-ij-ui"
+      style={{ transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)' }}
     >
       <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col gap-0.5">
         {routedSurfaces.map((surface, index) => {

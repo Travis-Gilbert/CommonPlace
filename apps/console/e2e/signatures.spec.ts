@@ -171,23 +171,13 @@ for (const { theme, preset } of THEMES) {
       await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveCSS('background-color', editor);
     });
 
-    // Signature 4. The run widget goes green while a run is live, and carries
-    // the Int UI control height at rest.
-    test('the run widget holds its metrics and its running colour', async ({ page }) => {
-      const running = await resolveToken(page, '--ij-running');
-      const widget = page.locator('[data-run-widget]');
-      await expect(widget).toHaveCSS('height', '28px');
-      await expect(widget).toHaveAttribute('data-running', 'false');
-
-      const live = await page.evaluate((expected) => {
-        const probe = document.createElement('div');
-        probe.style.backgroundColor = 'var(--ij-running)';
-        document.body.append(probe);
-        const value = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        return value === expected;
-      }, running);
-      expect(live, '--ij-running must resolve in this theme').toBe(true);
+    // Signature 4. Account chrome stays in the toolbar; the run widget is gone.
+    test('the toolbar keeps account chrome without a run widget', async ({ page }) => {
+      await expect(page.locator('[data-run-widget]')).toHaveCount(0);
+      await expect(page.locator('[data-account-trigger]')).toBeVisible();
+      await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '28px');
+      await expect(page.locator('[data-paint-region="status-bar"]')).toHaveCount(0);
+      await expect(page.locator('[data-shell-sidebar-seam]')).toBeVisible();
     });
 
     // Signature 5. Type metrics: the register's 13px UI face, and the tool

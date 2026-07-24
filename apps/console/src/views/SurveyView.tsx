@@ -28,6 +28,10 @@ import {
   type SurveyEdge,
 } from './survey/surveyContract';
 import {
+  filterSurveyCaptures,
+  SurveyIndexerSearch,
+} from './survey/SurveyIndexerSearch';
+import {
   SurveySourceArtifact,
   SurveySourceCard,
 } from './survey/SurveySourceArtifact';
@@ -395,12 +399,38 @@ export function SurveyView({ set }: ViewRenderProps) {
   const [openCaptureId, setOpenCaptureId] = useState<string | null>(null);
   const [sceneFailed, setSceneFailed] = useState(false);
   const [metrics, setMetrics] = useState<SurveySceneMetrics | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { width, webgl, palette } = useSurfaceCapabilities(rootRef);
-  const edges = useMemo(() => budgetSurveyEdges(model.edges, 2), [model.edges]);
+  const filteredCaptures = useMemo(
+    () => filterSurveyCaptures(model.captures, searchQuery),
+    [model.captures, searchQuery],
+  );
+  const filteredCaptureIds = useMemo(
+    () => new Set(filteredCaptures.map((capture) => capture.id)),
+    [filteredCaptures],
+  );
+  const filteredEdges = useMemo(
+    () => budgetSurveyEdges(
+      model.edges.filter(
+        (edge) => filteredCaptureIds.has(edge.from) && filteredCaptureIds.has(edge.to),
+      ),
+      2,
+    ),
+    [model.edges, filteredCaptureIds],
+  );
+  const filteredClusters = useMemo(
+    () => model.clusters
+      .map((cluster) => ({
+        ...cluster,
+        captures: cluster.captures.filter((capture) => filteredCaptureIds.has(capture.id)),
+      }))
+      .filter((cluster) => cluster.captures.length > 0),
+    [model.clusters, filteredCaptureIds],
+  );
   const spatialCaptures = useMemo(
-    () => model.captures.slice(0, SURVEY_SPATIAL_CAPTURE_BUDGET),
-    [model.captures],
+    () => filteredCaptures.slice(0, SURVEY_SPATIAL_CAPTURE_BUDGET),
+    [filteredCaptures],
   );
   const topicTitle = model.topic?.title ?? 'Standing topic';
   const constrained = width > 0 && width < 1100;
@@ -422,21 +452,23 @@ export function SurveyView({ set }: ViewRenderProps) {
       <CaptureReadingView
         capture={openCapture}
         captures={model.captures}
-        edges={edges}
+        edges={budgetSurveyEdges(model.edges, 2)}
         onBack={() => setOpenCaptureId(null)}
         onOpenRelated={(next) => setOpenCaptureId(next.id)}
       />
     );
   }
 
-  const spatialNote = model.captures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
-    ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${model.captures.length} captures in the spatial board`
-    : null;
+  const spatialNote = filteredCaptures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
+    ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${filteredCaptures.length} matching captures in the spatial board`
+    : searchQuery.trim()
+      ? `${filteredCaptures.length} of ${model.captures.length} captures match`
+      : null;
 
   return (
     <div
       ref={rootRef}
-      className="flex h-full min-h-0 flex-col"
+      className="relative flex h-full min-h-0 flex-col"
       data-survey
       data-indexer
       data-reduced-motion={durations.reduced ? 'true' : 'false'}
@@ -446,12 +478,20 @@ export function SurveyView({ set }: ViewRenderProps) {
       data-scene-textures={metrics?.textures}
       data-camera-distance={INDEXER_CAMERA_DISTANCE[zoom]}
     >
-      <header className="flex h-ij-toolbar shrink-0 items-center gap-3 border-b border-ij-seam bg-ij-chrome px-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>{topicTitle}</h1>
-          <p className="truncate text-xs text-ij-ink">{model.topic.description}</p>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 p-3">
+        <div className="pointer-events-auto min-w-0 max-w-md flex-1">
+          <SurveyIndexerSearch
+            captures={model.captures}
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSelectCapture={setOpenCaptureId}
+          />
         </div>
-        <div className="ml-auto flex items-center gap-1" role="group" aria-label="Indexer camera">
+        <div
+          className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1 rounded-ij-arc bg-ij-chrome p-1"
+          role="group"
+          aria-label="Indexer camera"
+        >
           {(['far', 'mid'] as const).map((option) => (
             <button
               key={option}
@@ -471,14 +511,28 @@ export function SurveyView({ set }: ViewRenderProps) {
             Reset view
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="min-h-0 flex-1">
-        {flat ? (
+        {filteredCaptures.length === 0 ? (
+          <div
+            data-survey-layout="empty-filter"
+            className="flex h-full flex-col items-center justify-center gap-3 text-sm text-ij-ink"
+          >
+            <p>No captures match “{searchQuery.trim()}”.</p>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="survey-focusable h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-ij-ink hover:bg-ij-hover-surface"
+            >
+              Clear filter
+            </button>
+          </div>
+        ) : flat ? (
           <FlatSurvey
-            clusters={model.clusters}
-            captures={model.captures}
-            edges={edges}
+            clusters={filteredClusters}
+            captures={filteredCaptures}
+            edges={filteredEdges}
             topicTitle={topicTitle}
             onOpen={(capture) => setOpenCaptureId(capture.id)}
           />
@@ -487,9 +541,9 @@ export function SurveyView({ set }: ViewRenderProps) {
             onError={handleFallback}
             fallback={(
               <FlatSurvey
-                clusters={model.clusters}
-                captures={model.captures}
-                edges={edges}
+                clusters={filteredClusters}
+                captures={filteredCaptures}
+                edges={filteredEdges}
                 topicTitle={topicTitle}
                 onOpen={(capture) => setOpenCaptureId(capture.id)}
               />
@@ -498,7 +552,7 @@ export function SurveyView({ set }: ViewRenderProps) {
             <div data-survey-layout="3d" className="relative h-full min-h-0 overflow-hidden">
               <SurveyScene3D
                 captures={spatialCaptures}
-                edges={edges}
+                edges={filteredEdges}
                 palette={palette}
                 topicTitle={topicTitle}
                 cameraDistance={INDEXER_CAMERA_DISTANCE[zoom]}
@@ -508,8 +562,8 @@ export function SurveyView({ set }: ViewRenderProps) {
                 onMetrics={handleMetrics}
               />
               <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
-                <SurveySourceNavigator captures={model.captures} onOpen={(capture) => setOpenCaptureId(capture.id)} />
-                <SurveyConnectionNavigator edges={edges} />
+                <SurveySourceNavigator captures={filteredCaptures} onOpen={(capture) => setOpenCaptureId(capture.id)} />
+                <SurveyConnectionNavigator edges={filteredEdges} />
                 <div className="pointer-events-none rounded-ij-arc bg-ij-chrome px-3 py-2 text-xs text-ij-ink">
                   {spatialNote ?? 'Drag to orbit · Scroll toward center · Hover reveals links · Select a source'}
                 </div>
