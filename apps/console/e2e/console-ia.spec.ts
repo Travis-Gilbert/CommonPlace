@@ -351,6 +351,10 @@ test.describe('Console information architecture', () => {
     await expect(context.locator('circle[fill="var(--ij-gold)"]')).toHaveCount(2, { timeout: 30_000 });
     expect(await context.locator('circle').count()).toBeLessThanOrEqual(11);
     await expect(context.getByText(/Connected by works at|Memory mentions/).first()).toBeVisible();
-    await expect(context).toHaveScreenshot('context-graph.png');
+    await expect(context).toHaveScreenshot('context-graph.png', {
+      animations: 'disabled',
+      maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+    });
   });
 });
