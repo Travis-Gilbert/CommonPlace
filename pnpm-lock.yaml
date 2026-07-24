@@ -91,6 +91,9 @@ importers:
       '@commonplace/block-view':
         specifier: file:../../packages/block-view
         version: file:packages/block-view(react@19.2.3)
+      '@commonplace/data-model-contracts':
+        specifier: file:../../packages/data-model-contracts
+        version: link:../../packages/data-model-contracts
       '@commonplace/json-canvas':
         specifier: file:../../packages/json-canvas
         version: link:../../packages/json-canvas
@@ -1074,6 +1077,12 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.8.3
+
+  packages/data-model-contracts:
+    devDependencies:
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.10(@types/node@22.20.1)(vite@7.3.6(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0))
 
   packages/json-canvas:
     devDependencies:
@@ -15601,7 +15610,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

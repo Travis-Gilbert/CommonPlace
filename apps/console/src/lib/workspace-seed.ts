@@ -13,6 +13,7 @@
 
 import type { ObjectRef, JsonValue } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
+import { SURVEY_TOPIC_ID } from './surveySeed';
 
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
@@ -264,7 +265,7 @@ export function seedLayout(): ObjectRef[] {
       title: 'Indexer',
       query: {
         types: ['topic', 'capture', 'survey-edge'],
-        where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
         live: true,
       } as unknown as JsonValue,
     }),
@@ -288,7 +289,7 @@ export function seedLayout(): ObjectRef[] {
           'view-metadata',
           'schema-version',
         ],
-        where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
         live: true,
       } as unknown as JsonValue,
     }),

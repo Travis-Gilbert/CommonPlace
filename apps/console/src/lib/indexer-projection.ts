@@ -15,10 +15,15 @@ function isObjectRef(value: unknown): value is ObjectRef {
   );
 }
 
-export function parseIndexerObjectsPayload(payload: unknown): ObjectRef[] {
-  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return [];
+/**
+ * Parse a live Indexer payload.
+ * Returns `null` when the payload is invalid so callers can fall back to seed.
+ * Returns an array (including empty) when the live response is authoritative.
+ */
+export function parseIndexerObjectsPayload(payload: unknown): ObjectRef[] | null {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return null;
   const objects = (payload as { objects?: unknown }).objects;
-  if (!Array.isArray(objects)) return [];
+  if (!Array.isArray(objects)) return null;
   return objects.filter(isObjectRef).map((object) => ({
     id: object.id,
     type: object.type,

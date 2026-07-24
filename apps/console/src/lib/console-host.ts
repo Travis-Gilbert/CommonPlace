@@ -191,6 +191,7 @@ export class ConsoleBlockHost implements BlockHost {
   private cardTemplates: ObjectRef[];
   private surveyObjects: ObjectRef[];
   private modelMetadata: ObjectRef[] = [];
+  private modelMetadataSeq = 0;
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
@@ -764,7 +765,8 @@ export class ConsoleBlockHost implements BlockHost {
       if (response.ok) {
         const payload = await response.json().catch(() => null);
         const live = parseIndexerObjectsPayload(payload);
-        if (live.length > 0) return live;
+        // Authoritative empty corpora stay empty; seed only on invalid/unavailable.
+        if (live !== null) return live;
       }
     } catch {
       // Fall through to hermetic seed.
@@ -1034,7 +1036,7 @@ export class ConsoleBlockHost implements BlockHost {
         if (MODEL_METADATA_TYPES.has(action.type)) {
           const id = typeof action.props.id === 'string'
             ? action.props.id
-            : `${action.type}:${this.modelMetadata.length + 1}`;
+            : `${action.type}:${++this.modelMetadataSeq}`;
           const next: ObjectRef = {
             id,
             type: action.type,

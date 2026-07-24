@@ -138,6 +138,7 @@ function normalizedSourceUrl(value: JsonValue | undefined): string {
 function normalizedHeldMediaUrl(value: JsonValue | undefined): string {
   const candidate = stringValue(value).trim();
   if (!candidate) return '';
+  if (candidate.includes('\\')) return '';
   if (candidate.startsWith('/') && !candidate.startsWith('//')) return candidate;
   try {
     return new URL(candidate).protocol === 'blob:' ? candidate : '';
@@ -268,7 +269,8 @@ function parseEdge(object: ObjectRef): SurveyEdge | null {
 
 export function surveyModelFromObjects(objects: readonly ObjectRef[]): SurveyModel {
   const topicObject = objects.find((object) => object.type === 'topic');
-  const topicId = topicObject?.id ?? stringValue(objects[0]?.properties.topic_id);
+  // Require an explicit topic object. Empty topic_id must not mean "show all".
+  const topicId = topicObject?.id ?? '';
   const topic = topicObject
     ? {
         id: topicObject.id,
@@ -280,7 +282,11 @@ export function surveyModelFromObjects(objects: readonly ObjectRef[]): SurveyMod
   const captures = objects
     .filter((object) => object.type === 'capture')
     .map(parseCapture)
-    .filter((capture): capture is SurveyCapture => capture !== null && (!topicId || capture.topicId === topicId))
+    .filter((capture): capture is SurveyCapture => (
+      capture !== null
+      && Boolean(topicId)
+      && capture.topicId === topicId
+    ))
     .sort((left, right) => left.id.localeCompare(right.id));
   const captureIds = new Set(captures.map((capture) => capture.id));
   const edges = objects

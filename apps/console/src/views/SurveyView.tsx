@@ -194,6 +194,11 @@ function CaptureReadingView({
   readonly onOpenRelated: (capture: SurveyCapture) => void;
 }) {
   const openActionSheet = useShellStore((state) => state.openActionSheet);
+  const connection = useShellStore((state) => state.connection);
+  const followUpDisabled =
+    connection === 'disconnected'
+    || connection === 'identity-refused'
+    || connection === 'connecting';
   const sourceStyle: SourceFrameStyle = { '--survey-source-aspect': String(capture.sourceAspectRatio) };
   const titles = new Map(captures.map((item) => [item.id, item.title]));
   const related = edges
@@ -318,20 +323,24 @@ function CaptureReadingView({
           <h2 className="text-xs uppercase tracking-wider text-ij-ink">Action</h2>
           <button
             type="button"
-            onClick={() =>
+            disabled={followUpDisabled}
+            onClick={() => {
+              if (followUpDisabled) return;
               openActionSheet({
                 instruction: `Follow up on captured source: ${capture.title}`,
                 chips: [
                   objectChip(capture.id, 'capture', capture.title),
                 ],
-              })
-            }
-            className="mt-2 h-ij-control w-full rounded-ij-arc border border-ij-control-border text-ij-ink hover:bg-ij-hover-surface"
+              });
+            }}
+            className="mt-2 h-ij-control w-full rounded-ij-arc border border-ij-control-border text-ij-ink hover:bg-ij-hover-surface disabled:cursor-not-allowed disabled:opacity-50"
           >
             /do follow-up
           </button>
           <p className="mt-2 text-xs text-ij-ink">
-            Opens the action sheet with this capture staged. For-me uses the harness delegate when configured.
+            {followUpDisabled
+              ? 'Follow-up stays closed until the object seam is connected.'
+              : 'Opens the action sheet with this capture staged. For-me uses the harness delegate when configured.'}
           </p>
         </section>
       </aside>

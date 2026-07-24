@@ -71,13 +71,22 @@ export function DiagramLens({
       ].filter(Boolean).join(' '),
     }));
     const observedEdges: Edge[] = observed.types.flatMap((type) =>
-      type.edges.map((edge) => ({
-        id: `observed-edge:${edge.observedKey}`,
-        source: `observed:${type.observedKey}`,
-        target: `observed:${type.observedKey}`,
-        label: edge.label,
-        className: 'model-edge-observed',
-      })),
+      type.edges.flatMap((edge) => {
+        // Field-level observed edges stay in the table lens. The diagram only
+        // draws when both ends resolve to distinct type nodes.
+        const targetType = observed.types.find((candidate) => (
+          candidate.fields.some((field) => field.key === edge.toField)
+          && candidate.observedKey !== type.observedKey
+        ));
+        if (!targetType) return [];
+        return [{
+          id: `observed-edge:${edge.observedKey}`,
+          source: `observed:${type.observedKey}`,
+          target: `observed:${targetType.observedKey}`,
+          label: edge.label,
+          className: 'model-edge-observed',
+        }];
+      }),
     );
     const declaredEdges: Edge[] = declared.relations
       .filter((relation) => relation.targetObjectTypeId)
