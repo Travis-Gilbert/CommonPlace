@@ -121,7 +121,7 @@ test.describe('appearance surface', () => {
     await expect(page.locator('[data-run-widget] svg')).toHaveCSS('color', 'rgb(108, 112, 126)');
     await expect(page.locator('html')).toHaveCSS('font-size', '13px');
     await page.keyboard.press('Alt+Shift+1');
-    await expect(page.locator('[data-companion-nav="files"]')).toHaveCSS('background-color', 'rgb(212, 226, 255)');
+    await expect(page.locator('[data-tool-window="files"]')).toBeVisible();
   });
 
   test('derived controls paint live and disclose a contrast clamp quietly', async ({ page }) => {

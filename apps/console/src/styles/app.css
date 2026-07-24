@@ -74,11 +74,6 @@
   border-color: var(--ij-accent);
 }
 
-/* The sheen paints at its own alphas. The 0.5 multiplier that used to live
-   here existed only to lose the fight with the pastel overlay stacked above
-   it; with that overlay gone the canvas's internal 3.2 percent budget is the
-   whole budget (X1). */
-
 .composer-input-section {
   position: relative;
   overflow: hidden;
@@ -96,15 +91,11 @@
 
 .composer-controls {
   position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: var(--ij-composer-gap);
   padding: calc(var(--rec-grid) * 2) var(--ij-composer-pad-compact);
-}
-
-.composer-controls-wrap {
-  position: relative;
-  z-index: 3;
 }
 
 /* A plain divider border groups the tools. The group carried its own fill in

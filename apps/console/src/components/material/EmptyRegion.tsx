@@ -5,18 +5,21 @@
 
 export type EmptyCause = 'no-results' | 'not-loaded' | 'not-connected';
 
-const CAUSE_COPY: Record<EmptyCause, { title: string; detail: string }> = {
+const CAUSE_COPY: Record<EmptyCause, { title: string; detail: string; actionLabel: string }> = {
   'no-results': {
     title: 'No results.',
     detail: 'Cause: the current filter or query returned nothing.',
+    actionLabel: 'Clear query',
   },
   'not-loaded': {
     title: 'Nothing loaded.',
     detail: 'Cause: content has not been fetched or selected yet.',
+    actionLabel: 'Retry',
   },
   'not-connected': {
     title: 'Not connected.',
     detail: 'Cause: the backing service is unreachable or not configured.',
+    actionLabel: 'Reconnect',
   },
 };
 
@@ -36,6 +39,7 @@ export function EmptyRegion({
   readonly className?: string;
 }) {
   const defaults = CAUSE_COPY[cause];
+  const resolvedAction = actionLabel ?? (onAction ? defaults.actionLabel : undefined);
   return (
     <div
       data-empty-cause={cause}
@@ -49,13 +53,13 @@ export function EmptyRegion({
         {title ?? defaults.title}
       </p>
       <p className="max-w-prose text-ij-ink-info font-ij-ui">{detail ?? defaults.detail}</p>
-      {actionLabel && onAction ? (
+      {resolvedAction && onAction ? (
         <button
           type="button"
           onClick={onAction}
           className="mt-1 h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-raised px-3 text-ij-ink hover:bg-ij-hover-surface"
         >
-          {actionLabel}
+          {resolvedAction}
         </button>
       ) : null}
     </div>

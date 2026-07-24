@@ -1,13 +1,24 @@
-// SOURCING: none. Route path ↔ surface kind map for HANDOFF-CONSOLE-BLOCK-SYSTEM B3.
+// SOURCING: none. Route path ↔ surface kind map for console Places and
+// derived Collections (SPEC-CONSOLE-INFORMATION-ARCHITECTURE-1.0).
 
-/** Surfaces that own an App Router segment. Goals stays client-only until its route handoff. */
-export const SURFACE_ROUTES = [
-  { kind: 'chat', path: '/chat', surfaceId: 'console-chat' },
-  { kind: 'workspace', path: '/workspace', surfaceId: 'console-workspace' },
-  { kind: 'index', path: '/filing', surfaceId: 'console-index' },
-  { kind: 'documents', path: '/documents', surfaceId: 'console-docs' },
-  { kind: 'cards', path: '/cards', surfaceId: 'console-cards' },
-] as const;
+import { deriveRailCollections, PLACE_ENTRIES } from '@/lib/rail/rail-model';
+
+const PLACE_ROUTES = PLACE_ENTRIES.map((place) => ({
+  kind: place.kind,
+  path: place.path,
+  surfaceId: place.surfaceId,
+  tier: 'place' as const,
+}));
+
+const COLLECTION_ROUTES = deriveRailCollections().map((collection) => ({
+  kind: collection.kind,
+  path: collection.path,
+  surfaceId: collection.surfaceId,
+  tier: 'collection' as const,
+}));
+
+/** Surfaces that own an App Router segment (Places + Collections). */
+export const SURFACE_ROUTES = [...PLACE_ROUTES, ...COLLECTION_ROUTES] as const;
 
 export type SurfaceRouteKind = (typeof SURFACE_ROUTES)[number]['kind'];
 
@@ -22,4 +33,8 @@ export function surfaceIdForPath(pathname: string): string | null {
 
 export function kindForSurfaceId(surfaceId: string): string | null {
   return SURFACE_ROUTES.find((route) => route.surfaceId === surfaceId)?.kind ?? null;
+}
+
+export function tierForSurfaceId(surfaceId: string): 'place' | 'collection' | null {
+  return SURFACE_ROUTES.find((route) => route.surfaceId === surfaceId)?.tier ?? null;
 }

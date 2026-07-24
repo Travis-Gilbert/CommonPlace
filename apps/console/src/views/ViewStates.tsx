@@ -142,7 +142,7 @@ export function ViewState({
             cause={emptyCause}
             title={emptyTitle}
             detail={emptyDetail}
-            actionLabel={emptyActionLabel ?? (onRetry ? 'Retry' : undefined)}
+            actionLabel={emptyActionLabel}
             onAction={onRetry}
             className={padded ? 'p-ij-island-body-pad' : ''}
           />
@@ -155,7 +155,7 @@ export function ViewState({
             cause="not-connected"
             title="Not connected."
             detail={`Cause: ${capability ?? 'the backing capability'} is not configured or unreachable.`}
-            actionLabel={onRetry ? (emptyActionLabel ?? 'Reconnect') : undefined}
+            actionLabel={emptyActionLabel}
             onAction={onRetry}
             className={padded ? 'p-ij-island-body-pad' : ''}
           />

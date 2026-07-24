@@ -26,8 +26,13 @@ async function openSurface(page: Page, id: string) {
     'console-chat': '/chat',
     'console-workspace': '/workspace',
     'console-index': '/filing',
+    'console-canvas': '/canvas',
+    'console-automation': '/automation',
     'console-docs': '/documents',
     'console-cards': '/cards',
+    'console-files': '/files',
+    'console-records': '/records',
+    'console-threads': '/threads',
   };
   const path = pathBySurface[id];
   if (path) {
@@ -61,30 +66,33 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 test.describe('Console information architecture', () => {
   test.beforeEach(async ({ page }) => freshLoad(page));
 
-  test('separates five surface radios from three companion toggles', async ({ page }) => {
+  test('separates five places from generated collections and pins', async ({ page }) => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
-    const surfaces = page.getByRole('radiogroup', { name: 'Surfaces' }).getByRole('radio');
-    await expect(surfaces).toHaveCount(5);
-    expect(await surfaces.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))).toEqual([
-      'Chat surface', 'Workspace surface', 'Index surface', 'Documents surface', 'Cards surface',
+    const places = page.getByRole('radiogroup', { name: 'Places' }).getByRole('radio');
+    await expect(places).toHaveCount(5);
+    expect(await places.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))).toEqual([
+      'Chat place', 'Workspace place', 'Filing place', 'Canvas place', 'Automation place',
     ]);
-    await expect(surfaces.first()).toHaveAttribute('aria-checked', 'true');
-    const companions = page.locator('[data-companion-nav]');
-    await expect(companions).toHaveCount(3);
-    await expect(companions.nth(0)).toHaveAttribute('data-companion-nav', 'files');
-    await expect(companions.nth(1)).toHaveAttribute('data-companion-nav', 'context');
-    await expect(companions.nth(2)).toHaveAttribute('data-companion-nav', 'thread');
+    await expect(places.first()).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('[data-companion-nav]')).toHaveCount(0);
+    await expect(page.locator('[data-rail-connection]')).toHaveCount(0);
+    await expect(page.locator('[data-connection-owner="status-bar"]')).toHaveCount(1);
+
+    const collections = page.locator('[data-rail-tier="collection"][data-collection-nav]');
+    await expect(collections).toHaveCount(5);
+    expect(await collections.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-collection-nav')).sort())).toEqual([
+      'cards', 'doc', 'files', 'records', 'thread',
+    ]);
 
     for (const surfaceId of [
       'console-workspace',
       'console-index',
-      'console-docs',
-      'console-cards',
+      'console-canvas',
+      'console-automation',
       'console-chat',
     ] as const) {
       await openSurface(page, surfaceId);
     }
-    // Keyboard reachability (Control+digit; Meta+digit is reserved by Chromium tabs).
     await pressSurfaceShortcut(page, '2');
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-workspace', {
       timeout: 15_000,
@@ -93,13 +101,7 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat', {
       timeout: 15_000,
     });
-    await page.keyboard.press('Alt+Shift+1');
-    await expect(page.locator('[data-companion-nav="files"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="context"]').click();
-    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="thread"]').click();
-    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('nav[aria-label="Surfaces and companions"]')).toHaveScreenshot('stripe-groups.png');
+    await expect(page.locator('nav[aria-label="Places, collections, and pins"]')).toHaveScreenshot('stripe-tiers.png');
   });
 
   test('keeps Chat measured with one wide, auto-growing Composer', async ({ page }) => {
@@ -110,8 +112,10 @@ test.describe('Console information architecture', () => {
     const composer = page.locator('[data-composer]');
     const input = page.locator('[data-composer-input]');
     await expect(composer).toHaveAttribute('data-paint-region', 'composer');
-    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-material-texture', 'shader-surface');
-    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(1);
+    await expect(page.locator('[data-composer-material]')).toHaveAttribute('data-material-texture', 'shader-surface');
+    await expect(page.locator('[data-composer-material] [data-paper-shader]')).toHaveAttribute('data-paper-shader', 'paper-texture');
+    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(0);
+    await expect(page.locator('[data-elevation="sunken"][data-composer-input], .composer-input-section[data-elevation="sunken"]')).toHaveCount(0);
     await expect(page.locator('[data-composer-tool-group]')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Attach file' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open action sheet' })).toBeVisible();
@@ -153,9 +157,9 @@ test.describe('Console information architecture', () => {
     expect(grown?.height ?? 1000).toBeLessThanOrEqual(Math.ceil((viewport?.height ?? 800) * 0.4) + 8);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
-    await page.waitForSelector('[data-composer-sheen]');
-    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-state', 'idle');
-    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(1);
+    await page.waitForSelector('[data-composer-material]');
+    await expect(page.locator('[data-composer-material]')).toHaveAttribute('data-sheen-state', 'idle');
+    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(0);
     await expect(page).toHaveScreenshot('chat-empty.png', { fullPage: true });
   });
 
@@ -166,7 +170,8 @@ test.describe('Console information architecture', () => {
     });
     await page.locator('[data-chat-starters] button').first().click();
     await expect(page.locator('[data-chat-starters]')).toHaveCount(0);
-    await expect(page.locator('[data-composer-sheen]')).toHaveAttribute('data-sheen-state', 'streaming');
+    await expect(page.locator('[data-composer-material]')).toHaveAttribute('data-sheen-state', 'streaming');
+    await expect(page.locator('[data-composer-material] [data-paper-shader]')).toHaveAttribute('data-paper-shader', 'grain-gradient');
     await expect(page.locator('[data-presence-mark-placement="composer"] [data-mark-state]')).toHaveAttribute('data-mark-state', 'composing');
     await expect(page.locator('[data-search-field]')).toHaveCount(0);
     await page.keyboard.press('Shift');
@@ -240,7 +245,7 @@ test.describe('Console information architecture', () => {
   test('keeps the destination and Send control reachable on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
-    await page.waitForSelector('[data-composer-sheen]');
+    await page.waitForSelector('[data-composer-material]');
     await expect(page.getByLabel('Chat destination')).toBeVisible();
     const send = page.getByRole('button', { name: 'Send message' });
     await expect(send).toBeInViewport();
@@ -258,7 +263,7 @@ test.describe('Console information architecture', () => {
   });
 
   test('virtualizes 5000 pinned memory projections and opens a read-only Galley tab', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click();
+    await openSurface(page, 'console-files');
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
     await expect(page.locator('[data-file-root-status="root-project"]')).toHaveText('Not connected');
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000');
@@ -282,18 +287,18 @@ test.describe('Console information architecture', () => {
   test('keeps one compact companion open per side', async ({ page }) => {
     await page.setViewportSize({ width: 1000, height: 800 });
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-compact', 'true');
-    await page.locator('[data-companion-nav="context"]').click();
-    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('[data-companion-nav="thread"]').click();
-    await expect(page.locator('[data-companion-nav="context"]')).toHaveAttribute('aria-pressed', 'false');
-    await expect(page.locator('[data-companion-nav="thread"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Alt+Shift+2');
+    await expect(page.locator('[data-tool-window="context"]')).toBeVisible();
+    await page.keyboard.press('Alt+Shift+3');
+    await expect(page.locator('[data-tool-window="context"]')).toHaveCount(0);
+    await expect(page.locator('[data-tool-window="thread"]')).toBeVisible();
   });
 
   test('renders a deterministic, reasoned Context graph with two memory nodes', async ({ page }) => {
-    await page.locator('[data-companion-nav="files"]').click();
+    await openSurface(page, 'console-files');
     await expect(page.locator('[data-file-root-status="root-memory"]')).toHaveText('5000', { timeout: 15000 });
     await openSurface(page, 'console-cards');
-    await page.locator('[data-companion-nav="context"]').click();
+    await page.keyboard.press('Alt+Shift+2');
     await page.locator('[data-card-cell="person-ada"]').getByText('Ada Lovelace').click();
     await page.getByLabel('Close inspector').click();
     const context = page.locator('[data-context-view]');

@@ -1,10 +1,8 @@
 'use client';
 
-// SOURCING: @assistant-ui/react composer primitives. HANDOFF-CONSOLE-CHAT-SURFACE
-// CH1: instrument panel on raised + keyline, sunken input well, lit top edge
-// from ShaderSurface (SPEC-MATERIAL-REGISTER D6). ComposerSheenCanvas retired:
-// a second 2d paint path fought the context budget and material named choice 7.
-// Unavailable copy lives only in the status slot, never the placeholder.
+// SOURCING: @assistant-ui/react composer primitives. SPEC-CONSOLE-INFORMATION-
+// ARCHITECTURE D5/D6: one flat surface, no lit edge, no inset well. Material
+// states ride a single ShaderSurface behind the content plane.
 
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
@@ -133,6 +131,82 @@ export function Composer({
 
   const mention = useObjectMentionAdapter(mentions, tenant);
 
+  const connection = useShellStore((state) => state.connection);
+  const [focused, setFocused] = useState(false);
+  const composerState = unavailable
+    ? 'endpoint-refused'
+    : connection === 'identity-refused' || connection === 'disconnected'
+      ? 'disabled'
+      : interrupted
+        ? 'interrupted'
+        : isRunning
+          ? 'streaming'
+          : focused
+            ? 'focused'
+            : 'idle';
+
+  /** Paper shader binding per IA named choice 6: paper material for writing
+   *  states, grain-gradient wave only while streaming, fluted glass when refused. */
+  const paperSurface = useMemo(() => {
+    switch (composerState) {
+      case 'endpoint-refused':
+        return {
+          material: 'Refused' as const,
+          paperShader: 'fluted-glass' as const,
+          staticOnly: true,
+          colorBack: 'raised',
+          colorFill: 'error',
+          paper: { roughness: 0.4, fiber: 0.1 },
+        };
+      case 'disabled':
+        return {
+          material: 'Deterministic' as const,
+          paperShader: 'paper-texture' as const,
+          staticOnly: true,
+          colorBack: 'chrome',
+          colorFill: 'seam',
+          paper: { roughness: 0.02, fiber: 0.02, fiberSize: 0.8, contrast: 0.1, crumples: 0 },
+        };
+      case 'streaming':
+        return {
+          material: 'Discharged' as const,
+          paperShader: 'grain-gradient' as const,
+          staticOnly: false,
+          colorBack: 'raised',
+          colorFill: 'accent',
+          paper: { intensity: 0.22, noise: 0.28, speed: 0.25 },
+        };
+      case 'interrupted':
+        return {
+          material: 'Discharged' as const,
+          paperShader: 'paper-texture' as const,
+          staticOnly: true,
+          colorBack: 'raised',
+          colorFill: 'accent',
+          paper: { roughness: 0.35, fiber: 0.4, fiberSize: 0.35, contrast: 0.55, crumples: 0.2 },
+        };
+      case 'focused':
+        return {
+          material: 'Discharged' as const,
+          paperShader: 'paper-texture' as const,
+          staticOnly: true,
+          colorBack: 'raised',
+          colorFill: 'seam-raised',
+          paper: { roughness: 0.12, fiber: 0.35, fiberSize: 0.28, contrast: 0.5, crumples: 0.05 },
+        };
+      case 'idle':
+      default:
+        return {
+          material: 'Discharged' as const,
+          paperShader: 'paper-texture' as const,
+          staticOnly: true,
+          colorBack: 'raised',
+          colorFill: 'seam-raised',
+          paper: { roughness: 0.18, fiber: 0.22, fiberSize: 0.5, contrast: 0.35, crumples: 0.08 },
+        };
+    }
+  }, [composerState]);
+
   const markState: MarkState = interrupted
     ? 'interrupted'
     : isRunning
@@ -244,34 +318,40 @@ export function Composer({
         <ComposerPrimitive.Root
           data-composer
           data-composer-density={compact ? 'compact' : 'full'}
-          data-composer-state={
-            unavailable ? 'disabled' : interrupted ? 'interrupted' : isRunning ? 'streaming' : 'idle'
-          }
+          data-composer-state={composerState}
           data-paint-region="composer"
-          className="composer-shell relative overflow-hidden border border-ij-seam-raised bg-ij-raised"
+          className="composer-shell relative overflow-hidden border border-ij-seam-raised"
           data-elevation="raised"
-          style={{ borderRadius: 'var(--ij-composer-radius)' }}
+          style={{
+            borderRadius: 'var(--ij-composer-radius)',
+            filter: composerState === 'disabled' ? 'saturate(0.35)' : undefined,
+          }}
           onSubmit={() => setCharacterCount(0)}
+          onFocusCapture={() => setFocused(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setFocused(false);
+            }
+          }}
         >
           <div
-            data-composer-sheen
-            data-composer-lit-edge
+            data-composer-material
             data-material-texture="shader-surface"
-            data-sheen-state={unavailable ? 'disabled' : interrupted ? 'interrupted' : isRunning ? 'streaming' : 'idle'}
+            data-sheen-state={composerState}
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 z-0 h-1 overflow-hidden"
+            className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
           >
             <ShaderSurface
               className="h-full w-full"
-              material="Deterministic"
-              colorBack="raised"
-              colorFill="accent"
-              gap={12}
-              size={1.2}
-              staticOnly={!isRunning}
+              material={paperSurface.material}
+              paperShader={paperSurface.paperShader}
+              colorBack={paperSurface.colorBack}
+              colorFill={paperSurface.colorFill}
+              staticOnly={paperSurface.staticOnly}
+              paper={paperSurface.paper}
             />
           </div>
-          <div className="relative z-10">
+          <div className="relative z-10 bg-transparent">
             {unavailable ? (
               <div
                 role="status"
@@ -345,12 +425,12 @@ export function Composer({
               </div>
             ) : null}
             <ComposerPrimitive.Attachments components={{ Attachment: AttachmentChip }} />
-            <div className="composer-input-section bg-ij-editor" data-elevation="sunken">
+            <div className="composer-input-section">
               <ComposerPrimitive.Input
                 minRows={compact ? 2 : 3}
                 maxRows={24}
                 maxLength={MAX_CHARACTERS}
-                disabled={unavailable}
+                disabled={unavailable || composerState === 'disabled'}
                 data-composer-input
                 data-thread-composer-input
                 placeholder={PLACEHOLDER}
@@ -363,75 +443,73 @@ export function Composer({
               />
             </div>
             <div
-              className="composer-controls-wrap border-t border-ij-seam"
+              className="composer-controls"
               style={{ minHeight: 'var(--ij-composer-instrument-h)' }}
             >
-              <div className="composer-controls">
-                <div className="composer-tool-group" data-composer-tool-group>
-                  <ComposerPrimitive.AddAttachment
-                    aria-label="Attach file"
-                    title="Upload files"
-                    disabled={unavailable}
-                    className="composer-icon-button"
-                  >
-                    <IconAttach size={16} />
-                  </ComposerPrimitive.AddAttachment>
-                  <button
-                    type="button"
-                    aria-label="Open action sheet"
-                    title="Plan an action"
-                    onClick={() => openActionSheet({ instruction: '', chips: [] })}
-                    className="composer-icon-button"
-                    style={{ transition: 'var(--rec-clickable-transition)' }}
-                  >
-                    <IconCommand size={16} />
-                  </button>
-                </div>
-                <label className="composer-mode-control">
-                  <span className="sr-only">Chat destination</span>
-                  <select
-                    aria-label="Chat destination"
-                    data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}
-                    value={mode}
-                    onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
-                    className="composer-mode-select font-ij-mono"
-                    style={{ fontSize: 'var(--ij-composer-meta-font-size)' }}
-                  >
-                    <option value="theorem">Theorem</option>
-                    <option value="web" disabled={!webSearchAvailable}>
-                      Web search
-                    </option>
-                  </select>
-                  <IconChevronDown size={13} className="composer-mode-chevron" />
-                </label>
-                {characterCount >= COUNTER_REVEAL_AT ? (
-                  <span className="composer-character-count" data-composer-character-count aria-live="polite">
-                    <span>{characterCount}</span>/<span>{MAX_CHARACTERS}</span>
-                  </span>
-                ) : null}
-                <span className="composer-presence" data-presence-mark-placement="composer">
-                  <PresenceMark state={markState} size={22} staticOnly />
-                </span>
-                {isRunning ? (
-                  <ComposerPrimitive.Cancel
-                    aria-label="Stop response"
-                    title="Stop response"
-                    className="composer-send-button"
-                    onClick={() => setInterrupted(true)}
-                  >
-                    <IconStop size={16} />
-                  </ComposerPrimitive.Cancel>
-                ) : (
-                  <ComposerPrimitive.Send
-                    aria-label="Send message"
-                    title={`Send message (${NEW_LINE_HINT})`}
-                    disabled={unavailable}
-                    className="composer-send-button"
-                  >
-                    <IconSend size={16} />
-                  </ComposerPrimitive.Send>
-                )}
+              <div className="composer-tool-group" data-composer-tool-group>
+                <ComposerPrimitive.AddAttachment
+                  aria-label="Attach file"
+                  title="Upload files"
+                  disabled={unavailable || composerState === 'disabled'}
+                  className="composer-icon-button"
+                >
+                  <IconAttach size={16} />
+                </ComposerPrimitive.AddAttachment>
+                <button
+                  type="button"
+                  aria-label="Open action sheet"
+                  title="Plan an action"
+                  onClick={() => openActionSheet({ instruction: '', chips: [] })}
+                  className="composer-icon-button"
+                  style={{ transition: 'var(--rec-clickable-transition)' }}
+                >
+                  <IconCommand size={16} />
+                </button>
               </div>
+              <label className="composer-mode-control">
+                <span className="sr-only">Chat destination</span>
+                <select
+                  aria-label="Chat destination"
+                  data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}
+                  value={mode}
+                  onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
+                  className="composer-mode-select font-ij-mono"
+                  style={{ fontSize: 'var(--ij-composer-meta-font-size)' }}
+                >
+                  <option value="theorem">Theorem</option>
+                  <option value="web" disabled={!webSearchAvailable}>
+                    Web search
+                  </option>
+                </select>
+                <IconChevronDown size={13} className="composer-mode-chevron" />
+              </label>
+              {characterCount >= COUNTER_REVEAL_AT ? (
+                <span className="composer-character-count" data-composer-character-count aria-live="polite">
+                  <span>{characterCount}</span>/<span>{MAX_CHARACTERS}</span>
+                </span>
+              ) : null}
+              <span className="composer-presence" data-presence-mark-placement="composer">
+                <PresenceMark state={markState} size={22} staticOnly />
+              </span>
+              {isRunning ? (
+                <ComposerPrimitive.Cancel
+                  aria-label="Stop response"
+                  title="Stop response"
+                  className="composer-send-button"
+                  onClick={() => setInterrupted(true)}
+                >
+                  <IconStop size={16} />
+                </ComposerPrimitive.Cancel>
+              ) : (
+                <ComposerPrimitive.Send
+                  aria-label="Send message"
+                  title={`Send message (${NEW_LINE_HINT})`}
+                  disabled={unavailable || composerState === 'disabled'}
+                  className="composer-send-button"
+                >
+                  <IconSend size={16} />
+                </ComposerPrimitive.Send>
+              )}
             </div>
           </div>
         </ComposerPrimitive.Root>

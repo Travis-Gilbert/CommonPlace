@@ -10,10 +10,11 @@ describe('ViewState', () => {
     expect(renderToStaticMarkup(<ViewState state="loading" />)).toContain('Loading');
   });
 
-  it('renders empty with a named no-results cause', () => {
-    const markup = renderToStaticMarkup(<ViewState state="empty" />);
+  it('renders empty with a named no-results cause and clear action', () => {
+    const markup = renderToStaticMarkup(<ViewState state="empty" onRetry={() => {}} />);
     expect(markup).toContain('No results.');
     expect(markup).toContain('data-empty-cause="no-results"');
+    expect(markup).toContain('Clear query');
   });
 
   it('renders unavailable as not-connected with the missing capability', () => {

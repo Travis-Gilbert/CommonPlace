@@ -147,14 +147,10 @@ for (const { theme, preset } of THEMES) {
       await expect(stripe).toHaveCSS('width', '44px');
       await page.keyboard.press('Meta+b');
 
-      // Toggling a companion keeps the same grammar and the radio/toggle
-      // semantics the I1 e2e governs.
+      // Companions stay dock panels (Alt+Shift), not rail destinations.
       await page.keyboard.press('Alt+Shift+1');
-      const companion = page.locator('[data-companion-nav="files"]');
-      await expect(companion).toHaveAttribute('aria-pressed', 'true');
-      // Paper companion islands are always chrome raised chips, not selection wash.
-      const chrome = await resolveToken(page, '--ij-chrome');
-      await expect(companion).toHaveCSS('background-color', chrome);
+      const companion = page.locator('[data-tool-window="files"]');
+      await expect(companion).toBeVisible();
     });
 
     // Signature 3. The 4px accent underline on the active editor tab, and the
@@ -213,7 +209,7 @@ for (const { theme, preset } of THEMES) {
     // bridge resets colour, font and radius but deliberately not spacing, so
     // the grid holds by construction -- this is the gate that keeps it holding.
     test('rows keep the 24px rhythm and paddings stay on the 4px grid', async ({ page }) => {
-      await page.locator('[data-companion-nav="files"]').click();
+      await page.keyboard.press('Alt+Shift+1');
       const row = page.locator('[data-tool-window="files"] [role="treeitem"]').first();
       if (await row.count()) await expect(row).toHaveCSS('height', '24px');
 
@@ -240,26 +236,24 @@ for (const { theme, preset } of THEMES) {
 
     // X3.A2: the island header strip renders on all three companions.
     test('all three companions carry the header strip', async ({ page }) => {
-      for (const companion of ['files', 'context', 'thread']) {
-        const nav = page.locator(`[data-companion-nav="${companion}"]`);
-        if ((await nav.getAttribute('aria-pressed')) !== 'true') await nav.click();
+      for (const [index, companion] of (['files', 'context', 'thread'] as const).entries()) {
+        await page.keyboard.press(`Alt+Shift+${index + 1}`);
         const window = page.locator(`[data-tool-window="${companion}"]`);
         await expect(window, `${companion} tool window must render`).toBeVisible();
         await expect(
           window.locator('[data-island-header]'),
           `${companion} must carry the IslandShell header strip`,
         ).toBeVisible();
+        await page.keyboard.press(`Alt+Shift+${index + 1}`);
       }
     });
 
-    // CH1 acceptance: the composer chrome is ShaderSurface lit edge, not a
+    // CH1 acceptance: the composer chrome is ShaderSurface material, not a
     // parallel 2d sheen canvas. Raised surface, keyline, no shadow.
-    test('the composer carries ShaderSurface lit edge and no shadow', async ({ page }) => {
+    test('the composer carries ShaderSurface material and no shadow', async ({ page }) => {
       const composer = page.locator('[data-paint-region="composer"]').first();
       await expect(composer).toBeVisible();
-
-      const raised = await resolveToken(page, '--ij-raised');
-      await expect(composer).toHaveCSS('background-color', raised);
+      await expect(page.locator('[data-composer-material]')).toHaveCount(1);
 
       const scan = await composer.evaluate((root) => {
         const offenders: { tag: string; property: string; value: string }[] = [];
@@ -282,6 +276,7 @@ for (const { theme, preset } of THEMES) {
           shadowed,
           blurred,
           litEdges: root.querySelectorAll('[data-composer-lit-edge]').length,
+          materials: root.querySelectorAll('[data-composer-material]').length,
           marks: root.querySelectorAll('[data-presence-mark-placement]').length,
         };
       });
@@ -289,14 +284,15 @@ for (const { theme, preset } of THEMES) {
       expect(scan.offenders, 'gradients stay off the content plane').toEqual([]);
       expect(scan.shadowed, 'the composer is permanent, so it takes no shadow').toBe(0);
       expect(scan.blurred, 'the backdrop blur was deleted').toBe(0);
-      expect(scan.litEdges, 'exactly one ShaderSurface lit edge').toBe(1);
+      expect(scan.litEdges, 'the lit edge is gone').toBe(0);
+      expect(scan.materials, 'exactly one composer ShaderSurface').toBe(1);
       expect(scan.marks, 'exactly one Presence mark in the composer').toBe(1);
     });
 
-    test('the lit edge declares idle and streaming states', async ({ page }) => {
-      const edge = page.locator('[data-composer-sheen]').first();
-      await expect(edge).toHaveAttribute('data-sheen-state', 'idle');
-      await expect(edge).toHaveAttribute('data-material-texture', 'shader-surface');
+    test('the composer material declares idle and streaming states', async ({ page }) => {
+      const surface = page.locator('[data-composer-material]').first();
+      await expect(surface).toHaveAttribute('data-sheen-state', 'idle');
+      await expect(surface).toHaveAttribute('data-material-texture', 'shader-surface');
 
       let release: () => void = () => {};
       const held = new Promise<void>((resolve) => {
@@ -312,9 +308,9 @@ for (const { theme, preset } of THEMES) {
       });
 
       const input = page.locator('[data-composer-input]');
-      await input.fill('Show the lit edge while the agent works.');
+      await input.fill('Show the material while the agent works.');
       await input.press('Enter');
-      await expect(edge).toHaveAttribute('data-sheen-state', 'streaming');
+      await expect(surface).toHaveAttribute('data-sheen-state', 'streaming');
       await expect(page.locator('[data-paint-region="composer"]').first()).toHaveScreenshot(
         `composer-sheen-streaming-${theme}.png`,
       );
@@ -345,13 +341,13 @@ for (const { theme, preset } of THEMES.filter((entry) => entry.theme === 'dark')
   }
 }
 
-test.describe('the lit edge under reduced motion', () => {
+test.describe('composer material under reduced motion', () => {
   test('renders static and still present, never removed', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openWorkspace(page, 'intellij-light');
-    const edge = page.locator('[data-composer-sheen]').first();
-    await expect(edge).toHaveAttribute('data-sheen-state', 'idle');
-    await expect(edge).toHaveAttribute('data-material-texture', 'shader-surface');
-    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(1);
+    const surface = page.locator('[data-composer-material]').first();
+    await expect(surface).toHaveAttribute('data-sheen-state', 'idle');
+    await expect(surface).toHaveAttribute('data-material-texture', 'shader-surface');
+    await expect(page.locator('[data-composer-lit-edge]')).toHaveCount(0);
   });
 });
