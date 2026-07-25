@@ -17,6 +17,7 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
 export const ACCOUNT_SURFACE_ID = 'console-account';
+export const CONSOLE_DATA_SURFACE_ID = 'console-your-data';
 
 function layoutObject(
   id: string,
@@ -229,7 +230,8 @@ export function seedLayout(): ObjectRef[] {
     }),
     layoutObject('index.vi-rules', 'view-instance', {
       descriptor_id: 'index.rules', title: 'Rules',
-      query: { types: ['record'] } as unknown as JsonValue,
+      query: { types: ['surface'] } as unknown as JsonValue,
+      seed_revision: 2,
     }),
     ...companionSeeds('index'),
 

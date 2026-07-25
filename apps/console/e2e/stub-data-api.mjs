@@ -7,9 +7,78 @@
 // repo's deterministic PRNG convention) so captures stay stable.
 
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 
 const PORT = Number(process.env.STUB_DATA_API_PORT ?? 50591);
 const WEB_SEARCH_ENABLED = process.env.STUB_WEB_SEARCH_ENABLED !== 'false';
+
+function loadConsoleFixture() {
+  const bytes = readFileSync(
+    new URL('../public/wasm/commonplace_console_core.wasm', import.meta.url),
+  );
+  const wasmModule = new WebAssembly.Module(bytes);
+  const imports = {};
+  for (const entry of WebAssembly.Module.imports(wasmModule)) {
+    if (entry.kind !== 'function') throw new Error(`unsupported wasm import: ${entry.kind}`);
+    imports[entry.module] ??= {};
+    imports[entry.module][entry.name] = () => 0;
+  }
+  const instance = new WebAssembly.Instance(wasmModule, imports);
+  const length = instance.exports.commonplace_console_fixture_json_prepare();
+  const offset = instance.exports.commonplace_console_fixture_json_ptr();
+  const json = new TextDecoder().decode(
+    new Uint8Array(instance.exports.memory.buffer, offset, length),
+  );
+  return JSON.parse(json);
+}
+
+const CONSOLE_FIXTURE = loadConsoleFixture();
+const CONSOLE_PLUGIN_STATES = new Map();
+
+function pluginState(tenant) {
+  return CONSOLE_PLUGIN_STATES.get(tenant) ?? 'available';
+}
+
+function pluginContribution() {
+  return {
+    point: 'pane.kind',
+    block: 'commonplace.console',
+    kind: 'view',
+    value: 'commonplace.console',
+  };
+}
+
+function installedPlugin() {
+  return {
+    appId: 'commonplace.console',
+    version: '1.0.0',
+    state: 'installed',
+    grants: ['corpus:read'],
+    contributions: [pluginContribution()],
+  };
+}
+
+function consoleGraphqlProjection() {
+  return {
+    consoleOverview: {
+      countsByType: CONSOLE_FIXTURE.overview.counts_by_type.map(([nodeType, count]) => ({
+        nodeType,
+        count,
+      })),
+      generation: CONSOLE_FIXTURE.overview.generation,
+      readiness: CONSOLE_FIXTURE.overview.readiness,
+    },
+    consoleEntities: CONSOLE_FIXTURE.entities,
+    consoleReceipts: {
+      receipts: CONSOLE_FIXTURE.receipts,
+      nextCursor: null,
+      total: CONSOLE_FIXTURE.receipts.length,
+    },
+    consoleNeighborhood: CONSOLE_FIXTURE.graph,
+    standingQueries: CONSOLE_FIXTURE.standing_queries,
+    standingFirings: CONSOLE_FIXTURE.firings,
+  };
+}
 
 function djb2(text) {
   let hash = 5381;
@@ -434,6 +503,12 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify({ ok: true, note: 'layout pools cleared' }));
     return;
   }
+  if (request.method === 'POST' && request.url === '/objects/test/reset-console-plugin') {
+    CONSOLE_PLUGIN_STATES.clear();
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, note: 'console plugin state cleared' }));
+    return;
+  }
   if (request.method === 'POST' && request.url === '/graphql') {
     if (!request.headers['x-theorem-tenant']) {
       response.writeHead(400, { 'Content-Type': 'application/json' });
@@ -445,13 +520,77 @@ const server = createServer((request, response) => {
       body += chunk;
     });
     request.on('end', () => {
-      if (!body.includes('itemsByKind')) {
-        response.writeHead(400, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ errors: [{ message: 'unsupported query' }] }));
+      const tenant = String(request.headers['x-theorem-tenant']);
+      if (body.includes('CommonPlaceConsolePluginState')) {
+        const installed = pluginState(tenant) === 'installed' ? [installedPlugin()] : [];
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ data: { installedApps: installed, pendingApps: [] } }));
         return;
       }
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end(JSON.stringify({ data: { itemsByKind: MEMORIES } }));
+      if (body.includes('ConsentCommonPlaceConsole')) {
+        CONSOLE_PLUGIN_STATES.set(tenant, 'installed');
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({
+          data: {
+            consentApp: {
+              appId: 'commonplace.console',
+              toolsAdded: [],
+              seedsCreated: [],
+              contributions: [pluginContribution()],
+              grants: ['corpus:read'],
+            },
+          },
+        }));
+        return;
+      }
+      if (body.includes('DenyCommonPlaceConsole')) {
+        CONSOLE_PLUGIN_STATES.set(tenant, 'denied');
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({
+          data: {
+            denyApp: {
+              appId: 'commonplace.console',
+              draftNodeId: 'fixture:commonplace.console',
+              draftRemoved: true,
+              contributionsRemoved: 1,
+              grantsDeclined: ['corpus:read'],
+            },
+          },
+        }));
+        return;
+      }
+      if (body.includes('UninstallCommonPlaceConsole')) {
+        CONSOLE_PLUGIN_STATES.set(tenant, 'available');
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({
+          data: {
+            uninstallApp: {
+              appId: 'commonplace.console',
+              toolsRemoved: [],
+              seedsTombstoned: [],
+              contributionsRemoved: 1,
+            },
+          },
+        }));
+        return;
+      }
+      if (body.includes('CommonPlaceConsoleSnapshot')) {
+        if (pluginState(tenant) !== 'installed') {
+          response.writeHead(403, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ errors: [{ message: 'corpus_read_grant_required' }] }));
+          return;
+        }
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ data: consoleGraphqlProjection() }));
+        return;
+      }
+      if (body.includes('itemsByKind')) {
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ data: { itemsByKind: MEMORIES } }));
+        return;
+      }
+      response.writeHead(400, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ errors: [{ message: 'unsupported query' }] }));
     });
     return;
   }

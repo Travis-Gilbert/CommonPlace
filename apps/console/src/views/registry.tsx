@@ -36,6 +36,7 @@ import {
   VideoBlock,
 } from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
+import { ConsoleDataView } from './ConsoleDataView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -642,6 +643,32 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   render: AutomationHistoryView,
 };
 
+const COMMONPLACE_CONSOLE: ViewDescriptor = {
+  id: 'commonplace.console',
+  name: 'Your data',
+  accepts: {},
+  emits: ['select', 'open'],
+  renderer: 'commonplace.console',
+  source: {
+    package: '@commonplace/console-block',
+    component: 'SameOriginGraphqlDoor',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect your CommonPlace data',
+    mounts: ['island', 'surface', 'stripe'],
+    sizes: ['m', 'w', 'full'],
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
+    bodyBleed: 'flush',
+    dataNote:
+      'Read-only v1 console. Renderer code is registered statically, while the pane instance is mounted only after the server-owned plugin consent receipt activates its contribution.',
+  },
+  render: ConsoleDataView,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -672,6 +699,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   VIDEO,
   CANVAS,
   AUTOMATION_HISTORY,
+  COMMONPLACE_CONSOLE,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

@@ -14,6 +14,7 @@ on:
   pull_request:
     paths:
       - "apps/console/**"
+      - "crates/console-core/**"
       - "packages/block-view/**"
       - "packages/theorem-acp/**"
       - ".github/workflows/console-ci.yml"
@@ -25,6 +26,26 @@ env:
   PNPM_FLAGS: "--no-frozen-lockfile"
 
 jobs:
+  console-core:
+    name: Shared console core, native and wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Rust with wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Test deterministic core across native, gpu fallback, and wasm
+        run: node crates/console-core/src/sim/prove.mjs
+
   gates:
     name: Gates, unit tests, build
     runs-on: ubuntu-latest

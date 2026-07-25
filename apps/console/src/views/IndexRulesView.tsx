@@ -10,10 +10,11 @@
 // was made, so it does. That asymmetry is the whole reason this surface has an
 // approval affordance while the ribbon does not.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Command } from 'cmdk';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import type { FilingPredicateKind, FilingRule } from '@/lib/filing/types';
+import { YourDataEntry } from '@/components/console-plugin/YourDataEntry';
 import { ViewState } from './ViewStates';
 import {
   consentRule,
@@ -217,15 +218,33 @@ function Author({ onSaved }: { readonly onSaved: () => void }) {
   );
 }
 
-export function IndexRulesView(_props: ViewRenderProps) {
+export function IndexRulesView({ host }: ViewRenderProps) {
   const { state, refresh } = useFilingRules();
-
-  if (state.status === 'loading') return <ViewState state="loading" />;
-  if (state.status === 'unavailable') {
-    return <ViewState state="unavailable" capability={state.capability} />;
-  }
-  if (state.status === 'error') {
-    return <ViewState state="error" errorMessage={state.message} onRetry={refresh} />;
+  let content: ReactNode;
+  if (state.status === 'loading') {
+    content = <ViewState state="loading" />;
+  } else if (state.status === 'unavailable') {
+    content = <ViewState state="unavailable" capability={state.capability} />;
+  } else if (state.status === 'error') {
+    content = <ViewState state="error" errorMessage={state.message} onRetry={refresh} />;
+  } else {
+    content = (
+      <>
+        <Author onSaved={refresh} />
+        {state.data.rules.length === 0 ? (
+          <p className="p-4 text-ij-ink-info" data-filing-rules-empty>
+            No rules yet. Filing learns from where you put things, so rules are for
+            the cases you would rather state outright.
+          </p>
+        ) : (
+          <ul className="min-h-0 flex-1 overflow-y-auto">
+            {state.data.rules.map((rule) => (
+              <RuleRow key={rule.id} rule={rule} onChanged={refresh} />
+            ))}
+          </ul>
+        )}
+      </>
+    );
   }
 
   return (
@@ -237,19 +256,8 @@ export function IndexRulesView(_props: ViewRenderProps) {
       <div className="flex h-ij-toolwindow-header shrink-0 items-center border-b border-ij-seam bg-ij-chrome px-2 text-ij-ink">
         Rules
       </div>
-      <Author onSaved={refresh} />
-      {state.data.rules.length === 0 ? (
-        <p className="p-4 text-ij-ink-info" data-filing-rules-empty>
-          No rules yet. Filing learns from where you put things, so rules are for
-          the cases you would rather state outright.
-        </p>
-      ) : (
-        <ul className="min-h-0 flex-1 overflow-y-auto">
-          {state.data.rules.map((rule) => (
-            <RuleRow key={rule.id} rule={rule} onChanged={refresh} />
-          ))}
-        </ul>
-      )}
+      <YourDataEntry host={host} returnSurfaceId="console-index" compact />
+      {content}
     </div>
   );
 }

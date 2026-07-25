@@ -173,13 +173,17 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const activeSurfaceId = useMemo(() => {
     return surfaces.find((object) => object.properties.active === true)?.id ?? SURFACE_ID;
   }, [surfaces]);
+  const activeSurfaceIdRef = useRef(activeSurfaceId);
+  useEffect(() => {
+    activeSurfaceIdRef.current = activeSurfaceId;
+  }, [activeSurfaceId]);
 
   // Deep links and back/forward: the route is the surface radio (B3).
   useEffect(() => {
     const routedId = surfaceIdForPath(pathname);
-    if (!routedId || routedId === activeSurfaceId) return;
+    if (!routedId || routedId === activeSurfaceIdRef.current) return;
     void host.activateSurface(routedId);
-  }, [activeSurfaceId, host, pathname]);
+  }, [host, pathname]);
 
   const root = useMemo(
     () => (layoutObjects ? buildSurfaceTree(activeSurfaceId, layoutObjects) : null),

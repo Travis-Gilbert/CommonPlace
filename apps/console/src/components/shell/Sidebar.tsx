@@ -203,8 +203,9 @@ export function Sidebar({
     if (surface.id === activeSurfaceId) return;
     const path = pathForSurfaceKind(String(surface.properties.kind ?? ''));
     if (path) {
-      // Route first: the pathname effect activates the matching surface. Calling
-      // activateSurface before the URL settles races the effect and reverts.
+      // Activate immediately for responsive primary navigation. The pathname
+      // effect repeats this idempotently for deep links and back or forward.
+      void host.activateSurface(surface.id);
       router.push(path);
       return;
     }
