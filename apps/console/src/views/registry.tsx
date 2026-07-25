@@ -111,7 +111,7 @@ const CODE_FILE: ViewDescriptor = {
   id: 'code.file',
   name: 'Code',
   accepts: {},
-  emits: ['open'],
+  emits: ['open', 'invoke_tool'],
   renderer: 'code.file',
   source: {
     package: 'codemirror',
