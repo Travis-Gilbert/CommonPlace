@@ -87,11 +87,8 @@ export function AgentRailBlock({
   const isRunning = useThreadStore((state) => state.isRunning);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollTopRef = useRef(0);
-  const [collapsed, setCollapsed] = useState(collapsedProp ?? false);
-
-  useEffect(() => {
-    if (collapsedProp !== undefined) setCollapsed(collapsedProp);
-  }, [collapsedProp]);
+  const [uncontrolledCollapsed, setUncontrolledCollapsed] = useState(collapsedProp ?? false);
+  const collapsed = collapsedProp ?? uncontrolledCollapsed;
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -102,8 +99,7 @@ export function AgentRailBlock({
   const toggle = () => {
     const node = scrollRef.current;
     if (node) scrollTopRef.current = node.scrollTop;
-    const next = !collapsed;
-    setCollapsed(next);
+    if (collapsedProp === undefined) setUncontrolledCollapsed(!collapsed);
     onToggleCollapse?.();
   };
 

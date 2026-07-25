@@ -58,8 +58,28 @@ export function AgentAliasPane() {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await fetchAliases();
+        if (cancelled) return;
+        if (!data) {
+          setState({ status: 'unconfigured' });
+          return;
+        }
+        setState({ status: 'ready', aliases: data.aliases, domain: data.domain });
+      } catch (error) {
+        if (cancelled) return;
+        setState({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'alias load failed',
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const mint = useCallback(async () => {
     if (!alias.trim() || !counterparty.trim()) return;
