@@ -1,4 +1,4 @@
-// SOURCING: none — pure logic, no upstream component applies
+// SOURCING: none. Pure logic, no upstream component applies
 import { describe, expect, it, vi } from 'vitest';
 import {
   NATIVE_LAYER_DESCRIPTORS,
@@ -19,6 +19,10 @@ describe('layer selection (ML4) via shared package', () => {
     expect(state.layers).toEqual(['composition', 'presence']);
     const toggled = toggleLayer(state, 'derivation');
     expect(toggled.layers.sort()).toEqual(['composition', 'derivation', 'presence']);
+  });
+
+  it('preserves an explicitly empty layer selection', () => {
+    expect(createLayerSelection(NATIVE_LAYER_DESCRIPTORS, []).layers).toEqual([]);
   });
 
   it('hides edges when their layer is toggled off', () => {

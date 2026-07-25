@@ -224,6 +224,10 @@ const ExplorerShell: FC = () => {
       edgeVisibleForLayers(layerIdForEdgeType(link.edge_type ?? null), active),
     );
   }, [baseLinks, liveAdditions.links, layerSelection]);
+  const allLinks = useMemo(
+    () => [...baseLinks, ...liveAdditions.links],
+    [baseLinks, liveAdditions.links],
+  );
   const webgl2Support = useWebGL2Support();
   const canvasRef = useRef<CosmosGraphCanvasHandle>(null);
   const nodeDoubleClickedRef = useRef(false);
@@ -506,7 +510,7 @@ const ExplorerShell: FC = () => {
       }
       if (disposed) return;
       try {
-        await ingestExplorerData(points, links);
+        await ingestExplorerData(points, allLinks);
       } catch (err) {
         console.warn('[ExplorerShell] Explorer ingest failed', err);
         return;
@@ -524,7 +528,7 @@ const ExplorerShell: FC = () => {
         disposeBridge = null;
       }
     };
-  }, [points, links, loading, error, webgl2Support]);
+  }, [points, allLinks, loading, error, webgl2Support]);
 
   function handleDismissDirective() {
     setDirectiveLabel(null);

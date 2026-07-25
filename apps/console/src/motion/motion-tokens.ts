@@ -146,9 +146,9 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Status bar indeterminate progress',
-    effect: 'removed from chrome; transport status is no longer a durable footer',
-    spec: 'n/a — IntuiShell no longer mounts StatusBar',
-    reducedMotion: 'n/a',
+    effect: 'indeterminate sweep on the progress track while a named query or reconnect label is live',
+    spec: 'ij-progress-indeterminate + ij-progress-sweep in motion.css; opacity/transform only; stops when progressLabel clears',
+    reducedMotion: 'settled full-width track, no sweep',
   },
   {
     trigger: 'Sidebar collapse and resize',

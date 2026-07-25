@@ -3,6 +3,7 @@
 // The signed_request kind is added by HANDOFF-SIGNED-PRINCIPAL-IDENTITY.
 
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
+import { configuredServiceTenantMatches } from '@/lib/harness-principal-core';
 import { ensurePrincipalCredential } from '@/lib/server/principal-credential-store';
 
 export type UpstreamCredential =
@@ -109,6 +110,15 @@ export async function resolveUpstreamCredential(
         token: issued.token,
         tenant: issued.tenant,
       },
+    };
+  }
+
+  // Matching owner tenant: keep the deployment service key until the object
+  // API exposes a working /credentials/issue route for principal tokens.
+  if (configuredServiceTenantMatches(principal, process.env.CONSOLE_HARNESS_TENANT)) {
+    return {
+      ok: true,
+      credential: { kind: 'service_key', key: serviceUpstreamKey() },
     };
   }
 

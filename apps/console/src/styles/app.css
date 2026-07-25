@@ -91,6 +91,11 @@
   border-color: var(--ij-accent);
 }
 
+.composer-shell[data-composer-state="disabled"],
+.composer-shell[data-composer-state="endpoint-refused"] {
+  opacity: 0.72;
+}
+
 .composer-input-section {
   position: relative;
   overflow: hidden;

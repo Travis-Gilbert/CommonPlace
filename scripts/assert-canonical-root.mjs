@@ -2,6 +2,11 @@
 // SOURCING: none. C5 hardening for checkout consolidation.
 // Fails when this tree is not the canonical CommonPlace product checkout
 // (missing MaterialLayer and/or .commonplace-canonical marker).
+//
+// Limitation: both checked files are version-controlled, so any clone of this
+// commit passes. Machine-specific path validation is intentionally out of
+// scope for cloud and CI checkouts; use scripts/retire-techdev-clone.sh on the
+// Mac host that still has the duplicate tree.
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';

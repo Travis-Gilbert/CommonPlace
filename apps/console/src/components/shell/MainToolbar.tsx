@@ -148,11 +148,14 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
             className="absolute left-0 top-full z-40 mt-1 min-w-52 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
           >
             {groups.map((group, groupIndex) => (
-              <div key={group.id} data-layout-group={group.id} className={groupIndex > 0 ? 'mt-1 border-t border-ij-seam pt-1' : undefined}>
-                <div
-                  className="px-2 py-1 font-ij-mono text-ij-island-meta text-ij-ink-info"
-                  aria-hidden
-                >
+              <div
+                key={group.id}
+                role="group"
+                aria-label={group.label}
+                data-layout-group={group.id}
+                className={groupIndex > 0 ? 'mt-1 border-t border-ij-seam pt-1' : undefined}
+              >
+                <div className="px-2 py-1 font-ij-mono text-ij-island-meta text-ij-ink-info">
                   {group.label}
                 </div>
                 {group.items.map((surface) => (

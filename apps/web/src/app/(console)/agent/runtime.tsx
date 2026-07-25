@@ -24,6 +24,7 @@ export function useTheoremAgentRuntime(opts: {
       messages: [],
       pendingPermission: null,
       blockedReason: null,
+      bootBrief: null,
     },
     api: '/api/theorem/agent/stream',
     protocol: 'assistant-transport',

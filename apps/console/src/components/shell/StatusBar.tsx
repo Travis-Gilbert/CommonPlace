@@ -8,9 +8,11 @@
 // contradict the connection state because it hides unless connected.
 // HANDOFF-PRINCIPAL-CREDENTIALS D5: four causes, one indicator, matching actions.
 
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
+import { githubTenantSlug } from '@/lib/account-identity';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
+import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
   connected: 'Connected',
@@ -22,11 +24,12 @@ const CONNECTION_LABEL: Record<ConnectionState, string> = {
 };
 
 export function StatusBar({ host }: { host: ConsoleBlockHost }) {
+  const { data: session } = useSession();
   const connection = useShellStore((state) => state.connection);
   const setConnection = useShellStore((state) => state.setConnection);
-  const tenant = useShellStore((state) => state.tenant);
   const presenceCount = useShellStore((state) => state.presenceCount);
   const progressLabel = useShellStore((state) => state.progressLabel);
+  const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
 
   const showPresence = connection === 'connected' && presenceCount !== null;
   const action =
@@ -36,7 +39,7 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
         ? {
             label: 'Open Account',
             run: () => {
-              window.location.assign('/?view=account');
+              void host.activateSurface(ACCOUNT_SURFACE_ID);
             },
           }
         : connection === 'disconnected' || connection === 'identity-refused'
@@ -83,7 +86,6 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
           type="button"
           onClick={action.run}
           className="rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
-          style={{ transition: 'var(--rec-clickable-transition)' }}
         >
           {action.label}
         </button>

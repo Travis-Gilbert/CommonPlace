@@ -211,11 +211,11 @@ const STARTER_SLOTS = [
 function chipRefusal(connection: ConnectionState, endpointMissing: boolean): string | null {
   // Endpoint unavailable is owned by the composer status slot only.
   if (endpointMissing) return 'Chat endpoint is not configured';
-  if (connection === 'unauthenticated') return 'principal_resolution=unauthenticated';
-  if (connection === 'credential-unavailable') return 'principal_credential_unavailable';
-  if (connection === 'identity-refused') return 'principal_resolution=unauthenticated';
-  if (connection === 'disconnected') return 'Disconnected from the object seam';
-  if (connection === 'connecting') return 'Connecting to the object seam';
+  if (connection === 'unauthenticated') return 'Sign in required';
+  if (connection === 'credential-unavailable') return 'Credential unavailable';
+  if (connection === 'identity-refused') return 'Authentication refused';
+  if (connection === 'disconnected') return 'Transport unreachable';
+  if (connection === 'connecting') return 'Transport connecting';
   return null;
 }
 

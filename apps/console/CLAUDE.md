@@ -172,4 +172,5 @@ markdown. Use colons, periods, commas, semicolons, or parentheses instead.
 3. Contrast gate: `npm run gate:contrast`
 4. Motion inventory scan: `npm run gate:motion`
 5. Icon paint scan: `npm run gate:icons`
-6. Playwright visual baseline: `npm run test:e2e`
+6. Canonical checkout: `npm run gate:canonical-root`
+7. Playwright visual baseline: `npm run test:e2e`

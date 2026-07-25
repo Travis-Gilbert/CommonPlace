@@ -9,7 +9,6 @@
 // only as a named refusal when issuance cannot cover a non-matching tenant.
 
 import {
-  configuredServiceTenantMatches,
   principalTenantHeaders,
   resolveHarnessPrincipal,
 } from '@/lib/server/harness-principal';
@@ -44,10 +43,9 @@ export async function forward(path: string, init: RequestInit): Promise<Response
 
   const credential = await resolveUpstreamCredential(resolution.principal);
   if (!credential.ok) {
-    if (
-      !isServicePrincipal(resolution.principal) &&
-      !configuredServiceTenantMatches(resolution.principal)
-    ) {
+    // Non-matching tenants stay refused; matching tenants already fell back
+    // to the service key inside resolveUpstreamCredential.
+    if (!isServicePrincipal(resolution.principal)) {
       return Response.json(
         {
           error: 'tenant_object_credential_unavailable',

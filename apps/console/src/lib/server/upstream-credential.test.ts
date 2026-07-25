@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
 import {
   credentialHeaders,
@@ -20,6 +20,11 @@ const sessionPrincipal: HarnessPrincipal = {
   githubLogin: 'Travis-Gilbert',
   harnessIdentity: 'github:123',
 };
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('upstream credential resolution', () => {
   it('detects service principals by harness identity prefix', () => {
@@ -48,17 +53,53 @@ describe('upstream credential resolution', () => {
   });
 
   it('returns a named refusal when a session principal has no token', async () => {
-    const previous = process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+    const previousTokens = process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+    const previousTenant = process.env.CONSOLE_HARNESS_TENANT;
     delete process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+    delete process.env.CONSOLE_HARNESS_TENANT;
+    const fetchMock = vi.fn(async () =>
+      Response.json({ error: 'not_found' }, { status: 404 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
     try {
       const resolution = await resolveUpstreamCredential(sessionPrincipal);
       expect(resolution.ok).toBe(false);
       if (!resolution.ok) {
         expect(resolution.refusal.reason).toBe('principal_credential_unavailable');
       }
+      expect(fetchMock).toHaveBeenCalled();
     } finally {
-      if (previous === undefined) delete process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
-      else process.env.CONSOLE_PRINCIPAL_TOKENS_JSON = previous;
+      if (previousTokens === undefined) delete process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+      else process.env.CONSOLE_PRINCIPAL_TOKENS_JSON = previousTokens;
+      if (previousTenant === undefined) delete process.env.CONSOLE_HARNESS_TENANT;
+      else process.env.CONSOLE_HARNESS_TENANT = previousTenant;
+    }
+  });
+
+  it('falls back to the service key for the matching deployment tenant', async () => {
+    const previousTokens = process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+    const previousTenant = process.env.CONSOLE_HARNESS_TENANT;
+    const previousKey = process.env.CONSOLE_DATA_API_KEY;
+    delete process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+    process.env.CONSOLE_HARNESS_TENANT = 'Travis-Gilbert';
+    process.env.CONSOLE_DATA_API_KEY = 'owner-service-key';
+    const fetchMock = vi.fn(async () =>
+      Response.json({ error: 'not_found' }, { status: 404 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const resolution = await resolveUpstreamCredential(sessionPrincipal);
+      expect(resolution).toEqual({
+        ok: true,
+        credential: { kind: 'service_key', key: 'owner-service-key' },
+      });
+    } finally {
+      if (previousTokens === undefined) delete process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
+      else process.env.CONSOLE_PRINCIPAL_TOKENS_JSON = previousTokens;
+      if (previousTenant === undefined) delete process.env.CONSOLE_HARNESS_TENANT;
+      else process.env.CONSOLE_HARNESS_TENANT = previousTenant;
+      if (previousKey === undefined) delete process.env.CONSOLE_DATA_API_KEY;
+      else process.env.CONSOLE_DATA_API_KEY = previousKey;
     }
   });
 

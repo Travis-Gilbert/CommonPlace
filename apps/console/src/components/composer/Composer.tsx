@@ -137,8 +137,7 @@ export function Composer({
     ? 'endpoint-refused'
     : connection === 'identity-refused' ||
       connection === 'unauthenticated' ||
-      connection === 'credential-unavailable' ||
-      connection === 'disconnected'
+      connection === 'credential-unavailable'
       ? 'disabled'
       : interrupted
         ? 'interrupted'
@@ -327,7 +326,6 @@ export function Composer({
           data-elevation="raised"
           style={{
             borderRadius: 'var(--ij-composer-radius)',
-            filter: composerState === 'disabled' ? 'saturate(0.35)' : undefined,
           }}
           onSubmit={() => setCharacterCount(0)}
           onFocusCapture={() => setFocused(true)}

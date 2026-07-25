@@ -1,4 +1,4 @@
-// SOURCING: none — pure logic, no upstream component applies
+// SOURCING: none. Pure logic, no upstream component applies
 /**
  * Thin re-export so existing web imports keep working. Prefer
  * `@commonplace/multiplex-layers` for new call sites.

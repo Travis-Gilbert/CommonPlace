@@ -76,18 +76,30 @@ export async function issuePrincipalCredential(
         token,
       }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(8_000),
     });
   } catch {
     return null;
   }
   if (!response.ok) return null;
-  const body = (await response.json()) as {
+  let body: {
     token?: string;
     key_id?: string;
     expires_at_ms?: number | null;
     tenant?: string;
     principal_id?: string;
   };
+  try {
+    body = (await response.json()) as {
+      token?: string;
+      key_id?: string;
+      expires_at_ms?: number | null;
+      tenant?: string;
+      principal_id?: string;
+    };
+  } catch {
+    return null;
+  }
   if (typeof body.token !== 'string' || typeof body.key_id !== 'string') return null;
   const issued: IssuedPrincipalCredential = {
     token: body.token,

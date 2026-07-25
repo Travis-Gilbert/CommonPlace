@@ -1,4 +1,4 @@
-// SOURCING: none — pure logic, no upstream component applies
+// SOURCING: none. Pure logic, no upstream component applies
 'use client';
 
 /**

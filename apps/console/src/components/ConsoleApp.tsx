@@ -108,8 +108,11 @@ function connectionFor(
 
 export function ConsoleApp({
   initialProactivity,
+  initialViewId,
 }: {
   initialProactivity?: { readonly graph: ProactivityGraph | null; readonly error: string | null };
+  /** Optional slug or surface id from /v/[viewId]. */
+  initialViewId?: string;
 } = {}) {
   // True after hydration only (server snapshot false): the persisted
   // arrangement in localStorage never causes a hydration mismatch.
@@ -172,6 +175,18 @@ export function ConsoleApp({
     if (initialProactivity.graph) hydrateProactivity(initialProactivity.graph);
     else failProactivity(initialProactivity.error ?? 'server_projection_unavailable');
   }, [failProactivity, hydrateProactivity, initialProactivity]);
+
+  useEffect(() => {
+    if (!host || !initialViewId) return;
+    const match = host.queryLayout({ types: ['surface'], live: true }).objects.find((surface) => {
+      const slug = surface.properties.slug;
+      return surface.id === initialViewId
+        || surface.id === `view-${initialViewId}`
+        || surface.id === `console-${initialViewId}`
+        || slug === initialViewId;
+    });
+    if (match) void host.activateSurface(match.id);
+  }, [host, initialViewId]);
 
   useEffect(() => {
     if (!host) return;

@@ -58,6 +58,12 @@ if [[ ! -d "$TECHDEV/.git" ]]; then
   exit 0
 fi
 
+if [[ -e "$ARCHIVE" ]]; then
+  echo "Archive already exists: $ARCHIVE" >&2
+  echo "Refuse to continue so the live clone is not stubbed or deleted over an earlier archive." >&2
+  exit 1
+fi
+
 echo "== prune prunable Tech Dev worktrees =="
 if [[ -d "$TECHDEV" ]]; then
   while IFS= read -r line; do
@@ -72,11 +78,11 @@ fi
 
 echo "== push any local-only native-shell tip if present =="
 if git -C "$TECHDEV" show-ref --verify --quiet refs/heads/Travis-Gilbert/commonplace-native-shell-backend; then
-  run git -C "$TECHDEV" push -u origin Travis-Gilbert/commonplace-native-shell-backend || true
+  run git -C "$TECHDEV" push -u origin Travis-Gilbert/commonplace-native-shell-backend
 fi
 
 echo "== rehome cohesive-turn-routing worktree under SSD if needed =="
-mkdir -p "$SSD_WT" 2>/dev/null || true
+run mkdir -p "$SSD_WT"
 if git -C "$TECHDEV" show-ref --verify --quiet refs/heads/Travis-Gilbert/cohesive-turn-routing; then
   if ! git -C "$CANONICAL" show-ref --verify --quiet refs/remotes/origin/Travis-Gilbert/cohesive-turn-routing; then
     run git -C "$CANONICAL" fetch origin Travis-Gilbert/cohesive-turn-routing || true
@@ -88,7 +94,7 @@ if git -C "$TECHDEV" show-ref --verify --quiet refs/heads/Travis-Gilbert/cohesiv
 fi
 
 echo "== archive Tech Dev Local clone =="
-if [[ -d "$TECHDEV" && ! -e "$ARCHIVE" ]]; then
+if [[ -d "$TECHDEV" ]]; then
   run mv "$TECHDEV" "$ARCHIVE"
 fi
 
