@@ -37,6 +37,12 @@ import {
   VideoBlock,
 } from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
+import { TopicListView } from './TopicListView';
+import { SurveyView } from './SurveyView';
+import { ModelView } from './model/ModelView';
+import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
+import { RecordsBlock } from '@/components/blocks/RecordsBlock';
+import { RecordPage } from '@/components/blocks/RecordPage';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -415,6 +421,62 @@ const PROACTIVITY: ViewDescriptor = {
   render: ProactivityView,
 };
 
+const TOPIC_LIST: ViewDescriptor = {
+  id: 'topic.list',
+  name: 'Standing topics',
+  accepts: { required_types: ['topic'] },
+  emits: ['open', 'update'],
+  renderer: 'topic.list',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'Standing-topic navigation edits the seeded surface arrangement through the object contract.',
+  },
+  render: TopicListView,
+};
+
+const SURVEY_BOARD: ViewDescriptor = {
+  id: 'survey.board',
+  name: 'Indexer',
+  accepts: { required_types: ['capture'], cardinality: 'many' },
+  emits: ['open'],
+  renderer: 'survey.board',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'The spherical topic corpus, semantic zoom ladder, and evidenced connection labels are the Indexer product contract.',
+  },
+  render: SurveyView,
+};
+
+const MODEL_STUDIO: ViewDescriptor = {
+  id: 'model.studio',
+  name: 'Models',
+  accepts: { required_types: ['model-scope'] },
+  emits: ['select', 'create', 'update', 'delete'],
+  renderer: 'model.studio',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect observed model',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'editor',
+    kindGlyph: 'model',
+    bodyBleed: 'flush',
+  },
+  render: ModelView,
+};
+
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',
@@ -681,6 +743,52 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   render: AutomationHistoryView,
 };
 
+const AGENT_RAIL: ViewDescriptor = {
+  id: 'agent.rail',
+  name: 'Agent',
+  accepts: {},
+  emits: ['run_agent', 'open'],
+  renderer: 'agent.rail',
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: AgentRailBlock,
+};
+
+const RECORDS_BLOCK: ViewDescriptor = {
+  id: 'records.block',
+  name: 'Records block',
+  accepts: {},
+  emits: ['select', 'open', 'update'],
+  renderer: 'records.block',
+  source: {
+    package: '@tanstack/react-table',
+    component: 'useReactTable',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: RecordsBlock,
+};
+
+const RECORD_PAGE: ViewDescriptor = {
+  id: 'record.page',
+  name: 'Record',
+  accepts: {},
+  emits: ['update', 'open'],
+  renderer: 'record.page',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'Twenty record page layout is the product contract; field editors bind from FieldSpec.',
+  },
+  render: RecordPage,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -706,6 +814,9 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   HARNESS_STATUS,
   HARNESS_WHY,
   ACCOUNT,
+  AGENT_RAIL,
+  RECORDS_BLOCK,
+  RECORD_PAGE,
   TERMINAL,
   BROWSER_PANE,
   KANBAN,
@@ -713,6 +824,9 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   VIDEO,
   CANVAS,
   AUTOMATION_HISTORY,
+  TOPIC_LIST,
+  SURVEY_BOARD,
+  MODEL_STUDIO,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

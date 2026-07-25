@@ -1,11 +1,11 @@
-// SOURCING: vitest — adapter conformance suite for SPEC B1.
+// SOURCING: vitest. Adapter conformance suite for SPEC B1.
 
 import { describe, expect, it } from "vitest";
-import { createLoopbackStore } from "../loopback.js";
-import { WebHostAdapter } from "../adapters/web.js";
-import { TauriHostAdapter } from "../adapters/tauri.js";
-import { GpuiHostAdapter } from "../adapters/gpui.js";
-import { runAdapterConformance } from "../conformance.js";
+import { createLoopbackStore } from "../loopback";
+import { WebHostAdapter } from "../adapters/web";
+import { TauriHostAdapter } from "../adapters/tauri";
+import { GpuiHostAdapter } from "../adapters/gpui";
+import { runAdapterConformance } from "../conformance";
 
 function seededStore() {
   const store = createLoopbackStore();

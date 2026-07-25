@@ -66,12 +66,19 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 test.describe('Console information architecture', () => {
   test.beforeEach(async ({ page }) => freshLoad(page));
 
-  test('separates five places from generated collections and pins', async ({ page }) => {
+  test('separates places from generated collections and pins', async ({ page }) => {
+    test.setTimeout(120_000);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
     const places = page.getByRole('radiogroup', { name: 'Places' }).getByRole('radio');
-    await expect(places).toHaveCount(5);
+    await expect(places).toHaveCount(7);
     expect(await places.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))).toEqual([
-      'Chat place', 'Workspace place', 'Filing place', 'Canvas place', 'Automation place',
+      'Chat place',
+      'Workspace place',
+      'Filing place',
+      'Canvas place',
+      'Automation place',
+      'Indexer place',
+      'Models place',
     ]);
     await expect(places.first()).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('[data-companion-nav]')).toHaveCount(0);

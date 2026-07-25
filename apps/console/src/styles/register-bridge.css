@@ -202,8 +202,10 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
-  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe. */
-  --ij-sidebar-expanded-w: 264px;
+  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Default expanded share is ~20% of
+     the shell columns (Stage mockup); Panel resize owns live width. These
+     tokens remain for collapsed icon rail fallbacks and spacing aliases. */
+  --ij-sidebar-expanded-w: 240px;
   --ij-sidebar-collapsed-w: 44px;
   --ij-sidebar-pip-w: 2px;
   --ij-stripe-w: var(--ij-sidebar-expanded-w);
@@ -218,6 +220,11 @@
   --ij-sidebar-label-size: 14px;
   --ij-sidebar-label-line: 20px;
   --ij-sidebar-shortcut-size: 11px;
+  --ij-sidebar-hint-size: 10px;
+  --ij-inspector-rail-w: 320px;
+  --ij-agent-rail-max-w: 400px;
+  --ij-host-overlay-z: 14;
+  --ij-host-rail-z: 15;
   /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,
      Manrope 15/500, island radius, 40px instrument row. */
   --ij-composer-min-h: 88px;

@@ -39,14 +39,16 @@ export function HostFindLens({
       aria-hidden
       data-host-lens="1"
       data-host-lens-spans={lens.spans.length}
-      className="pointer-events-none absolute inset-x-0 top-0 z-[14]"
+      className="pointer-events-none absolute inset-x-0 top-0"
+      style={{ zIndex: 'var(--ij-host-overlay-z)' }}
     >
       {lens.spans.map((span, index) => (
         <div
           key={`${span.start}-${span.end}-${index}`}
           data-lens-span={index}
           title={span.quote}
-          className="mx-3 mt-2 rounded-ij-arc border border-ij-accent/30 bg-ij-accent/10 px-2 py-1 font-ij-mono text-[11px] text-ij-ink"
+          className="mx-3 mt-2 rounded-ij-arc border border-ij-accent/30 bg-ij-accent/10 px-2 py-1 font-ij-mono text-ij-ink"
+          style={{ fontSize: 'var(--ij-sidebar-shortcut-size)' }}
         >
           {span.quote ?? `find ${span.start}–${span.end}`}
         </div>

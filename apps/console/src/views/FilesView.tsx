@@ -12,6 +12,7 @@ import type { BlockHost, JsonValue, ObjectRef } from '@commonplace/block-view/ty
 import { surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { DUR } from '@/motion/motion-tokens';
 import {
+  ensureMemoryProjection,
   projectionPathOf,
   useMemoryProjectionStore,
   type HarnessMemoryDelta,
@@ -119,11 +120,6 @@ export async function openMemoryTab(host: BlockHost, item: HarnessMemoryItem): P
   await host.emit({ kind: 'update', id: editor.id, patch: { active_tab: tabId } });
 }
 
-function errorName(payload: unknown): string {
-  if (payload && typeof payload === 'object' && 'error' in payload) return String(payload.error);
-  return 'memory_projection_unavailable';
-}
-
 export function FilesView({ host }: { host: BlockHost }) {
   const items = useMemoryProjectionStore((state) => state.items);
   const status = useMemoryProjectionStore((state) => state.status);
@@ -137,27 +133,7 @@ export function FilesView({ host }: { host: BlockHost }) {
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
-    const projection = useMemoryProjectionStore.getState();
-    if (projection.status === 'ready') return;
-    projection.begin();
-    let active = true;
-    void fetch('/api/harness/memory', { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json() as { tenant?: string; items?: HarnessMemoryItem[]; error?: string };
-        if (!active) return;
-        if (!response.ok || !payload.tenant || !Array.isArray(payload.items)) {
-          const refused = response.status === 400 || response.status === 401 || response.status === 403;
-          useMemoryProjectionStore.getState().fail(refused ? 'refused' : 'unavailable', errorName(payload));
-          return;
-        }
-        useMemoryProjectionStore.getState().hydrate(payload.tenant, payload.items);
-      })
-      .catch(() => {
-        if (active) useMemoryProjectionStore.getState().fail('unavailable', 'harness_graphql_unreachable');
-      });
-    return () => {
-      active = false;
-    };
+    void ensureMemoryProjection();
   }, []);
 
   useEffect(() => {

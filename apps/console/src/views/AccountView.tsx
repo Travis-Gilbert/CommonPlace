@@ -27,7 +27,9 @@ export function AccountView(_props: ViewRenderProps) {
 
   useEffect(() => {
     let active = true;
-    void fetch('/api/auth/providers', { cache: 'no-store' })
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5_000);
+    void fetch('/api/auth/providers', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         const providers = response.ok
           ? await response.json() as Record<string, unknown>
@@ -36,9 +38,14 @@ export function AccountView(_props: ViewRenderProps) {
       })
       .catch(() => {
         if (active) setProviderState('unconfigured');
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
       });
     return () => {
       active = false;
+      controller.abort();
+      window.clearTimeout(timer);
     };
   }, []);
 

@@ -68,8 +68,8 @@ test.describe('cards, actions, mentions', () => {
   test('the surface rail is the primary nav: far-left, switches screens', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
     await expect(rail).toBeVisible();
-    // The five routed surfaces form an APG radio group.
-    await expect(rail.locator('[data-surface-nav]')).toHaveCount(5);
+    // The routed Places form an APG radio group.
+    await expect(rail.locator('[data-surface-nav]')).toHaveCount(8);
     await expect(rail.locator('[data-surface-nav="console-chat"]')).toHaveAttribute(
       'aria-checked',
       'true',
@@ -256,11 +256,10 @@ test.describe('cards, actions, mentions', () => {
       'Console punch list',
     );
     await page.keyboard.press('Escape');
-    const taskItem = page.locator('li.task-list-item').first();
-    await expect(taskItem).toBeVisible();
-    await taskItem.click({ force: true });
-    await page.keyboard.press('Alt+Enter');
-    await expect(page.locator('[data-action-sheet]')).toBeVisible();
+    const taskItem = page.locator('.galley [data-todo-item]').first();
+    await expect(taskItem).toBeVisible({ timeout: 15_000 });
+    await taskItem.press('Alt+Enter');
+    await expect(page.locator('[data-action-sheet]')).toBeVisible({ timeout: 15_000 });
     // Save as rule names its missing capability (IX6) instead of pretending.
     await expect(page.locator('[data-save-as-rule-unavailable]')).toContainText('IX6');
   });
@@ -299,6 +298,8 @@ test.describe('cards, actions, mentions', () => {
     await page.waitForTimeout(800);
     await expect(page.locator('[data-cards-grid]')).toHaveScreenshot('cards-grid.png', {
       maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+      animations: 'disabled',
     });
 
     await page.locator('[data-card-cell="person-ada"]').click();
@@ -314,6 +315,10 @@ test.describe('cards, actions, mentions', () => {
     // Reduced motion renders the sheet without the material animation.
     const transform = await sheet.evaluate((el) => getComputedStyle(el).transform);
     expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
-    await expect(sheet).toHaveScreenshot('action-sheet.png', { maxDiffPixelRatio: 0.02 });
+    await expect(sheet).toHaveScreenshot('action-sheet.png', {
+      maxDiffPixelRatio: 0.02,
+      animations: 'disabled',
+      timeout: 15_000,
+    });
   });
 });

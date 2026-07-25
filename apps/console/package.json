@@ -39,6 +39,7 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
     "@commonplace/block-view": "file:../../packages/block-view",
+    "@commonplace/data-model-contracts": "file:../../packages/data-model-contracts",
     "@commonplace/host-bridge": "file:../../packages/host-bridge",
     "@commonplace/json-canvas": "file:../../packages/json-canvas",
     "@commonplace/multiplex-layers": "file:../../packages/multiplex-layers",
@@ -53,6 +54,8 @@
     "@paper-design/shaders-react": "0.0.77",
     "@radix-ui/react-popover": "^1.1.19",
     "@react-pdf/renderer": "^4.5.1",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
     "@travis-gilbert/markdown-theory": "^0.1.2",
@@ -74,8 +77,9 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.1.18",
     "textmode.js": "^0.17.0",
+    "three": "0.183.2",
     "zod": "^3.25.76",
-    "zustand": "5.0.14"
+"zustand": "5.0.14"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
@@ -84,6 +88,7 @@
     "@types/node": "^22.13.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "axe-core": "^4.12.1",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "typescript": "^5.7.3",

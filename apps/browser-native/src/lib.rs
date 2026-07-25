@@ -8,6 +8,9 @@
 
 pub mod chrome;
 pub mod dock;
+pub mod loopback;
+#[cfg(feature = "gpui")]
+pub mod native;
 pub mod pins;
 pub mod prompts;
 pub mod rail;
@@ -82,9 +85,11 @@ pub struct NativeShell {
     pub surfaces: MockSurfaceHost,
     pub prompts: NativePromptQueue,
     pub rail: CapabilityRail,
-    /// B5 mock Servo panes (Real RawWindowHandle parenting is Codex work).
+    /// B5 shell-side mock Servo panes. Native parent-handle translation lives
+    /// in `surfaces::native_parent` behind `servo-pane`.
     pub servo: MockServoHost,
-    /// B6 mock CommonPlace wry surface (real gpui-wry link is Codex work).
+    /// B6 shell-side mock CommonPlace surface. The real GPUI and Wry entrypoint
+    /// lives in `native` behind `gpui`.
     pub commonplace: MockCommonPlaceHost,
 }
 

@@ -19,15 +19,36 @@ publish = false
 default = ["mock"]
 # Mock shell: no GPUI / gpui-component / gpui-wry. Acceptance tests use this.
 mock = []
-# Real GPUI link (not wired in this handoff). Pins live in PINS.md / pins.rs.
-gpui = []
+# Real GPUI shell and gpui-wry child surface. Pins live in PINS.md / pins.rs.
+gpui = [
+  "dep:anyhow",
+  "dep:gpui",
+  "dep:gpui_platform",
+  "dep:gpui-component",
+  "dep:gpui-wry",
+  "dep:raw-window-handle",
+  "dep:wry",
+]
+# Servo stays in the out-of-process pane-host. This feature only links the
+# cheap wire protocol and captures the parent handle from GPUI.
+servo-pane = ["dep:pane-protocol", "dep:raw-window-handle"]
 
 [dependencies]
 browser-core = { path = "../../crates/browser-core" }
 interaction-arbiter = { path = "../../crates/interaction-arbiter" }
+anyhow = { version = "1", optional = true }
+gpui = { git = "https://github.com/zed-industries/zed", optional = true }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "runtime_shaders", "wayland", "x11"], optional = true }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "2eed542ccd9e1e9700f366b5991b6fce1ef90e45", optional = true }
+gpui-wry = { git = "https://github.com/longbridge/gpui-component", rev = "2eed542ccd9e1e9700f366b5991b6fce1ef90e45", optional = true }
+pane-protocol = { path = "../../crates/pane-protocol", optional = true }
+raw-window-handle = { version = "0.6", features = ["std"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tungstenite = "0.28"
+url = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
+wry = { version = "0.53.3", package = "lb-wry", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

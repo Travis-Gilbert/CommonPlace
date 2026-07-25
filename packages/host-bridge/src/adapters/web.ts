@@ -1,4 +1,4 @@
-// SOURCING: none — pure logic wrapping HTTP/GraphQL fetch deps injected by the
+// SOURCING: none. Pure logic wrapping HTTP/GraphQL fetch deps injected by the
 // caller. No upstream UI component applies; WebHostAdapter is the web transport
 // for CommonplaceHost (SPEC B1). Console injects queryObjects via
 // ConsoleBlockHost; other web surfaces inject their own transport.
@@ -17,8 +17,8 @@ import type {
   WorkspaceEvent,
   WorkspaceId,
   WorkspaceLayout,
-} from "../types.js";
-import { LoopbackHost, type LoopbackStore } from "../loopback.js";
+} from "../types";
+import { LoopbackHost, type LoopbackStore } from "../loopback";
 
 /**
  * Transport hooks the web app already owns. Injecting them keeps this package

@@ -1,0 +1,15 @@
+[package]
+name = "pane-protocol"
+version = "0.1.0"
+edition = "2021"
+description = "Wire contract between the CommonPlace chrome process and the Servo pane-host sidecar: requests, responses, events, and the length-prefixed bincode framing."
+license = "MIT"
+rust-version = "1.85"
+
+# Deliberately dependency-light. This crate is linked by the chrome process
+# (which must never link Servo) AND by the pane host (which does), so anything
+# heavy here would leak across the isolation boundary the whole design exists
+# to maintain.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+bincode = "1.3"

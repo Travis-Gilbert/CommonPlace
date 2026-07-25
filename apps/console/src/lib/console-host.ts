@@ -26,8 +26,6 @@ import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_I
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
-import { CanvasStore } from './canvas/store';
-import { CANVAS_TYPES } from './canvas/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
@@ -38,11 +36,24 @@ import {
   projectAutomationHistory,
 } from './automation-history-projection';
 import { fetchStatus } from './harness-ux';
+import { seedSurveyObjects } from './surveySeed';
+import {
+  filterIndexerObjects,
+  parseIndexerObjectsPayload,
+} from './indexer-projection';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
-const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
+const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
+const MODEL_METADATA_TYPES = new Set([
+  'model-scope',
+  'object-type-metadata',
+  'field-metadata',
+  'relation-metadata',
+  'view-metadata',
+  'schema-version',
+]);
 const LAYOUT_QUERY: ObjectQuery = {
   types: ['surface', 'region', 'view-instance'],
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
@@ -131,6 +142,21 @@ function matchesPredicate(object: ObjectRef, predicate: Predicate | undefined): 
   }
 }
 
+function topicIdFromSurveyQuery(query: ObjectQuery): string | undefined {
+  const predicate = query.where;
+  if (!predicate) return undefined;
+  if (predicate.kind === 'eq' && predicate.field === 'topic_id' && typeof predicate.value === 'string') {
+    return predicate.value;
+  }
+  if (predicate.kind === 'and') {
+    for (const clause of predicate.all) {
+      const nested = topicIdFromSurveyQuery({ ...query, where: clause });
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
 function compareValues(a: JsonValue | undefined, b: JsonValue | undefined): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
   return String(a ?? '').localeCompare(String(b ?? ''));
@@ -148,8 +174,6 @@ export interface ConsoleBlockHostOptions {
    *  Omitted values default to null. Fixture or test callers that need the
    *  shared seed must pass FIXTURE_TENANT explicitly. */
   readonly proactivityTenant?: string | null;
-  /** Canvas persistence shares the proactivity tenant unless explicitly set. */
-  readonly canvasTenant?: string | null;
 }
 
 export class ConsoleBlockHost implements BlockHost {
@@ -160,16 +184,16 @@ export class ConsoleBlockHost implements BlockHost {
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
   private cardTemplates: ObjectRef[];
+  private surveyObjects: ObjectRef[];
+  private modelMetadata: ObjectRef[] = [];
+  private modelMetadataSeq = 0;
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
-  private canvas: CanvasStore;
   private seedLayoutTask: Promise<void> | null = null;
-  /** Serializes layout write-through so concurrent updates cannot race on the wire. */
-  private layoutWriteTail: Promise<unknown> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -177,7 +201,6 @@ export class ConsoleBlockHost implements BlockHost {
     this.observer = options.onTransport;
     const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
-    this.canvas = new CanvasStore(options.canvasTenant === undefined ? tenant : options.canvasTenant);
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
@@ -199,6 +222,7 @@ export class ConsoleBlockHost implements BlockHost {
     // card engine queries them like any record, and the Model surface edits
     // them later through the same update action.
     this.cardTemplates = seedCardTemplates();
+    this.surveyObjects = seedSurveyObjects();
     this.hydrateLayout();
   }
 
@@ -397,61 +421,7 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        // Snapshot AFTER the await so in-flight local edits (doc navigation,
-        // surface activation) that landed while the remote fetch was pending
-        // survive replaceLayout. A stale remote seed must not yank an open
-        // document back to the brief or undo the active-surface radio.
-        const preservedActiveId = [...this.layout.values()].find(
-          (node) => node.type === 'surface' && node.properties.active === true,
-        )?.id;
-        const localViewOverrides = new Map(
-          [...this.layout.values()]
-            .filter((node) => node.type === 'view-instance')
-            .map((node) => [node.id, {
-              title: node.properties.title,
-              query: node.properties.query,
-            }] as const),
-        );
-        // Keep local-only nodes (in-flight person arrangements, e2e proofs) that
-        // the server has not seen yet; replaceLayout alone would drop them.
-        const remoteIds = new Set(remote.objects.map((object) => object.id));
-        const localOnly = [...this.layout.values()]
-          .filter((node) => !remoteIds.has(node.id))
-          .map((node) => toMutable(toRef(node)));
         this.replaceLayout(remote.objects);
-        for (const node of localOnly) {
-          this.layout.set(node.id, node);
-        }
-        let restored = localOnly.length > 0;
-        for (const [id, override] of localViewOverrides) {
-          const node = this.layout.get(id);
-          if (!node) continue;
-          const remoteQuery = JSON.stringify(node.properties.query ?? null);
-          const localQuery = JSON.stringify(override.query ?? null);
-          const queryChanged = localQuery !== remoteQuery;
-          const titleChanged =
-            override.title !== undefined && override.title !== node.properties.title;
-          if (!queryChanged && !titleChanged) continue;
-          node.properties = {
-            ...node.properties,
-            ...(override.title !== undefined ? { title: override.title } : {}),
-            ...(override.query !== undefined ? { query: override.query } : {}),
-          };
-          restored = true;
-        }
-        if (restored) {
-          this.persistLayout();
-          this.notifyLayout();
-        }
-        if (preservedActiveId && this.layout.has(preservedActiveId)) {
-          for (const candidate of this.layout.values()) {
-            if (candidate.type === 'surface') {
-              candidate.properties.active = candidate.id === preservedActiveId;
-            }
-          }
-          this.persistLayout();
-          this.notifyLayout();
-        }
         return;
       }
       await this.pushLayoutToServer();
@@ -497,19 +467,9 @@ export class ConsoleBlockHost implements BlockHost {
     actions: ReadonlyArray<ObjectAction>,
   ): Promise<void> {
     if (this.records !== null) return;
-    const run = async () => {
-      for (const action of actions) {
-        await this.http.emit(action);
-      }
-    };
-    // Chain all layout writes so out-of-order HTTP completion cannot overwrite
-    // a newer patch with an older one for the same view-instance.
-    const next = this.layoutWriteTail.then(run, run);
-    this.layoutWriteTail = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    await next;
+    for (const action of actions) {
+      await this.http.emit(action);
+    }
   }
 
   private notifyLayout(): void {
@@ -526,12 +486,14 @@ export class ConsoleBlockHost implements BlockHost {
     // The proactivity graph is projected and served locally from fixtures until
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
-    if (query.types.some((type) => CANVAS_TYPE_SET.has(type) || type === 'canvas')) return this.canvas.query(query);
     if (query.types.includes('memory')) return this.memorySet(query);
     // Automation history: run and dispatch objects projected from harness status
     // (B9). Not a Data API type yet; projecting here is the seam, not a stub.
     if (query.types.some((type) => AUTOMATION_TYPE_SET.has(type))) {
       return this.queryAutomationHistory(query);
+    }
+    if (query.types.some((type) => MODEL_METADATA_TYPES.has(type))) {
+      return this.modelMetadataSet(query);
     }
     // The live wire is the default (R2.1): records, hunks, and every domain
     // kind the seam serves (person, task, mention-candidate, ...) round-trip
@@ -541,6 +503,8 @@ export class ConsoleBlockHost implements BlockHost {
     // so slug and id predicates behave exactly as the seed path did.
     // Console-owned seeds stay local: card templates (K1, authored objects)
     // and 'thread' (the pane renders its own chat SSE, never the record wire).
+    // Survey types try the live Indexer harness projection first (IX-004), then
+    // fall back to the hermetic seed for e2e and unconfigured harness.
     const testMode = this.records !== null;
     const isRecord = query.types.includes('record');
     const isDoc = query.types.includes('doc');
@@ -553,6 +517,9 @@ export class ConsoleBlockHost implements BlockHost {
       query.types.includes('context-view') ||
       query.types.includes('surface-tool') ||
       query.types.includes(CARD_TEMPLATE_TYPE);
+    if (query.types.some((type) => SURVEY_TYPES.has(type))) {
+      return this.querySurvey(query);
+    }
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
@@ -588,7 +555,9 @@ export class ConsoleBlockHost implements BlockHost {
     }
     const shape: ObjectShape = {
       types: [...query.types],
-      fields: query.types.includes('record') ? [...RECORD_FIELDS] : Object.keys(objects[0]?.properties ?? {}),
+      fields: query.types.includes('record')
+        ? [...RECORD_FIELDS]
+        : [...new Set(objects.flatMap((object) => Object.keys(object.properties)))],
       relations: [],
       axes: {},
       cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
@@ -605,6 +574,114 @@ export class ConsoleBlockHost implements BlockHost {
         return () => this.domainSubs.delete(listener);
       },
     };
+  }
+
+  private async querySurvey(query: ObjectQuery): Promise<ObjectSet> {
+    let objects = await this.loadSurveyObjects(query);
+    objects = filterIndexerObjects(objects, query, matchesPredicate);
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    const shape: ObjectShape = {
+      types: [...query.types],
+      fields: [
+        'topic_id',
+        'title',
+        'description',
+        'updated',
+        'capture_count',
+        'status',
+        'excerpt',
+        'source_url',
+        'matched_spans',
+        'from',
+        'to',
+        'reason',
+        'strength',
+      ],
+      relations: [],
+      axes: {},
+      cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+    };
+    return {
+      objects,
+      shape,
+      next_cursor: nextCursor,
+      subscribe: (callback) => {
+        if (!query.live) return () => {};
+        let cancelled = false;
+        const tick = () => {
+          void this.querySurvey(query).then((next) => {
+            if (!cancelled) callback(next);
+          });
+        };
+        const timer = setInterval(tick, 5000);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
+      },
+    };
+  }
+
+  private modelMetadataSet(query: ObjectQuery): ObjectSet {
+    const topicId = topicIdFromSurveyQuery(query);
+    const scopeObject: ObjectRef[] = topicId
+      ? [{
+          id: `model-scope:${topicId}`,
+          type: 'model-scope',
+          properties: { topic_id: topicId },
+        }]
+      : [];
+    const objects = [...scopeObject, ...this.modelMetadata]
+      .filter((object) => query.types.includes(object.type))
+      .filter((object) => matchesPredicate(object, query.where));
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: ['topic_id', 'id', 'key', 'label', 'provenance'],
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      subscribe: (callback) => {
+        const listener = () => callback(this.modelMetadataSet(query));
+        this.domainSubs.add(listener);
+        return () => this.domainSubs.delete(listener);
+      },
+    };
+  }
+
+  private async loadSurveyObjects(query: ObjectQuery): Promise<ObjectRef[]> {
+    const topicId = topicIdFromSurveyQuery(query);
+    const includeCaptures = query.types.includes('capture') || query.types.includes('survey-edge');
+    try {
+      const params = new URLSearchParams();
+      if (topicId) params.set('topicId', topicId);
+      params.set('includeCaptures', includeCaptures ? '1' : '0');
+      const response = await fetch(`/api/indexer?${params.toString()}`, { cache: 'no-store' });
+      if (response.ok) {
+        const payload = await response.json().catch(() => null);
+        const live = parseIndexerObjectsPayload(payload);
+        // Authoritative empty corpora stay empty; seed only on invalid or unavailable.
+        if (live !== null) return live;
+      }
+    } catch {
+      // Fall through to hermetic seed.
+    }
+    return this.surveyObjects;
   }
 
   private async queryAutomationHistory(query: ObjectQuery): Promise<ObjectSet> {
@@ -802,7 +879,6 @@ export class ConsoleBlockHost implements BlockHost {
     // receipted, reversible mutations on the local projection until the kernel
     // owns them. The store refuses an over-budget action-class edit itself.
     if (this.proactivity.owns(action)) return Promise.resolve(this.proactivity.emit(action));
-    if (this.canvas.owns(action)) return Promise.resolve(this.canvas.emit(action));
 
     switch (action.kind) {
       case 'move': {
@@ -827,32 +903,19 @@ export class ConsoleBlockHost implements BlockHost {
       case 'update': {
         const node = this.layout.get(action.id);
         if (node) {
-          const patch = { ...action.patch } as Record<string, JsonValue>;
-          if (patch.config && typeof patch.config === 'object' && !Array.isArray(patch.config)) {
-            const previous = node.properties.config;
-            const previousRecord =
-              previous && typeof previous === 'object' && !Array.isArray(previous)
-                ? (previous as Record<string, JsonValue>)
-                : {};
-            patch.config = {
-              ...previousRecord,
-              ...(patch.config as Record<string, JsonValue>),
-            };
-          }
-          node.properties = { ...node.properties, ...patch };
+          node.properties = { ...node.properties, ...action.patch };
           this.persistLayout();
           this.notifyLayout();
-          return this.writeThroughLayoutUpdates([
-            { kind: 'update', id: action.id, patch },
-          ]).then(() => applied([action.id]));
+          return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
-        // seeds); records, docs, and code files ride the wire so edits persist.
-        // In test mode the local pools carry every kind.
+        // seeds) and survey fixtures patch in-session; records, docs, and code
+        // files ride the wire so edits persist. In test mode local pools carry
+        // every kind.
         const updatePools =
           this.records === null
-            ? [this.cardTemplates]
-            : [this.records, this.docs, this.codeFiles, this.cardTemplates];
+            ? [this.cardTemplates, this.surveyObjects, this.modelMetadata]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.surveyObjects, this.modelMetadata];
         for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
@@ -865,6 +928,21 @@ export class ConsoleBlockHost implements BlockHost {
         return Promise.resolve({ ok: false, error: `update target missing: ${action.id}` });
       }
       case 'create': {
+        if (MODEL_METADATA_TYPES.has(action.type)) {
+          const id = typeof action.props.id === 'string'
+            ? action.props.id
+            : `${action.type}:${++this.modelMetadataSeq}`;
+          const next: ObjectRef = {
+            id,
+            type: action.type,
+            properties: { ...action.props, id },
+          };
+          const existing = this.modelMetadata.findIndex((object) => object.id === id);
+          if (existing >= 0) this.modelMetadata[existing] = next;
+          else this.modelMetadata.push(next);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([id]));
+        }
         if (!LAYOUT_TYPES.has(action.type)) return Promise.resolve(accepted());
         const id = typeof action.props.id === 'string' ? action.props.id : `vi-${this.layout.size + 1}`;
         this.layout.set(id, { id, type: action.type, properties: { ...action.props }, children: [] });
@@ -875,6 +953,12 @@ export class ConsoleBlockHost implements BlockHost {
         ]).then(() => applied([id]));
       }
       case 'delete': {
+        const metadataIndex = this.modelMetadata.findIndex((object) => object.id === action.id);
+        if (metadataIndex >= 0) {
+          this.modelMetadata.splice(metadataIndex, 1);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([action.id]));
+        }
         if (!this.layout.has(action.id)) return Promise.resolve(accepted());
         this.layout.delete(action.id);
         for (const candidate of this.layout.values()) {

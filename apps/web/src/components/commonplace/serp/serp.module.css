@@ -1,0 +1,368 @@
+/* Scatter SERP chrome (SPEC F2, F3, F5, HANDOFF D4).
+
+   Every value here is an existing --cp-* token. The scene itself is styled by
+   the .cp-constellation block in commonplace.css; this file dresses only what
+   surrounds it: the composer row, the layer crumbs, the ranked list, and the
+   docked map. Gold stays reserved for what the harness learned, so nothing here
+   claims it. Transitions animate transform and opacity only. */
+
+.serp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+}
+
+.composerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  flex-wrap: wrap;
+}
+
+.composerRow > :first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* Lambda dial (F3) */
+
+.dial {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  flex: 0 1 240px;
+  min-width: 180px;
+}
+
+.dialLabel {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-text-muted);
+}
+
+.dialControl {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  height: 20px;
+  touch-action: none;
+}
+
+.dialTrack {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--cp-text) 14%, transparent);
+}
+
+.dialIndicator {
+  position: absolute;
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--cp-text) 42%, transparent);
+}
+
+.dialThumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-card);
+  box-shadow: var(--cp-shadow-sm);
+  transition: transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.dialThumb:active {
+  transform: scale(var(--cp-press-scale));
+}
+
+.dialThumb:focus-visible {
+  outline: 2px solid var(--cp-red);
+  outline-offset: 2px;
+}
+
+.dialValue {
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+  color: var(--cp-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Layer crumbs */
+
+.crumbs {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cp-space-2);
+  flex-wrap: wrap;
+}
+
+.crumb {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cp-text-muted);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+}
+
+.crumb[data-current='true'] {
+  color: var(--cp-text);
+  background: var(--cp-surface);
+}
+
+.crumbSep {
+  color: var(--cp-text-faint);
+  font-family: var(--cp-font-mono);
+  font-size: 11px;
+}
+
+.crumbNote {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--cp-text-faint);
+}
+
+/* Ranked list (F5) */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listEmpty {
+  margin: 0;
+  padding: var(--cp-space-3);
+  color: var(--cp-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cp-space-3);
+  width: 100%;
+  padding: var(--cp-space-3);
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  text-align: left;
+  font-family: var(--cp-font-body);
+  transition: opacity var(--cp-dur-hover) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+button.row:active {
+  transform: scale(var(--cp-press-scale));
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--cp-red);
+  outline-offset: 2px;
+}
+
+.rowRank {
+  flex: 0 0 auto;
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  color: var(--cp-text-faint);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rowTitle {
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--cp-text);
+}
+
+.rowSnippet {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cp-text-muted);
+}
+
+/* The exact hit. A wash plus weight, not a highlighter block. */
+.rowHit {
+  background: var(--cp-red-soft);
+  color: var(--cp-text);
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  flex-wrap: wrap;
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--cp-text-faint);
+}
+
+.laneBadge,
+.relationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.relationBadge[data-relation='CONTRADICTS'] {
+  border-color: var(--cp-red-line);
+  color: var(--cp-red);
+}
+
+.rowSource {
+  color: var(--cp-text-faint);
+}
+
+.rowActions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.rowAction {
+  padding: 3px 8px;
+  border: 1px solid var(--cp-border);
+  border-radius: 4px;
+  background: var(--cp-card);
+  color: var(--cp-text);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  transition: opacity var(--cp-dur-hover) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.rowAction:active {
+  transform: scale(var(--cp-press-scale));
+}
+
+.rowAction:disabled {
+  opacity: 0.55;
+}
+
+/* Docked map (D4) */
+
+.dockedMap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: var(--cp-space-2);
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 6px;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  text-align: left;
+  transition: opacity var(--cp-dur-hover) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.dockedMap:active {
+  transform: scale(var(--cp-press-scale));
+}
+
+.dockedMap:focus-visible {
+  outline: 2px solid var(--cp-red);
+  outline-offset: 2px;
+}
+
+.dockedMapCanvas {
+  width: 100%;
+  aspect-ratio: 220 / 130;
+  border-radius: 4px;
+  background: var(--cp-card);
+}
+
+.dockedMapEdge {
+  stroke: color-mix(in srgb, var(--cp-text) 18%, transparent);
+  stroke-width: 1;
+}
+
+/* Unopened is a hollow ring, opened is filled. Shape carries the state; the
+   colour only reinforces it. */
+.dockedMapNode {
+  fill: var(--cp-card);
+  stroke: color-mix(in srgb, var(--cp-text) 45%, transparent);
+  stroke-width: 1.5;
+}
+
+.dockedMapNode[data-visited='true'] {
+  fill: color-mix(in srgb, var(--cp-text) 55%, transparent);
+  stroke: var(--cp-text);
+}
+
+.dockedMapNode[data-relation='CONTRADICTS'] {
+  stroke: var(--cp-red);
+}
+
+.dockedMapCaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--cp-text-muted);
+}
+
+.dockedMapCount {
+  color: var(--cp-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.srOnlyList {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .rowAction,
+  .dockedMap,
+  .dialThumb {
+    transition: none;
+  }
+
+  .row:active,
+  .rowAction:active,
+  .dockedMap:active,
+  .dialThumb:active {
+    transform: none;
+  }
+}

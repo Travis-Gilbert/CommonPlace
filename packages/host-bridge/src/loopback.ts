@@ -1,4 +1,4 @@
-// SOURCING: none — pure in-memory substrate for the Gpui loopback harness and
+// SOURCING: none. Pure in-memory substrate for the Gpui loopback harness and
 // adapter conformance suite. No UI component applies.
 
 /**
@@ -22,7 +22,7 @@ import type {
   WorkspaceEvent,
   WorkspaceId,
   WorkspaceLayout,
-} from "./types.js";
+} from "./types";
 
 function nowIso(): string {
   return new Date().toISOString();

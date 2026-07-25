@@ -1,5 +1,10 @@
 'use client';
 
+// SOURCING: hand-roll — the co-browse chrome is the agent-participation surface
+// (control spectrum, telegraph, approval, receipt rail), a domain concept no
+// library models. Its parts bind upstream where one exists: cmdk + Radix
+// ToggleGroup + lucide via ../find, sonner for confirmations.
+
 /**
  * CoBrowserView (HANDOFF-COBROWSE-PRESENCE): the product co-browse surface.
  * A shared browsing surface where the agent is a visible participant: control
@@ -10,7 +15,7 @@
  * the chrome. Raw JSON never renders here.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hasData } from '@/lib/commonplace-view-state';
 import { DesktopOnly, panel } from './desktopPanel';
 import { ControlSpectrum } from '../cobrowse/ControlSpectrum';
@@ -23,7 +28,16 @@ import PresenceMark from '../presence/PresenceMark';
 import type { PresenceState } from '../presence/presenceStates';
 import { CarryAffordance } from '../carry/CarryAffordance';
 import { SessionRail } from '../rail/SessionRail';
+import { FindOverlay } from '../find/FindOverlay';
+import { SaveUrlButton } from '../find/SaveUrlButton';
+import { useFindOverlay } from '../find/useFindOverlay';
+import { useStagePageIdentity } from '../find/useStagePageIdentity';
+import ScatterSerp from '../serp/ScatterSerp';
+import { DockedMap } from '../serp/DockedMap';
 import { useCarry } from '@/lib/carry/useCarry';
+import { useLayout } from '@/lib/providers/layout-provider';
+import { constellationStateOf, useSearchStack } from '@/lib/search-stack/store';
+import { constellationPayloadOf } from '@/lib/constellation-payload';
 import styles from '../cobrowse/cobrowse.module.css';
 
 const ACTING_HOLD_MS = 900;
@@ -62,6 +76,37 @@ export default function CoBrowserView() {
   // Carry the accumulated bundle into Write, Build, or Research (HANDOFF-CARRY).
   const { carry, busy: carryBusy } = useCarry(session.sessionId);
 
+  // Find (SPEC F1) over whatever the stage is showing. Page scope addresses the
+  // live page by its margin-recall content hash; a Corpus hit opens the item.
+  const { launchView } = useLayout();
+  const pageNodeId = useStagePageIdentity(session.tabId);
+  const find = useFindOverlay({
+    tabId: session.tabId,
+    pageNodeId,
+    sessionNodeIds: session.sessionId ? [session.sessionId] : [],
+    onOpenItem: (result) => launchView('object-detail', { objectSlug: result.hit.doc }),
+  });
+
+  // The scatter SERP (SPEC F2) lives here because this is where the co-browse
+  // stage and the session rail already are: D4's node click has to land on this
+  // stage, and the constellation has to dock into this rail.
+  const searchStack = useSearchStack();
+  const constellationState = useMemo(() => constellationStateOf(searchStack), [searchStack]);
+  const dockedPayload = constellationPayloadOf(constellationState);
+
+  /**
+   * Open a result node on the co-browse stage. This is the SAME `begin` path
+   * every other stage page takes, so the margin pipeline that attaches to a
+   * stage tab attaches to this one too; nothing bespoke is invented for search.
+   */
+  const openOnStage = useCallback(
+    async (target: string, node: { title: string }) => {
+      setUrl(target);
+      await session.begin(target, `Read ${node.title}`);
+    },
+    [session],
+  );
+
   return (
     <DesktopOnly>
       <div style={{ ...panel.wrap, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -70,6 +115,12 @@ export default function CoBrowserView() {
           Browse alongside the agent. Pages render in the shell stage; the agent telegraphs
           before it acts, and everything it does lands in the receipts rail.
         </div>
+
+        <div style={{ position: 'relative' }}>
+          <FindOverlay find={find} />
+        </div>
+
+        <ScatterSerp sessionId={session.sessionId} onOpenPage={openOnStage} />
 
         <div className={styles.chrome}>
           <PresenceMark state={markState} size={40} label="Co-browse agent" />
@@ -84,6 +135,7 @@ export default function CoBrowserView() {
             aria-label="Page address"
           />
           <ControlSpectrum mode={session.mode} onChange={session.setMode} />
+          <SaveUrlButton url={url} />
           <button
             style={panel.button}
             onPointerDown={() => void session.keep()}
@@ -150,7 +202,19 @@ export default function CoBrowserView() {
         />
 
         <ReceiptRail entries={session.entries} />
-        <SessionRail sessionId={session.sessionId} title="Carry" />
+        <SessionRail
+          sessionId={session.sessionId}
+          title="Carry"
+          mapSlot={
+            searchStack.docked && dockedPayload ? (
+              <DockedMap
+                payload={dockedPayload}
+                visited={searchStack.visited}
+                onReopen={searchStack.reopenMap}
+              />
+            ) : undefined
+          }
+        />
 
         {session.error ? (
           <div style={{ ...panel.card, color: 'var(--cp-oxblood, crimson)' }}>{session.error}</div>

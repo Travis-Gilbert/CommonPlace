@@ -6,10 +6,13 @@ import {
   mintAgentAlias,
   revokeAgentAlias,
 } from '@/lib/server/agent-address-harness';
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const userSlug = url.searchParams.get('userSlug') ?? 'travis';
+  void request;
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
+  const userSlug = resolution.principal.tenant;
   const result = await listAgentAliases(userSlug);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
@@ -28,15 +31,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     alias?: string;
-    userSlug?: string;
     counterparty?: string;
   } | null;
   if (!body?.alias || !body.counterparty) {
     return NextResponse.json({ error: 'alias_and_counterparty_required' }, { status: 400 });
   }
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
   const result = await mintAgentAlias({
     alias: body.alias,
-    userSlug: body.userSlug ?? 'travis',
+    userSlug: resolution.principal.tenant,
     counterparty: body.counterparty,
   });
   if (!result.ok) {

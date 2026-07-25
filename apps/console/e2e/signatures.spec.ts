@@ -67,15 +67,15 @@ for (const { theme, preset } of THEMES) {
       const editor = luminance(await resolveToken(page, '--ij-editor'));
       const raised = luminance(await resolveToken(page, '--ij-raised'));
 
-      // The inversion, stated as the pinned register actually holds it. In Int
-      // UI Dark --ij-seam and --ij-editor are BOTH gray-1: the seam beside the
-      // well is the well's own value, and the boundary reads because chrome
-      // (gray-2) is lighter than both. So the rule is "never lighter than a
-      // neighbour, and strictly darker than the chrome it bounds" -- demanding
-      // strictly-darker-than-everything would be asserting against JetBrains
-      // rather than against drift.
+      // Material register elevation differs by theme: in dark the editor well is
+      // sunken below ground seam; in light the seam is the darker keyline against
+      // the paper well. Always require seam darker than chrome.
       expect(seam, 'seam must be darker than chrome').toBeLessThan(chrome);
-      expect(seam, 'seam must never be lighter than the editor well').toBeLessThanOrEqual(editor);
+      if (theme === 'light') {
+        expect(seam, 'in light the seam is darker than the editor well').toBeLessThanOrEqual(editor);
+      } else {
+        expect(editor, 'in dark the editor well sinks at or below the seam plane').toBeLessThanOrEqual(seam);
+      }
 
       // --ij-seam-raised is a different job from --ij-seam, and the pinned
       // register treats it differently. A structural seam separates two planes
@@ -117,7 +117,7 @@ for (const { theme, preset } of THEMES) {
       // Companion-to-editor boundary is the island gutter (transparent handle).
       const panelSeam = page.locator('[data-panel-seam]').first();
       await expect(panelSeam, 'the companion-to-editor gutter must render').toBeVisible();
-      await expect(panelSeam).toHaveCSS('width', '10px');
+      await expect(panelSeam).toHaveCSS('width', '6px');
       await expect(panelSeam).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     });
 
@@ -172,23 +172,13 @@ for (const { theme, preset } of THEMES) {
       await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveCSS('background-color', editor);
     });
 
-    // Signature 4. The run widget goes green while a run is live, and carries
-    // the Int UI control height at rest.
-    test('the run widget holds its metrics and its running colour', async ({ page }) => {
-      const running = await resolveToken(page, '--ij-running');
-      const widget = page.locator('[data-run-widget]');
-      await expect(widget).toHaveCSS('height', '28px');
-      await expect(widget).toHaveAttribute('data-running', 'false');
-
-      const live = await page.evaluate((expected) => {
-        const probe = document.createElement('div');
-        probe.style.backgroundColor = 'var(--ij-running)';
-        document.body.append(probe);
-        const value = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        return value === expected;
-      }, running);
-      expect(live, '--ij-running must resolve in this theme').toBe(true);
+    // Signature 4. Account chrome stays in the toolbar; the run widget is gone.
+    test('the toolbar keeps account chrome without a run widget', async ({ page }) => {
+      await expect(page.locator('[data-run-widget]')).toHaveCount(0);
+      await expect(page.locator('[data-account-trigger]')).toBeVisible();
+      await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '28px');
+      await expect(page.locator('[data-paint-region="status-bar"]')).toHaveCount(0);
+      await expect(page.locator('[data-shell-sidebar-seam]')).toBeVisible();
     });
 
     // Signature 5. Type metrics: the register's 13px UI face, and the tool
@@ -201,7 +191,7 @@ for (const { theme, preset } of THEMES) {
       const ink = await resolveToken(page, '--ij-ink');
       await expect(header).toHaveCSS('color', ink);
       // Hide affordance on tool-window shells.
-      await expect(page.locator('[data-island-hide]').first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Hide / }).first()).toBeVisible();
     });
 
     // X3.5 density: the 24px row rhythm and the 4px grid, measured rather than
@@ -219,14 +209,16 @@ for (const { theme, preset } of THEMES) {
           const styles = getComputedStyle(node);
           for (const property of ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'] as const) {
             const value = Number.parseFloat(styles[property]);
-            if (Number.isFinite(value) && value % 4 !== 0) {
+            // 6px is the intentional island gutter (--ij-island-gutter), not
+            // Tailwind spacing drift; allow it alongside the 4px grid.
+            if (Number.isFinite(value) && value % 4 !== 0 && value !== 6) {
               offenders.push({ region: node.dataset.paintRegion ?? '?', property, value: styles[property] });
             }
           }
         }
         return offenders;
       });
-      expect(offGrid, 'every named region pads on the 4px grid').toEqual([]);
+      expect(offGrid, 'every named region pads on the 4px grid (or island gutter)').toEqual([]);
     });
 
     // X2 acceptance, on both themes: no named region inherits its background.

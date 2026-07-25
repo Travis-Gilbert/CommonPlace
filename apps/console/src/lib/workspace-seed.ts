@@ -13,10 +13,15 @@
 
 import type { ObjectRef, JsonValue } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
+import { SURVEY_TOPIC_ID } from './surveySeed';
 
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
 export const ACCOUNT_SURFACE_ID = 'console-account';
+export const SURVEY_SURFACE_ID = 'console-survey';
+export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
+export const MODEL_SURFACE_ID = 'console-models';
+export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
 
 function layoutObject(
   id: string,
@@ -248,6 +253,48 @@ export function seedLayout(): ObjectRef[] {
       query: { types: ['run', 'dispatch'], live: true } as unknown as JsonValue,
     }),
     ...companionSeeds('automation'),
+
+
+    layoutObject(SURVEY_SURFACE_ID, 'surface', {
+      name: 'Indexer', kind: 'survey', role: 'place', stripe_order: 5, active: false, seed_revision: 1,
+    }, ['survey.region-editor', ...companionIds('survey')]),
+    layoutObject('survey.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [SURVEY_VIEW_INSTANCE_ID]),
+    layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'survey.board',
+      title: 'Indexer',
+      query: {
+        types: ['topic', 'capture', 'survey-edge'],
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('survey'),
+
+    layoutObject(MODEL_SURFACE_ID, 'surface', {
+      name: 'Models', kind: 'model', role: 'place', stripe_order: 6, active: false, seed_revision: 1,
+    }, ['models.region-editor', ...companionIds('models')]),
+    layoutObject('models.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [MODEL_VIEW_INSTANCE_ID]),
+    layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'model.studio',
+      title: 'Models',
+      query: {
+        types: [
+          'model-scope',
+          'object-type-metadata',
+          'field-metadata',
+          'relation-metadata',
+          'view-metadata',
+          'schema-version',
+        ],
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('models'),
 
     layoutObject('console-docs', 'surface', {
       name: 'Documents', kind: 'documents', role: 'collection', active: false, seed_revision: 3,

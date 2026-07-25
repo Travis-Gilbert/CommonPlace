@@ -26,4 +26,17 @@
   --rec-weight-regular: 400;
   --rec-weight-medium: 500;
   --rec-weight-cap: 600;
+
+  /* Survey structure. These values stay on the shared 4px grid. Material,
+     states, and paint continue to resolve through the Int UI register. */
+  --survey-card-w: calc(var(--rec-grid) * 72);
+  --survey-source-card-h: calc(var(--rec-grid) * 44);
+  --survey-source-card-min-h: calc(var(--rec-grid) * 48);
+  --survey-source-hover-scale: 1.02;
+  --survey-pegboard-dot-size: 1px;
+  --survey-pegboard-step: calc(var(--rec-grid) * 4);
+  --survey-pegboard-opacity: 0.12;
+  --survey-focus-offset: var(--rec-grid);
+  --survey-open-rail: calc(var(--rec-grid) * 80);
+  --survey-open-source-max: calc(var(--rec-grid) * 250);
 }

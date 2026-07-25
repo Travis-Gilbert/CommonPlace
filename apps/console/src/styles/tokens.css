@@ -1,0 +1,27 @@
+/* SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS5: hue discipline tokens.
+   Block chrome is achromatic within ladder tolerance. Accent means selection
+   and focus. Status hues appear only on state that changed or needs action.
+   Object identity color exists in exactly one place: a small square in that
+   object's own block header. */
+
+[data-register="intui"] {
+  --hue-accent: var(--ij-accent);
+  --hue-status-awaiting: oklch(72% 0.12 75);
+  --hue-status-failed: oklch(62% 0.14 25);
+  --hue-status-running: var(--ij-ink-info);
+  --hue-status-done: var(--ij-ink);
+  --hue-status-pending: var(--ij-ink-faint, var(--ij-ink-disabled));
+}
+
+/* Sidebar icons go monochrome (CS5). Domain tint is not a rail affordance. */
+[data-register="intui"] [data-sidebar] [data-nav-icon],
+[data-register="intui"] [data-surface-rail] svg,
+[data-register="intui"] [data-companion-nav] svg {
+  color: inherit;
+}
+
+[data-register="intui"] [data-block-header] {
+  background: transparent;
+  color: var(--ij-ink);
+  border-color: var(--paper-seam, var(--ij-seam));
+}

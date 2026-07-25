@@ -222,10 +222,37 @@ export type ObjectAction =
   | { readonly kind: "invoke_tool"; readonly tool: string; readonly args: Readonly<Record<string, JsonValue>> }
   | { readonly kind: "dispatch"; readonly job: JobSpec }
   | { readonly kind: "open"; readonly id: string; readonly view?: string }
-  | { readonly kind: "select"; readonly ids: readonly string[] };
+  | { readonly kind: "select"; readonly ids: readonly string[] }
+  /** Declarative view upsert (CS6 / Twenty upsert_complete_view semantics).
+   *  Passing regions replaces regions. Passing [] clears them. Omitting the
+   *  key leaves children alone. The caller never fetches child ids to edit. */
+  | {
+      readonly kind: "upsert_complete_view";
+      readonly id: string;
+      readonly props?: Readonly<Record<string, JsonValue>>;
+      readonly regions?: readonly UpsertRegionInput[];
+    };
+
+export interface UpsertRegionInput {
+  readonly id?: string;
+  readonly props: Readonly<Record<string, JsonValue>>;
+  readonly instances?: readonly UpsertViewInstanceInput[];
+}
+
+export interface UpsertViewInstanceInput {
+  readonly id?: string;
+  readonly props: Readonly<Record<string, JsonValue>>;
+}
 
 export type ActionKind = ObjectAction["kind"];
 export type ObjectActionStatus = "accepted" | "applied" | "deferred";
+
+/** Inclusive hash-chained span of TheoremOp ids produced by a captured action. */
+export interface OpRange {
+  readonly first_op_id: string;
+  readonly last_op_id: string;
+  readonly range_hash: string;
+}
 
 export interface ObjectActionReceipt {
   readonly action_kind: ActionKind;
@@ -234,6 +261,14 @@ export interface ObjectActionReceipt {
   readonly graph_transform?: string;
   readonly actor_id?: string;
   readonly note?: string;
+  /**
+   * Present on durable captured emits (`emit_object_action_captured`).
+   * Absent only on explicit legacy receipts; those must be labeled legacy
+   * and must not be treated as ledger-backed.
+   */
+  readonly op_range?: OpRange;
+  /** True when this receipt was minted without an op range (legacy path). */
+  readonly legacy_without_op_range?: boolean;
 }
 
 export interface ThemeTokens {

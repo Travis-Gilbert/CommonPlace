@@ -22,13 +22,12 @@ function SelectionWithCaptureBridge({ children }: { children: ReactNode }) {
 }
 
 /**
- * Nested provider tree for CommonPlace.
+ * Nested provider tree for CommonPlace (legacy apps/web).
  *
  * Nesting order (outer = stable, inner = volatile):
  *   Layout > Workspace > Capture > Drawer > Selection
  *
- * A selection change re-renders only SelectionProvider's consumers.
- * A capture event re-renders CaptureProvider's consumers but not Layout or Workspace.
+ * CommonplaceHost lives on apps/console (canonical React host surface).
  */
 export function CommonPlaceProviders({ children }: { children: ReactNode }) {
   return (

@@ -14,7 +14,7 @@ import {
   type LayerSelectionState,
 } from '@commonplace/multiplex-layers';
 import { useShellStore } from '@/lib/shell-store';
-import { useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
+import { ensureMemoryProjection, useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
 import { LayerPicker } from '@/components/context/LayerPicker';
 import { openMemoryTab } from './FilesView';
 
@@ -58,6 +58,10 @@ export function ContextView({ host }: { host: BlockHost }) {
   const memories = useMemoryProjectionStore((state) => state.items);
   const [candidates, setCandidates] = useState<readonly ObjectRef[]>([]);
   const [layerSelection, setLayerSelection] = useState<LayerSelectionState | null>(null);
+
+  useEffect(() => {
+    void ensureMemoryProjection();
+  }, []);
 
   useEffect(() => {
     if (!selected) return;

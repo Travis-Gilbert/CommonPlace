@@ -3,5 +3,11 @@ members = [
   "crates/commonplace-browser-substrate",
   "crates/browser-core",
   "crates/interaction-arbiter",
+  # SPEC-COMMONPLACE-BROWSER-SHELL B2. The wire contract is pure serde and is
+  # linked by BOTH the chrome and the Servo pane host, so it belongs in the
+  # cheap root workspace. `pane-host` and `tauri-plugin-servo-panes` declare
+  # their own `[workspace]` instead: the first pulls libservo, the second pulls
+  # Tauri, and neither belongs in every `cargo test` at the repo root.
+  "crates/pane-protocol",
 ]
 resolver = "2"

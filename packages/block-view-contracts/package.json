@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./block-view": "./src/block-view-types.ts",
     "./rustyred-data": "./src/rustyred-data-contract.ts",
-    "./scene": "./src/scene-package.ts"
+    "./scene": "./src/scene-package.ts",
+    "./search-stack": "./src/search-stack.ts",
+    "./search-stack-fixture": "./src/search-stack-fixture.ts"
   },
   "scripts": {
     "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"

@@ -1,0 +1,224 @@
+{
+  "plan": "search-stack",
+  "sources": [
+    "SPEC-COMMONPLACE-SEARCH-STACK-1.0",
+    "HANDOFF-SEARCH-CONSTELLATION",
+    "HANDOFF-CONSOLE-IA (oracle only)"
+  ],
+  "tasks": [
+    {
+      "id": "B1",
+      "spec": "SPEC B1. Trigram candidate index",
+      "path": "Theorem rustyredcore_THG/crates/rustyred-thg-core/src/index/trigram.rs + plugin registration",
+      "acceptance": [
+        "candidates(q) is a superset of docs containing q for every fixture query",
+        "query whose trigrams are absent returns empty without touching document text",
+        "insert and remove are reflected in subsequent candidate sets",
+        "registers as an access method through the RustyRedPlugin seam like time_series"
+      ],
+      "proof": "cargo test -p rustyred-thg-core trigram",
+      "status": "pending"
+    },
+    {
+      "id": "B2",
+      "spec": "SPEC B2. Exact lane",
+      "path": "Theorem rustyredcore_THG/crates/rustyred-thg-find/src/exact.rs",
+      "acceptance": [
+        "hits byte-identical to naive full scan on fixtures",
+        "empty trigram candidates scans zero documents, observable on a fixture-store scan counter",
+        "verification uses memchr / aho-corasick, no hand-rolled scan loop"
+      ],
+      "proof": "cargo test -p rustyred-thg-find exact",
+      "status": "pending"
+    },
+    {
+      "id": "B3",
+      "spec": "SPEC B3. Composed find",
+      "path": "Theorem rustyred-thg-find/src/{lib,compose,lanes}.rs + WebLane seam + affordance registration",
+      "acceptance": [
+        "every result carries lane and scope attribution",
+        "disabling a lane removes only that lane's hits",
+        "ordering stable across runs on fixtures",
+        "routed affordance returns the same response shape as the direct call",
+        "rustyred-thg-find does not depend on rustyred-web"
+      ],
+      "proof": "cargo test -p rustyred-thg-find compose; cargo test -p theorem-harness-core affordance",
+      "status": "pending"
+    },
+    {
+      "id": "B4",
+      "spec": "SPEC B4. Graph relation annotation",
+      "path": "Theorem rustyred-thg-find/src/classify.rs",
+      "acceptance": [
+        "fixture with a contradiction edge classifies Contradicts and returns the edge",
+        "unconnected fixture classifies Orphan",
+        "result count identical before and after classification"
+      ],
+      "proof": "cargo test -p rustyred-thg-find classify",
+      "status": "pending"
+    },
+    {
+      "id": "B5",
+      "spec": "SPEC B5. Scatter (layer one)",
+      "path": "Theorem rustyred-thg-find/src/{scatter,label}.rs",
+      "acceptance": [
+        "k never exceeds 8",
+        "lambda near 1.0 converges, lambda near 0 maximizes pairwise distance on fixture embeddings",
+        "scene package renders through scene-os-web::render_scene without error",
+        "modelless run still labels every node (DeterministicLabeler)",
+        "MistralLabeler ships and is used when inference is configured",
+        "expand returns aspects whose seeds are drawn from the expanded aspect's neighborhood"
+      ],
+      "proof": "cargo test -p rustyred-thg-find scatter",
+      "status": "pending"
+    },
+    {
+      "id": "B6",
+      "spec": "SPEC B6. Frontier PPR",
+      "path": "Theorem rustyredcore_THG/crates/rustyred-web/src/frontier/",
+      "acceptance": [
+        "FrontierScorer trait and PprFrontier exist as named",
+        "pop order matches precomputed PPR ranking on a fixture link graph with a fixed personalization vector",
+        "budget exhaustion still emits a complete CrawlReceipt",
+        "budgets, URL guard, scope unchanged"
+      ],
+      "proof": "cargo test -p rustyred-web frontier",
+      "status": "pending"
+    },
+    {
+      "id": "B7",
+      "spec": "SPEC B7. GraphQL surface",
+      "path": "CommonPlace apps/commonplace-api/src/schema/{find,scatter}.rs",
+      "acceptance": [
+        "authed find over a seeded store returns lane-attributed hits",
+        "saveUrl then find at Corpus scope surfaces the saved page",
+        "saved item appears in the existing briefing query",
+        "unauthed requests rejected by existing key auth",
+        "scatter and expand return the B5 shape plus SceneRef"
+      ],
+      "proof": "cargo test --manifest-path apps/commonplace-api/Cargo.toml find_scatter",
+      "status": "pending"
+    },
+    {
+      "id": "B8",
+      "spec": "SPEC B8. MCP tools",
+      "path": "Theorem rustyredcore_THG/crates/rustyred-thg-mcp",
+      "acceptance": [
+        "tools/list shows find and scatter",
+        "tools/call find over a seeded tenant returns the same shape and content as the GraphQL query for the same inputs"
+      ],
+      "proof": "cargo test -p rustyred-thg-mcp find_scatter_tools",
+      "status": "pending"
+    },
+    {
+      "id": "D1",
+      "spec": "HANDOFF-CONSTELLATION D1. Constellation payload",
+      "path": "Theorem rustyred-thg-find/src/constellation.rs",
+      "acceptance": [
+        "every edge carries reason type, human-readable reason text, evidence refs",
+        "unrelated results yield nodes and zero edges",
+        "eight-node and two-memory-node caps hold on oversized fixtures",
+        "subgraph reference id rides the payload",
+        "no similarity-only edges"
+      ],
+      "proof": "cargo test -p rustyred-thg-find constellation",
+      "status": "pending"
+    },
+    {
+      "id": "F1",
+      "spec": "SPEC F1. Find overlay",
+      "path": "CommonPlace apps/web/src/components/commonplace/find/",
+      "acceptance": [
+        "keystroke opens the overlay on a live page",
+        "Page-scope exact hit visibly highlights in-page",
+        "widening to Corpus surfaces a saved fixture item",
+        "Escape closes and returns focus to the page",
+        "lane chips, scope stepper, lane/scope badges, relation glyph present"
+      ],
+      "proof": "npm --prefix apps/web run test -- find-overlay",
+      "status": "pending"
+    },
+    {
+      "id": "F2",
+      "spec": "SPEC F2 + HANDOFF D2/D5. Scatter SERP",
+      "path": "CommonPlace apps/web/src/components/commonplace/scene-host/renderers/ConstellationRenderer.tsx",
+      "acceptance": [
+        "composer submit in ask mode renders the B5 scene as the results surface",
+        "node click opens layer two seeded by that aspect",
+        "expand re-scatters within the aspect and replaces only the expanded region",
+        "constellation persists across list and page navigation and restores on return",
+        "zero-graph-connection query renders all nodes Orphan-styled",
+        "deterministic layout for the same query and result set",
+        "side annotation column names every node and edge with its reason",
+        "keyboard navigable, annotations are accessible names",
+        "reduced motion renders settled and static",
+        "five states render from fixtures with no raw spinner"
+      ],
+      "proof": "npm --prefix apps/web run test -- constellation",
+      "status": "done (frontend); backend B7 resolvers pending"
+    },
+    {
+      "id": "F3",
+      "spec": "SPEC F3. Lambda dial",
+      "path": "CommonPlace apps/web",
+      "acceptance": [
+        "moving the dial and resubmitting visibly changes aspect spread on the fixture query",
+        "setting survives an app restart (persisted per user)"
+      ],
+      "proof": "npm --prefix apps/web run test -- lambda-dial",
+      "status": "done (frontend); backend B7 resolvers pending"
+    },
+    {
+      "id": "F4",
+      "spec": "SPEC F4. One-click save",
+      "path": "CommonPlace apps/web co-browse toolbar",
+      "acceptance": [
+        "toolbar button plus keystroke call saveUrl on the current page",
+        "saving a live page then Find at Corpus scope and the briefing surface both return it",
+        "confirmation shows the real collection name from the ingest result, never a placeholder"
+      ],
+      "proof": "npm --prefix apps/web run test -- save-url",
+      "status": "pending"
+    },
+    {
+      "id": "F5",
+      "spec": "SPEC F5. List page (layer two)",
+      "path": "CommonPlace apps/web",
+      "acceptance": [
+        "title, snippet with exact-hit emphasis, lane and relation badges, source",
+        "the same backend response renders both the F2 scene and the F5 list with no second retrieval call, observable as one backend request per aspect selection"
+      ],
+      "proof": "npm --prefix apps/web run test -- aspect-list",
+      "status": "done (frontend); backend B7 resolvers pending"
+    },
+    {
+      "id": "D3",
+      "spec": "HANDOFF D3. Gold memory nodes",
+      "path": "CommonPlace apps/web constellation renderer",
+      "acceptance": [
+        "seeded tenant intersecting results produces at most two gold nodes with openable atoms and explained edges",
+        "tenant with no intersections produces no gold nodes and no placeholder",
+        "clicking a gold node opens the memory atom, not a web page"
+      ],
+      "proof": "npm --prefix apps/web run test -- constellation-memory",
+      "status": "pending"
+    },
+    {
+      "id": "D4",
+      "spec": "HANDOFF D4. Session start and the docked map",
+      "path": "CommonPlace apps/web SessionRail + co-browse stage",
+      "acceptance": [
+        "node click opens the page in the co-browse stage with the margin pipeline active",
+        "docked map shows visited state accurately across three openings",
+        "session bundle carries the constellation subgraph reference as origin",
+        "reopening full-size from the docked map continues the same session"
+      ],
+      "proof": "npm --prefix apps/web run test -- constellation-session",
+      "status": "done (frontend); backend B7 resolvers pending"
+    }
+  ],
+  "deferred": [],
+  "skipped_by_instruction": [
+    "HANDOFF-CONSTELLATION hallway-test captures and any acceptance requiring the user present"
+  ]
+}

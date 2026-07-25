@@ -1,4 +1,4 @@
-// SOURCING: hand-roll — TauriHostAdapter speaks the existing desktop invoke
+// SOURCING: hand-roll. TauriHostAdapter speaks the existing desktop invoke
 // surface (`apps/web/src/lib/desktop.ts` pattern) through an injected invoker.
 // The adapter is the SPEC B1 Tauri edition of CommonplaceHost; no library owns
 // this product bridge.
@@ -17,8 +17,8 @@ import type {
   WorkspaceEvent,
   WorkspaceId,
   WorkspaceLayout,
-} from "../types.js";
-import { LoopbackHost, type LoopbackStore } from "../loopback.js";
+} from "../types";
+import { LoopbackHost, type LoopbackStore } from "../loopback";
 
 export type TauriInvoker = <T>(
   cmd: string,

@@ -1,4 +1,4 @@
-// SOURCING: hand-roll — CommonplaceHost is the SPEC-COMMONPLACE-NATIVE-SHELL-1.0
+// SOURCING: hand-roll. CommonplaceHost is the SPEC-COMMONPLACE-NATIVE-SHELL-1.0
 // B1 durable host contract. No upstream library models this three-adapter bridge
 // (Web / Tauri / Gpui); the interface is the product seam.
 

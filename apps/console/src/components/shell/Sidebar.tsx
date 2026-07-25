@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
 import type { ConsoleBlockHost } from '@/lib/console-host';
+import { softNavigate } from '@/lib/soft-navigate';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
@@ -25,6 +26,7 @@ import {
   IconFiles,
   IconIndex,
   IconMemory,
+  IconModel,
   IconRecords,
   IconRun,
   IconThread,
@@ -42,6 +44,9 @@ const PLACE_ICONS: Record<string, typeof IconRecords> = {
   index: IconIndex,
   canvas: IconCards,
   automation: IconRun,
+  topics: IconMemory,
+  survey: IconIndex,
+  model: IconModel,
 };
 
 const COLLECTION_ICONS: Record<string, typeof IconRecords> = {
@@ -199,6 +204,9 @@ export function Sidebar({
   compact,
   landmarksRegion,
   activeGridRegionId,
+  onToggleCompanion,
+  collapsed,
+  onCollapsedChange,
 }: {
   readonly host: ConsoleBlockHost;
   readonly surfaces: readonly ObjectRef[];
@@ -208,13 +216,12 @@ export function Sidebar({
   readonly landmarksRegion: SidebarRegion | null;
   readonly activeGridRegionId: string | null;
   readonly onToggleCompanion: (region: SidebarRegion) => void;
+  readonly collapsed: boolean;
+  readonly onCollapsedChange: (collapsed: boolean) => void;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
-  const persistedCollapsed = landmarksRegion?.object.properties.collapsed === true;
-  const [collapseOverride, setCollapseOverride] = useState<boolean | null>(null);
-  const collapsed = collapseOverride ?? persistedCollapsed;
   const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
   const collections = useMemo(() => deriveRailCollections(), []);
@@ -229,15 +236,16 @@ export function Sidebar({
     .toUpperCase();
 
   const toggleCollapse = useCallback(() => {
-    if (!landmarksRegion) return;
-    const next = !collapsed;
-    setCollapseOverride(next);
-    void host.emit({
-      kind: 'update',
-      id: landmarksRegion.object.id,
-      patch: { collapsed: next },
-    }).finally(() => setCollapseOverride(null));
-  }, [collapsed, host, landmarksRegion]);
+    onCollapsedChange(!collapsed);
+  }, [collapsed, onCollapsedChange]);
+
+  const routedRailEntries = useMemo(() => [...PLACE_ENTRIES, ...collections], [collections]);
+
+  useEffect(() => {
+    for (const entry of routedRailEntries) {
+      router.prefetch(entry.path);
+    }
+  }, [routedRailEntries, router]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -252,44 +260,82 @@ export function Sidebar({
 
   const navigateTo = useCallback((surfaceId: string, path: string) => {
     void host.activateSurface(surfaceId);
-    router.push(path);
+    void softNavigate(router, path).catch(() => undefined);
   }, [host, router]);
 
-  const onLandmarkDragEnd = useCallback((event: DragEvent, landmark: ObjectRef) => {
-    if (!activeGridRegionId) return;
-    const target = document.elementFromPoint(event.clientX, event.clientY);
-    if (!target?.closest('[data-ground-canvas], [data-region-kind="grid"], [data-region-kind="editor"]')) {
-      return;
-    }
-    const descriptorId = landmark.type === 'view-instance'
-      ? String(landmark.properties.descriptor_id ?? '')
-      : DESCRIPTOR_FOR_DOMAIN[landmark.type];
-    if (!descriptorId) return;
+  const ensureLandmarkInstance = useCallback(async (landmark: ObjectRef): Promise<string | null> => {
+    if (landmark.type === 'view-instance') return landmark.id;
+    if (!landmarksRegion) return null;
     const instanceId = landmarkInstanceId(landmark);
     const already = seededLandmarks.some((candidate) => candidate.id === instanceId);
-    if (!already && landmark.type !== 'view-instance') {
-      void host.emit({
+    if (!already) {
+      const descriptorId = DESCRIPTOR_FOR_DOMAIN[landmark.type] ?? 'record.table';
+      const created = await host.emit({
         kind: 'create',
-        object: {
+        type: 'view-instance',
+        props: {
           id: instanceId,
-          type: 'view-instance',
-          properties: {
-            descriptor_id: descriptorId,
-            title: titleFor(landmark, landmark.id),
-            query: queryForDomainLandmark(landmark) as unknown as JsonValue,
-            order: seededLandmarks.length,
-          },
+          descriptor_id: descriptorId,
+          title: titleFor(landmark, landmark.id),
+          query: queryForDomainLandmark(landmark) as unknown as JsonValue,
+          config: { size: 'm' } as unknown as JsonValue,
         },
       });
+      if (!created.ok) return null;
+      const parented = await host.emit({
+        kind: 'move',
+        id: instanceId,
+        new_parent: landmarksRegion.object.id,
+        order: seededLandmarks.length,
+      });
+      if (!parented.ok) return null;
     }
-    void placeBlockAction(host, {
-      instanceId,
+    return instanceId;
+  }, [host, landmarksRegion, seededLandmarks]);
+
+  const promoteToGround = useCallback(async (instanceId: string) => {
+    if (!activeGridRegionId) return;
+    let moves = 0;
+    for (const action of placeBlockAction(instanceId, {
+      placement: 'ground',
       regionId: activeGridRegionId,
-      descriptorId,
-    }).then((receipts) => {
-      recordBlockMoveReceipts(receipts);
-    });
-  }, [activeGridRegionId, host, seededLandmarks]);
+      order: 0,
+    })) {
+      const result = await host.emit(action);
+      if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
+        moves += 1;
+      }
+    }
+    if (moves > 0) recordBlockMoveReceipts(moves);
+  }, [activeGridRegionId, host]);
+
+  const onLandmarkDragEnd = useCallback((event: DragEvent<HTMLDivElement>, landmark: ObjectRef) => {
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    void (async () => {
+      const instanceId = await ensureLandmarkInstance(landmark);
+      if (!instanceId) return;
+      if (target?.closest('[data-block-arrangement], [data-ground-canvas], [data-region-kind="grid"], [data-region-kind="editor"]')) {
+        await promoteToGround(instanceId);
+        return;
+      }
+      const overLandmarkId = target?.closest<HTMLElement>('[data-sidebar-landmark]')?.dataset.sidebarLandmark;
+      if (!landmarksRegion || !overLandmarkId || overLandmarkId === landmark.id) return;
+      const over = landmarks.find((candidate) => candidate.id === overLandmarkId);
+      if (!over) return;
+      const overInstanceId = await ensureLandmarkInstance(over);
+      if (!overInstanceId || overInstanceId === instanceId) return;
+      const orderedIds = landmarks
+        .map((candidate) => (candidate.id === landmark.id ? instanceId : landmarkInstanceId(candidate)))
+        .filter((id) => id !== instanceId);
+      const order = orderedIds.findIndex((id) => id === overInstanceId);
+      await host.emit({
+        kind: 'move',
+        id: instanceId,
+        new_parent: landmarksRegion.object.id,
+        order: order < 0 ? orderedIds.length : order,
+      });
+    })();
+  }, [ensureLandmarkInstance, host, landmarks, landmarksRegion, promoteToGround]);
 
   const pinLandmark = useCallback((landmark: ObjectRef) => {
     const pinned = landmark.properties.pinned === true;
@@ -312,11 +358,11 @@ export function Sidebar({
       data-frame-resident="stripe"
       data-shell-region="rail"
       data-sidebar-collapsed={visuallyCollapsed}
-      className="flex w-ij-stripe shrink-0 flex-col bg-transparent font-ij-ui"
+      className="flex h-full w-full shrink-0 flex-col bg-transparent font-ij-ui"
       style={{
         padding: 'var(--ij-sidebar-pad)',
         gap: 'var(--ij-sidebar-zone-gap)',
-        transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)',
+        transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)',
       }}
     >
       <div

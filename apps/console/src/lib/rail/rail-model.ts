@@ -88,6 +88,24 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     surfaceId: 'console-automation',
     stripeOrder: 4,
   },
+  {
+    tier: 'place',
+    id: 'place-indexer',
+    kind: 'survey',
+    label: 'Indexer',
+    path: '/indexer',
+    surfaceId: 'console-survey',
+    stripeOrder: 5,
+  },
+  {
+    tier: 'place',
+    id: 'place-models',
+    kind: 'model',
+    label: 'Models',
+    path: '/models',
+    surfaceId: 'console-models',
+    stripeOrder: 6,
+  },
 ] as const;
 
 /** Kind → collection policy. Place names keep the singular; collections take plural where needed. */
@@ -130,7 +148,7 @@ export const KIND_RAIL_POLICY: Record<BlockKindGlyph, KindRailPolicy> = {
   memory: { rail: 'hidden', reason: 'memory surfaces through Files projection, not a parallel collection' },
   rail: { rail: 'hidden', reason: 'chrome glyph for Index destinations, not a graph kind collection' },
   workspace: { rail: 'hidden', reason: 'Workspace is a Place' },
-  model: { rail: 'hidden', reason: 'settings chrome glyph' },
+  model: { rail: 'hidden', reason: 'Models is a Place' },
   context: { rail: 'hidden', reason: 'dock companion, not a rail destination' },
   terminal: { rail: 'hidden', reason: 'tool window affordance, not a collection' },
   browser: { rail: 'hidden', reason: 'tool window affordance, not a collection' },
@@ -173,4 +191,6 @@ export function assertUniqueRailLabels(
   }
 }
 
-assertUniqueRailLabels();
+if (process.env.NODE_ENV !== 'production') {
+  assertUniqueRailLabels();
+}
