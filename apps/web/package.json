@@ -213,7 +213,7 @@
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.29",
     "zod": "^3.24.2",
-    "zustand": "^5.0.12"
+    "zustand": "5.0.14"
   },
   "overrides": {
     "@blocksuite/icons": "2.1.75",
@@ -262,6 +262,7 @@
     "eslint-config-next": "^16.1.6",
     "firecrawl-cli": "^1.12.2",
     "graphology-types": "^0.24.8",
+    "jsdom": "^26.1.0",
     "pagefind": "^1.5.2",
     "size-limit": "^11.2.0",
     "tailwindcss": "^4.1.18",

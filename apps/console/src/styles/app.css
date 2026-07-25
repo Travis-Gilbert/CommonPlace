@@ -20,6 +20,12 @@
    needed. Its theme variables are mapped to the register below. */
 @import '@xyflow/react/dist/base.css';
 
+@media (min-width: 768px) {
+  [data-record-page-grid] {
+    grid-template-columns: minmax(0, 1fr) var(--ij-inspector-rail-w);
+  }
+}
+
 .react-flow {
   --xy-edge-stroke-default: var(--ij-divider);
   --xy-edge-stroke-selected-default: var(--ij-accent);
@@ -53,6 +59,15 @@
   box-shadow: var(--ij-popover-shadow);
 }
 
+.react-flow__edge.model-edge-observed .react-flow__edge-path {
+  stroke: var(--ij-divider);
+  stroke-dasharray: 5 5;
+}
+
+.react-flow__edge.model-edge-declared .react-flow__edge-path {
+  stroke: var(--ij-gold);
+}
+
 .composer-input {
   field-sizing: content;
   min-height: var(--ij-composer-min-h);
@@ -76,11 +91,6 @@
   border-color: var(--ij-accent);
 }
 
-/* The sheen paints at its own alphas. The 0.5 multiplier that used to live
-   here existed only to lose the fight with the pastel overlay stacked above
-   it; with that overlay gone the canvas's internal 3.2 percent budget is the
-   whole budget (X1). */
-
 .composer-input-section {
   position: relative;
   overflow: hidden;
@@ -98,15 +108,11 @@
 
 .composer-controls {
   position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: var(--ij-composer-gap);
   padding: calc(var(--rec-grid) * 2) var(--ij-composer-pad-compact);
-}
-
-.composer-controls-wrap {
-  position: relative;
-  z-index: 3;
 }
 
 /* A plain divider border groups the tools. The group carried its own fill in
@@ -246,14 +252,87 @@
   }
 }
 
-html,
-body {
-  height: 100%;
+.thread-jump-strip {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .thread-jump-strip {
+    display: block;
+  }
 }
 
 body {
   margin: 0;
   background: var(--ij-frame);
+}
+
+/* Overlay scrollbars (amendment 35): thin IntelliJ-style overlays that do not
+   steal layout width from island content. Register colors only. */
+[data-register='intui'] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ij-gray-5) transparent;
+}
+
+[data-register='intui'] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-register='intui'] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-register='intui'] *::-webkit-scrollbar-thumb {
+  background: var(--ij-gray-5);
+  border-radius: var(--ij-arc-underline);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+[data-register='intui'] *::-webkit-scrollbar-thumb:hover {
+  background: var(--ij-gray-6);
+  background-clip: content-box;
+}
+
+.promotion-dialog-content {
+  top: var(--ij-dialog-inset-top);
+  width: var(--ij-dialog-width);
+}
+
+/* Island gutter: transparent ground, thin accent mid-line on hover/drag. */
+[data-panel-seam] {
+  position: relative;
+}
+
+/* Island border equals island fill (choice 8): consume register token only.
+   Tool/editor overrides live in register-bridge.css. Frame shows in the gutters. */
+[data-island] {
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--ij-island-border);
+  box-shadow: none;
+}
+
+/* Window blur inactive wash lives in MaterialLayer (inactiveAlpha uniform).
+   `data-window-inactive` on <html> remains the signal; do not paint a DOM ::after. */
+
+[data-panel-seam]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background var(--ij-motion) var(--ij-ease);
+}
+
+[data-panel-seam]:hover::after,
+[data-panel-seam][data-resize-handle-state='drag']::after,
+[data-panel-seam][data-resize-handle-active]::after {
+  background: var(--ij-accent);
 }
 
 /* React Flow, themed through the register: edge and selection defaults resolve
@@ -276,4 +355,120 @@ body {
 .react-flow__node:focus,
 .react-flow__node:focus-visible {
   outline: none;
+}
+
+/* Survey source artifacts. R3F owns world geometry. These rules own only the
+   DOM artifacts billboarded into that space and their flat fallback. */
+.survey-source-card {
+  aspect-ratio: var(--survey-source-aspect);
+}
+
+.survey-source-card[data-spatial='true'] {
+  width: auto;
+  height: min(var(--survey-source-card-h), calc(var(--survey-card-w) / var(--survey-source-aspect)));
+  transform-origin: center;
+}
+
+.stellar-gallery {
+  background: transparent;
+}
+
+/* MaterialLayer owns the ambient ground (Paper-designed anatomy, Spec 34).
+   The gallery shell stays transparent so terracotta, grain, and island body
+   show through the clear R3F canvas. */
+.stellar-gallery-ground,
+.stellar-gallery-pegboard {
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.stellar-gallery-card-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stellar-gallery-card-frame .survey-source-card[data-spatial='true'] {
+  width: 100%;
+  height: 100%;
+}
+
+.survey-source-card[data-spatial='false'] {
+  width: 100%;
+  min-height: var(--survey-source-card-min-h);
+}
+
+.survey-source-navigator-list {
+  width: var(--survey-card-w);
+}
+
+.survey-source-header {
+  border-bottom: 1px solid var(--ij-divider);
+  background: var(--ij-chrome);
+  color: var(--ij-ink);
+}
+
+.survey-source-code-line {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.survey-source-document-sheet {
+  width: calc(100% - var(--rec-grid) * 8);
+  min-height: calc(100% - var(--rec-grid) * 10);
+}
+
+.survey-source-receipt-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.survey-source-fact {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.survey-source-dot-field {
+  width: calc(var(--rec-grid) * 16);
+}
+
+.survey-open-source {
+  max-width: var(--survey-open-source-max);
+}
+
+.survey-open-source-frame {
+  aspect-ratio: var(--survey-source-aspect);
+}
+
+[data-survey-layout='3d'] {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+[data-survey-layout='3d'] canvas {
+  touch-action: none;
+}
+
+.survey-source-annotations {
+  min-height: calc(var(--rec-grid) * 14);
+}
+
+.survey-open-rail {
+  width: var(--survey-open-rail);
+}
+
+.survey-metadata-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+.survey-flat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--survey-card-w), 1fr));
+  gap: calc(var(--rec-grid) * 4);
+}
+
+.survey-focusable:focus-visible {
+  outline: var(--ij-focus-ring);
+  outline-offset: var(--survey-focus-offset);
 }

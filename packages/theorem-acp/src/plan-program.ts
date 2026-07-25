@@ -1,14 +1,57 @@
 import type { PlanCanvasSnapshot, PlanTask } from './plan-state';
 
-const SHAPE_ID = 'theorem.plan-task.v1';
+/** Canonical ShapeId reference registered in theorem-blocks plan_task. */
+export const PLAN_TASK_SHAPE_ID = 'theorem:plan-task@1.0.0';
+
+const SHAPE_ID = PLAN_TASK_SHAPE_ID;
+
+/** Parse `{namespace}:{name}@{major}.{minor}.{patch}` the way ShapeId::parse does. */
+export function parseShapeId(reference: string): {
+  namespace: string;
+  name: string;
+  version: { major: number; minor: number; patch: number };
+} {
+  const at = reference.indexOf('@');
+  if (at < 0) {
+    throw new Error(`shape_reference: missing version separator '@' in \`${reference}\``);
+  }
+  const identity = reference.slice(0, at);
+  const version = reference.slice(at + 1);
+  const colon = identity.indexOf(':');
+  if (colon < 0) {
+    throw new Error(`shape_reference: missing namespace separator ':' in \`${reference}\``);
+  }
+  if (identity.indexOf(':', colon + 1) >= 0) {
+    throw new Error(`shape_reference: namespace:name must contain exactly one ':' in \`${reference}\``);
+  }
+  const namespace = identity.slice(0, colon);
+  const name = identity.slice(colon + 1);
+  if (!namespace || !name) {
+    throw new Error(`shape_reference: empty namespace or name in \`${reference}\``);
+  }
+  const parts = version.split('.');
+  if (parts.length !== 3 || parts.some((part) => !/^\d+$/.test(part))) {
+    throw new Error(`shape_reference: version must be major.minor.patch in \`${reference}\``);
+  }
+  return {
+    namespace,
+    name,
+    version: {
+      major: Number(parts[0]),
+      minor: Number(parts[1]),
+      patch: Number(parts[2]),
+    },
+  };
+}
 
 export interface ProgrammableGraphDefinition {
   tenant_id?: string;
+  authority: 'advisory' | 'authorization_commit';
   name: string;
   intent: string;
   trigger: { kind: 'coordination_stream'; stream: string };
   budget: { max_invocations: number; window_seconds: number; max_cost_microunits: number };
-  approval: { mode: 'require_side_effects'; grant_ids: string[] };
+  approval: { mode: 'require_each_run' | 'require_side_effects'; grant_ids: string[] };
   nodes: Array<Record<string, unknown>>;
   edges: Array<Record<string, unknown>>;
   metadata: Record<string, unknown>;
@@ -61,6 +104,7 @@ export function planToProgrammableGraph(snapshot: PlanCanvasSnapshot): Programma
   }
 
   return {
+    authority: 'advisory',
     name: snapshot.title,
     intent: snapshot.objective,
     trigger: { kind: 'coordination_stream', stream: `plan:${snapshot.planId}` },
@@ -69,23 +113,38 @@ export function planToProgrammableGraph(snapshot: PlanCanvasSnapshot): Programma
       window_seconds: 3_600,
       max_cost_microunits: Math.max(50_000, tasks.length * 10_000),
     },
-    approval: { mode: 'require_side_effects', grant_ids: [] },
+    approval: { mode: 'require_each_run', grant_ids: [] },
     nodes,
     edges,
     metadata: {
       source_register: 'plan_canvas',
       source_plan_id: snapshot.planId,
       source_schema: snapshot.schema,
+      execution_mode: 'advisory_proposal_only',
+      source_affordance_refs: Object.fromEntries(tasks.map((task) => [
+        task.id,
+        task.queuedAffordances.map((affordance) => affordance.ref),
+      ])),
+      source_side_effecting_affordance_refs: sideEffectingAffordanceRefs(snapshot),
     },
   };
 }
 
+export function sideEffectingAffordanceRefs(snapshot: PlanCanvasSnapshot): string[] {
+  return [...new Set(snapshot.tasks
+    .filter((task) => task.status !== 'superseded')
+    .flatMap((task) => task.queuedAffordances)
+    .filter((affordance) => !affordance.annotations.readOnly)
+    .map((affordance) => affordance.ref))];
+}
+
 function programNode(task: PlanTask, dependentIds: string[]): Record<string, unknown> {
-  const destructive = task.queuedAffordances.some((affordance) => affordance.annotations.destructive);
   const base = {
     id: task.id,
     block_id: `block:plan-task:${task.alias}`,
-    contract: blockContract(`contract:plan-task:${task.alias}`, task.title, task.description, destructive),
+    // Plan promotion is an advisory handoff. Source affordances remain in
+    // program metadata, but no promoted contract can claim external effects.
+    contract: blockContract(`contract:plan-task:${task.alias}`, task.title, task.description, false),
     inputs: task.dependencies.map((dependency) => ({ id: portId('from', dependency), shape_id: SHAPE_ID })),
     outputs: [
       ...dependentIds.map((dependent) => ({ id: portId('to', dependent), shape_id: SHAPE_ID })),
@@ -98,7 +157,7 @@ function programNode(task: PlanTask, dependentIds: string[]): Record<string, unk
   return {
     ...base,
     kind: 'stochastic',
-    affordance_id: task.queuedAffordances[0]?.ref ?? `plan-task:${task.alias}`,
+    affordance_id: `plan-task:${task.alias}`,
   };
 }
 

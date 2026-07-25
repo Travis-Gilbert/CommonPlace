@@ -22,17 +22,43 @@ import type {
 } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
-import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout } from './workspace-seed';
-import { mergeSeedViews } from './seed-views';
+import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_ID } from './workspace-seed';
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
+import { useShellStore } from './shell-store';
+import { clearLayoutCache, readLayoutCache, writeLayoutCache } from './state/layout-cache';
+import {
+  AUTOMATION_HISTORY_TYPES,
+  automationHistoryShape,
+  projectAutomationHistory,
+} from './automation-history-projection';
+import { fetchStatus } from './harness-ux';
+import { seedSurveyObjects } from './surveySeed';
+import {
+  filterIndexerObjects,
+  parseIndexerObjectsPayload,
+} from './indexer-projection';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
-const STORAGE_KEY = 'commonplace.console.surface.v1';
+const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
+const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
+const MODEL_METADATA_TYPES = new Set([
+  'model-scope',
+  'object-type-metadata',
+  'field-metadata',
+  'relation-metadata',
+  'view-metadata',
+  'schema-version',
+]);
+const LAYOUT_QUERY: ObjectQuery = {
+  types: ['surface', 'region', 'view-instance'],
+  traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
+  page: { limit: 500 },
+};
 
 /** Transport health as the host observes it (R2.3): HTTP 403 is the
  *  identity-refusal analog of principal_resolution=unauthenticated. */
@@ -86,8 +112,14 @@ function matchesPredicate(object: ObjectRef, predicate: Predicate | undefined): 
   if (!predicate) return true;
   switch (predicate.kind) {
     case 'eq':
+      if (predicate.field === 'id') {
+        return object.id === predicate.value || object.properties.id === predicate.value;
+      }
       return object.properties[predicate.field] === predicate.value;
     case 'not_eq':
+      if (predicate.field === 'id') {
+        return object.id !== predicate.value && object.properties.id !== predicate.value;
+      }
       return object.properties[predicate.field] !== predicate.value;
     case 'contains': {
       const value = object.properties[predicate.field];
@@ -108,6 +140,21 @@ function matchesPredicate(object: ObjectRef, predicate: Predicate | undefined): 
     default:
       return true;
   }
+}
+
+function topicIdFromSurveyQuery(query: ObjectQuery): string | undefined {
+  const predicate = query.where;
+  if (!predicate) return undefined;
+  if (predicate.kind === 'eq' && predicate.field === 'topic_id' && typeof predicate.value === 'string') {
+    return predicate.value;
+  }
+  if (predicate.kind === 'and') {
+    for (const clause of predicate.all) {
+      const nested = topicIdFromSurveyQuery({ ...query, where: clause });
+      if (nested) return nested;
+    }
+  }
+  return undefined;
 }
 
 function compareValues(a: JsonValue | undefined, b: JsonValue | undefined): number {
@@ -137,12 +184,16 @@ export class ConsoleBlockHost implements BlockHost {
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
   private cardTemplates: ObjectRef[];
+  private surveyObjects: ObjectRef[];
+  private modelMetadata: ObjectRef[] = [];
+  private modelMetadataSeq = 0;
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
+  private seedLayoutTask: Promise<void> | null = null;
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -154,7 +205,16 @@ export class ConsoleBlockHost implements BlockHost {
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
       baseUrl: '/api',
+      // Same-origin relay; server maps THEOREM_PROACTIVITY_CHANGEFEED_URL.
+      changefeedUrl: '/api/proactivity/stream',
       onStatus: (status) => this.observer?.(status),
+      onChangefeedStatus: (status) => {
+        if (status === 'stale' || status === 'connecting') {
+          useShellStore.getState().setProgress(status === 'stale' ? 'Live feed stale' : 'Connecting live feed');
+        } else if (status === 'live') {
+          useShellStore.getState().setProgress(null);
+        }
+      },
     });
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
@@ -162,6 +222,7 @@ export class ConsoleBlockHost implements BlockHost {
     // card engine queries them like any record, and the Model surface edits
     // them later through the same update action.
     this.cardTemplates = seedCardTemplates();
+    this.surveyObjects = seedSurveyObjects();
     this.hydrateLayout();
   }
 
@@ -177,32 +238,16 @@ export class ConsoleBlockHost implements BlockHost {
   }
 
   private hydrateLayout(): void {
-    let restored: ObjectRef[] | null = null;
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw) restored = JSON.parse(raw) as ObjectRef[];
-      } catch {
-        restored = null;
-      }
-    }
+    const restored = readLayoutCache();
     const seed = seedLayout();
-    const shellSeeds = mergeSeedViews([]);
     const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
-    // CS8: a fresh product profile gets the three slugged views and nothing else.
-    // Test hosts that supply a records pool keep the richer legacy seed so
-    // existing arrangement tests stay meaningful. Older persisted arrangements
-    // keep their surfaces and gain any missing shell seeds.
-    const freshSeed = this.records !== null ? seed : shellSeeds;
-    const objects = needsIaMigration
-      ? seed
-      : (restored ? mergeSeedViews(restored) : freshSeed);
+    const objects = needsIaMigration ? seed : (restored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
     if (restored && !needsIaMigration) {
-      let added = objects.length > restored.length;
+      let added = false;
       for (const seeded of seed) {
         if (!this.layout.has(seeded.id)) {
           this.layout.set(seeded.id, toMutable(seeded));
@@ -219,6 +264,56 @@ export class ConsoleBlockHost implements BlockHost {
         workspaceEditor.properties.seed_revision = 3;
         added = true;
       }
+      // B9: attach the automation-history tool window to Workspace when the
+      // region exists but is not yet in the surface CONTAINS list.
+      const workspaceSurface = this.layout.get(WORKSPACE_SURFACE_ID);
+      if (
+        workspaceSurface &&
+        this.layout.has('workspace.region-automation') &&
+        !workspaceSurface.children.includes('workspace.region-automation')
+      ) {
+        workspaceSurface.children.push('workspace.region-automation');
+        workspaceSurface.properties.seed_revision = 4;
+        added = true;
+      }
+      // B10: Cards surface migrates to a kind=grid region with records island.
+      const cardsEditor = this.layout.get('cards.region-editor');
+      if (cardsEditor && cardsEditor.properties.kind !== 'grid') {
+        cardsEditor.properties.kind = 'grid';
+        cardsEditor.properties.seed_revision = 3;
+        if (!cardsEditor.children.includes('cards.vi-records') && this.layout.has('cards.vi-records')) {
+          cardsEditor.children.push('cards.vi-records');
+        }
+        added = true;
+      }
+      const cardsSurface = this.layout.get('console-cards');
+      if (
+        cardsSurface &&
+        this.layout.has('cards.region-stripe-tray') &&
+        !cardsSurface.children.includes('cards.region-stripe-tray')
+      ) {
+        cardsSurface.children.push('cards.region-stripe-tray');
+        cardsSurface.properties.seed_revision = 3;
+        added = true;
+      }
+      const stripeTray = this.layout.get('cards.region-stripe-tray');
+      if (stripeTray && stripeTray.properties.companion !== 'stripe-tray') {
+        stripeTray.properties.companion = 'stripe-tray';
+        added = true;
+      }
+      // SB3: landmarks are global frame chrome, not a child of one surface.
+      // Preserve a person's arrangement while accepting the seeded chrome
+      // region and its fallback view instances on upgrade.
+      const landmarks = this.layout.get('console.region-landmarks');
+      if (landmarks && landmarks.properties.kind !== 'landmarks') {
+        landmarks.properties.kind = 'landmarks';
+        landmarks.properties.seed_revision = 1;
+        added = true;
+      }
+      if (landmarks && typeof landmarks.properties.collapsed !== 'boolean') {
+        landmarks.properties.collapsed = false;
+        added = true;
+      }
       for (const seeded of seed) {
         if (seeded.type !== 'surface' || typeof seeded.properties.stripe_order !== 'number') continue;
         const current = this.layout.get(seeded.id);
@@ -228,14 +323,20 @@ export class ConsoleBlockHost implements BlockHost {
         }
       }
       if (added) this.persistLayout();
+    } else {
+      this.persistLayout();
     }
   }
 
   /** Drop the persisted arrangement and return to the seed. */
   resetLayout(): void {
-    if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY);
+    clearLayoutCache();
     this.layout = new Map(seedLayout().map((ref) => [ref.id, toMutable(ref)]));
+    this.persistLayout();
     this.notifyLayout();
+    if (this.records === null) {
+      void this.pushLayoutToServer();
+    }
   }
 
   /** Apply a radio-group surface switch as one layout transaction. Subscribers
@@ -248,6 +349,15 @@ export class ConsoleBlockHost implements BlockHost {
     }
     this.persistLayout();
     this.notifyLayout();
+    await this.writeThroughLayoutUpdates(
+      [...this.layout.values()]
+        .filter((node) => node.type === 'surface')
+        .map((node) => ({
+          kind: 'update' as const,
+          id: node.id,
+          patch: { active: node.id === surfaceId },
+        })),
+    );
     return true;
   }
 
@@ -256,25 +366,100 @@ export class ConsoleBlockHost implements BlockHost {
   async setRegionOpen(regionId: string, open: boolean, exclusivePeerIds: readonly string[] = []): Promise<boolean> {
     const region = this.layout.get(regionId);
     if (region?.type !== 'region') return false;
+    const patches: Array<{ kind: 'update'; id: string; patch: Record<string, JsonValue> }> = [];
     if (open) {
       for (const peerId of exclusivePeerIds) {
         const peer = this.layout.get(peerId);
-        if (peer?.type === 'region') peer.properties.open = false;
+        if (peer?.type === 'region') {
+          peer.properties.open = false;
+          patches.push({ kind: 'update', id: peerId, patch: { open: false } });
+        }
       }
     }
     region.properties.open = open;
+    patches.push({ kind: 'update', id: regionId, patch: { open } });
     this.persistLayout();
     this.notifyLayout();
+    await this.writeThroughLayoutUpdates(patches);
     return true;
   }
 
   private persistLayout(): void {
-    if (typeof window === 'undefined') return;
-    const objects = [...this.layout.values()].map(toRef);
+    writeLayoutCache([...this.layout.values()].map(toRef));
+  }
+
+  private replaceLayout(objects: readonly ObjectRef[]): void {
+    this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
+    this.persistLayout();
+    this.notifyLayout();
+  }
+
+  /** B6: adopt server arrangement when present; otherwise push the local seed. */
+  async ensureSeedLayout(): Promise<void> {
+    if (this.records !== null) return;
+    if (this.seedLayoutTask) return this.seedLayoutTask;
+    this.seedLayoutTask = this.ensureSeedLayoutOnce();
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(objects));
+      await this.seedLayoutTask;
+    } finally {
+      this.seedLayoutTask = null;
+    }
+  }
+
+  private async ensureSeedLayoutOnce(): Promise<void> {
+    try {
+      const remote = await this.http.query(LAYOUT_QUERY);
+      const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
+      const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
+      if (hasPrimarySurface && hasLandmarks) {
+        this.replaceLayout(remote.objects);
+        return;
+      }
+      await this.pushLayoutToServer();
     } catch {
-      // Storage full or unavailable: the in-memory arrangement still works.
+      // Backend unreachable: the atomWithStorage cache remains the fast path.
+    }
+  }
+
+  private async pushLayoutToServer(): Promise<void> {
+    const objects = [...this.layout.values()].map(toRef);
+    await Promise.all(
+      objects.map((ref) => {
+        const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
+        return this.http.emit({
+          kind: 'create',
+          type: ref.type,
+          props: {
+            id: ref.id,
+            title,
+            ...ref.properties,
+          },
+        });
+      }),
+    );
+    const moves: Array<Promise<unknown>> = [];
+    for (const ref of objects) {
+      const children = ref.relations?.[CONTAINS_EDGE] ?? [];
+      for (let index = 0; index < children.length; index += 1) {
+        moves.push(
+          this.http.emit({
+            kind: 'move',
+            id: children[index]!,
+            new_parent: ref.id,
+            order: index + 1,
+          }),
+        );
+      }
+    }
+    await Promise.all(moves);
+  }
+
+  private async writeThroughLayoutUpdates(
+    actions: ReadonlyArray<ObjectAction>,
+  ): Promise<void> {
+    if (this.records !== null) return;
+    for (const action of actions) {
+      await this.http.emit(action);
     }
   }
 
@@ -293,6 +478,14 @@ export class ConsoleBlockHost implements BlockHost {
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
     if (query.types.includes('memory')) return this.memorySet(query);
+    // Automation history: run and dispatch objects projected from harness status
+    // (B9). Not a Data API type yet; projecting here is the seam, not a stub.
+    if (query.types.some((type) => AUTOMATION_TYPE_SET.has(type))) {
+      return this.queryAutomationHistory(query);
+    }
+    if (query.types.some((type) => MODEL_METADATA_TYPES.has(type))) {
+      return this.modelMetadataSet(query);
+    }
     // The live wire is the default (R2.1): records, hunks, and every domain
     // kind the seam serves (person, task, mention-candidate, ...) round-trip
     // through the data API proxy. Documents and code files ride the live wire
@@ -301,6 +494,8 @@ export class ConsoleBlockHost implements BlockHost {
     // so slug and id predicates behave exactly as the seed path did.
     // Console-owned seeds stay local: card templates (K1, authored objects)
     // and 'thread' (the pane renders its own chat SSE, never the record wire).
+    // Survey types try the live Indexer harness projection first (IX-004), then
+    // fall back to the hermetic seed for e2e and unconfigured harness.
     const testMode = this.records !== null;
     const isRecord = query.types.includes('record');
     const isDoc = query.types.includes('doc');
@@ -313,6 +508,9 @@ export class ConsoleBlockHost implements BlockHost {
       query.types.includes('context-view') ||
       query.types.includes('surface-tool') ||
       query.types.includes(CARD_TEMPLATE_TYPE);
+    if (query.types.some((type) => SURVEY_TYPES.has(type))) {
+      return this.querySurvey(query);
+    }
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
@@ -348,7 +546,9 @@ export class ConsoleBlockHost implements BlockHost {
     }
     const shape: ObjectShape = {
       types: [...query.types],
-      fields: query.types.includes('record') ? [...RECORD_FIELDS] : Object.keys(objects[0]?.properties ?? {}),
+      fields: query.types.includes('record')
+        ? [...RECORD_FIELDS]
+        : [...new Set(objects.flatMap((object) => Object.keys(object.properties)))],
       relations: [],
       axes: {},
       cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
@@ -363,6 +563,164 @@ export class ConsoleBlockHost implements BlockHost {
         const listener = () => callback(this.query(query) as ObjectSet);
         this.domainSubs.add(listener);
         return () => this.domainSubs.delete(listener);
+      },
+    };
+  }
+
+  private async querySurvey(query: ObjectQuery): Promise<ObjectSet> {
+    let objects = await this.loadSurveyObjects(query);
+    objects = filterIndexerObjects(objects, query, matchesPredicate);
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    const shape: ObjectShape = {
+      types: [...query.types],
+      fields: [
+        'topic_id',
+        'title',
+        'description',
+        'updated',
+        'capture_count',
+        'status',
+        'excerpt',
+        'source_url',
+        'matched_spans',
+        'from',
+        'to',
+        'reason',
+        'strength',
+      ],
+      relations: [],
+      axes: {},
+      cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+    };
+    return {
+      objects,
+      shape,
+      next_cursor: nextCursor,
+      subscribe: (callback) => {
+        if (!query.live) return () => {};
+        let cancelled = false;
+        const tick = () => {
+          void this.querySurvey(query).then((next) => {
+            if (!cancelled) callback(next);
+          });
+        };
+        const timer = setInterval(tick, 5000);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
+      },
+    };
+  }
+
+  private modelMetadataSet(query: ObjectQuery): ObjectSet {
+    const topicId = topicIdFromSurveyQuery(query);
+    const scopeObject: ObjectRef[] = topicId
+      ? [{
+          id: `model-scope:${topicId}`,
+          type: 'model-scope',
+          properties: { topic_id: topicId },
+        }]
+      : [];
+    const objects = [...scopeObject, ...this.modelMetadata]
+      .filter((object) => query.types.includes(object.type))
+      .filter((object) => matchesPredicate(object, query.where));
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: ['topic_id', 'id', 'key', 'label', 'provenance'],
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      subscribe: (callback) => {
+        const listener = () => callback(this.modelMetadataSet(query));
+        this.domainSubs.add(listener);
+        return () => this.domainSubs.delete(listener);
+      },
+    };
+  }
+
+  private async loadSurveyObjects(query: ObjectQuery): Promise<ObjectRef[]> {
+    const topicId = topicIdFromSurveyQuery(query);
+    const includeCaptures = query.types.includes('capture') || query.types.includes('survey-edge');
+    try {
+      const params = new URLSearchParams();
+      if (topicId) params.set('topicId', topicId);
+      params.set('includeCaptures', includeCaptures ? '1' : '0');
+      const response = await fetch(`/api/indexer?${params.toString()}`, { cache: 'no-store' });
+      if (response.ok) {
+        const payload = await response.json().catch(() => null);
+        const live = parseIndexerObjectsPayload(payload);
+        // Authoritative empty corpora stay empty; seed only on invalid or unavailable.
+        if (live !== null) return live;
+      }
+    } catch {
+      // Fall through to hermetic seed.
+    }
+    return this.surveyObjects;
+  }
+
+  private async queryAutomationHistory(query: ObjectQuery): Promise<ObjectSet> {
+    let objects: ObjectRef[] = [];
+    try {
+      const report = await fetchStatus({ kind: 'all' });
+      objects = projectAutomationHistory(report).filter(
+        (object) => query.types.includes(object.type) && matchesPredicate(object, query.where),
+      );
+    } catch {
+      objects = [];
+    }
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    } else {
+      objects = [...objects].sort(
+        (a, b) => Number(a.properties.order ?? 0) - Number(b.properties.order ?? 0),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    const shape = automationHistoryShape(objects);
+    return {
+      objects,
+      shape: { ...shape, types: [...query.types] },
+      next_cursor: nextCursor,
+      subscribe: (callback) => {
+        if (!query.live) return () => {};
+        let cancelled = false;
+        const tick = () => {
+          void this.queryAutomationHistory(query).then((next) => {
+            if (!cancelled) callback(next);
+          });
+        };
+        const timer = setInterval(tick, 5000);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
       },
     };
   }
@@ -476,8 +834,9 @@ export class ConsoleBlockHost implements BlockHost {
     }
   }
 
-  /** The arrangement branch is always synchronous and local: the shell's
-   *  layout store reads it without awaiting. */
+  /** The arrangement branch is synchronous for the shell (useSyncExternalStore).
+   *  Server truth lands via ensureSeedLayout / write-through; the cache is the
+   *  fast path when the API is down. */
   queryLayout(query: ObjectQuery): ObjectSet {
     return this.layoutSet(query);
   }
@@ -526,7 +885,11 @@ export class ConsoleBlockHost implements BlockHost {
         parent.children.splice(order, 0, action.id);
         this.persistLayout();
         this.notifyLayout();
-        return Promise.resolve(applied([action.id]));
+        // Server CONTAINS order is fractional rank; local splice uses index.
+        const serverOrder = order + 1;
+        return this.writeThroughLayoutUpdates([
+          { kind: 'move', id: action.id, new_parent: action.new_parent, order: serverOrder },
+        ]).then(() => applied([action.id]));
       }
       case 'update': {
         const node = this.layout.get(action.id);
@@ -534,15 +897,16 @@ export class ConsoleBlockHost implements BlockHost {
           node.properties = { ...node.properties, ...action.patch };
           this.persistLayout();
           this.notifyLayout();
-          return Promise.resolve(applied([action.id]));
+          return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
-        // seeds); records, docs, and code files ride the wire so edits persist.
-        // In test mode the local pools carry every kind.
+        // seeds) and survey fixtures patch in-session; records, docs, and code
+        // files ride the wire so edits persist. In test mode local pools carry
+        // every kind.
         const updatePools =
           this.records === null
-            ? [this.cardTemplates]
-            : [this.records, this.docs, this.codeFiles, this.cardTemplates];
+            ? [this.cardTemplates, this.surveyObjects, this.modelMetadata]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.surveyObjects, this.modelMetadata];
         for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
@@ -555,14 +919,37 @@ export class ConsoleBlockHost implements BlockHost {
         return Promise.resolve({ ok: false, error: `update target missing: ${action.id}` });
       }
       case 'create': {
+        if (MODEL_METADATA_TYPES.has(action.type)) {
+          const id = typeof action.props.id === 'string'
+            ? action.props.id
+            : `${action.type}:${++this.modelMetadataSeq}`;
+          const next: ObjectRef = {
+            id,
+            type: action.type,
+            properties: { ...action.props, id },
+          };
+          const existing = this.modelMetadata.findIndex((object) => object.id === id);
+          if (existing >= 0) this.modelMetadata[existing] = next;
+          else this.modelMetadata.push(next);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([id]));
+        }
         if (!LAYOUT_TYPES.has(action.type)) return Promise.resolve(accepted());
         const id = typeof action.props.id === 'string' ? action.props.id : `vi-${this.layout.size + 1}`;
         this.layout.set(id, { id, type: action.type, properties: { ...action.props }, children: [] });
         this.persistLayout();
         this.notifyLayout();
-        return Promise.resolve(applied([id]));
+        return this.writeThroughLayoutUpdates([
+          { kind: 'create', type: action.type, props: { ...action.props, id } },
+        ]).then(() => applied([id]));
       }
       case 'delete': {
+        const metadataIndex = this.modelMetadata.findIndex((object) => object.id === action.id);
+        if (metadataIndex >= 0) {
+          this.modelMetadata.splice(metadataIndex, 1);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([action.id]));
+        }
         if (!this.layout.has(action.id)) return Promise.resolve(accepted());
         this.layout.delete(action.id);
         for (const candidate of this.layout.values()) {
@@ -570,57 +957,7 @@ export class ConsoleBlockHost implements BlockHost {
         }
         this.persistLayout();
         this.notifyLayout();
-        return Promise.resolve(applied([action.id]));
-      }
-      case 'upsert_complete_view': {
-        const surface = this.layout.get(action.id);
-        if (!surface || surface.type !== 'surface') {
-          return Promise.resolve({ ok: false, error: `upsert_complete_view target missing: ${action.id}` });
-        }
-        if (action.props) {
-          surface.properties = { ...surface.properties, ...action.props };
-        }
-        if (action.regions !== undefined) {
-          const previous = [...surface.children];
-          for (const childId of previous) {
-            this.deleteSubtree(childId);
-          }
-          surface.children = [];
-          const createdIds: string[] = [];
-          for (const [index, region] of action.regions.entries()) {
-            const regionId = typeof region.id === 'string' && region.id.length > 0
-              ? region.id
-              : `${action.id}.region.${index}`;
-            const instanceIds: string[] = [];
-            for (const [instanceIndex, instance] of (region.instances ?? []).entries()) {
-              const instanceId = typeof instance.id === 'string' && instance.id.length > 0
-                ? instance.id
-                : `${regionId}.vi.${instanceIndex}`;
-              this.layout.set(instanceId, {
-                id: instanceId,
-                type: 'view-instance',
-                properties: { ...instance.props },
-                children: [],
-              });
-              instanceIds.push(instanceId);
-              createdIds.push(instanceId);
-            }
-            this.layout.set(regionId, {
-              id: regionId,
-              type: 'region',
-              properties: { ...region.props },
-              children: instanceIds,
-            });
-            surface.children.push(regionId);
-            createdIds.push(regionId);
-          }
-          this.persistLayout();
-          this.notifyLayout();
-          return Promise.resolve(applied([action.id, ...createdIds]));
-        }
-        this.persistLayout();
-        this.notifyLayout();
-        return Promise.resolve(applied([action.id]));
+        return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
       }
       case 'invoke_tool':
       case 'dispatch':
@@ -632,13 +969,6 @@ export class ConsoleBlockHost implements BlockHost {
         // open / select / link / run_agent are UI or substrate concerns.
         return Promise.resolve(accepted());
     }
-  }
-
-  private deleteSubtree(id: string): void {
-    const node = this.layout.get(id);
-    if (!node) return;
-    for (const childId of [...node.children]) this.deleteSubtree(childId);
-    this.layout.delete(id);
   }
 
   viewsFor(shape: ObjectShape): readonly ViewDescriptor[] {

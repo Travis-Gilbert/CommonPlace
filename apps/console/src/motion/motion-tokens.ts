@@ -62,12 +62,12 @@ export function staggerDelay(index: number): number {
   return Math.min(index, STAGGER.cap - 1) * STAGGER.step;
 }
 
-/** GroundCanvas pacing: one quiet repaint tick; the only ambient motion. */
+/** Ground / Material Layer: repaint on layout and theme change only. */
 export const GROUND = {
-  /** ms between ambient repaints; slow enough to be negligible at idle */
+  /** ms between dirty-check frames; idle cost stays negligible */
   tickMs: 240,
-  /** drift per tick in device pixels; quiet by construction */
-  drift: 0.18,
+  /** retained for reduced-motion static frame compatibility */
+  drift: 0,
 } as const;
 
 /** Presence mark pacing (G7): glyph cycle and the commit flash. */
@@ -122,9 +122,9 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Composer run state changes',
-    effect: 'low-chroma material wash gains slight strength while streaming and flashes gold once on commit',
-    spec: 'idle draws once; streaming requestAnimationFrame loop only; commit uses DUR.fast',
-    reducedMotion: 'static low-chroma sheen, no frame loop or flash',
+    effect: 'ShaderSurface Paper fragment on the composer; static paper-texture at idle, grain-gradient speed while streaming',
+    spec: 'paper-texture / grain-gradient / fluted-glass by composer state; token-derived colors; content plane above',
+    reducedMotion: 'static material, speed 0',
   },
   {
     trigger: 'Tool card appears in thread',
@@ -140,21 +140,33 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Run state change (RunWidget)',
-    effect: 'color swap to --ij-running',
-    spec: 'instant color set; no pulse, no spin',
-    reducedMotion: 'same',
+    effect: 'removed from chrome; run state lives in the composer/thread instrument',
+    spec: 'n/a — MainToolbar no longer mounts a Run widget',
+    reducedMotion: 'n/a',
   },
   {
     trigger: 'Status bar indeterminate progress',
-    effect: 'Blue9 to Blue5 gradient sweep on the progress track',
-    spec: 'CSS keyframes in this register only, GROUND-quiet; one ambient max per viewport shared with the ground',
-    reducedMotion: 'static two-tone bar',
+    effect: 'removed from chrome; transport status is no longer a durable footer',
+    spec: 'n/a — IntuiShell no longer mounts StatusBar',
+    reducedMotion: 'n/a',
+  },
+  {
+    trigger: 'Sidebar collapse and resize',
+    effect: 'sidebar panel collapses to icon rail and expands; drag seam adjusts share; labels fade by opacity',
+    spec: 'react-resizable-panels shell columns; Cmd/Ctrl B toggles; HANDOFF-CONSOLE-SIDEBAR named choice 6',
+    reducedMotion: 'size snaps; labels appear or disappear without fade',
   },
   {
     trigger: 'Goal Stack task runs',
     effect: 'the completed segment of the inbound React Flow edge marches toward the task',
     spec: 'CSS keyframes in the motion register only; edge geometry and node positions remain still',
     reducedMotion: 'solid completed segment with no dash movement',
+  },
+  {
+    trigger: 'Data canvas paper ground',
+    effect: 'static Paper DotGrid behind the React Flow pane; register colors for back and fill',
+    spec: 'Paper DotGrid from Island Shells extract (size 0.7, gap 32, triangle, speed 0); tokens --ij-editor and --ij-seam-raised',
+    reducedMotion: 'same; the pattern is already static',
   },
   {
     trigger: 'Presence mark states',
@@ -164,9 +176,57 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Ground ambient',
-    effect: 'quiet static paper grain from one PaperTexture ShaderMount behind the frame',
-    spec: 'CS4 PaperCanvas; color from CSS paper-canvas; shader never paints contrast; reduced motion keeps speed 0',
-    reducedMotion: 'static texture, no motion loop',
+    effect: 'WebGL Material Layer paints the frame and islands on layout or theme change; no continuous drift',
+    spec: 'MaterialLayer; the only permitted ambient paint surface; dirty-flag repaint, never continuous animation',
+    reducedMotion: 'static material frame, no extra motion',
+  },
+  {
+    trigger: 'Filing correction accepted',
+    effect: 'the undo toast arrives at the foot of the Index: opacity 0 to 1 plus 4px translate, then stands for its window and leaves',
+    spec: 'DUR.fast, EASE_OUT, transform and opacity only; the toast is time-boxed by the undo window, not by the animation',
+    reducedMotion: 'the toast renders settled and static, and still stands for its full undo window',
+  },
+  {
+    trigger: 'Survey source receives pointer or keyboard focus',
+    effect: 'the billboarded source grows by one restrained scale step',
+    spec: '--ij-motion transform only; source pixels and annotations do not reflow',
+    reducedMotion: 'flat clustered grid, settled and static with no scale change',
+  },
+  {
+    trigger: 'Survey corpus hover reveals neighborhood',
+    effect: 'focused and related sources rise to full opacity while unrelated sources fade; incident edges strengthen and expose their worded reason',
+    spec: '--ij-motion opacity only on source cards; Line opacity for evidence edges; no filter or layout animation',
+    reducedMotion: 'flat clustered grid with the same connection list, no spatial focus fade',
+  },
+  {
+    trigger: 'Survey orbit, pan, or wheel input',
+    effect: 'the R3F camera moves around deterministic spherical capture layers with damped direct manipulation',
+    spec: 'Drei OrbitControls on a demand-driven frame loop; wheel zooms toward the corpus center; no autoplay or ambient scene rotation',
+    reducedMotion: '3D controls are replaced by the complete flat clustered source grid',
+  },
+  {
+    trigger: 'Indexer harvest search focus or suggestions open',
+    effect: 'suggestion panel fades in (opacity) with optional 0.98 to 1 scale; clear and match feedback use opacity only',
+    spec: 'DUR.fast, EASE_OUT via useMotionDurations; transform and opacity only; no width, height, filter, or particle animation',
+    reducedMotion: 'panel appears settled with no scale; durations 0',
+  },
+  {
+    trigger: 'Survey source receives pointer or keyboard focus',
+    effect: 'the billboarded source grows by one restrained scale step',
+    spec: '--ij-motion transform only; source pixels and annotations do not reflow',
+    reducedMotion: 'flat clustered grid, settled and static with no scale change',
+  },
+  {
+    trigger: 'Survey corpus hover reveals neighborhood',
+    effect: 'focused and related sources rise to full opacity while unrelated sources fade; incident edges strengthen and expose their worded reason',
+    spec: '--ij-motion opacity only on source cards; Line opacity for evidence edges; no filter or layout animation',
+    reducedMotion: 'flat clustered grid with the same connection list, no spatial focus fade',
+  },
+  {
+    trigger: 'Survey orbit, pan, or wheel input',
+    effect: 'the R3F camera moves around deterministic spherical capture layers with damped direct manipulation',
+    spec: 'Drei OrbitControls on a demand-driven frame loop; wheel zooms toward the corpus center; no autoplay or ambient scene rotation',
+    reducedMotion: '3D controls are replaced by the complete flat clustered source grid',
   },
 ] as const;
 
@@ -185,14 +245,9 @@ export const INTERACTION_INVENTORY = [
  */
 export const DECLARED_PAINT_SURFACES = [
   {
-    file: 'src/components/canvas/PaperCanvas.tsx',
+    file: 'src/components/ground/MaterialLayer.tsx',
     inventory: 'Ground ambient',
-    reason: 'the one permitted ambient surface; one ShaderMount per window; sits behind the frame, not in chrome',
-  },
-  {
-    file: 'src/components/ground/GroundCanvas.tsx',
-    inventory: 'Ground ambient',
-    reason: 'legacy hand-roll canvas retained until callers are removed; PaperCanvas is the CS4 mount',
+    reason: 'Spec 34/35 Material Layer: WebGL SDF islands and terracotta ground behind the frame',
   },
   {
     file: 'src/components/mark/PresenceMark.tsx',
@@ -200,9 +255,14 @@ export const DECLARED_PAINT_SURFACES = [
     reason: 'the agent identity glyph; canvas drawing per the inventory, never intercepts pointer events',
   },
   {
-    file: 'src/components/composer/ComposerSheenCanvas.tsx',
+    file: 'src/components/material/ShaderSurface.tsx',
     inventory: 'Composer run state changes',
-    reason: 'the composer instrument sheen; static at idle, frame loop strictly while streaming (rule 4 narrowing)',
+    reason: 'SPEC-CONSOLE-INFORMATION-ARCHITECTURE D5/D6: composer material via ShaderSurface; owns getContext in-file',
+  },
+  {
+    file: 'src/components/material/ShaderSurface.tsx',
+    inventory: 'Data canvas paper ground',
+    reason: 'SPEC-MATERIAL-REGISTER D6: Paper ShaderMount wrapper owns getContext in-file; CanvasPaperGround consumes it',
   },
 ] as const;
 

@@ -1675,8 +1675,23 @@ fn compare_values(left: &Value, right: &Value) -> Ordering {
 }
 
 fn item_from_props(type_ref: &str, mut props: Map<String, Value>) -> GraphStoreResult<Item> {
-    let title = take_string(&mut props, "title").unwrap_or_else(|| "Untitled".to_string());
+    // Layout seeds pin stable ids (console-chat, chat.region-editor, ...). Without
+    // this, props.id lands in extra and put_item mints a new id every create.
+    let pinned_id = take_string(&mut props, "id");
+    // Prefer title; fall back to name without consuming it so arrangement props
+    // like surface.name survive into ObjectRef.properties.
+    let title = take_string(&mut props, "title")
+        .or_else(|| {
+            props
+                .get("name")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "Untitled".to_string());
     let mut item = Item::new(ItemKind::from(normalize_type_ref(type_ref)), title);
+    if let Some(id) = pinned_id.filter(|id| !id.trim().is_empty()) {
+        item = item.with_id(id);
+    }
 
     if let Some(text) = take_string(&mut props, "body").or_else(|| take_string(&mut props, "text"))
     {
@@ -2362,6 +2377,38 @@ mod tests {
             None,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn create_with_props_id_preserves_stable_node_id() {
+        let mut cp = fresh();
+        let id = create(
+            &mut cp,
+            "surface",
+            &[
+                ("id", json!("console-chat")),
+                ("name", json!("Chat")),
+                ("kind", json!("chat")),
+            ],
+        );
+        assert_eq!(id, "console-chat");
+        let item = cp.get_item("console-chat").unwrap().unwrap();
+        assert_eq!(item.title, "Chat");
+        assert_eq!(item.kind.as_str(), "surface");
+        // Re-create upserts the same node rather than minting a sibling.
+        let again = create(
+            &mut cp,
+            "surface",
+            &[
+                ("id", json!("console-chat")),
+                ("name", json!("Chat")),
+                ("active", json!(true)),
+            ],
+        );
+        assert_eq!(again, "console-chat");
+        let surfaces = cp.query_object_set(ObjectQuery::new(["surface"])).unwrap();
+        assert_eq!(surfaces.objects.len(), 1);
+        assert_eq!(surfaces.objects[0].id, "console-chat");
     }
 
     #[test]

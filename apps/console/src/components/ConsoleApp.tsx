@@ -18,20 +18,18 @@ import {
 } from '@assistant-ui/react';
 import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
-import { HostProvider } from '@/lib/commonplace-host/HostProvider';
-import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
 import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
-import { PaperCanvas } from '@/components/canvas/PaperCanvas';
+import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
+import { useWindowInactiveOverlay } from '@/lib/use-window-inactive';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
 import type { ProactivityGraph } from '@/lib/proactivity/types';
-import type { OpenTarget } from '@commonplace/host-bridge';
 
 const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
@@ -91,11 +89,8 @@ function connectionFor(status: number | null): 'connected' | 'disconnected' | 'i
 
 export function ConsoleApp({
   initialProactivity,
-  initialViewId,
 }: {
   initialProactivity?: { readonly graph: ProactivityGraph | null; readonly error: string | null };
-  /** CS6: slug or surface id from /v/[viewId]. */
-  initialViewId?: string;
 } = {}) {
   // True after hydration only (server snapshot false): the persisted
   // arrangement in localStorage never causes a hydration mismatch.
@@ -107,8 +102,9 @@ export function ConsoleApp({
   const setPresence = useShellStore((state) => state.setPresence);
   const hydrateProactivity = useProactivityStore((state) => state.hydrate);
   const failProactivity = useProactivityStore((state) => state.fail);
+  useWindowInactiveOverlay();
 
-  const blockHost = useMemo(
+  const host = useMemo(
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
@@ -122,33 +118,6 @@ export function ConsoleApp({
     [mounted],
   );
 
-  const onOpenTarget = useMemo(
-    () => async (target: OpenTarget) => {
-      if (target.kind === 'url' && typeof window !== 'undefined') {
-        window.open(target.url, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      if (target.kind === 'find') {
-        useShellStore.getState().openSearchPanel('search');
-        return;
-      }
-      if (target.kind === 'ask') {
-        useShellStore.getState().openSearchPanel('command');
-        return;
-      }
-      if (target.kind === 'block') {
-        useShellStore.getState().selectRecord(target.blockId, null, 'note');
-      }
-    },
-    [],
-  );
-
-  const queryObjects = useMemo(() => {
-    if (!blockHost) return undefined;
-    return (q: Parameters<typeof queryViaBlockHost>[1]) =>
-      queryViaBlockHost(blockHost, q);
-  }, [blockHost]);
-
   useEffect(() => {
     return startAppearanceStore();
   }, []);
@@ -160,26 +129,22 @@ export function ConsoleApp({
   }, [failProactivity, hydrateProactivity, initialProactivity]);
 
   useEffect(() => {
-    if (!blockHost || !initialViewId) return;
-    const match = blockHost.queryLayout({ types: ['surface'], live: true }).objects.find((surface) => {
-      const slug = surface.properties.slug;
-      return surface.id === initialViewId
-        || surface.id === `view-${initialViewId}`
-        || surface.id === `console-${initialViewId}`
-        || slug === initialViewId;
-    });
-    if (match) void blockHost.activateSurface(match.id);
-  }, [blockHost, initialViewId]);
-
-  useEffect(() => {
-    if (!blockHost) return;
+    if (!host) return;
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-layout-ready', '0');
+    }
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
-    void blockHost.probe();
+    void host.probe();
     // Seed the backend's document fixtures once so the Documents surface has
     // editable, persistent content (the file-editing wire).
-    void blockHost.ensureSeedContent();
+    void host.ensureSeedContent();
+    // B6: layouts as data. Adopt server arrangement or push the local seed.
     let active = true;
+    void host.ensureSeedLayout().finally(() => {
+      if (!active || typeof document === 'undefined') return;
+      document.documentElement.setAttribute('data-layout-ready', '1');
+    });
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {
         if (!active || !response.ok) return;
@@ -192,25 +157,21 @@ export function ConsoleApp({
     return () => {
       active = false;
     };
-  }, [blockHost, setPresence]);
+  }, [host, setPresence]);
 
-  if (!mounted || !blockHost) {
+  if (!mounted || !host) {
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;
   }
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-ij-frame">
-      <PaperCanvas />
-      <div className="relative z-10 h-full p-1">
-        <HostProvider queryObjects={queryObjects} onOpenTarget={onOpenTarget}>
-          <SessionProvider>
-            <RuntimeBoundary>
-              <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
-                <IntuiShell host={blockHost} initialViewId={initialViewId} />
-              </div>
-            </RuntimeBoundary>
-          </SessionProvider>
-        </HostProvider>
+    <div className="relative h-dvh w-full overflow-hidden bg-ij-frame" data-console-frame>
+      <MaterialLayer />
+      <div className="relative z-10 h-full">
+        <SessionProvider>
+          <RuntimeBoundary>
+            <IntuiShell host={host} />
+          </RuntimeBoundary>
+        </SessionProvider>
       </div>
     </div>
   );

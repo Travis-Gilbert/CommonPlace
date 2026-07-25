@@ -13,16 +13,9 @@
   --radius-lifted: 14px;   /* floating blocks */
   --radius-docked: 14px;   /* free corners; docked edge is 0 */
 
-  /* Bridge into the Int UI arc slots chrome already consumes.
-     Spec overrides the prior 8px arc for containers. */
-  --ij-arc: var(--radius-sunken);
-  --ij-arc-underline: var(--radius-chip);
-  --ij-arc-control: var(--radius-control);
-  --ij-arc-lifted: var(--radius-lifted);
-  --ij-arc-docked: var(--radius-docked);
-
-  /* Soft shadow for lifted material only (CS3). */
-  --shadow-lifted: 0 6px 18px -8px color-mix(in oklab, var(--ij-ink) 22%, transparent);
+  /* Soft shadow for lifted material only (CS3). Uses the register floating
+     shadow rather than reminting --ij-arc* (main Material Layer owns arc). */
+  --shadow-lifted: var(--ij-floating-shadow);
 }
 
 /* Docked material: 14 on three corners, 0 on the docked edge. */

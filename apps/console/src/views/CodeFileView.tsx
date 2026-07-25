@@ -49,7 +49,7 @@ export function CodeFileView({ set }: ViewRenderProps) {
     return () => view.destroy();
   }, [content, language, resolvedMode]);
 
-  if (!file) return <ViewState state="empty" />;
+  if (!file) return <ViewState state="empty" emptyCause="not-loaded" />;
 
   return (
     <div className="flex h-full flex-col bg-ij-editor">

@@ -1,6 +1,6 @@
-// SOURCING: none. Route entry; default lands on the seeded chat view (CS8).
+// SOURCING: none. Root redirects to the Chat surface route (B3).
 import { redirect } from 'next/navigation';
 
-export default function Page() {
-  redirect('/v/chat');
+export default function RootPage() {
+  redirect('/chat');
 }

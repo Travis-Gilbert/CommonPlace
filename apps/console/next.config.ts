@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  async redirects() {
+    return [
+      // /index fights Next.js client-reference manifests; Index lives at /filing.
+      { source: '/index', destination: '/filing', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

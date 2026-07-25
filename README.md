@@ -8,7 +8,7 @@ contracts it consumes from RustyRed and Theorem.
 
 ## Current foundation
 
-- `apps/web/` is the real Next.js CommonPlace frontend migrated from
+- `apps/Console/` is the real Next.js CommonPlace frontend migrated from
   `travisgilbert.me`, including the `/commonplace` route and the existing
   desktop static export script.
 - `apps/desktop/` is the Tauri shell for packaging CommonPlace from this repo.

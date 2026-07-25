@@ -10,9 +10,12 @@
     "./client": "./src/client.ts",
     "./hosted-client": "./src/hosted-client.ts",
     "./session-manager": "./src/session-manager.ts",
+    "./session-boot": "./src/session-boot.ts",
     "./bridge": "./src/bridge.ts",
     "./identity": "./src/identity.ts",
     "./plan-state": "./src/plan-state.ts",
+    "./plan-path": "./src/plan-path.ts",
+    "./plan-params": "./src/plan-params.ts",
     "./plan-program": "./src/plan-program.ts",
     "./workspace-state": "./src/workspace-state.ts"
   },

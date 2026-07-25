@@ -1,3 +1,4 @@
+// SOURCING: none. IndexedDB persistence for a domain record; no upstream component applies.
 /**
  * Session evidence bundle store (HANDOFF-CARRY D1).
  *
@@ -57,12 +58,31 @@ export interface BundleItem {
   meta?: Record<string, unknown>;
 }
 
+/**
+ * Where a session came from (HANDOFF-SEARCH-CONSTELLATION D4). A session that
+ * began by opening a result node out of a search constellation records that
+ * constellation's subgraph reference, so the bundle can be traced back to the
+ * exact retrieval that started it.
+ */
+export interface BundleOrigin {
+  kind: 'constellation';
+  /** The constellation payload's `meta.subgraphRef`. */
+  subgraphRef: string;
+  /** The query the constellation answered. */
+  query: string;
+  /** The node whose opening started the session. */
+  nodeId: string;
+  at: number;
+}
+
 /** A session's whole bundle, persisted as one record. */
 export interface SessionBundle {
   sessionId: string;
   createdAt: number;
   updatedAt: number;
   items: BundleItem[];
+  /** The session's origin, written once when the session starts (D4). */
+  origin?: BundleOrigin;
   /** Ancestor bundle for Carry to Research lineage (C4.2), when this session
    *  was seeded from a prior one. */
   parentSessionId?: string;
@@ -206,6 +226,30 @@ export async function appendEvent(
     await writeBundle(bundle);
     notify(sessionId);
     return item;
+  });
+}
+
+/**
+ * Record a session's origin (D4), creating the bundle if the session has not
+ * accumulated anything yet. First write wins: a session has one beginning, so a
+ * second node opened from the same constellation continues the session rather
+ * than restarting it.
+ */
+export async function setBundleOrigin(
+  sessionId: string,
+  origin: Omit<BundleOrigin, 'at'> & { at?: number },
+): Promise<BundleOrigin> {
+  return serialize(sessionId, async () => {
+    const existing = await readBundle(sessionId);
+    if (existing?.origin) return existing.origin;
+    const at = origin.at ?? nowMs();
+    const full: BundleOrigin = { ...origin, at };
+    const bundle: SessionBundle = existing
+      ? { ...existing, origin: full, updatedAt: at }
+      : { sessionId, createdAt: at, updatedAt: at, items: [], origin: full };
+    await writeBundle(bundle);
+    notify(sessionId);
+    return full;
   });
 }
 

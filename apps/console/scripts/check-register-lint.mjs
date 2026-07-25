@@ -22,6 +22,9 @@ const REGISTER_FILES = new Set([
   path.join(srcRoot, 'styles', 'gy-bridge.css'),
   path.join(srcRoot, 'styles', 'galley-register.css'),
   path.join(srcRoot, 'styles', 'app.css'),
+  // CS2/CS5 material and hue floors: raw values live here, not in components.
+  path.join(srcRoot, 'styles', 'geometry.css'),
+  path.join(srcRoot, 'styles', 'tokens.css'),
 ]);
 
 const HEX_RE = /#[0-9a-fA-F]{3,8}\b/g;
@@ -101,6 +104,37 @@ if (violations.length > 0) {
     console.error(
       `  ${path.relative(appRoot, violation.file)}:${violation.line} ${violation.name}: ${violation.sample}`,
     );
+  }
+  process.exit(1);
+}
+
+// Typography authorship (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 10): chrome labels
+// use Manrope / Plex, never JetBrains Mono. Flag lines that mark a chrome label
+// role and also apply a mono face.
+const chromeLabelHits = [];
+for (const file of walk(srcRoot)) {
+  if (!/\.(tsx|ts)$/.test(file)) continue;
+  const text = readFileSync(file, 'utf8');
+  const lines = text.split('\n');
+  lines.forEach((line, index) => {
+    const marksChromeLabel =
+      /data-island-header|data-paint-region="island-header"|data-island-title|data-surface-nav/.test(line);
+    const usesMono =
+      /\bfont-ij-mono\b|\bfont-mono\b|JetBrains Mono|--ij-font-mono|--font-console-jbmono/.test(line);
+    if (marksChromeLabel && usesMono) {
+      chromeLabelHits.push({
+        file,
+        line: index + 1,
+        sample: line.trim().slice(0, 80),
+      });
+    }
+  });
+}
+
+if (chromeLabelHits.length > 0) {
+  console.error('Register lint: chrome labels must not use mono:');
+  for (const hit of chromeLabelHits) {
+    console.error(`  ${path.relative(appRoot, hit.file)}:${hit.line} ${hit.sample}`);
   }
   process.exit(1);
 }

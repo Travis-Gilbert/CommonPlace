@@ -12,77 +12,30 @@
 // never a page component.
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { usePathname, useRouter } from 'next/navigation';
+import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type { ObjectRef } from '@commonplace/block-view/types';
-import { buildSurfaceTree, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
+import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
+import { softNavigate } from '@/lib/soft-navigate';
+import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
+import { surfaceIdForPath } from '@/lib/surface-routes';
 import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
+import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { MainToolbar } from './MainToolbar';
-import { StatusBar } from './StatusBar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
-import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
-import { HostPresenceSync } from '@/components/host/HostPresenceSync';
-import { HostFindLens } from '@/components/host/HostFindLens';
-import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
-import { Sidebar, type BlockPaletteItem } from '@/components/nav/Sidebar';
-import { clearViewDirty, markViewDirty, readDirtyViewId, saveView, viewPath } from '@/lib/surface-object';
-import { useRouter } from 'next/navigation';
-import {
-  IconCards,
-  IconDoc,
-  IconHide,
-  IconInspector,
-  IconMemory,
-  IconModel,
-  IconRail,
-  IconRecords,
-  IconThread,
-  IconWorkspace,
-} from './icons';
+import { Sidebar, type SidebarRegion } from './Sidebar';
 
 const OVERLAY_BREAKPOINT = 1100;
 
-/** Stripe glyph size (X3.4). The register carries this as --ij-stripe-icon;
- *  the icon components take a numeric SVG size, so the one place the number is
- *  restated is here, next to the token it mirrors. */
-const STRIPE_ICON = 20;
-
-/** Surface nav icons by surface kind: the stripe surfaces group (AMENDMENT:
- *  surfaces join the layout switcher AND the stripe surfaces group). */
-const SURFACE_ICONS: Record<string, typeof IconRecords> = {
-  chat: IconThread,
-  workspace: IconWorkspace,
-  index: IconRail,
-  documents: IconDoc,
-  cards: IconCards,
-  proactivity: IconRail,
-  model: IconModel,
-  review: IconInspector,
-  goals: IconModel,
-};
-
-/** Region icon slugs carried on the surface object; the glyphs stay in the
- *  one chrome icon file. */
-const REGION_ICONS: Record<string, typeof IconRecords> = {
-  records: IconRecords,
-  thread: IconThread,
-  rail: IconRail,
-  docs: IconDoc,
-  files: IconDoc,
-  context: IconMemory,
-};
-
-interface RegionNode {
-  readonly object: ObjectRef;
-  readonly instances: readonly ObjectRef[];
-}
+type RegionNode = SidebarRegion;
 
 interface SurfaceRegions {
   readonly left: readonly RegionNode[];
@@ -99,8 +52,9 @@ function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
       object: child.object,
       instances: child.children.map((candidate) => candidate.object),
     };
-    if (child.object.properties.kind === 'editor') editor = node;
-    else if (child.object.properties.side === 'right') right.push(node);
+    if (child.object.properties.kind === 'editor' || child.object.properties.kind === 'grid') {
+      editor = node;
+    } else if (child.object.properties.side === 'right') right.push(node);
     else left.push(node);
   }
   return { left, right, editor };
@@ -110,163 +64,26 @@ function isOpen(region: RegionNode): boolean {
   return region.object.properties.open !== false;
 }
 
-/** The stripe button grammar (X3.4 / named choice 5). Int UI stripe buttons are
- *  monochrome icons on the ink ladder at rest and take a WEAK FILL when
- *  selected, with the glyph rising to full ink; they are never saturated accent
- *  tiles with inverted glyphs, which is what the console had drifted into and
- *  what made the stripe read as a row of colored chips rather than chrome.
- *  Domain tint stays a content affordance per the icon policy, so no stripe
- *  glyph carries a domain color at rest. */
-const STRIPE_BUTTON_CLASS =
-  'flex h-10 w-10 items-center justify-center rounded-ij-arc hover:bg-ij-hover-surface';
-
-function stripeButtonStyle(selected: boolean) {
-  return {
-    color: selected ? 'var(--ij-ink)' : 'var(--ij-ink-info)',
-    background: selected ? 'var(--ij-selection)' : 'transparent',
-    transition: 'var(--rec-clickable-transition)',
-  } as const;
-}
-
-function CompanionButton({
-  region,
-  index,
-  entranceIndex,
-  onToggle,
-}: {
-  region: RegionNode;
-  index: number;
-  entranceIndex: number;
-  onToggle: () => void;
-}) {
-  const durations = useMotionDurations();
-  const title = String(region.object.properties.title ?? region.object.id);
-  const Icon = REGION_ICONS[String(region.object.properties.icon ?? '')] ?? IconRecords;
-  const key = String(index + 1);
-  const open = isOpen(region);
-  return (
-    <motion.button
-      initial={durations.reduced ? false : { opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: seconds(durations.base),
-        delay: seconds(staggerDelay(entranceIndex)),
-        ease: EASE_OUT,
-      }}
-      type="button"
-      data-companion-nav={String(region.object.properties.companion ?? '')}
-      title={`${title} (Alt+Shift+${key})`}
-      aria-label={`${title} companion`}
-      aria-pressed={open}
-      aria-keyshortcuts={`Alt+Shift+${key}`}
-      onClick={onToggle}
-      className={STRIPE_BUTTON_CLASS}
-      style={stripeButtonStyle(open)}
-    >
-      <Icon size={STRIPE_ICON} />
-    </motion.button>
-  );
-}
-
-/** The stripe surfaces group: the top group of the leftmost stripe lists every
- *  seeded surface and switches screens by flipping the active flag through the
- *  host. This is the primary navigation (the AMENDMENT's stripe surfaces
- *  group); it shares the leftmost bar with the active surface's tool windows,
- *  divided, in the JetBrains grouped-stripe manner. */
-function SurfaceNavGroup({
-  surfaces,
-  activeSurfaceId,
-  host,
-}: {
-  surfaces: readonly ObjectRef[];
-  activeSurfaceId: string;
-  host: ConsoleBlockHost;
-}) {
-  const durations = useMotionDurations();
-  if (surfaces.length === 0) return null;
-  const switchTo = async (surfaceId: string) => {
-    if (surfaceId === activeSurfaceId) return;
-    await host.activateSurface(surfaceId);
-  };
-  return (
-    <div data-surface-rail role="radiogroup" aria-label="Surfaces" className="flex flex-col items-center gap-1">
-      {surfaces.map((surface, index) => {
-        const kind = String(surface.properties.kind ?? '');
-        const name = String(surface.properties.name ?? surface.id);
-        const Icon = SURFACE_ICONS[kind] ?? IconWorkspace;
-        const active = surface.id === activeSurfaceId;
-        return (
-          <motion.button
-            key={surface.id}
-            initial={durations.reduced ? false : { opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: seconds(durations.base),
-              delay: seconds(staggerDelay(index)),
-              ease: EASE_OUT,
-            }}
-            type="button"
-            role="radio"
-            data-surface-nav={surface.id}
-            title={name}
-            aria-label={`${name} surface`}
-            aria-checked={active}
-            aria-keyshortcuts={`Alt+${index + 1}`}
-            onClick={() => void switchTo(surface.id)}
-            className={STRIPE_BUTTON_CLASS}
-            style={stripeButtonStyle(active)}
-          >
-            <Icon size={STRIPE_ICON} />
-          </motion.button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** The Int UI tool window header strip (X3.2). A 24px band on chrome carrying
- *  the title in ink at the register's 13px, a bottom seam, and a right-aligned
- *  action slot holding the hide affordance. Files, Context and Thread stop
- *  being floating labels: the strip is what names a tool window and bounds it,
- *  which is also what gives an EMPTY companion a frame to be empty inside
- *  (X5.2). The 40px main-toolbar height it replaces belonged to the toolbar. */
-function ToolWindowHeader({ title, onHide }: { title: string; onHide: () => void }) {
-  return (
-    <div
-      data-tool-window-header
-      data-paint-region="tool-window-header"
-      className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2 text-ij-ink"
-      style={{ fontWeight: 'var(--rec-weight-cap)' }}
-    >
-      <span className="min-w-0 flex-1 truncate">{title}</span>
-      <button
-        type="button"
-        data-tool-window-hide
-        aria-label={`Hide ${title}`}
-        title={`Hide ${title}`}
-        onClick={onHide}
-        className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-        style={{ transition: 'var(--rec-clickable-transition)' }}
-      >
-        <IconHide size={14} />
-      </button>
-    </div>
-  );
-}
-
+/** The Int UI tool window slot. Block chrome lives on BlockShell inside
+ *  ViewInstanceHost; this wrapper is layout only and must not paint or
+ *  register as a block. */
 function ToolWindow({
   region,
   host,
   entranceIndex,
   onHide,
+  gridRegionId,
 }: {
   region: RegionNode;
   host: ConsoleBlockHost;
   entranceIndex: number;
   onHide: () => void;
+  /** Grid editor region id for stripe-tray demotion back onto the canvas. */
+  gridRegionId?: string | null;
 }) {
   const durations = useMotionDurations();
   const title = String(region.object.properties.title ?? region.object.id);
+  const isStripeTray = region.object.properties.kind === 'stripe-tray';
   return (
     <motion.section
       initial={durations.reduced ? false : { opacity: 0, y: 4 }}
@@ -279,12 +96,18 @@ function ToolWindow({
       aria-label={`${title} tool window`}
       data-tool-window={String(region.object.properties.companion ?? region.object.id)}
       data-paint-region="tool-window"
-      className="flex h-full min-h-0 flex-col bg-ij-chrome"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
-      <ToolWindowHeader title={title} onHide={onHide} />
       <div className="min-h-0 flex-1">
         {region.instances.map((instance) => (
-          <ViewInstanceHost key={instance.id} instance={instance} host={host} />
+          <ViewInstanceHost
+            key={instance.id}
+            instance={instance}
+            host={host}
+            forceShell
+            onHide={onHide}
+            returnToGridRegionId={isStripeTray ? (gridRegionId ?? undefined) : undefined}
+          />
         ))}
       </div>
     </motion.section>
@@ -306,22 +129,11 @@ function createLayoutStore(host: ConsoleBlockHost) {
   };
 }
 
-export function IntuiShell({
-  host,
-  initialViewId,
-}: {
-  host: ConsoleBlockHost;
-  initialViewId?: string;
-}) {
-  const router = useRouter();
+export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const durations = useMotionDurations();
   const [compact, setCompact] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [paletteMessage, setPaletteMessage] = useState<string | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
-  void initialViewId;
-  void paletteMessage;
 
   // The arrangement is live data: query the surface object and subscribe.
   const layoutStore = useMemo(() => createLayoutStore(host), [host]);
@@ -336,10 +148,13 @@ export function IntuiShell({
   );
   const primarySurfaces = useMemo(
     () => surfaces
-      .filter((surface) => typeof surface.properties.stripe_order === 'number')
-      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order)),
+      .filter((surface) => PLACE_ENTRIES.some((place) => place.surfaceId === surface.id))
+      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
     [surfaces],
   );
+
+  const pathname = usePathname();
+  const router = useRouter();
 
   // Constrained width: tool windows become overlays while stripes remain.
   useEffect(() => {
@@ -359,6 +174,14 @@ export function IntuiShell({
   const activeSurfaceId = useMemo(() => {
     return surfaces.find((object) => object.properties.active === true)?.id ?? SURFACE_ID;
   }, [surfaces]);
+
+  // Deep links and back/forward: the route is the surface radio (B3).
+  // Pathname-only deps: do not re-assert when activeSurfaceId changes, or
+  // Account / Appearance activation is immediately overwritten by /chat.
+  useEffect(() => {
+    const routedId = surfaceIdForPath(pathname);
+    if (routedId) void host.activateSurface(routedId);
+  }, [host, pathname]);
 
   const root = useMemo(
     () => (layoutObjects ? buildSurfaceTree(activeSurfaceId, layoutObjects) : null),
@@ -387,10 +210,26 @@ export function IntuiShell({
     [compact, host, regions.left, regions.right],
   );
 
-  // Alt+1..6 switches the primary surface radio group. Alt+Shift+1..3
-  // toggles the companion group for the active surface.
+  useEffect(() => {
+    for (const place of PLACE_ENTRIES) {
+      router.prefetch(place.path);
+    }
+  }, [router]);
+
+  // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
+  // companions for the active surface (dock panels; not rail destinations).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+        const digit = Number(event.key);
+        if (digit >= 1 && digit <= PLACE_ENTRIES.length) {
+          event.preventDefault();
+          const place = PLACE_ENTRIES[digit - 1];
+          void host.activateSurface(place.surfaceId);
+          void softNavigate(router, place.path).catch(() => undefined);
+        }
+        return;
+      }
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.shiftKey) {
         companions.forEach((region, index) => {
@@ -401,16 +240,17 @@ export function IntuiShell({
         });
         return;
       }
-      primarySurfaces.forEach((surface, index) => {
+      PLACE_ENTRIES.forEach((place, index) => {
         if (event.key === String(index + 1)) {
           event.preventDefault();
-          void host.activateSurface(surface.id);
+          void host.activateSurface(place.surfaceId);
+          void softNavigate(router, place.path).catch(() => undefined);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, host, primarySurfaces, toggle]);
+  }, [companions, host, router, toggle]);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {
@@ -424,56 +264,6 @@ export function IntuiShell({
     window.addEventListener('keydown', focusComposer);
     return () => window.removeEventListener('keydown', focusComposer);
   }, []);
-
-  useEffect(() => {
-    setDirty(readDirtyViewId() === activeSurfaceId);
-  }, [activeSurfaceId, layoutObjects]);
-
-  const addBlockFromPalette = useCallback((item: BlockPaletteItem) => {
-    const well = regions.editor;
-    if (!well) return { message: 'No well available in this view.' };
-    const material = item.material;
-    const children = [...well.instances];
-    const sameMaterial = children.filter((instance) => {
-      const descriptor = String(instance.properties.descriptor_id ?? '');
-      return descriptor.length > 0;
-    });
-    // Well accepts at most two sunken/lifted regions' worth of blocks; when
-    // full, replace the least recently focused same-material instance.
-    if (material !== 'docked' && sameMaterial.length >= 2) {
-      const replace = sameMaterial[0];
-      void host.emit({ kind: 'delete', id: replace.id });
-      setPaletteMessage(`Replaced ${String(replace.properties.title ?? replace.id)} with ${item.label}.`);
-      markViewDirty(activeSurfaceId);
-      setDirty(true);
-    }
-    void host.emit({
-      kind: 'create',
-      type: 'view-instance',
-      props: {
-        id: `${well.object.id}.${item.id}.${Date.now()}`,
-        descriptor_id: item.descriptorId,
-        title: item.label,
-        query: { types: item.kind === 'records' ? ['record'] : [item.kind], live: true },
-      },
-    }).then((created) => {
-      const id = created.value?.target_ids?.[0];
-      if (!id) return;
-      void host.emit({
-        kind: 'move',
-        id,
-        new_parent: material === 'docked'
-          ? (regions.right[0]?.object.id ?? well.object.id)
-          : well.object.id,
-        order: 0,
-      });
-      markViewDirty(activeSurfaceId);
-      setDirty(true);
-    });
-    return sameMaterial.length >= 2
-      ? { replaced: sameMaterial[0]?.id, message: `Replaced least recently focused block with ${item.label}.` }
-      : {};
-  }, [activeSurfaceId, host, regions.editor, regions.right]);
 
   // Persisted sizes are absolute shares of the full well (they sum to 100
   // across ALL of the active surface's regions, open or closed). Rendering
@@ -515,9 +305,84 @@ export function IntuiShell({
     },
     [host, visiblePanels, visibleTotal],
   );
+  const stripeTrayId =
+    [...regions.left, ...regions.right].find(
+      (region) => region.object.properties.kind === 'stripe-tray',
+    )?.object.id ?? null;
+  // Stripe-tray is the rail target only; exclude it from dock zones so the
+  // same region is not dual-labeled as both "Move to rail" and "Dock as tool".
+  const dockRegionIds = useMemo(
+    () =>
+      [...regions.left, ...regions.right]
+        .filter((region) => region.object.id !== stripeTrayId)
+        .map((region) => region.object.id),
+    [regions.left, regions.right, stripeTrayId],
+  );
+  const landmarkRegion = useMemo(() => {
+    const object = layoutObjects?.find(
+      (candidate) => candidate.type === 'region' && candidate.properties.kind === 'landmarks',
+    );
+    if (!object) return null;
+    const children = object.relations?.[CONTAINS_EDGE] ?? [];
+    const instances = children
+      .map((id) => layoutObjects?.find((candidate) => candidate.id === id))
+      .filter((candidate): candidate is ObjectRef => candidate?.type === 'view-instance');
+    return { object, instances };
+  }, [layoutObjects]);
+
+  const sidebarPanelRef = useRef<ImperativePanelHandle | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => landmarkRegion?.object.properties.collapsed === true,
+  );
+
+  const persistSidebarCollapsed = useCallback((next: boolean) => {
+    setSidebarCollapsed(next);
+    if (!landmarkRegion) return;
+    if (landmarkRegion.object.properties.collapsed === next) return;
+    void host.emit({ kind: 'update', id: landmarkRegion.object.id, patch: { collapsed: next } });
+  }, [host, landmarkRegion]);
+
+  const applySidebarCollapsed = useCallback((next: boolean) => {
+    const panel = sidebarPanelRef.current;
+    if (!panel) {
+      persistSidebarCollapsed(next);
+      return;
+    }
+    if (next) {
+      if (panel.isCollapsed()) persistSidebarCollapsed(true);
+      else panel.collapse();
+      return;
+    }
+    if (panel.isCollapsed()) panel.expand();
+    else persistSidebarCollapsed(false);
+  }, [persistSidebarCollapsed]);
+
+  useEffect(() => {
+    const next = landmarkRegion?.object.properties.collapsed === true;
+    setSidebarCollapsed(next);
+    const panel = sidebarPanelRef.current;
+    if (!panel) return;
+    if (next) {
+      if (!panel.isCollapsed()) panel.collapse();
+    } else if (panel.isCollapsed()) {
+      panel.expand();
+    }
+  }, [landmarkRegion?.object.properties.collapsed]);
 
   if (!root || !editor) {
-    return <div className="h-full w-full bg-ij-frame" aria-busy="true" />;
+    // Keep data-shell mounted so activation / e2e oracles do not lose the
+    // landmark while the surface tree is still resolving (Appearance, Account,
+    // deep links racing ensureSeedLayout).
+    return (
+      <div
+        ref={shellRef}
+        data-shell
+        data-compact={compact}
+        data-active-surface={activeSurfaceId}
+        className="h-full w-full bg-ij-frame"
+        aria-busy="true"
+      />
+    );
   }
 
   const editorPane = (
@@ -534,7 +399,18 @@ export function IntuiShell({
       }}
       className="h-full min-h-0"
     >
-      <EditorTabs region={editor.object} instances={editor.instances} host={host} />
+      {editor.object.properties.kind === 'grid' ? (
+        <BlockArrangementHost
+          region={editor.object}
+          instances={editor.instances}
+          host={host}
+          dockRegionIds={dockRegionIds}
+          railRegionId={stripeTrayId}
+          fullRegionId={editor.object.id}
+        />
+      ) : (
+        <EditorTabs region={editor.object} instances={editor.instances} host={host} />
+      )}
     </motion.div>
   );
 
@@ -560,132 +436,137 @@ export function IntuiShell({
   };
 
   return (
-    <div ref={shellRef} data-shell data-compact={compact} data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
+    <div
+      ref={shellRef}
+      data-shell
+      data-compact={compact}
+      data-active-surface={activeSurfaceId}
+      className="relative flex h-full min-h-0 flex-col bg-transparent"
+    >
       <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar
-          host={host}
-          activeViewId={activeSurfaceId}
-          dirty={dirty}
-          onNavigateView={async (slug) => {
-            // Autosave on leave: arrangement mutations already persist through
-            // the host; saveView clears the dirty flag without rewriting regions.
-            if (dirty) {
-              await saveView(host, activeSurfaceId);
-              setDirty(false);
-            } else {
-              clearViewDirty();
-            }
-            router.push(viewPath(slug));
-          }}
-          onAddBlock={addBlockFromPalette}
-        />
-        {/* The leftmost stripe: screen navigation (surfaces group) on top,
-            then the active surface's tool windows, divided. One bar. */}
-        <nav aria-label="Surfaces and companions" data-paint-region="stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">
-          <SurfaceNavGroup
-            surfaces={primarySurfaces}
-            activeSurfaceId={activeSurfaceId}
+      <PanelGroup
+        id="console-shell-columns"
+        direction="horizontal"
+        className="flex min-h-0 flex-1"
+        autoSaveId="console-shell-sidebar"
+      >
+        <Panel
+          id="console-sidebar"
+          ref={sidebarPanelRef}
+          order={1}
+          defaultSize={20}
+          minSize={12}
+          maxSize={32}
+          collapsible
+          collapsedSize={3}
+          className="min-h-0"
+          onCollapse={() => persistSidebarCollapsed(true)}
+          onExpand={() => persistSidebarCollapsed(false)}
+        >
+          <Sidebar
             host={host}
+            surfaces={primarySurfaces}
+            companions={companions}
+            activeSurfaceId={activeSurfaceId}
+            compact={compact}
+            landmarksRegion={landmarkRegion}
+            activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+            onToggleCompanion={toggle}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={applySidebarCollapsed}
           />
-          {companions.length > 0 ? (
-            <div aria-hidden className="my-1 h-px w-6 shrink-0 bg-ij-seam" />
-          ) : null}
-          <div aria-label="Companions" className="flex flex-col items-center gap-1">
-          {companions.map((region, index) => (
-            <CompanionButton
-              key={region.object.id}
-              region={region}
-              index={index}
-              entranceIndex={index}
-              onToggle={() => toggle(region)}
-            />
-          ))}
-          </div>
-        </nav>
-
-        <div className="relative min-h-0 min-w-0 flex-1">
-          {compact ? (
-            <>
-              {editorPane}
-              {leftOpen[0] ? (
-                <div className="absolute inset-y-0 left-0 z-30 w-80 border-r border-ij-seam shadow-none">
-                  <ToolWindow
-                    region={leftOpen[0]}
-                    host={host}
-                    entranceIndex={0}
-                    onHide={() => toggle(leftOpen[0])}
-                  />
-                </div>
-              ) : null}
-              {rightOpen[0] ? (
-                <div className="absolute inset-y-0 right-0 z-30 w-96 border-l border-ij-seam">
-                  <ToolWindow
-                    region={rightOpen[0]}
-                    host={host}
-                    entranceIndex={1}
-                    onHide={() => toggle(rightOpen[0])}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
-              {visiblePanels.flatMap((panel, index) => {
-                const isEditor = panel.region === editor;
-                const nodes = [];
-                if (index > 0) {
-                  nodes.push(
-                    // The companion-to-editor junction (X3.1). This was
-                    // --ij-divider, which resolves to gray-3 in dark: LIGHTER
-                    // than the gray-2 chrome it separates, so the one seam
-                    // between a tool window and the editor ran the Int UI
-                    // inversion backwards. --ij-seam is gray-1 in dark and
-                    // gray-12 in light, darker than chrome in both, which is
-                    // what the inversion assertion checks.
-                    <PanelResizeHandle
-                      key={`handle-${panel.region.object.id}`}
-                      data-panel-seam
-                      className="w-px bg-ij-seam data-[resize-handle-state=drag]:bg-ij-accent"
-                    />,
-                  );
-                }
-                nodes.push(
-                  <Panel
-                    key={panel.region.object.id}
-                    id={panel.region.object.id}
-                    order={orderOf(panel.region)}
-                    defaultSize={(panel.abs / visibleTotal) * 100}
-                    minSize={isEditor ? 30 : 12}
-                  >
-                    {isEditor ? (
-                      editorPane
-                    ) : (
+        </Panel>
+        <PanelResizeHandle
+          data-shell-sidebar-seam
+          className="relative w-ij-island-gutter bg-transparent"
+          aria-label="Resize sidebar"
+        />
+        <Panel id="console-editor-well" order={2} defaultSize={80} minSize={48} className="min-h-0 min-w-0">
+          <div
+            data-shell-region="ground"
+            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
+          >
+            <div className="relative min-h-0 min-w-0 flex-1">
+              {compact ? (
+                <>
+                  {editorPane}
+                  {leftOpen[0] ? (
+                    <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
                       <ToolWindow
-                        region={panel.region}
+                        region={leftOpen[0]}
                         host={host}
-                        entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
-                        onHide={() => toggle(panel.region)}
+                        entranceIndex={0}
+                        onHide={() => toggle(leftOpen[0])}
+                        gridRegionId={editor.object.id}
                       />
-                    )}
-                  </Panel>,
-                );
-                return nodes;
-              })}
-            </PanelGroup>
-          )}
-          {selectedRecordId ? (
-            <div className="absolute inset-y-0 right-0 z-40">
-              <RecordInspector host={host} />
+                    </div>
+                  ) : null}
+                  {rightOpen[0] ? (
+                    <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
+                      <ToolWindow
+                        region={rightOpen[0]}
+                        host={host}
+                        entranceIndex={1}
+                        onHide={() => toggle(rightOpen[0])}
+                        gridRegionId={editor.object.id}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
+                  {visiblePanels.flatMap((panel, index) => {
+                    const isEditor = panel.region === editor;
+                    const nodes = [];
+                    if (index > 0) {
+                      nodes.push(
+                        <PanelResizeHandle
+                          key={`handle-${panel.region.object.id}`}
+                          data-panel-seam
+                          className="relative w-ij-island-gutter bg-transparent"
+                        />,
+                      );
+                    }
+                    nodes.push(
+                      <Panel
+                        key={panel.region.object.id}
+                        id={panel.region.object.id}
+                        order={orderOf(panel.region)}
+                        defaultSize={(panel.abs / visibleTotal) * 100}
+                        minSize={isEditor ? 30 : 12}
+                      >
+                        {isEditor ? (
+                          editorPane
+                        ) : (
+                          <div
+                            data-shell-region="dock"
+                            data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
+                            className="h-full min-h-0"
+                          >
+                            <ToolWindow
+                              region={panel.region}
+                              host={host}
+                              entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
+                              onHide={() => toggle(panel.region)}
+                              gridRegionId={editor.object.id}
+                            />
+                          </div>
+                        )}
+                      </Panel>,
+                    );
+                    return nodes;
+                  })}
+                </PanelGroup>
+              )}
+              {selectedRecordId ? (
+                <div className="absolute inset-y-0 right-0 z-40">
+                  <RecordInspector host={host} />
+                </div>
+              ) : null}
             </div>
-          ) : null}
-          <HostPresenceSync workspaceId="default" surface="commonplace" />
-          <HostPresenceCursor workspaceId="default" surface="commonplace" />
-          <HostFindLens workspaceId="default" surface="commonplace" />
-          <HostCapabilityRailBridge workspaceId="default" />
-        </div>
-      </div>
-      <StatusBar host={host} />
+          </div>
+        </Panel>
+      </PanelGroup>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
     </div>

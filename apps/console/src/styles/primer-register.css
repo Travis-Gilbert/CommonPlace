@@ -3,7 +3,8 @@
    Primer's functional colors. */
 
 [data-register="intui"][data-theme-preset="github-dark"] {
-  --ij-frame: #010409;
+  /* Frame lighter than islands (choice 8): clears 1.20:1 vs chrome/editor. */
+  --ij-frame: #262C36;
   --ij-editor: #0D1117;
   --ij-chrome: #151B23;
   --ij-raised: #212830;
@@ -41,7 +42,8 @@
 }
 
 [data-register="intui"][data-theme-preset="github-light"] {
-  --ij-frame: #EFF2F5;
+  /* Frame darker than islands (choice 8): clears 1.20:1 vs chrome/editor. */
+  --ij-frame: #D0D7DE;
   --ij-editor: #FFFFFF;
   --ij-chrome: #F6F8FA;
   --ij-raised: #FFFFFF;

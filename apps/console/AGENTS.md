@@ -50,8 +50,8 @@ One material system. Two structural sources. Bridged, not blended.
 - Documents render through Galley (`@travis-gilbert/markdown-theory`), mounted
   bare inside the shell with the `--gy` bridge resolving its ground and surface
   to the chrome. Prose faces stay Galley's own.
-- Grounds are canvas, chrome is still: ambient motion lives only in the
-  GroundCanvas layer behind the frame. Tool windows, tabs, and controls carry
+- Grounds are canvas, chrome is still: ambient material lives only in the
+  MaterialLayer (WebGL) behind the frame. Tool windows, tabs, and controls carry
   no ambient motion.
 - The agent's visible identity is the Presence mark (textmode.js). No typing
   dots, no bespoke agent spinners, anywhere.
@@ -95,28 +95,30 @@ asks for inspiration, reference, mood, or direction.
 | Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
-| Composer mechanics | `@assistant-ui/react` 0.12 plus 21st.dev `reuno-ui/ai-input` extraction | auto-grow input, attachments, object mentions, real Theorem/Web-search destination slot, send behavior |
-| Composer sheen | 21st.dev `muhammad-binsalman/glowing-ai-chat-assistant` material extraction plus hand-roll canvas | register-derived low-chroma material wash and sparse flecks behind the Composer |
+| Composer mechanics | `@assistant-ui/react` 0.12 | auto-grow input, attachments, object mentions, destination slot, send behavior |
+| Composer material | `ShaderSurface` (`@paper-design/shaders`) | Paper fragments behind the flat Composer: paper-texture idle/focused, grain-gradient streaming, fluted-glass refused; content plane stays above; no lit edge strip |
 | Markdown in messages | `@assistant-ui/react-markdown` | inline markdown in the thread |
 | Documents | `@travis-gilbert/markdown-theory` Galley | document-grade markdown rendering |
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
 | React lifecycle motion | `motion` (`motion/react`) | entrances per the interaction inventory |
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
-| Client state | `zustand` | run state, shell session state |
+| Client state | `jotai` | shell, thread, memory projection, proactivity (atomFamily / atomWithStorage) |
 | Account identity | Auth.js with GitHub | OAuth, session state, sign-in, sign-out, verified user claims |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
-| Ground texture | `@paper-design/shaders-react` `PaperTexture` (`detailsPreset`, transparent front/back) via `PaperCanvas` | the one register-derived ambient canvas behind the frame; shaders never paint color (CS4) |
+| Ground / Material Layer | hand-roll (MaterialLayer / GroundCanvas alias) | full-viewport WebGL SDF islands, terracotta ground, edge falloff, grain; DOM shell fills stay transparent |
 | Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |
 | Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 | Graph canvas | `@xyflow/react` (React Flow) over `@dagrejs/dagre` (layered ranking) | the proactivity graph, per SPEC-PROACTIVITY-GRAPH-WIRING: dagre computes the layered join topology (roots rank first, sinks last), React Flow owns pan, zoom, selection, and edge routing; nodes and edges are register-styled (base CSS only, `--xy-*` mapped to the register in app.css), dynamic-imported so the sentence and card altitudes load no graph bundle |
+| Data canvas | `@xyflow/react` wrap plus `@commonplace/json-canvas` (JSON Canvas 1.0 interchange) plus Paper DotGrid via `ShaderSurface` | graph-native spatial arrangement of ObjectRefs; Obsidian `.canvas` import/export at the edge only; Island Shells DotGrid extract (size 0.7, gap 32, triangle, speed 0, register colors) behind the pane; mounts as surface and companion |
 | Graph node and sentence card building blocks | jalco-ui `commit-graph` and `repo-card` (ui.justinlevine.me), structure extraction | the commit-entry node (a response is a stack of agent-action steps a person builds) and the RepoCard sentence card; the jalco layouts are reproduced and every shadcn token re-skinned to the register |
 | Object addressing and copy | `@commonplace/block-view/addressing` (the shared `theorem://` grammar, per DESIGN-THEOREM-URI) plus the platform Clipboard API | every canonical address this app emits, parses, or offers: the inspector footer, the card copy affordance, mention chips, the Composer paste offer, and the Search field's address lane. `src/lib/object-address.ts` is the only place a tenant plus an object becomes an address, and `src/lib/use-copy.ts` is the only clipboard call (the apps/web hook's shape, re-implemented because the import fence is structural) |
 | Goal Stack canvas | `@xyflow/react` plus `@dagrejs/dagre`, `cmdk`, and `@dnd-kit/core` | DAG canvas and progress edges, named left-to-right layout, searchable capability palette and approval dialog, deferred-affordance drag and drop |
 | Workspace substrate | `@tanstack/react-virtual`, CodeMirror 6 merge, `cmdk`, and Radix Popover | semantic workspace entity tree, virtual rows, local-history revision diff, project Find, readiness detail |
+| Indexer spatial gallery | 21st.dev moazamtrade/3d-image-gallery (catalog 6525) on three, @react-three/fiber, @react-three/drei | golden-ratio 12/16/20 sphere, orbit camera, source capture injection, relationship geometry; scene ground defers to MaterialLayer / transparent DOM |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
 not used in this round.
@@ -148,6 +150,15 @@ static. Transform and opacity only.
 
 No em or en dashes anywhere: not in code comments, not in UI strings, not in
 markdown. Use colons, periods, commas, semicolons, or parentheses instead.
+
+## Recent decisions
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-07-18 | The user-facing topic result surface is Indexer. Existing `survey.*` identifiers remain stable. | A topic click returns the full indexed evidence corpus. Keeping internal identifiers avoids breaking persisted surface objects while the product language settles. |
+| 2026-07-18 | Indexer keeps the installed 21st.dev golden-ratio sphere. Relationship data may contain cycles and never controls card placement. | The spatial shape is the primary reading surface. Edges stay faint at rest, strengthen on hover, and pin on click. |
+| 2026-07-18 | Indexer pegboard is retired in favor of MaterialLayer grammar. | Source cards and their evidence connections remain the canvas while the transparent scene shell preserves the shared ambient ground. |
+| 2026-07-18 | Hover reveals a capture neighborhood: focused and related sources stay bright, unrelated sources fade, incident edges expose worded reasons. | Relationship Design transparency stage: the system shows what it remembers about connections without shouting at idle. |
 
 ## Gates (all block merge)
 

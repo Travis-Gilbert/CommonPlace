@@ -35,7 +35,8 @@ export function HostCapabilityRailBridge({
     <div
       data-host-rail="1"
       aria-label="Capability rail placements"
-      className="pointer-events-auto absolute bottom-3 right-3 z-[15] flex flex-col gap-1.5"
+      className="pointer-events-auto absolute bottom-3 right-3 flex flex-col gap-1.5"
+      style={{ zIndex: 'var(--ij-host-rail-z)' }}
     >
       {items.map((item) => (
         <button

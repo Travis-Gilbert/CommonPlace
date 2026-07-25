@@ -70,7 +70,7 @@ export function RecordPage({ host, set }: ViewRenderProps) {
             </button>
           ))}
         </div>
-        <div className="grid min-h-0 flex-1 md:grid-cols-[1fr_320px]">
+        <div className="grid min-h-0 flex-1" data-record-page-grid>
           <div className="min-h-0 overflow-y-auto p-3">
             {tab === 'fields' ? (
               <dl className="grid gap-3">

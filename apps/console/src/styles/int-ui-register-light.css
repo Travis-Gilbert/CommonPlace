@@ -7,7 +7,8 @@
    --ij-* slots in both modes; this file changes only their light resolution. */
 
 [data-register="intui"][data-theme="light"] {
-  /* Palette ramps (Int UI Light, verbatim). */
+  /* Palette ramps (Int UI Light, verbatim). Kept verbatim for ink, borders,
+     and functional tints. Surface FILLS are warmed below. */
   --ij-gray-1: #000000;  --ij-gray-2: #27282E;  --ij-gray-3: #383A42;
   --ij-gray-4: #494B57;  --ij-gray-5: #5A5D6B;  --ij-gray-6: #6C707E;
   --ij-gray-7: #818594;  --ij-gray-8: #A8ADBD;  --ij-gray-9: #C9CCD6;
@@ -30,16 +31,39 @@
   --ij-purple-2: #643CB8; --ij-purple-7: #DCCBFB; --ij-purple-9: #F5EDFF;
   --ij-teal-2: #077A7F; --ij-teal-7: #B6E4E5;
 
-  /* Light preserves the structural inversion: seams are darker than their
-     adjacent surfaces, while the editor is the brightest plane. */
-  --ij-frame: var(--ij-gray-12);
-  --ij-editor: var(--ij-gray-14);
-  --ij-chrome: var(--ij-gray-13);
-  --ij-raised: var(--ij-gray-14);
-  --ij-seam: var(--ij-gray-12);
-  --ij-seam-raised: var(--ij-gray-10);
-  --ij-divider: var(--ij-gray-12);
+  /* AMENDMENT-01 A1: decompress light elevation (already landed). Editor stays
+     paper, tool drops a real step, frame deepens so gutters and Material Layer
+     shadows read.
+
+     Round-trip test 2026-07-21 (warm surface tint): the verbatim Int UI grays
+     are cold (blue-biased), which reads clinical against CommonPlace's warm
+     paper identity. Surface FILLS below shift to matched-luminance warm
+     neutrals (R >= G >= B) while ink, borders, and functional tints stay on the
+     verbatim ramp. Elevation order and the island-to-frame contrast floor are
+     preserved: editor #FFFEFC over frame #D9D6CF clears 1.20:1, editor over
+     tool #EEEDE9 is a visible step. The principled home for this is the theme
+     engine tint hue set warm; this static override demonstrates the change and
+     exercises the register round-trip into Paper. */
+  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), light.
+     Before (light L% approx): editor/raised ~99.7, chrome ~94.6, frame ~87.7 (spread ~12pp).
+     After: sunken ~92, ground ~88, raised ~95, floating ~99.7 (spread widened; keylines on raised+). */
+  --ij-tier-sunken: #D2CEC5;
+  --ij-tier-ground: #D9D6CF;
+  --ij-tier-raised: #EEEDE9;
+  --ij-tier-floating: #FFFEFC;
+  --ij-tier-scrim: color-mix(in oklab, #000000 36%, transparent);
+
+  --ij-frame: #D9D6CF;
+  --ij-editor: #D2CEC5;
+  --ij-chrome: #EEEDE9;
+  --ij-raised: #FFFEFC;
+  --ij-seam: #C9C5BC;
+  --ij-seam-raised: var(--ij-gray-9);
+  --ij-divider: #C9C5BC;
   --ij-control-border: var(--ij-gray-9);
+  --ij-keyline: var(--ij-seam-raised);
+  --ij-keyline-focus: var(--ij-accent);
+  --ij-keyline-decorative: color-mix(in oklab, var(--ij-ink) 14%, transparent);
 
   --ij-ink: var(--ij-gray-2);
   --ij-ink-info: var(--ij-gray-6);
@@ -54,7 +78,7 @@
   --ij-modified: var(--ij-blue-3);
   --ij-hover-overlay: #0000000D;
   --ij-pressed-overlay: #0000001A;
-  --ij-hover-surface: var(--ij-gray-12);
+  --ij-hover-surface: #E4E1DA;
 
   --ij-error: var(--ij-red-1);      --ij-error-bg: #FFEBEC;
   --ij-warn: var(--ij-yellow-1);    --ij-warn-bg: #FFF5DB;
@@ -68,12 +92,12 @@
 
   --ij-row-yellow: #FFF5DB; --ij-row-green: #E3F7E7; --ij-row-orange: #FFEFE3;
   --ij-row-rose: #FFEBEC;   --ij-row-violet: var(--ij-purple-9); --ij-row-blue: #DAF4F5;
-  --ij-row-gray: var(--ij-gray-12);
+  --ij-row-gray: #E4E1DA;
 
   --ij-progress: var(--ij-blue-4);
   --ij-progress-a: var(--ij-blue-3);
   --ij-progress-b: var(--ij-blue-7);
-  --ij-progress-track: var(--ij-gray-11);
+  --ij-progress-track: var(--ij-gray-10);
 
   color-scheme: light;
 }

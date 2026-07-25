@@ -211,7 +211,11 @@ function SidebarButton({
     >
       <Icon size={16} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {hint ? <span className="text-[10px] text-ij-ink-disabled">{hint}</span> : null}
+      {hint ? (
+        <span className="text-ij-ink-disabled" style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}>
+          {hint}
+        </span>
+      ) : null}
       {diverged ? <span aria-label="diverged" className="size-1.5 rounded-full bg-ij-warn" /> : null}
     </button>
   );

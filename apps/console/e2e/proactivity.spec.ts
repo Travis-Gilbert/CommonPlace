@@ -10,6 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function openProactivity(page: Page) {
   await page.goto('/');
   await page.evaluate(() => {
+    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
     window.localStorage.removeItem('commonplace.console.surface.v1');
     // The store now scopes its key by tenant, so clear every proactivity key.
     for (const key of Object.keys(window.localStorage)) {

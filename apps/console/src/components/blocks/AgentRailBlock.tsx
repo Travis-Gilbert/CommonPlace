@@ -119,8 +119,8 @@ export function AgentRailBlock({
       collapsed={collapsed}
       title="Agent"
       onToggleCollapse={toggle}
-      className="w-full max-w-[400px]"
-      style={{ width: collapsed ? 32 : 400 }}
+      className="w-full"
+      style={{ width: collapsed ? 32 : undefined, maxWidth: 'var(--ij-agent-rail-max-w)' }}
     >
       <div className="flex h-full min-h-0 flex-col">
         <div

@@ -9,7 +9,7 @@
  * them here.
  */
 
-import type { ObjectShape, ViewDescriptor } from './types';
+import type { BlockPlacement, ObjectShape, ViewDescriptor } from './types';
 import { matchesShape } from './shape-match';
 
 export interface ViewRegistry {
@@ -19,6 +19,8 @@ export interface ViewRegistry {
   matchingViews(shape: ObjectShape): readonly ViewDescriptor[];
   /** Look up a registered descriptor by id. */
   viewById(id: string): ViewDescriptor | undefined;
+  /** Descriptors that declare `block` and list the given placement. */
+  blocksForPlacement(placement: BlockPlacement): readonly ViewDescriptor[];
   /** Register a descriptor; last registration wins on id collision. */
   register(descriptor: ViewDescriptor): void;
 }
@@ -34,6 +36,9 @@ export function createViewRegistry(initial: readonly ViewDescriptor[] = []): Vie
     },
     viewById(id: string): ViewDescriptor | undefined {
       return descriptors.find((view) => view.id === id);
+    },
+    blocksForPlacement(placement: BlockPlacement): readonly ViewDescriptor[] {
+      return descriptors.filter((view) => view.block?.placements.includes(placement) ?? false);
     },
     register(descriptor: ViewDescriptor): void {
       const existing = descriptors.findIndex((view) => view.id === descriptor.id);

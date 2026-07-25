@@ -1,19 +1,16 @@
 'use client';
 
-// SOURCING: hand-roll. The Int UI main toolbar with the RunWidget is a named
-// chrome signature; no library models it. Screen navigation lives in the
-// leftmost stripe (the stripe surfaces group), not a toolbar dropdown; the
-// toolbar shows the product name and the active screen as a quiet breadcrumb.
-// The toolbar center hosts the durable Search field. The run widget binds to
-// real run state and renders its empty state otherwise, never a fixture run.
+// SOURCING: hand-roll. The Int UI main toolbar is a named chrome signature; no
+// library models it. Screen navigation lives in the leftmost stripe (the stripe
+// surfaces group), not a toolbar dropdown; the toolbar shows the active screen
+// as a quiet breadcrumb. Search is not a durable chrome field: Shift Shift /
+// Ctrl or Cmd K open the Search panel.
 
 import { useEffect, useRef, useState } from 'react';
 import type { ObjectRef } from '@commonplace/block-view/types';
-import { useThreadStore } from '@/lib/thread-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
-import { SearchField } from './SearchField';
-import { IconAccount, IconChevronDown, IconRun, IconStop } from './icons';
+import { IconAccount, IconChevronDown } from './icons';
 
 interface MainToolbarProps {
   readonly host: ConsoleBlockHost;
@@ -25,12 +22,13 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
   const [layoutOpen, setLayoutOpen] = useState(false);
   const layoutTriggerRef = useRef<HTMLButtonElement | null>(null);
   const layoutMenuRef = useRef<HTMLDivElement | null>(null);
-  const isRunning = useThreadStore((state) => state.isRunning);
-  const cancel = useThreadStore((state) => state.cancel);
   const activeName = String(
     surfaces.find((surface) => surface.id === activeSurfaceId)?.properties.name ?? 'Chat',
   );
   const switchTo = (surfaceId: string) => {
+    // Toolbar switcher activates without routing: secondary surfaces (Appearance,
+    // Account, …) have no segment, and remounting on router.push races e2e.
+    // The stripe rail owns URL sync for the five primary surfaces.
     void host.activateSurface(surfaceId);
     setLayoutOpen(false);
   };
@@ -62,10 +60,11 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
   }, [layoutOpen]);
 
   return (
-    <header data-paint-region="toolbar" className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-2">
-      <span className="px-2 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-        CommonPlace
-      </span>
+    <header
+      data-paint-region="toolbar"
+      data-frame-resident="toolbar"
+      className="flex h-ij-toolbar shrink-0 items-center justify-between gap-2 bg-transparent px-ij-island-gutter"
+    >
       <div className="relative">
         <button
           ref={layoutTriggerRef}
@@ -74,8 +73,12 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
           aria-haspopup="menu"
           aria-expanded={layoutOpen}
           onClick={() => setLayoutOpen((value) => !value)}
-          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-          style={{ transition: 'var(--rec-clickable-transition)' }}
+          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-2 text-ij-ink hover:bg-ij-hover-surface"
+          style={{
+            transition: 'var(--rec-clickable-transition)',
+            fontFamily: 'var(--cp-font-human)',
+            fontWeight: 600,
+          }}
         >
           <span data-active-surface-name>{activeName}</span>
           <IconChevronDown size={13} />
@@ -117,30 +120,7 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
         ) : null}
       </div>
 
-      <div className="mx-2 min-w-0 flex-1">
-        <div className="mx-auto max-w-144">
-          <SearchField />
-        </div>
-      </div>
-
       <div className="flex shrink-0 items-center" style={{ gap: 'var(--rec-sibling-gap)' }}>
-        <button
-          type="button"
-          data-run-widget
-          data-running={isRunning ? 'true' : 'false'}
-          aria-label={isRunning ? 'Stop the live run' : 'Run'}
-          onClick={() => (isRunning ? cancel() : undefined)}
-          disabled={!isRunning}
-          className="flex h-ij-control items-center gap-1 rounded-ij-arc px-3 disabled:opacity-75"
-          style={{
-            background: isRunning ? 'var(--ij-running)' : 'var(--ij-raised)',
-            color: isRunning ? 'var(--ij-ink-bright)' : 'var(--ij-ink-info)',
-            transition: 'var(--rec-clickable-transition)',
-          }}
-        >
-          {isRunning ? <IconStop size={14} /> : <IconRun size={14} />}
-          {isRunning ? 'Running' : 'Run'}
-        </button>
         <button
           type="button"
           data-account-trigger

@@ -82,6 +82,9 @@
   /* Radii */
   --radius-ij-arc: var(--ij-arc);
   --radius-ij-arc-underline: var(--ij-arc-underline);
+  --radius-ij-island: var(--ij-island-radius);
+  /* Sidebar rows use the register's 8px component arc. */
+  --radius-ij-sidebar-row: var(--ij-arc);
 
   /* Type */
   --font-ij-ui: var(--ij-font-ui);
@@ -101,10 +104,30 @@
   --spacing-ij-control: var(--ij-control-h);
   --spacing-ij-tab: var(--ij-tab-h);
   --spacing-ij-stripe: var(--ij-stripe-w);
+  --spacing-ij-sidebar-expanded: var(--ij-sidebar-expanded-w);
+  --spacing-ij-sidebar-collapsed: var(--ij-sidebar-collapsed-w);
+  --spacing-ij-sidebar-pip: var(--ij-sidebar-pip-w);
+  --spacing-ij-sidebar-pad: var(--ij-sidebar-pad);
+  --spacing-ij-sidebar-zone-gap: var(--ij-sidebar-zone-gap);
+  --spacing-ij-sidebar-row-gap: var(--ij-sidebar-row-gap);
+  --spacing-ij-sidebar-icon-gap: var(--ij-sidebar-icon-gap);
+  --spacing-ij-sidebar-footer: var(--ij-sidebar-footer-h);
+  --spacing-ij-sidebar-avatar: var(--ij-sidebar-avatar);
+  --spacing-ij-stripe-icon: var(--ij-stripe-icon);
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
   --spacing-ij-toolwindow-header: var(--ij-toolwindow-header-h);
+  --spacing-ij-island-header: var(--ij-island-header-h);
+  --spacing-ij-island-footer: var(--ij-island-footer-h);
+  --spacing-ij-island-body-pad: var(--ij-island-body-pad);
+  --spacing-ij-nav-row: var(--ij-nav-row-h);
+  --spacing-ij-island-gutter: var(--ij-island-gutter);
+  --color-ij-island-header-tool: var(--ij-island-header-tool);
+  --color-ij-island-header-editor: var(--ij-island-header-editor);
+  --text-ij-island-title: var(--ij-island-title-size);
+  --text-ij-island-section: var(--ij-island-section-size);
+  --text-ij-island-meta: var(--ij-island-meta-size);
   --spacing-rec-grid: var(--rec-grid);
   --spacing-rec-cell-pad: var(--rec-cell-pad);
   --spacing-rec-utility-col: var(--rec-utility-col);
@@ -120,6 +143,51 @@
    file ever defined; those consumers now name this token. */
 [data-register="intui"] {
   --ij-popover-shadow: 0 4px 12px -2px color-mix(in oklab, var(--ij-ink) 28%, transparent);
+  /* Floating and scrim are the only tiers that may cast shadow (material register D1). */
+  --ij-floating-shadow: var(--ij-popover-shadow);
+  --ij-scrim-fill: var(--ij-tier-scrim);
+
+  /* Kind hues (SPEC-MATERIAL-REGISTER D4): rotate hue at fixed L=65% C=0.12.
+     Regenerated from KIND_GLYPH_ORDER in src/lib/material/kind-hues.ts. Glyph and
+     edge marker only; never a surface fill. */
+  --ij-kind-records: oklch(65% 0.12 0);
+  --ij-kind-cards: oklch(65% 0.12 24);
+  --ij-kind-thread: oklch(65% 0.12 48);
+  --ij-kind-doc: oklch(65% 0.12 72);
+  --ij-kind-memory: oklch(65% 0.12 96);
+  --ij-kind-rail: oklch(65% 0.12 120);
+  --ij-kind-workspace: oklch(65% 0.12 144);
+  --ij-kind-model: oklch(65% 0.12 168);
+  --ij-kind-files: oklch(65% 0.12 192);
+  --ij-kind-context: oklch(65% 0.12 216);
+  --ij-kind-terminal: oklch(65% 0.12 240);
+  --ij-kind-browser: oklch(65% 0.12 264);
+  --ij-kind-kanban: oklch(65% 0.12 288);
+  --ij-kind-automation: oklch(65% 0.12 312);
+  --ij-kind-canvas: oklch(65% 0.12 336);
+}
+
+/* Raised and above: keyline + continuous-curvature corner (Chromium). WebKit
+   degrades to border-radius alone (named choice 3). */
+[data-register="intui"] [data-elevation="raised"],
+[data-register="intui"] [data-elevation="floating"] {
+  border: 1px solid var(--ij-keyline);
+  border-radius: var(--ij-radius-md);
+  corner-shape: var(--ij-corner-raised);
+}
+
+[data-register="intui"] [data-elevation="floating"] {
+  border-radius: var(--ij-radius-lg);
+  box-shadow: var(--ij-floating-shadow);
+}
+
+[data-register="intui"] [data-elevation="sunken"] {
+  background: var(--ij-tier-sunken);
+  border-radius: var(--ij-radius-sm);
+}
+
+[data-register="intui"] [data-elevation="scrim"] {
+  background: var(--ij-scrim-fill);
 }
 
 /* Composer metrics (HANDOFF-CONSOLE-IA named choices 5 and 6; the material
@@ -134,20 +202,54 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
-  --ij-composer-min-h: 48px;
-  --ij-composer-max-h: 164px;
-  --ij-composer-full-min-h: calc(var(--ij-composer-min-h) + var(--ij-control-h));
-  --ij-composer-radius: calc(var(--ij-arc) * 2);
+  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Default expanded share is ~20% of
+     the shell columns (Stage mockup); Panel resize owns live width. These
+     tokens remain for collapsed icon rail fallbacks and spacing aliases. */
+  --ij-sidebar-expanded-w: 240px;
+  --ij-sidebar-collapsed-w: 44px;
+  --ij-sidebar-pip-w: 2px;
+  --ij-stripe-w: var(--ij-sidebar-expanded-w);
+  /* Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,
+     icon-to-label gap 10, footer 53 with 28 avatar. */
+  --ij-sidebar-pad: 8px;
+  --ij-sidebar-zone-gap: 3px;
+  --ij-sidebar-row-gap: 2px;
+  --ij-sidebar-icon-gap: 10px;
+  --ij-sidebar-footer-h: 53px;
+  --ij-sidebar-avatar: 28px;
+  --ij-sidebar-label-size: 14px;
+  --ij-sidebar-label-line: 20px;
+  --ij-sidebar-shortcut-size: 11px;
+  --ij-sidebar-hint-size: 10px;
+  --ij-inspector-rail-w: 320px;
+  --ij-agent-rail-max-w: 400px;
+  --ij-host-overlay-z: 14;
+  --ij-host-rail-z: 15;
+  /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,
+     Manrope 15/500, island radius, 40px instrument row. */
+  --ij-composer-min-h: 88px;
+  --ij-composer-max-h: 40vh;
+  --ij-composer-full-min-h: var(--ij-composer-min-h);
+  --ij-composer-radius: var(--ij-radius-lg);
   --ij-composer-control-size: 32px;
   --ij-composer-control-size-compact: var(--ij-control-h);
   --ij-composer-pad-x: 16px;
   --ij-composer-pad-y: 14px;
   --ij-composer-pad-compact: 10px;
   --ij-composer-gap: 8px;
-  --ij-composer-font-size: 16px;
-  --ij-composer-font-size-compact: 14px;
+  --ij-composer-font-size: 15px;
+  --ij-composer-font-size-compact: 15px;
+  --ij-composer-font-weight: 500;
+  --ij-composer-line-height: 1.5;
+  --ij-composer-instrument-h: 40px;
   --ij-composer-meta-font-size: 12px;
   --ij-composer-counter-min-width: 48px;
+  --ij-thread-column-max: 760px;
+  --ij-excerpt-header-h: 24px;
+  --ij-excerpt-header-font-size: 11px;
+  --ij-chat-chip-h: 32px;
+  --ij-chat-chip-font-size: 13px;
+  --ij-chat-chip-radius: var(--ij-radius-md);
 
   /* Tool window header strip (HANDOFF-CONSOLE-DIMENSIONALITY X3.2). The Int UI
      tool window header is a 24px strip, not the 40px main-toolbar height the
@@ -155,8 +257,38 @@
      read as named tool windows rather than floating labels. The stripe icon is
      20px inside the 40px bar (X3.4), one ramp step up from the 16px control
      glyph, because the stripe is navigation rather than a control cluster. */
-  --ij-toolwindow-header-h: 24px;
-  --ij-stripe-icon: 20px;
+  /* Island shell (HANDOFF-CONSOLE-ISLAND-SHELL): remounts prior Manrope /
+     tool-window metrics. Header is IBM Plex Sans; 36 cozy / 30 compact. */
+  --ij-toolwindow-header-h: 36px;
+  --ij-island-header-h: 36px;
+  --ij-island-footer-h: 24px;
+  --ij-island-body-pad: 16px;
+  --ij-island-title-size: 15px;
+  --ij-island-section-size: 12px;
+  --ij-island-meta-size: 11px;
+  --ij-stripe-icon: 16px;
+  --ij-nav-row-h: 36px;
+  /* Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.
+     Border color equals the island fill (tool = chrome, editor overrides below).
+     No visible stroke; gutters show the frame between islands. */
+  --ij-island-radius: 10px;
+  --ij-island-gutter: 6px;
+  --ij-inactive-alpha: 0.44;
+  --ij-island-border: var(--ij-chrome);
+  /* Header band: island base raised one elevation step, chroma +0.005..0.010.
+     ToolWindow.Header.background analog. Material Layer consumes these. */
+  --ij-island-header-tool: #383B42;
+  --ij-island-header-editor: #18191C;
+  /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
+     Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
+  --ij-ground-terra: #4C271D;
+  /* Quieter ground; islands take a hint via --ij-island-terra-tint. */
+  --ij-material-glow: 0.32;
+  --ij-material-grain: 0.014;
+  --ij-island-terra-tint: 0.055;
+  /* Dialog inset used by cmdk overlays (Goal Stack promotion). */
+  --ij-dialog-inset-top: 12%;
+  --ij-dialog-width: 40rem;
   --ij-gold: var(--ij-yellow-6);
   --ij-gold-tint: var(--ij-yellow-1);
   --ij-editor-line: var(--ij-hover-overlay);
@@ -164,11 +296,70 @@
   --ij-text-selection: var(--ij-selection);
 }
 
+[data-register="intui"] [data-sidebar-collapsed="true"] {
+  --ij-stripe-w: var(--ij-sidebar-collapsed-w);
+}
+
 [data-register="intui"][data-theme="light"] {
-  /* Yellow1 misses the learned-text threshold by a narrow margin on Gray13;
-     this is the runtime gate's light-mode clamp, kept outside the pin. */
-  --ij-gold: #9A6000;
+  --ij-ground-terra: #EACAB4;
+  --ij-material-glow: 0.38;
+  --ij-material-grain: 0.018;
+  --ij-island-terra-tint: 0.045;
+  /* AMENDMENT-01 A3: header one step toward frame, distinct from body without
+     relying on the seam hairline. Tool body gray-12 → header gray-11; editor
+     paper → header gray-12. */
+  --ij-island-header-tool: var(--ij-gray-11);
+  --ij-island-header-editor: var(--ij-gray-12);
+  /* Gold clamp for light tool body (gray-12 after A1); #9A6000 was for gray-13. */
+  --ij-gold: #8F5800;
   --ij-gold-tint: #FFF5DB;
+}
+
+/* Header band paint (AMENDMENT-01 A3). Token path only for the header strip;
+   Material Layer still owns island body and frame. */
+[data-island-shell][data-island='tool'] > [data-island-header] {
+  background-color: var(--ij-island-header-tool);
+}
+
+[data-island-shell][data-island='editor'] > [data-island-header] {
+  background-color: var(--ij-island-header-editor);
+}
+
+/* JetBrains Compact Mode density: shorter chrome, tighter gutters.
+   Island shell compact header is 30px (HANDOFF-CONSOLE-ISLAND-SHELL). */
+[data-register="intui"][data-density="compact"] {
+  --ij-toolbar-h: 32px;
+  --ij-statusbar-h: 24px;
+  --ij-toolwindow-header-h: 30px;
+  --ij-island-header-h: 30px;
+  --ij-island-body-pad: 10px;
+  --ij-island-title-size: 13px;
+  --ij-nav-row-h: 36px;
+  --ij-tab-h: 36px;
+  --ij-island-gutter: 6px;
+  --ij-stripe-icon: 16px;
+}
+
+/* Per-island density when the shell sets data-island-density without a root flip. */
+[data-island-shell][data-island-density="compact"] {
+  --ij-island-header-h: 30px;
+  --ij-island-body-pad: 10px;
+  --ij-island-title-size: 13px;
+}
+
+[data-island-shell][data-island-density="cozy"] {
+  --ij-island-header-h: 36px;
+  --ij-island-body-pad: 16px;
+  --ij-island-title-size: 15px;
+}
+
+/* Choice 8: island border color equals that island's fill token. */
+[data-island="tool"] {
+  --ij-island-border: var(--ij-chrome);
+}
+
+[data-island="editor"] {
+  --ij-island-border: var(--ij-editor);
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink

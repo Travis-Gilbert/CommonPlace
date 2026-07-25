@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import { PaperTexture, paperTexturePresets } from '@paper-design/shaders-react';
 
-const TRANSPARENT = '#00000000';
+const TRANSPARENT = 'transparent';
 const detailsPreset = paperTexturePresets.find((preset) => preset.name === 'Details')
   ?? paperTexturePresets[0];
 

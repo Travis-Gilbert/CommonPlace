@@ -102,3 +102,101 @@ async fn object_model_round_trips_over_http() {
     let _ = shutdown.send(());
     let _ = server.await;
 }
+
+#[tokio::test]
+async fn layout_objects_round_trip_with_stable_ids_over_http() {
+    // B6b: surface / region / view-instance persist through /objects with pinned
+    // ids and ordered CONTAINS (move), then query returns the tree.
+    let (base, shutdown, server) = spawn_router().await;
+    let client = reqwest::Client::new();
+
+    for (type_ref, id, props) in [
+        (
+            "surface",
+            "console-chat",
+            json!({ "id": "console-chat", "name": "Chat", "kind": "chat", "active": true }),
+        ),
+        (
+            "region",
+            "chat.region-editor",
+            json!({ "id": "chat.region-editor", "kind": "editor", "size": 100 }),
+        ),
+        (
+            "view-instance",
+            "chat.vi-surface",
+            json!({
+                "id": "chat.vi-surface",
+                "title": "Chat",
+                "descriptor_id": "chat.surface",
+                "query": { "types": ["thread"] }
+            }),
+        ),
+    ] {
+        let create = client
+            .post(format!("{base}/objects/action"))
+            .header("x-api-key", KEY)
+            .json(&json!({ "kind": "create", "type": type_ref, "props": props }))
+            .send()
+            .await
+            .expect("create layout object");
+        assert_eq!(create.status(), reqwest::StatusCode::OK);
+        let receipt: serde_json::Value = create.json().await.expect("receipt");
+        assert_eq!(receipt["status"], "applied");
+        assert_eq!(receipt["target_ids"][0], id);
+    }
+
+    for (child, parent, order) in [
+        ("chat.region-editor", "console-chat", 1.0),
+        ("chat.vi-surface", "chat.region-editor", 1.0),
+    ] {
+        let move_action = client
+            .post(format!("{base}/objects/action"))
+            .header("x-api-key", KEY)
+            .json(&json!({
+                "kind": "move",
+                "id": child,
+                "new_parent": parent,
+                "order": order
+            }))
+            .send()
+            .await
+            .expect("move contains");
+        assert_eq!(move_action.status(), reqwest::StatusCode::OK);
+    }
+
+    let query = client
+        .post(format!("{base}/objects/query"))
+        .header("x-api-key", KEY)
+        .json(&json!({
+            "types": ["surface", "region", "view-instance"],
+            "traverse": [{ "edge": "CONTAINS", "dir": "out" }]
+        }))
+        .send()
+        .await
+        .expect("query layout");
+    assert_eq!(query.status(), reqwest::StatusCode::OK);
+    let set: serde_json::Value = query.json().await.expect("set json");
+    let objects = set["objects"].as_array().expect("objects");
+    assert_eq!(objects.len(), 3);
+    let surface = objects
+        .iter()
+        .find(|object| object["id"] == "console-chat")
+        .expect("surface");
+    assert_eq!(surface["type"], "surface");
+    assert_eq!(surface["properties"]["name"], "Chat");
+    assert_eq!(
+        surface["relations"]["CONTAINS"],
+        json!(["chat.region-editor"])
+    );
+    let region = objects
+        .iter()
+        .find(|object| object["id"] == "chat.region-editor")
+        .expect("region");
+    assert_eq!(
+        region["relations"]["CONTAINS"],
+        json!(["chat.vi-surface"])
+    );
+
+    let _ = shutdown.send(());
+    let _ = server.await;
+}
