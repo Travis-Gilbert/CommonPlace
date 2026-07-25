@@ -247,7 +247,10 @@ export function SurveyIndexerSearch({
           className="survey-focusable min-w-0 flex-1 bg-transparent text-sm text-ij-ink outline-none placeholder:text-ij-ink-disabled disabled:opacity-60"
         />
         {searching ? (
-          <span className="shrink-0 font-ij-mono text-[10px] uppercase tracking-wider text-ij-gold">
+          <span
+            className="shrink-0 font-ij-mono uppercase tracking-wider text-ij-gold"
+            style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
+          >
             Searching
           </span>
         ) : null}
@@ -301,7 +304,10 @@ export function SurveyIndexerSearch({
                         index === activeIndex ? 'bg-ij-selection' : 'hover:bg-ij-hover-surface',
                       )}
                     >
-                      <span className="font-ij-mono text-[10px] uppercase tracking-wider text-ij-gold">
+                      <span
+                        className="font-ij-mono uppercase tracking-wider text-ij-gold"
+                        style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
+                      >
                         {suggestion.kind}
                       </span>
                       <span className="min-w-0 truncate">{suggestion.value}</span>

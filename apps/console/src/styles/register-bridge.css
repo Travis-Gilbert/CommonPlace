@@ -220,6 +220,11 @@
   --ij-sidebar-label-size: 14px;
   --ij-sidebar-label-line: 20px;
   --ij-sidebar-shortcut-size: 11px;
+  --ij-sidebar-hint-size: 10px;
+  --ij-inspector-rail-w: 320px;
+  --ij-agent-rail-max-w: 400px;
+  --ij-host-overlay-z: 14;
+  --ij-host-rail-z: 15;
   /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,
      Manrope 15/500, island radius, 40px instrument row. */
   --ij-composer-min-h: 88px;

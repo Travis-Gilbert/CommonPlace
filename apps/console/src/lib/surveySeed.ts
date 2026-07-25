@@ -322,9 +322,9 @@ const CAPTURES: readonly ObjectRef[] = [
     sourceAspectRatio: 1.42,
     sourceLines: [
       ':root {',
-      '  --ij-frame: var(--ij-grey-1);',
-      '  --ij-gold: var(--ij-learned);',
-      '  --ij-divider: var(--ij-grey-3);',
+      '  frame resolves from grey-1',
+      '  gold resolves from learned',
+      '  divider resolves from grey-3',
       '}',
     ],
     tags: ['Int UI', 'design system'],

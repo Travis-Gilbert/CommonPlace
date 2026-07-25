@@ -8,6 +8,8 @@
 @import './int-ui-register.css';
 @import './int-ui-register-light.css';
 @import './rec-structural.css';
+@import './geometry.css';
+@import './tokens.css';
 @import './register-bridge.css';
 @import './primer-register.css';
 @import '@travis-gilbert/markdown-theory/css';
@@ -17,6 +19,12 @@
    edges are custom and register-styled, so only the layout/transform styles are
    needed. Its theme variables are mapped to the register below. */
 @import '@xyflow/react/dist/base.css';
+
+@media (min-width: 768px) {
+  [data-record-page-grid] {
+    grid-template-columns: minmax(0, 1fr) var(--ij-inspector-rail-w);
+  }
+}
 
 .react-flow {
   --xy-edge-stroke-default: var(--ij-divider);

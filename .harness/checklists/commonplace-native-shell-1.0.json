@@ -1,0 +1,64 @@
+{
+  "plan_id": "commonplace-native-shell-1.0",
+  "spec": "docs/specs/SPEC-COMMONPLACE-NATIVE-SHELL-1.0.md",
+  "updated_at": "2026-07-23T21:35:00Z",
+  "items": [
+    {
+      "id": "B1",
+      "title": "Host bridge packages/host-bridge",
+      "status": "complete",
+      "acceptance": "CommonplaceHost + Web/Tauri/Gpui adapters + conformance suite",
+      "verified_how": "packages/host-bridge 4/4; apps/console HostProvider + createHost (queryViaBlockHost). CommonplaceHost on console."
+    },
+    {
+      "id": "B2",
+      "title": "BrowserCore crates/browser-core",
+      "status": "complete",
+      "verified_how": "cargo test -p browser-core 5/5. Registration NotVerified."
+    },
+    {
+      "id": "B3",
+      "title": "InteractionArbiter crates/interaction-arbiter",
+      "status": "complete",
+      "verified_how": "cargo test -p interaction-arbiter 5/5."
+    },
+    {
+      "id": "B4",
+      "title": "GPUI shell apps/browser-native",
+      "status": "complete",
+      "verified_how": "Committed apps/browser-native Cargo.lock; cargo test passed 19/19; cargo check --locked --no-default-features --features gpui,servo-pane passed on July 23, 2026. Capture remains part of F3."
+    },
+    {
+      "id": "B5",
+      "title": "Servo surface hosting",
+      "status": "partial",
+      "verified_how": "20/20 tests with servo-pane: mock behaviors plus AppKit RawWindowHandle protocol translation. pane-host-servo Cargo metadata resolves browser-embed to Theorem fd26be7 instead of a local sibling path.",
+      "reason": "GPUI sidecar supervision is not wired; browser-embed ignores bounds x/y and exposes no focus/IME injection; named SceneOS producer patches are absent"
+    },
+    {
+      "id": "B6",
+      "title": "CommonPlace gpui-wry surface",
+      "status": "partial",
+      "verified_how": "Rust reconnect and exact-origin/token tests pass in apps/browser-native; cargo check --locked --no-default-features --features gpui,servo-pane passed on July 23, 2026; @commonplace/host-bridge typecheck and 4/4 adapter tests pass; apps/console vitest passed 135/135 including createHost coverage.",
+      "reason": "Actual webview kill/restart and screenshot z-order capture remain in F3 proof window"
+    },
+    {
+      "id": "F1",
+      "title": "React presence and lens renderers",
+      "status": "partial",
+      "verified_how": "apps/console: HostPresenceSync + HostPresenceCursor (textmode.js / code.textmode.art via PresenceMark) + HostFindLens. Cross-realm capture continuity still needs B5/B6."
+    },
+    {
+      "id": "F2",
+      "title": "Rail-initiated placeBlock",
+      "status": "complete",
+      "verified_how": "Click-to-add + Cmd+K Place note block. Cross-surface drag explicitly out of scope (own handoff); dnd-kit/kanban do not unblock it."
+    },
+    {
+      "id": "F3",
+      "title": "Ten-point proof window",
+      "status": "pending",
+      "reason": "requires real B5/B6 parenting"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import type {
   ObjectQuery,
   ObjectSet,
   Result,
+  UpsertRegionInput,
   ViewDescriptor,
 } from './types';
 
@@ -58,6 +59,20 @@ export function updateViewInstanceConfigAction(
     patch: {
       config: config as JsonValue,
     },
+  };
+}
+
+/** Twenty-style declarative replace on a view's regions (CS6). */
+export function upsertCompleteViewAction(input: {
+  readonly id: string;
+  readonly props?: Readonly<Record<string, JsonValue>>;
+  readonly regions?: readonly UpsertRegionInput[];
+}): ObjectAction {
+  return {
+    kind: 'upsert_complete_view',
+    id: input.id,
+    props: input.props,
+    regions: input.regions,
   };
 }
 

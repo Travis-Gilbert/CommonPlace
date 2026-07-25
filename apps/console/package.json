@@ -39,6 +39,7 @@
     "@codemirror/view": "^6.41.0",
     "@commonplace/block-view": "file:../../packages/block-view",
     "@commonplace/data-model-contracts": "file:../../packages/data-model-contracts",
+    "@commonplace/host-bridge": "file:../../packages/host-bridge",
     "@commonplace/json-canvas": "file:../../packages/json-canvas",
     "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
     "@dagrejs/dagre": "^3.0.0",
@@ -47,6 +48,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@lezer/highlight": "^1.2.1",
+    "@paper-design/shaders": "0.0.77",
     "@paper-design/shaders-react": "0.0.77",
     "@radix-ui/react-popover": "^1.1.19",
     "@react-pdf/renderer": "^4.5.1",
@@ -61,6 +63,7 @@
     "cmdk": "^1.1.1",
     "d3": "^7.9.0",
     "diff": "^9.0.0",
+    "dockview": "^4.10.0",
     "eventsource-parser": "^3.0.0",
     "jotai": "^2.20.2",
     "motion": "^12.35.0",
@@ -72,11 +75,9 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.1.18",
     "textmode.js": "^0.17.0",
-    "zod": "^3.25.76",
     "three": "0.183.2",
-    "zustand": "5.0.14",
-    "@paper-design/shaders": "0.0.77",
-    "dockview": "^4.10.0"
+    "zod": "^3.25.76",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
