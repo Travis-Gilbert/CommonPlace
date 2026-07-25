@@ -330,10 +330,14 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return { object, instances };
   }, [layoutObjects]);
 
+  const landmarkCollapsed = landmarkRegion?.object.properties.collapsed === true;
   const sidebarPanelRef = useRef<ImperativePanelHandle | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => landmarkRegion?.object.properties.collapsed === true,
-  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(landmarkCollapsed);
+  const [seenLandmarkCollapsed, setSeenLandmarkCollapsed] = useState(landmarkCollapsed);
+  if (landmarkCollapsed !== seenLandmarkCollapsed) {
+    setSeenLandmarkCollapsed(landmarkCollapsed);
+    setSidebarCollapsed(landmarkCollapsed);
+  }
 
   const persistSidebarCollapsed = useCallback((next: boolean) => {
     setSidebarCollapsed(next);
@@ -358,16 +362,14 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [persistSidebarCollapsed]);
 
   useEffect(() => {
-    const next = landmarkRegion?.object.properties.collapsed === true;
-    setSidebarCollapsed(next);
     const panel = sidebarPanelRef.current;
     if (!panel) return;
-    if (next) {
+    if (landmarkCollapsed) {
       if (!panel.isCollapsed()) panel.collapse();
     } else if (panel.isCollapsed()) {
       panel.expand();
     }
-  }, [landmarkRegion?.object.properties.collapsed]);
+  }, [landmarkCollapsed]);
 
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
