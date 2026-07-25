@@ -53,6 +53,12 @@ if [[ ! -f "$CANONICAL/.commonplace-canonical" ]]; then
   exit 1
 fi
 
+# Prefer a Creative tip that already carries the merged consolidation.
+if git -C "$CANONICAL" rev-parse --verify HEAD >/dev/null 2>&1; then
+  echo "== ensure canonical tip knows origin/main =="
+  run git -C "$CANONICAL" fetch origin main
+fi
+
 if [[ ! -d "$TECHDEV/.git" ]]; then
   echo "Tech Dev Local clone already gone or not a git repo: $TECHDEV"
   exit 0

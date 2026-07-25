@@ -14,20 +14,20 @@ Companions:
 Canonical home: `Creative/Website/CommonPlace` (or any clone that carries
 `.commonplace-canonical` and `apps/console/src/components/ground/MaterialLayer.tsx`).
 
-## Delivered in-repo (this PR / branch)
+## Delivered on `main` (PR #109)
 
 | ID | State |
 |---|---|
 | C1 census | shipped (`37-CHECKOUT-CONSOLIDATION-CENSUS.md`) |
-| C2 salvage | shipped from `origin/claude/console-desktop-export` (`3580480`): `apps/browser-native`, `packages/host-bridge`, `crates/browser-core`, `crates/interaction-arbiter`, console host wiring, native-shell docs/spec. Mac-only tip `7ddca69` was never on origin; host script pushes it if still local. |
-| C3 / C4 host ops | script: `scripts/retire-techdev-clone.sh` (run on the Mac) |
-| C5 harden | `.commonplace-canonical`, `scripts/assert-canonical-root.mjs`, wired into `apps/console` `gates` as `gate:canonical-root` |
+| C2 salvage | shipped: MaterialLayer + `apps/browser-native`, `packages/host-bridge`, `crates/browser-core`, `crates/interaction-arbiter`, console host wiring on one tip (`7ddca69` via PR #112; consolidation via #109) |
+| C3 / C4 host ops | script: `scripts/retire-techdev-clone.sh` (run once on the Mac) |
+| C5 harden | `.commonplace-canonical`, `scripts/assert-canonical-root.mjs`, wired into `apps/console` `gates` as `gate:canonical-root`; README / AGENTS / learning updated |
 
 ## Host one-shot (Mac)
 
 ```bash
 cd "/Users/travisgilbert/Tech Dev Local/Creative/Website/CommonPlace"
-git fetch origin && git checkout <this-branch>   # or merge main after PR
+git fetch origin && git checkout main
 bash scripts/retire-techdev-clone.sh             # archive + stub README
 # after verifying salvage and disk:
 bash scripts/retire-techdev-clone.sh --delete
