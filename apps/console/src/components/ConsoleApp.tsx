@@ -26,7 +26,7 @@ import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { ThreadRuntimeAvailable } from '@/views/ThreadView';
-import { GroundCanvas } from '@/components/ground/GroundCanvas';
+import { PaperCanvas } from '@/components/canvas/PaperCanvas';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
@@ -91,8 +91,11 @@ function connectionFor(status: number | null): 'connected' | 'disconnected' | 'i
 
 export function ConsoleApp({
   initialProactivity,
+  initialViewId,
 }: {
   initialProactivity?: { readonly graph: ProactivityGraph | null; readonly error: string | null };
+  /** CS6: slug or surface id from /v/[viewId]. */
+  initialViewId?: string;
 } = {}) {
   // True after hydration only (server snapshot false): the persisted
   // arrangement in localStorage never causes a hydration mismatch.
@@ -157,6 +160,18 @@ export function ConsoleApp({
   }, [failProactivity, hydrateProactivity, initialProactivity]);
 
   useEffect(() => {
+    if (!blockHost || !initialViewId) return;
+    const match = blockHost.queryLayout({ types: ['surface'], live: true }).objects.find((surface) => {
+      const slug = surface.properties.slug;
+      return surface.id === initialViewId
+        || surface.id === `view-${initialViewId}`
+        || surface.id === `console-${initialViewId}`
+        || slug === initialViewId;
+    });
+    if (match) void blockHost.activateSurface(match.id);
+  }, [blockHost, initialViewId]);
+
+  useEffect(() => {
     if (!blockHost) return;
     // Transport health is real: the object-seam probe sets the connection
     // state, and presence renders only when the harness transport reports it.
@@ -185,13 +200,13 @@ export function ConsoleApp({
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-ij-frame">
-      <GroundCanvas />
+      <PaperCanvas />
       <div className="relative z-10 h-full p-1">
         <HostProvider queryObjects={queryObjects} onOpenTarget={onOpenTarget}>
           <SessionProvider>
             <RuntimeBoundary>
               <div className="h-full overflow-hidden rounded-ij-arc border border-ij-seam">
-                <IntuiShell host={blockHost} />
+                <IntuiShell host={blockHost} initialViewId={initialViewId} />
               </div>
             </RuntimeBoundary>
           </SessionProvider>

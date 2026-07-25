@@ -222,7 +222,27 @@ export type ObjectAction =
   | { readonly kind: "invoke_tool"; readonly tool: string; readonly args: Readonly<Record<string, JsonValue>> }
   | { readonly kind: "dispatch"; readonly job: JobSpec }
   | { readonly kind: "open"; readonly id: string; readonly view?: string }
-  | { readonly kind: "select"; readonly ids: readonly string[] };
+  | { readonly kind: "select"; readonly ids: readonly string[] }
+  /** Declarative view upsert (CS6 / Twenty upsert_complete_view semantics).
+   *  Passing regions replaces regions. Passing [] clears them. Omitting the
+   *  key leaves children alone. The caller never fetches child ids to edit. */
+  | {
+      readonly kind: "upsert_complete_view";
+      readonly id: string;
+      readonly props?: Readonly<Record<string, JsonValue>>;
+      readonly regions?: readonly UpsertRegionInput[];
+    };
+
+export interface UpsertRegionInput {
+  readonly id?: string;
+  readonly props: Readonly<Record<string, JsonValue>>;
+  readonly instances?: readonly UpsertViewInstanceInput[];
+}
+
+export interface UpsertViewInstanceInput {
+  readonly id?: string;
+  readonly props: Readonly<Record<string, JsonValue>>;
+}
 
 export type ActionKind = ObjectAction["kind"];
 export type ObjectActionStatus = "accepted" | "applied" | "deferred";

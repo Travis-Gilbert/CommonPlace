@@ -21,6 +21,9 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
+import { RecordsBlock } from '@/components/blocks/RecordsBlock';
+import { RecordPage } from '@/components/blocks/RecordPage';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -300,6 +303,52 @@ const ACCOUNT: ViewDescriptor = {
   render: AccountView,
 };
 
+const AGENT_RAIL: ViewDescriptor = {
+  id: 'agent.rail',
+  name: 'Agent',
+  accepts: {},
+  emits: ['run_agent', 'open'],
+  renderer: 'agent.rail',
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: AgentRailBlock,
+};
+
+const RECORDS_BLOCK: ViewDescriptor = {
+  id: 'records.block',
+  name: 'Records block',
+  accepts: {},
+  emits: ['select', 'open', 'update'],
+  renderer: 'records.block',
+  source: {
+    package: '@tanstack/react-table',
+    component: 'useReactTable',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: RecordsBlock,
+};
+
+const RECORD_PAGE: ViewDescriptor = {
+  id: 'record.page',
+  name: 'Record',
+  accepts: {},
+  emits: ['update', 'open'],
+  renderer: 'record.page',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'Twenty record page layout is the product contract; field editors bind from FieldSpec.',
+  },
+  render: RecordPage,
+};
+
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -318,6 +367,9 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   WORKSPACE_SUBSTRATE,
   GOAL_STACK,
   ACCOUNT,
+  AGENT_RAIL,
+  RECORDS_BLOCK,
+  RECORD_PAGE,
 ]);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback

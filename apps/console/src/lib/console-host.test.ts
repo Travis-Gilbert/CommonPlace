@@ -24,7 +24,7 @@ function fixtureHost() {
 
 describe('ConsoleBlockHost', () => {
   it('serves the seeded arrangement as a surface tree', () => {
-    const host = new ConsoleBlockHost(NO_VIEWS);
+    const host = new ConsoleBlockHost(NO_VIEWS, { records: [] });
     const set = host.queryLayout(surfaceQuery());
     const root = buildSurfaceTree(SURFACE_ID, set.objects);
     expect(root).not.toBeNull();
@@ -43,44 +43,38 @@ describe('ConsoleBlockHost', () => {
     const set = host.queryLayout(surfaceQuery());
     const surfaces = set.objects.filter((object) => object.type === 'surface');
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
-      'console-account',
-      'console-appearance',
-      'console-cards',
-      'console-chat',
-      'console-docs',
-      'console-goals',
-      'console-index',
-      'console-proactivity',
-      'console-review',
-      'console-workspace',
+      'view-chat',
+      'view-data-model',
+      'view-index',
     ]);
-    expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
+    expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe('view-chat');
     expect(surfaces
       .filter((surface) => typeof surface.properties.stripe_order === 'number')
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Documents', 'Cards',
+        'Chat', 'Index', 'Data model',
       ]);
-    const workspace = buildSurfaceTree('console-workspace', set.objects);
-    expect(workspace!.children.map((child) => child.object.id)).toEqual([
-      'region-editor',
-      'workspace.region-files',
-      'workspace.region-context',
-      'workspace.region-thread',
+    const chat = buildSurfaceTree('view-chat', set.objects);
+    expect(chat!.children.map((child) => child.object.id)).toEqual([
+      'view-chat.well',
+      'view-chat.rail',
     ]);
-    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
-    const index = buildSurfaceTree('console-index', set.objects);
+    const index = buildSurfaceTree('view-index', set.objects);
     expect(index!.children.map((child) => child.object.id)).toEqual([
-      'index.region-rail',
-      'index.region-editor',
-      'index.region-files',
-      'index.region-context',
-      'index.region-thread',
+      'view-index.well',
+      'view-index.rail',
     ]);
+    const model = buildSurfaceTree('view-data-model', set.objects);
+    expect(model!.children.map((child) => child.object.id)).toEqual([
+      'view-data-model.well',
+      'view-data-model.inspector',
+      'view-data-model.rail',
+    ]);
+    expect(model!.children.filter((child) => child.object.properties.collapsed === true)).toHaveLength(1);
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {
-    const host = new ConsoleBlockHost(NO_VIEWS);
+    const host = new ConsoleBlockHost(NO_VIEWS, { records: [] });
     const receipt = await host.emit({ kind: 'move', id: 'vi-code', new_parent: 'workspace.region-files', order: 0 });
     expect(receipt.ok).toBe(true);
     expect(receipt.value?.status).toBe('applied');
@@ -92,7 +86,7 @@ describe('ConsoleBlockHost', () => {
   });
 
   it('notifies layout subscribers on update', async () => {
-    const host = new ConsoleBlockHost(NO_VIEWS);
+    const host = new ConsoleBlockHost(NO_VIEWS, { records: [] });
     const set = host.queryLayout(surfaceQuery());
     let notified = 0;
     const unsubscribe = set.subscribe(() => {
@@ -104,7 +98,7 @@ describe('ConsoleBlockHost', () => {
   });
 
   it('switches surfaces atomically and closes compact same-side companions', async () => {
-    const host = new ConsoleBlockHost(NO_VIEWS);
+    const host = new ConsoleBlockHost(NO_VIEWS, { records: [] });
     const set = host.queryLayout(surfaceQuery());
     let notified = 0;
     const unsubscribe = set.subscribe(() => {

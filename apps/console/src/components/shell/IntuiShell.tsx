@@ -31,6 +31,9 @@ import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
 import { HostFindLens } from '@/components/host/HostFindLens';
 import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
+import { Sidebar, type BlockPaletteItem } from '@/components/nav/Sidebar';
+import { clearViewDirty, markViewDirty, readDirtyViewId, saveView, viewPath } from '@/lib/surface-object';
+import { useRouter } from 'next/navigation';
 import {
   IconCards,
   IconDoc,
@@ -303,11 +306,22 @@ function createLayoutStore(host: ConsoleBlockHost) {
   };
 }
 
-export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
+export function IntuiShell({
+  host,
+  initialViewId,
+}: {
+  host: ConsoleBlockHost;
+  initialViewId?: string;
+}) {
+  const router = useRouter();
   const durations = useMotionDurations();
   const [compact, setCompact] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [paletteMessage, setPaletteMessage] = useState<string | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
+  void initialViewId;
+  void paletteMessage;
 
   // The arrangement is live data: query the surface object and subscribe.
   const layoutStore = useMemo(() => createLayoutStore(host), [host]);
@@ -411,6 +425,56 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return () => window.removeEventListener('keydown', focusComposer);
   }, []);
 
+  useEffect(() => {
+    setDirty(readDirtyViewId() === activeSurfaceId);
+  }, [activeSurfaceId, layoutObjects]);
+
+  const addBlockFromPalette = useCallback((item: BlockPaletteItem) => {
+    const well = regions.editor;
+    if (!well) return { message: 'No well available in this view.' };
+    const material = item.material;
+    const children = [...well.instances];
+    const sameMaterial = children.filter((instance) => {
+      const descriptor = String(instance.properties.descriptor_id ?? '');
+      return descriptor.length > 0;
+    });
+    // Well accepts at most two sunken/lifted regions' worth of blocks; when
+    // full, replace the least recently focused same-material instance.
+    if (material !== 'docked' && sameMaterial.length >= 2) {
+      const replace = sameMaterial[0];
+      void host.emit({ kind: 'delete', id: replace.id });
+      setPaletteMessage(`Replaced ${String(replace.properties.title ?? replace.id)} with ${item.label}.`);
+      markViewDirty(activeSurfaceId);
+      setDirty(true);
+    }
+    void host.emit({
+      kind: 'create',
+      type: 'view-instance',
+      props: {
+        id: `${well.object.id}.${item.id}.${Date.now()}`,
+        descriptor_id: item.descriptorId,
+        title: item.label,
+        query: { types: item.kind === 'records' ? ['record'] : [item.kind], live: true },
+      },
+    }).then((created) => {
+      const id = created.value?.target_ids?.[0];
+      if (!id) return;
+      void host.emit({
+        kind: 'move',
+        id,
+        new_parent: material === 'docked'
+          ? (regions.right[0]?.object.id ?? well.object.id)
+          : well.object.id,
+        order: 0,
+      });
+      markViewDirty(activeSurfaceId);
+      setDirty(true);
+    });
+    return sameMaterial.length >= 2
+      ? { replaced: sameMaterial[0]?.id, message: `Replaced least recently focused block with ${item.label}.` }
+      : {};
+  }, [activeSurfaceId, host, regions.editor, regions.right]);
+
   // Persisted sizes are absolute shares of the full well (they sum to 100
   // across ALL of the active surface's regions, open or closed). Rendering
   // renormalizes over the visible set and write-back scales visible-relative
@@ -499,6 +563,23 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     <div ref={shellRef} data-shell data-compact={compact} data-active-surface={activeSurfaceId} className="relative flex h-full min-h-0 flex-col bg-ij-frame">
       <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
       <div className="flex min-h-0 flex-1">
+        <Sidebar
+          host={host}
+          activeViewId={activeSurfaceId}
+          dirty={dirty}
+          onNavigateView={async (slug) => {
+            // Autosave on leave: arrangement mutations already persist through
+            // the host; saveView clears the dirty flag without rewriting regions.
+            if (dirty) {
+              await saveView(host, activeSurfaceId);
+              setDirty(false);
+            } else {
+              clearViewDirty();
+            }
+            router.push(viewPath(slug));
+          }}
+          onAddBlock={addBlockFromPalette}
+        />
         {/* The leftmost stripe: screen navigation (surfaces group) on top,
             then the active surface's tool windows, divided. One bar. */}
         <nav aria-label="Surfaces and companions" data-paint-region="stripe" className="flex w-ij-stripe shrink-0 flex-col items-center gap-1 border-r border-ij-seam bg-ij-chrome py-1">

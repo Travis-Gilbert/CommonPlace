@@ -164,9 +164,9 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Ground ambient',
-    effect: 'quiet register-derived texture drift on the GroundCanvas behind the frame',
-    spec: 'GROUND tokens; the only permitted ambient motion; never repaints above a measured negligible idle cost',
-    reducedMotion: 'static texture, no repaint loop',
+    effect: 'quiet static paper grain from one PaperTexture ShaderMount behind the frame',
+    spec: 'CS4 PaperCanvas; color from CSS paper-canvas; shader never paints contrast; reduced motion keeps speed 0',
+    reducedMotion: 'static texture, no motion loop',
   },
 ] as const;
 
@@ -185,9 +185,14 @@ export const INTERACTION_INVENTORY = [
  */
 export const DECLARED_PAINT_SURFACES = [
   {
+    file: 'src/components/canvas/PaperCanvas.tsx',
+    inventory: 'Ground ambient',
+    reason: 'the one permitted ambient surface; one ShaderMount per window; sits behind the frame, not in chrome',
+  },
+  {
     file: 'src/components/ground/GroundCanvas.tsx',
     inventory: 'Ground ambient',
-    reason: 'the one permitted ambient surface; sits behind the frame, not in chrome',
+    reason: 'legacy hand-roll canvas retained until callers are removed; PaperCanvas is the CS4 mount',
   },
   {
     file: 'src/components/mark/PresenceMark.tsx',
