@@ -146,15 +146,9 @@ export function AppearanceView(_props: ViewRenderProps) {
             </div>
             <div className="grid gap-4 rounded-ij-arc bg-ij-editor p-4">
               <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Ink</h3>
-              <Slider
-                label="Ink chroma clamp"
-                value={preference.knobs.inkChromaClamp}
-                min={0}
-                max={0.014}
-                step={0.001}
-                onChange={(inkChromaClamp) => setAppearanceKnobs({ inkChromaClamp })}
-              />
-              <p className="text-ij-ink-info">Ink hue is paper hue plus 180. Clamp keeps body ink at or below 0.014.</p>
+              <p className="text-ij-ink-info">
+                Ink stays on the cool side of the paper hue. Contrast clamps keep body ink readable on chrome and selection.
+              </p>
             </div>
             <div className="grid gap-4 rounded-ij-arc bg-ij-editor p-4">
               <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Highlight</h3>
