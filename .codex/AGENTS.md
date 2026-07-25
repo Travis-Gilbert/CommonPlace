@@ -2,6 +2,13 @@
 
 This supplements the root `AGENTS.md` with a repo-local ECC baseline.
 
+## Canonical checkout
+
+Open only Creative/Website CommonPlace (or a clone carrying
+`.commonplace-canonical` + MaterialLayer). See root `AGENTS.md` and
+`docs/plans/console/37-CHECKOUT-CONSOLIDATION.md`. Wrong-root trees fail
+`npm --prefix apps/console run gate:canonical-root`.
+
 ## Repo Skill
 
 - Repo-generated Codex skill: `.agents/skills/CommonPlace/SKILL.md`

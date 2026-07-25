@@ -20,12 +20,16 @@ product checkouts of the CommonPlace app repo on the same machine.
 
 ## Rule
 
-Canonical product checkout: Creative/Website CommonPlace (marker
-`.commonplace-canonical` plus
-`apps/console/src/components/ground/MaterialLayer.tsx`). Do not open
-`Tech Dev Local/CommonPlace` as an agent root. `npm run gate:canonical-root`
-fails on a wrong tree. After consolidation, run
-`scripts/retire-techdev-clone.sh` on the Mac host once.
+Canonical product path (locked):
+
+`/Users/travisgilbert/Tech Dev Local/Creative/Website/CommonPlace`
+
+Sentinels: `.commonplace-canonical` plus
+`apps/console/src/components/ground/MaterialLayer.tsx`. Do not open
+`Tech Dev Local/CommonPlace` as an agent root. Wrong-root trees fail
+`npm run gate:canonical-root`. Consolidation landed on `main` (PR #109);
+run `scripts/retire-techdev-clone.sh` once on the Mac if the second clone
+still exists.
 
 ## Evidence
 
