@@ -168,7 +168,7 @@ const CHAT_SURFACE: ViewDescriptor = {
   block: {
     usage: 'compose with the agent',
     placements: ['full', 'ground', 'rail'],
-    defaultSize: 'w',
+    defaultSize: 'full',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'thread',

@@ -3,7 +3,14 @@
 Register: HANDOFF-GREENFIELD-CONSOLE, in force; HANDOFF-CONSOLE-COLORATION
 layers the light register, the two-knob theme engine, and the icon policy on
 top. This file and AGENTS.md carry the same constitution; every agent session
-in this app inherits the fence from its context. The product sentence this app exists to make true: Cursor forked
+in this app inherits the fence from its context.
+
+Canonical product checkout for this app: Creative/Website CommonPlace (marker
+`.commonplace-canonical` at repo root plus MaterialLayer under
+`src/components/ground/`). Wrong-root trees fail `gate:canonical-root`. See
+`docs/plans/console/37-CHECKOUT-CONSOLIDATION.md`.
+
+The product sentence this app exists to make true: Cursor forked
 IntelliJ instead of VS Code, with sidebars that show code and markdown as
 easily as they show data models. The mechanism: IntelliJ chrome outside, the
 block-view object contract inside every pane.
@@ -165,4 +172,5 @@ markdown. Use colons, periods, commas, semicolons, or parentheses instead.
 3. Contrast gate: `npm run gate:contrast`
 4. Motion inventory scan: `npm run gate:motion`
 5. Icon paint scan: `npm run gate:icons`
-6. Playwright visual baseline: `npm run test:e2e`
+6. Canonical checkout: `npm run gate:canonical-root`
+7. Playwright visual baseline: `npm run test:e2e`

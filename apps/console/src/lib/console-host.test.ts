@@ -17,6 +17,8 @@ import {
   SURVEY_VIEW_INSTANCE_ID,
   seedLayout,
   seedRecords,
+  MODEL_SURFACE_ID,
+  MODEL_VIEW_INSTANCE_ID,
 } from './workspace-seed';
 
 const NO_VIEWS = { matchingViews: () => [] };
@@ -69,7 +71,6 @@ describe('ConsoleBlockHost', () => {
       'console-review',
       'console-survey',
       'console-threads',
-      'console-topics',
       'console-workspace',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
@@ -77,7 +78,7 @@ describe('ConsoleBlockHost', () => {
       .filter((surface) => surface.properties.role === 'place')
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Filing', 'Canvas', 'Automation', 'Topics', 'Indexer', 'Models',
+        'Chat', 'Workspace', 'Filing', 'Canvas', 'Automation', 'Indexer', 'Models',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
@@ -130,6 +131,8 @@ describe('ConsoleBlockHost', () => {
     expect(set.objects.some((object) => object.id === 'console.landmark-brief')).toBe(true);
     const survey = buildSurfaceTree(SURVEY_SURFACE_ID, set.objects);
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
+    const models = buildSurfaceTree(MODEL_SURFACE_ID, set.objects);
+    expect(models!.children[0]?.children[0]?.object.id).toBe(MODEL_VIEW_INSTANCE_ID);
   });
 
   it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {

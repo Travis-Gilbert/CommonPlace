@@ -44,6 +44,8 @@ export interface BlockShellProps {
   readonly title?: string;
   /** When false, omit the dnd-kit drag handle (e.g. fixed tool windows). */
   readonly draggable?: boolean;
+  /** Full-placement / solitary blocks inherit the surface title; omit the header band. */
+  readonly showHeader?: boolean;
   /** Whole-header drag: sortable listeners from BlockCanvas (OB6). */
   readonly headerDragRef?: (node: HTMLElement | null) => void;
   readonly headerDragListeners?: HTMLAttributes<HTMLElement>;
@@ -121,6 +123,7 @@ export function BlockShell({
   bodyBleed: bodyBleedOverride,
   title,
   draggable = true,
+  showHeader = true,
   headerDragRef,
   headerDragListeners,
   headerDragAttributes,
@@ -171,81 +174,135 @@ export function BlockShell({
       data-block-shell
       data-block-density={density}
       data-block-bleed={bodyBleed}
+      data-block-chrome={showHeader ? 'header' : 'bare'}
       data-view-instance={viewInstanceId}
       data-descriptor={descriptor.id}
       data-paint-region="island-shell"
       aria-label={headerTitle}
       className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
     >
-      <header
-        ref={headerDragRef}
-        data-island-header
-        data-paint-region="island-header"
-        data-block-drag-surface={headerDragListeners ? 'true' : undefined}
-        className="flex h-ij-island-header shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
-        style={headerDragListeners ? { cursor: 'grab', touchAction: 'none' } : undefined}
-        {...(headerDragAttributes ?? {})}
-        {...(headerDragListeners ?? {})}
-      >
-        <span
-          data-block-kind-glyph
-          className="flex size-4 shrink-0 items-center justify-center text-ij-ink-info"
-          aria-hidden
+      {showHeader ? (
+        <header
+          ref={headerDragRef}
+          data-island-header
+          data-paint-region="island-header"
+          data-block-drag-surface={headerDragListeners ? 'true' : undefined}
+          className="flex h-ij-island-header shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
+          style={headerDragListeners ? { cursor: 'grab', touchAction: 'none' } : undefined}
+          {...(headerDragAttributes ?? {})}
+          {...(headerDragListeners ?? {})}
         >
-          {glyph}
-        </span>
-        <h2
-          data-block-title
-          className="min-w-0 truncate font-ij-ui text-ij-island-title text-ij-ink"
-          style={{ fontWeight: 600 }}
-        >
-          {headerTitle}
-        </h2>
-        {count !== undefined && count !== null && String(count).length > 0 ? (
           <span
-            data-block-count
-            className="shrink-0 font-ij-mono text-ij-island-meta tabular-nums text-ij-ink-info"
+            data-block-kind-glyph
+            className="flex size-4 shrink-0 items-center justify-center text-ij-ink-info"
+            aria-hidden
           >
-            {count}
+            {glyph}
           </span>
-        ) : null}
-        <span className="min-w-0 flex-1" aria-hidden />
-        {actions ? (
-          <div
-            data-block-actions
-            className="flex shrink-0 items-center gap-1"
-            onPointerDown={(event) => event.stopPropagation()}
+          <h2
+            data-block-title
+            className="min-w-0 truncate font-ij-ui text-ij-island-title text-ij-ink"
+            style={{ fontWeight: 600 }}
           >
-            {actions}
-          </div>
-        ) : null}
-        {onHide ? (
-          <button
-            type="button"
-            data-block-hide
-            aria-label={`Hide ${headerTitle}`}
-            title={`Hide ${headerTitle}`}
-            onClick={onHide}
-            onPointerDown={(event) => event.stopPropagation()}
-            className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-          >
-            <IconHide size={14} />
-          </button>
-        ) : null}
-        {draggable && !headerDragListeners ? <DragHandle id={viewInstanceId} /> : null}
-        {headerDragListeners ? (
-          <button
-            type="button"
-            data-block-drag-handle
-            aria-label="Drag block"
-            title="Drag block"
-            className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
-            style={{ cursor: 'grab' }}
-          >
-            ⠿
-          </button>
-        ) : null}
-      </header>
+            {headerTitle}
+          </h2>
+          {count !== undefined && count !== null && String(count).length > 0 ? (
+            <span
+              data-block-count
+              className="shrink-0 font-ij-mono text-ij-island-meta tabular-nums text-ij-ink-info"
+            >
+              {count}
+            </span>
+          ) : null}
+          <span className="min-w-0 flex-1" aria-hidden />
+          {actions ? (
+            <div
+              data-block-actions
+              className="flex shrink-0 items-center gap-1"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {actions}
+            </div>
+          ) : null}
+          {onHide ? (
+            <button
+              type="button"
+              data-block-hide
+              aria-label={`Hide ${headerTitle}`}
+              title={`Hide ${headerTitle}`}
+              onClick={onHide}
+              onPointerDown={(event) => event.stopPropagation()}
+              className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+            >
+              <IconHide size={14} />
+            </button>
+          ) : null}
+          {draggable && !headerDragListeners ? <DragHandle id={viewInstanceId} /> : null}
+          {headerDragListeners ? (
+            <button
+              type="button"
+              data-block-drag-handle
+              aria-label="Drag block"
+              title="Drag block"
+              className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+              style={{ cursor: 'grab' }}
+            >
+              ⠿
+            </button>
+          ) : null}
+        </header>
+      ) : (
+        <>
+          {actions || onHide || (draggable && !headerDragListeners) ? (
+            <div
+              data-block-chrome-tools
+              className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-6 items-center justify-end gap-1 px-2"
+            >
+              {actions ? (
+                <div
+                  data-block-actions
+                  className="pointer-events-auto flex shrink-0 items-center gap-1"
+                >
+                  {actions}
+                </div>
+              ) : null}
+              {onHide ? (
+                <button
+                  type="button"
+                  data-block-hide
+                  aria-label={`Hide ${headerTitle}`}
+                  title={`Hide ${headerTitle}`}
+                  onClick={onHide}
+                  className="pointer-events-auto flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink group-hover:opacity-100"
+                >
+                  <IconHide size={14} />
+                </button>
+              ) : null}
+              {draggable && !headerDragListeners ? (
+                <div className="pointer-events-auto">
+                  <DragHandle id={viewInstanceId} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {headerDragListeners ? (
+            <button
+              type="button"
+              ref={headerDragRef}
+              data-block-drag-handle
+              data-block-drag-surface="true"
+              aria-label="Drag block"
+              title="Drag block"
+              className="absolute right-2 top-2 z-10 flex size-5 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+              style={{ cursor: 'grab', touchAction: 'none' }}
+              {...(headerDragAttributes ?? {})}
+              {...headerDragListeners}
+            >
+              ⠿
+            </button>
+          ) : null}
+        </>
+      )}
 
       <div
         data-block-body

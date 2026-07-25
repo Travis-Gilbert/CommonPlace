@@ -269,6 +269,7 @@ function SortableBlockCanvasCell({
         descriptor={item.descriptor}
         viewInstanceId={item.viewInstanceId}
         draggable={false}
+        showHeader={item.size !== 'full'}
         headerDragRef={setActivatorNodeRef}
         headerDragListeners={listeners}
         headerDragAttributes={attributes}

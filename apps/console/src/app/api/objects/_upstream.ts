@@ -3,12 +3,22 @@
 // server-side base plus key, mirroring the web proxy pattern but console
 // owned so the two services stay independent. The key never reaches the
 // browser; the browser talks only to these same-origin routes.
+//
+// HANDOFF-PRINCIPAL-CREDENTIALS: forward() resolves a credential per
+// principal. Auto-issuance (D4) runs for signed-in principals. Gate 2 remains
+// only as a named refusal when issuance cannot cover a non-matching tenant.
 
 import {
-  configuredServiceTenantMatches,
   principalTenantHeaders,
   resolveHarnessPrincipal,
 } from '@/lib/server/harness-principal';
+import {
+  credentialHeaders,
+  credentialRefusalResponse,
+  isServicePrincipal,
+  resolveUpstreamCredential,
+  serviceUpstreamKey,
+} from '@/lib/server/upstream-credential';
 
 export function upstreamBase(): string {
   return (
@@ -18,8 +28,10 @@ export function upstreamBase(): string {
   ).replace(/\/$/, '');
 }
 
+/** @deprecated Prefer resolveUpstreamCredential; kept for callers that only
+ *  need the process-wide service key during the migration window. */
 export function upstreamKey(): string {
-  return process.env.CONSOLE_DATA_API_KEY ?? process.env.THEOREM_API_KEY ?? 'dev-key';
+  return serviceUpstreamKey();
 }
 
 /** Forward a JSON body to the upstream object seam, passing the status
@@ -28,25 +40,30 @@ export function upstreamKey(): string {
 export async function forward(path: string, init: RequestInit): Promise<Response> {
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) return resolution.response;
-  // The object API authorizes only by shared API key and does not scope by
-  // tenant headers yet. Refuse any signed-in principal that does not match
-  // the configured service tenant until tenant-scoped object credentials exist.
-  if (!configuredServiceTenantMatches(resolution.principal)) {
-    return Response.json(
-      {
-        error: 'tenant_object_credential_unavailable',
-        message: 'This signed-in tenant does not yet have a matching object-seam credential.',
-      },
-      { status: 403 },
-    );
+
+  const credential = await resolveUpstreamCredential(resolution.principal);
+  if (!credential.ok) {
+    // Non-matching tenants stay refused; matching tenants already fell back
+    // to the service key inside resolveUpstreamCredential.
+    if (!isServicePrincipal(resolution.principal)) {
+      return Response.json(
+        {
+          error: 'tenant_object_credential_unavailable',
+          message: 'This signed-in tenant does not yet have a matching object-seam credential.',
+        },
+        { status: 403 },
+      );
+    }
+    return credentialRefusalResponse(credential.refusal);
   }
+
   let upstream: Response;
   try {
     upstream = await fetch(`${upstreamBase()}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': upstreamKey(),
+        ...credentialHeaders(credential.credential),
         ...principalTenantHeaders(resolution.principal),
       },
       cache: 'no-store',

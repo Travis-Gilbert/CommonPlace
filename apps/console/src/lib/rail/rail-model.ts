@@ -90,21 +90,12 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
   },
   {
     tier: 'place',
-    id: 'place-topics',
-    kind: 'topics',
-    label: 'Topics',
-    path: '/topics',
-    surfaceId: 'console-topics',
-    stripeOrder: 5,
-  },
-  {
-    tier: 'place',
     id: 'place-indexer',
     kind: 'survey',
     label: 'Indexer',
     path: '/indexer',
     surfaceId: 'console-survey',
-    stripeOrder: 6,
+    stripeOrder: 5,
   },
   {
     tier: 'place',
@@ -113,7 +104,7 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     label: 'Models',
     path: '/models',
     surfaceId: 'console-models',
-    stripeOrder: 7,
+    stripeOrder: 6,
   },
 ] as const;
 

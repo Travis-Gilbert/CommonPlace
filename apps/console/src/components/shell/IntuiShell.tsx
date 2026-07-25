@@ -30,8 +30,13 @@ import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { MainToolbar } from './MainToolbar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
+import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
+import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
+import { HostPresenceSync } from '@/components/host/HostPresenceSync';
+import { HostFindLens } from '@/components/host/HostFindLens';
+import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 
 const OVERLAY_BREAKPOINT = 1100;
 
@@ -216,7 +221,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     }
   }, [router]);
 
-  // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
+  // Alt+1..7 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
   // companions for the active surface (dock panels; not rail destinations).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -571,6 +576,11 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       </PanelGroup>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
+      <StatusBar host={host} />
+      <HostPresenceSync workspaceId="default" surface="commonplace" />
+      <HostPresenceCursor workspaceId="default" surface="commonplace" />
+      <HostFindLens workspaceId="default" surface="commonplace" />
+      <HostCapabilityRailBridge workspaceId="default" />
     </div>
   );
 }

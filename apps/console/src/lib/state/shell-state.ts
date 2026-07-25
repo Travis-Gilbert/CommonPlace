@@ -8,7 +8,20 @@ import type { ObjectRef } from '@commonplace/block-view/types';
 import { addressOf } from '../object-address';
 import { createAtomStoreFacade } from './store-facade';
 
-export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'identity-refused';
+export type ConnectionState =
+  | 'connected'
+  | 'connecting'
+  | 'disconnected'
+  | 'identity-refused'
+  | 'credential-unavailable'
+  | 'unauthenticated';
+
+export type ConnectionCause =
+  | 'none'
+  | 'unauthenticated'
+  | 'credential_unavailable'
+  | 'unreachable'
+  | 'upstream';
 
 /** A staged context chip on the action sheet (HANDOFF-CARDS-ACTIONS-MENTIONS
  *  named choice 4): context is never silent; every chip is visible and

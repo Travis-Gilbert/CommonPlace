@@ -18,7 +18,13 @@ import AtlasLensSwitcher from './atlas/AtlasLensSwitcher';
 import AtlasScaleBar from './atlas/AtlasScaleBar';
 import AtlasNodeDetail from './atlas/AtlasNodeDetail';
 import GraphLegend from './GraphLegend';
+import { LayerPicker } from './LayerPicker';
 import { useGraphData, type CosmoLink, type CosmoPoint } from './useGraphData';
+import {
+  edgeVisibleForLayers,
+  layerIdForEdgeType,
+  type LayerSelectionState,
+} from '@/lib/theseus/layers/registry';
 import type {
   InstantKgChunkEvent,
   InstantKgStreamHandlers,
@@ -208,7 +214,17 @@ const ExplorerShell: FC = () => {
     () => mergePointsById(basePoints, liveAdditions.points),
     [basePoints, liveAdditions.points],
   );
-  const links = useMemo(
+  const [layerSelection, setLayerSelection] = useState<LayerSelectionState | null>(null);
+
+  const links = useMemo(() => {
+    const merged = [...baseLinks, ...liveAdditions.links];
+    if (layerSelection == null) return merged;
+    const active = new Set(layerSelection.layers);
+    return merged.filter((link) =>
+      edgeVisibleForLayers(layerIdForEdgeType(link.edge_type ?? null), active),
+    );
+  }, [baseLinks, liveAdditions.links, layerSelection]);
+  const allLinks = useMemo(
     () => [...baseLinks, ...liveAdditions.links],
     [baseLinks, liveAdditions.links],
   );
@@ -494,7 +510,7 @@ const ExplorerShell: FC = () => {
       }
       if (disposed) return;
       try {
-        await ingestExplorerData(points, links);
+        await ingestExplorerData(points, allLinks);
       } catch (err) {
         console.warn('[ExplorerShell] Explorer ingest failed', err);
         return;
@@ -512,7 +528,7 @@ const ExplorerShell: FC = () => {
         disposeBridge = null;
       }
     };
-  }, [points, links, loading, error, webgl2Support]);
+  }, [points, allLinks, loading, error, webgl2Support]);
 
   function handleDismissDirective() {
     setDirectiveLabel(null);
@@ -777,6 +793,9 @@ const ExplorerShell: FC = () => {
           }}
         >
           <GraphLegend points={points} />
+          <div style={{ marginTop: 8 }}>
+            <LayerPicker onLayerSetChange={setLayerSelection} />
+          </div>
         </div>
       )}
 

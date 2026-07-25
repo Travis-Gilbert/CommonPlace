@@ -2,17 +2,10 @@
 // default Chat surface, Composer geometry and motion budget, Files projection,
 // deterministic Context graph, and Workspace seed.
 
-import { expect, test, type APIRequestContext, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
-
-async function resetStubLayout(request: APIRequestContext) {
-  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
-    headers: { 'x-api-key': 'dev-key' },
-  });
-  expect(response.ok()).toBeTruthy();
-}
 
 async function freshLoad(page: Page) {
   await page.goto('/');
@@ -40,27 +33,8 @@ async function openSurface(page: Page, id: string) {
     'console-files': '/files',
     'console-records': '/records',
     'console-threads': '/threads',
-    'console-topics': '/topics',
-    'console-survey': '/indexer',
-    'console-models': '/models',
   };
   const path = pathBySurface[id];
-  const rail = page.locator(`[data-surface-nav="${id}"]`);
-  // Prefer soft-nav so the memory projection store survives surface switches.
-  if (await rail.count()) {
-    await rail.click();
-    await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
-      timeout: 15_000,
-    });
-    if (path) {
-      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 30_000 });
-    }
-    await page.waitForFunction(
-      () => document.documentElement.getAttribute('data-layout-ready') === '1',
-      { timeout: 60_000 },
-    );
-    return;
-  }
   if (path) {
     await page.goto(path);
   } else {
@@ -90,23 +64,19 @@ async function pressSurfaceShortcut(page: Page, digit: string) {
 }
 
 test.describe('Console information architecture', () => {
-  test.beforeEach(async ({ page, request }) => {
-    await resetStubLayout(request);
-    await freshLoad(page);
-  });
+  test.beforeEach(async ({ page }) => freshLoad(page));
 
   test('separates places from generated collections and pins', async ({ page }) => {
     test.setTimeout(120_000);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat');
     const places = page.getByRole('radiogroup', { name: 'Places' }).getByRole('radio');
-    await expect(places).toHaveCount(8);
+    await expect(places).toHaveCount(7);
     expect(await places.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))).toEqual([
       'Chat place',
       'Workspace place',
       'Filing place',
       'Canvas place',
       'Automation place',
-      'Topics place',
       'Indexer place',
       'Models place',
     ]);
@@ -121,22 +91,14 @@ test.describe('Console information architecture', () => {
       'cards', 'doc', 'files', 'records', 'thread',
     ]);
 
-    // Soft-nav the five radios — full page.goto for each burns the 60s budget
-    // under cold CI and leaves the companion toggles unexercised.
     for (const surfaceId of [
       'console-workspace',
       'console-index',
       'console-canvas',
       'console-automation',
-      'console-topics',
-      'console-survey',
-      'console-models',
       'console-chat',
     ] as const) {
-      await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
-      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
-        timeout: 15_000,
-      });
+      await openSurface(page, surfaceId);
     }
     await pressSurfaceShortcut(page, '2');
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-workspace', {
@@ -146,11 +108,7 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-chat', {
       timeout: 15_000,
     });
-    await expect(page.locator('nav[aria-label="Places, collections, and pins"]')).toHaveScreenshot('stripe-tiers.png', {
-      animations: 'disabled',
-      maxDiffPixelRatio: 0.02,
-      timeout: 15_000,
-    });
+    await expect(page.locator('nav[aria-label="Places, collections, and pins"]')).toHaveScreenshot('stripe-tiers.png');
   });
 
   test('keeps Chat measured with one wide, auto-growing Composer', async ({ page }) => {
@@ -196,12 +154,9 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-composer-character-count]')).toHaveText('1800/2000');
     await input.fill('');
     await input.pressSequentially('@Ada');
-    const mentions = page.locator('[aria-label="Object mentions"]');
-    await expect(mentions).toBeVisible();
-    await expect(mentions.getByText('Ada Lovelace', { exact: true })).toBeVisible();
-    // Prefer keyboard confirm: the popover sits under the island header band and
-    // pointer hits can miss even with force when the header paints over it.
-    await input.press('Enter');
+    const mention = page.getByText('Ada Lovelace', { exact: true });
+    await expect(mention).toBeVisible();
+    await mention.click();
     await expect(input).toHaveValue(/Ada Lovelace/);
     await input.fill(Array.from({ length: 24 }, (_, index) => `Line ${index + 1}`).join('\n'));
     const grown = await input.boundingBox();
@@ -331,7 +286,7 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('treeitem', { name: /^Project/ })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
-    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
     await expect(page.getByRole('note')).toContainText('MemoryPatch is not available');
     await expect(page).toHaveScreenshot('files-projection.png', { fullPage: true });
   });
@@ -355,14 +310,9 @@ test.describe('Console information architecture', () => {
     await page.getByLabel('Close inspector').click();
     const context = page.locator('[data-context-view]');
     await expect(context).toHaveAttribute('data-context-key', 'person-ada');
-    // ContextView ensures memory projection hydrate; wait for gold memory nodes.
-    await expect(context.locator('circle[fill="var(--ij-gold)"]')).toHaveCount(2, { timeout: 30_000 });
+    await expect(context.locator('circle[fill="var(--ij-gold)"]')).toHaveCount(2);
     expect(await context.locator('circle').count()).toBeLessThanOrEqual(11);
     await expect(context.getByText(/Connected by works at|Memory mentions/).first()).toBeVisible();
-    await expect(context).toHaveScreenshot('context-graph.png', {
-      animations: 'disabled',
-      maxDiffPixelRatio: 0.02,
-      timeout: 15_000,
-    });
+    await expect(context).toHaveScreenshot('context-graph.png');
   });
 });

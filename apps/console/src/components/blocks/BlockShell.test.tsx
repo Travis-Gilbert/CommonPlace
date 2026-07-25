@@ -28,6 +28,23 @@ const DESCRIPTOR: ViewDescriptor = {
 };
 
 describe('BlockShell', () => {
+  it('omits the title header when showHeader is false', () => {
+    const markup = renderToStaticMarkup(
+      <BlockShell
+        descriptor={DESCRIPTOR}
+        viewInstanceId="vi-1"
+        showHeader={false}
+        draggable={false}
+      >
+        <span>body</span>
+      </BlockShell>,
+    );
+    expect(markup).toContain('data-block-chrome="bare"');
+    expect(markup).not.toContain('data-island-header');
+    expect(markup).not.toContain('data-block-title');
+    expect(markup).toContain('body');
+  });
+
   it('registers tool surface class and header anatomy', () => {
     const markup = renderToStaticMarkup(
       <BlockShell descriptor={DESCRIPTOR} viewInstanceId="vi-1" count={3} draggable={false}>

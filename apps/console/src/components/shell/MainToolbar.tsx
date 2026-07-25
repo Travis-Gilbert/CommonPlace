@@ -1,12 +1,16 @@
 'use client';
 
-// SOURCING: hand-roll. The Int UI main toolbar is a named chrome signature; no
-// library models it. Screen navigation lives in the leftmost stripe (the stripe
-// surfaces group), not a toolbar dropdown; the toolbar shows the active screen
-// as a quiet breadcrumb. Search is not a durable chrome field: Shift Shift /
-// Ctrl or Cmd K open the Search panel.
+// SOURCING: hand-roll. The Int UI main toolbar with the RunWidget is a named
+// chrome signature; no library models it. Screen navigation lives in the
+// leftmost stripe (the stripe surfaces group), not a toolbar dropdown; the
+// toolbar shows the active screen as a quiet breadcrumb. Search is not a
+// durable chrome field: Shift Shift / Ctrl or Cmd K open the Search panel.
+// The run widget binds to real run state and renders its empty state
+// otherwise, never a fixture run. Account lives as a trailing glyph.
+// Layout menu groups work / objects / tools; settings and status sit in a
+// trailing System group so primary nav stays scannable.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
@@ -18,6 +22,32 @@ interface MainToolbarProps {
   readonly activeSurfaceId: string;
 }
 
+type SurfaceGroupId = 'work' | 'objects' | 'tools' | 'system';
+
+const GROUP_LABEL: Record<SurfaceGroupId, string> = {
+  work: 'Work',
+  objects: 'Objects',
+  tools: 'Tools',
+  system: 'System',
+};
+
+function groupFor(surface: ObjectRef): SurfaceGroupId {
+  const role = String(surface.properties.role ?? '');
+  const kind = String(surface.properties.kind ?? '');
+  if (role === 'place') return 'work';
+  if (role === 'collection') return 'objects';
+  if (
+    kind === 'settings' ||
+    kind === 'account' ||
+    kind === 'harness-status' ||
+    kind === 'proactivity' ||
+    kind === 'appearance'
+  ) {
+    return 'system';
+  }
+  return 'tools';
+}
+
 export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProps) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const layoutTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -25,6 +55,21 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
   const activeName = String(
     surfaces.find((surface) => surface.id === activeSurfaceId)?.properties.name ?? 'Chat',
   );
+  const groups = useMemo(() => {
+    const buckets: Record<SurfaceGroupId, ObjectRef[]> = {
+      work: [],
+      objects: [],
+      tools: [],
+      system: [],
+    };
+    for (const surface of surfaces) {
+      buckets[groupFor(surface)].push(surface);
+    }
+    return (['work', 'objects', 'tools', 'system'] as const)
+      .map((id) => ({ id, label: GROUP_LABEL[id], items: buckets[id] }))
+      .filter((group) => group.items.length > 0);
+  }, [surfaces]);
+
   const switchTo = (surfaceId: string) => {
     // Toolbar switcher activates without routing: secondary surfaces (Appearance,
     // Account, …) have no segment, and remounting on router.push races e2e.
@@ -100,21 +145,35 @@ export function MainToolbar({ host, surfaces, activeSurfaceId }: MainToolbarProp
               event.preventDefault();
               items[next]?.focus();
             }}
-            className="absolute left-0 top-full z-40 mt-1 min-w-48 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
+            className="absolute left-0 top-full z-40 mt-1 min-w-52 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
           >
-            {surfaces.map((surface) => (
-              <button
-                key={surface.id}
-                type="button"
-                role="menuitemradio"
-                aria-checked={surface.id === activeSurfaceId}
-                data-layout-option={surface.id}
-                onClick={() => switchTo(surface.id)}
-                className="flex h-ij-row w-full items-center rounded-ij-arc-underline px-2 text-left text-ij-ink hover:bg-ij-hover-surface"
-                style={{ transition: 'var(--rec-clickable-transition)' }}
+            {groups.map((group, groupIndex) => (
+              <div
+                key={group.id}
+                role="group"
+                aria-label={group.label}
+                data-layout-group={group.id}
+                className={groupIndex > 0 ? 'mt-1 border-t border-ij-seam pt-1' : undefined}
               >
-                {String(surface.properties.name ?? surface.id)}
-              </button>
+                <div className="px-2 py-1 font-ij-mono text-ij-island-meta text-ij-ink-info">
+                  {group.label}
+                </div>
+                {group.items.map((surface) => (
+                  <button
+                    key={surface.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={surface.id === activeSurfaceId}
+                    data-layout-option={surface.id}
+                    data-layout-group={group.id}
+                    onClick={() => switchTo(surface.id)}
+                    className="flex h-ij-row w-full items-center rounded-ij-arc-underline px-2 text-left text-ij-ink hover:bg-ij-hover-surface"
+                    style={{ transition: 'var(--rec-clickable-transition)' }}
+                  >
+                    {String(surface.properties.name ?? surface.id)}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         ) : null}

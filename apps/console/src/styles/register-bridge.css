@@ -268,17 +268,17 @@
   --ij-island-meta-size: 11px;
   --ij-stripe-icon: 16px;
   --ij-nav-row-h: 36px;
-  /* Islands layout (HANDOFF-CONSOLE-BLOCK-SYSTEM choice 8): radius 10, gutter 6.
+  /* Islands layout: default mid radius; BlockSize remaps below. Gutter 6.
      Border color equals the island fill (tool = chrome, editor overrides below).
      No visible stroke; gutters show the frame between islands. */
-  --ij-island-radius: 10px;
+  --ij-island-radius: var(--ij-radius-lg);
   --ij-island-gutter: 6px;
   --ij-inactive-alpha: 0.44;
   --ij-island-border: var(--ij-chrome);
-  /* Header band: island base raised one elevation step, chroma +0.005..0.010.
+  /* Header band: island base raised one elevation step within the sunken side.
      ToolWindow.Header.background analog. Material Layer consumes these. */
-  --ij-island-header-tool: #383B42;
-  --ij-island-header-editor: #18191C;
+  --ij-island-header-tool: #22252A;
+  --ij-island-header-editor: #181A1D;
   /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
      Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
   --ij-ground-terra: #4C271D;
@@ -360,6 +360,29 @@
 
 [data-island="editor"] {
   --ij-island-border: var(--ij-editor);
+}
+
+/* Size-linked radius ramp (register D2 / BlockSize). MaterialLayer reads the
+   computed --ij-island-radius per island so DOM clip and SDF corners agree. */
+[data-block-size="s"] {
+  --ij-island-radius: var(--ij-radius-xs);
+}
+
+[data-block-size="m"] {
+  --ij-island-radius: var(--ij-radius-sm);
+}
+
+[data-block-size="v"],
+[data-block-size="sq"] {
+  --ij-island-radius: var(--ij-radius-md);
+}
+
+[data-block-size="w"] {
+  --ij-island-radius: var(--ij-radius-lg);
+}
+
+[data-block-size="full"] {
+  --ij-island-radius: var(--ij-radius-xl);
 }
 
 /* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink

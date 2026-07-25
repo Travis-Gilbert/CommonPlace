@@ -3,12 +3,19 @@
 // SOURCING: D3 for deterministic scale geometry. React owns the SVG so the
 // selected object remains the stable render key. No force simulation or
 // ambient graph motion exists. Every edge carries a worded reason.
+// Multiplex layer set: @commonplace/multiplex-layers (SPEC-MULTIPLEX-LAYERS ML4).
 
 import { useEffect, useMemo, useState } from 'react';
 import { scalePoint } from 'd3';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
+import {
+  edgeVisibleForLayers,
+  layerIdForEdgeType,
+  type LayerSelectionState,
+} from '@commonplace/multiplex-layers';
 import { useShellStore } from '@/lib/shell-store';
 import { ensureMemoryProjection, useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
+import { LayerPicker } from '@/components/context/LayerPicker';
 import { openMemoryTab } from './FilesView';
 
 interface ContextNode {
@@ -26,6 +33,8 @@ interface ContextEdge {
   readonly source: ContextNode;
   readonly target: ContextNode;
   readonly reason: string;
+  /** Substrate relation / edge kind used for multiplex layer filtering. */
+  readonly relation: string;
 }
 
 function words(value: unknown): string[] {
@@ -48,6 +57,7 @@ export function ContextView({ host }: { host: BlockHost }) {
   const selectRecord = useShellStore((state) => state.selectRecord);
   const memories = useMemoryProjectionStore((state) => state.items);
   const [candidates, setCandidates] = useState<readonly ObjectRef[]>([]);
+  const [layerSelection, setLayerSelection] = useState<LayerSelectionState | null>(null);
 
   useEffect(() => {
     void ensureMemoryProjection();
@@ -72,14 +82,14 @@ export function ContextView({ host }: { host: BlockHost }) {
   const graph = useMemo(() => {
     if (!selected) return { nodes: [] as ContextNode[], edges: [] as ContextEdge[] };
     const byId = new Map(candidates.map((object) => [object.id, object]));
-    const related: Array<{ object: ObjectRef; reason: string }> = [];
+    const related: Array<{ object: ObjectRef; reason: string; relation: string }> = [];
     const seen = new Set<string>([selected.id]);
     for (const [edge, ids] of Object.entries(selected.relations ?? {})) {
       for (const id of ids) {
         const object = byId.get(id);
         if (!object || seen.has(id)) continue;
         seen.add(id);
-        related.push({ object, reason: relationReason(edge) });
+        related.push({ object, reason: relationReason(edge), relation: edge });
       }
     }
     const selectedTags = new Set(words(selected.properties.tags));
@@ -89,7 +99,11 @@ export function ContextView({ host }: { host: BlockHost }) {
         const shared = words(object.properties.tags).find((tag) => selectedTags.has(tag));
         if (!shared) continue;
         seen.add(object.id);
-        related.push({ object, reason: `Shares the ${shared} tag` });
+        related.push({
+          object,
+          reason: `Shares the ${shared} tag`,
+          relation: 'shares_tag',
+        });
         if (related.length >= 8) break;
       }
     }
@@ -97,7 +111,7 @@ export function ContextView({ host }: { host: BlockHost }) {
     const center: ContextNode = { id: selected.id, label: titleOf(selected), kind: selected.type, object: selected, x: 160, y: 48 };
     const nodes: ContextNode[] = [center];
     const edges: ContextEdge[] = [];
-    related.slice(0, 8).forEach(({ object, reason }, index) => {
+    related.slice(0, 8).forEach(({ object, reason, relation }, index) => {
       const node: ContextNode = {
         id: object.id,
         label: titleOf(object),
@@ -107,7 +121,13 @@ export function ContextView({ host }: { host: BlockHost }) {
         y: rowSlots(Math.floor(index / 2)) ?? 120,
       };
       nodes.push(node);
-      edges.push({ id: `${center.id}:${node.id}`, source: center, target: node, reason });
+      edges.push({
+        id: `${center.id}:${node.id}`,
+        source: center,
+        target: node,
+        reason,
+        relation,
+      });
     });
     const selectedTerms = new Set([...selectedTags, ...titleOf(selected).toLowerCase().split(/\s+/)]);
     const memoryMatches = memories
@@ -126,10 +146,24 @@ export function ContextView({ host }: { host: BlockHost }) {
         y: 340,
       };
       nodes.push(node);
-      edges.push({ id: `${center.id}:memory:${node.id}`, source: center, target: node, reason: 'Memory mentions the selected context' });
+      edges.push({
+        id: `${center.id}:memory:${node.id}`,
+        source: center,
+        target: node,
+        reason: 'Memory mentions the selected context',
+        relation: 'memory',
+      });
     });
     return { nodes, edges };
   }, [candidates, memories, selected]);
+
+  const visibleEdges = useMemo(() => {
+    if (layerSelection == null) return graph.edges;
+    const active = new Set(layerSelection.layers);
+    return graph.edges.filter((edge) =>
+      edgeVisibleForLayers(layerIdForEdgeType(edge.relation), active),
+    );
+  }, [graph.edges, layerSelection]);
 
   if (!selected) {
     return (
@@ -146,10 +180,11 @@ export function ContextView({ host }: { host: BlockHost }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-ij-chrome" data-context-view data-context-key={selected.id}>
+      <LayerPicker onLayerSetChange={setLayerSelection} />
       <svg viewBox="0 0 320 372" role="img" aria-labelledby="context-title context-description" className="min-h-0 w-full flex-1">
         <title id="context-title">Context for {titleOf(selected)}</title>
         <desc id="context-description">A deterministic ego graph with labeled relation reasons and related memories.</desc>
-        {graph.edges.map((edge) => (
+        {visibleEdges.map((edge) => (
           <line
             key={edge.id}
             x1={edge.source.x}
@@ -190,8 +225,8 @@ export function ContextView({ host }: { host: BlockHost }) {
         ))}
       </svg>
       <div className="max-h-40 overflow-y-auto border-t border-ij-seam p-2 text-ij-ink-info" aria-label="Connection reasons">
-        {graph.edges.length > 0
-          ? graph.edges.map((edge) => (
+        {visibleEdges.length > 0
+          ? visibleEdges.map((edge) => (
               <p key={edge.id} className="mb-1 last:mb-0">
                 <span className="text-ij-ink">{edge.target.label}</span>
                 <span aria-hidden="true"> · </span>

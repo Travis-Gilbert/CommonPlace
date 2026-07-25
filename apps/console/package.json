@@ -22,9 +22,10 @@
     "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks",
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks && npm run gate:canonical-root",
     "test:e2e": "playwright test",
-    "gate:radius": "node scripts/check-radius-lint.mjs"
+    "gate:radius": "node scripts/check-radius-lint.mjs",
+    "gate:canonical-root": "node ../../scripts/assert-canonical-root.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "0.12.28",
@@ -41,6 +42,7 @@
     "@commonplace/data-model-contracts": "file:../../packages/data-model-contracts",
     "@commonplace/host-bridge": "file:../../packages/host-bridge",
     "@commonplace/json-canvas": "file:../../packages/json-canvas",
+    "@commonplace/multiplex-layers": "file:../../packages/multiplex-layers",
     "@commonplace/theorem-acp": "file:../../packages/theorem-acp",
     "@dagrejs/dagre": "^3.0.0",
     "@dagrejs/graphlib": "^4.0.1",
@@ -77,7 +79,7 @@
     "textmode.js": "^0.17.0",
     "three": "0.183.2",
     "zod": "^3.25.76",
-    "zustand": "^5.0.12"
+"zustand": "5.0.14"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

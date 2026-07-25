@@ -6,19 +6,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 
-async function resetAndOpenTopics(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => window.localStorage.removeItem('commonplace.console.surface.v1'));
+async function openSurvey(page: Page) {
+  await page.goto('/indexer');
+  await page.evaluate(() => {
+    window.localStorage.removeItem('commonplace.console.surface.v1');
+    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
+  });
   await page.reload();
   await page.waitForSelector('[data-shell]');
-  await page.locator('[data-layout-switcher]').click();
-  await page.locator('[data-layout-option="console-topics"]').click();
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-topics');
-}
-
-async function openSurvey(page: Page) {
-  await resetAndOpenTopics(page);
-  await page.getByRole('button', { name: /Evidence centered research surfaces/ }).click();
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    { timeout: 60_000 },
+  );
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-survey');
   await expect(page.locator('[data-survey]')).toBeVisible();
 }

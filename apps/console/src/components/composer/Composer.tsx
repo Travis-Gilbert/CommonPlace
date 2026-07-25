@@ -131,16 +131,21 @@ export function Composer({
 
   const mention = useObjectMentionAdapter(mentions, tenant);
 
+  const connection = useShellStore((state) => state.connection);
   const [focused, setFocused] = useState(false);
   const composerState = unavailable
     ? 'endpoint-refused'
-    : interrupted
-      ? 'interrupted'
-      : isRunning
-        ? 'streaming'
-        : focused
-          ? 'focused'
-          : 'idle';
+    : connection === 'identity-refused' ||
+      connection === 'unauthenticated' ||
+      connection === 'credential-unavailable'
+      ? 'disabled'
+      : interrupted
+        ? 'interrupted'
+        : isRunning
+          ? 'streaming'
+          : focused
+            ? 'focused'
+            : 'idle';
 
   /** Paper shader binding per IA named choice 6: paper material for writing
    *  states, grain-gradient wave only while streaming, fluted glass when refused. */
@@ -154,6 +159,15 @@ export function Composer({
           colorBack: 'raised',
           colorFill: 'error',
           paper: { roughness: 0.4, fiber: 0.1 },
+        };
+      case 'disabled':
+        return {
+          material: 'Deterministic' as const,
+          paperShader: 'paper-texture' as const,
+          staticOnly: true,
+          colorBack: 'chrome',
+          colorFill: 'seam',
+          paper: { roughness: 0.02, fiber: 0.02, fiberSize: 0.8, contrast: 0.1, crumples: 0 },
         };
       case 'streaming':
         return {
@@ -284,7 +298,7 @@ export function Composer({
         char="@"
         adapter={mention.adapter}
         aria-label="Object mentions"
-        className="absolute bottom-full left-0 z-50 mb-1 max-h-64 w-full overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
+        className="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-full overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-1"
       >
         <ComposerPrimitive.Unstable_TriggerPopover.Directive {...mention.directive} />
         <ComposerPrimitive.Unstable_TriggerPopoverItems>
@@ -417,7 +431,7 @@ export function Composer({
                 minRows={compact ? 2 : 3}
                 maxRows={24}
                 maxLength={MAX_CHARACTERS}
-                disabled={unavailable}
+                disabled={unavailable || composerState === 'disabled'}
                 data-composer-input
                 data-thread-composer-input
                 placeholder={PLACEHOLDER}
@@ -437,7 +451,7 @@ export function Composer({
                 <ComposerPrimitive.AddAttachment
                   aria-label="Attach file"
                   title="Upload files"
-                  disabled={unavailable}
+                  disabled={unavailable || composerState === 'disabled'}
                   className="composer-icon-button"
                 >
                   <IconAttach size={16} />
@@ -491,7 +505,7 @@ export function Composer({
                 <ComposerPrimitive.Send
                   aria-label="Send message"
                   title={`Send message (${NEW_LINE_HINT})`}
-                  disabled={unavailable}
+                  disabled={unavailable || composerState === 'disabled'}
                   className="composer-send-button"
                 >
                   <IconSend size={16} />

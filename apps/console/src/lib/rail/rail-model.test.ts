@@ -17,7 +17,6 @@ describe('rail-model', () => {
       'Filing',
       'Canvas',
       'Automation',
-      'Topics',
       'Indexer',
       'Models',
     ]);

@@ -18,7 +18,6 @@ import { SURVEY_TOPIC_ID } from './surveySeed';
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
 export const ACCOUNT_SURFACE_ID = 'console-account';
-export const TOPICS_SURFACE_ID = 'console-topics';
 export const SURVEY_SURFACE_ID = 'console-survey';
 export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
 export const MODEL_SURFACE_ID = 'console-models';
@@ -166,7 +165,9 @@ export function seedLayout(): ObjectRef[] {
       kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,
     }, ['chat.vi-surface']),
     layoutObject('chat.vi-surface', 'view-instance', {
-      descriptor_id: 'chat.surface', title: 'Chat', query: { types: ['thread'] } as unknown as JsonValue,
+      descriptor_id: 'chat.surface', title: 'Chat',
+      query: { types: ['thread'] } as unknown as JsonValue,
+      config: { size: 'full' } as unknown as JsonValue,
     }),
     ...companionSeeds('chat'),
 
@@ -229,62 +230,6 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('index'),
 
-    // Topics is the entry point to Indexer. Opening a topic retargets the
-    // Indexer view instance through the persisted surface arrangement.
-    layoutObject(TOPICS_SURFACE_ID, 'surface', {
-      name: 'Topics', kind: 'topics', role: 'place', stripe_order: 5, active: false, seed_revision: 1,
-    }, ['topics.region-editor', ...companionIds('topics')]),
-    layoutObject('topics.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'topics.vi-list', seed_revision: 1,
-    }, ['topics.vi-list']),
-    layoutObject('topics.vi-list', 'view-instance', {
-      descriptor_id: 'topic.list',
-      title: 'Standing topics',
-      query: { types: ['topic'], live: true } as unknown as JsonValue,
-    }),
-    ...companionSeeds('topics'),
-
-    layoutObject(SURVEY_SURFACE_ID, 'surface', {
-      name: 'Indexer', kind: 'survey', role: 'place', stripe_order: 6, active: false, seed_revision: 1,
-    }, ['survey.region-editor', ...companionIds('survey')]),
-    layoutObject('survey.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
-    }, [SURVEY_VIEW_INSTANCE_ID]),
-    layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
-      descriptor_id: 'survey.board',
-      title: 'Indexer',
-      query: {
-        types: ['topic', 'capture', 'survey-edge'],
-        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
-        live: true,
-      } as unknown as JsonValue,
-    }),
-    ...companionSeeds('survey'),
-
-    layoutObject(MODEL_SURFACE_ID, 'surface', {
-      name: 'Models', kind: 'model', role: 'place', stripe_order: 7, active: false, seed_revision: 1,
-    }, ['models.region-editor', ...companionIds('models')]),
-    layoutObject('models.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,
-    }, [MODEL_VIEW_INSTANCE_ID]),
-    layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
-      descriptor_id: 'model.studio',
-      title: 'Models',
-      query: {
-        types: [
-          'model-scope',
-          'object-type-metadata',
-          'field-metadata',
-          'relation-metadata',
-          'view-metadata',
-          'schema-version',
-        ],
-        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
-        live: true,
-      } as unknown as JsonValue,
-    }),
-    ...companionSeeds('models'),
-
     layoutObject('console-canvas', 'surface', {
       name: 'Canvas', kind: 'canvas', role: 'place', stripe_order: 3, active: false, seed_revision: 1,
     }, ['canvas.region-editor', ...companionIds('canvas')]),
@@ -308,6 +253,48 @@ export function seedLayout(): ObjectRef[] {
       query: { types: ['run', 'dispatch'], live: true } as unknown as JsonValue,
     }),
     ...companionSeeds('automation'),
+
+
+    layoutObject(SURVEY_SURFACE_ID, 'surface', {
+      name: 'Indexer', kind: 'survey', role: 'place', stripe_order: 5, active: false, seed_revision: 1,
+    }, ['survey.region-editor', ...companionIds('survey')]),
+    layoutObject('survey.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [SURVEY_VIEW_INSTANCE_ID]),
+    layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'survey.board',
+      title: 'Indexer',
+      query: {
+        types: ['topic', 'capture', 'survey-edge'],
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('survey'),
+
+    layoutObject(MODEL_SURFACE_ID, 'surface', {
+      name: 'Models', kind: 'model', role: 'place', stripe_order: 6, active: false, seed_revision: 1,
+    }, ['models.region-editor', ...companionIds('models')]),
+    layoutObject('models.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [MODEL_VIEW_INSTANCE_ID]),
+    layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'model.studio',
+      title: 'Models',
+      query: {
+        types: [
+          'model-scope',
+          'object-type-metadata',
+          'field-metadata',
+          'relation-metadata',
+          'view-metadata',
+          'schema-version',
+        ],
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('models'),
 
     layoutObject('console-docs', 'surface', {
       name: 'Documents', kind: 'documents', role: 'collection', active: false, seed_revision: 3,
