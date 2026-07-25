@@ -13,7 +13,12 @@ import type { ConsoleBlockHost } from '@/lib/console-host';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
-import { deriveRailCollections, PLACE_ENTRIES, type RailCollection } from '@/lib/rail/rail-model';
+import { deriveRailCollections, PLACE_ENTRIES } from '@/lib/rail/rail-model';
+import {
+  collectionsFromNavRegistry,
+  navItemsFromObjects,
+  type RegistryCollection,
+} from '@/lib/rail/nav-registry';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
@@ -152,6 +157,39 @@ function useLandmarkObjects(host: ConsoleBlockHost): readonly ObjectRef[] {
   return objects;
 }
 
+function useNavRegistryCollections(host: ConsoleBlockHost): readonly RegistryCollection[] {
+  const [collections, setCollections] = useState<readonly RegistryCollection[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe = () => {};
+    const query = {
+      types: ['NavItem'],
+      rank: [{ kind: 'field' as const, field: 'position', direction: 'asc' as const }],
+      page: { limit: 64 },
+      live: true,
+    };
+    void Promise.resolve(host.query(query))
+      .then((set) => {
+        if (!active) return;
+        setCollections(collectionsFromNavRegistry(navItemsFromObjects(set.objects)));
+        unsubscribe = set.subscribe((next) => {
+          setCollections(collectionsFromNavRegistry(navItemsFromObjects(next.objects)));
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setCollections([]);
+      });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [host]);
+
+  return collections;
+}
+
 function shortcutLabel(index: number): string {
   return `Cmd or Ctrl ${index + 1}`;
 }
@@ -217,7 +255,14 @@ export function Sidebar({
   const collapsed = collapseOverride ?? persistedCollapsed;
   const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
-  const collections = useMemo(() => deriveRailCollections(), []);
+  const registryCollections = useNavRegistryCollections(host);
+  const staticCollections = useMemo(() => deriveRailCollections(), []);
+  const collections = useMemo(() => {
+    if (registryCollections.length === 0) return staticCollections;
+    const seen = new Set(registryCollections.map((item) => item.surfaceId));
+    const leftover = staticCollections.filter((item) => !seen.has(item.surfaceId));
+    return [...registryCollections, ...leftover];
+  }, [registryCollections, staticCollections]);
   const seededLandmarks = landmarksRegion?.instances ?? [];
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
@@ -395,15 +440,18 @@ export function Sidebar({
         className="flex flex-col"
         style={{ gap: 'var(--ij-sidebar-row-gap)' }}
       >
-        {collections.map((collection: RailCollection) => {
-          const Icon = COLLECTION_ICONS[collection.kindGlyph] ?? IconRecords;
+        {collections.map((collection) => {
+          const kindGlyph =
+            'kindGlyph' in collection ? collection.kindGlyph : collection.kind;
+          const rowKey = 'id' in collection ? collection.id : collection.kindGlyph;
+          const Icon = COLLECTION_ICONS[kindGlyph] ?? IconRecords;
           const active = collection.surfaceId === activeSurfaceId;
           return (
             <button
-              key={collection.kindGlyph}
+              key={rowKey}
               type="button"
               data-rail-tier="collection"
-              data-collection-nav={collection.kindGlyph}
+              data-collection-nav={kindGlyph}
               data-surface-nav={collection.surfaceId}
               title={collection.label}
               aria-label={`${collection.label} collection`}
