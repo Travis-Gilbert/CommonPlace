@@ -165,6 +165,13 @@ export function historyEditorModelArgs(
   };
 }
 
+export function closeEditorModelArgs(id: string): Record<string, JsonValue> {
+  return {
+    action: 'close',
+    id,
+  };
+}
+
 interface CodeFileSurfaceProps {
   readonly fileId: string;
   readonly initialContent: string;
@@ -224,12 +231,9 @@ function CodeFileSurface({
     const token = ++requestTokenRef.current;
     pendingRef.current = true;
     setPending(true);
-    const view = viewRef.current;
-    if (view) {
-      view.dispatch({
-        effects: editableCompartment.reconfigure(editableExtensions(false)),
-      });
-    }
+    // Editable state is owned by the canEdit effect below. Do not dispatch
+    // from here: CodeMirror forbids nested updates while an update is in
+    // progress, and a throw before emit would leave pending stuck true.
 
     let result: Result<ObjectActionReceipt>;
     try {
@@ -271,7 +275,7 @@ function CodeFileSurface({
     authoritativeDocumentRef.current = parsed.document ?? '';
     setModelState(parsed);
     return parsed;
-  }, [editableCompartment, enterUnavailable, fileId]);
+  }, [enterUnavailable, fileId]);
 
   const runHistory = useCallback((action: 'undo' | 'redo') => {
     if (!fileId || !availableRef.current || pendingRef.current) return;
@@ -293,7 +297,14 @@ function CodeFileSurface({
       if (!availableRef.current || pendingRef.current) return;
       const edits = collectEditsFromChanges(update.changes);
       if (edits.length === 0) return;
-      void runModelCommand(editEditorModelArgs(fileId, revisionRef.current, edits));
+      // Claim pending before deferring so rapid keystrokes cannot schedule a
+      // second round-trip against the same base revision.
+      pendingRef.current = true;
+      setPending(true);
+      const revision = revisionRef.current;
+      queueMicrotask(() => {
+        void runModelCommand(editEditorModelArgs(fileId, revision, edits));
+      });
     };
 
     const view = new EditorView({
@@ -369,6 +380,13 @@ function CodeFileSurface({
     return () => {
       cancelled = true;
       requestTokenRef.current += 1;
+      // Best-effort dispose so long-lived API processes do not retain every
+      // opened file rope forever. Fire-and-forget: unmount must not await.
+      void blockHostRef.current.emit({
+        kind: 'invoke_tool',
+        tool: EDITOR_MODEL_TOOL,
+        args: closeEditorModelArgs(fileId),
+      }).catch(() => undefined);
     };
   }, [fileId, fileSeed, runModelCommand]);
 
@@ -409,7 +427,9 @@ function CodeFileSurface({
       changes: { from: 0, to: view.state.doc.length, insert: nextDocument },
       selection: EditorSelection.cursor(head),
     });
-  }, [currentModelState?.document]);
+    // Key on the whole model state so rejected edits that restore the prior
+    // authoritative document still force reconciliation when CM has diverged.
+  }, [currentModelState]);
 
   const notice = noteText(currentModelState?.reason);
   const status = pending

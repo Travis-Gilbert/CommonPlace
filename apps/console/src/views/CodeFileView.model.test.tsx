@@ -9,6 +9,7 @@ import {
   openEditorModelArgs,
   parseEditorModelReceipt,
   seedEditorFile,
+  closeEditorModelArgs,
 } from './CodeFileView';
 
 describe('CodeFileView editor-model contract helpers', () => {
@@ -37,6 +38,10 @@ describe('CodeFileView editor-model contract helpers', () => {
       action: 'redo',
       id: 'code:fixture',
       base_revision: 5,
+    });
+    expect(closeEditorModelArgs('code:fixture')).toEqual({
+      action: 'close',
+      id: 'code:fixture',
     });
   });
 
