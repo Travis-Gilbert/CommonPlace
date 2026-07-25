@@ -959,6 +959,56 @@ export class ConsoleBlockHost implements BlockHost {
         this.notifyLayout();
         return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
       }
+      case 'upsert_complete_view': {
+        const surface = this.layout.get(action.id);
+        if (!surface || surface.type !== 'surface') {
+          return Promise.resolve({ ok: false, error: `upsert_complete_view target missing: ${action.id}` });
+        }
+        if (action.props) {
+          surface.properties = { ...surface.properties, ...action.props };
+        }
+        if (action.regions !== undefined) {
+          const previous = [...surface.children];
+          for (const childId of previous) {
+            this.deleteSubtree(childId);
+          }
+          surface.children = [];
+          const createdIds: string[] = [];
+          for (const [index, region] of action.regions.entries()) {
+            const regionId = typeof region.id === 'string' && region.id.length > 0
+              ? region.id
+              : `${action.id}.region.${index}`;
+            const instanceIds: string[] = [];
+            for (const [instanceIndex, instance] of (region.instances ?? []).entries()) {
+              const instanceId = typeof instance.id === 'string' && instance.id.length > 0
+                ? instance.id
+                : `${regionId}.vi.${instanceIndex}`;
+              this.layout.set(instanceId, {
+                id: instanceId,
+                type: 'view-instance',
+                properties: { ...instance.props },
+                children: [],
+              });
+              instanceIds.push(instanceId);
+              createdIds.push(instanceId);
+            }
+            this.layout.set(regionId, {
+              id: regionId,
+              type: 'region',
+              properties: { ...region.props },
+              children: instanceIds,
+            });
+            surface.children.push(regionId);
+            createdIds.push(regionId);
+          }
+          this.persistLayout();
+          this.notifyLayout();
+          return Promise.resolve(applied([action.id, ...createdIds]));
+        }
+        this.persistLayout();
+        this.notifyLayout();
+        return Promise.resolve(applied([action.id]));
+      }
       case 'invoke_tool':
       case 'dispatch':
         // Consequential domain actions always ride the object seam. In
@@ -968,6 +1018,16 @@ export class ConsoleBlockHost implements BlockHost {
       default:
         // open / select / link / run_agent are UI or substrate concerns.
         return Promise.resolve(accepted());
+    }
+  }
+
+  private deleteSubtree(id: string): void {
+    const node = this.layout.get(id);
+    if (!node) return;
+    for (const childId of [...node.children]) this.deleteSubtree(childId);
+    this.layout.delete(id);
+    for (const candidate of this.layout.values()) {
+      candidate.children = candidate.children.filter((childId) => childId !== id);
     }
   }
 

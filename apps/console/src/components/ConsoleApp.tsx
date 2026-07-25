@@ -18,6 +18,8 @@ import {
 } from '@assistant-ui/react';
 import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
+import { HostProvider } from '@/lib/commonplace-host/HostProvider';
+import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
 import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
@@ -30,6 +32,7 @@ import { startAppearanceStore } from '@/lib/appearance-store';
 import { useWindowInactiveOverlay } from '@/lib/use-window-inactive';
 import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
 import type { ProactivityGraph } from '@/lib/proactivity/types';
+import type { OpenTarget } from '@commonplace/host-bridge';
 
 const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
@@ -89,8 +92,11 @@ function connectionFor(status: number | null): 'connected' | 'disconnected' | 'i
 
 export function ConsoleApp({
   initialProactivity,
+  initialViewId,
 }: {
   initialProactivity?: { readonly graph: ProactivityGraph | null; readonly error: string | null };
+  /** Optional slug or surface id from /v/[viewId]. */
+  initialViewId?: string;
 } = {}) {
   // True after hydration only (server snapshot false): the persisted
   // arrangement in localStorage never causes a hydration mismatch.
@@ -118,6 +124,32 @@ export function ConsoleApp({
     [mounted],
   );
 
+  const onOpenTarget = useMemo(
+    () => async (target: OpenTarget) => {
+      if (target.kind === 'url' && typeof window !== 'undefined') {
+        window.open(target.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      if (target.kind === 'find') {
+        useShellStore.getState().openSearchPanel('search');
+        return;
+      }
+      if (target.kind === 'ask') {
+        useShellStore.getState().openSearchPanel('command');
+        return;
+      }
+      if (target.kind === 'block') {
+        useShellStore.getState().selectRecord(target.blockId, null, 'note');
+      }
+    },
+    [],
+  );
+
+  const queryObjects = useMemo(() => {
+    if (!host) return undefined;
+    return (q: Parameters<typeof queryViaBlockHost>[1]) => queryViaBlockHost(host, q);
+  }, [host]);
+
   useEffect(() => {
     return startAppearanceStore();
   }, []);
@@ -127,6 +159,18 @@ export function ConsoleApp({
     if (initialProactivity.graph) hydrateProactivity(initialProactivity.graph);
     else failProactivity(initialProactivity.error ?? 'server_projection_unavailable');
   }, [failProactivity, hydrateProactivity, initialProactivity]);
+
+  useEffect(() => {
+    if (!host || !initialViewId) return;
+    const match = host.queryLayout({ types: ['surface'], live: true }).objects.find((surface) => {
+      const slug = surface.properties.slug;
+      return surface.id === initialViewId
+        || surface.id === `view-${initialViewId}`
+        || surface.id === `console-${initialViewId}`
+        || slug === initialViewId;
+    });
+    if (match) void host.activateSurface(match.id);
+  }, [host, initialViewId]);
 
   useEffect(() => {
     if (!host) return;
@@ -167,11 +211,13 @@ export function ConsoleApp({
     <div className="relative h-dvh w-full overflow-hidden bg-ij-frame" data-console-frame>
       <MaterialLayer />
       <div className="relative z-10 h-full">
-        <SessionProvider>
-          <RuntimeBoundary>
-            <IntuiShell host={host} />
-          </RuntimeBoundary>
-        </SessionProvider>
+        <HostProvider queryObjects={queryObjects} onOpenTarget={onOpenTarget}>
+          <SessionProvider>
+            <RuntimeBoundary>
+              <IntuiShell host={host} />
+            </RuntimeBoundary>
+          </SessionProvider>
+        </HostProvider>
       </div>
     </div>
   );
