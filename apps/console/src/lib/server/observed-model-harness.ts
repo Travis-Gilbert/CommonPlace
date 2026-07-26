@@ -20,11 +20,10 @@ import {
   type ScopeRef,
   type ViewMetadata,
 } from '@commonplace/data-model-contracts';
-import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
 import {
-  principalTenantHeaders,
-  resolveHarnessPrincipal,
-} from '@/lib/server/harness-principal';
+  callHarnessGraphql,
+  type HarnessGraphqlMode,
+} from '@/lib/server/harness-graphql';
 
 interface GraphqlSuccess {
   readonly ok: true;
@@ -108,13 +107,6 @@ const COMPILE_MUTATION = `
     compileDeclaredModel(topicId: $topicId)
   }
 `;
-
-function graphqlUrl(): string | null {
-  const explicit = process.env.THEOREM_GRAPHQL_URL;
-  if (explicit) return explicit;
-  const base = process.env.CONSOLE_HARNESS_URL;
-  return base ? `${base.replace(/\/$/, '')}/graphql` : null;
-}
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -486,52 +478,26 @@ function normalizeProposal(value: unknown, topicId: string, tenant: string): Sch
 async function executeGraphql(
   query: string,
   variables: Record<string, unknown>,
+  mode: HarnessGraphqlMode = 'query',
 ): Promise<GraphqlResult> {
-  const resolution = await resolveHarnessPrincipal();
-  if (!resolution.ok) {
-    return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
-  }
-  const endpoint = graphqlUrl();
-  if (!endpoint) return { ok: false, status: 404, error: 'observed_model_graphql_unconfigured' };
-
-  const timeout = startHarnessRequestTimeout();
-  try {
-    const upstream = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...principalTenantHeaders(resolution.principal),
-        ...(process.env.CONSOLE_HARNESS_TOKEN
-          ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }
-          : {}),
-        ...(process.env.THEOREM_API_KEY ? { 'x-api-key': process.env.THEOREM_API_KEY } : {}),
-      },
-      body: JSON.stringify({ query, variables }),
-      cache: 'no-store',
-      signal: timeout.signal,
-    });
-    const payload = await upstream.json().catch(() => null) as {
-      data?: Record<string, unknown>;
-      errors?: Array<{ message?: unknown }>;
-    } | null;
-    if (!upstream.ok || payload?.errors || !payload?.data) {
-      const detail = payload?.errors?.[0]?.message;
-      return {
-        ok: false,
-        status: upstream.ok ? 502 : upstream.status,
-        error: typeof detail === 'string' ? detail : 'observed_model_graphql_failed',
-      };
-    }
-    return { ok: true, tenant: resolution.principal.tenant, data: payload.data };
-  } catch {
+  const result = await callHarnessGraphql(query, variables, mode);
+  if (!result.ok) {
     return {
       ok: false,
-      status: timeout.didTimeout() ? 504 : 502,
-      error: timeout.didTimeout() ? 'observed_model_graphql_timeout' : 'observed_model_graphql_unreachable',
+      status: result.status,
+      error: observedModelError(result.error),
     };
-  } finally {
-    timeout.clear();
   }
+  return {
+    ok: true,
+    tenant: result.principal.tenant,
+    data: result.data,
+  };
+}
+
+function observedModelError(error: string): string {
+  const suffix = error.match(/^harness_graphql_(failed|timeout|unconfigured|unreachable)$/)?.[1];
+  return suffix ? `observed_model_graphql_${suffix}` : error;
 }
 
 async function readDeclaredModel(topicId: string): Promise<
@@ -594,7 +560,7 @@ export async function pinObserved(request: PinRequest): Promise<ModelMutation> {
     input.from_field = fromField;
     input.to_field = toField;
   }
-  const mutation = await executeGraphql(PIN_MUTATION, { input });
+  const mutation = await executeGraphql(PIN_MUTATION, { input }, 'mutate');
   if (!mutation.ok) return mutation;
   const receipt = normalizeReceipt(mutation.data.pinObserved);
   if (!receipt) return { ok: false, status: 502, error: 'invalid_pin_receipt' };
@@ -604,7 +570,7 @@ export async function pinObserved(request: PinRequest): Promise<ModelMutation> {
 }
 
 export async function unpinDeclared(topicId: string, declaredId: string): Promise<ModelMutation> {
-  const mutation = await executeGraphql(UNPIN_MUTATION, { targetId: declaredId });
+  const mutation = await executeGraphql(UNPIN_MUTATION, { targetId: declaredId }, 'mutate');
   if (!mutation.ok) return mutation;
   const receipt = normalizeReceipt(mutation.data.unpinDeclared);
   if (!receipt) return { ok: false, status: 502, error: 'invalid_unpin_receipt' };
@@ -617,7 +583,11 @@ export async function proposeSchemaChange(
   topicId: string,
   request: string,
 ): Promise<ProposalMutation> {
-  const mutation = await executeGraphql(PROPOSE_MUTATION, { input: { topicId, request } });
+  const mutation = await executeGraphql(
+    PROPOSE_MUTATION,
+    { input: { topicId, request } },
+    'mutate',
+  );
   if (!mutation.ok) return mutation;
   const draft = normalizeProposal(mutation.data.proposeSchemaChange, topicId, mutation.tenant);
   return draft

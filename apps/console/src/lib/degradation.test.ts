@@ -10,6 +10,10 @@ describe('degradationFor', () => {
   it('maps known wire codes to prose without leaking the code', () => {
     const codes = [
       'console_data_api_unreachable',
+      'harness_graphql_failed',
+      'harness_graphql_timeout',
+      'harness_graphql_unconfigured',
+      'harness_graphql_unreachable',
       'observed_model_graphql_failed',
       'observed_model_graphql_timeout',
       'observed_model_graphql_unconfigured',
