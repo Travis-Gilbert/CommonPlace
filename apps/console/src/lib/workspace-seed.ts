@@ -159,7 +159,7 @@ export function seedLayout(): ObjectRef[] {
     }),
 
     layoutObject(SURFACE_ID, 'surface', {
-      name: 'Chat', kind: 'chat', role: 'place', stripe_order: 0, active: true, seed_revision: 4,
+      name: 'Chat', kind: 'chat', role: 'place', active: false, seed_revision: 5,
     }, ['chat.region-editor', ...companionIds('chat')]),
     layoutObject('chat.region-editor', 'region', {
       kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,
@@ -172,7 +172,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('chat'),
 
     layoutObject(WORKSPACE_SURFACE_ID, 'surface', {
-      name: 'Workspace', kind: 'workspace', role: 'place', stripe_order: 1, active: false, seed_revision: 5,
+      name: 'Workspace', kind: 'workspace', role: 'place', active: false, seed_revision: 6,
     }, ['region-editor', ...companionIds('workspace')]),
     layoutObject('region-editor', 'region', {
       kind: 'editor', size: 72, active_tab: 'workspace.vi-substrate', seed_revision: 3,
@@ -207,7 +207,7 @@ export function seedLayout(): ObjectRef[] {
     // the Place label is Filing. The rail names the shelves; the editor holds
     // the recently-filed ribbon, the digest, and the rules tab.
     layoutObject('console-index', 'surface', {
-      name: 'Filing', kind: 'index', role: 'place', stripe_order: 2, active: false, seed_revision: 4,
+      name: 'Filing', kind: 'index', role: 'place', active: false, seed_revision: 5,
     }, ['index.region-rail', 'index.region-editor', 'index.region-urgent', ...companionIds('index')]),
     ...registerToolWindow({
       id: 'index.region-rail', title: 'Destinations', icon: 'rail', side: 'left', size: 22,
@@ -231,7 +231,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('index'),
 
     layoutObject('console-canvas', 'surface', {
-      name: 'Canvas', kind: 'canvas', role: 'place', stripe_order: 3, active: false, seed_revision: 1,
+      name: 'Canvas', kind: 'canvas', role: 'place', active: false, seed_revision: 2,
     }, ['canvas.region-editor', ...companionIds('canvas')]),
     layoutObject('canvas.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'canvas.vi-board', seed_revision: 1,
@@ -243,7 +243,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('canvas'),
 
     layoutObject('console-automation', 'surface', {
-      name: 'Automation', kind: 'automation', role: 'place', stripe_order: 4, active: false, seed_revision: 1,
+      name: 'Automation', kind: 'automation', role: 'place', active: false, seed_revision: 2,
     }, ['automation.region-editor', ...companionIds('automation')]),
     layoutObject('automation.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'automation.vi-history', seed_revision: 1,
@@ -256,14 +256,14 @@ export function seedLayout(): ObjectRef[] {
 
 
     layoutObject(SURVEY_SURFACE_ID, 'surface', {
-      name: 'Indexer', kind: 'survey', role: 'place', stripe_order: 5, active: false, seed_revision: 1,
+      name: 'Researcher', kind: 'survey', role: 'place', active: false, seed_revision: 2,
     }, ['survey.region-editor', ...companionIds('survey')]),
     layoutObject('survey.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
     }, [SURVEY_VIEW_INSTANCE_ID]),
     layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
       descriptor_id: 'survey.board',
-      title: 'Indexer',
+      title: 'Researcher',
       query: {
         types: ['topic', 'capture', 'survey-edge'],
         where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
@@ -273,7 +273,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('survey'),
 
     layoutObject(MODEL_SURFACE_ID, 'surface', {
-      name: 'Models', kind: 'model', role: 'place', stripe_order: 6, active: false, seed_revision: 1,
+      name: 'Models', kind: 'model', role: 'place', active: false, seed_revision: 2,
     }, ['models.region-editor', ...companionIds('models')]),
     layoutObject('models.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,

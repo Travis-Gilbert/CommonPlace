@@ -69,12 +69,13 @@
 }
 
 .composer-input {
+  box-sizing: border-box;
   field-sizing: content;
   min-height: var(--ij-composer-min-h);
-  max-height: var(--ij-composer-max-h);
+  max-height: max(var(--ij-composer-min-h), var(--ij-composer-max-h));
   padding: var(--ij-composer-pad-y) var(--ij-composer-pad-x);
   font-size: var(--ij-composer-font-size);
-  line-height: 1.5;
+  line-height: var(--ij-composer-line-height);
 }
 
 /* The composer is an instrument panel, not a card: the ladder and the seam
@@ -115,6 +116,7 @@
   position: relative;
   z-index: 3;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--ij-composer-gap);
   padding: calc(var(--rec-grid) * 2) var(--ij-composer-pad-compact);
@@ -125,6 +127,7 @@
    subtraction removes (X1). */
 .composer-tool-group {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--rec-grid);
   padding: calc(var(--rec-grid) / 2);
@@ -161,6 +164,7 @@
 .composer-mode-control {
   position: relative;
   display: inline-flex;
+  min-width: 0;
   align-items: center;
 }
 
@@ -184,6 +188,7 @@
 
 .composer-presence {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   margin-left: auto;
@@ -194,6 +199,7 @@
    digits change (X1). */
 .composer-character-count {
   display: inline-flex;
+  flex: none;
   min-width: var(--ij-composer-counter-min-width);
   justify-content: flex-end;
   margin-left: auto;
@@ -209,6 +215,7 @@
 }
 
 .composer-send-button {
+  flex: none;
   color: var(--ij-ink-bright);
   background: var(--ij-accent);
 }
@@ -257,14 +264,39 @@
   }
 }
 
-.thread-jump-strip {
-  display: none;
+.thread-turn {
+  display: block;
 }
 
-@media (min-width: 1200px) {
-  .thread-jump-strip {
-    display: block;
-  }
+.thread-turn-human {
+  margin: calc(var(--rec-grid) * 2) calc(var(--rec-grid) * 3);
+  background: var(--paper-sunken, var(--ij-editor));
+  border-radius: var(--radius-control);
+}
+
+.thread-turn-agent[data-material='lifted'] {
+  border-radius: 0;
+  background: var(--paper-lifted, var(--ij-chrome));
+  box-shadow: none;
+}
+
+/* CS18: consecutive same-role turns group without repeating identity. */
+.thread-turn-human + .thread-turn-human {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.thread-turn-agent + .thread-turn-agent .thread-turn-body {
+  padding-top: calc(var(--rec-grid));
+}
+
+.thread-turn-body {
+  padding: calc(var(--rec-grid) * 2) calc(var(--rec-grid) * 3);
+}
+
+.thread-turn-agent .thread-turn-body {
+  padding-block: calc(var(--rec-grid) * 3);
 }
 
 body {

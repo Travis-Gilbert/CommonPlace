@@ -32,6 +32,8 @@ export interface BlockShellProps {
   readonly statusNote?: string;
   readonly live?: boolean;
   readonly actions?: ReactNode;
+  /** Optional single control row (tabs or control bar, never both). */
+  readonly controlRow?: ReactNode;
   readonly onHide?: () => void;
   /** Override density when descriptor.block.density is `both`. */
   readonly density?: Exclude<BlockDensity, 'both'>;
@@ -116,6 +118,7 @@ export function BlockShell({
   statusNote,
   live = false,
   actions,
+  controlRow,
   onHide,
   density: densityOverride,
   surfaceClass: surfaceOverride,
@@ -185,9 +188,10 @@ export function BlockShell({
         <header
           ref={headerDragRef}
           data-island-header
+          data-block-identity
           data-paint-region="island-header"
           data-block-drag-surface={headerDragListeners ? 'true' : undefined}
-          className="flex h-ij-island-header shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
+          className="flex h-ij-row shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
           style={headerDragListeners ? { cursor: 'grab', touchAction: 'none' } : undefined}
           {...(headerDragAttributes ?? {})}
           {...(headerDragListeners ?? {})}
@@ -201,6 +205,7 @@ export function BlockShell({
           </span>
           <h2
             data-block-title
+            data-active-surface-name
             className="min-w-0 truncate font-ij-ui text-ij-island-title text-ij-ink"
             style={{ fontWeight: 600 }}
           >
@@ -210,6 +215,7 @@ export function BlockShell({
             <span
               data-block-count
               className="shrink-0 font-ij-mono text-ij-island-meta tabular-nums text-ij-ink-info"
+              data-mono-ok
             >
               {count}
             </span>
@@ -303,6 +309,12 @@ export function BlockShell({
           ) : null}
         </>
       )}
+
+      {controlRow ? (
+        <div data-block-control-row className="flex h-ij-control shrink-0 items-center gap-2 border-b border-ij-seam px-3">
+          {controlRow}
+        </div>
+      ) : null}
 
       <div
         data-block-body

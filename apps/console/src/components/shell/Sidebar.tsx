@@ -1,9 +1,9 @@
 'use client';
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
-// SPEC-CONSOLE-INFORMATION-ARCHITECTURE-1.0: three rail tiers (Places,
-// Collections, Pins). Companions are dock panels and stay out of the rail.
-// Connection state is owned by StatusBar only (D7).
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11/CS12: Views (launch five), Blocks,
+// Objects, Pins. Layout switcher lives in the sidebar header. Selection is a
+// sunken well plus full-strength ink, not a saturated fill.
 
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,10 +14,12 @@ import { softNavigate } from '@/lib/soft-navigate';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
-import { deriveRailCollections, PLACE_ENTRIES, type RailCollection } from '@/lib/rail/rail-model';
+import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
+import { BLOCK_PALETTE, type BlockPaletteItem } from '@/components/nav/Sidebar';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
+import { LayoutSwitcher } from './LayoutSwitcher';
 import {
   IconAccount,
   IconCards,
@@ -28,7 +30,7 @@ import {
   IconMemory,
   IconModel,
   IconRecords,
-  IconRun,
+  IconRail,
   IconThread,
   IconWorkspace,
 } from './icons';
@@ -40,21 +42,10 @@ export interface SidebarRegion {
 
 const PLACE_ICONS: Record<string, typeof IconRecords> = {
   chat: IconChat,
-  workspace: IconWorkspace,
+  survey: IconMemory,
   index: IconIndex,
-  canvas: IconCards,
-  automation: IconRun,
-  topics: IconMemory,
-  survey: IconIndex,
+  editor: IconWorkspace,
   model: IconModel,
-};
-
-const COLLECTION_ICONS: Record<string, typeof IconRecords> = {
-  records: IconRecords,
-  cards: IconCards,
-  thread: IconThread,
-  doc: IconDoc,
-  files: IconFiles,
 };
 
 const LANDMARK_ICONS: Record<string, typeof IconRecords> = {
@@ -67,6 +58,18 @@ const LANDMARK_ICONS: Record<string, typeof IconRecords> = {
   context: IconMemory,
 };
 
+const BLOCK_ICONS: Record<string, typeof IconRecords> = {
+  chat: IconThread,
+  index: IconRail,
+  'data-model': IconModel,
+  plan: IconModel,
+  records: IconRecords,
+  automation: IconRail,
+  filing: IconDoc,
+  documents: IconDoc,
+  files: IconWorkspace,
+};
+
 const LANDMARK_TYPES = ['record', 'doc', 'code-file'] as const;
 
 const DESCRIPTOR_FOR_DOMAIN: Record<string, string> = {
@@ -75,9 +78,22 @@ const DESCRIPTOR_FOR_DOMAIN: Record<string, string> = {
   'code-file': 'code.file',
 };
 
+const SELECTION_STYLE = {
+  background: 'var(--paper-sunken, var(--ij-editor))',
+  color: 'var(--ij-ink)',
+  boxShadow: 'inset 0 0 0 1px var(--ij-seam)',
+} as const;
+
 function titleFor(object: ObjectRef, fallback: string): string {
   const title = object.properties.title ?? object.properties.name ?? object.properties.path;
   return typeof title === 'string' && title.length > 0 ? title : fallback;
+}
+
+function pinLabel(landmark: ObjectRef, fallbackName: string): string {
+  const title = titleFor(landmark, '');
+  if (title && title.length > 0 && title !== landmark.id) return title;
+  const type = landmark.type || 'object';
+  return `${type} ${landmark.id}`;
 }
 
 function landmarkInstanceId(landmark: ObjectRef): string {
@@ -181,16 +197,14 @@ function SidebarDivider() {
 function SidebarRowIcon({
   children,
   muted,
-  hue,
 }: {
   readonly children: React.ReactNode;
   readonly muted?: boolean;
-  readonly hue?: string;
 }) {
   return (
     <span
       className="flex size-ij-stripe-icon shrink-0 items-center justify-center"
-      style={{ color: hue ?? (muted ? 'var(--ij-ink-info)' : 'var(--ij-ink)') }}
+      style={{ color: muted ? 'var(--ij-ink-info)' : 'var(--ij-ink)' }}
       aria-hidden
     >
       {children}
@@ -198,15 +212,36 @@ function SidebarRowIcon({
   );
 }
 
+function SidebarGroupLabel({ children, hidden }: { children: React.ReactNode; hidden?: boolean }) {
+  return (
+    <h2
+      className="text-ij-ink-info"
+      style={{
+        paddingInline: 'var(--ij-sidebar-pad)',
+        fontSize: 'var(--ij-sidebar-shortcut-size)',
+        lineHeight: '16px',
+        fontFamily: 'var(--cp-font-human)',
+        fontWeight: 500,
+        opacity: hidden ? 0 : 1,
+        transition: 'opacity var(--ij-motion) var(--ij-ease)',
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
 export function Sidebar({
   host,
+  surfaces,
   activeSurfaceId,
   compact,
   landmarksRegion,
   activeGridRegionId,
-  onToggleCompanion,
   collapsed,
   onCollapsedChange,
+  onAddBlock,
+  objectTypes = [],
 }: {
   readonly host: ConsoleBlockHost;
   readonly surfaces: readonly ObjectRef[];
@@ -218,13 +253,14 @@ export function Sidebar({
   readonly onToggleCompanion: (region: SidebarRegion) => void;
   readonly collapsed: boolean;
   readonly onCollapsedChange: (collapsed: boolean) => void;
+  readonly onAddBlock?: (item: BlockPaletteItem) => void;
+  readonly objectTypes?: readonly { readonly name: string; readonly count: number; readonly diverged?: boolean }[];
 }) {
   const router = useRouter();
   const { data: session } = useSession();
   const durations = useMotionDurations();
   const visuallyCollapsed = compact || collapsed;
   const domainLandmarks = useLandmarkObjects(host);
-  const collections = useMemo(() => deriveRailCollections(), []);
   const seededLandmarks = landmarksRegion?.instances ?? [];
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
@@ -239,13 +275,11 @@ export function Sidebar({
     onCollapsedChange(!collapsed);
   }, [collapsed, onCollapsedChange]);
 
-  const routedRailEntries = useMemo(() => [...PLACE_ENTRIES, ...collections], [collections]);
-
   useEffect(() => {
-    for (const entry of routedRailEntries) {
-      router.prefetch(entry.path);
+    for (const place of PLACE_ENTRIES) {
+      router.prefetch(place.path);
     }
-  }, [routedRailEntries, router]);
+  }, [router]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -351,9 +385,15 @@ export function Sidebar({
     void host.emit({ kind: 'delete', id: landmark.id });
   }, [host]);
 
+  const addBlock = useCallback((item: BlockPaletteItem) => {
+    onAddBlock?.(item);
+  }, [onAddBlock]);
+
+  const objectTypeRows = useMemo(() => objectTypes, [objectTypes]);
+
   return (
     <nav
-      aria-label="Places, collections, and pins"
+      aria-label="Views, blocks, objects, and pins"
       data-paint-region="stripe"
       data-frame-resident="stripe"
       data-shell-region="rail"
@@ -365,14 +405,26 @@ export function Sidebar({
         transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)',
       }}
     >
+      {!visuallyCollapsed ? (
+        <div className="shrink-0">
+          <LayoutSwitcher
+            host={host}
+            surfaces={surfaces}
+            activeSurfaceId={activeSurfaceId}
+            showActiveName={false}
+          />
+        </div>
+      ) : null}
+
       <div
         data-surface-rail
         data-rail-tier="place"
         role="radiogroup"
-        aria-label="Places"
+        aria-label="Views"
         className="flex flex-col"
         style={{ gap: 'var(--ij-sidebar-row-gap)' }}
       >
+        <SidebarGroupLabel hidden={visuallyCollapsed}>Views</SidebarGroupLabel>
         {PLACE_ENTRIES.map((place, index) => {
           const Icon = PLACE_ICONS[place.kind] ?? IconWorkspace;
           const active = place.surfaceId === activeSurfaceId;
@@ -384,7 +436,7 @@ export function Sidebar({
               data-rail-tier="place"
               data-surface-nav={place.surfaceId}
               title={`${place.label} (${shortcutLabel(index)})`}
-              aria-label={`${place.label} place`}
+              aria-label={`${place.label} view`}
               aria-checked={active}
               aria-keyshortcuts={`Control+${index + 1} Meta+${index + 1}`}
               onClick={() => navigateTo(place.surfaceId, place.path)}
@@ -394,14 +446,15 @@ export function Sidebar({
                 paddingInline: 'var(--ij-sidebar-pad)',
                 gap: 'var(--ij-sidebar-icon-gap)',
                 color: 'var(--ij-ink)',
-                background: active ? 'var(--ij-selection)' : 'transparent',
+                background: active ? SELECTION_STYLE.background : 'transparent',
+                boxShadow: active ? SELECTION_STYLE.boxShadow : undefined,
                 fontWeight: active ? 700 : 600,
                 fontSize: 'var(--ij-sidebar-label-size)',
                 lineHeight: 'var(--ij-sidebar-label-line)',
               }}
             >
               {visuallyCollapsed && active ? (
-                <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip bg-ij-accent" />
+                <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip" style={{ background: 'var(--ij-ink)' }} />
               ) : null}
               <SidebarRowIcon muted={!active}>
                 <Icon size={16} />
@@ -416,7 +469,7 @@ export function Sidebar({
                 {place.label}
               </span>
               <span
-                className="shrink-0 font-ij-mono tabular-nums"
+                className="shrink-0 tabular-nums"
                 style={{
                   opacity: visuallyCollapsed ? 0 : 1,
                   transition: 'opacity var(--ij-motion) var(--ij-ease)',
@@ -424,6 +477,7 @@ export function Sidebar({
                   fontSize: 'var(--ij-sidebar-shortcut-size)',
                   lineHeight: '16px',
                   fontWeight: 400,
+                  fontFamily: 'var(--cp-font-human)',
                 }}
               >
                 {shortcutGlyph(index)}
@@ -436,38 +490,34 @@ export function Sidebar({
       <SidebarDivider />
 
       <div
-        data-rail-tier="collection"
-        aria-label="Collections"
+        data-rail-tier="blocks"
+        aria-label="Blocks"
         className="flex flex-col"
         style={{ gap: 'var(--ij-sidebar-row-gap)' }}
       >
-        {collections.map((collection: RailCollection) => {
-          const Icon = COLLECTION_ICONS[collection.kindGlyph] ?? IconRecords;
-          const active = collection.surfaceId === activeSurfaceId;
+        <SidebarGroupLabel hidden={visuallyCollapsed}>Blocks</SidebarGroupLabel>
+        {BLOCK_PALETTE.map((item) => {
+          const Icon = BLOCK_ICONS[item.kind] ?? IconRecords;
           return (
             <button
-              key={collection.kindGlyph}
+              key={item.id}
               type="button"
-              data-rail-tier="collection"
-              data-collection-nav={collection.kindGlyph}
-              data-surface-nav={collection.surfaceId}
-              title={collection.label}
-              aria-label={`${collection.label} collection`}
-              aria-current={active ? 'page' : undefined}
-              onClick={() => navigateTo(collection.surfaceId, collection.path)}
+              data-rail-tier="blocks"
+              data-block-palette={item.id}
+              title={item.label}
+              aria-label={`Add ${item.label} block`}
+              onClick={() => addBlock(item)}
               className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
-              data-selected={active ? 'true' : undefined}
               style={{
                 paddingInline: 'var(--ij-sidebar-pad)',
                 gap: 'var(--ij-sidebar-icon-gap)',
                 color: 'var(--ij-ink)',
-                background: active ? 'var(--ij-selection)' : 'transparent',
-                fontWeight: active ? 600 : 500,
+                fontWeight: 500,
                 fontSize: 'var(--ij-sidebar-label-size)',
                 lineHeight: 'var(--ij-sidebar-label-line)',
               }}
             >
-              <SidebarRowIcon muted={!active}>
+              <SidebarRowIcon muted>
                 <Icon size={16} />
               </SidebarRowIcon>
               <span
@@ -477,11 +527,61 @@ export function Sidebar({
                   transition: 'opacity var(--ij-motion) var(--ij-ease)',
                 }}
               >
-                {collection.label}
+                {item.label}
               </span>
             </button>
           );
         })}
+      </div>
+
+      <SidebarDivider />
+
+      <div
+        data-rail-tier="objects"
+        aria-label="Objects"
+        className="flex flex-col"
+        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
+      >
+        <SidebarGroupLabel hidden={visuallyCollapsed}>Objects</SidebarGroupLabel>
+        {objectTypeRows.length === 0 && !visuallyCollapsed ? (
+          <p
+            className="text-ij-ink-info"
+            style={{
+              paddingInline: 'var(--ij-sidebar-pad)',
+              fontSize: 'var(--ij-sidebar-label-size)',
+              fontFamily: 'var(--cp-font-human)',
+            }}
+          >
+            No declared types yet.
+          </p>
+        ) : (
+          objectTypeRows.map((type) => (
+            <button
+              key={type.name}
+              type="button"
+              data-rail-tier="objects"
+              className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
+              style={{
+                paddingInline: 'var(--ij-sidebar-pad)',
+                gap: 'var(--ij-sidebar-icon-gap)',
+                color: 'var(--ij-ink)',
+                fontWeight: 500,
+                fontSize: 'var(--ij-sidebar-label-size)',
+              }}
+            >
+              <SidebarRowIcon muted>
+                <IconRecords size={16} />
+              </SidebarRowIcon>
+              <span
+                className="min-w-0 flex-1 truncate"
+                style={{ opacity: visuallyCollapsed ? 0 : 1 }}
+              >
+                {type.name}
+                {type.count > 0 ? ` (${type.count})` : ''}
+              </span>
+            </button>
+          ))
+        )}
       </div>
 
       <SidebarDivider />
@@ -492,18 +592,7 @@ export function Sidebar({
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         style={{ gap: '4px' }}
       >
-        <h2
-          className="font-ij-mono tabular-nums text-ij-ink-info"
-          style={{
-            paddingInline: 'var(--ij-sidebar-pad)',
-            fontSize: 'var(--ij-sidebar-shortcut-size)',
-            lineHeight: '16px',
-            opacity: visuallyCollapsed ? 0 : 1,
-            transition: 'opacity var(--ij-motion) var(--ij-ease)',
-          }}
-        >
-          Pins
-        </h2>
+        <SidebarGroupLabel hidden={visuallyCollapsed}>Pins</SidebarGroupLabel>
         <div className="flex flex-col" style={{ gap: 'var(--ij-sidebar-row-gap)' }}>
           {landmarks.map((landmark) => {
             const descriptorId = String(landmark.properties.descriptor_id ?? '');
@@ -512,7 +601,7 @@ export function Sidebar({
               : undefined;
             const glyph = descriptor?.block?.kindGlyph ?? String(landmark.properties.kind ?? 'records');
             const Icon = LANDMARK_ICONS[glyph] ?? IconRecords;
-            const label = titleFor(landmark, descriptor?.name ?? landmark.id);
+            const label = pinLabel(landmark, descriptor?.name ?? landmark.id);
             const removable = landmark.type === 'view-instance';
             return (
               <div
@@ -536,10 +625,13 @@ export function Sidebar({
                   <Icon size={16} />
                 </SidebarRowIcon>
                 <span
-                  className="min-w-0 flex-1 truncate"
+                  className="min-w-0 flex-1"
                   style={{
                     opacity: visuallyCollapsed ? 0 : 1,
                     transition: 'opacity var(--ij-motion) var(--ij-ease)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {label}
@@ -575,6 +667,7 @@ export function Sidebar({
               style={{
                 paddingInline: 'var(--ij-sidebar-pad)',
                 fontSize: 'var(--ij-sidebar-label-size)',
+                fontFamily: 'var(--cp-font-human)',
               }}
             >
               No pins yet.
@@ -631,8 +724,11 @@ export function Sidebar({
           aria-label="Account"
           aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
           onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
-          className="flex size-ij-stripe-icon shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink aria-pressed:bg-ij-selection aria-pressed:text-ij-ink"
-          style={{ transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)' }}
+          className="flex size-ij-stripe-icon shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+          style={{
+            transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)',
+            ...(activeSurfaceId === ACCOUNT_SURFACE_ID ? SELECTION_STYLE : {}),
+          }}
           title="Account"
         >
           <IconAccount size={14} />
@@ -646,7 +742,9 @@ export function Sidebar({
             fontWeight: 500,
             fontSize: 'var(--ij-sidebar-label-size)',
             lineHeight: 'var(--ij-sidebar-label-line)',
+            fontFamily: 'var(--cp-font-human)',
           }}
+          title={tenant}
         >
           {tenant}
         </span>

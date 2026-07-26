@@ -1,5 +1,5 @@
 // SOURCING: none. Pure logic, no upstream component applies.
-// SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS8: three seeded views, nothing else.
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS8/CS11: five seeded views.
 // Seeding is idempotent. A deleted seeded view stays deleted across restart.
 
 import type { JsonValue, ObjectRef } from '@commonplace/block-view/types';
@@ -7,10 +7,18 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { readDeletedSeedSlugs } from './surface-object';
 
 export const SEED_VIEW_CHAT = 'chat';
+export const SEED_VIEW_RESEARCHER = 'researcher';
 export const SEED_VIEW_INDEX = 'index';
+export const SEED_VIEW_EDITOR = 'editor';
 export const SEED_VIEW_DATA_MODEL = 'data-model';
 
-export const SEED_VIEW_SLUGS = [SEED_VIEW_CHAT, SEED_VIEW_INDEX, SEED_VIEW_DATA_MODEL] as const;
+export const SEED_VIEW_SLUGS = [
+  SEED_VIEW_CHAT,
+  SEED_VIEW_RESEARCHER,
+  SEED_VIEW_INDEX,
+  SEED_VIEW_EDITOR,
+  SEED_VIEW_DATA_MODEL,
+] as const;
 export type SeedViewSlug = (typeof SEED_VIEW_SLUGS)[number];
 
 function layoutObject(
@@ -27,7 +35,28 @@ function layoutObject(
   };
 }
 
-/** Build the three seeded views. Caller filters deleted slugs. */
+function agentRail(prefix: string, collapsed: boolean, role: 'surface' | 'companion' = 'companion'): ObjectRef[] {
+  return [
+    layoutObject(`${prefix}.rail`, 'region', {
+      kind: 'tool-window',
+      side: 'right',
+      material: 'docked',
+      title: 'Agent',
+      icon: 'rail',
+      size: 400,
+      open: true,
+      collapsed,
+      role,
+    }, [`${prefix}.rail.vi`]),
+    layoutObject(`${prefix}.rail.vi`, 'view-instance', {
+      descriptor_id: 'agent.rail',
+      title: 'Agent',
+      query: { types: ['thread'] } as unknown as JsonValue,
+    }),
+  ];
+}
+
+/** Build the five seeded views. Caller filters deleted slugs. */
 export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlugs()): ObjectRef[] {
   const out: ObjectRef[] = [];
 
@@ -37,11 +66,11 @@ export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlu
         name: 'Chat',
         slug: SEED_VIEW_CHAT,
         kind: 'chat',
-        role: 'surface',
+        role: 'place',
         stripe_order: 0,
         active: true,
         seeded: true,
-        seed_revision: 1,
+        seed_revision: 2,
       }, ['view-chat.well', 'view-chat.rail']),
       layoutObject('view-chat.well', 'region', {
         kind: 'editor',
@@ -49,23 +78,44 @@ export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlu
         title: 'Well',
         open: true,
         empty_hint: 'Add a block from the sidebar. Sunken blocks land here.',
-      }, []),
-      layoutObject('view-chat.rail', 'region', {
-        kind: 'tool-window',
-        side: 'right',
-        material: 'docked',
-        title: 'Agent',
-        icon: 'rail',
-        size: 400,
-        open: true,
-        collapsed: false,
-        role: 'surface',
-      }, ['view-chat.rail.vi']),
-      layoutObject('view-chat.rail.vi', 'view-instance', {
-        descriptor_id: 'agent.rail',
-        title: 'Agent',
+      }, ['view-chat.well.vi']),
+      layoutObject('view-chat.well.vi', 'view-instance', {
+        descriptor_id: 'chat.surface',
+        title: 'Chat',
         query: { types: ['thread'] } as unknown as JsonValue,
+        config: { size: 'full' } as unknown as JsonValue,
       }),
+      ...agentRail('view-chat', false, 'surface'),
+    );
+  }
+
+  if (!deleted.has(SEED_VIEW_RESEARCHER)) {
+    out.push(
+      layoutObject('view-researcher', 'surface', {
+        name: 'Researcher',
+        slug: SEED_VIEW_RESEARCHER,
+        kind: 'survey',
+        role: 'place',
+        stripe_order: 1,
+        active: false,
+        seeded: true,
+        seed_revision: 1,
+      }, ['view-researcher.well', 'view-researcher.rail']),
+      layoutObject('view-researcher.well', 'region', {
+        kind: 'editor',
+        material: 'sunken',
+        title: 'Researcher',
+        open: true,
+      }, ['view-researcher.well.vi']),
+      layoutObject('view-researcher.well.vi', 'view-instance', {
+        descriptor_id: 'survey.board',
+        title: 'Researcher',
+        query: {
+          types: ['topic', 'capture', 'survey-edge'],
+          live: true,
+        } as unknown as JsonValue,
+      }),
+      ...agentRail('view-researcher', true),
     );
   }
 
@@ -75,11 +125,11 @@ export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlu
         name: 'Index',
         slug: SEED_VIEW_INDEX,
         kind: 'index',
-        role: 'surface',
-        stripe_order: 1,
+        role: 'place',
+        stripe_order: 2,
         active: false,
         seeded: true,
-        seed_revision: 1,
+        seed_revision: 2,
       }, ['view-index.well', 'view-index.rail']),
       layoutObject('view-index.well', 'region', {
         kind: 'editor',
@@ -92,47 +142,69 @@ export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlu
         title: 'Index',
         query: { types: ['record'], live: true } as unknown as JsonValue,
       }),
-      layoutObject('view-index.rail', 'region', {
-        kind: 'tool-window',
-        side: 'right',
-        material: 'docked',
-        title: 'Agent',
-        icon: 'rail',
-        size: 400,
+      ...agentRail('view-index', true),
+    );
+  }
+
+  if (!deleted.has(SEED_VIEW_EDITOR)) {
+    out.push(
+      layoutObject('view-editor', 'surface', {
+        name: 'Editor',
+        slug: SEED_VIEW_EDITOR,
+        kind: 'editor',
+        role: 'place',
+        stripe_order: 3,
+        active: false,
+        seeded: true,
+        seed_revision: 1,
+      }, ['view-editor.well', 'view-editor.rail']),
+      layoutObject('view-editor.well', 'region', {
+        kind: 'editor',
+        material: 'sunken',
+        title: 'Editor',
         open: true,
-        collapsed: true,
-        role: 'companion',
-      }, ['view-index.rail.vi']),
-      layoutObject('view-index.rail.vi', 'view-instance', {
-        descriptor_id: 'agent.rail',
-        title: 'Agent',
-        query: { types: ['thread'] } as unknown as JsonValue,
+      }, ['view-editor.well.vi']),
+      layoutObject('view-editor.well.vi', 'view-instance', {
+        descriptor_id: 'workspace.substrate',
+        title: 'Editor',
+        query: { types: ['surface-tool'] } as unknown as JsonValue,
       }),
+      ...agentRail('view-editor', true),
     );
   }
 
   if (!deleted.has(SEED_VIEW_DATA_MODEL)) {
     out.push(
       layoutObject('view-data-model', 'surface', {
-        name: 'Data model',
+        name: 'Models',
         slug: SEED_VIEW_DATA_MODEL,
         kind: 'model',
-        role: 'surface',
-        stripe_order: 2,
+        role: 'place',
+        stripe_order: 4,
         active: false,
         seeded: true,
-        seed_revision: 1,
+        seed_revision: 2,
       }, ['view-data-model.well', 'view-data-model.inspector', 'view-data-model.rail']),
       layoutObject('view-data-model.well', 'region', {
         kind: 'editor',
         material: 'sunken',
-        title: 'Data model',
+        title: 'Models',
         open: true,
       }, ['view-data-model.well.vi']),
       layoutObject('view-data-model.well.vi', 'view-instance', {
-        descriptor_id: 'index.rail',
-        title: 'Data model',
-        query: { types: ['index-rail'] } as unknown as JsonValue,
+        descriptor_id: 'model.studio',
+        title: 'Models',
+        query: {
+          types: [
+            'model-scope',
+            'object-type-metadata',
+            'field-metadata',
+            'relation-metadata',
+            'view-metadata',
+            'schema-version',
+          ],
+          live: true,
+        } as unknown as JsonValue,
       }),
       layoutObject('view-data-model.inspector', 'region', {
         kind: 'tool-window',
@@ -149,22 +221,7 @@ export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlu
         title: 'Inspector',
         query: { types: ['record'], live: true } as unknown as JsonValue,
       }),
-      layoutObject('view-data-model.rail', 'region', {
-        kind: 'tool-window',
-        side: 'right',
-        material: 'docked',
-        title: 'Agent',
-        icon: 'rail',
-        size: 400,
-        open: true,
-        collapsed: true,
-        role: 'companion',
-      }, ['view-data-model.rail.vi']),
-      layoutObject('view-data-model.rail.vi', 'view-instance', {
-        descriptor_id: 'agent.rail',
-        title: 'Agent',
-        query: { types: ['thread'] } as unknown as JsonValue,
-      }),
+      ...agentRail('view-data-model', true),
     );
   }
 

@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type { ObjectRef } from '@commonplace/block-view/types';
 import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
@@ -27,7 +27,6 @@ import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/moti
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
 import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
-import { MainToolbar } from './MainToolbar';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
 import { StatusBar } from './StatusBar';
@@ -36,8 +35,13 @@ import { Sidebar, type SidebarRegion } from './Sidebar';
 import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
 import { HostFindLens } from '@/components/host/HostFindLens';
-import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
+import { placeBlockAction } from '@/lib/block-placement';
+import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import type { BlockPaletteItem } from '@/components/nav/Sidebar';
 
+/** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
+const SIDEBAR_WIDTH_PX = 180;
+const SIDEBAR_COLLAPSED_PX = 48;
 const OVERLAY_BREAKPOINT = 1100;
 
 type RegionNode = SidebarRegion;
@@ -157,6 +161,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
     [surfaces],
   );
+  void primarySurfaces;
 
   const pathname = usePathname();
   const router = useRouter();
@@ -173,11 +178,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return () => observer.disconnect();
   }, []);
 
-  // The active surface: the one carrying the active flag, the proof
-  // workspace otherwise. Switching layouts flips flags on surface objects;
+  // The active surface: the one carrying the active flag, the launch Chat
+  // view otherwise. Switching layouts flips flags on surface objects;
   // regions and their arrangement stay untouched per surface (R3.3).
   const activeSurfaceId = useMemo(() => {
-    return surfaces.find((object) => object.properties.active === true)?.id ?? SURFACE_ID;
+    return surfaces.find((object) => object.properties.active === true)?.id
+      ?? PLACE_ENTRIES[0]?.surfaceId
+      ?? SURFACE_ID;
   }, [surfaces]);
 
   // Deep links and back/forward: the route is the surface radio (B3).
@@ -221,7 +228,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     }
   }, [router]);
 
-  // Alt+1..7 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
+  // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
   // companions for the active surface (dock panels; not rail destinations).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -256,6 +263,36 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [companions, host, router, toggle]);
+
+  const handleAddBlock = useCallback((item: BlockPaletteItem) => {
+    if (!editor) return;
+    void (async () => {
+      const id = `palette.${item.id}.${Date.now()}`;
+      const created = await host.emit({
+        kind: 'create',
+        type: 'view-instance',
+        props: {
+          id,
+          descriptor_id: item.descriptorId,
+          title: item.label,
+          query: { types: [item.kind] },
+        },
+      });
+      if (!created.ok) return;
+      let moves = 0;
+      for (const action of placeBlockAction(id, {
+        placement: 'ground',
+        regionId: editor.object.id,
+        order: editor.instances.length,
+      })) {
+        const result = await host.emit(action);
+        if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
+          moves += 1;
+        }
+      }
+      if (moves > 0) recordBlockMoveReceipts(moves);
+    })();
+  }, [editor, host]);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {
@@ -336,7 +373,6 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [layoutObjects]);
 
   const landmarkCollapsed = landmarkRegion?.object.properties.collapsed === true;
-  const sidebarPanelRef = useRef<ImperativePanelHandle | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(landmarkCollapsed);
   const [seenLandmarkCollapsed, setSeenLandmarkCollapsed] = useState(landmarkCollapsed);
   if (landmarkCollapsed !== seenLandmarkCollapsed) {
@@ -352,29 +388,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [host, landmarkRegion]);
 
   const applySidebarCollapsed = useCallback((next: boolean) => {
-    const panel = sidebarPanelRef.current;
-    if (!panel) {
-      persistSidebarCollapsed(next);
-      return;
-    }
-    if (next) {
-      if (panel.isCollapsed()) persistSidebarCollapsed(true);
-      else panel.collapse();
-      return;
-    }
-    if (panel.isCollapsed()) panel.expand();
-    else persistSidebarCollapsed(false);
+    persistSidebarCollapsed(next);
   }, [persistSidebarCollapsed]);
-
-  useEffect(() => {
-    const panel = sidebarPanelRef.current;
-    if (!panel) return;
-    if (landmarkCollapsed) {
-      if (!panel.isCollapsed()) panel.collapse();
-    } else if (panel.isCollapsed()) {
-      panel.expand();
-    }
-  }, [landmarkCollapsed]);
 
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
@@ -448,31 +463,20 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       data-shell
       data-compact={compact}
       data-active-surface={activeSurfaceId}
-      className="relative flex h-full min-h-0 flex-col bg-transparent"
+      className="relative flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
-      <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
-      <PanelGroup
-        id="console-shell-columns"
-        direction="horizontal"
-        className="flex min-h-0 flex-1"
-        autoSaveId="console-shell-sidebar"
-      >
-        <Panel
-          id="console-sidebar"
-          ref={sidebarPanelRef}
-          order={1}
-          defaultSize={20}
-          minSize={12}
-          maxSize={32}
-          collapsible
-          collapsedSize={3}
-          className="min-h-0"
-          onCollapse={() => persistSidebarCollapsed(true)}
-          onExpand={() => persistSidebarCollapsed(false)}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <aside
+          data-shell-sidebar
+          className="min-h-0 shrink-0 overflow-hidden"
+          style={{
+            width: sidebarCollapsed || compact ? SIDEBAR_COLLAPSED_PX : SIDEBAR_WIDTH_PX,
+            transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)',
+          }}
         >
           <Sidebar
             host={host}
-            surfaces={primarySurfaces}
+            surfaces={surfaces}
             companions={companions}
             activeSurfaceId={activeSurfaceId}
             compact={compact}
@@ -481,19 +485,20 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
             onToggleCompanion={toggle}
             collapsed={sidebarCollapsed}
             onCollapsedChange={applySidebarCollapsed}
+            onAddBlock={handleAddBlock}
           />
-        </Panel>
-        <PanelResizeHandle
+        </aside>
+        <div
           data-shell-sidebar-seam
-          className="relative w-ij-island-gutter bg-transparent"
-          aria-label="Resize sidebar"
+          className="relative w-ij-island-gutter shrink-0 bg-transparent"
+          aria-hidden
         />
-        <Panel id="console-editor-well" order={2} defaultSize={80} minSize={48} className="min-h-0 min-w-0">
+        <div id="console-editor-well" className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             data-shell-region="ground"
             className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
           >
-            <div className="relative min-h-0 min-w-0 flex-1">
+            <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
               {compact ? (
                 <>
                   {editorPane}
@@ -572,15 +577,14 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
               ) : null}
             </div>
           </div>
-        </Panel>
-      </PanelGroup>
+        </div>
+      </div>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
       <StatusBar host={host} />
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />
-      <HostCapabilityRailBridge workspaceId="default" />
     </div>
   );
 }

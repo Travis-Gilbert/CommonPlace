@@ -1,10 +1,11 @@
 'use client';
 
-// SOURCING: SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS3.
-// Three materials only. The material is a property of the block kind, not a
-// per-instance choice. Sunken / lifted / docked.
+// SOURCING: SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS3 + 1.1 CS14/CS15.
+// Three materials only. Shared anatomy: identity row, optional control row,
+// body. Material stays a property of block kind.
 
 import type { CSSProperties, ReactNode } from 'react';
+import type { Degradation } from '@/lib/degradation';
 
 export type BlockMaterial = 'sunken' | 'lifted' | 'docked';
 export type DockEdge = 'left' | 'right' | 'top' | 'bottom';
@@ -16,11 +17,18 @@ export interface BlockShellProps {
   readonly collapsedWidth?: number;
   readonly identityHue?: string | null;
   readonly title?: string;
+  readonly count?: number | string | null;
+  readonly scope?: ReactNode;
+  readonly degradation?: Degradation | null;
+  /** Optional control row: tabs OR a control bar, never both. */
+  readonly controlRow?: ReactNode;
   readonly headerActions?: ReactNode;
   readonly children: ReactNode;
   readonly className?: string;
   readonly style?: CSSProperties;
   readonly onToggleCollapse?: () => void;
+  /** When false, omit identity row entirely (Indexer reference). */
+  readonly showIdentity?: boolean;
 }
 
 /** Kind → material. Spec CS3. */
@@ -52,13 +60,22 @@ export function BlockShell({
   collapsedWidth = COLLAPSED_STUB,
   identityHue = null,
   title,
+  count,
+  scope,
+  degradation = null,
+  controlRow,
   headerActions,
   children,
   className = '',
   style,
   onToggleCollapse,
+  showIdentity = true,
 }: BlockShellProps) {
   const dockedCollapsed = material === 'docked' && collapsed;
+  const hasIdentity =
+    showIdentity &&
+    Boolean(title || identityHue || scope || count != null || degradation?.level === 'reduced' || headerActions || (material === 'docked' && onToggleCollapse));
+  const hasControl = Boolean(controlRow);
 
   return (
     <section
@@ -72,10 +89,11 @@ export function BlockShell({
         ...style,
       }}
     >
-      {(title || identityHue || headerActions || (material === 'docked' && onToggleCollapse)) && (
+      {hasIdentity ? (
         <header
           data-block-header
-          className="flex h-ij-toolwindow-header shrink-0 items-center gap-2 border-b border-ij-seam px-2 text-ij-ink"
+          data-block-identity
+          className="flex h-ij-row shrink-0 items-center gap-2 border-b border-ij-seam px-2 text-ij-ink"
           style={{ fontWeight: 'var(--rec-weight-cap)' }}
         >
           {identityHue ? (
@@ -89,7 +107,33 @@ export function BlockShell({
               }}
             />
           ) : null}
-          {title ? <span className="min-w-0 flex-1 truncate">{title}</span> : <span className="flex-1" />}
+          {title ? (
+            <span className="min-w-0 truncate">
+              {title}
+            </span>
+          ) : (
+            <span className="flex-1" />
+          )}
+          {scope ? (
+            <span data-block-scope className="min-w-0 truncate text-ij-island-meta text-ij-ink-info">
+              {scope}
+            </span>
+          ) : null}
+          {count !== undefined && count !== null && String(count).length > 0 ? (
+            <span data-block-count className="shrink-0 font-ij-mono text-ij-island-meta tabular-nums text-ij-ink-info" data-mono-ok>
+              {count}
+            </span>
+          ) : null}
+          {degradation?.level === 'reduced' ? (
+            <span
+              data-degradation="reduced"
+              className="min-w-0 truncate text-ij-island-meta text-ij-ink-info"
+              style={{ fontFamily: 'var(--cp-font-human)' }}
+            >
+              {degradation.cause}
+            </span>
+          ) : null}
+          <span className="min-w-0 flex-1" aria-hidden />
           {headerActions}
           {material === 'docked' && onToggleCollapse ? (
             <button
@@ -104,10 +148,37 @@ export function BlockShell({
             </button>
           ) : null}
         </header>
-      )}
+      ) : null}
+      {hasControl && !dockedCollapsed ? (
+        <div
+          data-block-control-row
+          className="flex h-ij-control shrink-0 items-center gap-2 border-b border-ij-seam px-2"
+        >
+          {controlRow}
+        </div>
+      ) : null}
       {!dockedCollapsed ? (
         <div data-block-body className="min-h-0 min-w-0 flex-1 overflow-auto">
-          {children}
+          {degradation?.level === 'unavailable' ? (
+            <div
+              data-degradation="unavailable"
+              className="flex h-full min-h-0 flex-col items-start justify-center gap-2 px-3"
+              style={{ fontFamily: 'var(--cp-font-human)' }}
+            >
+              <p className="text-ij-ink">{degradation.cause}</p>
+              {degradation.action ? (
+                <button
+                  type="button"
+                  onClick={degradation.action.run}
+                  className="rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
+                >
+                  {degradation.action.label}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            children
+          )}
         </div>
       ) : null}
     </section>

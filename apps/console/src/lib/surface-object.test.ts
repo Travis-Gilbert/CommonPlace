@@ -6,23 +6,27 @@ import { ConsoleBlockHost } from './console-host';
 import { buildSeedViews, SEED_VIEW_CHAT } from './seed-views';
 import { slugOf } from './surface-object';
 
-describe('seed views (CS8)', () => {
-  it('builds chat, index, and data-model when nothing is deleted', () => {
+describe('seed views (CS8/CS11)', () => {
+  it('builds the five launch views when nothing is deleted', () => {
     const seeds = buildSeedViews(new Set());
     const surfaces = seeds.filter((object) => object.type === 'surface');
-    expect(surfaces.map((surface) => slugOf(surface)).sort()).toEqual([
+    expect(surfaces.map((surface) => slugOf(surface))).toEqual([
       'chat',
-      'data-model',
+      'researcher',
       'index',
+      'editor',
+      'data-model',
     ]);
   });
 
   it('skips a deleted seed slug', () => {
     const seeds = buildSeedViews(new Set([SEED_VIEW_CHAT]));
     const surfaces = seeds.filter((object) => object.type === 'surface');
-    expect(surfaces.map((surface) => slugOf(surface)).sort()).toEqual([
-      'data-model',
+    expect(surfaces.map((surface) => slugOf(surface))).toEqual([
+      'researcher',
       'index',
+      'editor',
+      'data-model',
     ]);
   });
 });
