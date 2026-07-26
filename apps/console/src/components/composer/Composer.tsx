@@ -105,7 +105,9 @@ export function Composer({
   const setMode = useThreadStore((state) => state.setMode);
   const openActionSheet = useShellStore((state) => state.openActionSheet);
   const tenant = useShellStore((state) => state.tenant);
-  const composerRuntime = useComposerRuntime();
+  // Optional: chat page mounts AgentRailBlock before/beside the transport
+  // provider; throwing here crashed /chat with "This page couldn't load".
+  const composerRuntime = useComposerRuntime({ optional: true });
   const [mentions, setMentions] = useState<readonly ObjectRef[]>([]);
   const [characterCount, setCharacterCount] = useState(0);
   const [pasted, setPasted] = useState<PastedAddress | null>(null);
@@ -115,6 +117,7 @@ export function Composer({
   const interrupted = isRunning ? false : interruptedFlag;
 
   useEffect(() => {
+    if (!composerRuntime) return;
     let active = true;
     Promise.resolve(host.query({
       types: ['person', 'task', 'project', 'org', 'doc', 'record'],
@@ -281,7 +284,7 @@ export function Composer({
   }, [labelForAddress, pasted, stage]);
 
   const keepPastedText = useCallback(() => {
-    if (!pasted) return;
+    if (!pasted || !composerRuntime) return;
     // The paste was held, so the caret offset is gone: the text appends. The
     // person sees exactly what they copied, which is the point of the offer.
     const next = `${composerRuntime.getState().text}${pasted.raw}`;
@@ -291,6 +294,10 @@ export function Composer({
     setCharacterCount(next.length);
     setPasted(null);
   }, [composerRuntime, pasted]);
+
+  if (!composerRuntime) {
+    return null;
+  }
 
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>

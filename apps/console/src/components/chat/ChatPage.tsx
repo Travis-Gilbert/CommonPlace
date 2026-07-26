@@ -56,11 +56,17 @@ function RuntimeTree({
   thread,
   unreachable,
   attachments,
+  wide,
+  railCollapsed,
+  onToggleCollapse,
 }: {
   host: BlockHost;
   thread: ChatThreadRecord;
   unreachable: boolean;
   attachments: ReturnType<typeof useChatAttachments>;
+  wide: boolean;
+  railCollapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   const runtime = useChatPageRuntime({
     threadId: thread.id,
@@ -99,20 +105,59 @@ function RuntimeTree({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Transcript
-          host={host}
-          threadId={thread.id}
-          initialScrollTop={thread.scrollTop}
-          unreachable={unreachable}
-        />
-        <div className="mx-auto w-[70ch] max-w-[74ch] min-w-[68ch] max-[900px]:min-w-0 max-[900px]:w-full shrink-0 px-4 pb-4">
-          <Composer
+      <main
+        className={cn(
+          'relative flex min-h-0 min-w-0 flex-1 flex-col',
+          wide && !railCollapsed && 'pr-0',
+        )}
+      >
+        <div className="flex min-h-0 flex-1 flex-col">
+          <Transcript
+            host={host}
+            threadId={thread.id}
+            initialScrollTop={thread.scrollTop}
             unreachable={unreachable}
-            attachmentApi={attachments}
           />
+          <div className="mx-auto w-[70ch] max-w-[74ch] min-w-[68ch] max-[900px]:min-w-0 max-[900px]:w-full shrink-0 px-4 pb-4">
+            <Composer
+              unreachable={unreachable}
+              attachmentApi={attachments}
+            />
+          </div>
         </div>
-      </div>
+      </main>
+      {/* Rail must sit inside the provider: AgentRailBlock embeds the shell
+          Composer, which requires ComposerRuntime. */}
+      {wide ? (
+        <ChatRail
+          host={host}
+          collapsed={railCollapsed}
+          onToggleCollapse={onToggleCollapse}
+        />
+      ) : (
+        <>
+          {!railCollapsed ? (
+            <button
+              type="button"
+              aria-label="Close agent rail"
+              className="absolute inset-0 z-20 bg-ij-frame/50"
+              onClick={onToggleCollapse}
+            />
+          ) : null}
+          <div
+            className={cn(
+              'absolute right-0 top-0 z-30 h-full',
+              railCollapsed ? 'w-8' : 'w-[min(320px,90vw)]',
+            )}
+          >
+            <ChatRail
+              host={host}
+              collapsed={railCollapsed}
+              onToggleCollapse={onToggleCollapse}
+            />
+          </div>
+        </>
+      )}
     </AssistantRuntimeProvider>
   );
 }
@@ -274,56 +319,22 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                   </aside>
                 )}
 
-                <main
-                  className={cn(
-                    'relative flex min-h-0 min-w-0 flex-1 flex-col',
-                    wide && !railCollapsed && 'pr-0',
-                  )}
-                >
-                  {degradation && !thread ? (
-                    <div className="flex flex-1 items-center justify-center text-ij-ink-info" role="status">
-                      {degradation.cause}
-                    </div>
-                  ) : null}
-                  {thread ? (
-                    <RuntimeTree
-                      host={host}
-                      thread={thread}
-                      unreachable={unreachable}
-                      attachments={attachments}
-                    />
-                  ) : null}
-                </main>
-
-                {wide ? (
-                  <ChatRail
+                {thread ? (
+                  <RuntimeTree
                     host={host}
-                    collapsed={railCollapsed}
+                    thread={thread}
+                    unreachable={unreachable}
+                    attachments={attachments}
+                    wide={wide}
+                    railCollapsed={railCollapsed}
                     onToggleCollapse={toggleRail}
                   />
                 ) : (
-                  <>
-                    {!railCollapsed ? (
-                      <button
-                        type="button"
-                        aria-label="Close agent rail"
-                        className="absolute inset-0 z-20 bg-ij-frame/50"
-                        onClick={toggleRail}
-                      />
-                    ) : null}
-                    <div
-                      className={cn(
-                        'absolute right-0 top-0 z-30 h-full',
-                        railCollapsed ? 'w-8' : 'w-[min(320px,90vw)]',
-                      )}
-                    >
-                      <ChatRail
-                        host={host}
-                        collapsed={railCollapsed}
-                        onToggleCollapse={toggleRail}
-                      />
+                  <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                    <div className="flex flex-1 items-center justify-center text-ij-ink-info" role="status">
+                      {degradation ? degradation.cause : 'Opening thread…'}
                     </div>
-                  </>
+                  </main>
                 )}
               </div>
             </ChatDropProvider>
