@@ -2,10 +2,19 @@
 
 ## Not done (lead with gaps)
 
-- **Theorem sibling absent.** `Travis-Gilbert/Theorem` / `rustyredcore_THG` is not in this environment. There is no `graph_store.rs`, no append-log commit seam, no `graph_lisp_promote.rs`, no `plan_substrate.rs` (265 KB), and no `apps/theorem-federation` signing to reuse.
-- **CP1 GraphStore emission not wired.** Event plane logic and reopenable log exist in `crates/control-primitives`, but nothing emits from a real graph commit.
-- **CP2 federation signing not reused.** Delivery uses HMAC-SHA256 as a stand-in; Ed25519 / federation signing is not integrated.
-- **CP4/CP5/CP6 not folded into Theorem MCP.** Programs, object types, and views are covered by a shared revisable suite in the portable crate only. `plan_validate` is a portable validator, not an extension of the live `plan_substrate.rs`.
+- **Theorem is private and not in the Cursor GitHub App installation.**
+  `GET https://api.github.com/repos/Travis-Gilbert/Theorem` returns 404 for this
+  agent's token. Installation repositories: `total_count: 1` → only
+  `Travis-Gilbert/CommonPlace`. Clone, cargo git dep fetch, and Dockerfile-style
+  sibling checkout all fail with `Repository not found`.
+- **Unblocks the rest:** add `Travis-Gilbert/Theorem` to the Cursor GitHub App
+  repository access (or start a cloud agent scoped to Theorem), then re-run
+  `patches/theorem-control-primitives/apply.sh /Theorem` and complete
+  `INTEGRATION.md`.
+- **CP1 GraphStore emission not wired.** Event plane logic exists; no live
+  `graph_store.rs` commit seam is readable to instrument.
+- **CP2 federation signing not reused.** HMAC-SHA256 stand-in only.
+- **CP4/CP5/CP6 not folded into Theorem MCP / `plan_substrate.rs`.**
 - **Plan substrate retrofit for Revisable** correctly left closed (anti-scope).
 
 ## Done in this pass

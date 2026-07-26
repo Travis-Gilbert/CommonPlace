@@ -2,10 +2,19 @@
 
 Portable sources for SPEC-THEOREM-CONTROL-PRIMITIVES-1.0.
 
+## Apply into Theorem
+
+```bash
+./patches/theorem-control-primitives/apply.sh /path/to/Theorem
+```
+
+Then follow `INTEGRATION.md` (copied to `CONTROL-PRIMITIVES-INTEGRATION.md`).
+
 ## Why this tree exists
 
-The CommonPlace cloud environment does not include the `Travis-Gilbert/Theorem`
-sibling checkout (`rustyredcore_THG/...`). The executable logic lives in
+`Travis-Gilbert/Theorem` is private. The Cursor GitHub App installation for this
+agent currently includes only `Travis-Gilbert/CommonPlace`, so the sibling
+checkout cannot be cloned here. The executable logic lives in
 `crates/control-primitives` and is mirrored here at the paths the spec names:
 
 | Spec path | Patch path |
