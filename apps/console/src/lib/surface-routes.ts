@@ -17,7 +17,10 @@ const COLLECTION_ROUTES = deriveLayoutCollections().map((collection) => ({
   tier: 'collection' as const,
 }));
 
-/** Extra App Router segments and /v/* aliases for seed-view URLs (CS8/CS11). */
+/** Extra App Router segments and /v/* aliases for seed-view URLs (CS8/CS11).
+ *  Launch places already own `/chat`, `/indexer`, `/filing`, `/workspace`,
+ *  `/models` via PLACE_ENTRIES (rich `console-*` surfaces). `/chat` remains the
+ *  Chat page route (SPEC-COMMONPLACE-CHAT-PAGE-1.0); `/v/chat` is a seed alias. */
 const ALIAS_ROUTES = [
   { kind: 'chat', path: '/v/chat', surfaceId: 'console-chat', tier: 'place' as const },
   { kind: 'survey', path: '/v/researcher', surfaceId: 'console-survey', tier: 'place' as const },

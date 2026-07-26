@@ -4,17 +4,20 @@
 // Pins. IntelliJ stripe inspiration stays for chrome density; this palette is
 // the block-view composition surface. Clicking a block adds without navigating.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { listSavedViews, markViewDirty, viewPath, type SurfaceViewSummary } from '@/lib/surface-object';
 import { materialForKind } from '@/components/block/BlockShell';
+import {
+  deriveLabel,
+  type NavItem,
+} from '@/lib/navigationRegistry';
 import {
   IconDoc,
   IconMemory,
   IconModel,
   IconRail,
   IconRecords,
-  IconThread,
   IconWorkspace,
 } from '@/components/shell/icons';
 
@@ -27,7 +30,6 @@ export interface BlockPaletteItem {
 }
 
 export const BLOCK_PALETTE: readonly BlockPaletteItem[] = [
-  { id: 'chat', label: 'Chat', kind: 'chat', descriptorId: 'chat.thread', material: 'docked' },
   { id: 'index', label: 'Index', kind: 'index', descriptorId: 'index.rail', material: 'sunken' },
   { id: 'data-model', label: 'Data model', kind: 'data-model', descriptorId: 'index.rail', material: 'sunken' },
   { id: 'plan', label: 'Plan', kind: 'plan', descriptorId: 'goal.stack', material: 'sunken' },
@@ -39,7 +41,6 @@ export const BLOCK_PALETTE: readonly BlockPaletteItem[] = [
 ];
 
 const ICONS: Record<string, typeof IconRecords> = {
-  chat: IconThread,
   index: IconRail,
   'data-model': IconModel,
   plan: IconModel,
@@ -76,6 +77,44 @@ export function Sidebar({
   const views = useMemo(() => listSavedViews(host), [host, activeViewId, dirty]);
   const [message, setMessage] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [navObjects, setNavObjects] = useState<readonly NavItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/navigation', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((payload: { items?: NavItem[] }) => {
+        if (!active) return;
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        setNavObjects(items.filter((item) => item.itemKind?.kind === 'object'));
+      })
+      .catch(() => {
+        if (!active) return;
+        setNavObjects([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [host, objectTypes]);
+
+  const objectRows = useMemo(() => {
+    if (navObjects.length > 0) {
+      return navObjects.map((item) => ({
+        key: item.id,
+        label: deriveLabel(item.itemKind),
+        typeName: item.itemKind.kind === 'object' ? item.itemKind.objectTypeId : item.id,
+        count: 0,
+        diverged: false,
+      }));
+    }
+    return objectTypes.map((type) => ({
+      key: type.name,
+      label: type.name,
+      typeName: type.name,
+      count: type.count,
+      diverged: type.diverged,
+    }));
+  }, [navObjects, objectTypes]);
 
   const navigate = async (slug: string) => {
     if (leaving) return;
@@ -128,14 +167,14 @@ export function Sidebar({
       </SidebarGroup>
 
       <SidebarGroup title="Objects">
-        {objectTypes.length === 0 ? (
+        {objectRows.length === 0 ? (
           <p className="px-2 text-ij-ink-info">No declared types yet.</p>
         ) : (
-          objectTypes.map((type) => (
+          objectRows.map((type) => (
             <SidebarButton
-              key={type.name}
-              label={`${type.name} (${type.count})`}
-              onClick={() => onAddRecordsForType?.(type.name)}
+              key={type.key}
+              label={type.count > 0 ? `${type.label} (${type.count})` : type.label}
+              onClick={() => onAddRecordsForType?.(type.typeName)}
               icon={IconRecords}
               diverged={type.diverged}
             />

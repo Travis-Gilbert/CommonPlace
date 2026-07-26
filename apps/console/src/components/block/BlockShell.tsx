@@ -42,7 +42,6 @@ export const MATERIAL_BY_KIND: Readonly<Record<string, BlockMaterial>> = {
   documents: 'lifted',
   reader: 'lifted',
   preview: 'lifted',
-  chat: 'docked',
   agent: 'docked',
   'agent-rail': 'docked',
 };

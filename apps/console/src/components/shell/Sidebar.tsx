@@ -17,6 +17,12 @@ import { placeBlockAction } from '@/lib/block-placement';
 import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 import { BLOCK_PALETTE, type BlockPaletteItem } from '@/components/nav/Sidebar';
+import {
+  deriveLabel,
+  hostPropsToNavItem,
+  NAV_ITEM_TYPE,
+  type NavItem,
+} from '@/lib/navigationRegistry';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { LayoutSwitcher } from './LayoutSwitcher';
@@ -60,7 +66,6 @@ const LANDMARK_ICONS: Record<string, typeof IconRecords> = {
 };
 
 const BLOCK_ICONS: Record<string, typeof IconRecords> = {
-  chat: IconThread,
   index: IconRail,
   'data-model': IconModel,
   plan: IconModel,
@@ -174,6 +179,54 @@ function useLandmarkObjects(host: ConsoleBlockHost): readonly ObjectRef[] {
   return objects;
 }
 
+/** CP3: Objects section reads navigation items as data, not a hardcoded list. */
+function useNavigationObjectItems(
+  host: ConsoleBlockHost,
+  viewerUserId: string,
+): readonly { readonly id: string; readonly label: string; readonly objectTypeId: string }[] {
+  const [items, setItems] = useState<readonly NavItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe = () => {};
+    const publish = (objects: readonly ObjectRef[]) => {
+      if (!active) return;
+      const next = objects
+        .map((object) => hostPropsToNavItem(object.properties, object.id))
+        .filter((item): item is NavItem => item !== null)
+        .filter((item) => {
+          if (item.scope.kind === 'workspace') return true;
+          return item.scope.userId === viewerUserId;
+        })
+        .filter((item) => item.itemKind.kind === 'object')
+        .sort((a, b) => a.position - b.position);
+      setItems(next);
+    };
+    void Promise.resolve(host.query({ types: [NAV_ITEM_TYPE], live: true })).then((set) => {
+      if (!active) return;
+      publish(set.objects);
+      unsubscribe = set.subscribe((next) => publish(next.objects));
+    }).catch(() => {
+      if (!active) return;
+      setItems([]);
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [host, viewerUserId]);
+
+  return useMemo(
+    () =>
+      items.map((item) => ({
+        id: item.id,
+        objectTypeId: item.itemKind.kind === 'object' ? item.itemKind.objectTypeId : '',
+        label: deriveLabel(item.itemKind),
+      })),
+    [items],
+  );
+}
+
 function shortcutLabel(index: number): string {
   return `Cmd or Ctrl ${index + 1}`;
 }
@@ -265,6 +318,11 @@ export function Sidebar({
   const seededLandmarks = landmarksRegion?.instances ?? [];
   const landmarks = domainLandmarks.length > 0 ? domainLandmarks : seededLandmarks;
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
+  const viewerUserId = session?.user?.harnessIdentity
+    ?? session?.user?.githubLogin
+    ?? session?.user?.email
+    ?? 'anonymous';
+  const navigationObjects = useNavigationObjectItems(host, viewerUserId);
   const initials = (session?.user?.name ?? session?.user?.githubLogin ?? 'CP')
     .split(/\s+/)
     .map((part) => part.charAt(0))
@@ -390,7 +448,17 @@ export function Sidebar({
     onAddBlock?.(item);
   }, [onAddBlock]);
 
-  const objectTypeRows = useMemo(() => objectTypes, [objectTypes]);
+  // Prefer CP3 navigation items; fall back to legacy objectTypes prop.
+  const objectTypeRows = useMemo(() => {
+    if (navigationObjects.length > 0) {
+      return navigationObjects.map((item) => ({
+        name: item.label,
+        count: 0,
+        key: item.id,
+      }));
+    }
+    return objectTypes.map((type) => ({ ...type, key: type.name }));
+  }, [navigationObjects, objectTypes]);
 
   return (
     <nav
@@ -558,9 +626,10 @@ export function Sidebar({
         ) : (
           objectTypeRows.map((type) => (
             <button
-              key={type.name}
+              key={type.key}
               type="button"
               data-rail-tier="objects"
+              data-nav-item={type.key}
               className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
               style={{
                 paddingInline: 'var(--ij-sidebar-pad)',
@@ -578,7 +647,7 @@ export function Sidebar({
                 style={{ opacity: visuallyCollapsed ? 0 : 1 }}
               >
                 {type.name}
-                {type.count > 0 ? ` (${type.count})` : ''}
+                {'count' in type && type.count > 0 ? ` (${type.count})` : ''}
               </span>
             </button>
           ))

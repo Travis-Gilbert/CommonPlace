@@ -10,4 +10,12 @@ members = [
   # Tauri, and neither belongs in every `cargo test` at the repo root.
   "crates/pane-protocol",
 ]
+exclude = [
+  "crates/commonplace",
+  "crates/control-primitives",
+  "crates/commonplace-desktop-runtime",
+  "crates/pane-host",
+  "crates/pane-host-servo",
+  "crates/tauri-plugin-servo-panes",
+]
 resolver = "2"
