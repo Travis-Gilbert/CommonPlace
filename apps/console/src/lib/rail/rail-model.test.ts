@@ -21,7 +21,7 @@ describe('rail-model', () => {
       'Models',
     ]);
     expect(PLACE_ENTRIES.map((place) => place.path)).toEqual([
-      '/v/chat',
+      '/chat',
       '/v/researcher',
       '/v/index',
       '/v/editor',

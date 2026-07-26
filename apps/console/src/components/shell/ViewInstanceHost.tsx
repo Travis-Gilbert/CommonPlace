@@ -11,6 +11,7 @@ import { BlockShell } from '@/components/blocks/BlockShell';
 import { skeletonForKind } from '@/components/blocks/kind-glyph';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
+import { isObjectSetUnreachable } from '@/lib/chat/object-set-error';
 import { CONSOLE_VIEW_REGISTRY, FallbackCard } from '@/views/registry';
 import { ViewState, type ViewStateKind } from '@/views/ViewStates';
 
@@ -101,19 +102,30 @@ export function ViewInstanceHost({
       .then((next) => {
         if (!active) return;
         setSet(next);
-        setStateKind(next.objects.length === 0 && !markerQuery ? 'empty' : 'populated');
+        if (isObjectSetUnreachable(next)) {
+          setFailed(true);
+          setStateKind('unavailable');
+        } else {
+          setStateKind(next.objects.length === 0 && !markerQuery ? 'empty' : 'populated');
+        }
         if (typeof next.subscribe === 'function') {
           unsubscribe = next.subscribe((following) => {
             if (!active) return;
             setSet(following);
-            setStateKind(following.objects.length === 0 && !markerQuery ? 'empty' : 'populated');
+            if (isObjectSetUnreachable(following)) {
+              setFailed(true);
+              setStateKind('unavailable');
+            } else {
+              setFailed(false);
+              setStateKind(following.objects.length === 0 && !markerQuery ? 'empty' : 'populated');
+            }
           });
         }
       })
       .catch(() => {
         if (active) {
           setFailed(true);
-          setStateKind('error');
+          setStateKind('unavailable');
         }
       });
     return () => {

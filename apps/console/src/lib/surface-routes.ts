@@ -17,9 +17,10 @@ const COLLECTION_ROUTES = deriveLayoutCollections().map((collection) => ({
   tier: 'collection' as const,
 }));
 
-/** Legacy App Router segments for surfaces that left the launch rail (CS11). */
+/** Legacy App Router segments for surfaces that left the launch rail (CS11).
+ *  `/chat` is excluded: Chat is a page (SPEC-COMMONPLACE-CHAT-PAGE-1.0), not
+ *  an arrangement surface. */
 const LEGACY_PLACE_ROUTES = [
-  { kind: 'chat', path: '/chat', surfaceId: 'console-chat', tier: 'place' as const },
   { kind: 'workspace', path: '/workspace', surfaceId: 'console-workspace', tier: 'place' as const },
   { kind: 'index', path: '/filing', surfaceId: 'console-index', tier: 'place' as const },
   { kind: 'canvas', path: '/canvas', surfaceId: 'console-canvas', tier: 'place' as const },
