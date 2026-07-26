@@ -65,7 +65,6 @@ const LANDMARK_ICONS: Record<string, typeof IconRecords> = {
 };
 
 const BLOCK_ICONS: Record<string, typeof IconRecords> = {
-  chat: IconThread,
   index: IconRail,
   'data-model': IconModel,
   plan: IconModel,

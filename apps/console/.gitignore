@@ -13,6 +13,9 @@ out/
 test-results/
 playwright-report/
 
+# Chat attachment uploads (local)
+.data/
+
 # Misc
 .DS_Store
 *.tsbuildinfo

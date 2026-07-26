@@ -42,6 +42,7 @@ import {
   filterIndexerObjects,
   parseIndexerObjectsPayload,
 } from './indexer-projection';
+import { unreachableObjectSet, UNREACHABLE_NOTE } from './chat/object-set-error';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const PG_TYPE_SET = new Set(PG_TYPES);
@@ -547,7 +548,7 @@ export class ConsoleBlockHost implements BlockHost {
       if (query.types.length === 1 && (isDoc || isCode)) {
         return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
       }
-      return this.http.query(query);
+      return this.queryLiveWire(query);
     }
     const pool = isRecord
       ? (this.records ?? [])
@@ -704,6 +705,40 @@ export class ConsoleBlockHost implements BlockHost {
     return this.surveyObjects;
   }
 
+  private liveSubscribe(
+    query: ObjectQuery,
+    run: () => Promise<ObjectSet>,
+  ): (callback: (next: ObjectSet) => void) => Unsubscribe {
+    return (callback) => {
+      if (!query.live) return () => {};
+      let cancelled = false;
+      const tick = () => {
+        void run().then((next) => {
+          if (!cancelled) callback(next);
+        });
+      };
+      const timer = setInterval(tick, 5000);
+      return () => {
+        cancelled = true;
+        clearInterval(timer);
+      };
+    };
+  }
+
+  /** CH9: transport failure is unreachable, never an empty result set. */
+  private async queryLiveWire(query: ObjectQuery): Promise<ObjectSet> {
+    try {
+      return await this.http.query(query);
+    } catch {
+      this.observer?.(null, 'console_data_api_unreachable');
+      return unreachableObjectSet(
+        query.types,
+        UNREACHABLE_NOTE,
+        this.liveSubscribe(query, () => this.queryLiveWire(query)),
+      );
+    }
+  }
+
   private async queryAutomationHistory(query: ObjectQuery): Promise<ObjectSet> {
     let objects: ObjectRef[] = [];
     try {
@@ -712,7 +747,12 @@ export class ConsoleBlockHost implements BlockHost {
         (object) => query.types.includes(object.type) && matchesPredicate(object, query.where),
       );
     } catch {
-      objects = [];
+      this.observer?.(null, 'console_data_api_unreachable');
+      return unreachableObjectSet(
+        query.types,
+        UNREACHABLE_NOTE,
+        this.liveSubscribe(query, () => this.queryAutomationHistory(query)),
+      );
     }
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {
@@ -737,20 +777,7 @@ export class ConsoleBlockHost implements BlockHost {
       objects,
       shape: { ...shape, types: [...query.types] },
       next_cursor: nextCursor,
-      subscribe: (callback) => {
-        if (!query.live) return () => {};
-        let cancelled = false;
-        const tick = () => {
-          void this.queryAutomationHistory(query).then((next) => {
-            if (!cancelled) callback(next);
-          });
-        };
-        const timer = setInterval(tick, 5000);
-        return () => {
-          cancelled = true;
-          clearInterval(timer);
-        };
-      },
+      subscribe: this.liveSubscribe(query, () => this.queryAutomationHistory(query)),
     };
   }
 
@@ -785,6 +812,7 @@ export class ConsoleBlockHost implements BlockHost {
   private async queryLiveDomain(query: ObjectQuery, type: string): Promise<ObjectSet> {
     const allObjects: ObjectRef[] = [];
     let cursor: string | undefined;
+    try {
     do {
       const page = await this.http.query({ types: [type], page: { limit: 500, cursor } });
       allObjects.push(...page.objects);
@@ -792,6 +820,14 @@ export class ConsoleBlockHost implements BlockHost {
       if (!next || next === cursor) break;
       cursor = next;
     } while (cursor);
+    } catch {
+      this.observer?.(null, 'console_data_api_unreachable');
+      return unreachableObjectSet(
+        query.types,
+        UNREACHABLE_NOTE,
+        this.liveSubscribe(query, () => this.queryLiveDomain(query, type)),
+      );
+    }
     let objects = allObjects.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {

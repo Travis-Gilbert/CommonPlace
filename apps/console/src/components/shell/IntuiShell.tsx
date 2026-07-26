@@ -22,6 +22,7 @@ import { SURFACE_ID } from '@/lib/workspace-seed';
 import { softNavigate } from '@/lib/soft-navigate';
 import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
 import { surfaceIdForPath } from '@/lib/surface-routes';
+import { writeLastConsoleViewPath } from '@/lib/chat/last-console-view';
 import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
@@ -193,6 +194,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   useEffect(() => {
     const routedId = surfaceIdForPath(pathname);
     if (routedId) void host.activateSurface(routedId);
+    if (pathname && !pathname.startsWith('/chat')) {
+      writeLastConsoleViewPath(pathname);
+    }
   }, [host, pathname]);
 
   const root = useMemo(

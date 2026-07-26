@@ -18,7 +18,6 @@ import {
   IconModel,
   IconRail,
   IconRecords,
-  IconThread,
   IconWorkspace,
 } from '@/components/shell/icons';
 
@@ -31,7 +30,6 @@ export interface BlockPaletteItem {
 }
 
 export const BLOCK_PALETTE: readonly BlockPaletteItem[] = [
-  { id: 'chat', label: 'Chat', kind: 'chat', descriptorId: 'chat.thread', material: 'docked' },
   { id: 'index', label: 'Index', kind: 'index', descriptorId: 'index.rail', material: 'sunken' },
   { id: 'data-model', label: 'Data model', kind: 'data-model', descriptorId: 'index.rail', material: 'sunken' },
   { id: 'plan', label: 'Plan', kind: 'plan', descriptorId: 'goal.stack', material: 'sunken' },
@@ -43,7 +41,6 @@ export const BLOCK_PALETTE: readonly BlockPaletteItem[] = [
 ];
 
 const ICONS: Record<string, typeof IconRecords> = {
-  chat: IconThread,
   index: IconRail,
   'data-model': IconModel,
   plan: IconModel,
