@@ -13,5 +13,18 @@ export async function POST(request: Request): Promise<Response> {
   }
   const result = await unpinDeclared(topicId, declaredId);
   if (!result.ok) return Response.json({ error: result.error }, { status: result.status });
+  // CP3 generation rule: retiring a declared object type retires its nav item.
+  const stillPresent = new Set(
+    result.declared.objectTypes.map((item) => item.id).concat(
+      result.declared.objectTypes.map((item) => item.key),
+    ),
+  );
+  if (!stillPresent.has(declaredId)) {
+    const { retireObjectNav } = await import('@/lib/server/navigation-store');
+    // declaredId may be the metadata id or the type key; try both forms.
+    retireObjectNav(declaredId);
+    const keyGuess = declaredId.includes(':') ? declaredId.split(':').pop() : declaredId;
+    if (keyGuess && keyGuess !== declaredId) retireObjectNav(keyGuess);
+  }
   return Response.json({ receipt: result.receipt, declared: result.declared });
 }

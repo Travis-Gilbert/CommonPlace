@@ -1,4 +1,6 @@
 // SOURCING: none. Browser client for the same-origin observed model boundary.
+// SPEC-THEOREM-CONTROL-PRIMITIVES-1.0 CP3: pin/unpin of object types drives
+// navigation registry declare/retire so the sidebar updates without a restart.
 
 import type { BlockHost, JsonValue } from '@commonplace/block-view/types';
 import type {
@@ -8,6 +10,12 @@ import type {
   PinRequest,
   SchemaProposalDraft,
 } from '@commonplace/data-model-contracts';
+import {
+  NAV_ITEM_TYPE,
+  navItemToHostProps,
+  navObjectId,
+  type NavItem,
+} from '@/lib/navigationRegistry';
 
 export interface ModelPayload {
   readonly observed: ObservedModel;
@@ -47,6 +55,61 @@ export async function fetchObservedModel(topicId: string): Promise<ModelPayload>
   };
 }
 
+async function syncNavigationFromDeclared(
+  host: BlockHost,
+  declared: DeclaredModel,
+  topicId: string | undefined,
+): Promise<void> {
+  const expectedNavIds = new Set(
+    declared.objectTypes.map((item) => navObjectId(item.key || item.id)),
+  );
+  const currentNav = await host.query({ types: [NAV_ITEM_TYPE] });
+  for (const object of currentNav.objects) {
+    const isObjectKind = object.properties.item_kind === 'object';
+    const isWorkspace = object.properties.scope_kind !== 'user';
+    if (isObjectKind && isWorkspace && !expectedNavIds.has(object.id)) {
+      await host.emit({ kind: 'delete', id: object.id });
+      await fetch('/api/navigation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          op: 'retire',
+          objectTypeId: String(object.properties.object_type_id ?? ''),
+        }),
+      }).catch(() => undefined);
+    }
+  }
+  declared.objectTypes.forEach((item, index) => {
+    const objectTypeId = item.key || item.id;
+    const navItem: NavItem = {
+      id: navObjectId(objectTypeId),
+      itemKind: { kind: 'object', objectTypeId, name: item.label },
+      scope: { kind: 'workspace' },
+      position: index,
+      parentId: null,
+    };
+    void host.emit({
+      kind: 'create',
+      type: NAV_ITEM_TYPE,
+      props: {
+        ...navItemToHostProps(navItem),
+        ...(topicId ? { topic_id: topicId } : {}),
+      } as Record<string, JsonValue>,
+    });
+    void fetch('/api/navigation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        op: 'declare',
+        objectTypeId,
+        pluralLabel: item.label,
+        position: index,
+        hasLayoutCapability: true,
+      }),
+    }).catch(() => undefined);
+  });
+}
+
 async function syncDeclaredOverlay(host: BlockHost | undefined, declared: DeclaredModel): Promise<void> {
   if (!host) return;
   const topicId = declared.scope.kind === 'topic' ? declared.scope.topicId : undefined;
@@ -83,6 +146,7 @@ async function syncDeclaredOverlay(host: BlockHost | undefined, declared: Declar
       },
     });
   }
+  await syncNavigationFromDeclared(host, declared, topicId);
 }
 
 export async function postPin(request: PinRequest, host?: BlockHost): Promise<PinPayload> {
