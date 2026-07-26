@@ -38,6 +38,7 @@ export function ChatRail({
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
         onOpenPlanInCanvas={onOpenPlanInCanvas}
+        showComposer={false}
       />
     </div>
   );
