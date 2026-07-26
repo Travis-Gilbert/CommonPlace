@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { createParser } from 'eventsource-parser';
 import {
   principalTenantHeaders,
   resolveHarnessPrincipal,
@@ -14,6 +15,7 @@ export type HarnessMcpResult =
 
 const MCP_PROTOCOL_VERSION = '2025-06-18';
 const MCP_TEARDOWN_TIMEOUT_MS = 2_000;
+const MCP_SSE_MAX_BUFFER_SIZE = 1024 * 1024;
 
 export async function callHarnessMcp(
   name: string,
@@ -41,12 +43,13 @@ export async function callHarnessMcp(
   };
   let sessionId: string | null = null;
   try {
+    const initializeRequestId = `initialize-${Date.now()}`;
     const initialized = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         jsonrpc: '2.0',
-        id: `initialize-${Date.now()}`,
+        id: initializeRequestId,
         method: 'initialize',
         params: {
           protocolVersion: MCP_PROTOCOL_VERSION,
@@ -57,7 +60,7 @@ export async function callHarnessMcp(
       cache: 'no-store',
       signal: timeout.signal,
     });
-    const initializePayload = await readMcpPayload(initialized);
+    const initializePayload = await readMcpPayload(initialized, initializeRequestId);
     sessionId = initialized.headers.get('mcp-session-id')?.trim() || null;
     if (!initialized.ok || !sessionId || !record(initializePayload?.result)) {
       return {
@@ -91,12 +94,13 @@ export async function callHarnessMcp(
     }
     await ready.arrayBuffer();
 
+    const toolRequestId = `${name}-${Date.now()}`;
     const upstream = await fetch(endpoint, {
       method: 'POST',
       headers: sessionHeaders,
       body: JSON.stringify({
         jsonrpc: '2.0',
-        id: `${name}-${Date.now()}`,
+        id: toolRequestId,
         method: 'tools/call',
         params: {
           name,
@@ -106,7 +110,7 @@ export async function callHarnessMcp(
       cache: 'no-store',
       signal: timeout.signal,
     });
-    const payload = await readMcpPayload(upstream);
+    const payload = await readMcpPayload(upstream, toolRequestId);
     if (!upstream.ok) {
       return {
         ok: false,
@@ -158,45 +162,48 @@ export async function callHarnessMcp(
   }
 }
 
-async function readMcpPayload(response: Response): Promise<Record<string, unknown> | null> {
+async function readMcpPayload(
+  response: Response,
+  expectedId: string,
+): Promise<Record<string, unknown> | null> {
   if (response.headers.get('content-type')?.includes('application/json')) {
-    return await response.json().catch(() => null) as Record<string, unknown> | null;
+    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+    return payload?.id === expectedId ? payload : null;
   }
   const reader = response.body?.getReader();
   if (!reader) return null;
 
   const decoder = new TextDecoder();
-  let buffer = '';
-  let dataLines: string[] = [];
+  let matched: Record<string, unknown> | null = null;
+  let parseFailed = false;
+  const parser = createParser({
+    maxBufferSize: MCP_SSE_MAX_BUFFER_SIZE,
+    onEvent(event) {
+      if (matched) return;
+      try {
+        const payload = record(JSON.parse(event.data));
+        if (payload?.id === expectedId) matched = payload;
+      } catch {
+        // A malformed or request-scoped event is not the matching response.
+      }
+    },
+    onError() {
+      parseFailed = true;
+    },
+  });
   try {
     while (true) {
       const chunk = await reader.read();
-      if (chunk.done) return parseMcpEvent(dataLines);
-      buffer += decoder.decode(chunk.value, { stream: true });
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line === '') {
-          if (dataLines.length === 0) continue;
-          const payload = parseMcpEvent(dataLines);
-          dataLines = [];
-          return payload;
-        }
-        if (!line.startsWith('data:')) continue;
-        dataLines.push(line.slice('data:'.length).replace(/^ /, ''));
+      if (chunk.done) {
+        parser.feed(decoder.decode());
+        parser.reset({ consume: true });
+        return matched;
       }
+      parser.feed(decoder.decode(chunk.value, { stream: true }));
+      if (matched || parseFailed) return matched;
     }
   } finally {
     await reader.cancel().catch(() => undefined);
-  }
-}
-
-function parseMcpEvent(dataLines: readonly string[]): Record<string, unknown> | null {
-  if (dataLines.length === 0) return null;
-  try {
-    return record(JSON.parse(dataLines.join('\n')));
-  } catch {
-    return null;
   }
 }
 

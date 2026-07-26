@@ -29,11 +29,15 @@ function sse(payload: Record<string, unknown>, headers: Record<string, string> =
   });
 }
 
-function multilineSse(payload: Record<string, unknown>): Response {
+function notificationThenMultilineSse(
+  notification: Record<string, unknown>,
+  payload: Record<string, unknown>,
+): Response {
   const serialized = JSON.stringify(payload);
   const splitAt = serialized.indexOf(',') + 1;
   return new Response(
-    `:\n\ndata: ${serialized.slice(0, splitAt)}\ndata: ${serialized.slice(splitAt)}\n\n`,
+    `data: ${JSON.stringify(notification)}\n\n`
+      + `:\n\ndata: ${serialized.slice(0, splitAt)}\ndata: ${serialized.slice(splitAt)}\n\n`,
     {
       status: 200,
       headers: { 'Content-Type': 'text/event-stream' },
@@ -42,8 +46,8 @@ function multilineSse(payload: Record<string, unknown>): Response {
 }
 
 beforeEach(() => {
-  process.env.CONSOLE_HARNESS_URL = 'https://api.theoremharness.com';
-  process.env.CONSOLE_HARNESS_TOKEN = 'test-harness-token';
+  vi.stubEnv('CONSOLE_HARNESS_URL', 'https://api.theoremharness.com');
+  vi.stubEnv('CONSOLE_HARNESS_TOKEN', 'test-harness-token');
   resolveHarnessPrincipalMock.mockResolvedValue({ ok: true, principal });
   principalTenantHeadersMock.mockReturnValue({
     'x-theorem-tenant': principal.tenant,
@@ -53,35 +57,44 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
-  delete process.env.CONSOLE_HARNESS_URL;
-  delete process.env.CONSOLE_HARNESS_TOKEN;
 });
 
 describe('callHarnessMcp', () => {
   it('initializes a principal-bound MCP session before calling a tool', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(sse(
-        {
+      .mockImplementationOnce((_input: string, init: RequestInit) => {
+        const id = JSON.parse(String(init.body)).id as string;
+        return Promise.resolve(sse({
           jsonrpc: '2.0',
-          id: 'initialize',
+          id,
           result: {
             protocolVersion: '2025-06-18',
             serverInfo: { name: 'theorem-mcp-server', version: '0.1.0' },
           },
-        },
-        { 'MCP-Session-Id': 'session-1' },
-      ))
+        }, { 'MCP-Session-Id': 'session-1' }));
+      })
       .mockResolvedValueOnce(new Response(null, { status: 202 }))
-      .mockResolvedValueOnce(multilineSse({
-        jsonrpc: '2.0',
-        id: 'graphql_query',
-        result: {
-          structuredContent: {
-            data: { observedModel: { eventCount: 0 } },
+      .mockImplementationOnce((_input: string, init: RequestInit) => {
+        const id = JSON.parse(String(init.body)).id as string;
+        return Promise.resolve(notificationThenMultilineSse(
+          {
+            jsonrpc: '2.0',
+            method: 'notifications/progress',
+            params: { progressToken: 'probe', progress: 0.5 },
           },
-        },
-      }))
+          {
+            jsonrpc: '2.0',
+            id,
+            result: {
+              structuredContent: {
+                data: { observedModel: { eventCount: 0 } },
+              },
+            },
+          },
+        ));
+      })
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
