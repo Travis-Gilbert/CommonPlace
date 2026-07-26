@@ -79,10 +79,10 @@ describe('ConsoleBlockHost', () => {
       'view-index',
       'view-researcher',
     ]);
-    expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe('view-chat');
+    expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
     expect(surfaces
       .filter((surface) => PLACE_ENTRIES.some((place) => place.surfaceId === surface.id))
-      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
+      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99))
       .map((surface) => surface.properties.name)).toEqual([
         'Chat', 'Researcher', 'Index', 'Editor', 'Models',
       ]);

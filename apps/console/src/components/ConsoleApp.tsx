@@ -178,13 +178,24 @@ export function ConsoleApp({
 
   useEffect(() => {
     if (!host || !initialViewId) return;
-    const match = host.queryLayout({ types: ['surface'], live: true }).objects.find((surface) => {
-      const slug = surface.properties.slug;
-      return surface.id === initialViewId
-        || surface.id === `view-${initialViewId}`
-        || surface.id === `console-${initialViewId}`
-        || slug === initialViewId;
-    });
+    const slugAliases: Record<string, string> = {
+      chat: 'console-chat',
+      researcher: 'console-survey',
+      index: 'console-index',
+      editor: 'console-workspace',
+      'data-model': 'console-models',
+    };
+    const preferredId = slugAliases[initialViewId];
+    const surfaces = host.queryLayout({ types: ['surface'], live: true }).objects;
+    const match =
+      (preferredId ? surfaces.find((surface) => surface.id === preferredId) : undefined)
+      ?? surfaces.find((surface) => {
+        const slug = surface.properties.slug;
+        return surface.id === initialViewId
+          || surface.id === `console-${initialViewId}`
+          || surface.id === `view-${initialViewId}`
+          || slug === initialViewId;
+      });
     if (match) void host.activateSurface(match.id);
   }, [host, initialViewId]);
 

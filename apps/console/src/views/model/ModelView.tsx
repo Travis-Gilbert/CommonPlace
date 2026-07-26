@@ -397,7 +397,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
             ))}
           </div>
         )}
-        className="bg-ij-editor text-ij-ink"
+        className="bg-transparent text-ij-ink"
       >
         <div className="flex h-full min-h-0 flex-col xl:flex-row">
         <main className="flex min-h-96 min-w-0 flex-1 flex-col">

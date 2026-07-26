@@ -258,13 +258,15 @@ export class ConsoleBlockHost implements BlockHost {
     const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
     const objects = needsIaMigration ? seed : (restored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
-    // Prefer the CS11 launch Chat view as the active surface when both the
-    // legacy place and the seeded view are present.
-    const viewChat = this.layout.get('view-chat');
-    const legacyChat = this.layout.get('console-chat');
-    if (viewChat) {
-      viewChat.properties.active = true;
-      if (legacyChat) legacyChat.properties.active = false;
+    // Prefer the launch Chat place as the active surface. Sparse CS8 seed
+    // views (view-*) must not steal activation from the rich console places.
+    const launchChat = this.layout.get('console-chat');
+    const seedChat = this.layout.get('view-chat');
+    if (launchChat) {
+      launchChat.properties.active = true;
+      if (seedChat) seedChat.properties.active = false;
+    } else if (seedChat) {
+      seedChat.properties.active = true;
     }
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
@@ -356,11 +358,13 @@ export class ConsoleBlockHost implements BlockHost {
     clearLayoutCache();
     const seed = mergeSeedViews(seedLayout());
     this.layout = new Map(seed.map((ref) => [ref.id, toMutable(ref)]));
-    const viewChat = this.layout.get('view-chat');
-    const legacyChat = this.layout.get('console-chat');
-    if (viewChat) {
-      viewChat.properties.active = true;
-      if (legacyChat) legacyChat.properties.active = false;
+    const launchChat = this.layout.get('console-chat');
+    const seedChat = this.layout.get('view-chat');
+    if (launchChat) {
+      launchChat.properties.active = true;
+      if (seedChat) seedChat.properties.active = false;
+    } else if (seedChat) {
+      seedChat.properties.active = true;
     }
     this.persistLayout();
     this.notifyLayout();
