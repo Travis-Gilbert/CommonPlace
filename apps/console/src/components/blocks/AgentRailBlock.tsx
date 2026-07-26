@@ -77,10 +77,13 @@ export function AgentRailBlock({
   collapsed: collapsedProp,
   onToggleCollapse,
   onOpenPlanInCanvas,
+  showComposer = true,
 }: ViewRenderProps & {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenPlanInCanvas?: () => void;
+  /** Chat page owns the main composer; hide the shell Composer there. */
+  showComposer?: boolean;
 }) {
   const messages = useThreadStore((state) => state.messages);
   const plan = useThreadStore((state) => state.plan);
