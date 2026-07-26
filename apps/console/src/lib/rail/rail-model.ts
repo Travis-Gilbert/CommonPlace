@@ -52,7 +52,7 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     id: 'place-chat',
     kind: 'chat',
     label: 'Chat',
-    path: '/v/chat',
+    path: '/chat',
     surfaceId: 'view-chat',
     stripeOrder: 0,
   },

@@ -195,6 +195,11 @@ export interface ObjectSet {
   readonly shape: ObjectShape;
   readonly next_cursor?: string;
   readonly notes?: readonly string[];
+  /**
+   * Transport or host failure. Present means the set is unreachable, not
+   * empty: callers must render an unavailable state instead of no-results.
+   */
+  readonly error?: string;
   subscribe(callback: (next: ObjectSet) => void): Unsubscribe;
 }
 
