@@ -4,7 +4,7 @@
 // @xyflow/react and tablecn structure through the registered lens components.
 
 import { useEffect, useReducer, useState, type FormEvent } from 'react';
-import type { JsonValue, ViewRenderProps } from '@commonplace/block-view/types';
+import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
   emptyObservedModel,
   type DeclaredModel,
@@ -14,13 +14,14 @@ import {
   type SchemaProposalDraft,
   type ScopeRef,
 } from '@commonplace/data-model-contracts';
+import { BlockShell } from '@/components/block/BlockShell';
+import { degradationFor, withAction } from '@/lib/degradation';
 import {
   fetchObservedModel,
   postPin,
   postSchemaProposal,
   postUnpin,
 } from '@/lib/observed-model-client';
-import { MODEL_VIEW_INSTANCE_ID } from '@/lib/workspace-seed';
 import { WhyTrace } from '../harness-ux/WhyTracePanel';
 import {
   DiagramLens,
@@ -76,7 +77,7 @@ function ProposalCard({
     <section className="border-b border-ij-seam bg-ij-warn-bg px-4 py-3 text-ij-ink" aria-labelledby="schema-proposal-heading">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <p className="font-ij-mono text-xs text-ij-warn">Schema proposal draft</p>
+          <p className="text-xs text-ij-warn">Schema proposal draft</p>
           <h2 id="schema-proposal-heading" className="mt-1" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
             {draft.request}
           </h2>
@@ -84,7 +85,7 @@ function ProposalCard({
           <p className="mt-1 text-ij-ink-info">{draft.impactSummary}</p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {draft.proposedPins.map((pin) => (
-              <li key={`${pin.kind}:${pin.observedKey}`} className="rounded-ij-arc-underline bg-ij-raised px-2 py-1 font-ij-mono text-xs">
+              <li key={`${pin.kind}:${pin.observedKey}`} className="rounded-ij-arc-underline bg-ij-raised px-2 py-1 font-ij-mono text-xs" data-mono-ok>
                 {pin.kind}: {pin.observedKey}
               </li>
             ))}
@@ -146,14 +147,14 @@ function ModelInspector({
         <p className="p-4 text-ij-ink-info">Select an observed or declared model element.</p>
       ) : evidence ? (
         <div className="p-4">
-          <p className="font-ij-mono text-xs text-ij-ink-info">{selection.kind}</p>
-          <h3 className="mt-1 font-ij-mono text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+          <p className="font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{selection.kind}</p>
+          <h3 className="mt-1 font-ij-mono text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }} data-mono-ok>
             {selection.key}
           </h3>
           <section className="mt-5 border-t border-ij-seam pt-4">
             <h4 className="text-xs uppercase tracking-wider text-ij-ink-info">Ingest events</h4>
             {evidence.eventIds?.length ? (
-              <ul className="mt-2 grid gap-1 font-ij-mono text-xs">
+              <ul className="mt-2 grid gap-1 font-ij-mono text-xs" data-mono-ok>
                 {evidence.eventIds.map((id) => <li key={id}>{id}</li>)}
               </ul>
             ) : (
@@ -163,7 +164,7 @@ function ModelInspector({
           <section className="mt-5 border-t border-ij-seam pt-4">
             <h4 className="text-xs uppercase tracking-wider text-ij-ink-info">Sources</h4>
             {evidenceSources.length ? (
-              <ul className="mt-2 grid gap-1 font-ij-mono text-xs">
+              <ul className="mt-2 grid gap-1 font-ij-mono text-xs" data-mono-ok>
                 {evidenceSources.map((source) => <li key={source}>{source}</li>)}
               </ul>
             ) : (
@@ -175,7 +176,7 @@ function ModelInspector({
             {evidence.routeDecision === undefined || evidence.routeDecision === null ? (
               <p className="mt-2 text-ij-ink-info">No route decision recorded.</p>
             ) : (
-              <pre className="mt-2 overflow-auto font-ij-mono text-xs text-ij-ink">
+              <pre className="mt-2 overflow-auto font-ij-mono text-xs text-ij-ink" data-mono-ok>
                 {JSON.stringify(evidence.routeDecision, null, 2)}
               </pre>
             )}
@@ -184,11 +185,11 @@ function ModelInspector({
       ) : declaredField ? (
         <div className="flex min-h-full flex-col">
           <div className="p-4">
-            <p className="font-ij-mono text-xs text-ij-gold">declared field</p>
+            <p className="text-xs text-ij-gold">declared field</p>
             <h3 className="mt-1 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
               {declaredField.label}
             </h3>
-            <p className="mt-2 font-ij-mono text-xs text-ij-ink-info">{declaredField.fieldType}</p>
+            <p className="mt-2 font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{declaredField.fieldType}</p>
           </div>
           {whyNodeId ? (
             <div className="min-h-96 flex-1 border-t border-ij-seam">
@@ -202,8 +203,8 @@ function ModelInspector({
         </div>
       ) : (
         <div className="p-4">
-          <p className="font-ij-mono text-xs text-ij-ink-info">{selection.kind}</p>
-          <p className="mt-2 break-all font-ij-mono text-ij-ink">{selection.key}</p>
+          <p className="font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{selection.kind}</p>
+          <p className="mt-2 break-all font-ij-mono text-ij-ink" data-mono-ok>{selection.key}</p>
         </div>
       )}
     </aside>
@@ -225,10 +226,8 @@ export function ModelView({ set, host }: ViewRenderProps) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [scopeDraft, setScopeDraft] = useState(
-    initialScope.kind === 'topic' ? initialScope.topicId : '',
-  );
   const [proposalRequest, setProposalRequest] = useState('');
+  const [proposalComposerOpen, setProposalComposerOpen] = useState(false);
   const [proposal, setProposal] = useState<SchemaProposalDraft | null>(null);
   const [proposalBusy, setProposalBusy] = useState(false);
   const setScope = modelScopeFromSet(set);
@@ -322,6 +321,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
     try {
       setProposal(await postSchemaProposal(topicId, request));
       setProposalRequest('');
+      setProposalComposerOpen(false);
     } catch (proposalError) {
       setError(proposalError instanceof Error ? proposalError.message : String(proposalError));
     } finally {
@@ -367,61 +367,21 @@ export function ModelView({ set, host }: ViewRenderProps) {
       void applyUnpin(declaredId);
     },
   };
+  const unavailable = !topicId
+    ? degradationFor('observed_model_scope_unavailable', 400)
+    : error
+      ? withAction(degradationFor(error, 500), () => setReloadToken((token) => token + 1))
+      : null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ij-editor text-ij-ink" data-model-studio>
-      <header className="shrink-0 border-b border-ij-seam bg-ij-chrome">
-        <div className="flex min-h-ij-toolbar flex-wrap items-center gap-3 px-3 py-1">
-          <div className="min-w-0">
-            <h1 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Models</h1>
-            <p className="font-ij-mono text-xs text-ij-ink-info">
-              topic: {topicId || 'not selected'} · {observed.eventCount} events
-            </p>
-          </div>
-          <form
-            className="ml-auto flex items-center gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const nextTopicId = scopeDraft.trim();
-              if (!nextTopicId || nextTopicId === topicId) return;
-              void host.emit({
-                kind: 'update',
-                id: MODEL_VIEW_INSTANCE_ID,
-                patch: {
-                  title: `Models: ${nextTopicId}`,
-                  query: {
-                    types: [
-                      'model-scope',
-                      'object-type-metadata',
-                      'field-metadata',
-                      'relation-metadata',
-                      'view-metadata',
-                      'schema-version',
-                    ],
-                    where: { kind: 'eq', field: 'topic_id', value: nextTopicId },
-                    live: true,
-                  } as unknown as JsonValue,
-                },
-              });
-            }}
-          >
-            <label htmlFor="model-topic-scope" className="text-xs text-ij-ink-info">Topic scope</label>
-            <input
-              id="model-topic-scope"
-              value={scopeDraft}
-              onChange={(event) => setScopeDraft(event.target.value)}
-              className="h-ij-control w-64 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono focus:outline-2 focus:outline-ij-accent"
-            />
-            <button
-              type="submit"
-              disabled={!scopeDraft.trim() || scopeDraft.trim() === topicId}
-              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-            >
-              Apply
-            </button>
-          </form>
-        </div>
-        <div className="flex min-h-ij-control flex-wrap items-center gap-2 border-t border-ij-seam px-3 py-1">
+    <div className="h-full min-h-0" data-model-studio>
+      <BlockShell
+        material="sunken"
+        title="Models"
+        scope={topicId ? <span className="font-ij-mono" data-mono-ok>topic:{topicId}</span> : 'No topic selected'}
+        count={`${observed.eventCount} events`}
+        degradation={unavailable}
+        controlRow={(
           <div className="flex items-center gap-1" role="tablist" aria-label="Model lens">
             {LENSES.map((lens) => (
               <button
@@ -436,69 +396,93 @@ export function ModelView({ set, host }: ViewRenderProps) {
               </button>
             ))}
           </div>
-          <form className="ml-auto flex items-center gap-2" onSubmit={(event) => void requestProposal(event)}>
-            <label htmlFor="schema-proposal-request" className="text-xs text-ij-ink-info">Schema change</label>
-            <input
-              id="schema-proposal-request"
-              value={proposalRequest}
-              onChange={(event) => setProposalRequest(event.target.value)}
-              placeholder="Describe a proposed declaration"
-              className="h-ij-control w-72 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 focus:outline-2 focus:outline-ij-accent"
+        )}
+        className="bg-ij-editor text-ij-ink"
+      >
+        <div className="flex h-full min-h-0 flex-col xl:flex-row">
+        <main className="flex min-h-96 min-w-0 flex-1 flex-col">
+          <section className="shrink-0 border-b border-ij-seam bg-ij-chrome px-3 py-2" aria-labelledby="schema-action-heading">
+            {proposalComposerOpen ? (
+              <form className="grid gap-2" onSubmit={(event) => void requestProposal(event)}>
+                <label htmlFor="schema-proposal-request" className="grid gap-1 text-xs text-ij-ink-info">
+                  Schema change
+                  <textarea
+                    id="schema-proposal-request"
+                    value={proposalRequest}
+                    onChange={(event) => setProposalRequest(event.target.value)}
+                    placeholder="Declare customer email as a field"
+                    className="min-h-24 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 py-2 text-sm text-ij-ink focus:outline-2 focus:outline-ij-accent"
+                  />
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={proposalBusy || !proposalRequest.trim()}
+                    className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover disabled:opacity-50"
+                  >
+                    Propose schema change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProposalComposerOpen(false)}
+                    className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 id="schema-action-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+                    Schema actions
+                  </h2>
+                  <p className="text-sm text-ij-ink-info">
+                    Propose a declaration from the observed model.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProposalComposerOpen(true)}
+                  className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover"
+                >
+                  Propose schema change
+                </button>
+              </div>
+            )}
+          </section>
+
+          {proposal ? (
+            <ProposalCard
+              draft={proposal}
+              busy={proposalBusy}
+              onAccept={() => void acceptProposal()}
+              onDecline={() => setProposal(null)}
             />
-            <button
-              type="submit"
-              disabled={proposalBusy || !proposalRequest.trim()}
-              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-            >
-              Propose
-            </button>
-          </form>
-        </div>
-      </header>
-
-      {proposal ? (
-        <ProposalCard
-          draft={proposal}
-          busy={proposalBusy}
-          onAccept={() => void acceptProposal()}
-          onDecline={() => setProposal(null)}
-        />
-      ) : null}
-
-      {(!topicId || error) ? (
-        <div className="flex shrink-0 items-center gap-3 border-b border-ij-seam bg-ij-error-bg px-3 py-2 text-ij-error" role="alert">
-          <span>Observed model unavailable: {error ?? 'Model scope has no topic id.'}</span>
-          <button
-            type="button"
-            onClick={() => setReloadToken((token) => token + 1)}
-            className="ml-auto h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
-          >
-            Retry
-          </button>
-        </div>
-      ) : null}
-      {notice ? (
-        <div className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-2 text-ij-ink" role="status">
-          {notice}
-        </div>
-      ) : null}
-
-      <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
-        <main className="min-h-96 min-w-0 flex-1">
-          {loading && topicId ? (
-            <div className="flex h-full items-center justify-center text-ij-ink-info">
-              Loading observed model.
+          ) : null}
+          {notice ? (
+            <div className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-2 text-ij-ink" role="status">
+              {notice}
             </div>
-          ) : queryState.lens === 'diagram' ? (
-            <DiagramLens {...lensProps} />
-          ) : queryState.lens === 'fields' ? (
-            <FieldsTableLens {...lensProps} />
-          ) : (
-            <RecordsPreviewLens {...lensProps} />
-          )}
+          ) : null}
+
+          <div className="min-h-0 flex-1">
+            {loading && topicId ? (
+              <div className="flex h-full items-center justify-center text-ij-ink-info">
+                Loading observed model.
+              </div>
+            ) : queryState.lens === 'diagram' ? (
+              <DiagramLens {...lensProps} />
+            ) : queryState.lens === 'fields' ? (
+              <FieldsTableLens {...lensProps} />
+            ) : (
+              <RecordsPreviewLens {...lensProps} />
+            )}
+          </div>
         </main>
         <ModelInspector selection={queryState.selection} observed={observed} declared={declared} />
-      </div>
+        </div>
+      </BlockShell>
     </div>
   );
 }

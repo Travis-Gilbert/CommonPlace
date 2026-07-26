@@ -135,7 +135,7 @@ export function SurveyIndexerSearch({
   onLiveSearch,
   searching = false,
   className,
-  placeholder = 'Search harvest or the web',
+  placeholder = 'customer onboarding',
 }: SurveyIndexerSearchProps) {
   const durations = useMotionDurations();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -211,70 +211,76 @@ export function SurveyIndexerSearch({
 
   return (
     <div className={cn('relative min-w-0 flex-1 max-w-md lg:max-w-lg', className)}>
-      <form
-        onSubmit={onSubmit}
-        className={cn(
-          'flex h-ij-control items-center gap-2 rounded-ij-arc border bg-ij-editor px-2',
-          focused ? 'border-ij-accent' : 'border-ij-control-border',
-        )}
-        data-indexer-search
-      >
-        <span className="shrink-0 text-ij-ink-info" aria-hidden>
-          <IconSearch size={16} />
-        </span>
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          placeholder={placeholder}
-          aria-label="Search Indexer captures and the web"
-          aria-busy={searching || undefined}
-          aria-expanded={listOpen}
-          aria-controls="indexer-search-suggestions"
-          aria-autocomplete="list"
-          autoComplete="off"
-          disabled={searching}
-          onChange={(event) => {
-            onQueryChange(event.target.value);
-            setActiveIndex(0);
-          }}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            // Allow suggestion click before closing.
-            window.setTimeout(() => setFocused(false), DUR.fast);
-          }}
-          onKeyDown={onKeyDown}
-          className="survey-focusable min-w-0 flex-1 bg-transparent text-sm text-ij-ink outline-none placeholder:text-ij-ink-disabled disabled:opacity-60"
-        />
-        {searching ? (
-          <span
-            className="shrink-0 font-ij-mono uppercase tracking-wider text-ij-gold"
-            style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
-          >
-            Searching
+      <div className="grid gap-1">
+        <label htmlFor="indexer-search-input" className="text-xs text-ij-ink-info">
+          Search Indexer
+        </label>
+        <form
+          onSubmit={onSubmit}
+          className={cn(
+            'flex h-ij-control items-center gap-2 rounded-ij-arc border bg-ij-editor px-2',
+            focused ? 'border-ij-accent' : 'border-ij-control-border',
+          )}
+          data-indexer-search
+        >
+          <span className="shrink-0 text-ij-ink-info" aria-hidden>
+            <IconSearch size={16} />
           </span>
-        ) : null}
-        {query && !searching ? (
-          <button
-            type="button"
-            onClick={() => {
-              onQueryChange('');
-              inputRef.current?.focus();
+          <input
+            id="indexer-search-input"
+            ref={inputRef}
+            type="search"
+            role="combobox"
+            value={query}
+            placeholder={placeholder}
+            aria-busy={searching || undefined}
+            aria-expanded={listOpen}
+            aria-controls="indexer-search-suggestions"
+            aria-autocomplete="list"
+            autoComplete="off"
+            disabled={searching}
+            onChange={(event) => {
+              onQueryChange(event.target.value);
+              setActiveIndex(0);
             }}
-            className="survey-focusable shrink-0 rounded-ij-arc px-2 text-xs text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-          >
-            Clear
-          </button>
-        ) : null}
-        {onLiveSearch && query.trim() && !searching ? (
-          <button
-            type="submit"
-            className="survey-focusable shrink-0 rounded-ij-arc px-2 text-xs text-ij-ink hover:bg-ij-hover-surface"
-          >
-            Search
-          </button>
-        ) : null}
-      </form>
+            onFocus={() => setFocused(true)}
+            onBlur={() => {
+              // Allow suggestion click before closing.
+              window.setTimeout(() => setFocused(false), DUR.fast);
+            }}
+            onKeyDown={onKeyDown}
+            className="survey-focusable min-w-0 flex-1 bg-transparent text-sm text-ij-ink outline-none placeholder:text-ij-ink-disabled disabled:opacity-60"
+          />
+          {searching ? (
+            <span
+              className="shrink-0 uppercase tracking-wider text-ij-gold"
+              style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
+            >
+              Searching
+            </span>
+          ) : null}
+          {query && !searching ? (
+            <button
+              type="button"
+              onClick={() => {
+                onQueryChange('');
+                inputRef.current?.focus();
+              }}
+              className="survey-focusable shrink-0 rounded-ij-arc px-2 text-xs text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+            >
+              Clear
+            </button>
+          ) : null}
+          {onLiveSearch && query.trim() && !searching ? (
+            <button
+              type="submit"
+              className="survey-focusable shrink-0 rounded-ij-arc px-2 text-xs text-ij-ink hover:bg-ij-hover-surface"
+            >
+              Search
+            </button>
+          ) : null}
+        </form>
+      </div>
 
       <AnimatePresence>
         {listOpen ? (
@@ -307,6 +313,7 @@ export function SurveyIndexerSearch({
                       <span
                         className="font-ij-mono uppercase tracking-wider text-ij-gold"
                         style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
+                        data-mono-ok
                       >
                         {suggestion.kind}
                       </span>

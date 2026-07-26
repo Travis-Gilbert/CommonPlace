@@ -48,12 +48,64 @@ interface UndoOffer {
   readonly receipt: FilingReceipt;
 }
 
+type IndexRowTemplate = 'source' | 'document' | 'record' | 'note';
+
 /** How long the undo offer stands. Long enough to notice, short enough that it
  *  is not a second inbox sitting at the bottom of the screen. */
 const UNDO_WINDOW_MS = 12_000;
 
 function shelfName(collections: readonly IndexCollection[], id: string): string {
   return collections.find((collection) => collection.id === id)?.name ?? id;
+}
+
+function rowTemplate(entry: FiledItem, collections: readonly IndexCollection[]): IndexRowTemplate {
+  const collectionKind = collections.find((collection) => collection.id === entry.destination)?.kind.toLowerCase() ?? '';
+  if (/doc|pdf|markdown|brief/.test(collectionKind)) return 'document';
+  if (/note|mail|message/.test(collectionKind)) return 'note';
+  if (/source|capture|file|upload/.test(collectionKind) || entry.source === 'watched-file') return 'source';
+  return 'record';
+}
+
+function IndexItemRowContent({
+  entry,
+  collections,
+}: {
+  readonly entry: FiledItem;
+  readonly collections: readonly IndexCollection[];
+}) {
+  const template = rowTemplate(entry, collections);
+  const shelf = shelfName(collections, entry.destination);
+  if (template === 'source') {
+    return (
+      <span className="grid min-w-0 flex-1 grid-cols-3 items-center gap-2">
+        <span className="truncate">{entry.title}</span>
+        <span className="truncate text-ij-ink-info">Source for {shelf}</span>
+        <span className="justify-self-end font-ij-mono text-ij-ink-info" data-mono-ok>{entry.source}</span>
+      </span>
+    );
+  }
+  if (template === 'document') {
+    return (
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="truncate" style={{ fontWeight: 'var(--rec-weight-cap)' }}>{entry.title}</span>
+        <span className="truncate text-xs text-ij-ink-info">Document filed in {shelf}</span>
+      </span>
+    );
+  }
+  if (template === 'note') {
+    return (
+      <span className="grid min-w-0 flex-1 grid-cols-2 items-center gap-2">
+        <span className="truncate">{entry.title}</span>
+        <span className="truncate text-ij-ink-info">Note from {entry.receipt.actor.kind}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <span className="truncate">{entry.title}</span>
+      <span className="shrink-0 text-ij-ink-info">{shelf}</span>
+    </span>
+  );
 }
 
 /** A shelf: a drop target and nothing else. No count, by design. */
@@ -90,9 +142,11 @@ function RibbonRow({
   readonly onCorrect: (item: FiledItem, to: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: entry.item });
+  const template = rowTemplate(entry, collections);
   return (
     <div
       data-filing-ribbon-item={entry.item}
+      data-index-row-template={template}
       className="flex h-ij-row items-center gap-2 border-b border-ij-seam px-2 text-ij-ink hover:bg-ij-hover-surface"
       style={{ transition: 'var(--rec-clickable-transition)', opacity: isDragging ? 0.6 : 1 }}
     >
@@ -104,10 +158,7 @@ function RibbonRow({
         aria-label={`Move ${entry.title}`}
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
       >
-        <span className="truncate">{entry.title}</span>
-        <span className="shrink-0 text-ij-ink-info">
-          {shelfName(collections, entry.destination)}
-        </span>
+        <IndexItemRowContent entry={entry} collections={collections} />
       </button>
       <FilingReceiptPopover
         receipt={entry.receipt}
@@ -145,9 +196,10 @@ function Digest({ collections }: { readonly collections: readonly IndexCollectio
             {group.items.map((entry) => (
               <li
                 key={entry.item}
+                data-index-row-template={rowTemplate(entry, collections)}
                 className="flex h-ij-row items-center gap-2 border-b border-ij-seam px-2 text-ij-ink"
               >
-                <span className="truncate">{entry.title}</span>
+                <IndexItemRowContent entry={entry} collections={collections} />
                 <FilingReceiptPopover
                   receipt={entry.receipt}
                   collections={collections}
