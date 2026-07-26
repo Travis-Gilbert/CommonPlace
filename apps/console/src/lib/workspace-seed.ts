@@ -263,7 +263,7 @@ export function seedLayout(): ObjectRef[] {
     }, [SURVEY_VIEW_INSTANCE_ID]),
     layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
       descriptor_id: 'survey.board',
-      title: 'Researcher',
+      title: 'Indexer',
       query: {
         types: ['topic', 'capture', 'survey-edge'],
         where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
