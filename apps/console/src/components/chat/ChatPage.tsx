@@ -303,7 +303,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
               onFiles={(files) => attachments.addFiles(files)}
               onObjectRef={(ref) => attachments.stageObjectRef(ref)}
             >
-              <div className="flex h-full min-h-0">
+              <div className="relative flex h-full min-h-0">
                 {catalog ? (
                   <ChatSidebar
                     catalog={catalog}
