@@ -42,6 +42,7 @@ export async function callHarnessMcp(
       : {}),
   };
   let sessionId: string | null = null;
+  let sessionProtocolVersion = MCP_PROTOCOL_VERSION;
   try {
     const initializeRequestId = `initialize-${Date.now()}`;
     const initialized = await fetch(endpoint, {
@@ -61,8 +62,13 @@ export async function callHarnessMcp(
       signal: timeout.signal,
     });
     const initializePayload = await readMcpPayload(initialized, initializeRequestId);
+    const initializeResult = record(initializePayload?.result);
+    const negotiatedProtocolVersion =
+      typeof initializeResult?.protocolVersion === 'string'
+        ? initializeResult.protocolVersion.trim()
+        : '';
     sessionId = initialized.headers.get('mcp-session-id')?.trim() || null;
-    if (!initialized.ok || !sessionId || !record(initializePayload?.result)) {
+    if (!initialized.ok || !sessionId || !initializeResult || !negotiatedProtocolVersion) {
       return {
         ok: false,
         response: Response.json(
@@ -71,8 +77,13 @@ export async function callHarnessMcp(
         ),
       };
     }
+    sessionProtocolVersion = negotiatedProtocolVersion;
 
-    const sessionHeaders = { ...headers, 'MCP-Session-Id': sessionId };
+    const sessionHeaders = {
+      ...headers,
+      'MCP-Protocol-Version': sessionProtocolVersion,
+      'MCP-Session-Id': sessionId,
+    };
     const ready = await fetch(endpoint, {
       method: 'POST',
       headers: sessionHeaders,
@@ -152,6 +163,7 @@ export async function callHarnessMcp(
         method: 'DELETE',
         headers: {
           ...headers,
+          'MCP-Protocol-Version': sessionProtocolVersion,
           'MCP-Session-Id': sessionId,
         },
         cache: 'no-store',

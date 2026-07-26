@@ -70,7 +70,7 @@ describe('callHarnessMcp', () => {
           jsonrpc: '2.0',
           id,
           result: {
-            protocolVersion: '2025-06-18',
+            protocolVersion: '2025-03-26',
             serverInfo: { name: 'theorem-mcp-server', version: '0.1.0' },
           },
         }, { 'MCP-Session-Id': 'session-1' }));
@@ -121,13 +121,19 @@ describe('callHarnessMcp', () => {
     });
 
     const ready = fetchMock.mock.calls[1] as [string, RequestInit];
-    expect(ready[1].headers).toMatchObject({ 'MCP-Session-Id': 'session-1' });
+    expect(ready[1].headers).toMatchObject({
+      'MCP-Protocol-Version': '2025-03-26',
+      'MCP-Session-Id': 'session-1',
+    });
     expect(JSON.parse(String(ready[1].body))).toMatchObject({
       method: 'notifications/initialized',
     });
 
     const toolCall = fetchMock.mock.calls[2] as [string, RequestInit];
-    expect(toolCall[1].headers).toMatchObject({ 'MCP-Session-Id': 'session-1' });
+    expect(toolCall[1].headers).toMatchObject({
+      'MCP-Protocol-Version': '2025-03-26',
+      'MCP-Session-Id': 'session-1',
+    });
     expect(JSON.parse(String(toolCall[1].body))).toMatchObject({
       method: 'tools/call',
       params: {
@@ -143,7 +149,10 @@ describe('callHarnessMcp', () => {
     const close = fetchMock.mock.calls[3] as [string, RequestInit];
     expect(close[1]).toMatchObject({
       method: 'DELETE',
-      headers: expect.objectContaining({ 'MCP-Session-Id': 'session-1' }),
+      headers: expect.objectContaining({
+        'MCP-Protocol-Version': '2025-03-26',
+        'MCP-Session-Id': 'session-1',
+      }),
     });
     expect(close[1].signal).not.toBe(toolCall[1].signal);
   });
