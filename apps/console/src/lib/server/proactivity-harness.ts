@@ -1,4 +1,4 @@
-// SOURCING: none. Server-only GraphQL adapter for the harness's denormalized
+// SOURCING: none. Server-only GraphQL adapter for the consumer schema's denormalized
 // proactivity projection and its named reversible mutations. It is the sole
 // module that knows the upstream credential and tenant headers.
 
@@ -12,6 +12,7 @@ import type {
   ProactivityCompilationCandidate,
   ProactivityReceipt,
 } from '@/lib/proactivity/types';
+import { consumerGraphqlUrl } from '@/lib/server/consumer-graphql';
 import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
 import {
   principalTenantHeaders,
@@ -85,13 +86,6 @@ function deterministicProactivityGraphFixture(): ProactivityGraph {
   };
 }
 
-function graphqlUrl(): string | null {
-  const explicit = process.env.THEOREM_GRAPHQL_URL;
-  if (explicit) return explicit;
-  const base = process.env.CONSOLE_HARNESS_URL;
-  return base ? `${base.replace(/\/$/, '')}/graphql` : null;
-}
-
 function actionOperation(action: ProactivityAction): { readonly query: string; readonly variables: Record<string, unknown> } {
   switch (action.kind) {
     case 'set-node-enabled':
@@ -143,8 +137,8 @@ async function executeGraphql(
   if (!resolution.ok) {
     return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
   }
-  const endpoint = graphqlUrl();
-  if (!endpoint) return { ok: false, status: 404, error: 'harness_graphql_unconfigured' };
+  const endpoint = consumerGraphqlUrl();
+  if (!endpoint) return { ok: false, status: 404, error: 'proactivity_graphql_unconfigured' };
   const timeout = startHarnessRequestTimeout();
   try {
     const upstream = await fetch(endpoint, {
@@ -152,9 +146,6 @@ async function executeGraphql(
       headers: {
         'Content-Type': 'application/json',
         ...principalTenantHeaders(resolution.principal),
-        ...(process.env.CONSOLE_HARNESS_TOKEN
-          ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }
-          : {}),
         ...(process.env.THEOREM_API_KEY ? { 'x-api-key': process.env.THEOREM_API_KEY } : {}),
       },
       body: JSON.stringify({ query, variables }),
