@@ -101,6 +101,11 @@ function ijVar(suffix: string): string {
   return `var(--ij-${suffix})`;
 }
 
+function clearShaderHost(host: HTMLDivElement): void {
+  // CS20 cause: failed ShaderMounts can leave an opaque canvas, so clear before fallback.
+  host.replaceChildren();
+}
+
 function sizingUniforms(kind: 'object' | 'pattern') {
   const sizing = kind === 'object' ? defaultObjectSizing : defaultPatternSizing;
   return {
@@ -291,8 +296,10 @@ export function ShaderSurface({
 
     let cancelled = false;
     const markFallback = () => {
+      clearShaderHost(host);
       if (!cancelled) setFallback(true);
     };
+    clearShaderHost(host);
 
     if (LIVE_MOUNTS.size >= SHADER_CONTEXT_BUDGET) {
       queueMicrotask(markFallback);
@@ -383,6 +390,7 @@ export function ShaderSurface({
       observer.disconnect();
       io.disconnect();
       mount.dispose();
+      clearShaderHost(host);
       mountRef.current = null;
       if (tokenRef.current) LIVE_MOUNTS.delete(tokenRef.current);
       tokenRef.current = null;

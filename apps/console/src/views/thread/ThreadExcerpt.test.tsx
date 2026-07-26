@@ -31,6 +31,9 @@ describe('ThreadExcerpt', () => {
     );
     expect(markup).toContain('data-excerpt-collapsed="false"');
     expect(markup).toContain('data-speaker="agent"');
+    expect(markup).toContain('aria-label="agent turn"');
+    expect(markup).toContain('thread-turn-agent');
+    expect(markup).not.toContain('data-excerpt-speaker');
     expect(markup).toContain('agent reply');
   });
 });

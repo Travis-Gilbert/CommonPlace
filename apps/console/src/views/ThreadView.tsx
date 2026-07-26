@@ -283,48 +283,6 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
   );
 }
 
-function JumpStrip() {
-  const [headers, setHeaders] = useState<readonly { id: string; label: string }[]>([]);
-
-  useEffect(() => {
-    const read = () => {
-      const roots = [...document.querySelectorAll<HTMLElement>('[data-thread-excerpt]')];
-      setHeaders(
-        roots
-          .filter((node) => node.id)
-          .map((node) => ({
-            id: node.id,
-            label: node.querySelector('[data-excerpt-speaker]')?.textContent?.trim() || node.dataset.threadExcerpt || 'excerpt',
-          })),
-      );
-    };
-    read();
-    const observer = new MutationObserver(read);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
-  if (headers.length === 0) return null;
-  return (
-    <nav
-      data-thread-jump-strip
-      aria-label="Excerpt jump strip"
-      className="thread-jump-strip absolute top-0 right-0 max-h-full w-28 overflow-y-auto border-l border-ij-seam bg-ij-chrome py-2"
-    >
-      {headers.map((header) => (
-        <a
-          key={header.id}
-          href={`#${header.id}`}
-          className="block truncate px-2 py-1 font-ij-mono text-ij-ink-info hover:text-ij-ink"
-          style={{ fontSize: 'var(--ij-excerpt-header-font-size)' }}
-        >
-          {header.label}
-        </a>
-      ))}
-    </nav>
-  );
-}
-
 export function ThreadView({ host, density = 'compact' }: { host: BlockHost; density?: 'full' | 'compact' }) {
   const runtimeAvailable = useContext(ThreadRuntimeAvailable);
   const error = useThreadStore((state) => state.error);
@@ -385,7 +343,7 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
           />
           <AgentPlan steps={plan} />
           {error ? <div className="px-4 py-1 text-ij-error">{error}</div> : null}
-          {full ? <JumpStrip /> : null}
+          {/* CS20 cause: JumpStrip mirrored excerpt labels into a floating nav, duplicating the human box. */}
         </div>
       </ThreadPrimitive.Viewport>
       <div

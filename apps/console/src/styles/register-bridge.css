@@ -225,10 +225,11 @@
   --ij-agent-rail-max-w: 400px;
   --ij-host-overlay-z: 14;
   --ij-host-rail-z: 15;
-  /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,
+  /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,
      Manrope 15/500, island radius, 40px instrument row. */
-  --ij-composer-min-h: 88px;
-  --ij-composer-max-h: 40vh;
+  --ij-composer-line-box: 23px;
+  --ij-composer-min-h: calc(var(--ij-composer-line-box) + var(--ij-composer-pad-y) * 2);
+  --ij-composer-max-h: calc(33vh - var(--ij-composer-instrument-h));
   --ij-composer-full-min-h: var(--ij-composer-min-h);
   --ij-composer-radius: var(--ij-radius-lg);
   --ij-composer-control-size: 32px;
