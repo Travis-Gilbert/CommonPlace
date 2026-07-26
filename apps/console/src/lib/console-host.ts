@@ -54,6 +54,8 @@ const MODEL_METADATA_TYPES = new Set([
   'relation-metadata',
   'view-metadata',
   'schema-version',
+  // SPEC-THEOREM-CONTROL-PRIMITIVES-1.0 CP3: navigation items as data.
+  'nav-item',
 ]);
 const LAYOUT_QUERY: ObjectQuery = {
   types: ['surface', 'region', 'view-instance'],

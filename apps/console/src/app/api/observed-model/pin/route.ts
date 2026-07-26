@@ -29,5 +29,14 @@ export async function POST(request: Request): Promise<Response> {
   };
   const result = await pinObserved(pinRequest);
   if (!result.ok) return Response.json({ error: result.error }, { status: result.status });
+  if (body.kind === 'type') {
+    const declaredType = result.declared.objectTypes.find(
+      (item) => item.key === observedKey || item.id === observedKey || item.label === observedKey,
+    ) ?? result.declared.objectTypes[result.declared.objectTypes.length - 1];
+    if (declaredType) {
+      const { declareObjectNav } = await import('@/lib/server/navigation-store');
+      declareObjectNav(declaredType.key || declaredType.id, declaredType.label);
+    }
+  }
   return Response.json({ receipt: result.receipt, declared: result.declared });
 }
