@@ -7,7 +7,8 @@
 - Visual e2e at 2560x1290 not run in this environment (Playwright baselines need a browser session).
 - Mono type-audit not executed live against the five launch surfaces in a browser; module ships and is ready for `runDevTypeAudit`.
 - Add Note / Add Browser were removed from the frame; they are not yet remounted as Chat control-row actions (surfaces remain addable via Blocks palette / host placeBlock).
-- Indexer sphere layout left untouched; product rename to Researcher is labels/seeds/shortcuts only. SurveyView internal copy may still say Indexer in places.
+- Indexer sphere layout left untouched; product rename to Researcher is rail/slug/layout-switcher only. SurveyView and SurveyIndexerSearch match main byte-for-byte.
+- Earlier CS17 edits to `SurveyIndexerSearch.tsx` were reverted: applying labels to the Indexer violated acceptance 11.
 
 ## Acceptance
 
@@ -21,7 +22,7 @@
 8. **Transcript / composer** — Role by treatment; JumpStrip removed; composer resting height reduced; CS10 plan tones in ThreadView and AgentRailBlock.
 9. **Polymorphic rows** — FilesView and IndexStreamView differentiated by kind with actions.
 10. **CS20 defects** — Causes recorded below; fixes landed.
-11. **Indexer byte-identical layout** — Survey spatial scene not redesigned; only search labeling/degradation adjacent paths touched.
+11. **Indexer byte-identical layout** — `SurveyView.tsx` and `apps/console/src/views/survey/**` match main (no diff). Product rename to Researcher is rail label, `/v/researcher` slug, and layout-switcher surface name only.
 12. **CS1/2/4/6/9/10** — Not reversed. CS10 step tones preserved and applied to ThreadView plan.
 
 ## Verify First notes
