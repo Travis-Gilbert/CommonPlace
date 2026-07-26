@@ -108,7 +108,7 @@ export function BlockShell({
             />
           ) : null}
           {title ? (
-            <span data-active-surface-name className="min-w-0 truncate">
+            <span className="min-w-0 truncate">
               {title}
             </span>
           ) : (

@@ -177,25 +177,44 @@ function AgentPlan({ steps }: { steps: readonly AgentPlanStep[] }) {
   return (
     <ThreadExcerpt kind="plan" excerptId="agent-plan" speaker="plan" summary={`${steps.length} steps`}>
       <div data-agent-plan aria-label="Agent plan" className="overflow-hidden">
-        {steps.map((step) => (
-          <div key={step.id} data-plan-status={step.status} className="flex h-ij-row items-center gap-2 border-b border-ij-seam last:border-b-0">
-            <span
-              aria-hidden="true"
-              className="size-2 rounded-full"
-              style={{
-                background:
-                  step.status === 'complete'
-                    ? 'var(--ij-success)'
-                    : step.status === 'refused'
-                      ? 'var(--ij-error)'
-                      : 'var(--ij-ink-disabled)',
-              }}
-            />
-            <span className="min-w-0 flex-1 truncate text-ij-ink">{step.label}</span>
-            {step.tool ? <span className="font-ij-mono text-ij-ink-info">{step.tool}</span> : null}
-            <span className="text-ij-ink-disabled">{step.status}</span>
-          </div>
-        ))}
+        {steps.map((step) => {
+          const status = String(step.status);
+          const tone =
+            status === 'complete'
+              ? 'done'
+              : status === 'refused' || status === 'failed'
+                ? 'failed'
+                : status === 'running'
+                  ? 'running'
+                  : status === 'awaiting'
+                    ? 'awaiting'
+                    : 'pending';
+          const className =
+            tone === 'running'
+              ? 'text-ij-ink-info animate-pulse'
+              : tone === 'done'
+                ? 'text-ij-ink'
+                : tone === 'awaiting'
+                  ? 'text-[color:var(--hue-status-awaiting)] animate-pulse'
+                  : tone === 'failed'
+                    ? 'text-[color:var(--hue-status-failed)]'
+                    : 'text-ij-ink-disabled';
+          return (
+            <div
+              key={step.id}
+              data-plan-status={step.status}
+              data-status-hue
+              className={`flex h-ij-row items-center gap-2 border-b border-ij-seam last:border-b-0 ${className}`}
+            >
+              <span className="min-w-0 flex-1 truncate">{step.label}</span>
+              {step.tool ? (
+                <span className="font-ij-mono text-ij-ink-info" data-mono-ok>
+                  {step.tool}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </ThreadExcerpt>
   );

@@ -270,12 +270,25 @@
 
 .thread-turn-human {
   margin: calc(var(--rec-grid) * 2) calc(var(--rec-grid) * 3);
+  background: var(--paper-sunken, var(--ij-editor));
+  border-radius: var(--radius-control);
 }
 
 .thread-turn-agent[data-material='lifted'] {
   border-radius: 0;
-  background: var(--ij-editor);
+  background: var(--paper-lifted, var(--ij-chrome));
   box-shadow: none;
+}
+
+/* CS18: consecutive same-role turns group without repeating identity. */
+.thread-turn-human + .thread-turn-human {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.thread-turn-agent + .thread-turn-agent .thread-turn-body {
+  padding-top: calc(var(--rec-grid));
 }
 
 .thread-turn-body {
