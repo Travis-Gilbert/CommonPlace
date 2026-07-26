@@ -428,8 +428,8 @@ export function Composer({
             <ComposerPrimitive.Attachments components={{ Attachment: AttachmentChip }} />
             <div className="composer-input-section">
               <ComposerPrimitive.Input
-                minRows={compact ? 2 : 3}
-                maxRows={24}
+                minRows={1}
+                maxRows={compact ? 6 : 8}
                 maxLength={MAX_CHARACTERS}
                 disabled={unavailable || composerState === 'disabled'}
                 data-composer-input
