@@ -5,6 +5,7 @@ const { principalTenantHeadersMock, resolveHarnessPrincipalMock } = vi.hoisted((
   resolveHarnessPrincipalMock: vi.fn(),
 }));
 
+vi.mock('server-only', () => ({}));
 vi.mock('@/lib/server/harness-principal', () => ({
   principalTenantHeaders: principalTenantHeadersMock,
   resolveHarnessPrincipal: resolveHarnessPrincipalMock,

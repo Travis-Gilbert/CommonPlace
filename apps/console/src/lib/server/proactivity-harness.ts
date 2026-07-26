@@ -138,7 +138,7 @@ async function executeGraphql(
     return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
   }
   const endpoint = consumerGraphqlUrl();
-  if (!endpoint) return { ok: false, status: 404, error: 'harness_graphql_unconfigured' };
+  if (!endpoint) return { ok: false, status: 404, error: 'proactivity_graphql_unconfigured' };
   const timeout = startHarnessRequestTimeout();
   try {
     const upstream = await fetch(endpoint, {

@@ -1,5 +1,7 @@
 // SOURCING: none. Server-only consumer GraphQL endpoint selection.
 
+import 'server-only';
+
 /**
  * Proactivity and Filing belong to the CommonPlace consumer schema. They must
  * not fall back to CONSOLE_HARNESS_URL, which is the Harness MCP service and
