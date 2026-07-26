@@ -22,6 +22,7 @@ import type {
 } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
+import { mergeSeedViews } from './seed-views';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_ID } from './workspace-seed';
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
@@ -209,9 +210,11 @@ export class ConsoleBlockHost implements BlockHost {
       changefeedUrl: '/api/proactivity/stream',
       onStatus: (status) => this.observer?.(status),
       onChangefeedStatus: (status) => {
-        if (status === 'stale' || status === 'connecting') {
-          useShellStore.getState().setProgress(status === 'stale' ? 'Live feed stale' : 'Connecting live feed');
-        } else if (status === 'live') {
+        // CS13/CS16: staleness is a property of connection state, not a second
+        // progress claim. Only an outstanding connect attempt may animate.
+        if (status === 'connecting') {
+          useShellStore.getState().setProgress('Connecting live feed');
+        } else {
           useShellStore.getState().setProgress(null);
         }
       },
@@ -248,10 +251,18 @@ export class ConsoleBlockHost implements BlockHost {
 
   private hydrateLayout(): void {
     const restored = readLayoutCache();
-    const seed = seedLayout();
+    const seed = mergeSeedViews(seedLayout());
     const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
     const objects = needsIaMigration ? seed : (restored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
+    // Prefer the CS11 launch Chat view as the active surface when both the
+    // legacy place and the seeded view are present.
+    const viewChat = this.layout.get('view-chat');
+    const legacyChat = this.layout.get('console-chat');
+    if (viewChat) {
+      viewChat.properties.active = true;
+      if (legacyChat) legacyChat.properties.active = false;
+    }
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
@@ -340,7 +351,14 @@ export class ConsoleBlockHost implements BlockHost {
   /** Drop the persisted arrangement and return to the seed. */
   resetLayout(): void {
     clearLayoutCache();
-    this.layout = new Map(seedLayout().map((ref) => [ref.id, toMutable(ref)]));
+    const seed = mergeSeedViews(seedLayout());
+    this.layout = new Map(seed.map((ref) => [ref.id, toMutable(ref)]));
+    const viewChat = this.layout.get('view-chat');
+    const legacyChat = this.layout.get('console-chat');
+    if (viewChat) {
+      viewChat.properties.active = true;
+      if (legacyChat) legacyChat.properties.active = false;
+    }
     this.persistLayout();
     this.notifyLayout();
     if (this.records === null) {

@@ -22,6 +22,7 @@ import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
 import { ObjectExcerpt } from './thread/ObjectExcerpt';
 import { ThreadExcerpt } from './thread/ThreadExcerpt';
+import { reducedFromMissing } from '@/lib/degradation';
 
 export const ThreadRuntimeAvailable = createContext(false);
 
@@ -122,9 +123,12 @@ function UserMessage({ host }: { host: BlockHost }) {
 function AssistantMessage({ host }: { host: BlockHost }) {
   const durations = useMotionDurations();
   const createdAt = useMessage((message) => message.createdAt);
-  const degradation = useMessage((message) => message.metadata.custom?.degradation) as
+  const degradationMeta = useMessage((message) => message.metadata.custom?.degradation) as
     | { degraded: true; missingIndexes: string[] }
     | undefined;
+  const degradation = degradationMeta?.degraded
+    ? reducedFromMissing(degradationMeta.missingIndexes)
+    : null;
   const content = useMessage((message) =>
     message.content
       .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
@@ -145,9 +149,14 @@ function AssistantMessage({ host }: { host: BlockHost }) {
           speaker="agent"
           timestamp={formatTime(createdAt)}
         >
-          {degradation?.degraded ? (
-            <span className="mb-1 inline-flex rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn" data-ask-degraded>
-              degraded: {degradation.missingIndexes.join(', ')}
+          {degradation ? (
+            <span
+              data-ask-degraded
+              data-degradation="reduced"
+              className="mb-1 block text-ij-island-meta text-ij-ink-info"
+              style={{ fontFamily: 'var(--cp-font-human)' }}
+            >
+              {degradation.cause}
             </span>
           ) : null}
           <MessagePrimitive.Parts

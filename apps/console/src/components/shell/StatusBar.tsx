@@ -1,12 +1,8 @@
 'use client';
 
 // SOURCING: hand-roll. The Int UI status bar is a named chrome signature.
-// Connection state binds to the real object-seam transport (R2.3): the named
-// identity-refusal state maps HTTP 403 (the principal_resolution=
-// unauthenticated analog) and Reconnect runs a real health probe. Presence
-// renders only when the harness transport reports it (R2.4); it can never
-// contradict the connection state because it hides unless connected.
-// HANDOFF-PRINCIPAL-CREDENTIALS D5: four causes, one indicator, matching actions.
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS13 + CS16: metadata size and faint ink,
+// one transport claim, progress only while a request is outstanding.
 
 import { signIn, useSession } from 'next-auth/react';
 import { githubTenantSlug } from '@/lib/account-identity';
@@ -32,6 +28,8 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
   const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
 
   const showPresence = connection === 'connected' && presenceCount !== null;
+  // CS16: progress is an operation in flight, never a standing condition.
+  const showProgress = Boolean(progressLabel) && connection === 'connecting';
   const action =
     connection === 'unauthenticated'
       ? { label: 'Sign in', run: () => void signIn('github', { redirectTo: '/' }) }
@@ -57,7 +55,7 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
       data-paint-region="status-bar"
       data-frame-resident="status-bar"
       data-connection-owner="status-bar"
-      className="flex h-ij-statusbar shrink-0 items-center gap-3 bg-transparent px-ij-island-gutter font-ij-mono text-ij-ink-info"
+      className="flex h-ij-statusbar min-w-0 shrink-0 items-center gap-3 overflow-hidden bg-transparent px-ij-island-gutter text-ij-island-meta text-ij-ink-info"
     >
       <span
         data-connection={connection}
@@ -66,17 +64,17 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
           connection === 'identity-refused' ||
           connection === 'credential-unavailable'
             ? 'authentication'
-            : connection === 'connected'
-              ? 'transport'
-              : 'transport'
+            : 'transport'
         }
+        className="min-w-0 truncate"
         style={{
+          fontFamily: 'var(--cp-font-human)',
           color:
             connection === 'identity-refused' ||
             connection === 'unauthenticated' ||
             connection === 'credential-unavailable'
               ? 'var(--ij-error)'
-              : undefined,
+              : 'var(--ij-ink-info)',
         }}
       >
         {CONNECTION_LABEL[connection]}
@@ -85,25 +83,30 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
         <button
           type="button"
           onClick={action.run}
-          className="rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
+          className="min-w-0 shrink-0 rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
+          style={{ fontFamily: 'var(--cp-font-human)' }}
         >
           {action.label}
         </button>
       ) : null}
-      {progressLabel ? (
-        <span className="flex items-center gap-2" data-connection-kind="query">
-          <span className="ij-progress-indeterminate h-1 w-32 rounded-ij-arc-underline" />
-          {progressLabel}
+      {showProgress ? (
+        <span className="flex min-w-0 items-center gap-2 truncate" data-connection-kind="query">
+          <span className="ij-progress-indeterminate h-1 w-24 shrink-0 rounded-ij-arc-underline" />
+          <span className="min-w-0 truncate" style={{ fontFamily: 'var(--cp-font-human)' }}>
+            {progressLabel}
+          </span>
         </span>
       ) : null}
       {showPresence ? (
-        <span data-presence={presenceCount} className="ml-auto">
+        <span data-presence={presenceCount} className="ml-auto min-w-0 truncate" style={{ fontFamily: 'var(--cp-font-human)' }}>
           {presenceCount} present
         </span>
       ) : (
-        <span className="ml-auto" />
+        <span className="ml-auto min-w-0" />
       )}
-      <span className="font-ij-mono">{tenant}</span>
+      <span className="min-w-0 shrink truncate font-ij-mono" title={tenant}>
+        {tenant}
+      </span>
     </footer>
   );
 }

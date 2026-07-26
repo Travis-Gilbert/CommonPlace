@@ -20,6 +20,7 @@ import {
   MODEL_SURFACE_ID,
   MODEL_VIEW_INSTANCE_ID,
 } from './workspace-seed';
+import { PLACE_ENTRIES } from './rail/rail-model';
 
 const NO_VIEWS = { matchingViews: () => [] };
 
@@ -72,13 +73,18 @@ describe('ConsoleBlockHost', () => {
       'console-survey',
       'console-threads',
       'console-workspace',
+      'view-chat',
+      'view-data-model',
+      'view-editor',
+      'view-index',
+      'view-researcher',
     ]);
-    expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
+    expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe('view-chat');
     expect(surfaces
-      .filter((surface) => surface.properties.role === 'place')
+      .filter((surface) => PLACE_ENTRIES.some((place) => place.surfaceId === surface.id))
       .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Filing', 'Canvas', 'Automation', 'Indexer', 'Models',
+        'Chat', 'Researcher', 'Index', 'Editor', 'Models',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([

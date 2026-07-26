@@ -1,6 +1,8 @@
-// SOURCING: none. SPEC-CONSOLE-INFORMATION-ARCHITECTURE-1.0 D1/D2:
-// three rail tiers (place, collection, pin). Collections are derived from
-// BlockKindGlyph; Places are a closed hand-authored set.
+// SOURCING: none. Pure logic, no upstream component applies.
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11: launch rail is five destinations.
+// PLACE_ENTRIES drives rail rows, Cmd/Ctrl digit bindings, Alt digit bindings,
+// and route prefetch. Collections leave the rail; they stay reachable through
+// the layout switcher and the Blocks palette.
 
 import type { BlockKindGlyph } from '@commonplace/block-view/types';
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
@@ -29,8 +31,9 @@ export interface RailCollection {
 /**
  * Per-kind rail policy. `hidden` means the kind never becomes a collection
  * entry (place-owned glyphs, chrome glyphs, or dock-only affordances).
- * Adding a glyph to KIND_GLYPH_ORDER without a policy defaults to hidden so
- * unregistered destinations cannot drift into the rail.
+ * CS11: collections leave the rail; policy stays so layout switcher routes
+ * and SURFACE_ROUTES still resolve. `deriveRailCollections` returns empty for
+ * the rail; use `deriveLayoutCollections` for switcher/route membership.
  */
 export type KindRailPolicy =
   | { readonly rail: 'hidden'; reason: string }
@@ -42,73 +45,56 @@ export type KindRailPolicy =
       readonly kind: string;
     };
 
+/** Launch set: Chat, Researcher, Index, Editor, Models. Digits one through five. */
 export const PLACE_ENTRIES: readonly RailPlace[] = [
   {
     tier: 'place',
     id: 'place-chat',
     kind: 'chat',
     label: 'Chat',
-    path: '/chat',
-    surfaceId: 'console-chat',
+    path: '/v/chat',
+    surfaceId: 'view-chat',
     stripeOrder: 0,
   },
   {
     tier: 'place',
-    id: 'place-workspace',
-    kind: 'workspace',
-    label: 'Workspace',
-    path: '/workspace',
-    surfaceId: 'console-workspace',
+    id: 'place-researcher',
+    kind: 'survey',
+    label: 'Researcher',
+    path: '/v/researcher',
+    surfaceId: 'view-researcher',
     stripeOrder: 1,
   },
   {
     tier: 'place',
-    id: 'place-filing',
+    id: 'place-index',
     kind: 'index',
-    label: 'Filing',
-    path: '/filing',
-    surfaceId: 'console-index',
+    label: 'Index',
+    path: '/v/index',
+    surfaceId: 'view-index',
     stripeOrder: 2,
   },
   {
     tier: 'place',
-    id: 'place-canvas',
-    kind: 'canvas',
-    label: 'Canvas',
-    path: '/canvas',
-    surfaceId: 'console-canvas',
+    id: 'place-editor',
+    kind: 'editor',
+    label: 'Editor',
+    path: '/v/editor',
+    surfaceId: 'view-editor',
     stripeOrder: 3,
-  },
-  {
-    tier: 'place',
-    id: 'place-automation',
-    kind: 'automation',
-    label: 'Automation',
-    path: '/automation',
-    surfaceId: 'console-automation',
-    stripeOrder: 4,
-  },
-  {
-    tier: 'place',
-    id: 'place-indexer',
-    kind: 'survey',
-    label: 'Indexer',
-    path: '/indexer',
-    surfaceId: 'console-survey',
-    stripeOrder: 5,
   },
   {
     tier: 'place',
     id: 'place-models',
     kind: 'model',
     label: 'Models',
-    path: '/models',
-    surfaceId: 'console-models',
-    stripeOrder: 6,
+    path: '/v/data-model',
+    surfaceId: 'view-data-model',
+    stripeOrder: 4,
   },
 ] as const;
 
-/** Kind → collection policy. Place names keep the singular; collections take plural where needed. */
+/** Kind → collection policy. Collections leave the rail (CS11) but keep routes. */
 export const KIND_RAIL_POLICY: Record<BlockKindGlyph, KindRailPolicy> = {
   records: {
     rail: 'collection',
@@ -147,18 +133,25 @@ export const KIND_RAIL_POLICY: Record<BlockKindGlyph, KindRailPolicy> = {
   },
   memory: { rail: 'hidden', reason: 'memory surfaces through Files projection, not a parallel collection' },
   rail: { rail: 'hidden', reason: 'chrome glyph for Index destinations, not a graph kind collection' },
-  workspace: { rail: 'hidden', reason: 'Workspace is a Place' },
-  model: { rail: 'hidden', reason: 'Models is a Place' },
+  workspace: { rail: 'hidden', reason: 'Workspace stays reachable via layout switcher, not the launch rail' },
+  model: { rail: 'hidden', reason: 'Models is a launch View' },
   context: { rail: 'hidden', reason: 'dock companion, not a rail destination' },
   terminal: { rail: 'hidden', reason: 'tool window affordance, not a collection' },
   browser: { rail: 'hidden', reason: 'tool window affordance, not a collection' },
   kanban: { rail: 'hidden', reason: 'descriptor exists without a collection surface yet; declare when routed' },
-  automation: { rail: 'hidden', reason: 'Automation is a Place' },
-  canvas: { rail: 'hidden', reason: 'Canvas is a Place' },
+  automation: { rail: 'hidden', reason: 'Automation stays reachable via layout switcher, not the launch rail' },
+  canvas: { rail: 'hidden', reason: 'Canvas stays reachable via layout switcher, not the launch rail' },
 };
 
-/** Generate collection rail entries from the registered kind set. */
+/** Rail collections: empty under CS11. Prefer deriveLayoutCollections for routes. */
 export function deriveRailCollections(
+  _kinds: readonly BlockKindGlyph[] = KIND_GLYPH_ORDER,
+): readonly RailCollection[] {
+  return [];
+}
+
+/** Collections that still own App Router segments and layout-switcher entries. */
+export function deriveLayoutCollections(
   kinds: readonly BlockKindGlyph[] = KIND_GLYPH_ORDER,
 ): readonly RailCollection[] {
   const collections: RailCollection[] = [];
@@ -179,7 +172,7 @@ export function deriveRailCollections(
 
 export function assertUniqueRailLabels(
   places: readonly RailPlace[] = PLACE_ENTRIES,
-  collections: readonly RailCollection[] = deriveRailCollections(),
+  collections: readonly RailCollection[] = deriveLayoutCollections(),
 ): void {
   const seen = new Set<string>();
   for (const entry of [...places, ...collections]) {
