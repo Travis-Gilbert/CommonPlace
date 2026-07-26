@@ -17,19 +17,19 @@ const COLLECTION_ROUTES = deriveLayoutCollections().map((collection) => ({
   tier: 'collection' as const,
 }));
 
-/** Legacy App Router segments for surfaces that left the launch rail (CS11). */
-const LEGACY_PLACE_ROUTES = [
-  { kind: 'chat', path: '/chat', surfaceId: 'console-chat', tier: 'place' as const },
-  { kind: 'workspace', path: '/workspace', surfaceId: 'console-workspace', tier: 'place' as const },
-  { kind: 'index', path: '/filing', surfaceId: 'console-index', tier: 'place' as const },
+/** Extra App Router segments and /v/* aliases for seed-view URLs (CS8/CS11). */
+const ALIAS_ROUTES = [
+  { kind: 'chat', path: '/v/chat', surfaceId: 'console-chat', tier: 'place' as const },
+  { kind: 'survey', path: '/v/researcher', surfaceId: 'console-survey', tier: 'place' as const },
+  { kind: 'index', path: '/v/index', surfaceId: 'console-index', tier: 'place' as const },
+  { kind: 'workspace', path: '/v/editor', surfaceId: 'console-workspace', tier: 'place' as const },
+  { kind: 'model', path: '/v/data-model', surfaceId: 'console-models', tier: 'place' as const },
   { kind: 'canvas', path: '/canvas', surfaceId: 'console-canvas', tier: 'place' as const },
   { kind: 'automation', path: '/automation', surfaceId: 'console-automation', tier: 'place' as const },
-  { kind: 'survey', path: '/indexer', surfaceId: 'console-survey', tier: 'place' as const },
-  { kind: 'model', path: '/models', surfaceId: 'console-models', tier: 'place' as const },
 ] as const;
 
-/** Surfaces that own an App Router segment (launch views + legacy places + collections). */
-export const SURFACE_ROUTES = [...PLACE_ROUTES, ...LEGACY_PLACE_ROUTES, ...COLLECTION_ROUTES] as const;
+/** Surfaces that own an App Router segment (launch places + aliases + collections). */
+export const SURFACE_ROUTES = [...PLACE_ROUTES, ...ALIAS_ROUTES, ...COLLECTION_ROUTES] as const;
 
 export type SurfaceRouteKind = (typeof SURFACE_ROUTES)[number]['kind'];
 

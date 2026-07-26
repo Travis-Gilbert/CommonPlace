@@ -3,6 +3,10 @@
 // PLACE_ENTRIES drives rail rows, Cmd/Ctrl digit bindings, Alt digit bindings,
 // and route prefetch. Collections leave the rail; they stay reachable through
 // the layout switcher and the Blocks palette.
+//
+// Rail targets the rich workspace-seed places (companions, multi-region
+// wells), not the sparse CS8 seed-view shells. Seed views remain for /v/*
+// idempotent seeding and list membership.
 
 import type { BlockKindGlyph } from '@commonplace/block-view/types';
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
@@ -45,15 +49,19 @@ export type KindRailPolicy =
       readonly kind: string;
     };
 
-/** Launch set: Chat, Researcher, Index, Editor, Models. Digits one through five. */
+/**
+ * Launch set: Chat, Researcher, Index, Editor, Models.
+ * Digits one through five. Surfaces are the durable IA places so the rail
+ * opens companions and multi-region wells, not a single full-bleed panel.
+ */
 export const PLACE_ENTRIES: readonly RailPlace[] = [
   {
     tier: 'place',
     id: 'place-chat',
     kind: 'chat',
     label: 'Chat',
-    path: '/v/chat',
-    surfaceId: 'view-chat',
+    path: '/chat',
+    surfaceId: 'console-chat',
     stripeOrder: 0,
   },
   {
@@ -61,8 +69,8 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     id: 'place-researcher',
     kind: 'survey',
     label: 'Researcher',
-    path: '/v/researcher',
-    surfaceId: 'view-researcher',
+    path: '/indexer',
+    surfaceId: 'console-survey',
     stripeOrder: 1,
   },
   {
@@ -70,17 +78,17 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     id: 'place-index',
     kind: 'index',
     label: 'Index',
-    path: '/v/index',
-    surfaceId: 'view-index',
+    path: '/filing',
+    surfaceId: 'console-index',
     stripeOrder: 2,
   },
   {
     tier: 'place',
     id: 'place-editor',
-    kind: 'editor',
+    kind: 'workspace',
     label: 'Editor',
-    path: '/v/editor',
-    surfaceId: 'view-editor',
+    path: '/workspace',
+    surfaceId: 'console-workspace',
     stripeOrder: 3,
   },
   {
@@ -88,8 +96,8 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     id: 'place-models',
     kind: 'model',
     label: 'Models',
-    path: '/v/data-model',
-    surfaceId: 'view-data-model',
+    path: '/models',
+    surfaceId: 'console-models',
     stripeOrder: 4,
   },
 ] as const;
@@ -133,7 +141,7 @@ export const KIND_RAIL_POLICY: Record<BlockKindGlyph, KindRailPolicy> = {
   },
   memory: { rail: 'hidden', reason: 'memory surfaces through Files projection, not a parallel collection' },
   rail: { rail: 'hidden', reason: 'chrome glyph for Index destinations, not a graph kind collection' },
-  workspace: { rail: 'hidden', reason: 'Workspace stays reachable via layout switcher, not the launch rail' },
+  workspace: { rail: 'hidden', reason: 'Editor is the launch View for the workspace place' },
   model: { rail: 'hidden', reason: 'Models is a launch View' },
   context: { rail: 'hidden', reason: 'dock companion, not a rail destination' },
   terminal: { rail: 'hidden', reason: 'tool window affordance, not a collection' },

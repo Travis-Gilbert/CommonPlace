@@ -159,7 +159,7 @@ export function seedLayout(): ObjectRef[] {
     }),
 
     layoutObject(SURFACE_ID, 'surface', {
-      name: 'Chat', kind: 'chat', role: 'place', active: false, seed_revision: 5,
+      name: 'Chat', kind: 'chat', role: 'place', stripe_order: 0, active: true, seed_revision: 5,
     }, ['chat.region-editor', ...companionIds('chat')]),
     layoutObject('chat.region-editor', 'region', {
       kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,
@@ -172,7 +172,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('chat'),
 
     layoutObject(WORKSPACE_SURFACE_ID, 'surface', {
-      name: 'Workspace', kind: 'workspace', role: 'place', active: false, seed_revision: 6,
+      name: 'Editor', kind: 'workspace', role: 'place', stripe_order: 3, active: false, seed_revision: 7,
     }, ['region-editor', ...companionIds('workspace')]),
     layoutObject('region-editor', 'region', {
       kind: 'editor', size: 72, active_tab: 'workspace.vi-substrate', seed_revision: 3,
@@ -207,7 +207,7 @@ export function seedLayout(): ObjectRef[] {
     // the Place label is Filing. The rail names the shelves; the editor holds
     // the recently-filed ribbon, the digest, and the rules tab.
     layoutObject('console-index', 'surface', {
-      name: 'Filing', kind: 'index', role: 'place', active: false, seed_revision: 5,
+      name: 'Index', kind: 'index', role: 'place', stripe_order: 2, active: false, seed_revision: 6,
     }, ['index.region-rail', 'index.region-editor', 'index.region-urgent', ...companionIds('index')]),
     ...registerToolWindow({
       id: 'index.region-rail', title: 'Destinations', icon: 'rail', side: 'left', size: 22,
@@ -256,7 +256,7 @@ export function seedLayout(): ObjectRef[] {
 
 
     layoutObject(SURVEY_SURFACE_ID, 'surface', {
-      name: 'Researcher', kind: 'survey', role: 'place', active: false, seed_revision: 2,
+      name: 'Researcher', kind: 'survey', role: 'place', stripe_order: 1, active: false, seed_revision: 2,
     }, ['survey.region-editor', ...companionIds('survey')]),
     layoutObject('survey.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
@@ -273,7 +273,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('survey'),
 
     layoutObject(MODEL_SURFACE_ID, 'surface', {
-      name: 'Models', kind: 'model', role: 'place', active: false, seed_revision: 2,
+      name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 2,
     }, ['models.region-editor', ...companionIds('models')]),
     layoutObject('models.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,

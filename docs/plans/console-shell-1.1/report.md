@@ -9,6 +9,7 @@
 - Add Note / Add Browser were removed from the frame; they are not yet remounted as Chat control-row actions (surfaces remain addable via Blocks palette / host placeBlock).
 - Indexer sphere layout left untouched; product rename to Researcher is rail/slug/layout-switcher only. SurveyView and SurveyIndexerSearch match main byte-for-byte.
 - Earlier CS17 edits to `SurveyIndexerSearch.tsx` were reverted: applying labels to the Indexer violated acceptance 11.
+- Follow-up: rail briefly targeted sparse `view-*` seeds (one full panel). Retargeted to rich `console-*` places. Opaque material CSS fills in `geometry.css` and ModelView `bg-ij-editor` covered MaterialLayer shaders; materials are transparent again.
 
 ## Acceptance
 

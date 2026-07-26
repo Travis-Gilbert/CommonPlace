@@ -21,11 +21,18 @@ describe('rail-model', () => {
       'Models',
     ]);
     expect(PLACE_ENTRIES.map((place) => place.path)).toEqual([
-      '/v/chat',
-      '/v/researcher',
-      '/v/index',
-      '/v/editor',
-      '/v/data-model',
+      '/chat',
+      '/indexer',
+      '/filing',
+      '/workspace',
+      '/models',
+    ]);
+    expect(PLACE_ENTRIES.map((place) => place.surfaceId)).toEqual([
+      'console-chat',
+      'console-survey',
+      'console-index',
+      'console-workspace',
+      'console-models',
     ]);
     expect(PLACE_ENTRIES).toHaveLength(5);
   });

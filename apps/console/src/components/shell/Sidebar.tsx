@@ -42,6 +42,7 @@ export interface SidebarRegion {
 
 const PLACE_ICONS: Record<string, typeof IconRecords> = {
   chat: IconChat,
+  workspace: IconWorkspace,
   survey: IconMemory,
   index: IconIndex,
   editor: IconWorkspace,

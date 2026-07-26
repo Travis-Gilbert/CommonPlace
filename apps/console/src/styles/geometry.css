@@ -2,7 +2,11 @@
    Radii below roughly three device pixels of arc antialias into a chipped
    square. Container radius floors at 1.5 times the gutter. At a 6px gutter
    that is 9, so no container is below 10.
-   Concentric nesting: inner = max(outer - padding, 2). */
+   Concentric nesting: inner = max(outer - padding, 2).
+
+   CS3 materials + CS4 shader canvas: MaterialLayer owns island body fill.
+   Material rules set radius and seam only. Opaque paper fills here would
+   paint a CSS layer over the paper shaders. */
 
 [data-register="intui"] {
   --gutter: 6px;
@@ -37,18 +41,18 @@
 
 [data-register="intui"] [data-material="sunken"] {
   border-radius: var(--radius-sunken);
-  background: var(--paper-sunken, var(--ij-editor));
+  background: transparent;
   box-shadow: inset 0 0 0 1px var(--paper-seam, var(--ij-seam));
 }
 
 [data-register="intui"] [data-material="lifted"] {
   border-radius: var(--radius-lifted);
-  background: var(--paper-lifted, var(--ij-chrome));
+  background: transparent;
   box-shadow: var(--shadow-lifted);
   border: none;
 }
 
 [data-register="intui"] [data-material="docked"] {
-  background: var(--paper-lifted, var(--ij-chrome));
+  background: transparent;
   box-shadow: var(--shadow-lifted);
 }
