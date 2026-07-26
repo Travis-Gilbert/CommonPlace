@@ -17,6 +17,26 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     cause: 'The data API is unreachable.',
     actionLabel: 'Reconnect',
   },
+  harness_graphql_failed: {
+    level: 'unavailable',
+    cause: 'The Harness query could not complete.',
+    actionLabel: 'Retry',
+  },
+  harness_graphql_timeout: {
+    level: 'unavailable',
+    cause: 'The Harness query timed out.',
+    actionLabel: 'Retry',
+  },
+  harness_graphql_unconfigured: {
+    level: 'unavailable',
+    cause: 'The Harness connection is not configured.',
+    actionLabel: 'Open Account',
+  },
+  harness_graphql_unreachable: {
+    level: 'unavailable',
+    cause: 'The Harness service is unreachable.',
+    actionLabel: 'Retry',
+  },
   observed_model_graphql_failed: {
     level: 'unavailable',
     cause: 'The observed model could not be loaded.',
