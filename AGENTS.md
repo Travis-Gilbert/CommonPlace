@@ -20,6 +20,12 @@ bash scripts/retire-techdev-clone.sh
 
 See `docs/plans/console/37-CHECKOUT-CONSOLIDATION.md`.
 
+## Recent decisions
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-07-26 | Console harness GraphQL travels through `graphql_query` and `graphql_mutate` on the configured `/mcp` door. `THEOREM_GRAPHQL_URL` remains a consumer API setting and must not route harness-schema calls. | The deployed `theorem-mcp-server` has no `/graphql` route, and the harness and CommonPlace consumer schemas are distinct contracts. |
+
 ## Console constitution
 
 `apps/console/AGENTS.md` and `apps/console/CLAUDE.md` carry the console fence
