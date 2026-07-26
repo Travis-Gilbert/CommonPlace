@@ -109,7 +109,7 @@ export function buildSeedViews(deleted: ReadonlySet<string> = readDeletedSeedSlu
       }, ['view-researcher.well.vi']),
       layoutObject('view-researcher.well.vi', 'view-instance', {
         descriptor_id: 'survey.board',
-        title: 'Researcher',
+        title: 'Indexer',
         query: {
           types: ['topic', 'capture', 'survey-edge'],
           live: true,
