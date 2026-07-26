@@ -24,7 +24,7 @@ export type FilingFetchState<T> =
 /** The capability an unconfigured or unreachable filing engine is missing.
  *  Named, so the surface's unavailable state says the true thing rather than a
  *  generic apology. */
-export const FILING_CAPABILITY = 'the filing engine (set CONSOLE_HARNESS_URL)';
+export const FILING_CAPABILITY = 'the filing engine (set THEOREM_GRAPHQL_URL)';
 
 async function readJson<T>(url: string): Promise<FilingFetchState<T>> {
   try {
