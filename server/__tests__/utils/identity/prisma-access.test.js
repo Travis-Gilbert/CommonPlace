@@ -153,6 +153,16 @@ test("database preflight accepts only independent PostgreSQL identity URLs", () 
       assertIdentityDatabaseBoundary({
         IDENTITY_DATABASE_URL: runtimeUrl,
         RUSTYRED_PG_URL: runtimeUrl,
+    }),
+    /must not reuse a RustyRed URL/
+  );
+  assert.throws(
+    () =>
+      assertIdentityDatabaseBoundary({
+        IDENTITY_DATABASE_URL:
+          "postgresql://identity:example@pgbouncer.internal:6432/commonplace?connection_limit=4",
+        RUSTYRED_PG_URL:
+          "postgres://different:credentials@PGBOUNCER.INTERNAL:6432/commonplace?sslmode=require",
       }),
     /must not reuse a RustyRed URL/
   );

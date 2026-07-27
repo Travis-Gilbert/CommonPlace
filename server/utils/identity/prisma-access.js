@@ -82,10 +82,18 @@ function assertIdentityDatabaseBoundary(
     );
   }
 
-  const identityUrls = new Set([runtimeUrl, directUrl].filter(Boolean));
+  const identityEndpoints = new Set(
+    [runtimeUrl, directUrl].filter(Boolean).map(databaseEndpoint)
+  );
   for (const [key, value] of Object.entries(environment)) {
     if (!/^RUSTYRED.*_URL$/i.test(key) || typeof value !== "string") continue;
-    if (identityUrls.has(value)) {
+    let candidateEndpoint;
+    try {
+      candidateEndpoint = databaseEndpoint(value);
+    } catch {
+      continue;
+    }
+    if (identityEndpoints.has(candidateEndpoint)) {
       throw new Error("Identity Prisma URLs must not reuse a RustyRed URL");
     }
   }
