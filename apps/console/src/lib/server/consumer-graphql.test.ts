@@ -5,6 +5,15 @@ vi.mock('server-only', () => ({}));
 import { consumerGraphqlUrl } from './consumer-graphql';
 
 describe('consumerGraphqlUrl', () => {
+  it('prefers CONSOLE_DATA_API_URL as the single data door', () => {
+    expect(
+      consumerGraphqlUrl({
+        CONSOLE_DATA_API_URL: ' https://commonplace.example/ ',
+        THEOREM_GRAPHQL_URL: 'https://stale.example/graphql',
+      }),
+    ).toBe('https://commonplace.example/graphql');
+  });
+
   it('uses the explicit CommonPlace consumer GraphQL endpoint', () => {
     expect(
       consumerGraphqlUrl({
