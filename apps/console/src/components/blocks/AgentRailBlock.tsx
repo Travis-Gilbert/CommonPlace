@@ -3,6 +3,7 @@
 // SOURCING: BlockShell docked rail (CS10) without a composer.
 // SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1: the rail never embeds input. It carries
 // the run, its artifacts, the objects it touched, and the inspector ledger.
+// Supersedes PR 127 showComposer=false: the shell Composer is not mounted here.
 
 import { useEffect, useRef, useState } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
@@ -136,7 +137,9 @@ export function AgentRailBlock({
             <p className="text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
               {isRunning ? 'Running' : 'Idle'}
             </p>
-            {plan.length > 0 ? <InlinePlan steps={plan} onOpenCanvas={openCanvas} /> : (
+            {plan.length > 0 ? (
+              <InlinePlan steps={plan} onOpenCanvas={openCanvas} />
+            ) : (
               <p className="text-ij-ink-disabled">No active plan steps.</p>
             )}
           </section>

@@ -30,11 +30,13 @@ roots across tenants, and prevents symlink escapes. The legacy
 `COMMONPLACE_WORKSPACE_ALLOWED_ROOTS` variable is a single-tenant development
 fallback only. Production must configure the Console list and tenant map.
 
-Proactivity's GraphQL projection uses the CommonPlace API configured by
-`CONSOLE_HARNESS_URL`. Its SSE feed is a separate RustyRed server endpoint:
-set `THEOREM_PROACTIVITY_CHANGEFEED_URL` to the tenant-filtered
-`/v1/proactivity/stream` host. Do not fall back to `CONSOLE_HARNESS_URL`,
-which would silently target the wrong deployment.
+Proactivity and Filing use the CommonPlace consumer GraphQL schema configured by
+`THEOREM_GRAPHQL_URL`. The value may be either the CommonPlace API origin or its
+full `/graphql` endpoint. They never fall back to `CONSOLE_HARNESS_URL`, which
+identifies the Harness MCP deployment and does not own those fields.
+Proactivity's SSE feed is a separate RustyRed server endpoint: set
+`THEOREM_PROACTIVITY_CHANGEFEED_URL` to the tenant-filtered
+`/v1/proactivity/stream` host.
 
 ## Composition doctrine
 

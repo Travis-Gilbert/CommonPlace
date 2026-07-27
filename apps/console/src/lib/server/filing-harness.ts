@@ -1,7 +1,8 @@
 // SOURCING: none. Server-only GraphQL adapter for the filing engine's Index
 // projection and its reversible corrections. It is the sole module that knows
 // the upstream credential and tenant headers, matching the shape
-// proactivity-harness.ts established.
+// proactivity-harness.ts established. Filing belongs to the CommonPlace
+// consumer GraphQL schema, not the Harness MCP schema.
 
 import 'server-only';
 
@@ -13,6 +14,7 @@ import type {
   IndexCollection,
   UrgentEvent,
 } from '@/lib/filing/types';
+import { consumerGraphqlUrl } from '@/lib/server/consumer-graphql';
 import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
 import {
   principalTenantHeaders,
@@ -97,13 +99,6 @@ const EXPLAIN_QUERY = `
   }
 `;
 
-function graphqlUrl(): string | null {
-  const explicit = process.env.THEOREM_GRAPHQL_URL;
-  if (explicit) return explicit;
-  const base = process.env.CONSOLE_HARNESS_URL;
-  return base ? `${base.replace(/\/$/, '')}/graphql` : null;
-}
-
 async function executeGraphql(
   query: string,
   variables: Record<string, unknown> = {},
@@ -115,7 +110,7 @@ async function executeGraphql(
   if (!resolution.ok) {
     return { ok: false, status: resolution.response.status, error: 'principal_resolution=unauthenticated' };
   }
-  const endpoint = graphqlUrl();
+  const endpoint = consumerGraphqlUrl();
   if (!endpoint) return { ok: false, status: 404, error: 'filing_graphql_unconfigured' };
   const timeout = startHarnessRequestTimeout();
   try {
@@ -124,9 +119,6 @@ async function executeGraphql(
       headers: {
         'Content-Type': 'application/json',
         ...principalTenantHeaders(resolution.principal),
-        ...(process.env.CONSOLE_HARNESS_TOKEN
-          ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }
-          : {}),
         ...(process.env.THEOREM_API_KEY ? { 'x-api-key': process.env.THEOREM_API_KEY } : {}),
       },
       body: JSON.stringify({ query, variables }),

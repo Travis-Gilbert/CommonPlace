@@ -26,13 +26,17 @@ watchPatterns = [
 #   CONSOLE_MOBILE_API_KEY  (optional x-api-key gate for native chat; use the
 #     same value as the connected CommonPlace node's mobile API key)
 #   CONSOLE_DATA_API_URL + CONSOLE_DATA_API_KEY  (object seam; the record
-#     table renders its error state when unreachable, identity refused on 403)
+#     table renders its error state when unreachable, identity refused on 403;
+#     CONSOLE_DATA_API_URL is required by the Railway launcher)
+#   THEOREM_GRAPHQL_URL + THEOREM_API_KEY  (CommonPlace consumer GraphQL;
+#     THEOREM_GRAPHQL_URL accepts either the API origin or `/graphql` endpoint,
+#     and THEOREM_API_KEY is sent only as the consumer `x-api-key`)
 #   CONSOLE_HARNESS_URL + CONSOLE_HARNESS_TOKEN + CONSOLE_HARNESS_TENANT +
 #   CONSOLE_HARNESS_ROOM  (presence and runs; absent keeps presence hidden
 #     and the Runs scope in its named unavailable state)
 #   THEOREM_PROACTIVITY_CHANGEFEED_URL  (required for the Console proactivity
 #     overlay; points at RustyRed `/v1/proactivity/stream`, never the
-#     CommonPlace GraphQL host configured by `CONSOLE_HARNESS_URL`)
+#     CommonPlace GraphQL host configured by `THEOREM_GRAPHQL_URL`)
 
 [deploy]
 startCommand = "npm run console:start:railway"

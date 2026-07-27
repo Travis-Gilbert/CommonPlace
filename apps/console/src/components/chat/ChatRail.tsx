@@ -2,6 +2,7 @@
 
 // SOURCING: AgentRailBlock (CS10). SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1: rail
 // mounts without a composer; artifacts and context feed the inspector.
+// Rail no longer needs AssistantRuntimeProvider (SH1 dissolved that constraint).
 
 import type { BlockHost, ObjectSet } from '@commonplace/block-view/types';
 import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
