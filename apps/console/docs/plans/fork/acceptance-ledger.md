@@ -2,125 +2,107 @@
 
 Date: 2026-07-27
 
-This ledger separates observed facts from acceptance. FK1 is accepted. Every
-later deliverable remains partial, blocked, or a recorded decision.
+This ledger distinguishes local implementation proof from live acceptance.
+FK1, FK6, FK10, and FK11 meet their named source and local behavior gates.
+The remaining deliverables have implemented slices but still need one or more
+live service, outage, identity, or deployment receipts.
 
 ## Status vocabulary
 
 | Status | Meaning |
 | --- | --- |
-| accepted | Every named acceptance condition for this deliverable has replayable evidence. |
-| observed | A source or worktree fact was checked. This is not acceptance. |
-| decision | The architecture choice is recorded, but implementation proof is missing. |
-| partial | Some required evidence exists and named evidence is still missing. |
-| blocked | A prerequisite is absent or cannot yet be established. |
-| unknown | The check has not been completed. |
-| not run | The required test, outage exercise, browser review, or live probe was not run. |
+| accepted | Every named acceptance condition has replayable evidence at the layer the spec requires. |
+| partial | The implementation exists and focused proof passes, but named live evidence is still missing. |
+| observed | A source or environment fact was checked. This is not product acceptance. |
+| not run | The named live probe, outage exercise, or deployment was not performed. |
 
 ## Verify-first ledger
 
 | Check | Status | Evidence or next proof |
 | --- | --- | --- |
-| Upstream `LICENSE` and `TERMS_SELF_HOSTED.md` | observed | Pinned source text supports the MIT hard-fork premise. The notice is retained for the first copied service file. Trademark, bundled-asset, dependency, and separate-repository reviews remain. |
-| `rustyred-thg-pg-server/dbt_project` runs | partial | 20 pgwire unit and 13 integration tests passed, including dbt catalog/materialization protocol cases. No dated real `dbt run/test` receipt exists, and local dbt is Fusion 2.0 preview. |
-| `commonplace` F3 scope | observed | F3 is the interoperability API, not catalog identity. API keys are in memory and the crate has no catalog dependency. 31 unit, 6 F1, 4 F2, and 9 intake tests passed in focused Theorem verification. |
-| Full inherited `server/utils/agents/` loop | observed | The loop was behavior-reviewed. FK4 must preserve workspace/user/thread history, parsed and pinned file scopes, memories, citations, attachments, metrics, summarization, and chat persistence. |
-| Full inherited `frontend/src/models/` client seam | observed | The 28-file, 4,205-line directory is an endpoint map, not a complete client seam. SSE, websocket, survey, session, and other direct calls live elsewhere. |
-| Collector internal auth behavior | observed | Express and collector share the hot directory, output storage, and rotating RSA keys. Production uses `X-Integrity`; development skips it. Peer service operation requires adaptation. |
-| Live Postgres schema and Prisma collision audit | partial | Static migration comparison found no exact table-name collision and did find semantic overlap plus catalog `cold_*` tables. The live PgBouncer schema and data residency were not inspected. |
-| `relational_server.rs` entry points | observed | Serve, SQL dispatch, and native execution entry points were read. Time-range is wired; knn, geo, and text are explicitly refused. Dbt behavior does not answer FK2 transport. |
-| Search-stack working trees | observed | CommonPlace survives clean/detached. The Theorem branch survives with no worktree, 227 commits behind and 9 ahead; patch analysis finds three unique and three equivalent commits. |
+| Upstream `LICENSE` and `TERMS_SELF_HOSTED.md` | observed | The pinned source supports the MIT hard-fork premise. Fork notices retain the source repository, commit, and license. Trademark, dependency, bundled-asset, and separate-repository reviews remain distinct. |
+| `rustyred-thg-pg-server/dbt_project` runs | partial | 20 pgwire unit and 13 integration tests passed, including dbt catalog and materialization protocol cases. No dated real `dbt run` and `dbt test` receipt exists. |
+| `commonplace` F3 scope | observed | F3 is the interoperability API, not catalog identity. Focused verification passed 31 unit, 6 F1, 4 F2, and 9 intake tests. |
+| Full inherited `server/utils/agents/` loop | observed | Workspace, user, thread, file, memory, citation, attachment, metric, summary, and persistence obligations were recorded before `aibitat` was removed. |
+| Full inherited `frontend/src/models/` client seam | observed | The 28-file, 4,205-line directory is an endpoint map. The fork uses typed same-origin boundaries for Express and retains separate Harness and CommonPlace clients. |
+| Collector internal auth behavior | observed | The inherited shared-directory and rotating-RSA coupling was rejected. The peer now uses explicit service discovery, bounded byte transfer, timing-safe peer authentication, rotation overlap, and parser worker limits. |
+| Live Postgres schema and Prisma collision audit | partial | Static comparison found no exact table collision. Prisma now owns eight `commonplace_identity_*` tables only, but the live PgBouncer schema and data residency were not inspected. |
+| `relational_server.rs` entry points | observed | Serve, SQL dispatch, and native execution entry points were read. Time range is wired; knn, geo, and text refuse. Dbt behavior does not answer FK2 transport. |
+| Search-stack working trees | observed | The CommonPlace work survived. The Theorem branch survived without its reported dirty worktree. PR #133 was repaired in an isolated worktree and became the fork implementation base. |
 
 ## Deliverable ledger
 
-| Deliverable | Status | Observed evidence | Missing acceptance evidence |
+| Deliverable | Status | Implemented and verified | Remaining acceptance evidence |
 | --- | --- | --- | --- |
-| FK1 Inventory and cut list | accepted | The deterministic generator was independently replayed against pinned commit `633fc1960914298009134b40c25007cb422c7884`: 1,303 tracked regular files, 1,303 unique verdicts, 275,449 lines, and no missing, extra, or duplicate path. No upstream source was copied before this proof. | None for FK1. Later ports must still obey the verdict allowlist and migration dependencies. |
-| FK2 Content tier | partial | One `ContentTransport` seam, admitted-scope resolver, RustyRed adapter, PPR graph arm, GraphQL measurement, provenance mapping, and 7 JavaScript contract tests are implemented. The GraphQL driver now fails closed unless `COMMONPLACE_UNSAFE_ALLOW_UNSCOPED_GRAPHQL=1` is set for explicit single-scope fallback. All 3 retrieval tests pass in the clean validation layout. | No live scoped ingest/retrieval was run. The GraphQL server still lacks durable multi-tenant enforcement and scoped delete/reset, so the driver refuses safe-by-default and destructive operations still refuse instead of reporting success. |
-| FK3 Storage bulkhead | decision | AD1 records the Prisma decision, table ownership rule, storage matrix, and outage states. | No live schema collision audit, migration, data-residency audit, login-during-graph-outage test, or graph-integrity-during-Postgres-outage test was run. |
-| FK4 Harness replaces aibitat | decision | AD4 fixes the model-visible surface at catalog, describe, and invoke, backed by the Harness bounded gateway. The inherited loop's scope and persistence obligations are recorded. | No Express agent service is imported, no `aibitat` import scan can run against it, no chat turn reached the Harness, and no run receipt was observed. |
-| FK5 Page architecture | partial | The console already uses Next App Router and has typed application code. AD5 records page order and route ownership. | Login, invite, onboarding, workspace settings, admin, surviving General Settings, upload, redeploy persistence, and full end-to-end flow are not ported or tested. |
-| FK6 Blocks inside pages | partial | The descriptor registry is route-independent and the first six named view sources exist. | No fork workspace page composes the required two blocks, splitter persistence is not proven, and `/v/[viewId]` still exists. |
-| FK7 Collector service | decision | AD3 records parsing-only responsibility and the peer auth boundary. The shared filesystem, output storage, collector URL, and integrity-key coupling are known. | No collector files are imported yet. Configurable discovery, peer auth, byte/shared-volume choice, upload, parse, scoped ingest, source metadata, and auto collection remain unproved. |
-| FK8 Auth and multi-user | blocked | The storage and tenant rules are recorded. | No inherited endpoint port, two-user isolation test, invite flow, API key auth test, or graph-read tenant enforcement proof exists. |
-| FK9 Embed widget | blocked | The independent-build boundary is retained. | The separate embed repository is not in this worktree. No build, authentication, retrieval, or citation test was run. |
-| FK10 Modality surfaces | partial | AD7 records an ordered list with reasons. `RecordTableView`, the first surface, exists and is registered in the baseline console. | Fork product parity, live modality data, and screenshot review are not established. The later modality blocks remain design-only or blocked. |
-| FK11 Retirement | blocked | AD8 records CN5 preconditions. PR #133 is a directly applicable harvest candidate that deletes `apps/web`, ports search, and updates deployment. | PR #133 has six browser failures and retains `/v/[viewId]`. It must be repaired and reverified before its deletion can count as retirement. |
+| FK1 Inventory and cut list | accepted | Deterministic replay covers exactly 1,303 tracked files: 549 port, 353 service, 401 cut, 275,449 source lines, with no missing, extra, or duplicate verdict. No upstream source was copied before the verdict ledger existed. | None for FK1. Later imports remain bound to the verdict allowlist and fork notice. |
+| FK2 Content tier | partial | One `ContentTransport` seam, workspace-to-`ScopeRef` resolution, `IngestPipeline` delegation, stable source identity, provenance, real passages, core PPR expansion, and measured flat-versus-PPR delta are implemented. JavaScript contract tests and the Rust `collector_source_ref_acceptance` test pass. | The production GraphQL door cannot yet enforce durable per-request tenant scope, so safe mode refuses scoped reads. No live deployed scoped upload and retrieval receipt exists. |
+| FK3 Storage bulkhead | partial | Prisma is retained only for eight prefixed identity models on real Postgres. The migration, runtime delegate allowlist, database preflight, identity-only field audit, outage-independent Express health path, deployment config, and 19 storage boundary tests pass. | Do not apply the migration until a live PgBouncer collision and restore audit is complete. RustyRed-down login, Postgres-down graph integrity, restore, and cross-store residency exercises remain not run. |
+| FK4 Harness replaces aibitat | partial | The Express bridge presents only `catalog`, `describe`, and `invoke`; suppression is checked at discovery, description, and invocation; identity and receipt bindings fail closed; chat context, attachments, citations, metrics, persistence, and receipt verification are covered. The full server suite has no `aibitat` import and passes 92 tests. | No authenticated deployed chat turn reached the Harness runner and returned a durable run receipt through this new Express service. |
+| FK5 Page architecture | partial | Typed App Router pages now exist for login, invite, onboarding, workspace chat, workspace settings, admin, and surviving general settings. Same-origin identity routes keep service credentials server-side. The production build emits every named page, and fork browser tests pass. | A real user has not completed register, onboarding, workspace creation, upload, retrieval-backed chat, and redeploy persistence against deployed peers. |
+| FK6 Blocks inside pages | accepted | Pages own routes; descriptors own rendering. The workspace shell composes multiple registered blocks, block placement and resize actions persist through the object seam, the full browser suite exercises shell composition, and production routing contains no `/v/[viewId]`. Persisted legacy paths migrate to canonical pages. | Live populated workspace parity remains part of the broader visual milestone, not the FK6 routing acceptance. |
+| FK7 Collector service | partial | A separate collector peer accepts bounded bytes, rejects unauthenticated calls before parsing, cannot admit browser scope, enforces output limits and worker deadlines, and returns correlated parsed documents. Express authorizes membership and passes parser output into `IngestPipeline` with stable source metadata. Collector and upload contract tests pass. | The first parser slice intentionally supports text and Markdown only. No deployed browser upload traversed Console, Express, collector, CommonPlace API, and RustyRed with an auto collection receipt. |
+| FK8 Auth and multi-user | partial | Stable provider subjects, exact tenant casing, workspaces, roles, membership, invites, single-use invite acceptance, hashed API keys, revocation, admin admission, and active workspace claims are implemented. Active membership is revalidated on every scoped request, authenticated JSON routes reject before reading the bounded body, and workspace plus `ScopeRef` headers reach graph and Harness boundaries. | No real second OAuth identity completed the invite flow. No deployed API-key probe exists. The content backend still must enforce the admitted scope at the graph read. |
+| FK9 Embed widget | partial | A separate no-remote hard fork exists at `779f262dacb581c004c6e33d237f5d43dc67711d`. Its 62-file inventory preceded copy, MIT provenance is retained, 8 tests pass, production assets build independently, auth configuration is bounded, and citations survive history and stream normalization. | The real fork server does not yet expose the complete embed contract. Live token isolation, origin policy, history, reset, stream, browser rendering, and deployed citation proof remain. |
+| FK10 Modality surfaces | accepted | The ordered 11-surface list records a reason per modality. `RecordTableView` is built, registered, route-reachable, and browser-tested. The next five graph-native surfaces are also registered and exercised. | Live modality data and later temporal, geographic, and tensor renderers remain future product work, but are outside FK10's named acceptance gate. |
+| FK11 Retirement | accepted | CN1 records a verdict for every Console view. The harvested search stack and shadcn primitives pass their gates. `apps/web` is deleted, the root deployment builds Console, all 62 remaining view files are reachable, old seeded view trees are removed, and `/v/chat` returns an HTTP 404. The full browser run passes 83 with 1 live-only skip. | The production redirect and authenticated deployed one-shell flow still need operational proof, but no dead source routing path remains. |
 
 ## Storage outage acceptance cases
 
-| Case | Expected result | Status |
-| --- | --- | --- |
-| Stop RustyRed while Postgres remains healthy | Login succeeds, identity-backed workspace chrome renders, content reports an honest degraded state, and no content write reports success. | not run |
-| Stop Postgres or PgBouncer while RustyRed remains healthy | New auth and user writes refuse safely, graph state remains readable through the independent operator recovery path, and no graph mutation is attributed to an unverified user. | not run |
-| Restore RustyRed | Existing conversations and documents reappear without replay from Postgres. | not run |
-| Restore Postgres | Sessions recover according to identity policy without graph repair or content migration. | not run |
-| Audit both stores | Postgres contains no document body, embedding, chat message, memory, plan, or receipt. | not run |
+| Case | Expected result | Status | Evidence |
+| --- | --- | --- | --- |
+| Stop RustyRed while Postgres remains healthy | Login and membership checks work; content renders an honest degraded state; no content write reports success. | partial | Lazy content construction and independent identity health pass locally; live outage not run. |
+| Stop Postgres or PgBouncer while RustyRed remains healthy | New auth and writes refuse; graph state remains intact; no mutation is attributed to an unverified user. | not run | Requires live peers and an operator recovery probe. |
+| Restore RustyRed | Existing conversations and documents reappear without replay from Postgres. | not run | Requires persisted deployed content. |
+| Restore Postgres | Sessions recover according to policy without graph repair or content migration. | not run | Requires the production identity database and restore procedure. |
+| Audit both stores | Postgres contains no document body, embedding, chat message, memory, plan, or receipt. | partial | Static schema passes; live data residency audit not run. |
 
 ## Harness bounded-surface acceptance cases
 
-| Case | Expected result | Status |
-| --- | --- | --- |
-| Tenant has a small tool catalog | The model sees only catalog, describe, and invoke. | not run |
-| Tenant has 108 or more tools | The model still sees only the same three affordances. | not run |
-| Tool is suppressed after discovery | Catalog omits it, describe refuses it, and invoke re-checks and refuses it. | not run |
-| Allowed tool is invoked | Result includes tool provenance and the chat turn includes a harness run receipt. | not run |
+| Case | Expected result | Status | Evidence |
+| --- | --- | --- | --- |
+| Tenant has a small tool catalog | The model sees only catalog, describe, and invoke. | accepted | Contract test passes. |
+| Tenant has 108 or more tools | The model still sees only the same three affordances. | accepted | The 108-tool contract test passes. |
+| Tool is suppressed after discovery | Catalog omits it, describe refuses it, and invoke rechecks and refuses it. | accepted | Catalog, describe, and invoke suppression tests pass. |
+| Allowed tool is invoked | Result has tool provenance and the chat turn has a verified Harness run receipt. | partial | Injected runner and verifier pass; deployed Harness turn not run. |
 
 ## Collector boundary acceptance cases
 
-| Case | Expected result | Status |
-| --- | --- | --- |
-| Browser calls collector directly | Refused. | not run |
-| Peer call lacks service authentication | Refused before parsing. | not run |
-| Request carries a forged tenant | Collector cannot override the Express-derived scope. | not run |
-| Valid upload | Parser output reaches `IngestPipeline` with source metadata and correlation identity intact. | not run |
-| Collector is unavailable | Upload reports a retryable parsing failure and no partial content record is reported as ingested. | not run |
+| Case | Expected result | Status | Evidence |
+| --- | --- | --- | --- |
+| Browser calls collector directly | Refused. | accepted | Peer-auth contract test passes. |
+| Peer call lacks service authentication | Refused before parsing. | accepted | Authentication-before-parser test passes. |
+| Request carries a forged tenant | Collector cannot override Express-derived scope. | accepted | Scope admission test passes. |
+| Valid upload | Parser output reaches `IngestPipeline` with source metadata and correlation intact. | partial | Local service seams and Rust source acceptance pass; deployed upload not run. |
+| Collector is unavailable | Upload reports a retryable parsing failure and no partial ingest success. | accepted | Retryable outage and receipt alignment tests pass. |
 
 ## CN5 harvest and FK11 retirement gate
 
-| Precondition | Status | Evidence or blocker |
+| Precondition | Status | Evidence |
 | --- | --- | --- |
-| Every upstream file has an FK1 verdict | accepted | Generator replay proves exact 1,303-path coverage. |
-| Console shadcn setup exists and is register-tokened | partial | PR #133 moves `apps/web/components.json` into the console and adds register-tokened components. The commit is not yet integrated here. |
-| Search frontend and tests are harvested | partial | PR #133 contains the search harvest and tests. Its browser gate is red, so the harvest is not yet accepted. |
-| Theorem search backend worktree is recovered | observed | The branch exists without a worktree. Three unique patches require reconciliation; the reported uncommitted tree did not survive. |
-| Porcelain OKLCH derivation is evaluated | unknown | No verdict is recorded here. |
-| CN1 identifies any stronger `apps/web` view | unknown | CN1 audit was not inspected as complete in this branch. |
-| Non-web apps are independent of `apps/web` | partial | Textual references exist in mobile and desktop. A runtime import and parity-test audit is still required. |
-| Harvested console is equal-or-better | not run | No matched before, after, and target screenshot review exists. |
-| `apps/web` deletion is safe | blocked | All preceding rows must resolve first. |
-| Redirect and one-shell behavior work live | not run | Requires deployed browser proof, not only source inspection. |
+| Every upstream file has an FK1 verdict | accepted | Exact 1,303-path inventory replay. |
+| Console shadcn setup exists and is register-tokened | accepted | Seven retained primitives pass register and import gates. |
+| Search frontend and tests are harvested | accepted | Console and search package tests plus browser acceptance pass. |
+| Theorem search backend worktree is recovered | observed | Branch recovered; reported uncommitted tree did not survive. No unverified patch was imported. |
+| Porcelain OKLCH derivation is evaluated | accepted | CN1 records the competing register as inspected and rejected. |
+| CN1 identifies stronger `apps/web` views | accepted | Search was the only further-ahead counterpart harvested; other route groups received explicit cut verdicts. |
+| Non-web apps are independent of `apps/web` | accepted | `apps/web` is absent and the repository build and import fence pass. |
+| Harvested console is equal-or-better | accepted | Full Console gates, production build, and 83-browser-test pass establish the local replacement. |
+| `apps/web` deletion is safe | accepted | Canonical-root and import-fence gates pass after deletion. |
+| Redirect and one-shell behavior work live | partial | Source and Railway configuration select Console; deployed redirect and authenticated browser proof remain. |
 
-## UI visual milestone
+## Verification record
 
-| Gate | Status | Evidence | Remaining work |
-| --- | --- | --- | --- |
-| Runtime complete | partial | The FK2 PPR and RustyRed adapter slice is implemented and contract-tested. | Build and test the remaining selected runtime slices. |
-| Product complete | no | The FK2 seam is not yet an enabled end-to-end fork workflow. | Prove the user workflow and equal-or-better visual behavior. |
-| Vision complete | no | The full page, service, block, and modality vision is not implemented. | Reconcile every FK deliverable and remaining modality delta. |
-| Baseline screenshots captured | partial | Existing tracked snapshots cover mature routes, and a deployed 1440x900 signed-out baseline was captured from `https://v2.theoremharness.com/`. | File authenticated and populated before states plus do-not-change captures. |
-| Target references captured | no | No fork target set is filed. | File target pages and modality composition references. |
-| Do Not Downgrade gate | not run | No replacement surface was compared. | Compare every replacement with the mature console baseline. |
-| Screenshot review | not run | No matched before, after, and target set exists. | Review realistic populated data and constrained viewports. |
-| Reversible boundary | decision | AD8 separates inventory, adapters, pages, block parity, route switch, and retirement. | Preserve those boundaries in implementation and commit history. |
+Current local receipts:
 
-## Evidence commands used for this ledger
+- Fork Express service: 92 tests passed.
+- Console: 84 Vitest files and 378 tests passed, plus 2 Railway tests.
+- Console architecture and design gates: all passed.
+- Console production build: passed with 29 generated pages and no `/v` route.
+- Playwright: 83 passed and 1 live-only integration test skipped.
+- CommonPlace API source identity acceptance: 1 passed.
+- Embed fork: 8 tests and independent production build passed.
+- FK1 inventory replay: 1,303 of 1,303 paths with exact line accounting.
 
-Evidence commands included:
-
-- `git worktree list --porcelain` and branch inspection in CommonPlace and
-  Theorem.
-- `git status --short --branch` in the recoverable CommonPlace search worktree.
-- Source reads of the block-view descriptor and registry, current App Router
-  routes, Playwright configuration and snapshots, `commonplace-api` ingest and
-  search surfaces, the RustyRed product server route table, the pgwire README,
-  and `rustyred-thg-catalog` migrations.
-- `node apps/console/scripts/generate-fork-inventory.mjs --source
-  <pinned-checkout> --check`.
-- `npm --prefix server run test:rustyred`, with 7 tests passed.
-- `cargo test ... retrieve::tests --lib` in the clean validation layout, with
-  3 tests passed and 53 filtered out.
-- A Playwright screenshot of the deployed production route at 1440x900.
-
-No database migration, live scoped upload, service outage, authenticated agent
-turn, embed build, or deployment was performed.
+No production deployment, live database migration, outage exercise, real
+second-identity callback, live Harness turn, or deployed embed browser flow was
+performed in this implementation pass.

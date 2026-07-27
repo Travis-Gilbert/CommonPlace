@@ -73,11 +73,6 @@ describe('ConsoleBlockHost', () => {
       'console-survey',
       'console-threads',
       'console-workspace',
-      'view-chat',
-      'view-data-model',
-      'view-editor',
-      'view-index',
-      'view-researcher',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
     expect(surfaces

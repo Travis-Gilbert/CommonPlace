@@ -351,6 +351,13 @@ pub struct VectorNeighborGql {
 
 /// Input for the auto-structuring ingest mutation.
 #[derive(InputObject)]
+pub struct SourceRefInputGql {
+    pub source: String,
+    pub external_id: String,
+}
+
+/// Input for the auto-structuring ingest mutation.
+#[derive(InputObject)]
 pub struct IngestInputGql {
     pub title: String,
     pub text: String,
@@ -358,6 +365,9 @@ pub struct IngestInputGql {
     pub kind: Option<String>,
     pub tags: Option<Vec<String>>,
     pub source: Option<String>,
+    /// Stable collector/source identity. Repeating the same pair updates the
+    /// existing graph item instead of creating a duplicate.
+    pub source_ref: Option<SourceRefInputGql>,
     pub residency: Option<String>,
     /// Explicit reminder instant (epoch ms). Wins over the server-side
     /// natural-language reminder parse (PT-008).
@@ -2146,7 +2156,12 @@ where
         if let Some(tags) = input.tags {
             request = request.with_tags(tags);
         }
-        if let Some(source) = input.source {
+        if let Some(source_ref) = input.source_ref {
+            request = request.with_source_ref(SourceRef::new(
+                source_ref.source,
+                source_ref.external_id,
+            ));
+        } else if let Some(source) = input.source {
             request = request.with_source(source);
         }
         if let Some(residency) = input.residency {

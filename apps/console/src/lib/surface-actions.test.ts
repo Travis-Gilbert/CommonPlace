@@ -1,35 +1,8 @@
-// SOURCING: none. Pure logic tests for CS6 upsert and CS8 seeds.
+// SOURCING: none. Pure logic tests for page-owned surface composition.
 import { describe, expect, it } from 'vitest';
 import { createViewRegistry } from '@commonplace/block-view/registry';
 import { upsertCompleteViewAction } from '@commonplace/block-view/surface-actions';
 import { ConsoleBlockHost } from './console-host';
-import { buildSeedViews, SEED_VIEW_CHAT } from './seed-views';
-import { slugOf } from './surface-object';
-
-describe('seed views (CS8/CS11)', () => {
-  it('builds the five launch views when nothing is deleted', () => {
-    const seeds = buildSeedViews(new Set());
-    const surfaces = seeds.filter((object) => object.type === 'surface');
-    expect(surfaces.map((surface) => slugOf(surface))).toEqual([
-      'chat',
-      'researcher',
-      'index',
-      'editor',
-      'data-model',
-    ]);
-  });
-
-  it('skips a deleted seed slug', () => {
-    const seeds = buildSeedViews(new Set([SEED_VIEW_CHAT]));
-    const surfaces = seeds.filter((object) => object.type === 'surface');
-    expect(surfaces.map((surface) => slugOf(surface))).toEqual([
-      'researcher',
-      'index',
-      'editor',
-      'data-model',
-    ]);
-  });
-});
 
 describe('upsert_complete_view (CS6)', () => {
   it('replaces three regions with two when regions are passed', async () => {

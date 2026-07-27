@@ -178,6 +178,42 @@ test("GraphQL transport forwards scope headers and never places the API key in t
   assert.equal(requests[0].init.body.includes("secret-api-key"), false);
 });
 
+test("GraphQL ingest forwards the stable source reference to IngestPipeline", async () => {
+  const requests = [];
+  const transport = new CommonplaceGraphqlTransport({
+    endpoint: "https://content.example.test/graphql",
+    apiKey: "secret-api-key",
+    unsafeAllowUnscopedScopeFallback: true,
+    fetchImpl: async (_url, init) => {
+      requests.push(init);
+      return {
+        ok: true,
+        async json() {
+          return { data: { ingest: { id: "item-1" } } };
+        },
+      };
+    },
+  });
+
+  await transport.ingest(SCOPE, {
+    title: "Collector passage",
+    text: "Stable source identity",
+    kind: "doc",
+    tags: ["collector:peer"],
+    source: "upload://workspace-42/source.txt",
+    sourceRef: {
+      source: "upload://workspace-42/source.txt",
+      externalId: "workspace:workspace-42:sha256:digest",
+    },
+  });
+
+  const body = JSON.parse(requests[0].body);
+  assert.deepEqual(body.variables.input.sourceRef, {
+    source: "upload://workspace-42/source.txt",
+    externalId: "workspace:workspace-42:sha256:digest",
+  });
+});
+
 test("GraphQL transport refuses scoped reads until the endpoint can enforce them", async () => {
   const transport = new CommonplaceGraphqlTransport({
     endpoint: "https://content.example.test/graphql",

@@ -4,8 +4,9 @@ Date: 2026-07-27
 
 Scope: `Travis-Gilbert/CommonPlace`, `apps/console`, FK1 through FK11.
 
-Status: decisions recorded. Implementation and acceptance remain open. See
-`acceptance-ledger.md` for evidence state.
+Status: architecture implemented in bounded slices. FK1, FK6, FK10, and FK11
+meet their local acceptance gates. Live service and outage gates remain open.
+See `acceptance-ledger.md` for the evidence state.
 
 ## Source anchors
 
@@ -16,9 +17,9 @@ handoff:
   `fork` and requires `ViewDescriptor.source`.
 - `packages/block-view/src/registry.ts` resolves descriptors by object shape,
   identifier, and block placement. It does not need to own a web route.
-- `apps/console/src/app/v/[viewId]/page.tsx` still implements view-instance
-  routing. It is a retirement target, not evidence that the fork routing is
-  complete.
+- `apps/console/src/lib/surface-routes.ts` maps durable surface identifiers to
+  canonical App Router pages. The retired `/v/[viewId]` route is absent, and
+  `last-console-view.ts` migrates known persisted legacy paths.
 - `apps/console/src/views/registry.tsx` already registers the first modality
   surfaces, including records, model, canvas, thread, hunk review, and files.
 - `apps/console/playwright.config.ts` and tracked snapshots establish an
@@ -28,10 +29,10 @@ handoff:
   full session, invite, role, membership, and API key model supplied by the
   fork.
 - The current `commonplace-api` GraphQL schema exposes ingest through
-  `IngestPipeline`. This branch upgrades its retrieval graph arm to core PPR
-  and exposes the measured delta beyond flat candidates. The RustyRed product
-  server on port 8380 exposes broader HTTP, gRPC, MCP, graph, vector, and PPR
-  primitives, but does not invoke `IngestPipeline`.
+  `IngestPipeline`, accepts a stable source reference, upgrades retrieval to
+  core PPR, and exposes the measured delta beyond flat candidates. The
+  RustyRed product server on port 8380 exposes broader HTTP, gRPC, MCP, graph,
+  vector, and PPR primitives, but does not invoke `IngestPipeline`.
 
 ## AD1: Keep Prisma for the first identity slice
 
@@ -91,11 +92,15 @@ directly invokes `IngestPipeline`; the branch now composes PPR retrieval there.
 The endpoint and driver are configuration, not constants in
 `server/utils/vectorDbProviders/rustyred/index.js`.
 
-Current safety rule: the GraphQL driver refuses scoped ingest, count, and
-retrieval unless `COMMONPLACE_UNSAFE_ALLOW_UNSCOPED_GRAPHQL=1` is set
-explicitly. This is intentional. The current `commonplace-api` API key gate
-does not yet consume the adapter's admitted scope headers, so the fallback is
-only acceptable for single-scope validation and fixture work.
+Current safety rule: the GraphQL driver always forwards the server-derived
+tenant, workspace, and scope headers, but the current `commonplace-api` door
+does not enforce them. Default mode therefore denies every ingest, count, and
+retrieval operation even when the headers are present. Setting
+`COMMONPLACE_UNSAFE_ALLOW_UNSCOPED_GRAPHQL=1` permits those operations only as
+an explicitly unscoped fallback for single-scope validation and fixtures. It
+must never be enabled against a shared or multi-tenant store. Once the endpoint
+enforces all three admitted values, the driver can allow the operations without
+that flag.
 
 Future drivers:
 
@@ -130,12 +135,13 @@ Request boundary:
 5. Express calls the AD2 content seam, which invokes `IngestPipeline` with the
    server-derived scope and collector provenance.
 
-The collector must reject unauthenticated peer calls and must not trust a
-browser-supplied tenant or workspace. FK7 must make the collector URL
-configurable, choose shared-volume semantics or a byte/blob upload protocol,
-and replace implicit key-file sharing with explicit credential distribution.
-The inherited `X-Integrity` contract can survive only if key rotation is made
-stable across independently restarted services.
+The implemented peer uses a bounded byte protocol and explicit configurable
+service discovery. It rejects missing credentials before parsing, supports a
+named previous credential during rotation overlap, bounds request and extracted
+text independently, terminates parser workers at their deadline, and never
+admits tenant or workspace fields from the browser. Express derives the scope,
+generates the correlation identity, and invokes the content transport after
+parsing. The first parser slice supports text and Markdown only.
 
 ## AD4: The harness presents three bounded affordances
 
@@ -177,10 +183,10 @@ contract, source ledger, register, materials, and persisted surface tree remain
 in force inside pages.
 
 `/v/[viewId]`, seeded view-instance navigation, and the palette as a page
-navigator retire after each deep link has a page disposition. The palette may
-still add or switch blocks inside the active page. Split geometry is content
-layout and must persist through the surface object contract, not as an
-unreceipted local-only work record.
+navigator are retired. Known persisted legacy paths migrate to canonical
+pages, while unknown historical paths migrate to `/workspace`. The palette
+adds or switches blocks inside the active page. Split geometry remains content
+layout persisted through the surface object contract.
 
 ## AD6: Fork attribution is explicit
 
@@ -201,14 +207,14 @@ file being present is not fork acceptance.
 
 | Order | RustyRed modality | Console surface | What document-and-chat alone cannot show | Current truth |
 | --- | --- | --- | --- | --- |
-| 1 | Relational | `RecordTableView` | Typed columns, sorting, filters, groups, and record-level actions over a resolved object set. | Source exists and is registered. It is the first surface. Fork parity is not run. |
-| 2 | Graph and schema | `ModelView` | Declared types, observed types, relations, and schema drift. | Source exists and is registered. |
-| 3 | Spatial composition of graph objects | `CanvasView` | Persistent placement, typed relations, and multiple objects arranged as one surface. | Source exists and is registered. |
-| 4 | Graph conversation | `ThreadView` | A conversation as linked content with objects, receipts, and provenance rather than a transcript blob. | Source exists and is registered. |
-| 5 | Relational change and provenance | `HunkReviewView` | Typed field-level changes, source comparison, and receipted review decisions. | Source exists and is registered. |
-| 6 | Hierarchical projection | `FilesView` | A project-aware projection of graph-backed objects and source paths. | Source exists and is registered. |
-| 7 | Full text | Harvested Index search block | Ranked lexical evidence, query scopes, aspects, and a result constellation. | Blocked on CN5 harvest and live backend proof. |
-| 8 | Vector plus graph rank | Retrieval neighborhood block | Flat similarity hits compared with PPR expansion, including score and provenance differences. | Design only. FK2 fixture and measurement are missing. |
+| 1 | Relational | `RecordTableView` | Typed columns, sorting, filters, groups, and record-level actions over a resolved object set. | Built, registered, route-reachable, and browser-tested. It is the first surface. |
+| 2 | Graph and schema | `ModelView` | Declared types, observed types, relations, and schema drift. | Built, registered, and route-reachable. |
+| 3 | Spatial composition of graph objects | `CanvasView` | Persistent placement, typed relations, and multiple objects arranged as one surface. | Built, registered, and browser-tested. |
+| 4 | Graph conversation | `ThreadView` | A conversation as linked content with objects, receipts, and provenance rather than a transcript blob. | Built, registered, and browser-tested. |
+| 5 | Relational change and provenance | `HunkReviewView` | Typed field-level changes, source comparison, and receipted review decisions. | Built, registered, and browser-tested. |
+| 6 | Hierarchical projection | `FilesView` | A project-aware projection of graph-backed objects and source paths. | Built, registered, and browser-tested. |
+| 7 | Full text | Harvested Index search block | Ranked lexical evidence, query scopes, aspects, and a result constellation. | Harvested, registered, locally tested, and browser-tested; live backend proof remains. |
+| 8 | Vector plus graph rank | Retrieval neighborhood block | Flat similarity hits compared with PPR expansion, including score and provenance differences. | The service fixture and measurement exist; the visual comparison block remains design-only. |
 | 9 | Temporal | Temporal slice block | Valid-time and event-time windows, change sequences, and state at a chosen instant. | No fork surface verified. |
 | 10 | Geographic spatial | Spatial result block | Geometry, within and nearby relations, map extent, and location-aware evidence. | No fork surface verified. |
 | 11 | Tensor | Tensor inspection block | Shape, axes, slices, and value structure that cannot be reduced to prose without loss. | No fork surface verified. |
@@ -235,15 +241,18 @@ CN5 is a hard precondition for FK11:
 
 Current local precondition evidence:
 
-- The CommonPlace search worktree exists at
-  `/Volumes/SSD Samsung/var-18/CommonPlace/search-stack-impl-dcddc3`. It is
-  clean and detached at `985fcc6`; the named branch points at `24d4b9b`.
-- The Theorem branch `claude/search-stack-impl` exists, but no registered
-  worktree is attached to it. The local branch is nine commits behind the
-  cached `origin` ref. This blocks a claim that the original working tree was
-  preserved.
-- `apps/web/components.json` exists. `apps/console/components.json` does not.
-- `apps/web` and `/v/[viewId]` still exist. Retirement has not started.
+- CN1 records a verdict for every Console view: 62 of 62 surviving view files
+  are reachable, and the six cut surfaces plus their orphan descriptors were
+  removed.
+- Search and its tests are harvested into `@commonplace/search-stack`.
+- Seven shadcn primitives are initialized under Console ownership and resolve
+  paint through the register.
+- The porcelain register was inspected and rejected as a competing design
+  system.
+- `apps/web` is deleted, the import fence passes, and the root Railway
+  configuration builds `apps/console`.
+- `/v/[viewId]` is deleted. The production build has no `/v` route, and the
+  browser suite proves `/v/chat` returns an HTTP 404.
 
 ## UI visual milestone
 
@@ -262,23 +271,29 @@ Target: preserve the existing IntelliJ shell, material register, mature chat,
 and graph-native blocks while adding the inherited login, invite, onboarding,
 workspace, settings, admin, upload, and embed workflows.
 
-Current: the mature console routes and descriptors exist, but the inherited
-pages, Express service, collector, and embed widget are not present in this
-worktree. View-instance routing still exists.
+Current: the mature Console routes and descriptors remain. Typed fork pages,
+the Express identity and Harness peer, the collector peer, document upload
+seam, active workspace claim, and independent embed repository are
+implemented. View-instance routing and `apps/web` are retired. Local unit,
+gate, build, and browser suites pass.
 
-The next implementation slice can establish inventory, service seams, and one
-page composition. It will not establish end-to-end auth, durable upload and
-chat, outage behavior, or visual parity.
+The remaining delta is operational: live Postgres migration and outage proof,
+durable per-request scope enforcement in the graph service, a real
+second-identity invite, deployed upload and retrieval-backed chat, a live
+Harness run receipt, and the real embed server and browser flow.
 
-Primary downgrade risks are replacing mature console surfaces with generic
-fork UI, deleting `apps/web` before harvest, treating a nonblank page as
-product parity, and confusing fixture-backed screenshots with live behavior.
+Primary downgrade risks are treating local contract tests as deployed product
+acceptance, enabling the unsafe single-scope GraphQL flag in a multi-tenant
+environment, applying the identity migration before a live collision audit,
+or confusing fixture-backed screenshots with live behavior.
 
 ### Reversible boundary
 
-Keep the current route and renderer baseline available while each new page is
-ported behind its API and content seams. Land page shell, data adapter, block
-composition, visual parity, route switch, `/v` retirement, and `apps/web`
-deletion as separate boundaries. The old path retires only after the new path
-is equal-or-better for its workflow and the before, after, and target evidence
-has been reviewed at matching states.
+The commit history keeps inventory, content, identity, Harness, collector,
+embed, consolidation, route retirement, page port, and evidence updates as
+separate boundaries. The remaining live gates can therefore be enabled or
+rolled back independently at the application-service layer without
+reintroducing the retired routing layer or deleted shell. Postgres migrations,
+backfills, and persisted identity changes are not reversed by a service
+rollback. Each requires an explicit forward migration, restore, or backfill
+procedure recorded before production application.

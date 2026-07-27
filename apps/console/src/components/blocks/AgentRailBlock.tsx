@@ -10,7 +10,6 @@ import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { BlockShell } from '@/components/block/BlockShell';
 import { Composer } from '@/components/chat/RuntimeComposer';
 import { useThreadStore, type AgentPlanStep } from '@/lib/thread-store';
-import { markViewDirty } from '@/lib/surface-object';
 import type { ChatArtifactPayload } from '@/lib/chat/project-types';
 import type { ContextEntry } from '@/lib/chat/context-types';
 
@@ -114,7 +113,6 @@ export function AgentRailBlock({
 
   const openCanvas = () => {
     onOpenPlanInCanvas?.();
-    markViewDirty('view-chat');
   };
 
   const included = contextEntries.filter((entry) => entry.included !== false);

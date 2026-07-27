@@ -12,6 +12,8 @@ const EXPECTED_FIELDS = Object.freeze({
   User: [
     "id",
     "username",
+    "authProvider",
+    "providerSubject",
     "email",
     "displayName",
     "passwordHash",
@@ -277,6 +279,19 @@ test("credentials and claim tokens are represented only by hashes", () => {
       `${model} stores a raw credential or claim token`
     );
   }
+});
+
+test("external identity is bound to a stable provider subject", () => {
+  const user = parseModels(schema).get("User");
+
+  assert.match(
+    user,
+    /authProvider\s+String\s+@map\("auth_provider"\)/
+  );
+  assert.match(
+    user,
+    /providerSubject\s+String\s+@unique\s+@map\("provider_subject"\)/
+  );
 });
 
 test("workspace identity durably binds tenant casing and one graph scope", () => {

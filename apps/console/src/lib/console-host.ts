@@ -22,7 +22,6 @@ import type {
 } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
-import { mergeSeedViews } from './seed-views';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_ID } from './workspace-seed';
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
@@ -73,6 +72,22 @@ const LAYOUT_QUERY: ObjectQuery = {
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
   page: { limit: 500 },
 };
+
+const RETIRED_SEED_VIEW_ROOTS = [
+  'view-chat',
+  'view-researcher',
+  'view-index',
+  'view-editor',
+  'view-data-model',
+] as const;
+
+export function isRetiredSeedViewObject(id: string): boolean {
+  return RETIRED_SEED_VIEW_ROOTS.some((root) => id === root || id.startsWith(`${root}.`));
+}
+
+export function retireSeedViewObjects(objects: readonly ObjectRef[]): ObjectRef[] {
+  return objects.filter((object) => !isRetiredSeedViewObject(object.id));
+}
 
 /** Transport health as the host observes it (R2.3 / D5): status plus the
  *  named error body when the upstream refused with a JSON reason. */
@@ -267,25 +282,22 @@ export class ConsoleBlockHost implements BlockHost {
 
   private hydrateLayout(): void {
     const restored = readLayoutCache();
-    const seed = mergeSeedViews(seedLayout());
-    const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
-    const objects = needsIaMigration ? seed : (restored ?? seed);
+    const seed = seedLayout();
+    const cleanedRestored = restored ? retireSeedViewObjects(restored) : null;
+    const retiredLegacySeeds = restored !== null && cleanedRestored?.length !== restored.length;
+    const needsIaMigration =
+      cleanedRestored !== null && !cleanedRestored.some((object) => object.id === 'console-chat');
+    const objects = needsIaMigration ? seed : (cleanedRestored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
-    // Prefer the launch Chat place as the active surface. Sparse CS8 seed
-    // views (view-*) must not steal activation from the rich console places.
     const launchChat = this.layout.get('console-chat');
-    const seedChat = this.layout.get('view-chat');
     if (launchChat) {
       launchChat.properties.active = true;
-      if (seedChat) seedChat.properties.active = false;
-    } else if (seedChat) {
-      seedChat.properties.active = true;
     }
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
     if (restored && !needsIaMigration) {
-      let added = false;
+      let added = retiredLegacySeeds;
       for (const seeded of seed) {
         if (!this.layout.has(seeded.id)) {
           this.layout.set(seeded.id, toMutable(seeded));
@@ -369,15 +381,11 @@ export class ConsoleBlockHost implements BlockHost {
   /** Drop the persisted arrangement and return to the seed. */
   resetLayout(): void {
     clearLayoutCache();
-    const seed = mergeSeedViews(seedLayout());
+    const seed = seedLayout();
     this.layout = new Map(seed.map((ref) => [ref.id, toMutable(ref)]));
     const launchChat = this.layout.get('console-chat');
-    const seedChat = this.layout.get('view-chat');
     if (launchChat) {
       launchChat.properties.active = true;
-      if (seedChat) seedChat.properties.active = false;
-    } else if (seedChat) {
-      seedChat.properties.active = true;
     }
     this.persistLayout();
     this.notifyLayout();
@@ -456,10 +464,17 @@ export class ConsoleBlockHost implements BlockHost {
   private async ensureSeedLayoutOnce(): Promise<void> {
     try {
       const remote = await this.http.query(LAYOUT_QUERY);
-      const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
-      const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
+      const retired = remote.objects.filter((object) => isRetiredSeedViewObject(object.id));
+      const durable = retireSeedViewObjects(remote.objects);
+      const hasPrimarySurface = durable.some((object) => object.id === 'console-chat');
+      const hasLandmarks = durable.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        this.replaceLayout(remote.objects);
+        this.replaceLayout(durable);
+        await Promise.all(
+          [...retired]
+            .sort((left, right) => right.id.length - left.id.length)
+            .map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+        );
         return;
       }
       await this.pushLayoutToServer();
