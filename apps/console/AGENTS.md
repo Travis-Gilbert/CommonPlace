@@ -116,6 +116,9 @@ asks for inspiration, reference, mood, or direction.
 | Object contract | `@commonplace/block-view` | BlockHost, ObjectQuery, descriptors, surface tree |
 | Ground / Material Layer | hand-roll (MaterialLayer / GroundCanvas alias) | full-viewport WebGL SDF islands, terracotta ground, edge falloff, grain; DOM shell fills stay transparent |
 | Files tree | 21st.dev `builduilabs/filesystem-item` behavior extraction plus `@tanstack/react-virtual` | recursive disclosure behavior and large memory projection virtualization |
+| Chat sidebar dock | fork of ibelick/motion-primitives `dock` under `components/ui/dock.tsx` (`motion/react`, magnification 44) | sole surface switcher in the chat sidebar |
+| Chat context tree | fork of Build UI filesystem-item under `components/ui/filesystem-item.tsx` | graph-object folders with include/exclude and unavailable honesty |
+| Composer material | `ComposerMaterial` (`@paper-design/shaders-react` GrainGradient) | scoped ShaderMount behind the chat composer; idle speed 0; no backdrop-filter |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |
 | Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |

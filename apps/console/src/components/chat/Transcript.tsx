@@ -1,13 +1,15 @@
 'use client';
 
-// SOURCING: ThreadView excerpt model + CS10 plan treatment. CH4: full-height
-// scroll, measure column, pin-while-streaming, return-to-latest when unpinned.
+// SOURCING: ThreadView excerpt model + CS10 plan treatment. CH4 scroll pin.
+// SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH2/SH4: artifacts resolve per message id;
+// shared CHAT_MEASURE with no min-width.
 
 import { useEffect, useRef, useState } from 'react';
 import type { BlockHost } from '@commonplace/block-view/types';
 import {
   MessagePrimitive,
   ThreadPrimitive,
+  useMessage,
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { useThreadStore, type AgentPlanStep } from '@/lib/thread-store';
@@ -17,10 +19,12 @@ import {
 } from '@/lib/chat/scroll-pin';
 import { ArtifactPart } from '@/components/chat/ArtifactPart';
 import type { ChatArtifactPayload } from '@/lib/chat/project-types';
+import { CHAT_MEASURE } from '@/lib/chat/measure';
 import { cn } from '@/lib/cn';
 import { persistChatThread } from '@/lib/chat/catalog-client';
 
-const MEASURE = 'max-w-[74ch] min-w-[68ch] w-[70ch] max-[900px]:min-w-0 max-[900px]:w-full';
+const MEASURE = CHAT_MEASURE;
+const SCROLL_PERSIST_MS = 400;
 
 function toneOf(status: string): string {
   if (status === 'running') return 'text-ij-ink-info animate-pulse';
@@ -34,7 +38,7 @@ function InlinePlan({ steps }: { steps: readonly AgentPlanStep[] }) {
   const [open, setOpen] = useState(false);
   if (steps.length === 0) return null;
   return (
-    <div data-agent-plan className={cn(MEASURE, 'mx-auto my-2')}>
+    <div data-agent-plan className={cn(MEASURE, 'my-2')}>
       <button
         type="button"
         aria-expanded={open}
@@ -61,7 +65,7 @@ function InlinePlan({ steps }: { steps: readonly AgentPlanStep[] }) {
 
 function UserTurn() {
   return (
-    <MessagePrimitive.Root className={cn(MEASURE, 'mx-auto my-3')}>
+    <MessagePrimitive.Root className={cn(MEASURE, 'my-3')}>
       <div
         data-speaker="human"
         className="rounded-[var(--radius-control)] bg-ij-raised px-3 py-2 font-cp-human text-cp-human"
@@ -78,13 +82,15 @@ function UserTurn() {
 
 function AssistantTurn({
   host,
-  artifacts,
+  artifactsByMessage,
 }: {
   host: BlockHost;
-  artifacts: readonly ChatArtifactPayload[];
+  artifactsByMessage: Readonly<Record<string, readonly ChatArtifactPayload[]>>;
 }) {
+  const message = useMessage();
+  const artifacts = artifactsByMessage[message.id] ?? [];
   return (
-    <MessagePrimitive.Root className={cn(MEASURE, 'mx-auto my-3')}>
+    <MessagePrimitive.Root className={cn(MEASURE, 'my-3')}>
       <div data-speaker="agent" className="px-1 font-cp-agent text-cp-agent">
         <MessagePrimitive.Content
           components={{
@@ -118,6 +124,7 @@ export function Transcript({
   const isRunning = useThreadStore((state) => state.isRunning);
   const messageCount = useThreadStore((state) => state.messages.length);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollTimer = useRef<number | null>(null);
   const [pinned, setPinned] = useState(true);
   const [showReturn, setShowReturn] = useState(false);
   const restoredRef = useRef(false);
@@ -135,6 +142,10 @@ export function Transcript({
     node.scrollTop = node.scrollHeight;
   }, [pinned, isRunning, messageCount]);
 
+  useEffect(() => () => {
+    if (scrollTimer.current != null) window.clearTimeout(scrollTimer.current);
+  }, []);
+
   const onScroll = () => {
     const node = scrollRef.current;
     if (!node) return;
@@ -146,9 +157,11 @@ export function Transcript({
     });
     setPinned(next.pinned);
     setShowReturn(next.showReturn);
-    if (threadId) {
+    if (!threadId) return;
+    if (scrollTimer.current != null) window.clearTimeout(scrollTimer.current);
+    scrollTimer.current = window.setTimeout(() => {
       void persistChatThread(threadId, { scrollTop: node.scrollTop }).catch(() => {});
-    }
+    }, SCROLL_PERSIST_MS);
   };
 
   if (unreachable) {
@@ -174,14 +187,16 @@ export function Transcript({
       >
         <ThreadPrimitive.Root className="mx-auto flex w-full flex-col px-4 py-6">
           <ThreadPrimitive.Empty>
-            <p className={cn(MEASURE, 'mx-auto text-ij-ink-info')}>
+            <p className={cn(MEASURE, 'text-ij-ink-info')}>
               Start a thread in this project. Messages persist across reload.
             </p>
           </ThreadPrimitive.Empty>
           <ThreadPrimitive.Messages
             components={{
               UserMessage: UserTurn,
-              AssistantMessage: () => <AssistantTurn host={host} artifacts={[]} />,
+              AssistantMessage: () => (
+                <AssistantTurn host={host} artifactsByMessage={artifactsByMessage} />
+              ),
             }}
           />
           {plan.length > 0 ? <InlinePlan steps={plan} /> : null}
@@ -203,8 +218,6 @@ export function Transcript({
           Return to latest
         </button>
       ) : null}
-      {/* artifactsByMessage reserved for promoted inline parts from the catalog */}
-      {Object.keys(artifactsByMessage).length > 0 ? null : null}
     </div>
   );
 }

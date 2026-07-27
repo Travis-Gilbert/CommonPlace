@@ -1,9 +1,10 @@
 'use client';
 
-// SOURCING: none. CH1: Chat is a page, not an arrangement. No ViewInstanceHost,
-// no descriptor lookup, no BlockArrangementHost.
+// SOURCING: none. CH1: Chat is a page, not an arrangement.
+// SPEC-COMMONPLACE-CHAT-SHELL-1.2: one composer, event-driven persistence,
+// shared measure, artifacts wired, rail without input.
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AssistantRuntimeProvider,
@@ -24,7 +25,7 @@ import { Composer, useChatAttachments } from '@/components/chat/Composer';
 import { ChatRail } from '@/components/chat/ChatRail';
 import { ChatDropProvider } from '@/components/chat/ChatDropOverlay';
 import { useChatPageRuntime } from '@/components/chat/runtime';
-import type { ChatCatalog, ChatThreadRecord } from '@/lib/chat/project-types';
+import type { ChatArtifactPayload, ChatCatalog, ChatThreadRecord } from '@/lib/chat/project-types';
 import {
   createChatThread,
   fetchChatCatalog,
@@ -32,10 +33,18 @@ import {
   persistChatMessages,
   persistChatThread,
 } from '@/lib/chat/catalog-client';
+import { CHAT_MEASURE } from '@/lib/chat/measure';
+import {
+  type ContextEntry,
+  type ContextFolder,
+  type ContextProvenance,
+} from '@/lib/chat/context-types';
 import { degradationFor } from '@/lib/degradation';
+import { useThreadStore } from '@/lib/thread-store';
 import { cn } from '@/lib/cn';
 
 const emptySubscribe = () => () => {};
+const MESSAGE_PERSIST_DEBOUNCE_MS = 500;
 
 function connectionFor(status: number | null, error?: string | null): ConnectionState {
   if (status === 401 || error === 'principal_resolution=unauthenticated') return 'unauthenticated';
@@ -51,16 +60,97 @@ function connectionFor(status: number | null, error?: string | null): Connection
   return 'disconnected';
 }
 
+function artifactsFromThread(thread: ChatThreadRecord): Record<string, ChatArtifactPayload[]> {
+  const map: Record<string, ChatArtifactPayload[]> = {};
+  for (const message of thread.messages) {
+    if (message.artifact) {
+      map[message.id] = [message.artifact];
+    }
+  }
+  return map;
+}
+
+function foldersFromProject(
+  thread: ChatThreadRecord,
+  catalog: ChatCatalog,
+  overrides: ReadonlyMap<string, boolean>,
+): ContextFolder[] {
+  const project = catalog.projects.find((item) => item.id === thread.projectId);
+  if (!project) return [];
+
+  const makeEntry = (
+    id: string,
+    label: string,
+    provenance: ContextProvenance,
+    unavailable = false,
+  ): ContextEntry => ({
+    id,
+    label,
+    provenance,
+    included: overrides.has(id) ? Boolean(overrides.get(id)) : true,
+    unavailable,
+  });
+
+  const documents: ContextEntry[] = project.documentIds.map((id) =>
+    makeEntry(`doc:${id}`, id, 'user'),
+  );
+  const types: ContextEntry[] = project.objectTypes.map((type) =>
+    makeEntry(`type:${type}`, type, 'retrieved'),
+  );
+
+  // Honest empty-vs-unreachable: a project with declared docs that cannot be
+  // resolved still names provenance rather than inventing children.
+  const folders: ContextFolder[] = [
+    {
+      id: 'folder:documents',
+      label: 'Documents',
+      entries: documents,
+      unavailable: false,
+    },
+    {
+      id: 'folder:types',
+      label: 'Object types',
+      entries: types,
+    },
+    {
+      id: 'folder:encoded',
+      label: 'Encoded',
+      entries: thread.capability
+        ? [makeEntry(`cap:${thread.capability.id}`, thread.capability.name, 'encoded')]
+        : [],
+    },
+    {
+      id: 'folder:data-science',
+      label: 'Data science',
+      entries: [],
+      unavailable: false,
+    },
+  ];
+
+  if (documents.length === 0 && project.documentIds.length > 0) {
+    folders[0] = {
+      id: 'folder:documents',
+      label: 'Documents',
+      entries: [],
+      unavailable: true,
+    };
+  }
+
+  return folders;
+}
+
 function RuntimeTree({
   host,
   thread,
   unreachable,
   attachments,
+  artifactsByMessage,
 }: {
   host: BlockHost;
   thread: ChatThreadRecord;
   unreachable: boolean;
   attachments: ReturnType<typeof useChatAttachments>;
+  artifactsByMessage: Readonly<Record<string, readonly ChatArtifactPayload[]>>;
 }) {
   const runtime = useChatPageRuntime({
     threadId: thread.id,
@@ -76,26 +166,44 @@ function RuntimeTree({
     })),
   });
 
-  useEffect(() => {
-    // Persist turns mirrored into jotai whenever the transport finishes a run.
-    const timer = window.setInterval(() => {
-      void import('@/lib/thread-store').then(({ useThreadStore }) => {
-        const state = useThreadStore.getState();
-        if (state.isRunning) return;
-        if (state.messages.length === 0) return;
-        void persistChatMessages(
-          thread.id,
-          state.messages.map((message) => ({
-            id: message.id,
-            role: message.role,
-            text: message.parts.map((part) => part.text).join(''),
-            incomplete: Boolean(state.error),
-          })),
-        ).catch(() => {});
-      });
-    }, 1500);
-    return () => window.clearInterval(timer);
+  const persistTimer = useRef<number | null>(null);
+
+  const writeMessages = useCallback(() => {
+    const state = useThreadStore.getState();
+    if (state.messages.length === 0) return;
+    void persistChatMessages(
+      thread.id,
+      state.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        text: message.parts.map((part) => part.text).join(''),
+        incomplete: Boolean(state.error),
+      })),
+    ).catch(() => {});
   }, [thread.id]);
+
+  useEffect(() => {
+    // SH3: subscribe to the thread store. Persist on transition out of running,
+    // plus a debounced write on message mutation. No interval polling.
+    const unsubscribe = useThreadStore.subscribe((state, prev) => {
+      if (prev.isRunning && !state.isRunning) {
+        writeMessages();
+        return;
+      }
+
+      if (state.messages === prev.messages) return;
+      if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+      persistTimer.current = window.setTimeout(() => {
+        if (useThreadStore.getState().isRunning) return;
+        writeMessages();
+      }, MESSAGE_PERSIST_DEBOUNCE_MS);
+    });
+
+    return () => {
+      unsubscribe();
+      if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+    };
+  }, [writeMessages]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -104,9 +212,10 @@ function RuntimeTree({
           host={host}
           threadId={thread.id}
           initialScrollTop={thread.scrollTop}
+          artifactsByMessage={artifactsByMessage}
           unreachable={unreachable}
         />
-        <div className="mx-auto w-[70ch] max-w-[74ch] min-w-[68ch] max-[900px]:min-w-0 max-[900px]:w-full shrink-0 px-4 pb-4">
+        <div className={cn(CHAT_MEASURE, 'shrink-0 px-4 pb-4')}>
           <Composer
             unreachable={unreachable}
             attachmentApi={attachments}
@@ -127,6 +236,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [wide, setWide] = useState(true);
   const [capabilities, setCapabilities] = useState<CapabilityItem[]>([]);
+  const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
   const attachments = useChatAttachments();
 
   const host = useMemo(
@@ -171,8 +281,6 @@ export function ChatPage({ threadId }: { threadId?: string }) {
           setLoadError(error instanceof Error ? error.message : 'catalog_unreachable');
         }
       });
-    // Capabilities API currently exposes web search only; packs/skills land
-    // when the instance advertises them. Empty list is honest absence.
     setCapabilities([]);
     return () => {
       active = false;
@@ -238,6 +346,35 @@ export function ChatPage({ threadId }: { threadId?: string }) {
     [router],
   );
 
+  const contextFolders = useMemo(() => {
+    if (!thread || !catalog) return [];
+    return foldersFromProject(thread, catalog, includeOverrides);
+  }, [thread, catalog, includeOverrides]);
+
+  const contextEntries = useMemo(
+    () => contextFolders.flatMap((folder) => folder.entries),
+    [contextFolders],
+  );
+
+  const artifactsByMessage = useMemo(
+    () => (thread ? artifactsFromThread(thread) : {}),
+    [thread],
+  );
+
+  const railArtifacts = useMemo(
+    () => Object.values(artifactsByMessage).flat(),
+    [artifactsByMessage],
+  );
+
+  const onToggleContextInclude = useCallback((entryId: string) => {
+    setIncludeOverrides((current) => {
+      const next = new Map(current);
+      const existing = next.has(entryId) ? Boolean(next.get(entryId)) : true;
+      next.set(entryId, !existing);
+      return next;
+    });
+  }, []);
+
   if (!mounted || !host) {
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;
   }
@@ -267,9 +404,15 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                     unreachable={unreachable}
                     onCatalogChange={setCatalog}
                     onOpenThread={onOpenThread}
+                    contextFolders={contextFolders}
+                    onToggleContextInclude={onToggleContextInclude}
+                    surface="chat"
                   />
                 ) : (
-                  <aside className="w-[min(280px,36vw)] border-r border-ij-seam p-3 text-ij-ink-info">
+                  <aside
+                    className="border-r border-ij-seam p-3 text-ij-ink-info"
+                    style={{ width: 'var(--ij-chat-sidebar-w)' }}
+                  >
                     {degradation ? degradation.cause : 'Loading projects…'}
                   </aside>
                 )}
@@ -291,6 +434,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                       thread={thread}
                       unreachable={unreachable}
                       attachments={attachments}
+                      artifactsByMessage={artifactsByMessage}
                     />
                   ) : null}
                 </main>
@@ -300,6 +444,8 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                     host={host}
                     collapsed={railCollapsed}
                     onToggleCollapse={toggleRail}
+                    artifacts={railArtifacts}
+                    contextEntries={contextEntries}
                   />
                 ) : (
                   <>
@@ -312,15 +458,17 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                       />
                     ) : null}
                     <div
-                      className={cn(
-                        'absolute right-0 top-0 z-30 h-full',
-                        railCollapsed ? 'w-8' : 'w-[min(320px,90vw)]',
-                      )}
+                      className="absolute right-0 top-0 z-30 h-full"
+                      style={{
+                        width: railCollapsed ? 'var(--ij-sidebar-collapsed-w)' : 'var(--ij-chat-rail-overlay-w)',
+                      }}
                     >
                       <ChatRail
                         host={host}
                         collapsed={railCollapsed}
                         onToggleCollapse={toggleRail}
+                        artifacts={railArtifacts}
+                        contextEntries={contextEntries}
                       />
                     </div>
                   </>

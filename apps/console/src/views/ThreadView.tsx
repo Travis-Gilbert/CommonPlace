@@ -15,7 +15,7 @@ import {
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
-import { Composer, NEW_LINE_HINT } from '@/components/composer/Composer';
+import { Composer, NEW_LINE_HINT } from '@/components/chat/RuntimeComposer';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
 import { submitThreadText } from '@/lib/thread-submit';

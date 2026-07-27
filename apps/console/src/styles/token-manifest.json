@@ -2103,6 +2103,60 @@
       "provenance": "TWENTY-APP-VALUES, read from twentyhq/twenty packages/twenty-ui/src/theme/constants (2026-07-17); structure only, never material",
       "note": "type weights capped at 600; sizes rem on the shared 13px base",
       "resolvedAlsoIn": []
+    },
+    "--ij-composer-frame-radius": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-frame-pad": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-inner-radius": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-measure": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5/SH8 chat shell metrics",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-sidebar-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5/SH8 chat shell metrics",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-rail-overlay-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5/SH8 chat shell metrics",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-fs-indent": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5/SH8 chat shell metrics",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-attach-min-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5/SH8 chat shell metrics",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-attach-max-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5/SH8 chat shell metrics",
+      "resolvedAlsoIn": []
     }
   }
 }

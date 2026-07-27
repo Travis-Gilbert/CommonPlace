@@ -122,9 +122,21 @@ export const INTERACTION_INVENTORY = [
   },
   {
     trigger: 'Composer run state changes',
-    effect: 'ShaderSurface Paper fragment on the composer; static paper-texture at idle, grain-gradient speed while streaming',
-    spec: 'paper-texture / grain-gradient / fluted-glass by composer state; token-derived colors; content plane above',
+    effect: 'ComposerMaterial GrainGradient on the chat composer; speed 0 idle, slow composing, higher streaming',
+    spec: 'SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH9: GrainGradient wave; register colors; no backdrop-filter; max two ShaderMounts per window',
     reducedMotion: 'static material, speed 0',
+  },
+  {
+    trigger: 'Chat sidebar dock hover',
+    effect: 'Dock item width spring magnification',
+    spec: 'motion spring mass 0.1 stiffness 150 damping 12; magnification 44 over 36px base',
+    reducedMotion: 'no magnification spring; static icon size',
+  },
+  {
+    trigger: 'Context tree folder expand',
+    effect: 'height auto plus opacity on filesystem-item children',
+    spec: 'DUR.fast, easeOut',
+    reducedMotion: 'instant open without height animation',
   },
   {
     trigger: 'Tool card appears in thread',
