@@ -245,6 +245,42 @@ describe('constellation renderer', () => {
       vi.useRealTimers();
     }
   });
+
+  it('keeps deferred opens independent across result nodes', async () => {
+    vi.useFakeTimers();
+    try {
+      const onOpen = vi.fn();
+      const container = await render(
+        <ConstellationView
+          state={{ kind: 'success', payload: PAYLOAD }}
+          onOpenResult={onOpen}
+          onExpandNode={vi.fn()}
+        />,
+      );
+      const nodes = [
+        ...container.querySelectorAll<SVGGElement>('[data-kind="result"]'),
+      ];
+
+      await act(async () => {
+        nodes[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        nodes[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onOpen).toHaveBeenNthCalledWith(
+        1,
+        PAYLOAD.nodes[0].url,
+        PAYLOAD.nodes[0],
+      );
+      expect(onOpen).toHaveBeenNthCalledWith(
+        2,
+        PAYLOAD.nodes[1].url,
+        PAYLOAD.nodes[1],
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('docked session map', () => {

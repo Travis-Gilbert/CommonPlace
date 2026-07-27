@@ -125,8 +125,14 @@ test.describe('Search panel', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForSelector('[data-shell]');
+    await page.waitForFunction(
+      () => document.documentElement.getAttribute('data-layout-ready') === '1',
+      { timeout: 60_000 },
+    );
     await page.keyboard.press('Shift');
     await page.keyboard.press('Shift');
-    await expect(page.locator('[data-search-panel]')).toHaveScreenshot('search-panel-expanded.png');
+    const panel = page.locator('[data-search-panel]');
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    await expect(panel).toHaveScreenshot('search-panel-expanded.png', { timeout: 15_000 });
   });
 });

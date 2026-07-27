@@ -1,0 +1,201 @@
+// FK3 owns only CommonPlace identity administration in PostgreSQL.
+//
+// Runtime traffic uses IDENTITY_DATABASE_URL through PgBouncer. Prisma 5.3.1
+// schema and migration commands use IDENTITY_DIRECT_DATABASE_URL instead.
+// Neither variable may point at RustyRed or its PostgreSQL-wire compatibility
+// surface. See README.md before generating or applying a migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "postgresql"
+  url          = env("IDENTITY_DATABASE_URL")
+  directUrl    = env("IDENTITY_DIRECT_DATABASE_URL")
+  relationMode = "foreignKeys"
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+
+  @@map("cp_identity_user_status")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("cp_identity_membership_status")
+}
+
+enum InviteStatus {
+  PENDING
+  CLAIMED
+  REVOKED
+  EXPIRED
+
+  @@map("cp_identity_invite_status")
+}
+
+enum BillingStatus {
+  UNCONFIGURED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+
+  @@map("cp_identity_billing_status")
+}
+
+model User {
+  id             String                @id @default(uuid()) @db.Uuid
+  username       String                @unique @db.VarChar(64)
+  authProvider   String                @map("auth_provider") @db.VarChar(32)
+  providerSubject String               @unique @map("provider_subject") @db.VarChar(160)
+  email          String?               @unique @db.VarChar(320)
+  displayName    String?               @map("display_name") @db.VarChar(120)
+  passwordHash   String?               @map("password_hash") @db.VarChar(255)
+  status         UserStatus            @default(ACTIVE)
+  sessions       Session[]
+  apiKeys        ApiKey[]
+  memberships    WorkspaceMembership[]
+  invitesCreated Invite[]              @relation("InviteCreator")
+  invitesClaimed Invite[]              @relation("InviteClaimer")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  @@map("cp_identity_users")
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt  DateTime  @map("expires_at")
+  lastSeenAt DateTime? @map("last_seen_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("cp_identity_sessions")
+}
+
+model ApiKey {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  workspaceId String?    @map("workspace_id") @db.Uuid
+  name        String?    @db.VarChar(120)
+  keyPrefix   String     @map("key_prefix") @db.VarChar(16)
+  keyHash     String     @unique @map("key_hash") @db.VarChar(128)
+  scopes      String[]   @default([])
+  expiresAt   DateTime?  @map("expires_at")
+  revokedAt   DateTime?  @map("revoked_at")
+  lastUsedAt  DateTime?  @map("last_used_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([keyPrefix])
+  @@map("cp_identity_api_keys")
+}
+
+model Workspace {
+  id             String                @id @default(uuid()) @db.Uuid
+  tenant         String                @db.VarChar(160)
+  slug           String                @db.VarChar(80)
+  scopeRef       String                @unique @map("scope_ref") @db.VarChar(255)
+  name           String                @db.VarChar(160)
+  memberships    WorkspaceMembership[]
+  roles          Role[]
+  invites        Invite[]
+  apiKeys        ApiKey[]
+  billingAccount BillingAccount?
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  @@unique([tenant, slug])
+  @@index([tenant])
+  @@map("cp_identity_workspaces")
+}
+
+model WorkspaceMembership {
+  id          String           @id @default(uuid()) @db.Uuid
+  workspaceId String           @map("workspace_id") @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  roleId      String           @map("role_id") @db.Uuid
+  status      MembershipStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role             @relation(fields: [roleId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+
+  @@unique([workspaceId, userId])
+  @@index([userId, status])
+  @@index([roleId])
+  @@map("cp_identity_workspace_memberships")
+}
+
+model Role {
+  id          String                @id @default(uuid()) @db.Uuid
+  workspaceId String                @map("workspace_id") @db.Uuid
+  key         String                @db.VarChar(64)
+  name        String                @db.VarChar(120)
+  permissions String[]              @default([])
+  isSystem    Boolean               @default(false) @map("is_system")
+  memberships WorkspaceMembership[]
+  invites     Invite[]
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+  workspace   Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([id, workspaceId])
+  @@unique([workspaceId, key])
+  @@map("cp_identity_roles")
+}
+
+model Invite {
+  id          String       @id @default(uuid()) @db.Uuid
+  workspaceId String       @map("workspace_id") @db.Uuid
+  roleId      String       @map("role_id") @db.Uuid
+  createdById String       @map("created_by_id") @db.Uuid
+  claimedById String?      @map("claimed_by_id") @db.Uuid
+  tokenHash   String       @unique @map("token_hash") @db.VarChar(128)
+  email       String?      @db.VarChar(320)
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime     @map("expires_at")
+  claimedAt   DateTime?    @map("claimed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  role        Role         @relation(fields: [roleId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  createdBy   User         @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  claimedBy   User?        @relation("InviteClaimer", fields: [claimedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([createdById])
+  @@index([claimedById])
+  @@map("cp_identity_invites")
+}
+
+model BillingAccount {
+  id                     String        @id @default(uuid()) @db.Uuid
+  workspaceId            String        @unique @map("workspace_id") @db.Uuid
+  provider               String?       @db.VarChar(40)
+  providerCustomerId     String?       @unique @map("provider_customer_id") @db.VarChar(160)
+  providerSubscriptionId String?       @unique @map("provider_subscription_id") @db.VarChar(160)
+  productCode            String?       @map("product_code") @db.VarChar(120)
+  status                 BillingStatus @default(UNCONFIGURED)
+  seatLimit              Int?          @map("seat_limit")
+  currentPeriodEndsAt    DateTime?     @map("current_period_ends_at")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+  workspace              Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("cp_identity_billing_accounts")
+}

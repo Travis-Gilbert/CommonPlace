@@ -1,0 +1,29 @@
+{
+  "name": "@commonplace/fork-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AnythingLLM-derived Express service boundary for CommonPlace",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate:deploy": "node scripts/prisma-migrate-deploy.js",
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
+    "test": "node --test __tests__/app.test.js __tests__/utils/agents/*.test.js __tests__/utils/collectorApi/*.test.js __tests__/utils/identity/*.test.js __tests__/utils/vectorDbProviders/*.test.js",
+    "test:agents": "node --test __tests__/utils/agents/*.test.js",
+    "test:collector": "node --test __tests__/utils/collectorApi/collectorApi.test.js",
+    "test:identity": "node --test __tests__/utils/identity/*.test.js",
+    "test:rustyred": "node --test __tests__/utils/vectorDbProviders/rustyred.test.js"
+  },
+  "dependencies": {
+    "@prisma/client": "5.3.1",
+    "express": "5.1.0"
+  },
+  "devDependencies": {
+    "prisma": "5.3.1"
+  }
+}

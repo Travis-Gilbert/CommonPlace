@@ -10,6 +10,7 @@
   --color-*: initial;
   --font-*: initial;
   --radius-*: initial;
+  --shadow-ij-popover: var(--ij-popover-shadow);
 
   /* Surfaces */
   --color-ij-frame: var(--ij-frame);

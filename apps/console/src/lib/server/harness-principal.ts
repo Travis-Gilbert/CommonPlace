@@ -1,12 +1,26 @@
 import { auth } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { githubAuthCredentials } from '@/lib/auth-config';
+import { IdentitySessionSchema } from '@/lib/identity/contracts';
 import {
   configuredServiceTenantMatches as configuredServiceTenantMatchesCore,
   legacyServicePrincipal,
   principalFromSession,
+  principalScopeHeaders,
   type HarnessPrincipal,
 } from '@/lib/harness-principal-core';
+import {
+  ACTIVE_WORKSPACE_COOKIE,
+  decodeActiveWorkspaceClaims,
+  resolveActiveWorkspaceSecret,
+} from '@/lib/server/active-workspace';
+import {
+  forkIdentityErrorResponse,
+  forkIdentityResponse,
+  requestForkIdentity,
+} from '@/lib/server/fork-identity';
 
 export type { HarnessPrincipal } from '@/lib/harness-principal-core';
 export { filterRunsForTenant } from '@/lib/harness-principal-core';
@@ -24,7 +38,22 @@ function fixturePrincipal(): HarnessPrincipal | null {
   return { tenant, githubLogin, harnessIdentity };
 }
 
-export async function resolveHarnessPrincipal(): Promise<HarnessPrincipalResolution> {
+async function clearRejectedActiveWorkspaceCookie(): Promise<void> {
+  try {
+    (await cookies()).set(ACTIVE_WORKSPACE_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
+  } catch {
+    // Server Component cookie stores are read-only. Route handlers still clear
+    // the rejected claim, and the settings selection overwrites it on pages.
+  }
+}
+
+async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolution> {
   const fixture = fixturePrincipal();
   if (fixture) return { ok: true, principal: fixture };
   const github = githubAuthCredentials({
@@ -35,7 +64,123 @@ export async function resolveHarnessPrincipal(): Promise<HarnessPrincipalResolut
   if (legacy) return { ok: true, principal: legacy };
   const session = await auth();
   const principal = principalFromSession(session);
-  if (principal) return { ok: true, principal };
+  if (principal) {
+    const secret = resolveActiveWorkspaceSecret();
+    if (!secret) {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_configuration_missing',
+            message: 'Active workspace verification is not configured.',
+          },
+          { status: 503 },
+        ),
+      };
+    }
+    let encoded: string | undefined;
+    try {
+      encoded = (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value;
+    } catch {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_claim_unavailable',
+            message: 'The active workspace claim could not be read.',
+          },
+          { status: 503 },
+        ),
+      };
+    }
+    if (!encoded) {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_claim_required',
+            message: 'Select an active workspace before accessing scoped data.',
+          },
+          { status: 403 },
+        ),
+      };
+    }
+    const claims = decodeActiveWorkspaceClaims(encoded, secret);
+    if (!claims || claims.subject !== principal.harnessIdentity) {
+      await clearRejectedActiveWorkspaceCookie();
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_claim_refused',
+            message: 'The active workspace claim is invalid or expired.',
+          },
+          { status: 401 },
+        ),
+      };
+    }
+
+    try {
+      const identityPrincipal = {
+        subject: principal.harnessIdentity,
+        username: principal.githubLogin,
+        displayName: session?.user?.name ?? null,
+        email: session?.user?.email ?? null,
+      };
+      const result = await requestForkIdentity('/v1/workspaces/list', {
+        body: { principal: identityPrincipal },
+      });
+      if (result.status !== 200) {
+        return { ok: false, response: forkIdentityResponse(result) };
+      }
+      const parsed = IdentitySessionSchema.safeParse(result.body);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          response: Response.json(
+            {
+              error: 'active_workspace_contract_mismatch',
+              message: 'Workspace membership could not be verified.',
+            },
+            { status: 502 },
+          ),
+        };
+      }
+      const workspace = parsed.data.workspaces.find(
+        (candidate) => candidate.id === claims.workspaceId,
+      );
+      if (
+        !workspace
+        || workspace.tenant !== claims.tenant
+        || workspace.scopeRef !== claims.scopeRef
+        || workspace.slug !== claims.workspaceSlug
+      ) {
+        await clearRejectedActiveWorkspaceCookie();
+        return {
+          ok: false,
+          response: Response.json(
+            {
+              error: 'active_workspace_membership_refused',
+              message: 'The active workspace is no longer available to this identity.',
+            },
+            { status: 403 },
+          ),
+        };
+      }
+      return {
+        ok: true,
+        principal: {
+          ...principal,
+          tenant: workspace.tenant,
+          workspaceId: workspace.id,
+          workspaceSlug: workspace.slug,
+          scopeRef: workspace.scopeRef,
+        },
+      };
+    } catch (error) {
+      return { ok: false, response: forkIdentityErrorResponse(error) };
+    }
+  }
   return {
     ok: false,
     response: Response.json(
@@ -48,12 +193,10 @@ export async function resolveHarnessPrincipal(): Promise<HarnessPrincipalResolut
   };
 }
 
+export const resolveHarnessPrincipal = cache(resolveHarnessPrincipalUncached);
+
 export function principalTenantHeaders(principal: HarnessPrincipal): Record<string, string> {
-  return {
-    'x-theorem-tenant': principal.tenant,
-    'x-tenant-id': principal.tenant,
-    'x-theorem-principal': principal.harnessIdentity,
-  };
+  return principalScopeHeaders(principal);
 }
 
 export function configuredServiceTenantMatches(principal: HarnessPrincipal): boolean {

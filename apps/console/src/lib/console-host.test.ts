@@ -78,11 +78,6 @@ describe('ConsoleBlockHost', () => {
       'console-survey',
       'console-threads',
       'console-workspace',
-      'view-chat',
-      'view-data-model',
-      'view-editor',
-      'view-index',
-      'view-researcher',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
     expect(surfaces
@@ -444,6 +439,140 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
+  });
+
+  it('retries refused remote deletes before adopting a retired layout', async () => {
+    let deleteAttempts = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        id?: string;
+      };
+      if (!body.kind) {
+        return Response.json({
+          objects: [
+            { id: 'console-chat', type: 'surface', properties: { name: 'Chat' } },
+            {
+              id: 'console.region-landmarks',
+              type: 'region',
+              properties: { kind: 'landmarks' },
+            },
+            { id: 'view-chat', type: 'view-instance', properties: {} },
+          ],
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      deleteAttempts += 1;
+      if (deleteAttempts === 1) {
+        return Response.json({ error: 'temporary refusal' }, { status: 503 });
+      }
+      return Response.json({
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: [body.id],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    await host.ensureSeedLayout();
+
+    expect(deleteAttempts).toBe(2);
+    expect(
+      host.queryLayout(surfaceQuery()).objects.some((object) => object.id === 'view-chat'),
+    ).toBe(false);
+    const deleteBodies = fetchMock.mock.calls
+      .slice(1)
+      .map(([, init]) => JSON.parse(String(init?.body ?? '{}')));
+    expect(deleteBodies).toEqual([
+      { kind: 'delete', id: 'view-chat' },
+      { kind: 'delete', id: 'view-chat' },
+    ]);
+  });
+
+  it('retires the legacy unconsented Console pane without dangling layout edges', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        id?: string;
+      };
+      if (!body.kind) {
+        return Response.json({
+          objects: [
+            {
+              id: 'console-chat',
+              type: 'surface',
+              properties: { name: 'Chat' },
+              relations: {
+                [CONTAINS_EDGE]: [CONSOLE_DATA_SURFACE_ID, 'view-chat'],
+              },
+            },
+            {
+              id: 'console.region-landmarks',
+              type: 'region',
+              properties: { kind: 'landmarks' },
+            },
+            {
+              id: CONSOLE_DATA_SURFACE_ID,
+              type: 'surface',
+              properties: { seed_revision: 1 },
+              relations: { [CONTAINS_EDGE]: ['console-data.region-editor'] },
+            },
+            {
+              id: 'console-data.region-editor',
+              type: 'region',
+              properties: {},
+              relations: { [CONTAINS_EDGE]: ['console-data.vi-pane'] },
+            },
+            {
+              id: 'console-data.vi-pane',
+              type: 'view-instance',
+              properties: {},
+            },
+            { id: 'view-chat', type: 'view-instance', properties: {} },
+          ],
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      return Response.json({
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: body.id ? [body.id] : [],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    await host.ensureSeedLayout();
+
+    const objects = host.queryLayout(surfaceQuery()).objects;
+    const retiredIds = new Set([
+      CONSOLE_DATA_SURFACE_ID,
+      'console-data.region-editor',
+      'console-data.vi-pane',
+      'view-chat',
+    ]);
+    expect(objects.some((object) => retiredIds.has(object.id))).toBe(false);
+    expect(
+      objects.find((object) => object.id === 'console-chat')?.relations?.[CONTAINS_EDGE],
+    ).toEqual([]);
+    const deletedIds = fetchMock.mock.calls
+      .slice(1)
+      .map(([, request]) => JSON.parse(String(request?.body ?? '{}')) as { id?: string })
+      .map((body) => body.id);
+    expect(new Set(deletedIds)).toEqual(retiredIds);
   });
 
   it('routes canvas ObjectRefs and mutations through the authenticated object seam', async () => {

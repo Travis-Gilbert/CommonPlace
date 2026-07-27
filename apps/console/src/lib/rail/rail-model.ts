@@ -4,9 +4,8 @@
 // and route prefetch. Collections leave the rail; they stay reachable through
 // the layout switcher and the Blocks palette.
 //
-// Rail targets the rich workspace-seed places (companions, multi-region
-// wells), not the sparse CS8 seed-view shells. Seed views remain for /v/*
-// idempotent seeding and list membership.
+// Rail targets page-owned routes backed by durable multi-region surfaces.
+// Descriptor-backed blocks compose inside those surfaces and never route.
 
 import type {
   BlockKindGlyph,

@@ -25,7 +25,11 @@ export function createConsoleSearchController(): SearchStackController {
       write: (key, value) => {
         if (typeof window === 'undefined') return;
         // persistence-preference: key=commonplace.search.lambda; preference=search breadth; reason=restores the person's lambda dial
-        window.localStorage.setItem(key, value);
+        try {
+          window.localStorage.setItem(key, value);
+        } catch {
+          // Preference persistence is best effort.
+        }
       },
     },
   });
@@ -43,8 +47,17 @@ export function hydrateConsoleSearchPreference(
     || !consoleControllers.has(controller)
     || typeof window === 'undefined'
   ) return;
-  hydratedControllers.add(controller);
-  // persistence-preference: key=commonplace.search.lambda; preference=search breadth; reason=restores the person's lambda dial
-  const value = window.localStorage.getItem(LAMBDA_PREFERENCE_KEY);
-  if (value != null) controller.setLambda(Number(value));
+  try {
+    // persistence-preference: key=commonplace.search.lambda; preference=search breadth; reason=restores the person's lambda dial
+    const value = window.localStorage.getItem(LAMBDA_PREFERENCE_KEY);
+    if (value != null) {
+      const lambda = Number(value);
+      if (Number.isFinite(lambda) && lambda >= 0 && lambda <= 1) {
+        controller.setLambda(lambda);
+      }
+    }
+    hydratedControllers.add(controller);
+  } catch {
+    // A later mount may retry hydration when storage becomes available.
+  }
 }

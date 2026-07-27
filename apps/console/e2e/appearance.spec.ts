@@ -58,6 +58,16 @@ test.describe('appearance surface', () => {
     await settled(page);
   });
 
+  test('opens from its dedicated page route', async ({ page }) => {
+    await page.goto('/appearance');
+    await settled(page);
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-appearance',
+    );
+    await expect(page.locator('[data-appearance-view]')).toBeVisible();
+  });
+
   test('persists a preset and exposes the same action through Search', async ({ page }) => {
     await openAppearance(page);
     await selectPreset(page, 'intellij-light');

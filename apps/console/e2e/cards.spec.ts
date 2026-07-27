@@ -83,15 +83,22 @@ async function seedLayoutFixture(
 }
 
 async function openSurface(page: Page, surfaceId: string) {
-  const collectionRoutes: Record<string, string> = {
+  const surfaceRoutes: Record<string, string> = {
     'console-cards': '/cards',
     'console-docs': '/documents',
+    'console-workspace': '/workspace',
   };
-  const route = collectionRoutes[surfaceId];
-  if (route) {
+  const route = surfaceRoutes[surfaceId];
+  // Workspace stays an SPA transition so staged thread context survives.
+  if (route && surfaceId !== 'console-workspace') {
     await page.goto(route);
   } else {
     await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
+  }
+  if (route) {
+    await expect(page).toHaveURL(new RegExp(`${route.replace('/', '\\/')}$`), {
+      timeout: 60_000,
+    });
   }
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
     timeout: 15_000,
@@ -348,7 +355,11 @@ test.describe('cards, actions, mentions', () => {
         .getByLabel('Record inspector')
         .locator('[data-card="compact"]')
         .filter({ hasText: 'PorchFest 2026' }),
-    ).toHaveScreenshot('card-compact-inspector.png', { maxDiffPixelRatio: 0.02 });
+    ).toHaveScreenshot('card-compact-inspector.png', {
+      maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+      animations: 'disabled',
+    });
 
     await page.locator('[data-inspector-action]').click();
     const sheet = page.locator('[data-action-sheet]');

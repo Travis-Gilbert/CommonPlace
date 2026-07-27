@@ -5,6 +5,9 @@ export interface HarnessPrincipal {
   readonly tenant: string;
   readonly githubLogin: string;
   readonly harnessIdentity: string;
+  readonly workspaceId?: string;
+  readonly workspaceSlug?: string;
+  readonly scopeRef?: string;
 }
 
 export function principalFromSession(session: Session | null): HarnessPrincipal | null {
@@ -43,6 +46,31 @@ export function configuredServiceTenantMatches(
 ): boolean {
   const configured = typeof configuredTenant === 'string' ? configuredTenant.trim() : '';
   return Boolean(configured && configured.toLowerCase() === principal.tenant.toLowerCase());
+}
+
+export function principalScopeHeaders(principal: HarnessPrincipal): Record<string, string> {
+  return {
+    'x-theorem-tenant': principal.tenant,
+    'x-tenant-id': principal.tenant,
+    'x-theorem-principal': principal.harnessIdentity,
+    ...(principal.workspaceId
+      ? { 'x-commonplace-workspace': principal.workspaceId }
+      : {}),
+    ...(principal.scopeRef
+      ? { 'x-commonplace-scope-ref': principal.scopeRef }
+      : {}),
+  };
+}
+
+/**
+ * A workspace-bearing principal may use the object seam only after its
+ * consumer verifies both workspaceId and ScopeRef against the selected store.
+ * Headers alone are not an authorization boundary.
+ */
+export function principalRequiresScopedObjectConsumer(
+  principal: HarnessPrincipal,
+): boolean {
+  return Boolean(principal.workspaceId || principal.scopeRef);
 }
 
 /** Keep tenant-scoped run ledger entries. Entries without a nested scope are

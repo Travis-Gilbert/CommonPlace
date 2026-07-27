@@ -261,13 +261,14 @@ export function createSearchStackController(
         return;
       }
       let originPromise: Promise<void> | null = null;
-      if (context.sessionId && context.recordOrigin && origin) {
-        originPromise = context.recordOrigin(context.sessionId, {
-            kind: 'constellation',
-            subgraphRef: origin,
-            query: snapshot.query,
-            nodeId: node.id,
-          });
+      const { recordOrigin, sessionId } = context;
+      if (sessionId && recordOrigin && origin) {
+        originPromise = Promise.resolve().then(() => recordOrigin(sessionId, {
+          kind: 'constellation',
+          subgraphRef: origin,
+          query: snapshot.query,
+          nodeId: node.id,
+        }));
       }
       const [openResult, originResult] = await Promise.allSettled([
         openPromise,

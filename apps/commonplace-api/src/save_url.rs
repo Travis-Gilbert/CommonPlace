@@ -228,6 +228,7 @@ where
         task: None,
         remind_at_ms: None,
         due_at_ms: None,
+        provenance: None,
     };
     let receipt = IngestPipeline::default()
         .ingest(cp, input)

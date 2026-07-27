@@ -41,8 +41,9 @@ pub use portability::{
     export, export_json, export_markdown, import, ExportDocument, ImportSummary, EXPORT_VERSION,
 };
 pub use retrieve::{
-    answer_model_from_env, ask, AnswerKind, AnswerModel, AskConfig, AskResult,
-    LocalOpenAiAnswerModel, NoModel, RetrievedItem,
+    answer_model_from_env, ask, retrieve_grounding_measured, AnswerKind, AnswerModel, AskConfig,
+    AskResult, GroundingResult, LocalOpenAiAnswerModel, NoModel, PprExpansionMeasurement,
+    RetrievedItem,
 };
 pub use salience::{
     salience, salience_cached, CacheStatus, SalienceAnchor, SalienceCache, SalienceCandidate,
@@ -52,8 +53,8 @@ pub use schema::{
     build_schema, build_schema_with_model, AnswerKindGql, ApiStore, AskResultGql, BriefingGql,
     CandidateLinkGql, CollectionGql, ConnectedItemGql, ConsumerSchema, DurableSchema,
     DurableShared, EmbeddingSpaceGql, EmbeddingSpaceRowGql, ExportFormat, ImportResultGql,
-    InMemoryShared, IngestInputGql, ItemGql, Mutation, ProvenanceGql, Query, SearchHitGql,
-    SharedStore, VectorNeighborGql,
+    InMemoryShared, IngestInputGql, ItemGql, Mutation, PprExpansionMeasurementGql, ProvenanceGql,
+    Query, SearchHitGql, SharedStore, VectorNeighborGql,
 };
 pub use serve::{build_router_with_model, run_from_env, serve_loopback, serve_loopback_with_ready};
 

@@ -5,6 +5,8 @@ import {
   filterRunsForTenant,
   legacyServicePrincipal,
   principalFromSession,
+  principalRequiresScopedObjectConsumer,
+  principalScopeHeaders,
 } from './harness-principal-core';
 
 function session(githubLogin?: string, harnessIdentity?: string): Session {
@@ -69,5 +71,42 @@ describe('Harness principal resolution', () => {
       { run_id: 'a', status: 'running' },
       { run_id: 'b', status: 'done', scope: { tenant } },
     ]);
+  });
+
+  it('adds workspace and ScopeRef headers only for an active membership', () => {
+    expect(principalScopeHeaders({
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'second-user',
+      harnessIdentity: 'github:2',
+      workspaceId: 'workspace-42',
+      workspaceSlug: 'research',
+      scopeRef: 'workspace:workspace-42',
+    })).toEqual({
+      'x-theorem-tenant': 'Travis-Gilbert',
+      'x-tenant-id': 'Travis-Gilbert',
+      'x-theorem-principal': 'github:2',
+      'x-commonplace-workspace': 'workspace-42',
+      'x-commonplace-scope-ref': 'workspace:workspace-42',
+    });
+    expect(principalScopeHeaders({
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'Travis-Gilbert',
+      harnessIdentity: 'github:1',
+    })).not.toHaveProperty('x-commonplace-scope-ref');
+  });
+
+  it('requires an enforcing consumer for every workspace-bearing principal', () => {
+    expect(principalRequiresScopedObjectConsumer({
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'second-user',
+      harnessIdentity: 'github:2',
+      workspaceId: 'workspace-42',
+      scopeRef: 'workspace:workspace-42',
+    })).toBe(true);
+    expect(principalRequiresScopedObjectConsumer({
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'Travis-Gilbert',
+      harnessIdentity: 'service:commonplace-console:Travis-Gilbert',
+    })).toBe(false);
   });
 });

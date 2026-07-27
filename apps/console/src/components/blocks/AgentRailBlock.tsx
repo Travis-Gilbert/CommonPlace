@@ -5,14 +5,13 @@
 // carries the run, its artifacts, the objects it touched, and the inspector
 // ledger. Other hosts may opt into the runtime Composer explicitly.
 
-import { useEffect, useRef, useState } from 'react';
+import type { ChatArtifactPayload } from '@/lib/chat/project-types';
+import type { ContextEntry } from '@/lib/chat/context-types';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { BlockShell } from '@/components/block/BlockShell';
 import { Composer } from '@/components/chat/RuntimeComposer';
+import { useEffect, useRef, useState } from 'react';
 import { useThreadStore, type AgentPlanStep } from '@/lib/thread-store';
-import { markViewDirty } from '@/lib/surface-object';
-import type { ChatArtifactPayload } from '@/lib/chat/project-types';
-import type { ContextEntry } from '@/lib/chat/context-types';
 
 type StepTone = AgentPlanStep['status'] | 'awaiting' | 'failed' | 'done';
 
@@ -114,7 +113,6 @@ export function AgentRailBlock({
 
   const openCanvas = () => {
     onOpenPlanInCanvas?.();
-    markViewDirty('view-chat');
   };
 
   const included = contextEntries.filter((entry) => entry.included !== false);

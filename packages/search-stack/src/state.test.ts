@@ -126,18 +126,27 @@ describe('search stack controller', () => {
     const scene = constellationStateOf(store.getSnapshot());
     if (scene.kind !== 'success') throw new Error('expected scene');
     const calls: string[] = [];
+    let releaseOpen!: () => void;
+    const openPending = new Promise<void>((resolve) => {
+      releaseOpen = resolve;
+    });
 
-    await store.openNode(scene.payload.nodes[0], {
+    const opening = store.openNode(scene.payload.nodes[0], {
       sessionId: 'session-1',
       open: async () => {
         calls.push('open');
+        await openPending;
       },
       recordOrigin: async () => {
         calls.push('origin');
       },
     });
 
+    expect(calls).toEqual(['open']);
+    await Promise.resolve();
     expect(calls).toEqual(['open', 'origin']);
+    releaseOpen();
+    await opening;
   });
 
   it('opens the page but surfaces a refused origin write', async () => {
@@ -157,6 +166,25 @@ describe('search stack controller', () => {
     expect(open).toHaveBeenCalledTimes(1);
     expect(store.getSnapshot().error).toContain('without a durable search origin');
     expect(store.getSnapshot().error).toContain('identity refused');
+  });
+
+  it('surfaces a synchronous refused origin write as a settled failure', async () => {
+    const store = createSearchStackController({ client });
+    await store.submit('membrane');
+    await store.selectAspect('aspect-budget');
+    const scene = constellationStateOf(store.getSnapshot());
+    if (scene.kind !== 'success') throw new Error('expected scene');
+    const open = vi.fn(async () => undefined);
+    await store.openNode(scene.payload.nodes[0], {
+      sessionId: 'session-1',
+      open,
+      recordOrigin: () => {
+        throw new Error('identity synchronously refused');
+      },
+    });
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot().error).toContain('without a durable search origin');
+    expect(store.getSnapshot().error).toContain('identity synchronously refused');
   });
 
   it('reopens without clearing the session state', async () => {

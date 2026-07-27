@@ -9,6 +9,7 @@ import { createViewInstanceAction } from '@commonplace/block-view/surface-action
 import { placeBlockAction } from '@/lib/block-placement';
 import type { ChatArtifactPayload } from '@/lib/chat/project-types';
 import { readLastConsoleViewPath } from '@/lib/chat/last-console-view';
+import { pathForSurfaceId, surfaceIdForPath } from '@/lib/surface-routes';
 import { cn } from '@/lib/cn';
 
 export interface ArtifactPartProps {
@@ -79,10 +80,10 @@ export function ArtifactPart({ host, artifact, onPromoted }: ArtifactPartProps) 
         ? layoutHost.queryLayout({ types: ['surface', 'region', 'view-instance'], live: true })
         : await host.query({ types: ['surface', 'region', 'view-instance'], live: true });
       const lastPath = readLastConsoleViewPath();
-      const slug = lastPath.replace(/^\/v\//, '').replace(/^\//, '') || 'workspace';
+      const routedSurfaceId = surfaceIdForPath(lastPath);
       const surfaces = layout.objects.filter((object: ObjectRef) => object.type === 'surface');
       const surface =
-        surfaces.find((candidate: ObjectRef) => candidate.id === slug || candidate.id === `view-${slug}` || candidate.id === `console-${slug}`)
+        surfaces.find((candidate: ObjectRef) => candidate.id === routedSurfaceId)
         ?? surfaces.find((candidate: ObjectRef) => candidate.properties.active === true)
         ?? surfaces[0];
       if (!surface) return;
@@ -112,7 +113,7 @@ export function ArtifactPart({ host, artifact, onPromoted }: ArtifactPartProps) 
       })) {
         await host.emit(action);
       }
-      const path = `/v/${encodeURIComponent(String(surface.properties.slug ?? surface.id.replace(/^view-/, '').replace(/^console-/, '')))}`;
+      const path = pathForSurfaceId(surface.id) ?? '/workspace';
       onPromoted?.(path);
       if (typeof window !== 'undefined') window.location.assign(path);
     } finally {

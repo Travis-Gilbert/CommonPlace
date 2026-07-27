@@ -17,22 +17,15 @@ const COLLECTION_ROUTES = deriveLayoutCollections().map((collection) => ({
   tier: 'collection' as const,
 }));
 
-/** Extra App Router segments and /v/* aliases for seed-view URLs (CS8/CS11).
- *  Launch places already own `/chat`, `/indexer`, `/filing`, `/workspace`,
- *  `/models` via PLACE_ENTRIES (rich `console-*` surfaces). `/chat` remains the
- *  Chat page route (SPEC-COMMONPLACE-CHAT-PAGE-1.0); `/v/chat` is a seed alias. */
-const ALIAS_ROUTES = [
-  { kind: 'chat', path: '/v/chat', surfaceId: 'console-chat', tier: 'place' as const },
-  { kind: 'survey', path: '/v/researcher', surfaceId: 'console-survey', tier: 'place' as const },
-  { kind: 'index', path: '/v/index', surfaceId: 'console-index', tier: 'place' as const },
-  { kind: 'workspace', path: '/v/editor', surfaceId: 'console-workspace', tier: 'place' as const },
-  { kind: 'model', path: '/v/data-model', surfaceId: 'console-models', tier: 'place' as const },
+/** Secondary page-owned routes that are not launch places or collections. */
+const AUXILIARY_ROUTES = [
   { kind: 'canvas', path: '/canvas', surfaceId: 'console-canvas', tier: 'place' as const },
   { kind: 'automation', path: '/automation', surfaceId: 'console-automation', tier: 'place' as const },
+  { kind: 'appearance', path: '/appearance', surfaceId: 'console-appearance', tier: 'place' as const },
 ] as const;
 
-/** Surfaces that own an App Router segment (launch places + aliases + collections). */
-export const SURFACE_ROUTES = [...PLACE_ROUTES, ...ALIAS_ROUTES, ...COLLECTION_ROUTES] as const;
+/** Surfaces composed by an App Router page. Blocks never own these routes. */
+export const SURFACE_ROUTES = [...PLACE_ROUTES, ...AUXILIARY_ROUTES, ...COLLECTION_ROUTES] as const;
 
 export type SurfaceRouteKind = (typeof SURFACE_ROUTES)[number]['kind'];
 
@@ -47,6 +40,10 @@ export function surfaceIdForPath(pathname: string): string | null {
 
 export function kindForSurfaceId(surfaceId: string): string | null {
   return SURFACE_ROUTES.find((route) => route.surfaceId === surfaceId)?.kind ?? null;
+}
+
+export function pathForSurfaceId(surfaceId: string): string | null {
+  return SURFACE_ROUTES.find((route) => route.surfaceId === surfaceId)?.path ?? null;
 }
 
 export function tierForSurfaceId(surfaceId: string): 'place' | 'collection' | null {

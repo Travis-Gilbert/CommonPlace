@@ -19,7 +19,10 @@ import {
   PLACE_ENTRIES,
   type BlockPaletteItem,
 } from '@/lib/rail/rail-model';
-import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
+import {
+  ACCOUNT_SURFACE_ID,
+  CONSOLE_DATA_SURFACE_ID,
+} from '@/lib/workspace-seed';
 import {
   deriveLabel,
   hostPropsToNavItem,
@@ -361,7 +364,14 @@ export function Sidebar({
     ?? session?.user?.email
     ?? 'anonymous';
   const navigationObjects = useNavigationObjectItems(host, viewerUserId);
-  const blockPalette = deriveBlockPaletteItems(CONSOLE_VIEW_REGISTRY.descriptors);
+  const consoleDataInstalled = surfaces.some(
+    (surface) => surface.id === CONSOLE_DATA_SURFACE_ID,
+  );
+  const blockPalette = deriveBlockPaletteItems(CONSOLE_VIEW_REGISTRY.descriptors)
+    .filter(
+      (item) =>
+        item.descriptorId !== 'commonplace.console' || consoleDataInstalled,
+    );
   const initials = (session?.user?.name ?? session?.user?.githubLogin ?? 'CP')
     .split(/\s+/)
     .map((part) => part.charAt(0))

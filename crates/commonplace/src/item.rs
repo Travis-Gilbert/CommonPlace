@@ -294,10 +294,13 @@ impl Item {
         self
     }
 
-    /// Stamp the source record this item came from (A3). Also sets `source` to
-    /// the ref's source, since a source record always implies its source.
+    /// Stamp the source record this item came from (A3). When no explicit
+    /// `source` was set, reuse the ref's source; otherwise preserve the caller's
+    /// display/source lane and only record the stable ref.
     pub fn with_source_ref(mut self, source_ref: SourceRef) -> Self {
-        self.source = Some(source_ref.source.clone());
+        if self.source.is_none() {
+            self.source = Some(source_ref.source.clone());
+        }
         self.source_ref = Some(source_ref);
         self
     }

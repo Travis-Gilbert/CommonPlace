@@ -7,7 +7,7 @@
 // --ij-popover-shadow for popovers and gives resting panels their depth from
 // the ladder and their boundaries from seams instead.
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import type { FilingReceipt, IndexCollection } from '@/lib/filing/types';
 import { attributionSentence, FILING_LAW, tierLabel } from '@/lib/filing/types';
@@ -21,16 +21,21 @@ const LAW_SEEN_KEY = 'commonplace.console.filing.law.v1';
 // promised to appear once appears once per item. The subscriber set is the
 // smallest thing that makes one dismissal reach every mounted popover.
 const lawSubscribers = new Set<() => void>();
+let lawSeenSnapshot: boolean | undefined;
+const openReceiptSubscribers = new Set<() => void>();
+let openReceiptSnapshot: string | null = null;
 
 function readLawSeen(): boolean {
+  if (lawSeenSnapshot !== undefined) return lawSeenSnapshot;
   try {
     // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
-    return window.localStorage.getItem(LAW_SEEN_KEY) === 'seen';
+    lawSeenSnapshot = window.localStorage.getItem(LAW_SEEN_KEY) === 'seen';
   } catch {
     // A browser that refuses storage gets the line every time rather than
     // never: the line is reassurance, and losing it is the worse failure.
-    return false;
+    lawSeenSnapshot = false;
   }
+  return lawSeenSnapshot;
 }
 
 function markLawSeen() {
@@ -40,6 +45,7 @@ function markLawSeen() {
   } catch {
     // Nothing to persist: the line simply reappears next session.
   }
+  lawSeenSnapshot = true;
   for (const notify of lawSubscribers) notify();
 }
 
@@ -60,6 +66,41 @@ function useFirstUseLaw(): { readonly show: boolean; readonly dismiss: () => voi
   return { show: !seen, dismiss };
 }
 
+function subscribeOpenReceipt(onStoreChange: () => void): () => void {
+  openReceiptSubscribers.add(onStoreChange);
+  return () => {
+    openReceiptSubscribers.delete(onStoreChange);
+  };
+}
+
+function setOpenReceipt(receiptId: string, open: boolean) {
+  const next = open ? receiptId : openReceiptSnapshot === receiptId ? null : openReceiptSnapshot;
+  if (next === openReceiptSnapshot) return;
+  openReceiptSnapshot = next;
+  for (const notify of openReceiptSubscribers) notify();
+}
+
+/** Virtual rows may be replaced while their receipt is open. The open receipt
+ *  is session-local, but shared across row instances so that replacement does
+ *  not turn a visible explanation into a closed one. */
+function useOpenReceipt(receiptId: string): {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+} {
+  const activeReceipt = useSyncExternalStore(
+    subscribeOpenReceipt,
+    () => openReceiptSnapshot,
+    () => null,
+  );
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      setOpenReceipt(receiptId, open);
+    },
+    [receiptId],
+  );
+  return { open: activeReceipt === receiptId, onOpenChange };
+}
+
 export interface FilingReceiptPopoverProps {
   readonly receipt: FilingReceipt;
   readonly collections: readonly IndexCollection[];
@@ -76,10 +117,10 @@ export function FilingReceiptPopover({
   onCorrect,
 }: FilingReceiptPopoverProps) {
   const { show: showLaw, dismiss: dismissLaw } = useFirstUseLaw();
-  const [open, setOpen] = useState<boolean>(false);
+  const { open, onOpenChange } = useOpenReceipt(receipt.item);
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root open={open} onOpenChange={onOpenChange}>
       <Popover.Trigger asChild>
         <button
           type="button"
@@ -153,7 +194,7 @@ export function FilingReceiptPopover({
               onChange={(event) => {
                 if (event.target.value !== receipt.destination) {
                   onCorrect(event.target.value);
-                  setOpen(false);
+                  onOpenChange(false);
                 }
               }}
               className="mt-1 h-ij-control w-full rounded-ij-arc border border-ij-control-border bg-ij-chrome px-2 text-ij-ink"

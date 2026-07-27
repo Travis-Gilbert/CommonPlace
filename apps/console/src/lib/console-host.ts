@@ -43,8 +43,6 @@ import {
   projectAutomationHistory,
 } from './automation-history-projection';
 import { fetchStatus } from './harness-ux';
-
-import { mergeSeedViews } from './seed-views';
 import { seedSurveyObjects } from './surveySeed';
 import {
   filterIndexerObjects,
@@ -87,6 +85,38 @@ const LEGACY_CONSOLE_LAYOUT_IDS = [
   'console-data.region-editor',
   'console-data.vi-pane',
 ] as const;
+
+
+const RETIRED_SEED_VIEW_ROOTS = [
+  'view-chat',
+  'view-researcher',
+  'view-index',
+  'view-editor',
+  'view-data-model',
+] as const;
+
+export function isRetiredSeedViewObject(id: string): boolean {
+  return RETIRED_SEED_VIEW_ROOTS.some((root) => id === root || id.startsWith(`${root}.`));
+}
+
+export function retireSeedViewObjects(objects: readonly ObjectRef[]): ObjectRef[] {
+  return objects
+    .filter((object) => !isRetiredSeedViewObject(object.id))
+    .map((object) => {
+      const children = object.relations?.[CONTAINS_EDGE];
+      if (!children?.some(isRetiredSeedViewObject)) return object;
+      return {
+        ...object,
+        relations: {
+          ...(object.relations ?? {}),
+          [CONTAINS_EDGE]: children.filter(
+            (childId) => !isRetiredSeedViewObject(childId),
+          ),
+        },
+      };
+    });
+}
+
 /** Transport health as the host observes it (R2.3 / D5): status plus the
  *  named error body when the upstream refused with a JSON reason. */
 export type TransportObserver = (status: number | null, error?: string | null) => void;
@@ -239,6 +269,9 @@ export class ConsoleBlockHost implements BlockHost {
 
   private seedLayoutTask: Promise<void> | null = null;
 
+
+  private activationWriteQueue: Promise<void> = Promise.resolve();
+
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
     this.records = options.records ?? null;
@@ -295,25 +328,22 @@ export class ConsoleBlockHost implements BlockHost {
 
   private hydrateLayout(): void {
     const restored = readLayoutCache();
-    const seed = mergeSeedViews(seedLayout());
-    const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
-    const objects = needsIaMigration ? seed : (restored ?? seed);
+    const seed = seedLayout();
+    const cleanedRestored = restored ? retireSeedViewObjects(restored) : null;
+    const retiredSeedViews = restored !== null && cleanedRestored?.length !== restored.length;
+    const needsIaMigration =
+      cleanedRestored !== null && !cleanedRestored.some((object) => object.id === 'console-chat');
+    const objects = needsIaMigration ? seed : (cleanedRestored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
-    // Prefer the launch Chat place as the active surface. Sparse CS8 seed
-    // views (view-*) must not steal activation from the rich console places.
     const launchChat = this.layout.get('console-chat');
-    const seedChat = this.layout.get('view-chat');
     if (launchChat) {
       launchChat.properties.active = true;
-      if (seedChat) seedChat.properties.active = false;
-    } else if (seedChat) {
-      seedChat.properties.active = true;
     }
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
     if (restored && !needsIaMigration) {
-      let added = false;
+      let added = retiredSeedViews;
       // Console 1.0 originally seeded the plugin pane unconditionally. Remove
       // that legacy revision so only an authenticated consent receipt can
       // mount the plugin-managed revision 2 surface.
@@ -427,15 +457,11 @@ export class ConsoleBlockHost implements BlockHost {
   /** Drop the persisted arrangement and return to the seed. */
   resetLayout(): void {
     clearLayoutCache();
-    const seed = mergeSeedViews(seedLayout());
+    const seed = seedLayout();
     this.layout = new Map(seed.map((ref) => [ref.id, toMutable(ref)]));
     const launchChat = this.layout.get('console-chat');
-    const seedChat = this.layout.get('view-chat');
     if (launchChat) {
       launchChat.properties.active = true;
-      if (seedChat) seedChat.properties.active = false;
-    } else if (seedChat) {
-      seedChat.properties.active = true;
     }
     this.persistLayout();
     this.notifyLayout();
@@ -515,38 +541,42 @@ export class ConsoleBlockHost implements BlockHost {
   private async ensureSeedLayoutOnce(): Promise<void> {
     try {
       const remote = await this.http.query(LAYOUT_QUERY);
-      const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
-      const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
+      const retiredViewIds = new Set(
+        remote.objects
+          .filter((object) => isRetiredSeedViewObject(object.id))
+          .map((object) => object.id),
+      );
+      const withoutSeedViews = retireSeedViewObjects(remote.objects);
+      const legacyConsole = withoutSeedViews.find(
+        (object) => object.id === CONSOLE_DATA_SURFACE_ID,
+      );
+      const removeLegacyConsole =
+        legacyConsole?.properties.seed_revision === 1 &&
+        legacyConsole.properties.plugin_id !== 'commonplace.console';
+      const retiredIds = new Set<string>([
+        ...retiredViewIds,
+        ...(removeLegacyConsole ? LEGACY_CONSOLE_LAYOUT_IDS : []),
+      ]);
+      const durable = withoutSeedViews
+        .filter((object) => !retiredIds.has(object.id))
+        .map((object) => ({
+          ...object,
+          relations: object.relations
+            ? Object.fromEntries(
+                Object.entries(object.relations).map(([edge, children]) => [
+                  edge,
+                  children.filter((id) => !retiredIds.has(id)),
+                ]),
+              )
+            : undefined,
+        }));
+      const hasPrimarySurface = durable.some((object) => object.id === 'console-chat');
+      const hasLandmarks = durable.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        const legacyConsole = remote.objects.find(
-          (object) => object.id === CONSOLE_DATA_SURFACE_ID,
+        await this.retireRemoteLayoutObjects(
+          remote.objects.filter((object) => retiredIds.has(object.id)),
         );
-        const removeLegacyConsole =
-          legacyConsole?.properties.seed_revision === 1 &&
-          legacyConsole.properties.plugin_id !== 'commonplace.console';
-        if (removeLegacyConsole) {
-          await Promise.all(
-            LEGACY_CONSOLE_LAYOUT_IDS.map((id) => this.http.emit({ kind: 'delete', id })),
-          );
-        }
-        const ids = removeLegacyConsole
-          ? new Set<string>(LEGACY_CONSOLE_LAYOUT_IDS)
-          : new Set<string>();
-        const withoutLegacyConsole = remote.objects
-          .filter((object) => !ids.has(object.id))
-          .map((object) => ({
-            ...object,
-            relations: object.relations
-              ? Object.fromEntries(
-                  Object.entries(object.relations).map(([edge, children]) => [
-                    edge,
-                    children.filter((id) => !ids.has(id)),
-                  ]),
-                )
-              : undefined,
-          }));
-        const migrated = await this.migrateRemoteLayout(withoutLegacyConsole);
-        this.replaceLayout(migrated);
+        this.replaceLayout(durable);
         return;
       }
       await this.pushLayoutToServer();
@@ -555,62 +585,25 @@ export class ConsoleBlockHost implements BlockHost {
     }
   }
 
-  private async migrateRemoteLayout(remoteObjects: readonly ObjectRef[]): Promise<ObjectRef[]> {
-    const remoteIds = new Set(remoteObjects.map((object) => object.id));
-    const localObjects = [...this.layout.values()].map(toRef);
-    const missing = localObjects.filter((object) => !remoteIds.has(object.id));
-    if (missing.length === 0) return [...remoteObjects];
-
-    await Promise.all(
-      missing.map((ref) => {
-        const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
-        return this.http.emit({
-          kind: 'create',
-          type: ref.type,
-          props: {
-            id: ref.id,
-            title,
-            ...ref.properties,
-          },
-        });
-      }),
+  private async retireRemoteLayoutObjects(retired: readonly ObjectRef[]): Promise<void> {
+    const ordered = [...retired].sort(
+      (left, right) => right.id.length - left.id.length,
     );
+    const firstPass = await Promise.all(
+      ordered.map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+    );
+    const retry = ordered.filter((_object, index) => !firstPass[index]?.ok);
+    if (retry.length === 0) return;
 
-    const missingIds = new Set(missing.map((object) => object.id));
-    const moves: Array<Promise<unknown>> = [];
-    for (const parent of localObjects) {
-      const children = parent.relations?.[CONTAINS_EDGE] ?? [];
-      for (let index = 0; index < children.length; index += 1) {
-        const childId = children[index]!;
-        if (!missingIds.has(childId)) continue;
-        moves.push(
-          this.http.emit({
-            kind: 'move',
-            id: childId,
-            new_parent: parent.id,
-            order: index + 1,
-          }),
-        );
-      }
+    const secondPass = await Promise.all(
+      retry.map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+    );
+    const refused = retry.filter((_object, index) => !secondPass[index]?.ok);
+    if (refused.length > 0) {
+      throw new Error(
+        `Retired layout deletion refused for ${refused.map((object) => object.id).join(', ')}`,
+      );
     }
-    await Promise.all(moves);
-
-    const localById = new Map(localObjects.map((object) => [object.id, object]));
-    const migratedRemote = remoteObjects.map((object) => {
-      const local = localById.get(object.id);
-      const seededChildren = (local?.relations?.[CONTAINS_EDGE] ?? [])
-        .filter((childId) => missingIds.has(childId));
-      if (seededChildren.length === 0) return object;
-      const remoteChildren = object.relations?.[CONTAINS_EDGE] ?? [];
-      return {
-        ...object,
-        relations: {
-          ...object.relations,
-          [CONTAINS_EDGE]: [...new Set([...remoteChildren, ...seededChildren])],
-        },
-      };
-    });
-    return [...migratedRemote, ...missing];
   }
 
   private async pushLayoutToServer(): Promise<void> {
@@ -1310,6 +1303,4 @@ export class ConsoleBlockHost implements BlockHost {
   viewsFor(shape: ObjectShape): readonly ViewDescriptor[] {
     return this.registry.matchingViews(shape);
   }
-
-  private activationWriteQueue: Promise<void> = Promise.resolve();
 }

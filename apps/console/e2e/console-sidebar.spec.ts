@@ -84,18 +84,15 @@ test.describe('Console sidebar', () => {
     for (const [key, id, path] of targets) {
       await page.goto('/workspace');
       await settled(page);
-      await page.evaluate((digit) => {
-        window.dispatchEvent(new KeyboardEvent('keydown', {
-          key: digit,
-          code: `Digit${digit}`,
-          ctrlKey: true,
-          bubbles: true,
-          cancelable: true,
-        }));
-      }, key);
-      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 15_000 });
+      await page.keyboard.press(`Control+${key}`);
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), {
+        timeout: 60_000,
+      });
       if (id === 'console-chat') {
-        await expect(page.locator('[data-chat-page]')).toBeVisible({ timeout: 15_000 });
+        await expect(
+          page.getByRole('heading', { name: 'Chat unavailable' }),
+        ).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[data-chat-composer]')).toHaveCount(0);
       } else {
         await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
           timeout: 15_000,

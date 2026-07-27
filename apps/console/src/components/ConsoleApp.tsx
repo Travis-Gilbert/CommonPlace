@@ -20,7 +20,6 @@ import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { HostProvider } from '@/lib/commonplace-host/HostProvider';
 import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
-import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
@@ -110,11 +109,10 @@ function connectionFor(
 
 export function ConsoleApp({
   initialProactivity,
-  initialViewId,
+  initialTenant,
 }: {
   initialProactivity?: { readonly graph: ProactivityGraph | null; readonly error: string | null };
-  /** Optional slug or surface id from /v/[viewId]. */
-  initialViewId?: string;
+  initialTenant?: string | null;
 } = {}) {
   // True after hydration only (server snapshot false): the persisted
   // arrangement in localStorage never causes a hydration mismatch.
@@ -132,14 +130,14 @@ export function ConsoleApp({
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
-            // Fixture seam until session tenant resolution wires through: pass
-            // FIXTURE_TENANT explicitly so an omitted tenant cannot share state.
-            proactivityTenant: FIXTURE_TENANT,
+            // The server resolves this from the authenticated principal. Null
+            // refuses local proactivity state instead of sharing a default.
+            proactivityTenant: initialTenant ?? null,
             onTransport: (status, error) =>
               useShellStore.getState().setConnection(connectionFor(status, error)),
           })
         : null,
-    [mounted],
+    [initialTenant, mounted],
   );
 
   const onOpenTarget = useMemo(
@@ -177,29 +175,6 @@ export function ConsoleApp({
     if (initialProactivity.graph) hydrateProactivity(initialProactivity.graph);
     else failProactivity(initialProactivity.error ?? 'server_projection_unavailable');
   }, [failProactivity, hydrateProactivity, initialProactivity]);
-
-  useEffect(() => {
-    if (!host || !initialViewId) return;
-    const slugAliases: Record<string, string> = {
-      chat: 'console-chat',
-      researcher: 'console-survey',
-      index: 'console-index',
-      editor: 'console-workspace',
-      'data-model': 'console-models',
-    };
-    const preferredId = slugAliases[initialViewId];
-    const surfaces = host.queryLayout({ types: ['surface'], live: true }).objects;
-    const match =
-      (preferredId ? surfaces.find((surface) => surface.id === preferredId) : undefined)
-      ?? surfaces.find((surface) => {
-        const slug = surface.properties.slug;
-        return surface.id === initialViewId
-          || surface.id === `console-${initialViewId}`
-          || surface.id === `view-${initialViewId}`
-          || slug === initialViewId;
-      });
-    if (match) void host.activateSurface(match.id);
-  }, [host, initialViewId]);
 
   useEffect(() => {
     if (!host) return;

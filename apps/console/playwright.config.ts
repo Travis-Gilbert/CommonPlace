@@ -1,12 +1,23 @@
 import { defineConfig } from '@playwright/test';
 
-const stubPort = Number(process.env.STUB_DATA_API_PORT ?? 50591);
+const portSeed = process.pid % 10_000;
+const stubPort = Number(process.env.STUB_DATA_API_PORT ?? 40_000 + portSeed);
+const consolePort = Number(process.env.CONSOLE_E2E_PORT ?? 30_000 + portSeed);
 const stubOrigin = `http://localhost:${stubPort}`;
+const consoleOrigin = `http://localhost:${consolePort}`;
+const reuseServers = process.env.PLAYWRIGHT_REUSE_SERVERS === '1';
+
+// Tests call the stub directly for fixture setup. Publish the selected port to
+// worker processes so the fixture and the Console proxy always share one fresh
+// upstream instead of attaching to mutable state from an older test run.
+process.env.STUB_DATA_API_PORT = String(stubPort);
+process.env.CONSOLE_E2E_PORT = String(consolePort);
 
 // The visual gate baseline (G8): captures at 1280 and 1440 on dark, plus the
 // reduced-motion pass. Snapshots block merge through console-ci.yml.
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   timeout: 120000,
   retries: 0,
   // The deterministic upstream fixture is mutable and serves multi-megabyte
@@ -15,7 +26,7 @@ export default defineConfig({
   workers: 1,
   use: {
     colorScheme: 'dark',
-    baseURL: 'http://localhost:3010',
+    baseURL: consoleOrigin,
   },
   expect: {
     toHaveScreenshot: {
@@ -33,13 +44,13 @@ export default defineConfig({
       // e2e exercises the real browser -> proxy -> upstream wire.
       command: 'node e2e/stub-data-api.mjs',
       port: stubPort,
-      reuseExistingServer: true,
+      reuseExistingServer: reuseServers,
       timeout: 30000,
     },
     {
-      command: 'npm run dev',
-      url: 'http://localhost:3010/workspace',
-      reuseExistingServer: true,
+      command: `pnpm exec next dev --webpack --port ${consolePort}`,
+      url: `${consoleOrigin}/workspace`,
+      reuseExistingServer: reuseServers,
       timeout: 120000,
       env: {
         AUTH_SECRET: 'console-e2e-secret-not-for-production',

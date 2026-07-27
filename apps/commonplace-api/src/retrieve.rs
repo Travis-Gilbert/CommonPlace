@@ -5,7 +5,7 @@
 //! reciprocal-rank fusion (RRF):
 //! - vector: the substrate's embedding index (via the F2 ingest pipeline's search);
 //! - lexical: an in-crate idf-weighted token-overlap scorer over item text;
-//! - graph: relevance propagation over the F2 `SIMILAR_TO` edges from the
+//! - graph: personalized PageRank over the F2 `SIMILAR_TO` graph from the
 //!   strongest vector/lexical seeds.
 //!
 //! The answer itself comes from an [`AnswerModel`] seam; with no model configured
@@ -15,18 +15,18 @@
 //! seam.
 //!
 //! Scope notes (surfaced): the lexical arm is an in-crate scorer, not the core
-//! `FullTextIndex`/tantivy backend (the native-FTS upgrade path); the graph arm
-//! is `SIMILAR_TO` propagation, not full personalized PageRank (the PPR upgrade
-//! path). Both are named follow-ups; the seam and fusion are real.
+//! `FullTextIndex`/tantivy backend (the native-FTS upgrade path). The graph arm
+//! uses core personalized PageRank today and reports how many candidates it
+//! adds beyond the flat vector-plus-lexical candidate set.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
 use commonplace::{
     BlobStore, Commonplace, EmbeddingGraphStore, IngestPipeline, Item, ItemBody, SIMILAR_TO_EDGE,
 };
-use rustyred_thg_core::{GraphStoreResult, NeighborQuery};
+use rustyred_thg_core::{personalized_pagerank, GraphStoreResult, NeighborQuery};
 use serde_json::{json, Value};
 
 const DEFAULT_LOCAL_OPENAI_CHAT_URL: &str = "http://127.0.0.1:8080/v1/chat/completions";
@@ -34,6 +34,26 @@ const DEFAULT_GEMMA_MODEL: &str = "gemma-4-12b-it-q4";
 const DEFAULT_MODEL_TIMEOUT_SECS: u64 = 90;
 const DEFAULT_MODEL_MAX_TOKENS: u32 = 700;
 const DEFAULT_MODEL_TEMPERATURE: f32 = 0.2;
+const GRAPH_PROJECTION_NODE_FACTOR: usize = 8;
+const GRAPH_PROJECTION_EDGE_FACTOR: usize = 32;
+
+#[derive(Clone, Copy, Debug)]
+struct SimilarityProjectionBudget {
+    node_limit: usize,
+    edge_limit: usize,
+}
+
+impl SimilarityProjectionBudget {
+    fn for_pool(pool: usize, seed_count: usize) -> Self {
+        Self {
+            node_limit: seed_count
+                .saturating_add(pool.saturating_mul(GRAPH_PROJECTION_NODE_FACTOR))
+                .max(seed_count)
+                .max(1),
+            edge_limit: pool.saturating_mul(GRAPH_PROJECTION_EDGE_FACTOR).max(1),
+        }
+    }
+}
 
 /// One retrieved item with its fused score and the arms that surfaced it.
 #[derive(Clone, Debug)]
@@ -41,6 +61,26 @@ pub struct RetrievedItem {
     pub item: Item,
     pub score: f64,
     pub arms: Vec<String>,
+}
+
+/// A measurable comparison between flat retrieval and graph expansion.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PprExpansionMeasurement {
+    /// Unique vector and lexical seeds supplied to personalized PageRank.
+    pub seed_count: usize,
+    /// Unique candidates found by vector and lexical retrieval before graph expansion.
+    pub flat_candidate_count: usize,
+    /// Ranked non-seed candidates returned by personalized PageRank.
+    pub ppr_candidate_count: usize,
+    /// PPR candidates absent from the flat vector-plus-lexical candidate set.
+    pub ppr_only_candidate_count: usize,
+}
+
+/// Grounding provenance together with its graph-expansion measurement.
+#[derive(Clone, Debug)]
+pub struct GroundingResult {
+    pub provenance: Vec<RetrievedItem>,
+    pub ppr_expansion: PprExpansionMeasurement,
 }
 
 /// How the answer was produced.
@@ -57,6 +97,7 @@ pub struct AskResult {
     pub answer: String,
     pub answer_kind: AnswerKind,
     pub provenance: Vec<RetrievedItem>,
+    pub ppr_expansion: PprExpansionMeasurement,
 }
 
 /// The answer-synthesis seam. A generative model implements this; the default
@@ -230,8 +271,10 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let provenance = retrieve_grounding(cp, question, config)?;
-    Ok(answer_from_provenance(model, question, provenance))
+    let grounding = retrieve_grounding_measured(cp, question, config)?;
+    let mut result = answer_from_provenance(model, question, grounding.provenance);
+    result.ppr_expansion = grounding.ppr_expansion;
+    Ok(result)
 }
 
 /// Retrieve the grounding set for a question without running answer synthesis.
@@ -240,6 +283,19 @@ pub fn retrieve_grounding<S, B>(
     question: &str,
     config: &AskConfig,
 ) -> GraphStoreResult<Vec<RetrievedItem>>
+where
+    S: EmbeddingGraphStore,
+    B: BlobStore,
+{
+    Ok(retrieve_grounding_measured(cp, question, config)?.provenance)
+}
+
+/// Retrieve grounding plus an explicit flat-versus-PPR comparison.
+pub fn retrieve_grounding_measured<S, B>(
+    cp: &Commonplace<S, B>,
+    question: &str,
+    config: &AskConfig,
+) -> GraphStoreResult<GroundingResult>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
@@ -256,10 +312,20 @@ where
     let lexical = lexical_rank(question, &items, config.pool);
 
     // Arm 3: graph propagation over SIMILAR_TO from the strongest seeds.
-    let mut seeds: Vec<String> = Vec::new();
-    seeds.extend(vector.iter().take(config.graph_seeds).cloned());
-    seeds.extend(lexical.iter().take(config.graph_seeds).cloned());
-    let graph = graph_rank(cp, &seeds, config.pool);
+    let vector_seeds: Vec<String> = vector.iter().take(config.graph_seeds).cloned().collect();
+    let lexical_seeds: Vec<String> = lexical.iter().take(config.graph_seeds).cloned().collect();
+    let seeds: Vec<String> = vector_seeds
+        .iter()
+        .chain(lexical_seeds.iter())
+        .cloned()
+        .collect();
+    let graph = graph_rank(cp, &[&vector_seeds, &lexical_seeds], config.pool);
+    let flat_candidates: Vec<&str> = vector
+        .iter()
+        .chain(lexical.iter())
+        .map(String::as_str)
+        .collect();
+    let ppr_expansion = measure_ppr_expansion(&seeds, &flat_candidates, &graph);
 
     // Reciprocal-rank fusion of the three ranked lists.
     let mut fused: HashMap<String, (f64, Vec<String>)> = HashMap::new();
@@ -294,7 +360,10 @@ where
         }
     }
 
-    Ok(provenance)
+    Ok(GroundingResult {
+        provenance,
+        ppr_expansion,
+    })
 }
 
 /// Synthesize an ask result from already-retrieved provenance.
@@ -316,6 +385,7 @@ pub fn answer_from_provenance(
         answer,
         answer_kind,
         provenance,
+        ppr_expansion: PprExpansionMeasurement::default(),
     }
 }
 
@@ -388,29 +458,31 @@ fn lexical_rank(question: &str, items: &[Item], pool: usize) -> Vec<String> {
     scored.into_iter().map(|(id, _)| id).collect()
 }
 
-fn graph_rank<S, B>(cp: &Commonplace<S, B>, seeds: &[String], pool: usize) -> Vec<String>
+fn graph_rank<S, B>(cp: &Commonplace<S, B>, seed_arms: &[&[String]], pool: usize) -> Vec<String>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let mut accumulated: HashMap<String, f64> = HashMap::new();
-    for (rank, seed) in seeds.iter().enumerate() {
-        let weight = 1.0 / (rank as f64 + 1.0);
-        for direction in [
-            NeighborQuery::out(seed).with_edge_type(SIMILAR_TO_EDGE),
-            NeighborQuery::in_(seed).with_edge_type(SIMILAR_TO_EDGE),
-        ] {
-            for hit in cp.store().neighbors(direction) {
-                *accumulated.entry(hit.node_id).or_insert(0.0) += weight;
-            }
-        }
+    if seed_arms.iter().all(|arm| arm.is_empty()) || pool == 0 {
+        return Vec::new();
     }
-    // The graph arm contributes structural signal: drop the seeds themselves so
-    // it surfaces connected-but-not-already-seeded items.
-    for seed in seeds {
-        accumulated.remove(seed);
+
+    let seed_weights = normalized_seed_weights(seed_arms);
+    if seed_weights.is_empty() {
+        return Vec::new();
     }
-    let mut ranked: Vec<(String, f64)> = accumulated.into_iter().collect();
+    let adjacency = seed_reachable_similarity_adjacency(
+        cp,
+        seed_weights.keys(),
+        SimilarityProjectionBudget::for_pool(pool, seed_weights.len()),
+    );
+
+    let seed_ids: HashSet<&str> = seed_weights.keys().map(String::as_str).collect();
+    let mut ranked: Vec<(String, f64)> =
+        personalized_pagerank(&adjacency, &seed_weights, 0.15, 1e-6, 100_000)
+            .into_iter()
+            .filter(|(id, score)| !seed_ids.contains(id.as_str()) && *score > 0.0)
+            .collect();
     ranked.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
             .unwrap_or(std::cmp::Ordering::Equal)
@@ -418,6 +490,117 @@ where
     });
     ranked.truncate(pool);
     ranked.into_iter().map(|(id, _)| id).collect()
+}
+
+fn seed_reachable_similarity_adjacency<'a, S, B>(
+    cp: &Commonplace<S, B>,
+    seeds: impl Iterator<Item = &'a String>,
+    budget: SimilarityProjectionBudget,
+) -> HashMap<String, Vec<(String, f64)>>
+where
+    S: EmbeddingGraphStore,
+    B: BlobStore,
+{
+    let mut seed_ids: Vec<String> = seeds.cloned().collect();
+    seed_ids.sort();
+    seed_ids.dedup();
+    let mut pending: VecDeque<String> = seed_ids.iter().cloned().collect();
+    let mut admitted_nodes: HashSet<String> = seed_ids.into_iter().collect();
+    let mut visited_nodes = HashSet::new();
+    let mut visited_edges = HashSet::new();
+    let mut admitted_edge_count = 0_usize;
+    let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+    let node_limit = budget.node_limit.max(admitted_nodes.len());
+
+    'projection: while let Some(node_id) = pending.pop_front() {
+        if !visited_nodes.insert(node_id.clone()) {
+            continue;
+        }
+
+        for query in [
+            NeighborQuery::out(&node_id).with_edge_type(SIMILAR_TO_EDGE),
+            NeighborQuery::in_(&node_id).with_edge_type(SIMILAR_TO_EDGE),
+        ] {
+            let mut hits: Vec<_> = cp.store().neighbors(query).into_iter().collect();
+            hits.sort_by(|left, right| left.edge_id.cmp(&right.edge_id));
+            for hit in hits {
+                if admitted_edge_count >= budget.edge_limit {
+                    break 'projection;
+                }
+                if !visited_edges.insert(hit.edge_id.clone()) {
+                    continue;
+                }
+                let Some(edge) = cp.store().get_edge(&hit.edge_id) else {
+                    continue;
+                };
+                let weight = edge
+                    .confidence
+                    .or_else(|| edge.properties.get("score").and_then(Value::as_f64))
+                    .unwrap_or(1.0);
+                if !weight.is_finite() || weight <= 0.0 {
+                    continue;
+                }
+                let new_endpoints = [&edge.from_id, &edge.to_id]
+                    .into_iter()
+                    .filter(|id| !admitted_nodes.contains(id.as_str()))
+                    .count();
+                if admitted_nodes.len().saturating_add(new_endpoints) > node_limit {
+                    continue;
+                }
+
+                adjacency
+                    .entry(edge.from_id.clone())
+                    .or_default()
+                    .push((edge.to_id.clone(), weight));
+                adjacency
+                    .entry(edge.to_id.clone())
+                    .or_default()
+                    .push((edge.from_id.clone(), weight));
+                for endpoint in [&edge.from_id, &edge.to_id] {
+                    if admitted_nodes.insert(endpoint.clone()) {
+                        pending.push_back(endpoint.clone());
+                    }
+                }
+                admitted_edge_count += 1;
+            }
+        }
+    }
+
+    adjacency
+}
+
+fn normalized_seed_weights(seed_arms: &[&[String]]) -> HashMap<String, f64> {
+    let mut seed_weights: HashMap<String, f64> = HashMap::new();
+    for arm in seed_arms {
+        for (rank, seed) in arm.iter().enumerate() {
+            *seed_weights.entry(seed.clone()).or_insert(0.0) += 1.0 / (rank as f64 + 1.0);
+        }
+    }
+    let total_seed_weight: f64 = seed_weights.values().sum();
+    if total_seed_weight <= 0.0 {
+        return HashMap::new();
+    }
+    for weight in seed_weights.values_mut() {
+        *weight /= total_seed_weight;
+    }
+    seed_weights
+}
+
+fn measure_ppr_expansion(
+    seeds: &[String],
+    flat_candidates: &[&str],
+    ppr_candidates: &[String],
+) -> PprExpansionMeasurement {
+    let unique_seeds: HashSet<&str> = seeds.iter().map(String::as_str).collect();
+    let unique_flat: HashSet<&str> = flat_candidates.iter().copied().collect();
+    let unique_ppr: HashSet<&str> = ppr_candidates.iter().map(String::as_str).collect();
+
+    PprExpansionMeasurement {
+        seed_count: unique_seeds.len(),
+        flat_candidate_count: unique_flat.len(),
+        ppr_candidate_count: unique_ppr.len(),
+        ppr_only_candidate_count: unique_ppr.difference(&unique_flat).count(),
+    }
 }
 
 fn extractive_answer(provenance: &[RetrievedItem]) -> String {
@@ -572,6 +755,8 @@ fn env_f32(name: &str, default: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use commonplace::InMemoryBlobStore;
+    use rustyred_thg_core::{InMemoryGraphStore, NodeRecord};
     use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
     use std::thread;
@@ -664,5 +849,144 @@ mod tests {
             body.contains("what should answer?"),
             "body should include the question: {body}"
         );
+    }
+
+    #[test]
+    fn ppr_expansion_surfaces_a_two_hop_item_missing_from_flat_top_n() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        let seed = cp
+            .put_item(Item::note(
+                "Seed",
+                "A directly retrieved note about the target question.",
+            ))
+            .unwrap();
+        let bridge = cp
+            .put_item(Item::note(
+                "Bridge",
+                "A structurally related note connecting the seed to hidden evidence.",
+            ))
+            .unwrap();
+        let hidden = cp
+            .put_item(Item::note(
+                "Hidden evidence",
+                "A second-hop passage that flat top-N retrieval did not return.",
+            ))
+            .unwrap();
+        cp.add_similarity(&seed.id, &bridge.id, 0.95).unwrap();
+        cp.add_similarity(&bridge.id, &hidden.id, 0.9).unwrap();
+
+        let seeds = vec![seed.id.clone()];
+        let ppr_candidates = graph_rank(&cp, &[&seeds], 10);
+        let flat_top_n = vec![seed.id.as_str(), bridge.id.as_str()];
+        let measurement = measure_ppr_expansion(&seeds, &flat_top_n, &ppr_candidates);
+
+        assert!(ppr_candidates.contains(&bridge.id));
+        assert!(
+            ppr_candidates.contains(&hidden.id),
+            "PPR should traverse the similarity chain beyond one hop"
+        );
+        assert!(!flat_top_n.contains(&hidden.id.as_str()));
+        assert_eq!(measurement.seed_count, 1);
+        assert_eq!(measurement.flat_candidate_count, 2);
+        assert_eq!(measurement.ppr_candidate_count, 2);
+        assert_eq!(measurement.ppr_only_candidate_count, 1);
+    }
+
+    #[test]
+    fn graph_seed_weights_merge_per_arm_before_duplicate_collapse() {
+        let vector = vec!["seed:a".to_string(), "seed:b".to_string()];
+        let lexical = vec!["seed:a".to_string(), "seed:c".to_string()];
+        let weights = normalized_seed_weights(&[&vector, &lexical]);
+
+        assert!(
+            (weights["seed:b"] - weights["seed:c"]).abs() < 1e-9,
+            "rank-two seeds from separate arms should contribute equally after duplicate collapse"
+        );
+        assert!(weights["seed:a"] > weights["seed:b"]);
+    }
+
+    #[test]
+    fn graph_projection_excludes_similarity_components_unreachable_from_seeds() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        for id in ["seed", "reachable", "unrelated:a", "unrelated:b"] {
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(id, ["Item"], json!({})))
+                .expect("node");
+        }
+        cp.add_similarity("seed", "reachable", 0.9)
+            .expect("reachable edge");
+        cp.add_similarity("unrelated:a", "unrelated:b", 0.8)
+            .expect("unrelated edge");
+
+        let seeds = ["seed".to_string()];
+        let adjacency = seed_reachable_similarity_adjacency(
+            &cp,
+            seeds.iter(),
+            SimilarityProjectionBudget::for_pool(10, seeds.len()),
+        );
+
+        assert_eq!(adjacency.len(), 2);
+        assert!(adjacency.contains_key("seed"));
+        assert!(adjacency.contains_key("reachable"));
+        assert!(!adjacency.contains_key("unrelated:a"));
+        assert!(!adjacency.contains_key("unrelated:b"));
+    }
+
+    #[test]
+    fn graph_projection_obeys_node_and_edge_budgets_on_dense_components() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        cp.store_mut()
+            .upsert_node(NodeRecord::new("seed", ["Item"], json!({})))
+            .expect("seed node");
+        for index in 0..20 {
+            let id = format!("neighbor:{index:02}");
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(&id, ["Item"], json!({})))
+                .expect("neighbor node");
+            cp.add_similarity("seed", &id, 0.9)
+                .expect("similarity edge");
+        }
+
+        let seeds = ["seed".to_string()];
+        let adjacency = seed_reachable_similarity_adjacency(
+            &cp,
+            seeds.iter(),
+            SimilarityProjectionBudget {
+                node_limit: 4,
+                edge_limit: 3,
+            },
+        );
+        let undirected_edges = adjacency.values().map(Vec::len).sum::<usize>() / 2;
+
+        assert!(adjacency.len() <= 4);
+        assert!(undirected_edges <= 3);
+    }
+
+    #[test]
+    fn graph_projection_budget_is_independent_of_seed_iteration_order() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        for id in ["seed:a", "seed:b", "neighbor:a", "neighbor:b"] {
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(id, ["Item"], json!({})))
+                .expect("node");
+        }
+        cp.add_similarity("seed:a", "neighbor:a", 0.9)
+            .expect("first similarity");
+        cp.add_similarity("seed:b", "neighbor:b", 0.9)
+            .expect("second similarity");
+
+        let forward = ["seed:a".to_string(), "seed:b".to_string()];
+        let reverse = ["seed:b".to_string(), "seed:a".to_string()];
+        let budget = SimilarityProjectionBudget {
+            node_limit: 3,
+            edge_limit: 1,
+        };
+
+        let forward_adjacency = seed_reachable_similarity_adjacency(&cp, forward.iter(), budget);
+        let reverse_adjacency = seed_reachable_similarity_adjacency(&cp, reverse.iter(), budget);
+        let undirected_edges = forward_adjacency.values().map(Vec::len).sum::<usize>() / 2;
+
+        assert_eq!(forward_adjacency, reverse_adjacency);
+        assert_eq!(undirected_edges, 1);
     }
 }

@@ -580,6 +580,7 @@ where
         task: None,
         remind_at_ms: None,
         due_at_ms: None,
+        provenance: None,
     };
 
     // Blob captures keep the blob body: content-core extraction (which

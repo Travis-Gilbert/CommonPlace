@@ -24,7 +24,6 @@ use commonplace::{
     annotation_from_item, Anchor, Annotation, AuthorKind, BlobStore, Collection, CollectionKind,
     Commonplace, EmbeddingGraphStore, InMemoryBlobStore, IngestInput, IngestPipeline, Item,
     ItemBody, ItemKind, Residency, Resolution, SourceRef, COLLECTION_LABEL,
-    ITEM_EMBEDDING_PROPERTY,
 };
 use rustyred_thg_core::{
     DiskObjectStore, GraphSnapshotSource, InMemoryGraphStore, NodeQuery, RedCoreGraphStore,
@@ -54,8 +53,8 @@ use crate::portability::{self, ExportDocument};
 use crate::publish;
 use crate::reconstruction;
 use crate::retrieve::{
-    answer_from_provenance, retrieve_grounding, AnswerKind, AnswerModel, AskConfig, AskResult,
-    NoModel, RetrievedItem,
+    answer_from_provenance, retrieve_grounding_measured, AnswerKind, AnswerModel, AskConfig,
+    AskResult, NoModel, PprExpansionMeasurement, RetrievedItem,
 };
 use crate::salience::{salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier};
 use crate::save_url::{save_url as run_save_url, PageSource};
@@ -395,6 +394,49 @@ pub struct VectorNeighborGql {
 
 /// Input for the auto-structuring ingest mutation.
 #[derive(InputObject)]
+pub struct SourceRefInputGql {
+    pub source: String,
+    pub external_id: String,
+}
+
+#[derive(InputObject)]
+pub struct CollectorUploadProvenanceInputGql {
+    pub filename: String,
+    pub media_type: String,
+    pub source: String,
+}
+
+#[derive(InputObject)]
+pub struct CollectorServiceFactsInputGql {
+    pub parser: Option<String>,
+    pub media_type: Option<String>,
+    pub byte_length: Option<i64>,
+    pub page_count: Option<i64>,
+}
+
+#[derive(InputObject)]
+pub struct CollectorDocumentProvenanceInputGql {
+    pub index: i32,
+    pub document_digest: String,
+    pub parser_document_id: Option<String>,
+    pub doc_author: Option<String>,
+    pub description: Option<String>,
+    pub published: Option<String>,
+    pub word_count: Option<i64>,
+    pub token_count_estimate: Option<i64>,
+}
+
+#[derive(InputObject)]
+pub struct CollectorProvenanceInputGql {
+    pub kind: String,
+    pub correlation_id: String,
+    pub upload: CollectorUploadProvenanceInputGql,
+    pub service_facts: CollectorServiceFactsInputGql,
+    pub document: CollectorDocumentProvenanceInputGql,
+}
+
+/// Input for the auto-structuring ingest mutation.
+#[derive(InputObject)]
 pub struct IngestInputGql {
     pub title: String,
     pub text: String,
@@ -402,12 +444,18 @@ pub struct IngestInputGql {
     pub kind: Option<String>,
     pub tags: Option<Vec<String>>,
     pub source: Option<String>,
+    /// Stable collector/source identity. Repeating the same pair updates the
+    /// existing graph item instead of creating a duplicate.
+    pub source_ref: Option<SourceRefInputGql>,
     pub residency: Option<String>,
     /// Explicit reminder instant (epoch ms). Wins over the server-side
     /// natural-language reminder parse (PT-008).
     pub remind_at_ms: Option<i64>,
     /// Explicit due instant (epoch ms).
     pub due_at_ms: Option<i64>,
+    /// Typed source/parser audit trail. The resolver binds it to the
+    /// authenticated API principal and stable source reference before storage.
+    pub provenance: Option<CollectorProvenanceInputGql>,
 }
 
 #[derive(InputObject)]
@@ -543,17 +591,51 @@ impl From<RetrievedItem> for ProvenanceGql {
     }
 }
 
+/// Measured contribution of graph expansion beyond flat retrieval.
+#[derive(SimpleObject)]
+pub struct PprExpansionMeasurementGql {
+    pub seed_count: i32,
+    pub flat_candidate_count: i32,
+    pub ppr_candidate_count: i32,
+    pub ppr_only_candidate_count: i32,
+}
+
+impl TryFrom<PprExpansionMeasurement> for PprExpansionMeasurementGql {
+    type Error = Error;
+
+    fn try_from(measurement: PprExpansionMeasurement) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            seed_count: graphql_int_from_usize(measurement.seed_count, "seed_count")?,
+            flat_candidate_count: graphql_int_from_usize(
+                measurement.flat_candidate_count,
+                "flat_candidate_count",
+            )?,
+            ppr_candidate_count: graphql_int_from_usize(
+                measurement.ppr_candidate_count,
+                "ppr_candidate_count",
+            )?,
+            ppr_only_candidate_count: graphql_int_from_usize(
+                measurement.ppr_only_candidate_count,
+                "ppr_only_candidate_count",
+            )?,
+        })
+    }
+}
+
 /// An answer grounded in the user's items, each traceable to its source.
 #[derive(SimpleObject)]
 pub struct AskResultGql {
     pub answer: String,
     pub answer_kind: AnswerKindGql,
     pub provenance: Vec<ProvenanceGql>,
+    pub ppr_expansion: PprExpansionMeasurementGql,
 }
 
-impl From<AskResult> for AskResultGql {
-    fn from(result: AskResult) -> Self {
-        Self {
+impl TryFrom<AskResult> for AskResultGql {
+    type Error = Error;
+
+    fn try_from(result: AskResult) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
             answer: result.answer,
             answer_kind: AnswerKindGql::from(result.answer_kind),
             provenance: result
@@ -561,7 +643,8 @@ impl From<AskResult> for AskResultGql {
                 .into_iter()
                 .map(ProvenanceGql::from)
                 .collect(),
-        }
+            ppr_expansion: PprExpansionMeasurementGql::try_from(result.ppr_expansion)?,
+        })
     }
 }
 
@@ -992,6 +1075,155 @@ fn principal(ctx: &Context<'_>) -> Result<Principal> {
         .ok_or_else(|| Error::new("invalid API key"))
 }
 
+fn collector_provenance_value(
+    input: &CollectorProvenanceInputGql,
+    authenticated: &Principal,
+    source_ref: Option<&SourceRefInputGql>,
+) -> Result<Value> {
+    if input.kind != "collector" {
+        return Err(Error::new("collector provenance kind must be collector"));
+    }
+    if !valid_correlation_id(&input.correlation_id) {
+        return Err(Error::new("collector provenance correlation id is invalid"));
+    }
+    bounded_text("collector upload filename", &input.upload.filename, 255)?;
+    if input.upload.filename.contains(['/', '\\', '\0']) {
+        return Err(Error::new(
+            "collector upload filename must be a logical basename",
+        ));
+    }
+    bounded_text("collector upload media type", &input.upload.media_type, 255)?;
+    bounded_text("collector upload source", &input.upload.source, 2_048)?;
+    optional_bounded_text(
+        "collector parser",
+        input.service_facts.parser.as_deref(),
+        128,
+    )?;
+    optional_bounded_text(
+        "collector service media type",
+        input.service_facts.media_type.as_deref(),
+        255,
+    )?;
+    non_negative_count("collector byte length", input.service_facts.byte_length)?;
+    non_negative_count("collector page count", input.service_facts.page_count)?;
+
+    if !(0..32).contains(&input.document.index) {
+        return Err(Error::new("collector document index is out of range"));
+    }
+    if !valid_sha256_digest(&input.document.document_digest) {
+        return Err(Error::new("collector document digest is invalid"));
+    }
+    optional_bounded_text(
+        "collector parser document id",
+        input.document.parser_document_id.as_deref(),
+        255,
+    )?;
+    optional_bounded_text(
+        "collector document author",
+        input.document.doc_author.as_deref(),
+        512,
+    )?;
+    optional_bounded_text(
+        "collector document description",
+        input.document.description.as_deref(),
+        2_048,
+    )?;
+    optional_bounded_text(
+        "collector document published",
+        input.document.published.as_deref(),
+        128,
+    )?;
+    non_negative_count("collector word count", input.document.word_count)?;
+    non_negative_count(
+        "collector token count estimate",
+        input.document.token_count_estimate,
+    )?;
+
+    let source_ref = source_ref
+        .ok_or_else(|| Error::new("collector provenance requires a stable source reference"))?;
+    if input.upload.source != source_ref.source
+        || !source_ref
+            .external_id
+            .ends_with(&input.document.document_digest)
+    {
+        return Err(Error::new(
+            "collector provenance does not match the stable source reference",
+        ));
+    }
+
+    Ok(json!({
+        "kind": "collector",
+        "correlationId": input.correlation_id,
+        "assertedBy": {
+            "principalId": authenticated.id,
+            "label": authenticated.label,
+        },
+        "sourceRef": {
+            "source": source_ref.source,
+            "externalId": source_ref.external_id,
+        },
+        "upload": {
+            "filename": input.upload.filename,
+            "mediaType": input.upload.media_type,
+            "source": input.upload.source,
+        },
+        "serviceFacts": {
+            "parser": input.service_facts.parser,
+            "mediaType": input.service_facts.media_type,
+            "byteLength": input.service_facts.byte_length,
+            "pageCount": input.service_facts.page_count,
+        },
+        "document": {
+            "index": input.document.index,
+            "documentDigest": input.document.document_digest,
+            "parserDocumentId": input.document.parser_document_id,
+            "docAuthor": input.document.doc_author,
+            "description": input.document.description,
+            "published": input.document.published,
+            "wordCount": input.document.word_count,
+            "tokenCountEstimate": input.document.token_count_estimate,
+        },
+    }))
+}
+
+fn bounded_text(field: &str, value: &str, max_len: usize) -> Result<()> {
+    if value.trim().is_empty() || value.len() > max_len {
+        return Err(Error::new(format!(
+            "{field} must be non-empty and at most {max_len} bytes"
+        )));
+    }
+    Ok(())
+}
+
+fn optional_bounded_text(field: &str, value: Option<&str>, max_len: usize) -> Result<()> {
+    if let Some(value) = value {
+        bounded_text(field, value, max_len)?;
+    }
+    Ok(())
+}
+
+fn non_negative_count(field: &str, value: Option<i64>) -> Result<()> {
+    if value.is_some_and(|value| value < 0) {
+        return Err(Error::new(format!("{field} must be non-negative")));
+    }
+    Ok(())
+}
+
+fn valid_correlation_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    (8..=128).contains(&bytes.len())
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(byte))
+}
+
+fn valid_sha256_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
+}
+
 /// The retrieval projection cache. Present on every schema built through the
 /// builders below; a schema assembled by hand without one gets a fresh cache
 /// per request rather than a refusal, because a cold cache is correct, just
@@ -1103,22 +1335,8 @@ fn extra_i32(item: &Item, key: &str) -> Option<i32> {
     extra_i64(item, key).map(|value| value as i32)
 }
 
-fn item_embedding(item: &Item) -> Option<Vec<f32>> {
-    if let Some(embedding) = &item.embedding {
-        if !embedding.is_empty() {
-            return Some(embedding.clone());
-        }
-    }
-    let embedding = item.extra.get(ITEM_EMBEDDING_PROPERTY)?.as_array()?;
-    let mut out = Vec::with_capacity(embedding.len());
-    for value in embedding {
-        out.push(value.as_f64()? as f32);
-    }
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
+fn graphql_int_from_usize(value: usize, field: &str) -> Result<i32> {
+    i32::try_from(value).map_err(|_| Error::new(format!("{field} exceeds GraphQL Int range")))
 }
 
 fn embedding_text(item: &Item) -> String {
@@ -1182,7 +1400,7 @@ where
                 continue;
             }
         }
-        let Some(embedding) = item_embedding(&item) else {
+        let Some(embedding) = cp.resolve_item_embedding(&item)? else {
             continue;
         };
         let (x, y) = raw_embedding_projection(&embedding);
@@ -1666,6 +1884,23 @@ where
         Ok(items.into_iter().map(ItemGql::from).collect())
     }
 
+    /// Count items without materializing them into the GraphQL response body.
+    async fn item_count(&self, ctx: &Context<'_>, kind: Option<String>) -> Result<i32> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let count = match kind {
+            Some(kind) => cp
+                .items_by_kind(&ItemKind::from(kind))
+                .map_err(store_err)?
+                .len(),
+            None => cp.all_items().map_err(store_err)?.len(),
+        };
+        graphql_int_from_usize(count, "item_count")
+    }
+
     /// One collection by id.
     async fn collection(&self, ctx: &Context<'_>, id: String) -> Result<Option<CollectionGql>> {
         principal(ctx)?;
@@ -1867,7 +2102,7 @@ where
         let Some(seed) = cp.get_item(&item_id).map_err(store_err)? else {
             return Ok(Vec::new());
         };
-        let Some(embedding) = item_embedding(&seed) else {
+        let Some(embedding) = cp.resolve_item_embedding(&seed).map_err(store_err)? else {
             return Ok(Vec::new());
         };
         let k = k.unwrap_or(12).clamp(1, 100) as usize;
@@ -1914,14 +2149,20 @@ where
             k: k.unwrap_or(5).max(1) as usize,
             ..AskConfig::default()
         };
-        let provenance = {
+        let retrieval_question = question.clone();
+        let grounding = tokio::task::spawn_blocking(move || -> std::result::Result<_, String> {
             let cp = store
                 .lock()
-                .map_err(|_| Error::new("store lock poisoned"))?;
-            retrieve_grounding(&*cp, &question, &config).map_err(store_err)?
-        };
-        let result = answer_from_provenance(model.as_ref(), &question, provenance);
-        Ok(AskResultGql::from(result))
+                .map_err(|_| "store lock poisoned".to_string())?;
+            retrieve_grounding_measured(&*cp, &retrieval_question, &config)
+                .map_err(|error| format!("{error:?}"))
+        })
+        .await
+        .map_err(|error| Error::new(format!("ask worker join failed: {error}")))?
+        .map_err(Error::new)?;
+        let mut result = answer_from_provenance(model.as_ref(), &question, grounding.provenance);
+        result.ppr_expansion = grounding.ppr_expansion;
+        AskResultGql::try_from(result)
     }
 
     /// Run the composed Theorem API agent through the CommonPlace GraphQL edge.
@@ -2296,7 +2537,14 @@ where
     }
 
     async fn ingest(&self, ctx: &Context<'_>, input: IngestInputGql) -> Result<ItemGql> {
-        principal(ctx)?;
+        let authenticated = principal(ctx)?;
+        let provenance = input
+            .provenance
+            .as_ref()
+            .map(|provenance| {
+                collector_provenance_value(provenance, &authenticated, input.source_ref.as_ref())
+            })
+            .transpose()?;
         let store = shared::<S, B>(ctx)?;
         let mut cp = store
             .lock()
@@ -2309,8 +2557,15 @@ where
         if let Some(source) = input.source {
             request = request.with_source(source);
         }
+        if let Some(source_ref) = input.source_ref {
+            request =
+                request.with_source_ref(SourceRef::new(source_ref.source, source_ref.external_id));
+        }
         if let Some(residency) = input.residency {
             request = request.with_residency(Residency::from(residency));
+        }
+        if let Some(provenance) = provenance {
+            request = request.with_provenance(provenance);
         }
         // Explicit scalar instants win over the server-side reminder parse.
         request.remind_at_ms = input.remind_at_ms;
@@ -3059,4 +3314,40 @@ where
         .data(model)
         .data(Arc::new(FindIndexCache::new()))
         .finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn graphql_int_from_usize_rejects_overflow() {
+        let error = graphql_int_from_usize(i32::MAX as usize + 1, "item_count")
+            .expect_err("overflow should be rejected");
+        assert!(error
+            .message
+            .contains("item_count exceeds GraphQL Int range"));
+    }
+
+    #[test]
+    fn ask_result_gql_rejects_overflowing_ppr_counts() {
+        let result = AskResultGql::try_from(AskResult {
+            answer: "ok".to_string(),
+            answer_kind: AnswerKind::Empty,
+            provenance: Vec::new(),
+            ppr_expansion: PprExpansionMeasurement {
+                seed_count: usize::MAX,
+                flat_candidate_count: 0,
+                ppr_candidate_count: 0,
+                ppr_only_candidate_count: 0,
+            },
+        });
+        let error = match result {
+            Ok(_) => panic!("overflow should be rejected"),
+            Err(error) => error,
+        };
+        assert!(error
+            .message
+            .contains("seed_count exceeds GraphQL Int range"));
+    }
 }
