@@ -14,12 +14,33 @@ import {
   IdentityClientError,
   selectIdentityWorkspace,
   updateIdentityWorkspace,
-  uploadIdentityWorkspaceDocument,
 } from '@/lib/identity/client';
 import { useIdentitySession } from '@/lib/identity/use-identity-session';
 import { resolveIdentityWorkspaceRoute } from '@/lib/identity/workspace-route';
 import { useCopyToClipboard } from '@/lib/use-copy';
 import { ForkField, ForkNotice, ForkPageFrame, ForkPanel } from './ForkPageFrame';
+
+export function WorkspaceDocumentsPanel({
+  canWriteContent,
+}: {
+  readonly canWriteContent: boolean;
+}) {
+  return (
+    <ForkPanel
+      title="Documents"
+      description="Document ingestion stays closed until the CommonPlace API enforces the admitted graph scope."
+    >
+      {canWriteContent ? (
+        <ForkNotice tone="error">
+          Document upload is disabled until the consumer API enforces the
+          admitted tenant, workspace, and scope reference.
+        </ForkNotice>
+      ) : (
+        <p className="text-ij-ink-info">Your role cannot add workspace content.</p>
+      )}
+    </ForkPanel>
+  );
+}
 
 function WorkspaceSettingsContent({ workspaceRef }: { readonly workspaceRef: string }) {
   const identity = useIdentitySession();
@@ -36,7 +57,6 @@ function WorkspaceSettingsContent({ workspaceRef }: { readonly workspaceRef: str
   const [name, setName] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; message: string } | null>(null);
 
@@ -176,44 +196,7 @@ function WorkspaceSettingsContent({ workspaceRef }: { readonly workspaceRef: str
             )}
           </ForkPanel>
 
-          <ForkPanel
-            title="Documents"
-            description="The collector parses text, then the commonplace IngestPipeline classifies, embeds, files, and links it in this workspace scope."
-          >
-            {canWriteContent ? (
-              <>
-                <ForkField
-                  label="Text or Markdown document"
-                  type="file"
-                  accept=".txt,.md,text/plain,text/markdown"
-                  onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
-                />
-                <Button
-                  type="button"
-                  disabled={busy !== null || !documentFile}
-                  onClick={() => {
-                    if (!documentFile) return;
-                    setBusy('document');
-                    setNotice(null);
-                    void uploadIdentityWorkspaceDocument(workspace.id, documentFile)
-                      .then((receipt) => {
-                        setDocumentFile(null);
-                        setNotice({
-                          tone: 'success',
-                          message: `${receipt.receipts.length} parsed document${receipt.receipts.length === 1 ? '' : 's'} entered RustyRed through ${receipt.scopeRef}.`,
-                        });
-                      })
-                      .catch((error) => fail(error, 'The document could not be ingested.'))
-                      .finally(() => setBusy(null));
-                  }}
-                >
-                  {busy === 'document' ? 'Parsing and ingesting...' : 'Upload document'}
-                </Button>
-              </>
-            ) : (
-              <p className="text-ij-ink-info">Your role cannot add workspace content.</p>
-            )}
-          </ForkPanel>
+          <WorkspaceDocumentsPanel canWriteContent={canWriteContent} />
 
           <ForkPanel
             title="API keys"

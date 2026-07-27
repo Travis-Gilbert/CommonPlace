@@ -147,10 +147,10 @@ The implemented Harness bridge maps the model-visible contract to `catalog`,
 than eager flattening. Per-tool policy is rechecked immediately before invoke.
 It binds tenant, workspace, scope, actor, bearer, continuation, tool receipts,
 and the turn receipt, and preserves scoped history, attachments, citations,
-metrics, and persistence. Contract proof passes locally. The workspace chat
-route fails closed instead of falling back to the legacy unscoped ACP transport
-until production runner and persistence adapters connect that bridge. A
-deployed authenticated turn has not been observed.
+metrics, and persistence. Contract proof passes locally. Both ordinary and
+workspace chat routes fail closed instead of falling back to the legacy
+unscoped ACP transport until production runner and persistence adapters
+connect that bridge. A deployed authenticated turn has not been observed.
 
 An authenticated user session is not itself a graph principal. User-scoped
 object, indexer, and Harness routes now require a signed active-workspace claim
@@ -200,8 +200,10 @@ The implemented service replaces that coupling with:
 - scope derived by Express, never by the browser or collector
 
 Express then calls the content seam with stable source metadata. The first
-production parser supports UTF-8 text and Markdown. A deployed multi-format
-upload remains open.
+production parser supports UTF-8 text and Markdown. Console intentionally
+withholds the document upload control until the consumer API enforces admitted
+scope headers. Acceptance of a deployed scope-enforced browser upload remains
+open; no deployed browser upload was run.
 
 ## Search-stack recovery and retirement
 
@@ -224,18 +226,19 @@ repaired before integration. The final Console state:
 - removes `/v/[viewId]` and seeded duplicate view trees
 - migrates known persisted view paths to canonical pages
 
-The current full browser run passes 83 tests with one live-service test
-intentionally skipped. The skipped case joins live GraphQL workspace and
-Harness Plan routes and is not treated as local acceptance.
+The current full browser run passes 82 tests with five intentional skips.
+Four preserve scoped Chat acceptance until the receipt-bearing Harness bridge
+owns the runtime. The fifth joins live GraphQL workspace and Harness Plan
+routes and is not treated as local acceptance.
 
 ## Current verification receipts
 
 - Fork Express service: 121 of 121 tests passed.
-- Console: 91 Vitest files and 411 tests passed, plus 2 Railway tests.
+- Console: 93 Vitest files and 415 tests passed, plus 2 Railway tests.
 - CommonPlace API library: 64 of 64 tests passed.
 - Console architecture and visual gates: all passed.
 - Console production build: passed; 29 pages generated and no `/v` route.
-- Playwright: 83 passed, 1 live-service case skipped, 0 failed.
+- Playwright: 82 passed, 4 scoped-Chat cases skipped, 1 live-service case skipped, 0 failed.
 - CommonPlace API stable source acceptance: 1 passed.
 - Independent embed fork: 8 tests and production build passed.
 

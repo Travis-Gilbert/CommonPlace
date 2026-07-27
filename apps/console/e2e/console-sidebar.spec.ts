@@ -87,7 +87,10 @@ test.describe('Console sidebar', () => {
         timeout: 60_000,
       });
       if (id === 'console-chat') {
-        await expect(page.locator('[data-chat-page]')).toBeVisible({ timeout: 15_000 });
+        await expect(
+          page.getByRole('heading', { name: 'Chat unavailable' }),
+        ).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[data-chat-composer]')).toHaveCount(0);
       } else {
         await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
           timeout: 15_000,
