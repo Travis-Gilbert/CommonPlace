@@ -53,7 +53,10 @@ describe('fork identity document client', () => {
   });
 
   it('infers collector-supported text media types when the browser omits File.type', async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (
+      _input: string | URL | Request,
+      _init?: RequestInit,
+    ) =>
       Response.json({
         correlationId: 'express-document-request-0001',
         idempotencyKey: 'collector:sha256:batch',
