@@ -326,7 +326,10 @@ test.describe('cards, actions, mentions', () => {
     await freshLoad(page);
     await openSurface(page, 'console-cards');
     await expect(page.locator('[data-cards-grid]')).toBeVisible();
-    await page.waitForTimeout(800);
+    // Snapshot the resolved record projection, never its transient skeleton.
+    await expect(page.locator('[data-card-cell="person-ada"]')).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.locator('[data-cards-grid]')).toHaveScreenshot('cards-grid.png', {
       maxDiffPixelRatio: 0.02,
       timeout: 15_000,
@@ -337,13 +340,14 @@ test.describe('cards, actions, mentions', () => {
       .locator('[data-card-cell="person-ada"]')
       .getByText('Ada Lovelace')
       .click();
-    await page.waitForTimeout(400);
-    await expect(
-      page
-        .getByLabel('Record inspector')
-        .locator('[data-card="compact"]')
-        .filter({ hasText: 'PorchFest 2026' }),
-    ).toHaveScreenshot('card-compact-inspector.png', { maxDiffPixelRatio: 0.02 });
+    const relatedCard = page
+      .getByLabel('Record inspector')
+      .locator('[data-card="compact"]')
+      .filter({ hasText: 'PorchFest 2026' });
+    await expect(relatedCard).toBeVisible({ timeout: 30_000 });
+    await expect(relatedCard).toHaveScreenshot('card-compact-inspector.png', {
+      maxDiffPixelRatio: 0.02,
+    });
 
     await page.locator('[data-inspector-action]').click();
     const sheet = page.locator('[data-action-sheet]');

@@ -416,8 +416,11 @@ export function Sidebar({
   }, [toggleCollapse]);
 
   const navigateTo = useCallback((surfaceId: string, path: string) => {
-    void host.activateSurface(surfaceId);
-    void softNavigate(router, path).catch(() => undefined);
+    // Routed Places let the pathname effect activate the surface. Flipping
+    // layout state first can remount the shell before router.push commits.
+    void softNavigate(router, path).catch(() => {
+      void host.activateSurface(surfaceId);
+    });
   }, [host, router]);
 
   const ensureLandmarkInstance = useCallback(async (landmark: ObjectRef): Promise<string | null> => {

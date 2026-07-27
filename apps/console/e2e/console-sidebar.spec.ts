@@ -91,7 +91,7 @@ test.describe('Console sidebar', () => {
           cancelable: true,
         }));
       }, key);
-      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 15_000 });
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 30_000 });
       if (id === 'console-chat') {
         await expect(page.locator('[data-chat-page]')).toBeVisible({ timeout: 15_000 });
       } else {

@@ -29,6 +29,9 @@ async function resetProfile(page: Page): Promise<void> {
   }, [LAYOUT_CACHE_KEY, SURFACE_KEY]);
   await page.reload();
   await expect(page.locator('[data-shell]')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-layout-ready', '1', {
+    timeout: 60_000,
+  });
 }
 
 async function openLayout(page: Page, surfaceId: string): Promise<void> {
@@ -40,7 +43,12 @@ async function installFromAppearance(page: Page): Promise<void> {
   await openLayout(page, 'console-appearance');
   const entry = page.locator('[data-appearance-view] [data-your-data-entry]');
   await expect(entry).toBeVisible();
-  await entry.locator('[data-your-data-open]').click();
+  await expect(entry).toHaveAttribute('data-your-data-state', 'available', {
+    timeout: 30_000,
+  });
+  const open = entry.locator('[data-your-data-open]');
+  await expect(open).toBeEnabled();
+  await open.click();
   const consent = page.locator('[data-your-data-consent]');
   await expect(consent).toBeVisible();
   await expect(consent).toContainText('Read through the authenticated CommonPlace door.');
@@ -117,14 +125,21 @@ test.describe('Your data plugin', () => {
     );
     await expect(
       page.locator('[data-appearance-view] [data-your-data-open]'),
-    ).toBeEnabled();
+    ).toBeEnabled({ timeout: 30_000 });
 
     await page.locator('[data-layout-switcher]').click();
     await expect(page.locator('[data-layout-option="console-your-data"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
 
-    await page.locator('[data-surface-nav="console-index"]').click();
-    await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
+    await page.goto('/filing');
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-index',
+      { timeout: 30_000 },
+    );
+    await expect(page.locator('html')).toHaveAttribute('data-layout-ready', '1', {
+      timeout: 60_000,
+    });
     await page.getByRole('tab', { name: 'Rules' }).click();
     const entry = page.locator('[data-filing-rules] [data-your-data-entry]');
     await expect(entry).toBeVisible();

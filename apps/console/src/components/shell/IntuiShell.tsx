@@ -374,6 +374,15 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     }
   }, [router]);
 
+  const navigateToPlace = useCallback((surfaceId: string, path: string) => {
+    // The pathname is the source of truth for routed Places. Activating the
+    // surface first can remount the shell while router.push is still pending,
+    // leaving the new surface rendered under the previous URL.
+    void softNavigate(router, path).catch(() => {
+      void host.activateSurface(surfaceId);
+    });
+  }, [host, router]);
+
   // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
   // companions for the active surface (dock panels; not rail destinations).
   useEffect(() => {
@@ -383,8 +392,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
         if (digit >= 1 && digit <= PLACE_ENTRIES.length) {
           event.preventDefault();
           const place = PLACE_ENTRIES[digit - 1];
-          void host.activateSurface(place.surfaceId);
-          void softNavigate(router, place.path).catch(() => undefined);
+          navigateToPlace(place.surfaceId, place.path);
         }
         return;
       }
@@ -401,14 +409,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       PLACE_ENTRIES.forEach((place, index) => {
         if (event.key === String(index + 1)) {
           event.preventDefault();
-          void host.activateSurface(place.surfaceId);
-          void softNavigate(router, place.path).catch(() => undefined);
+          navigateToPlace(place.surfaceId, place.path);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, host, router, toggle]);
+  }, [companions, navigateToPlace, toggle]);
 
   const handleAddBlock = useCallback((item: BlockPaletteItem) => {
     if (!editor) return;
