@@ -45,12 +45,15 @@
 
 use std::collections::{HashMap, HashSet};
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use commonplace::{BlobStore, Commonplace, EmbeddingGraphStore, Item, ITEM_LABEL};
 use rustyred_thg_core::fulltext::FullTextDesignation;
 use rustyred_thg_core::index::TrigramIndex;
-use rustyred_thg_core::{EdgeRecord, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord};
+use rustyred_thg_core::{
+    EdgeRecord, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord,
+    TensorBlockPayloadStore,
+};
 use rustyred_thg_find::lanes::node_text;
 use rustyred_thg_find::{
     find as run_find, FindContext, FindRequest, FindResponse, LexicalLane, DEFAULT_TEXT_PROPERTY,
@@ -122,8 +125,12 @@ impl Default for FindIndex {
 impl FindIndex {
     /// An empty projection. Bring it up to date with [`FindIndex::refresh`].
     pub fn empty() -> Self {
+        Self::empty_with_store(InMemoryGraphStore::new())
+    }
+
+    fn empty_with_store(store: InMemoryGraphStore) -> Self {
         Self {
-            store: InMemoryGraphStore::new(),
+            store,
             trigram: TrigramIndex::new(),
             edges: Vec::new(),
             lexical: LexicalLane::new(FullTextDesignation {
@@ -189,7 +196,7 @@ impl FindIndex {
         B: BlobStore,
     {
         if self.projection_limit != Some(config.node_limit) {
-            self.reset_projection();
+            self.reset_projection(cp.store().vector_payload_store()?);
             self.projection_limit = Some(config.node_limit);
         }
 
@@ -299,8 +306,9 @@ impl FindIndex {
         Ok(stats)
     }
 
-    fn reset_projection(&mut self) {
-        *self = Self::empty();
+    fn reset_projection(&mut self, payload_store: Arc<dyn TensorBlockPayloadStore>) {
+        *self =
+            Self::empty_with_store(InMemoryGraphStore::with_vector_payload_store(payload_store));
     }
 
     /// Everything the composed executor needs to reach the projected data.

@@ -24,7 +24,6 @@ use commonplace::{
     annotation_from_item, Anchor, Annotation, AuthorKind, BlobStore, Collection, CollectionKind,
     Commonplace, EmbeddingGraphStore, InMemoryBlobStore, IngestInput, IngestPipeline, Item,
     ItemBody, ItemKind, Residency, Resolution, SourceRef, COLLECTION_LABEL,
-    ITEM_EMBEDDING_PROPERTY,
 };
 use rustyred_thg_core::{DiskObjectStore, InMemoryGraphStore, NodeQuery, RedCoreGraphStore};
 use serde_json::{json, Value};
@@ -1033,24 +1032,6 @@ fn graphql_int_from_usize(value: usize, field: &str) -> Result<i32> {
     i32::try_from(value).map_err(|_| Error::new(format!("{field} exceeds GraphQL Int range")))
 }
 
-fn item_embedding(item: &Item) -> Option<Vec<f32>> {
-    if let Some(embedding) = &item.embedding {
-        if !embedding.is_empty() {
-            return Some(embedding.clone());
-        }
-    }
-    let embedding = item.extra.get(ITEM_EMBEDDING_PROPERTY)?.as_array()?;
-    let mut out = Vec::with_capacity(embedding.len());
-    for value in embedding {
-        out.push(value.as_f64()? as f32);
-    }
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
-}
-
 fn embedding_text(item: &Item) -> String {
     let text = item.text_for_embedding();
     let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -1112,7 +1093,7 @@ where
                 continue;
             }
         }
-        let Some(embedding) = item_embedding(&item) else {
+        let Some(embedding) = cp.resolve_item_embedding(&item)? else {
             continue;
         };
         let (x, y) = raw_embedding_projection(&embedding);
@@ -1791,7 +1772,7 @@ where
         let Some(seed) = cp.get_item(&item_id).map_err(store_err)? else {
             return Ok(Vec::new());
         };
-        let Some(embedding) = item_embedding(&seed) else {
+        let Some(embedding) = cp.resolve_item_embedding(&seed).map_err(store_err)? else {
             return Ok(Vec::new());
         };
         let k = k.unwrap_or(12).clamp(1, 100) as usize;

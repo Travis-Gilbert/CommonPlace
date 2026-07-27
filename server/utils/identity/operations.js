@@ -566,7 +566,10 @@ function createIdentityOperations(
           roleId: invite.roleId,
         },
         update: {
-          roleId: invite.roleId,
+          // Accepting another invitation must never reduce an existing active
+          // member's authority (for example, owner -> member). Suspended
+          // memberships have already been refused above.
+          status: "ACTIVE",
         },
         include: { workspace: true, role: true },
       });
@@ -740,6 +743,7 @@ function createIdentityOperations(
 
   async function adminOverview(principalInput, adminLogins = []) {
     const session = await reconcilePrincipal(principalInput);
+    const now = nowDate(clock);
     // Provider login casing is part of the admitted tenant identity. The
     // operator allowlist is exact by policy and never case-folded.
     if (!adminLogins.includes(session.user.username)) {
@@ -759,7 +763,7 @@ function createIdentityOperations(
         take: ADMIN_OVERVIEW_LIMIT + 1,
       }),
       access.invite.findMany({
-        where: { status: "PENDING" },
+        where: { status: "PENDING", expiresAt: { gt: now } },
         include: { workspace: true, role: true },
         orderBy: { createdAt: "desc" },
         take: ADMIN_OVERVIEW_LIMIT + 1,

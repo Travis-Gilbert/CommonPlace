@@ -1,10 +1,9 @@
 // SOURCING: mode=fork; repository=Mintplex-Labs/anything-llm;
 // commit=633fc1960914298009134b40c25007cb422c7884;
 // path=frontend/src/pages/WorkspaceChat/index.jsx. The page owns the route and
-// composes the existing typed CommonPlace chat surface.
+// fails closed until the scoped Express Harness bridge owns its runtime.
 
 import Link from 'next/link';
-import { ChatPage } from '@/components/chat/ChatPage';
 import { ForkNotice, ForkPageFrame } from '@/components/fork/ForkPageFrame';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
@@ -47,5 +46,16 @@ export default async function WorkspaceChatRoute({
       </ForkPageFrame>
     );
   }
-  return <ChatPage tenant={resolution.principal.tenant} />;
+  return (
+    <ForkPageFrame
+      eyebrow="Workspace"
+      title="Workspace chat unavailable"
+      description="The scoped Harness runtime is not connected to this workspace route."
+    >
+      <ForkNotice tone="error">
+        Chat is refusing the legacy unscoped ACP fallback. Connect the
+        receipt-bearing Express Harness bridge before enabling workspace turns.
+      </ForkNotice>
+    </ForkPageFrame>
+  );
 }

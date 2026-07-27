@@ -193,6 +193,22 @@ export async function selectIdentityWorkspace(
   return result.workspace;
 }
 
+const DOCUMENT_MEDIA_TYPES: Readonly<Record<string, string>> = Object.freeze({
+  md: 'text/markdown',
+  markdown: 'text/markdown',
+  txt: 'text/plain',
+  text: 'text/plain',
+});
+
+function documentMediaType(file: File): string {
+  const declared = file.type.trim();
+  if (declared) return declared;
+  const separator = file.name.lastIndexOf('.');
+  const extension =
+    separator >= 0 ? file.name.slice(separator + 1).toLowerCase() : '';
+  return DOCUMENT_MEDIA_TYPES[extension] ?? 'application/octet-stream';
+}
+
 export function uploadIdentityWorkspaceDocument(
   workspaceId: string,
   file: File,
@@ -207,7 +223,7 @@ export function uploadIdentityWorkspaceDocument(
       method: 'POST',
       body: file,
       headers: {
-        'content-type': file.type || 'application/octet-stream',
+        'content-type': documentMediaType(file),
       },
     },
   );

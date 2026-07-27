@@ -51,4 +51,40 @@ describe('fork identity document client', () => {
       },
     });
   });
+
+  it('infers collector-supported text media types when the browser omits File.type', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        correlationId: 'express-document-request-0001',
+        idempotencyKey: 'collector:sha256:batch',
+        scopeRef: 'workspace:workspace-1',
+        receipts: [{
+          item: { id: 'item-1' },
+          correlationId: 'express-document-request-0001',
+          idempotencyKey: 'collector:sha256:batch',
+          documentIndex: 0,
+          documentDigest: 'sha256:document',
+        }],
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await uploadIdentityWorkspaceDocument(
+      'workspace-1',
+      new File(['# Graph'], 'README.MD'),
+    );
+    await uploadIdentityWorkspaceDocument(
+      'workspace-1',
+      new File(['plain text'], 'notes.txt'),
+    );
+    await uploadIdentityWorkspaceDocument(
+      'workspace-1',
+      new File(['unknown'], 'archive.bin'),
+    );
+
+    expect(fetchMock.mock.calls.map(([, init]) => init?.headers)).toEqual([
+      expect.objectContaining({ 'content-type': 'text/markdown' }),
+      expect.objectContaining({ 'content-type': 'text/plain' }),
+      expect.objectContaining({ 'content-type': 'application/octet-stream' }),
+    ]);
+  });
 });

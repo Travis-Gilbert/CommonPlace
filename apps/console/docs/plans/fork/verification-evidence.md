@@ -147,8 +147,10 @@ The implemented Harness bridge maps the model-visible contract to `catalog`,
 than eager flattening. Per-tool policy is rechecked immediately before invoke.
 It binds tenant, workspace, scope, actor, bearer, continuation, tool receipts,
 and the turn receipt, and preserves scoped history, attachments, citations,
-metrics, and persistence. Contract proof passes locally; a deployed
-authenticated turn has not been observed.
+metrics, and persistence. Contract proof passes locally. The workspace chat
+route fails closed instead of falling back to the legacy unscoped ACP transport
+until production runner and persistence adapters connect that bridge. A
+deployed authenticated turn has not been observed.
 
 ## Frontend client seam
 
@@ -213,8 +215,8 @@ Harness Plan routes and is not treated as local acceptance.
 
 ## Current verification receipts
 
-- Fork Express service: 92 of 92 tests passed.
-- Console: 84 Vitest files and 378 tests passed, plus 2 Railway tests.
+- Fork Express service: 116 of 116 tests passed.
+- Console: 89 Vitest files and 393 tests passed, plus 2 Railway tests.
 - Console architecture and visual gates: all passed.
 - Console production build: passed; 29 pages generated and no `/v` route.
 - Playwright: 83 passed, 1 live-service case skipped, 0 failed.

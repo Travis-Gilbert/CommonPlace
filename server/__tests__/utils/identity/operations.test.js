@@ -434,6 +434,31 @@ test("isolates workspaces by membership and completes a single-use invitation", 
   );
 });
 
+test("accepting a lower-role invitation preserves an active owner membership", async () => {
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert", "owner@example.test");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Owner role",
+    slug: "owner-role",
+  });
+  const created = await operations.createInvite(owner, workspace.id, {
+    email: "owner@example.test",
+  });
+
+  const accepted = await operations.acceptInvite(owner, created.code);
+
+  assert.equal(accepted.role.key, "owner");
+  assert.equal(
+    access.rows.workspaceMembership.find(
+      (membership) => membership.workspaceId === workspace.id
+    ).roleId,
+    access.rows.role.find(
+      (role) => role.workspaceId === workspace.id && role.key === "owner"
+    ).id
+  );
+  assert.equal(access.rows.invite[0].status, "CLAIMED");
+});
+
 test("content scope resolution requires graph write membership", async () => {
   const { operations } = operationsFixture();
   const owner = principal("1", "Travis-Gilbert");
@@ -621,6 +646,53 @@ test("admin overview uses exact login admission", async () => {
     operations.adminOverview(owner, ["travis-gilbert"]),
     (error) => error.code === "admin_permission_refused"
   );
+});
+
+test("admin overview excludes expired pending invitations", async () => {
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Admin invitations",
+    slug: "admin-invitations",
+  });
+  const memberRole = access.rows.role.find(
+    (role) => role.workspaceId === workspace.id && role.key === "member"
+  );
+  const baseInvite = {
+    workspaceId: workspace.id,
+    roleId: memberRole.id,
+    claimedById: null,
+    claimedAt: null,
+  };
+  access.rows.invite.push(
+    {
+      ...baseInvite,
+      id: "active-pending-invite",
+      email: "active@example.test",
+      status: "PENDING",
+      expiresAt: new Date(NOW.getTime() + 60_000),
+      createdAt: new Date(NOW.getTime() - 1),
+    },
+    {
+      ...baseInvite,
+      id: "expired-pending-invite",
+      email: "expired@example.test",
+      status: "PENDING",
+      expiresAt: new Date(NOW.getTime() - 1),
+      createdAt: new Date(NOW),
+    }
+  );
+
+  const overview = await operations.adminOverview(owner, ["Travis-Gilbert"]);
+
+  assert.deepEqual(
+    overview.pendingInvites.map((invite) => invite.id),
+    ["active-pending-invite"]
+  );
+  assert.deepEqual(access.calls.inviteFindMany.at(-1).where, {
+    status: "PENDING",
+    expiresAt: { gt: NOW },
+  });
 });
 
 test("admin overview bounds every collection and reports truncation", async () => {

@@ -34,6 +34,26 @@ const DEFAULT_GEMMA_MODEL: &str = "gemma-4-12b-it-q4";
 const DEFAULT_MODEL_TIMEOUT_SECS: u64 = 90;
 const DEFAULT_MODEL_MAX_TOKENS: u32 = 700;
 const DEFAULT_MODEL_TEMPERATURE: f32 = 0.2;
+const GRAPH_PROJECTION_NODE_FACTOR: usize = 8;
+const GRAPH_PROJECTION_EDGE_FACTOR: usize = 32;
+
+#[derive(Clone, Copy, Debug)]
+struct SimilarityProjectionBudget {
+    node_limit: usize,
+    edge_limit: usize,
+}
+
+impl SimilarityProjectionBudget {
+    fn for_pool(pool: usize, seed_count: usize) -> Self {
+        Self {
+            node_limit: seed_count
+                .saturating_add(pool.saturating_mul(GRAPH_PROJECTION_NODE_FACTOR))
+                .max(seed_count)
+                .max(1),
+            edge_limit: pool.saturating_mul(GRAPH_PROJECTION_EDGE_FACTOR).max(1),
+        }
+    }
+}
 
 /// One retrieved item with its fused score and the arms that surfaced it.
 #[derive(Clone, Debug)]
@@ -451,7 +471,11 @@ where
     if seed_weights.is_empty() {
         return Vec::new();
     }
-    let adjacency = seed_reachable_similarity_adjacency(cp, seed_weights.keys());
+    let adjacency = seed_reachable_similarity_adjacency(
+        cp,
+        seed_weights.keys(),
+        SimilarityProjectionBudget::for_pool(pool, seed_weights.len()),
+    );
 
     let seed_ids: HashSet<&str> = seed_weights.keys().map(String::as_str).collect();
     let mut ranked: Vec<(String, f64)> =
@@ -471,17 +495,22 @@ where
 fn seed_reachable_similarity_adjacency<'a, S, B>(
     cp: &Commonplace<S, B>,
     seeds: impl Iterator<Item = &'a String>,
+    budget: SimilarityProjectionBudget,
 ) -> HashMap<String, Vec<(String, f64)>>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let mut pending: VecDeque<String> = seeds.cloned().collect();
+    let seed_ids: Vec<String> = seeds.cloned().collect();
+    let mut pending: VecDeque<String> = seed_ids.iter().cloned().collect();
+    let mut admitted_nodes: HashSet<String> = seed_ids.into_iter().collect();
     let mut visited_nodes = HashSet::new();
     let mut visited_edges = HashSet::new();
+    let mut admitted_edge_count = 0_usize;
     let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+    let node_limit = budget.node_limit.max(admitted_nodes.len());
 
-    while let Some(node_id) = pending.pop_front() {
+    'projection: while let Some(node_id) = pending.pop_front() {
         if !visited_nodes.insert(node_id.clone()) {
             continue;
         }
@@ -491,6 +520,9 @@ where
             NeighborQuery::in_(&node_id).with_edge_type(SIMILAR_TO_EDGE),
         ] {
             for hit in cp.store().neighbors(query) {
+                if admitted_edge_count >= budget.edge_limit {
+                    break 'projection;
+                }
                 if !visited_edges.insert(hit.edge_id.clone()) {
                     continue;
                 }
@@ -504,6 +536,13 @@ where
                 if !weight.is_finite() || weight <= 0.0 {
                     continue;
                 }
+                let new_endpoints = [&edge.from_id, &edge.to_id]
+                    .into_iter()
+                    .filter(|id| !admitted_nodes.contains(id.as_str()))
+                    .count();
+                if admitted_nodes.len().saturating_add(new_endpoints) > node_limit {
+                    continue;
+                }
 
                 adjacency
                     .entry(edge.from_id.clone())
@@ -513,8 +552,12 @@ where
                     .entry(edge.to_id.clone())
                     .or_default()
                     .push((edge.from_id.clone(), weight));
-                pending.push_back(edge.from_id.clone());
-                pending.push_back(edge.to_id.clone());
+                for endpoint in [&edge.from_id, &edge.to_id] {
+                    if admitted_nodes.insert(endpoint.clone()) {
+                        pending.push_back(endpoint.clone());
+                    }
+                }
+                admitted_edge_count += 1;
             }
         }
     }
@@ -872,12 +915,46 @@ mod tests {
             .expect("unrelated edge");
 
         let seeds = ["seed".to_string()];
-        let adjacency = seed_reachable_similarity_adjacency(&cp, seeds.iter());
+        let adjacency = seed_reachable_similarity_adjacency(
+            &cp,
+            seeds.iter(),
+            SimilarityProjectionBudget::for_pool(10, seeds.len()),
+        );
 
         assert_eq!(adjacency.len(), 2);
         assert!(adjacency.contains_key("seed"));
         assert!(adjacency.contains_key("reachable"));
         assert!(!adjacency.contains_key("unrelated:a"));
         assert!(!adjacency.contains_key("unrelated:b"));
+    }
+
+    #[test]
+    fn graph_projection_obeys_node_and_edge_budgets_on_dense_components() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        cp.store_mut()
+            .upsert_node(NodeRecord::new("seed", ["Item"], json!({})))
+            .expect("seed node");
+        for index in 0..20 {
+            let id = format!("neighbor:{index:02}");
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(&id, ["Item"], json!({})))
+                .expect("neighbor node");
+            cp.add_similarity("seed", &id, 0.9)
+                .expect("similarity edge");
+        }
+
+        let seeds = ["seed".to_string()];
+        let adjacency = seed_reachable_similarity_adjacency(
+            &cp,
+            seeds.iter(),
+            SimilarityProjectionBudget {
+                node_limit: 4,
+                edge_limit: 3,
+            },
+        );
+        let undirected_edges = adjacency.values().map(Vec::len).sum::<usize>() / 2;
+
+        assert!(adjacency.len() <= 4);
+        assert!(undirected_edges <= 3);
     }
 }

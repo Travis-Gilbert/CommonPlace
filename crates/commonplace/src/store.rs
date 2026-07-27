@@ -18,7 +18,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustyred_thg_core::{
-    now_ms, EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult, NeighborQuery, NodeQuery,
+    decode_legacy_vector_array, now_ms, read_vector_property, EdgeRecord, GraphStore,
+    GraphStoreError, GraphStoreResult, GraphVectorPayloadAccess, NeighborQuery, NodeQuery,
     NodeRecord, VectorPropertyRef,
 };
 use serde_json::{json, Value};
@@ -215,6 +216,32 @@ where
             ItemBody::Blob { content_hash, .. } => self.blobs.get(content_hash),
             _ => Ok(None),
         }
+    }
+
+    /// Resolve an item's dense embedding from either the legacy inline field or
+    /// RustyRed's canonical content-addressed vector payload.
+    pub fn resolve_item_embedding(&self, item: &Item) -> GraphStoreResult<Option<Vec<f32>>>
+    where
+        S: GraphVectorPayloadAccess,
+    {
+        if let Some(embedding) = item.embedding.as_ref().filter(|value| !value.is_empty()) {
+            return Ok(Some(embedding.clone()));
+        }
+        let Some(node) = self.store.get_node(&item.id) else {
+            return Ok(None);
+        };
+        let Some(value) = node.properties.get(crate::ingest::ITEM_EMBEDDING_PROPERTY) else {
+            return Ok(None);
+        };
+        if value.is_array() {
+            return decode_legacy_vector_array(value);
+        }
+        let payloads = self.store.vector_payload_store()?;
+        read_vector_property(
+            node,
+            crate::ingest::ITEM_EMBEDDING_PROPERTY,
+            payloads.as_ref(),
+        )
     }
 
     /// All items of a given kind.
@@ -1502,6 +1529,33 @@ mod tests {
                 .extra
                 .get(crate::ingest::ITEM_EMBEDDING_PROPERTY),
             Some(&json!(vector))
+        );
+    }
+
+    #[test]
+    fn resolves_hydrated_strict_vector_reference_from_payload_store() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        let vector = vec![0.125, 0.25, 0.5, 1.0];
+        let stored = cp
+            .put_item(
+                Item::new(ItemKind::Doc, "Strict vector")
+                    .with_id("item:strict-vector")
+                    .with_text("Stored through the canonical payload lane.")
+                    .with_embedding(vector.clone()),
+            )
+            .unwrap();
+        assert!(cp
+            .store()
+            .get_node(&stored.id)
+            .and_then(|node| node.properties.get(crate::ingest::ITEM_EMBEDDING_PROPERTY))
+            .is_some_and(Value::is_object));
+
+        let hydrated = cp.get_item(&stored.id).unwrap().expect("stored item");
+
+        assert!(hydrated.embedding.is_none());
+        assert_eq!(
+            cp.resolve_item_embedding(&hydrated).unwrap().as_deref(),
+            Some(vector.as_slice())
         );
     }
 }
