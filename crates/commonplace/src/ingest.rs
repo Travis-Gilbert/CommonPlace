@@ -12,8 +12,9 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustyred_thg_core::{
-    EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult, InMemoryGraphStore, NodeQuery,
-    NodeRecord, RedCoreGraphStore,
+    read_vector_property, EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult,
+    GraphVectorPayloadAccess, InMemoryGraphStore, NodeQuery, NodeRecord, RedCoreGraphStore,
+    TensorBlockPayloadStore,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -48,7 +49,7 @@ const ENTITY_EMBEDDING_PROPERTY: &str = "entity_embedding";
 /// This trait is local to the crate, so the F2 pipeline can support both the
 /// in-memory test engine and durable RedCore without changing the core
 /// [`GraphStore`] trait.
-pub trait EmbeddingGraphStore: GraphStore {
+pub trait EmbeddingGraphStore: GraphStore + GraphVectorPayloadAccess {
     fn designate_commonplace_item_embedding(&mut self, dimension: usize) -> GraphStoreResult<()>;
     fn search_commonplace_item_embedding(
         &self,
@@ -686,7 +687,10 @@ where
             }
         };
 
-        let item = commonplace.put_item(item)?;
+        let stored_item = commonplace.put_item(item)?;
+        let item = commonplace
+            .get_item(&stored_item.id)?
+            .ok_or_else(|| GraphStoreError::new("item_missing", "ingested item missing"))?;
         let similar_items =
             self.write_similarity_edges(commonplace, &item.id, prior_items.as_slice(), &embedding)?;
         let entities = self.resolve_entities(commonplace, &item.id, &searchable_text)?;
@@ -796,11 +800,15 @@ where
         B: BlobStore,
     {
         let mut best: Option<(Collection, f32)> = None;
+        let payloads = commonplace.store().vector_payload_store()?;
         for node in commonplace
             .store()
             .query_nodes(NodeQuery::label(COLLECTION_LABEL).with_limit(usize::MAX))
         {
-            let Some(candidate) = float_array(&node.properties, COLLECTION_EMBEDDING_PROPERTY)
+            let Some(candidate) = read_vector_property_value(
+                payloads.as_ref(),
+                node.properties.get(COLLECTION_EMBEDDING_PROPERTY),
+            )?
             else {
                 continue;
             };
@@ -895,16 +903,17 @@ where
         B: BlobStore,
     {
         let mut links = Vec::new();
+        let payloads = commonplace.store().vector_payload_store()?;
         for prior in prior_items {
             // Never link an item to itself (possible on an idempotent re-ingest,
             // where the item appears in its own prior snapshot under the same id).
             if prior.id == item_id {
                 continue;
             }
-            let Some(candidate) = prior
-                .extra
-                .get(ITEM_EMBEDDING_PROPERTY)
-                .and_then(value_to_f32_vec)
+            let Some(candidate) = read_vector_property_value(
+                payloads.as_ref(),
+                prior.extra.get(ITEM_EMBEDDING_PROPERTY),
+            )?
             else {
                 continue;
             };
@@ -975,6 +984,7 @@ where
     {
         let canonical = canonical_entity(mention);
         let embedding = self.embedder.embed_text(&canonical)?;
+        let payloads = commonplace.store().vector_payload_store()?;
         let mut best: Option<(String, String, f32)> = None;
         for node in commonplace
             .store()
@@ -989,12 +999,13 @@ where
             let score = if existing_canonical == canonical {
                 1.0
             } else {
-                node.properties
-                    .get(ENTITY_EMBEDDING_PROPERTY)
-                    .and_then(value_to_f32_vec)
-                    .filter(|candidate| candidate.len() == embedding.len())
-                    .map(|candidate| cosine(&embedding, &candidate))
-                    .unwrap_or(0.0)
+                read_vector_property_value(
+                    payloads.as_ref(),
+                    node.properties.get(ENTITY_EMBEDDING_PROPERTY),
+                )?
+                .filter(|candidate| candidate.len() == embedding.len())
+                .map(|candidate| cosine(&embedding, &candidate))
+                .unwrap_or(0.0)
             };
             if score >= self.entity_threshold
                 && best
@@ -1472,10 +1483,6 @@ fn cosine(left: &[f32], right: &[f32]) -> f32 {
     }
 }
 
-fn float_array(properties: &Value, key: &str) -> Option<Vec<f32>> {
-    properties.get(key).and_then(value_to_f32_vec)
-}
-
 /// Rank every collection by cosine to an item's stored embedding, best first
 /// (the body of [`IngestPipeline::classify_item`], lifted to a free function so
 /// the two-tier [`crate::organize::decide`] can classify with no embedder in
@@ -1488,10 +1495,9 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let Some(embedding) = item
-        .extra
-        .get(ITEM_EMBEDDING_PROPERTY)
-        .and_then(value_to_f32_vec)
+    let payloads = commonplace.store().vector_payload_store()?;
+    let Some(embedding) =
+        read_vector_property_value(payloads.as_ref(), item.extra.get(ITEM_EMBEDDING_PROPERTY))?
     else {
         return Ok(Classification::default());
     };
@@ -1501,7 +1507,11 @@ where
         .store()
         .query_nodes(NodeQuery::label(COLLECTION_LABEL).with_limit(usize::MAX))
     {
-        let Some(candidate) = float_array(&node.properties, COLLECTION_EMBEDDING_PROPERTY) else {
+        let Some(candidate) = read_vector_property_value(
+            payloads.as_ref(),
+            node.properties.get(COLLECTION_EMBEDDING_PROPERTY),
+        )?
+        else {
             continue;
         };
         if candidate.len() != embedding.len() {
@@ -1551,6 +1561,31 @@ fn value_to_f32_vec(value: &Value) -> Option<Vec<f32>> {
         .iter()
         .map(|entry| entry.as_f64().map(|value| value as f32))
         .collect()
+}
+
+fn read_vector_property_value(
+    payloads: &dyn TensorBlockPayloadStore,
+    value: Option<&Value>,
+) -> GraphStoreResult<Option<Vec<f32>>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if value.is_array() {
+        return value_to_f32_vec(value).map(Some).ok_or_else(|| {
+            GraphStoreError::new(
+                "vector_property_legacy_invalid",
+                "legacy vector property contains a non-number",
+            )
+        });
+    }
+    let mut properties = serde_json::Map::new();
+    properties.insert("vector".to_string(), value.clone());
+    let carrier = NodeRecord::new(
+        "commonplace:vector-property-read",
+        std::iter::empty::<String>(),
+        Value::Object(properties),
+    );
+    read_vector_property(&carrier, "vector", payloads)
 }
 
 fn extract_entity_mentions(text: &str) -> Vec<String> {

@@ -10,7 +10,9 @@ use commonplace::{
     Commonplace, InMemoryBlobStore, IngestInput, IngestPipeline, ItemKind, Residency, ENTITY_LABEL,
     ITEM_EMBEDDING_PROPERTY, MENTIONS_ENTITY_EDGE, SIMILAR_TO_EDGE,
 };
-use rustyred_thg_core::{InMemoryGraphStore, NeighborQuery, NodeQuery};
+use rustyred_thg_core::{
+    read_vector_property, GraphVectorPayloadAccess, InMemoryGraphStore, NeighborQuery, NodeQuery,
+};
 
 fn fresh() -> Commonplace<InMemoryGraphStore, InMemoryBlobStore> {
     Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new())
@@ -55,15 +57,27 @@ fn document_ingest_auto_structures_without_user_action() {
 
     let search = pipeline.search(&cp, "indemnity contract venue", 1).unwrap();
     assert_eq!(search[0].0, receipt.item.id);
+    let item_node = cp.store().get_node(&receipt.item.id).unwrap();
     assert!(
-        cp.store()
-            .get_node(&receipt.item.id)
-            .unwrap()
+        item_node
             .properties
             .get(ITEM_EMBEDDING_PROPERTY)
-            .is_some(),
-        "embedding is a top-level graph property for vector search"
+            .is_some_and(serde_json::Value::is_object),
+        "embedding is a strict top-level vector reference"
     );
+    assert!(
+        receipt
+            .item
+            .extra
+            .get(ITEM_EMBEDDING_PROPERTY)
+            .is_some_and(serde_json::Value::is_object),
+        "the hydrated item carries the same strict vector reference"
+    );
+    let payloads = cp.store().vector_payload_store().unwrap();
+    let round_trip = read_vector_property(item_node, ITEM_EMBEDDING_PROPERTY, payloads.as_ref())
+        .unwrap()
+        .expect("vector payload");
+    assert_eq!(round_trip, receipt.embedding);
 }
 
 #[test]

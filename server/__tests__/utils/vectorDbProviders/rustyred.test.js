@@ -138,6 +138,11 @@ test("retrieval returns passages, provenance sources, and the PPR measurement", 
     flatCandidateCount: 2,
     pprCandidateCount: 2,
     pprOnlyCandidateCount: 1,
+    returnedPassageCount: 1,
+    returnedFlatCandidateCount: 0,
+    returnedPprCandidateCount: 1,
+    returnedPprOnlyCandidateCount: 1,
+    filteredPassageCount: 1,
   });
   assert.equal(result.message, false);
 });

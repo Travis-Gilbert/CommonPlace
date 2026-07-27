@@ -122,7 +122,8 @@ class RustyRed extends VectorDatabase {
       topN: Math.max(1, topN),
     });
     const excluded = new Set(filterIdentifiers);
-    const provenance = (result.provenance ?? []).filter(({ item }) => {
+    const rawProvenance = result.provenance ?? [];
+    const provenance = rawProvenance.filter(({ item }) => {
       return (
         typeof item?.bodyText === "string" &&
         item.bodyText.length > 0 &&
@@ -130,6 +131,7 @@ class RustyRed extends VectorDatabase {
         !excluded.has(item.source)
       );
     });
+    const visibleMeasurement = measureVisibleExpansion(provenance);
 
     return {
       contextTexts: provenance.map(({ item }) => item.bodyText),
@@ -148,7 +150,11 @@ class RustyRed extends VectorDatabase {
         }))
       ),
       message: false,
-      measurement: result.pprExpansion ?? null,
+      measurement: {
+        ...(result.pprExpansion ?? {}),
+        ...visibleMeasurement,
+        filteredPassageCount: rawProvenance.length - provenance.length,
+      },
     };
   }
 
@@ -180,6 +186,26 @@ class RustyRed extends VectorDatabase {
   }
 }
 
+function measureVisibleExpansion(provenance) {
+  let returnedFlatCandidateCount = 0;
+  let returnedPprCandidateCount = 0;
+  let returnedPprOnlyCandidateCount = 0;
+  for (const entry of provenance) {
+    const arms = new Set(Array.isArray(entry?.arms) ? entry.arms : []);
+    const flat = arms.has("vector") || arms.has("lexical");
+    const ppr = arms.has("graph");
+    if (flat) returnedFlatCandidateCount += 1;
+    if (ppr) returnedPprCandidateCount += 1;
+    if (ppr && !flat) returnedPprOnlyCandidateCount += 1;
+  }
+  return {
+    returnedPassageCount: provenance.length,
+    returnedFlatCandidateCount,
+    returnedPprCandidateCount,
+    returnedPprOnlyCandidateCount,
+  };
+}
+
 function normalizeDocument(documentData, fullFilePath) {
   const { pageContent, docId, title, tags, source, ...metadata } = documentData;
   const resolvedTitle =
@@ -205,4 +231,4 @@ function normalizeDocument(documentData, fullFilePath) {
   };
 }
 
-module.exports = { RustyRed, normalizeDocument };
+module.exports = { RustyRed, measureVisibleExpansion, normalizeDocument };

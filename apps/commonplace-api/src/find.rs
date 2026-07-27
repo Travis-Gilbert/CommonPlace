@@ -33,8 +33,8 @@
 //! Repeated queries between writes cost one integer compare. A write costs a
 //! re-index of what the write touched, not of the corpus.
 //!
-//! The residual O(corpus) cost after a write is the snapshot clone and the
-//! version scan: pointer walks and integer compares, not text processing. That
+//! The residual O(corpus) cost after a write is the bounded node scan, live-edge
+//! clone, and version scan: pointer walks and integer compares, not text processing. That
 //! floor is `GraphStore`'s, not this module's, because there is no changefeed
 //! and no version-filtered node query to ask instead. Closing it means emitting
 //! changes from the store.
@@ -97,7 +97,7 @@ pub struct FindIndex {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RefreshStats {
     /// Nodes whose version was compared. Zero when the global version gate
-    /// short-circuited before taking a snapshot.
+    /// short-circuited before scanning nodes and live edges.
     pub scanned: usize,
     /// Nodes re-projected and re-indexed.
     pub reindexed: usize,
@@ -151,15 +151,15 @@ impl FindIndex {
     ///
     /// 1. The store's global version. If it has not moved, nothing in the graph
     ///    has changed and there is nothing to do, so this returns without even
-    ///    taking a snapshot. Repeated queries between writes cost one integer
+    ///    scanning nodes and live edges. Repeated queries between writes cost one integer
     ///    compare, which is the case a search box spends its life in.
     /// 2. Each node's own version. Only nodes whose version differs from the one
     ///    recorded in `indexed` are re-projected, re-tokenized, and re-indexed.
     ///    Tokenizing text is the expensive part and it is now proportional to the
     ///    write, not to the corpus.
     ///
-    /// The residual O(corpus) work after a write is the snapshot clone and the
-    /// version scan, both of which are pointer walks and integer compares. That
+    /// The residual O(corpus) work after a write is the bounded node scan,
+    /// live-edge clone, and version scan, all pointer walks and integer compares. That
     /// floor exists because `GraphStore` has no changefeed and no
     /// version-filtered query; closing it means emitting changes from the store,
     /// not doing anything smarter here.
@@ -191,16 +191,11 @@ impl FindIndex {
             return Ok(RefreshStats::default());
         }
 
-        let (nodes, edges) = match cp.store().graph_snapshot() {
-            Ok(snapshot) => (snapshot.nodes, snapshot.edges),
-            Err(_) => (
-                cp.store().query_nodes(NodeQuery {
-                    limit: Some(config.node_limit),
-                    ..NodeQuery::default()
-                }),
-                Vec::new(),
-            ),
-        };
+        let nodes = cp.store().query_nodes(NodeQuery {
+            limit: Some(config.node_limit),
+            ..NodeQuery::default()
+        });
+        let edges = cp.store().live_edge_records();
 
         let nodes: Vec<NodeRecord> = nodes.into_iter().take(config.node_limit).collect();
         let mut stats = RefreshStats {
@@ -426,7 +421,7 @@ mod tests {
         );
         assert_eq!(
             warm.scanned, 0,
-            "the global version gate should short-circuit before the snapshot"
+            "the global version gate should short-circuit before the graph scan"
         );
     }
 
