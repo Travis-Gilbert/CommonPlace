@@ -38,12 +38,15 @@ import { HostPresenceSync } from '@/components/host/HostPresenceSync';
 import { HostFindLens } from '@/components/host/HostFindLens';
 import { placeBlockAction } from '@/lib/block-placement';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
-import type { BlockPaletteItem } from '@/components/nav/Sidebar';
+import type { BlockPaletteItem } from '@/lib/rail/rail-model';
+import { FindOverlay } from '@/views/search/FindOverlay';
+import { highlightPageTarget } from '@/views/search/page-find';
 
 /** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
 const SIDEBAR_WIDTH_PX = 180;
 const SIDEBAR_COLLAPSED_PX = 48;
 const OVERLAY_BREAKPOINT = 1100;
+const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
 
 type RegionNode = SidebarRegion;
 
@@ -189,14 +192,21 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [surfaces]);
 
   // Deep links and back/forward: the route is the surface radio (B3).
-  // Pathname-only deps: do not re-assert when activeSurfaceId changes, or
-  // Account / Appearance activation is immediately overwritten by /chat.
+  // Re-assert once after remote layout adoption. Ordinary surface updates do
+  // not emit readiness, so Account and Appearance are not overwritten.
   useEffect(() => {
-    const routedId = surfaceIdForPath(pathname);
-    if (routedId) void host.activateSurface(routedId);
+    const activateRoutedSurface = () => {
+      const routedId = surfaceIdForPath(pathname);
+      if (routedId) void host.activateSurface(routedId);
+    };
+    activateRoutedSurface();
+    window.addEventListener(LAYOUT_READY_EVENT, activateRoutedSurface);
     if (pathname && !pathname.startsWith('/chat')) {
       writeLastConsoleViewPath(pathname);
     }
+    return () => {
+      window.removeEventListener(LAYOUT_READY_EVENT, activateRoutedSurface);
+    };
   }, [host, pathname]);
 
   const root = useMemo(
@@ -297,6 +307,31 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       if (moves > 0) recordBlockMoveReceipts(moves);
     })();
   }, [editor, host]);
+
+  const activePageText = useCallback(
+    () => shellRef.current?.querySelector<HTMLElement>('#console-editor-well')?.innerText ?? null,
+    [],
+  );
+
+  const highlightPageHit = useCallback(async (
+    _result: Parameters<NonNullable<React.ComponentProps<typeof FindOverlay>['onHighlightPageHit']>>[0],
+    target: Parameters<NonNullable<React.ComponentProps<typeof FindOverlay>['onHighlightPageHit']>>[1],
+  ) => {
+    const well = shellRef.current?.querySelector<HTMLElement>('#console-editor-well');
+    if (!well || !highlightPageTarget(well, target)) {
+      throw new Error('The selected text is not present on the active console page.');
+    }
+  }, []);
+
+  const openFindItem = useCallback((
+    result: Parameters<NonNullable<React.ComponentProps<typeof FindOverlay>['onOpenItem']>>[0],
+  ) => {
+    if (result.hit.source) {
+      const opened = window.open(result.hit.source, '_blank', 'noopener,noreferrer');
+      if (opened) return;
+    }
+    useShellStore.getState().selectRecord(result.hit.doc, null);
+  }, []);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {
@@ -469,6 +504,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       data-active-surface={activeSurfaceId}
       className="relative flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
+      <FindOverlay
+        pageNodeId={activeSurfaceId}
+        sessionNodeIds={[activeSurfaceId]}
+        getPageText={activePageText}
+        onHighlightPageHit={highlightPageHit}
+        onOpenItem={openFindItem}
+      />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           data-shell-sidebar

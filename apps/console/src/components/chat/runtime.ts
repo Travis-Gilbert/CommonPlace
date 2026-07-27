@@ -4,7 +4,7 @@
 // TheoremAgentState snapshots (createStateStream). No A2A v1.0 surface exists
 // in theorem-acp today. LocalRuntime is excluded because it owns message state.
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   useAssistantTransportRuntime,
   type AssistantRuntime,
@@ -112,6 +112,8 @@ function syncHarnessState(state: TheoremAgentState): void {
 }
 
 export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntime {
+  const pendingSyncState = useRef<TheoremAgentState | null>(null);
+  const syncQueued = useRef(false);
   const seedMessages = useMemo((): TheoremAgentState['messages'] => {
     if (!options.initialMessages?.length) return [];
     return options.initialMessages.map((message, index) => {
@@ -132,7 +134,16 @@ export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntim
 
   const converter = useMemo(
     () => (state: TheoremAgentState) => {
-      syncHarnessState(state);
+      pendingSyncState.current = state;
+      if (!syncQueued.current) {
+        syncQueued.current = true;
+        queueMicrotask(() => {
+          syncQueued.current = false;
+          const pending = pendingSyncState.current;
+          pendingSyncState.current = null;
+          if (pending) syncHarnessState(pending);
+        });
+      }
       const activeAssistantIndex = lastAssistantIndex(state);
       const likes = state.messages.map((message, index) =>
         toThreadMessage(message, state.turnStatus, index === activeAssistantIndex),

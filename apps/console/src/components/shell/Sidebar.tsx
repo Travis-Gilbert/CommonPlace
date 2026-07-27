@@ -14,9 +14,12 @@ import { softNavigate } from '@/lib/soft-navigate';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { placeBlockAction } from '@/lib/block-placement';
-import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
+import {
+  deriveBlockPaletteItems,
+  PLACE_ENTRIES,
+  type BlockPaletteItem,
+} from '@/lib/rail/rail-model';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
-import { BLOCK_PALETTE, type BlockPaletteItem } from '@/components/nav/Sidebar';
 import {
   deriveLabel,
   hostPropsToNavItem,
@@ -37,6 +40,7 @@ import {
   IconModel,
   IconRecords,
   IconRail,
+  IconSearch,
   IconThread,
   IconWorkspace,
 } from './icons';
@@ -74,6 +78,8 @@ const BLOCK_ICONS: Record<string, typeof IconRecords> = {
   filing: IconDoc,
   documents: IconDoc,
   files: IconWorkspace,
+  canvas: IconCards,
+  search: IconSearch,
 };
 
 const LANDMARK_TYPES = ['record', 'doc', 'code-file'] as const;
@@ -285,6 +291,63 @@ function SidebarGroupLabel({ children, hidden }: { children: React.ReactNode; hi
   );
 }
 
+export function SidebarBlocksGroup({
+  items,
+  visuallyCollapsed,
+  onAddBlock,
+}: {
+  readonly items: readonly BlockPaletteItem[];
+  readonly visuallyCollapsed: boolean;
+  readonly onAddBlock: (item: BlockPaletteItem) => void;
+}) {
+  return (
+    <div
+      data-rail-tier="blocks"
+      aria-label="Blocks"
+      className="flex flex-col"
+      style={{ gap: 'var(--ij-sidebar-row-gap)' }}
+    >
+      <SidebarGroupLabel hidden={visuallyCollapsed}>Blocks</SidebarGroupLabel>
+      {items.map((item) => {
+        const Icon = BLOCK_ICONS[item.kind] ?? IconRecords;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            data-rail-tier="blocks"
+            data-block-palette={item.id}
+            title={item.label}
+            aria-label={`Add ${item.label} block`}
+            onClick={() => onAddBlock(item)}
+            className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
+            style={{
+              paddingInline: 'var(--ij-sidebar-pad)',
+              gap: 'var(--ij-sidebar-icon-gap)',
+              color: 'var(--ij-ink)',
+              fontWeight: 500,
+              fontSize: 'var(--ij-sidebar-label-size)',
+              lineHeight: 'var(--ij-sidebar-label-line)',
+            }}
+          >
+            <SidebarRowIcon muted>
+              <Icon size={16} />
+            </SidebarRowIcon>
+            <span
+              className="min-w-0 flex-1 truncate"
+              style={{
+                opacity: visuallyCollapsed ? 0 : 1,
+                transition: 'opacity var(--ij-motion) var(--ij-ease)',
+              }}
+            >
+              {item.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Sidebar({
   host,
   surfaces,
@@ -323,6 +386,7 @@ export function Sidebar({
     ?? session?.user?.email
     ?? 'anonymous';
   const navigationObjects = useNavigationObjectItems(host, viewerUserId);
+  const blockPalette = deriveBlockPaletteItems(CONSOLE_VIEW_REGISTRY.descriptors);
   const initials = (session?.user?.name ?? session?.user?.githubLogin ?? 'CP')
     .split(/\s+/)
     .map((part) => part.charAt(0))
@@ -558,52 +622,16 @@ export function Sidebar({
 
       <SidebarDivider />
 
-      <div
-        data-rail-tier="blocks"
-        aria-label="Blocks"
-        className="flex flex-col"
-        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
-      >
-        <SidebarGroupLabel hidden={visuallyCollapsed}>Blocks</SidebarGroupLabel>
-        {BLOCK_PALETTE.map((item) => {
-          const Icon = BLOCK_ICONS[item.kind] ?? IconRecords;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              data-rail-tier="blocks"
-              data-block-palette={item.id}
-              title={item.label}
-              aria-label={`Add ${item.label} block`}
-              onClick={() => addBlock(item)}
-              className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
-              style={{
-                paddingInline: 'var(--ij-sidebar-pad)',
-                gap: 'var(--ij-sidebar-icon-gap)',
-                color: 'var(--ij-ink)',
-                fontWeight: 500,
-                fontSize: 'var(--ij-sidebar-label-size)',
-                lineHeight: 'var(--ij-sidebar-label-line)',
-              }}
-            >
-              <SidebarRowIcon muted>
-                <Icon size={16} />
-              </SidebarRowIcon>
-              <span
-                className="min-w-0 flex-1 truncate"
-                style={{
-                  opacity: visuallyCollapsed ? 0 : 1,
-                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                }}
-              >
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <SidebarDivider />
+      {onAddBlock ? (
+        <>
+          <SidebarBlocksGroup
+            items={blockPalette}
+            visuallyCollapsed={visuallyCollapsed}
+            onAddBlock={addBlock}
+          />
+          <SidebarDivider />
+        </>
+      ) : null}
 
       <div
         data-rail-tier="objects"
@@ -794,7 +822,7 @@ export function Sidebar({
           aria-label="Account"
           aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
           onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
-          className="flex size-ij-stripe-icon shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+          className="flex size-ij-control shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
           style={{
             transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)',
             ...(activeSurfaceId === ACCOUNT_SURFACE_ID ? SELECTION_STYLE : {}),

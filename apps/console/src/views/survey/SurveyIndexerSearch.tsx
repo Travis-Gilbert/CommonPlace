@@ -230,6 +230,7 @@ export function SurveyIndexerSearch({
         <input
           ref={inputRef}
           type="search"
+          role="combobox"
           value={query}
           placeholder={placeholder}
           aria-label="Search the web"

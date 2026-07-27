@@ -340,8 +340,7 @@ export function ChatComposer({
               key={file.id}
               data-attachment-item
               data-status={file.status}
-              className="relative rounded-[var(--radius-control)] border border-ij-control-border bg-ij-raised px-2 py-1"
-              style={{ minWidth: 'var(--ij-chat-attach-min-w)', maxWidth: 'var(--ij-chat-attach-max-w)' }}
+              className="chat-attachment-width relative rounded-[var(--radius-control)] border border-ij-control-border bg-ij-raised px-2 py-1"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => onDropReplace(event, file.id)}
             >
@@ -362,6 +361,7 @@ export function ChatComposer({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={file.progress == null ? undefined : Math.round(file.progress * 100)}
+                  aria-label={file.progress == null ? 'Upload in progress' : undefined}
                   className="mt-1 h-1 overflow-hidden rounded-sm bg-ij-hover-surface"
                 >
                   <div

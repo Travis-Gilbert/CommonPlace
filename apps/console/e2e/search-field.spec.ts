@@ -3,9 +3,12 @@
 // Search is keyboard-opened (no durable toolbar field).
 
 import { expect, test, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
+
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
 
 async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
-  const response = await request.post('http://localhost:50591/objects/test/reset-layout', {
+  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
     headers: { 'x-api-key': 'dev-key' },
   });
   expect(response.ok()).toBeTruthy();
@@ -13,12 +16,13 @@ async function resetStubLayout(request: import('@playwright/test').APIRequestCon
 
 async function freshLoad(page: Page, request?: import('@playwright/test').APIRequestContext) {
   if (request) await resetStubLayout(request);
-  await page.goto('/');
-  await page.evaluate(() => {
-    localStorage.removeItem('commonplace.console.layout-cache.v1');
-    localStorage.removeItem('commonplace.console.surface.v1');
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.layout-cache.v1',
+      'commonplace.console.surface.v1',
+    ],
   });
-  await page.reload();
+  await page.goto('/workspace');
   await page.waitForSelector('[data-shell]');
   await page.waitForFunction(
     () => document.documentElement.getAttribute('data-layout-ready') === '1',
@@ -73,7 +77,7 @@ test.describe('Search panel', () => {
 
   test('holds the panel baseline under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForSelector('[data-shell]');
     await page.keyboard.press('Shift');
     await page.keyboard.press('Shift');

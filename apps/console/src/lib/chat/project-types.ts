@@ -15,8 +15,12 @@ export interface ChatThreadSummary {
   readonly id: string;
   projectId: string;
   title: string;
-  /** ACP session id when the harness has one. */
+  /** ACP session correlation id when the harness has one. Persisting this
+   * value does not prove the backend can reconstruct the session. */
   sessionId: string | null;
+  /** Always false until the backend supplies a verified session restoration
+   * receipt. Transcript durability is independent of this capability. */
+  sessionResumable: false;
   /** Capability pre-bound when the thread was launched from the sidebar. */
   capability: { kind: 'skill' | 'plugin'; id: string; name: string } | null;
   railCollapsed: boolean;

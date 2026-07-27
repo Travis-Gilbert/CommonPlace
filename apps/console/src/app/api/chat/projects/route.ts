@@ -10,7 +10,14 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(): Promise<Response> {
-  return Response.json(readCatalog());
+  try {
+    return Response.json(await readCatalog());
+  } catch (error) {
+    return Response.json(
+      { error: 'project_catalog_failed', message: error instanceof Error ? error.message : 'failed' },
+      { status: 502 },
+    );
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -19,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!body || typeof body !== 'object') {
       return Response.json({ error: 'invalid_body' }, { status: 400 });
     }
-    const project = upsertProject({
+    const project = await upsertProject({
       id: typeof body.id === 'string' ? body.id : undefined,
       name: typeof body.name === 'string' ? body.name : undefined,
       description: typeof body.description === 'string' ? body.description : undefined,
@@ -45,7 +52,7 @@ export async function PUT(request: Request): Promise<Response> {
     if (!body?.activeProjectId) {
       return Response.json({ error: 'activeProjectId_required' }, { status: 400 });
     }
-    return Response.json(setActiveProject(body.activeProjectId));
+    return Response.json(await setActiveProject(body.activeProjectId));
   } catch (error) {
     return Response.json(
       { error: 'project_select_failed', message: error instanceof Error ? error.message : 'failed' },

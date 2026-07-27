@@ -9,12 +9,18 @@ import {
   type Node,
   type NodeTypes,
   type OnNodeDrag,
+  type ReactFlowInstance,
 } from '@xyflow/react';
 import type { BlockHost, ObjectSet, ViewRenderProps } from '@commonplace/block-view/types';
-import { parseCanvasText, serializeCanvas, toJsonCanvas } from '@commonplace/json-canvas';
+import { CANVAS_CONNECT_EDGE, parseCanvasText, serializeCanvas, toJsonCanvas } from '@commonplace/json-canvas';
 import { CanvasCardNode } from './CanvasCardNode';
 import { CanvasPaperGround } from './CanvasPaperGround';
-import { canvasFlowFromObjects, canvasFromObjects } from './canvas-flow';
+import { canvasDropAction } from './canvas-drop';
+import {
+  canvasFlowFromObjects,
+  canvasFromObjects,
+  type CanvasCardData,
+} from './canvas-flow';
 
 const CANVAS_QUERY = {
   types: ['canvas', 'canvas.card', 'canvas.group', 'canvas.connection'],
@@ -22,6 +28,7 @@ const CANVAS_QUERY = {
 } as const;
 
 const NODE_TYPES = { canvasCard: CanvasCardNode } as unknown as NodeTypes;
+type CanvasFlowNode = Node<CanvasCardData>;
 
 function emptyCanvasSet(): ObjectSet {
   return {
@@ -60,10 +67,12 @@ export function CanvasView({ host }: ViewRenderProps) {
   const set = useCanvasObjectSet(host);
   const [message, setMessage] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const flowInstanceRef = useRef<ReactFlowInstance<CanvasFlowNode> | null>(null);
   const flow = useMemo(() => canvasFlowFromObjects(set.objects), [set.objects]);
 
-  const onNodeDragStop: OnNodeDrag<Node> = useCallback((_, node) => {
-    void host.emit({ kind: 'update', id: node.id, patch: { x: Math.round(node.position.x), y: Math.round(node.position.y) } });
+  const onNodeDragStop: OnNodeDrag<CanvasFlowNode> = useCallback((_, node) => {
+    const intersecting = flowInstanceRef.current?.getIntersectingNodes(node) ?? [];
+    void host.emit(canvasDropAction(node, intersecting));
   }, [host]);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -71,7 +80,7 @@ export function CanvasView({ host }: ViewRenderProps) {
     void host.emit({
       kind: 'link',
       from: connection.source,
-      edge: 'CANVAS_CONNECT',
+      edge: CANVAS_CONNECT_EDGE,
       to: connection.target,
     });
   }, [host]);
@@ -132,6 +141,9 @@ export function CanvasView({ host }: ViewRenderProps) {
               nodes={flow.nodes}
               edges={flow.edges}
               nodeTypes={NODE_TYPES}
+              onInit={(instance) => {
+                flowInstanceRef.current = instance;
+              }}
               fitView
               nodesConnectable
               onNodeDragStop={onNodeDragStop}

@@ -3,23 +3,38 @@
 // forms remain heterogeneous, annotation stays separate, and reduced motion
 // preserves the same information in the flat clustered layout.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import axe from 'axe-core';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
+
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
+
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 async function openSurvey(page: Page) {
-  await page.goto('/indexer');
-  await page.evaluate(() => {
-    window.localStorage.removeItem('commonplace.console.surface.v1');
-    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.surface.v1',
+      'commonplace.console.layout-cache.v1',
+    ],
   });
-  await page.reload();
+  await page.goto('/indexer');
   await page.waitForSelector('[data-shell]');
   await page.waitForFunction(
     () => document.documentElement.getAttribute('data-layout-ready') === '1',
     { timeout: 60_000 },
   );
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-survey');
-  await expect(page.locator('[data-survey]')).toBeVisible();
+  await expect(page.locator('[data-shell]')).toHaveAttribute(
+    'data-active-surface',
+    'console-survey',
+    { timeout: 20_000 },
+  );
+  await expect(page.locator('[data-survey]')).toBeVisible({ timeout: 30_000 });
 }
 
 async function expectSpatialIndexerOverview(page: Page) {
@@ -62,6 +77,10 @@ async function expectSpatialIndexerOverview(page: Page) {
 }
 
 test.describe('Indexer research surface', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetStubLayout(request);
+  });
+
   test('automatically searches the web without a capture-miss step', async ({ page }) => {
     const requests: { query: string; topicId: string }[] = [];
     let releaseSearch: (() => void) | undefined;
@@ -92,7 +111,7 @@ test.describe('Indexer research surface', () => {
       'console-survey',
     );
     await expect(page.locator('[data-survey]')).toBeVisible({ timeout: 20_000 });
-    const search = page.getByRole('searchbox', { name: 'Search the web' });
+    const search = page.getByRole('combobox', { name: 'Search the web' });
     await search.fill('automatic web fallback');
 
     await expect.poll(() => requests.length).toBe(1);
@@ -123,13 +142,13 @@ test.describe('Indexer research surface', () => {
 
     const survey = page.locator('[data-survey]');
     await expect(survey).toHaveAttribute('data-scene-mode', '3d');
-    await expect(page.getByRole('application', { name: /Three dimensional Indexer/ })).toBeVisible();
     await expect(page.locator('[data-survey-summary]')).toHaveCount(0);
     // Ambient ground is MaterialLayer; the gallery shell stays transparent.
     await expect(page.locator('.stellar-gallery')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await expect(page.locator('.stellar-gallery-ground, .stellar-gallery-pegboard').first()).toHaveCSS('opacity', '0');
     await expect(page.locator('[data-capture-id]')).toHaveCount(15, { timeout: 20_000 });
     await expectSpatialIndexerOverview(page);
+    await expect(page.getByRole('application', { name: /Three dimensional Indexer/ })).toBeVisible();
     await expect(page.locator('[data-source-kind="document"]')).toHaveCount(4);
     await expect(page.locator('[data-source-kind="code"]')).toHaveCount(7);
     await expect(page.locator('[data-source-kind="receipt"]')).toHaveCount(2);
@@ -279,7 +298,8 @@ test.describe('Indexer research surface', () => {
     await expect(page.getByRole('heading', { name: /Remembered connections/ })).toBeVisible();
     await expect(page.getByText('settled flat grid')).toBeVisible();
     await expect(page.getByText('@accessibility')).toBeVisible();
-    await expect(page.getByRole('button', { name: '/do follow-up' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '/do follow-up' })).toBeEnabled();
+    await expect(page.getByText('Opens the action sheet with this capture staged.')).toBeVisible();
     await page.getByRole('button', { name: 'Back to Indexer' }).click();
     await expect(page.locator('[data-survey]')).toBeVisible();
 
@@ -294,12 +314,17 @@ test.describe('Indexer research surface', () => {
     );
   });
 
-  test('the spatial overview keeps the complete topic corpus visible at 1280', async ({ page }) => {
+  test('the adaptive flat overview keeps the complete topic corpus visible at 1280', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openSurvey(page);
 
-    await expect(page.locator('[data-survey]')).toHaveAttribute('data-scene-mode', '3d');
-    await expectSpatialIndexerOverview(page);
+    await expect(page.locator('[data-survey]')).toHaveAttribute('data-scene-mode', 'flat');
+    await expect(page.locator('[data-survey-layout="flat"]')).toBeVisible();
+    await expect(page.locator('[data-capture-id]')).toHaveCount(15);
+    await expect(page.locator('[data-survey-connections]')).toContainText(
+      'Accessible information survives visual reduction',
+    );
+    await expect(page.locator('[data-capture-id][data-spatial="true"]')).toHaveCount(0);
   });
 
   test('reduced motion renders the same capture corpus as a settled flat grid', async ({ browser }) => {
@@ -323,10 +348,10 @@ test.describe('Indexer research surface', () => {
     await openSurvey(page);
     await expect(page.locator('[data-survey-layout="3d"]')).toBeVisible();
 
-    await page.keyboard.press('Control+l');
-    const input = page.locator('[data-omnibar-island] input');
-    await input.fill('>Toggle reduced motion preview');
-    await page.getByText('Toggle reduced motion preview', { exact: true }).click();
+    await page.keyboard.press('Control+k');
+    await expect(page.getByRole('dialog', { name: 'Search' })).toBeVisible();
+    await page.getByPlaceholder('Run a command').fill('Toggle reduced motion preview');
+    await page.getByRole('option', { name: 'Toggle reduced motion preview' }).click();
 
     const survey = page.locator('[data-survey]');
     await expect(survey).toHaveAttribute('data-reduced-motion', 'true');

@@ -66,7 +66,22 @@ describe('ViewRegistry presentation grammar', () => {
         placements: ['ground', 'full'],
         defaultSize: 'w',
         density: 'cozy',
-        acceptsChildren: { layout: 'columns', accepts: ['*'] },
+        acceptsDrop: {
+          semantic: 'contain',
+          layout: 'columns',
+          accepts: ['*'],
+        },
+      }),
+      descriptor('model', {
+        usage: 'relate observed kinds',
+        placements: ['ground', 'full'],
+        defaultSize: 'full',
+        density: 'compact',
+        acceptsDrop: {
+          semantic: 'relate',
+          edge: 'RELATED_TO',
+          accepts: ['model'],
+        },
       }),
       descriptor('no-block'),
     ]);
@@ -75,11 +90,22 @@ describe('ViewRegistry presentation grammar', () => {
       'records',
       'composer',
       'kanban',
+      'model',
     ]);
     expect(registry.blocksForPlacement('rail').map((view) => view.id)).toEqual([
       'rail-only',
     ]);
     expect(registry.blocksForPlacement('dock')).toEqual([]);
-    expect(registry.viewById('kanban')?.block?.acceptsChildren?.layout).toBe('columns');
+    expect(registry.viewById('kanban')?.block?.acceptsDrop).toEqual({
+      semantic: 'contain',
+      layout: 'columns',
+      accepts: ['*'],
+    });
+    expect(registry.viewById('model')?.block?.acceptsDrop).toEqual({
+      semantic: 'relate',
+      edge: 'RELATED_TO',
+      accepts: ['model'],
+    });
+    expect(registry.viewById('records')?.block?.acceptsDrop).toBeUndefined();
   });
 });
