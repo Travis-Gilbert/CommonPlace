@@ -1,6 +1,7 @@
 // SOURCING: none. Same-origin invite creation proxy.
 
 import {
+  assertSameOriginIdentityMutation,
   forkIdentityErrorResponse,
   forkIdentityResponse,
   readJsonObject,
@@ -13,6 +14,7 @@ export async function POST(
   { params }: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
+    assertSameOriginIdentityMutation(request);
     const principal = await resolveForkIdentityPrincipal();
     const [{ workspaceId }, invite] = await Promise.all([
       params,

@@ -9,6 +9,7 @@ import {
   resolveActiveWorkspaceSecret,
 } from '@/lib/server/active-workspace';
 import {
+  assertSameOriginIdentityMutation,
   ForkIdentityProxyError,
   forkIdentityErrorResponse,
   forkIdentityResponse,
@@ -19,6 +20,7 @@ import {
 
 export async function POST(request: Request) {
   try {
+    assertSameOriginIdentityMutation(request);
     const principal = await resolveForkIdentityPrincipal();
     const body = await readJsonObject(request);
     if (typeof body.workspaceId !== 'string' || !body.workspaceId) {
@@ -84,8 +86,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
+    assertSameOriginIdentityMutation(request);
     (await cookies()).set(ACTIVE_WORKSPACE_COOKIE, '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

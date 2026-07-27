@@ -5,6 +5,7 @@ import {
   filterRunsForTenant,
   legacyServicePrincipal,
   principalFromSession,
+  principalRequiresScopedObjectConsumer,
   principalScopeHeaders,
 } from './harness-principal-core';
 
@@ -92,5 +93,20 @@ describe('Harness principal resolution', () => {
       githubLogin: 'Travis-Gilbert',
       harnessIdentity: 'github:1',
     })).not.toHaveProperty('x-commonplace-scope-ref');
+  });
+
+  it('requires an enforcing consumer for every workspace-bearing principal', () => {
+    expect(principalRequiresScopedObjectConsumer({
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'second-user',
+      harnessIdentity: 'github:2',
+      workspaceId: 'workspace-42',
+      scopeRef: 'workspace:workspace-42',
+    })).toBe(true);
+    expect(principalRequiresScopedObjectConsumer({
+      tenant: 'Travis-Gilbert',
+      githubLogin: 'Travis-Gilbert',
+      harnessIdentity: 'service:commonplace-console:Travis-Gilbert',
+    })).toBe(false);
   });
 });

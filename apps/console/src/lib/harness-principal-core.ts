@@ -62,6 +62,17 @@ export function principalScopeHeaders(principal: HarnessPrincipal): Record<strin
   };
 }
 
+/**
+ * A workspace-bearing principal may use the object seam only after its
+ * consumer verifies both workspaceId and ScopeRef against the selected store.
+ * Headers alone are not an authorization boundary.
+ */
+export function principalRequiresScopedObjectConsumer(
+  principal: HarnessPrincipal,
+): boolean {
+  return Boolean(principal.workspaceId || principal.scopeRef);
+}
+
 /** Keep tenant-scoped run ledger entries. Entries without a nested scope are
  *  admitted when the upstream request already filtered by tenant. */
 export function filterRunsForTenant(runs: unknown[], tenant: string): unknown[] {

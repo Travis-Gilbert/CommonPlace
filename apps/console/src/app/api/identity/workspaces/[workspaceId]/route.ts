@@ -1,6 +1,7 @@
 // SOURCING: none. Same-origin workspace settings proxy.
 
 import {
+  assertSameOriginIdentityMutation,
   forkIdentityErrorResponse,
   forkIdentityResponse,
   readJsonObject,
@@ -13,6 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
+    assertSameOriginIdentityMutation(request);
     const principal = await resolveForkIdentityPrincipal();
     const [{ workspaceId }, workspace] = await Promise.all([
       params,

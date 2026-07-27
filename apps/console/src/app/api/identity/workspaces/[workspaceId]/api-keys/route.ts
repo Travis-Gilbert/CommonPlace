@@ -1,6 +1,7 @@
 // SOURCING: none. Same-origin API key administration proxy.
 
 import {
+  assertSameOriginIdentityMutation,
   forkIdentityErrorResponse,
   forkIdentityResponse,
   requestForkIdentity,
@@ -27,8 +28,9 @@ export async function GET(
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    assertSameOriginIdentityMutation(request);
     await resolveForkIdentityPrincipal();
     return Response.json(
       {

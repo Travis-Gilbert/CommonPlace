@@ -3,6 +3,7 @@
 // path=frontend/src/models/invite.js. Adapted to the identity peer service.
 
 import {
+  assertSameOriginIdentityMutation,
   forkIdentityErrorResponse,
   forkIdentityResponse,
   requestForkIdentity,
@@ -26,10 +27,11 @@ export async function GET(
   }
 }
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
   try {
+    assertSameOriginIdentityMutation(request);
     const [{ code }, principal] = await Promise.all([
       params,
       resolveForkIdentityPrincipal(),

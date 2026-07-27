@@ -6,6 +6,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth: vi.fn() }));
 
 import {
+  assertSameOriginIdentityMutation,
   ForkIdentityProxyError,
   readJsonObject,
   requestForkDocumentIngest,
@@ -81,6 +82,51 @@ describe('fork identity server configuration', () => {
 });
 
 describe('fork identity transport', () => {
+  it('admits exact-origin mutations and refuses sibling or opaque origins', () => {
+    expect(() =>
+      assertSameOriginIdentityMutation(
+        new Request('https://console.theoremharness.com/api/identity/workspaces', {
+          method: 'POST',
+          headers: { origin: 'https://console.theoremharness.com' },
+        }),
+      )).not.toThrow();
+    expect(() =>
+      assertSameOriginIdentityMutation(
+        new Request('https://console.theoremharness.com/api/identity/workspaces', {
+          method: 'POST',
+          headers: { 'sec-fetch-site': 'same-origin' },
+        }),
+      )).not.toThrow();
+
+    for (const origin of ['https://attacker.theoremharness.com', 'null', 'not-an-origin']) {
+      expect(() =>
+        assertSameOriginIdentityMutation(
+          new Request('https://console.theoremharness.com/api/identity/workspaces', {
+            method: 'POST',
+            headers: {
+              origin,
+              'sec-fetch-site': 'same-site',
+            },
+          }),
+        )).toThrow(expect.objectContaining({
+          status: 403,
+          code: 'identity_cross_origin_refused',
+        }));
+    }
+  });
+
+  it('fails closed when a mutation carries no browser provenance', () => {
+    expect(() =>
+      assertSameOriginIdentityMutation(
+        new Request('https://console.example.test/api/identity/workspaces', {
+          method: 'POST',
+        }),
+      )).toThrow(expect.objectContaining({
+        status: 403,
+        code: 'identity_cross_origin_refused',
+      }));
+  });
+
   it('accepts a small JSON object request', async () => {
     await expect(
       readJsonObject(
@@ -135,6 +181,21 @@ describe('fork identity transport', () => {
         code: 'identity_request_invalid',
       });
     }
+  });
+
+  it('refuses simple text bodies at the JSON identity boundary', async () => {
+    await expect(
+      readJsonObject(
+        new Request('https://console.example.test/api/identity/workspaces', {
+          method: 'POST',
+          body: JSON.stringify({ name: 'Research' }),
+          headers: { 'content-type': 'text/plain' },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      status: 415,
+      code: 'identity_request_media_type_unsupported',
+    });
   });
 
   it('keeps the internal key in the server authorization header', async () => {

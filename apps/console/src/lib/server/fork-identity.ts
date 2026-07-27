@@ -349,7 +349,46 @@ export function forkIdentityResponse(result: ForkIdentityResponse): Response {
   return Response.json(result.body, { status: result.status });
 }
 
+/**
+ * Identity mutations are a browser-only same-origin surface. A sibling
+ * subdomain is same-site for cookies but not same-origin, so SameSite alone
+ * cannot protect these routes.
+ */
+export function assertSameOriginIdentityMutation(request: Request): void {
+  const suppliedOrigin = request.headers.get('origin');
+  if (suppliedOrigin !== null) {
+    let normalizedOrigin: string | null = null;
+    try {
+      normalizedOrigin = new URL(suppliedOrigin).origin;
+    } catch {
+      // Invalid and opaque origins are refused below.
+    }
+    if (normalizedOrigin === new URL(request.url).origin) return;
+  } else if (request.headers.get('sec-fetch-site')?.toLowerCase() === 'same-origin') {
+    return;
+  }
+
+  throw new ForkIdentityProxyError(
+    403,
+    'identity_cross_origin_refused',
+    'Identity changes require a same-origin Console request',
+  );
+}
+
 export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
+  const mediaType = request.headers
+    .get('content-type')
+    ?.split(';', 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (mediaType !== 'application/json' && !mediaType?.endsWith('+json')) {
+    throw new ForkIdentityProxyError(
+      415,
+      'identity_request_media_type_unsupported',
+      'Identity JSON requests require an application/json content type',
+    );
+  }
+
   let bytes: ArrayBuffer;
   try {
     bytes = await readBoundedRequestBody(request, MAX_JSON_REQUEST_BYTES);

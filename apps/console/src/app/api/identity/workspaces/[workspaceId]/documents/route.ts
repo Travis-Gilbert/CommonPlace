@@ -4,6 +4,7 @@
 // upload whose tenant and graph scope are resolved by the identity peer.
 
 import {
+  assertSameOriginIdentityMutation,
   ForkIdentityProxyError,
   forkIdentityErrorResponse,
   forkIdentityResponse,
@@ -25,6 +26,7 @@ export async function POST(
   { params }: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
+    assertSameOriginIdentityMutation(request);
     const [{ workspaceId }, principal] = await Promise.all([
       params,
       resolveForkIdentityPrincipal(),

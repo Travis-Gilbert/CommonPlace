@@ -1,6 +1,7 @@
 // SOURCING: none. Same-origin API key revocation proxy.
 
 import {
+  assertSameOriginIdentityMutation,
   forkIdentityErrorResponse,
   forkIdentityResponse,
   requestForkIdentity,
@@ -8,10 +9,11 @@ import {
 } from '@/lib/server/fork-identity';
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ keyId: string }> },
 ) {
   try {
+    assertSameOriginIdentityMutation(request);
     const [{ keyId }, principal] = await Promise.all([
       params,
       resolveForkIdentityPrincipal(),

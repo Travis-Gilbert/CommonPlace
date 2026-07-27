@@ -13,6 +13,7 @@ vi.mock('next/headers', () => ({
 }));
 
 vi.mock('@/lib/server/fork-identity', () => ({
+  assertSameOriginIdentityMutation: vi.fn(),
   ForkIdentityProxyError: class ForkIdentityProxyError extends Error {},
   forkIdentityErrorResponse: () =>
     Response.json({ error: 'identity_proxy_error' }, { status: 502 }),
@@ -38,7 +39,12 @@ beforeEach(() => {
 
 describe('active workspace deletion', () => {
   it('clears the local cookie without resolving session or identity peers', async () => {
-    const response = await DELETE();
+    const response = await DELETE(
+      new Request('https://console.example.test/api/identity/active-workspace', {
+        method: 'DELETE',
+        headers: { origin: 'https://console.example.test' },
+      }),
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ cleared: true });

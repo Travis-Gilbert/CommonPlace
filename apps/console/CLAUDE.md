@@ -107,6 +107,7 @@ gap: add the row, with a named source, before writing code.
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
 | Client state | `jotai` | shell, thread, memory projection, proactivity (atomFamily / atomWithStorage) |
 | Account identity | Auth.js with GitHub | OAuth, session state, sign-in, sign-out, verified user claims |
+| Fork identity pages | hard fork of `Mintplex-Labs/anything-llm` at `633fc1960914298009134b40c25007cb422c7884`, retokened to the register | login, invite, onboarding, workspace settings, admin, and surviving general settings structure |
 | Indexer spatial gallery | 21st.dev moazamtrade/3d-image-gallery (catalog 6525) on three, @react-three/fiber, @react-three/drei | golden-ratio 12/16/20 sphere, orbit camera, source capture injection, relationship geometry; scene ground defers to MaterialLayer / transparent DOM |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |

@@ -1,6 +1,7 @@
 // SOURCING: none. Same-origin workspace identity proxy.
 
 import {
+  assertSameOriginIdentityMutation,
   forkIdentityErrorResponse,
   forkIdentityResponse,
   readJsonObject,
@@ -23,6 +24,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    assertSameOriginIdentityMutation(request);
     const principal = await resolveForkIdentityPrincipal();
     const workspace = await readJsonObject(request);
     return forkIdentityResponse(

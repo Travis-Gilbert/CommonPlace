@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/server/fork-identity', () => ({
+  assertSameOriginIdentityMutation: vi.fn(),
   forkIdentityErrorResponse: (error: unknown) =>
     Response.json(
       { error: error instanceof Error ? error.message : 'identity_error' },
@@ -30,7 +31,15 @@ describe('workspace API key issuance route', () => {
       username: 'Travis-Gilbert',
     });
 
-    const response = await POST();
+    const response = await POST(
+      new Request(
+        'https://console.example.test/api/identity/workspaces/workspace-1/api-keys',
+        {
+          method: 'POST',
+          headers: { origin: 'https://console.example.test' },
+        },
+      ),
+    );
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
