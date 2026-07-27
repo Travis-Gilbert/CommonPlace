@@ -99,6 +99,7 @@ export function clearLayoutCache(): void {
   try {
     // persistence-cache: reason=clears the hydration copy without deleting server truth
     window.localStorage.removeItem(LAYOUT_CACHE_KEY);
+    // persistence-cache: reason=removes the superseded legacy layout after clearing durable hydration state
     window.localStorage.removeItem(LEGACY_SURFACE_KEY);
   } catch {
     // Storage unavailable: in-memory atom clear still applies.

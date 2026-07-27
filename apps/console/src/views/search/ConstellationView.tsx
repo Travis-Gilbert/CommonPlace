@@ -179,11 +179,12 @@ function ConstellationGraph({
   const domId = useId().replaceAll(':', '');
   const reducedMotion = useReducedMotion();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const resultOpenTimer = useRef<number | null>(null);
+  const resultOpenTimers = useRef(new Map<string, number>());
   useEffect(() => () => {
-    if (resultOpenTimer.current !== null) {
-      window.clearTimeout(resultOpenTimer.current);
+    for (const timer of resultOpenTimers.current.values()) {
+      window.clearTimeout(timer);
     }
+    resultOpenTimers.current.clear();
   }, []);
   const layout = useMemo(
     () => layoutConstellation({
@@ -276,21 +277,24 @@ function ConstellationGraph({
                     onOpenResult?.(node.url, node);
                     return;
                   }
-                  if (resultOpenTimer.current !== null) {
-                    window.clearTimeout(resultOpenTimer.current);
+                  const pendingTimer = resultOpenTimers.current.get(node.id);
+                  if (pendingTimer !== undefined) {
+                    window.clearTimeout(pendingTimer);
                   }
-                  resultOpenTimer.current = window.setTimeout(() => {
-                    resultOpenTimer.current = null;
+                  const timer = window.setTimeout(() => {
+                    resultOpenTimers.current.delete(node.id);
                     onOpenResult?.(node.url, node);
                   }, RESULT_DOUBLE_CLICK_WINDOW_MS);
+                  resultOpenTimers.current.set(node.id, timer);
                 }}
                 onDoubleClick={(event) => {
                   if (!onExpandNode) return;
                   event.preventDefault();
                   event.stopPropagation();
-                  if (resultOpenTimer.current !== null) {
-                    window.clearTimeout(resultOpenTimer.current);
-                    resultOpenTimer.current = null;
+                  const pendingTimer = resultOpenTimers.current.get(node.id);
+                  if (pendingTimer !== undefined) {
+                    window.clearTimeout(pendingTimer);
+                    resultOpenTimers.current.delete(node.id);
                   }
                   onExpandNode(node);
                 }}
