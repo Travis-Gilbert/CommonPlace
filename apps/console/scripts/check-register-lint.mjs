@@ -25,6 +25,9 @@ const REGISTER_FILES = new Set([
   path.join(srcRoot, 'styles', 'gy-bridge.css'),
   path.join(srcRoot, 'styles', 'galley-register.css'),
   path.join(srcRoot, 'styles', 'app.css'),
+  // CS2/CS5 material and hue floors: raw values live here, not in components.
+  path.join(srcRoot, 'styles', 'geometry.css'),
+  path.join(srcRoot, 'styles', 'tokens.css'),
 ]);
 
 // Registry installs (SC1) land with upstream metric arbitrary values

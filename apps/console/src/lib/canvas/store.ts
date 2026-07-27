@@ -1,8 +1,18 @@
 // SOURCING: none. Pure logic, no upstream component applies.
 
-import type { JsonValue, ObjectAction, ObjectActionReceipt, ObjectQuery, ObjectRef, ObjectSet, Predicate, Result, Unsubscribe } from '@commonplace/block-view/types';
+import type {
+  BlockHost,
+  JsonValue,
+  ObjectAction,
+  ObjectActionReceipt,
+  ObjectQuery,
+  ObjectRef,
+  ObjectSet,
+  Predicate,
+  Result,
+  Unsubscribe,
+} from '@commonplace/block-view/types';
 import {
-  applyJsonCanvasAsActions,
   CANVAS_CONNECT_EDGE,
   CANVAS_CONNECTION_TYPE,
   CANVAS_GROUP_TYPE,
@@ -24,11 +34,11 @@ import {
 } from '@commonplace/json-canvas';
 import { CANVAS_TYPES, graphToObjectRefs, isCanvasManagedType } from './object-bridge';
 
-export const REFUSAL_NOTE = 'refused:missing_tenant';
+const CANVAS_DOCUMENT_PROPERTY = 'graph';
+const CANVAS_PERSISTENCE_KIND = 'canvas-work-v1';
+const AUTHENTICATED_SCOPE = 'authenticated-object-seam';
+export const PERSISTENCE_UNAVAILABLE_NOTE = 'refused:canvas_persistence_unavailable';
 export const DEFAULT_CANVAS_ID = 'canvas.default';
-
-/** Optional harness write-through. CanvasStore keeps session memory only; no localStorage. */
-export type CanvasPersistHook = (canvas: GraphCanvas) => void;
 
 function stringValue(value: JsonValue | undefined): string | undefined {
   return typeof value === 'string' ? value : undefined;
@@ -53,29 +63,139 @@ export class CanvasStore {
   private readonly canvases = new Map<string, GraphCanvas>();
   private readonly detached = new Map<string, CanvasObjectProjection>();
   private readonly subs = new Set<() => void>();
-  private readonly onPersist: CanvasPersistHook | null;
+  private readonly persistedIds = new Set<string>();
+  private hydration: Promise<void> | null = null;
+  private hydrationReady = false;
+  private mutation: Promise<unknown> = Promise.resolve();
+  private persistenceError: string | null = null;
 
-  constructor(
-    private readonly tenant: string | null,
-    onPersist: CanvasPersistHook | null = null,
-  ) {
-    this.onPersist = onPersist;
-    if (tenant) this.ensureCanvas(DEFAULT_CANVAS_ID);
+  constructor(private readonly host: Pick<BlockHost, 'query' | 'emit'>) {
+    this.canvases.set(
+      DEFAULT_CANVAS_ID,
+      emptyGraphCanvas(DEFAULT_CANVAS_ID, AUTHENTICATED_SCOPE),
+    );
   }
 
   private ensureCanvas(canvasId: string): GraphCanvas | null {
-    if (!this.tenant) return null;
     const current = this.canvases.get(canvasId);
     if (current) return current;
-    const canvas = emptyGraphCanvas(canvasId, this.tenant);
+    const canvas = emptyGraphCanvas(canvasId, AUTHENTICATED_SCOPE);
     this.commit(canvas);
     return canvas;
   }
 
   private commit(canvas: GraphCanvas): void {
     this.canvases.set(canvas.id, canvas);
-    this.onPersist?.(canvas);
     for (const callback of this.subs) callback();
+  }
+
+  private graphFromObject(object: ObjectRef): GraphCanvas | null {
+    const value = object.properties[CANVAS_DOCUMENT_PROPERTY];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const candidate = value as unknown as Partial<GraphCanvas>;
+    if (
+      candidate.id !== object.id
+      || typeof candidate.title !== 'string'
+      || !Array.isArray(candidate.placements)
+      || !Array.isArray(candidate.groups)
+      || !Array.isArray(candidate.connections)
+      || !Array.isArray(candidate.objects)
+    ) {
+      return null;
+    }
+    return {
+      ...candidate,
+      tenant: typeof candidate.tenant === 'string'
+        ? candidate.tenant
+        : AUTHENTICATED_SCOPE,
+    } as GraphCanvas;
+  }
+
+  private ensureHydrated(): Promise<void> {
+    if (this.hydration) return this.hydration;
+    this.hydration = this.hydrate();
+    return this.hydration;
+  }
+
+  private async hydrate(): Promise<void> {
+    try {
+      const set = await this.host.query({
+        types: [CANVAS_TYPE],
+        where: { kind: 'eq', field: 'id', value: DEFAULT_CANVAS_ID },
+        page: { limit: 1 },
+      });
+      const persisted = set.objects
+        .map((object) => this.graphFromObject(object))
+        .find((canvas): canvas is GraphCanvas => canvas !== null);
+      if (persisted) {
+        this.persistedIds.add(persisted.id);
+        this.persistenceError = null;
+        this.hydrationReady = true;
+        this.commit(persisted);
+        return;
+      }
+      const blank = this.canvases.get(DEFAULT_CANVAS_ID)
+        ?? emptyGraphCanvas(DEFAULT_CANVAS_ID, AUTHENTICATED_SCOPE);
+      const result = await this.persist(blank);
+      if (!result.ok || result.value?.status !== 'applied') {
+        this.persistenceError = result.error ?? PERSISTENCE_UNAVAILABLE_NOTE;
+        this.hydration = null;
+        this.notify();
+        return;
+      }
+      this.hydrationReady = true;
+    } catch (error) {
+      this.persistenceError = error instanceof Error
+        ? error.message
+        : PERSISTENCE_UNAVAILABLE_NOTE;
+      this.hydration = null;
+      this.notify();
+    }
+  }
+
+  private notify(): void {
+    for (const callback of this.subs) callback();
+  }
+
+  private async persist(canvas: GraphCanvas): Promise<Result<ObjectActionReceipt>> {
+    const graph = canvas as unknown as JsonValue;
+    const action: ObjectAction = this.persistedIds.has(canvas.id)
+      ? {
+          kind: 'update',
+          id: canvas.id,
+          patch: {
+            title: canvas.title,
+            tenant: canvas.tenant,
+            persistence_kind: CANVAS_PERSISTENCE_KIND,
+            [CANVAS_DOCUMENT_PROPERTY]: graph,
+          },
+        }
+      : {
+          kind: 'create',
+          type: CANVAS_TYPE,
+          props: {
+            id: canvas.id,
+            title: canvas.title,
+            tenant: canvas.tenant,
+            persistence_kind: CANVAS_PERSISTENCE_KIND,
+            [CANVAS_DOCUMENT_PROPERTY]: graph,
+          },
+    };
+    const result = await this.host.emit(action);
+    if (result.ok && result.value?.status === 'applied') {
+      this.persistedIds.add(canvas.id);
+      this.persistenceError = null;
+    } else {
+      this.persistenceError = result.error ?? PERSISTENCE_UNAVAILABLE_NOTE;
+    }
+    return result;
+  }
+
+  /** Resolves after the authenticated object seam has restored or seeded the
+   * default canvas. CanvasView stays on ObjectRefs and learns the result through
+   * its normal ObjectSet subscription. */
+  ready(): Promise<void> {
+    return this.ensureHydrated();
   }
 
   private receipt(actionKind: ObjectActionReceipt['action_kind'], ids: readonly string[]): Result<ObjectActionReceipt> {
@@ -98,14 +218,7 @@ export class CanvasStore {
   }
 
   query(query: ObjectQuery): ObjectSet {
-    if (!this.tenant) {
-      return {
-        objects: [],
-        shape: { types: [...query.types], fields: [], relations: [], axes: {}, cardinality: 'empty' },
-        notes: [REFUSAL_NOTE],
-        subscribe: (callback) => this.subscribe(() => callback(this.query(query))),
-      };
-    }
+    void this.ensureHydrated();
     this.ensureCanvas(DEFAULT_CANVAS_ID);
     const objects = [...this.canvases.values()].flatMap(graphToObjectRefs)
       .filter((object) => query.types.includes(object.type))
@@ -119,6 +232,7 @@ export class CanvasStore {
         axes: { spatial: true },
         cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
       },
+      notes: this.persistenceError ? [PERSISTENCE_UNAVAILABLE_NOTE] : undefined,
       subscribe: (callback) => this.subscribe(() => callback(this.query(query))),
     };
   }
@@ -129,7 +243,13 @@ export class CanvasStore {
   }
 
   owns(action: ObjectAction): boolean {
-    if (action.kind === 'create') return isCanvasManagedType(action.type);
+    if (action.kind === 'create') {
+      return isCanvasManagedType(action.type)
+        && (
+          CANVAS_TYPES.includes(action.type)
+          || typeof action.props.canvasId === 'string'
+        );
+    }
     if (action.kind === 'link' || action.kind === 'unlink') return action.edge === CANVAS_MEMBER_EDGE || action.edge === CANVAS_CONNECT_EDGE;
     if (action.kind === 'invoke_tool') return action.tool === 'canvas.apply_json';
     if (action.kind === 'update' || action.kind === 'delete') return this.findCanvas(action.id) !== null;
@@ -137,6 +257,7 @@ export class CanvasStore {
   }
 
   getCanvas(canvasId: string): GraphCanvas | null {
+    void this.ensureHydrated();
     return this.ensureCanvas(canvasId);
   }
 
@@ -145,47 +266,171 @@ export class CanvasStore {
     return canvas ? toJsonCanvas(canvas) : null;
   }
 
-  importDocument(canvasId: string, document: JSONCanvas): Result<ObjectActionReceipt> {
-    if (!this.tenant) return { ok: false, error: REFUSAL_NOTE };
-    const canvas = fromJsonCanvas(document, { canvasId, tenant: this.tenant, title: this.getCanvas(canvasId)?.title ?? 'Imported canvas' });
-    this.commit(canvas);
-    return this.receipt('create', [canvasId]);
+  async importDocument(
+    canvasId: string,
+    document: JSONCanvas,
+  ): Promise<Result<ObjectActionReceipt>> {
+    return this.enqueueMutation(() => this.importDocumentOne(canvasId, document));
   }
 
-  applyJsonCanvas(canvasId: string, document: JSONCanvas): Result<ObjectActionReceipt> {
-    if (!this.tenant) return { ok: false, error: REFUSAL_NOTE };
-    const compiled = applyJsonCanvasAsActions(document, { canvasId, tenant: this.tenant, title: this.getCanvas(canvasId)?.title ?? 'Canvas' });
-    this.canvases.set(canvasId, emptyGraphCanvas(canvasId, this.tenant, compiled.canvas.title));
-    for (const action of compiled.actions) {
-      const result = this.emit(action as ObjectAction);
-      if (!result.ok) return result;
+  private async importDocumentOne(
+    canvasId: string,
+    document: JSONCanvas,
+  ): Promise<Result<ObjectActionReceipt>> {
+    await this.ensureHydrated();
+    if (!this.hydrationReady) {
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }
-    return this.receipt('invoke_tool', [canvasId]);
+    const current = this.canvases.get(canvasId);
+    const canvas = fromJsonCanvas(document, {
+      canvasId,
+      tenant: current?.tenant ?? AUTHENTICATED_SCOPE,
+      title: current?.title ?? 'Imported canvas',
+    });
+    const persisted = await this.persist(canvas);
+    if (!persisted.ok || persisted.value?.status !== 'applied') {
+      return persisted.ok
+        ? { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE }
+        : persisted;
+    }
+    this.commit(canvas);
+    return this.durableReceipt('create', [canvasId], persisted);
   }
 
-  emit(action: ObjectAction): Result<ObjectActionReceipt> {
-    if (!this.tenant) return { ok: false, error: REFUSAL_NOTE };
+  applyJsonCanvas(
+    canvasId: string,
+    document: JSONCanvas,
+  ): Promise<Result<ObjectActionReceipt>> {
+    return this.enqueueMutation(() => this.applyJsonCanvasOne(canvasId, document));
+  }
+
+  private applyJsonCanvasOne(
+    canvasId: string,
+    document: JSONCanvas,
+  ): Promise<Result<ObjectActionReceipt>> {
+    return this.importDocumentOne(canvasId, document).then((result) => (
+      result.ok
+        ? {
+            ...result,
+            value: result.value
+              ? { ...result.value, action_kind: 'invoke_tool' }
+              : result.value,
+          }
+        : result
+    ));
+  }
+
+  private enqueueMutation(
+    operation: () => Promise<Result<ObjectActionReceipt>>,
+  ): Promise<Result<ObjectActionReceipt>> {
+    const run = this.mutation.then(operation);
+    this.mutation = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    return this.enqueueMutation(() => this.emitOne(action));
+  }
+
+  private async emitOne(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    await this.ensureHydrated();
+    if (!this.hydrationReady) {
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
+    }
     if (action.kind === 'invoke_tool') {
       if (action.tool !== 'canvas.apply_json') return { ok: false, error: `unknown canvas tool: ${action.tool}` };
       const canvasId = stringValue(action.args.canvasId) ?? DEFAULT_CANVAS_ID;
       try {
-        return this.applyJsonCanvas(canvasId, parseCanvasValue(action.args.document));
+        return await this.applyJsonCanvasOne(canvasId, parseCanvasValue(action.args.document));
       } catch (error) {
         return { ok: false, error: error instanceof Error ? error.message : 'invalid JSON Canvas document' };
       }
     }
-    if (action.kind === 'create') return this.create(action.type, action.props);
-    if (action.kind === 'update') return this.update(action.id, action.patch);
-    if (action.kind === 'link') return this.link(action.from, action.edge, action.to);
-    if (action.kind === 'unlink') return this.unlink(action.from, action.edge, action.to);
-    if (action.kind === 'delete') return this.delete(action.id);
-    return { ok: false, error: `canvas store cannot handle action: ${action.kind}` };
+    const previousCanvases = new Map(this.canvases);
+    const previousDetached = new Map(this.detached);
+    const owningCanvasId = action.kind === 'delete'
+      ? this.findCanvas(action.id)?.id
+      : undefined;
+    const local: Result<ObjectActionReceipt> = action.kind === 'create'
+      ? this.create(action.type, action.props)
+      : action.kind === 'update'
+        ? this.update(action.id, action.patch)
+        : action.kind === 'link'
+          ? this.link(action.from, action.edge, action.to)
+          : action.kind === 'unlink'
+            ? this.unlink(action.from, action.edge, action.to)
+            : action.kind === 'delete'
+              ? this.delete(action.id)
+              : { ok: false, error: `canvas store cannot handle action: ${action.kind}` };
+    if (!local.ok) return local;
+
+    let durable: Result<ObjectActionReceipt>;
+    if (action.kind === 'delete' && previousCanvases.has(action.id)) {
+      durable = await this.host.emit({ kind: 'delete', id: action.id });
+      if (durable.ok) this.persistedIds.delete(action.id);
+    } else {
+      const canvas = this.findCanvas(
+        action.kind === 'create'
+          ? stringValue(action.props.canvasId) ?? stringValue(action.props.id) ?? DEFAULT_CANVAS_ID
+          : action.kind === 'delete' && owningCanvasId
+            ? owningCanvasId
+          : action.kind === 'link' || action.kind === 'unlink'
+            ? action.from
+            : 'id' in action
+              ? action.id
+              : DEFAULT_CANVAS_ID,
+      ) ?? this.canvases.get(DEFAULT_CANVAS_ID);
+      durable = canvas
+        ? await this.persist(canvas)
+        : { ok: false, error: 'canvas persistence target missing' };
+    }
+    if (!durable.ok || durable.value?.status !== 'applied') {
+      this.canvases.clear();
+      for (const [id, canvas] of previousCanvases) this.canvases.set(id, canvas);
+      this.detached.clear();
+      for (const [id, object] of previousDetached) this.detached.set(id, object);
+      this.notify();
+      return durable.ok
+        ? { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE }
+        : durable;
+    }
+    return this.durableReceipt(action.kind, local.value?.target_ids ?? [], durable);
+  }
+
+  private durableReceipt(
+    actionKind: ObjectActionReceipt['action_kind'],
+    ids: readonly string[],
+    durable: Result<ObjectActionReceipt>,
+  ): Result<ObjectActionReceipt> {
+    if (!durable.ok || durable.value?.status !== 'applied') {
+      return durable.ok
+        ? { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE }
+        : durable;
+    }
+    return {
+      ok: true,
+      value: {
+        ...(durable.value ?? {
+          action_kind: actionKind,
+          status: 'applied' as const,
+        }),
+        action_kind: actionKind,
+        status: 'applied',
+        target_ids: ids,
+      },
+    };
   }
 
   private create(type: string, props: Readonly<Record<string, JsonValue>>): Result<ObjectActionReceipt> {
     const id = stringValue(props.id) ?? `${type}:${Date.now()}`;
     if (type === CANVAS_TYPE) {
-      this.commit(emptyGraphCanvas(id, this.tenant!, stringValue(props.title) ?? 'Canvas'));
+      this.commit(
+        emptyGraphCanvas(
+          id,
+          AUTHENTICATED_SCOPE,
+          stringValue(props.title) ?? 'Canvas',
+        ),
+      );
       return this.receipt('create', [id]);
     }
     const canvasId = stringValue(props.canvasId) ?? DEFAULT_CANVAS_ID;

@@ -7,15 +7,16 @@
 
 import type { ViewDescriptor, ViewRenderProps } from '@commonplace/block-view/types';
 import { createViewRegistry } from '@commonplace/block-view/registry';
+import type { ConsoleViewDescriptor } from '@/lib/rail/rail-model';
 import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
+import { ThreadListView } from './ThreadListView';
 import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
 import { IndexStreamView } from './IndexStreamView';
 import { IndexRulesView } from './IndexRulesView';
-import { MailConnectView, MailReaderView } from './MailConnectView';
 import { UrgentLaneView } from './UrgentLaneView';
 import { CardFullView, CardGridView } from './CardView';
 import { HunkReviewView } from './HunkReviewView';
@@ -27,19 +28,21 @@ import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
 import { CanvasView } from './canvas/CanvasView';
-import { ModelView } from './model/ModelView';
-import { ProgramView } from './program/ProgramView';
 import { StatusPanel } from './harness-ux/StatusPanel';
 import { WhyTracePanel } from './harness-ux/WhyTracePanel';
-import {
-  BrowserPaneBlock,
-  DocumentBlock,
-  KanbanBlock,
-  TerminalBlock,
-  VideoBlock,
-} from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
-import { FindIndexView } from './FindIndexView';
+import { KanbanBlock } from './blocks/KanbanBlock';
+import { SurveyView } from './SurveyView';
+import { ModelView } from './model/ModelView';
+import { SearchStackView } from './search/SearchStackView';
+import { PG_TYPES } from '@/lib/proactivity/object-bridge';
+import {
+  openSearchPageInWebEdition,
+  recordSearchSessionOrigin,
+} from './search/search-host';
+import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
+import { RecordsBlock } from '@/components/blocks/RecordsBlock';
+import { RecordPage } from '@/components/blocks/RecordPage';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -57,15 +60,36 @@ function ContextRender(props: ViewRenderProps) {
   return <ContextView host={props.host} />;
 }
 
-const RECORD_TABLE: ViewDescriptor = {
+function SearchStackRender(props: ViewRenderProps) {
+  const sessionId = props.instance?.id ?? 'search.stack';
+  return (
+    <SearchStackView
+      sessionId={sessionId}
+      onOpenPage={openSearchPageInWebEdition}
+      onRecordSessionOrigin={(id, origin) =>
+        recordSearchSessionOrigin(props.host, id, origin).then(() => undefined)}
+    />
+  );
+}
+
+const RECORD_TABLE: ConsoleViewDescriptor = {
   id: 'record.table',
   name: 'Records',
+  paletteVisible: true,
+  palette: {
+    id: 'records',
+    kind: 'records',
+    material: 'sunken',
+    query: { types: ['record'], page: { limit: 100 }, live: true },
+  },
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'record.table',
-  sourcing: {
+  source: {
+    package: 'jacksonkasi1/tnks-data-table',
+    component: 'TnksDataTable',
     mode: 'wrap',
-    upstream: 'jacksonkasi1/tnks-data-table/TnksDataTable',
+    regime: 'css-vars',
   },
   block: {
     usage: 'browse records',
@@ -79,15 +103,25 @@ const RECORD_TABLE: ViewDescriptor = {
   render: RecordTableView,
 };
 
-const MARKDOWN_DOC: ViewDescriptor = {
+const MARKDOWN_DOC: ConsoleViewDescriptor = {
   id: 'markdown.doc',
   name: 'Document',
+  paletteVisible: true,
+  palette: {
+    id: 'documents',
+    label: 'Documents',
+    kind: 'documents',
+    material: 'lifted',
+    query: { types: ['doc'], page: { limit: 100 }, live: true },
+  },
   accepts: {},
   emits: ['update', 'open'],
   renderer: 'markdown.doc',
-  sourcing: {
+  source: {
+    package: '@travis-gilbert/markdown-theory',
+    component: 'Galley',
     mode: 'wrap',
-    upstream: '@travis-gilbert/markdown-theory/Galley',
+    regime: 'css-vars',
   },
   block: {
     usage: 'read a document',
@@ -104,11 +138,14 @@ const CODE_FILE: ViewDescriptor = {
   id: 'code.file',
   name: 'Code',
   accepts: {},
-  emits: ['open'],
+  emits: ['open', 'invoke_tool'],
   renderer: 'code.file',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: 'codemirror/EditorView' },
+  source: {
+    package: 'codemirror',
+    component: 'EditorView',
     mode: 'wrap',
-    upstream: 'codemirror/EditorView',
+    regime: 'css-vars',
   },
   block: {
     usage: 'inspect code',
@@ -127,9 +164,12 @@ const CHAT_THREAD: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.thread',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
     mode: 'wrap',
-    upstream: '@assistant-ui/react/ThreadPrimitive',
+    regime: 'css-vars',
   },
   block: {
     usage: 'follow the thread',
@@ -148,9 +188,12 @@ const CHAT_SURFACE: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.surface',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/Composer' },
+  source: {
+    package: '@assistant-ui/react',
+    component: 'Composer',
     mode: 'wrap',
-    upstream: '@assistant-ui/react/Composer',
+    regime: 'css-vars',
   },
   block: {
     usage: 'compose with the agent',
@@ -163,19 +206,52 @@ const CHAT_SURFACE: ViewDescriptor = {
   render: ChatSurfaceRender,
 };
 
-const FILES_TREE: ViewDescriptor = {
+const THREAD_LIST: ViewDescriptor = {
+  id: 'thread.list',
+  name: 'Threads',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'thread.list',
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse threads',
+    placements: ['full', 'ground'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'thread',
+  },
+  render: ThreadListView,
+};
+
+const FILES_TREE: ConsoleViewDescriptor = {
   id: 'files.tree',
   name: 'Files',
+  paletteVisible: true,
+  palette: {
+    id: 'files',
+    kind: 'files',
+    material: 'sunken',
+    query: { types: ['files-view'] },
+  },
   accepts: {},
   emits: ['open'],
   renderer: 'files.tree',
-  sourcing: {
+  source: {
+    package: '@tanstack/react-virtual',
+    component: 'useVirtualizer',
     mode: 'wrap',
-    upstream: '@tanstack/react-virtual/useVirtualizer',
+    regime: 'css-vars',
   },
   block: {
     usage: 'browse files',
-    placements: ['dock'],
+    placements: ['dock', 'ground', 'full'],
     defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
@@ -190,9 +266,12 @@ const CONTEXT_GRAPH: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'context.graph',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: 'd3/scalePoint' },
+  source: {
+    package: 'd3',
+    component: 'scalePoint',
     mode: 'wrap',
-    upstream: 'd3/scalePoint',
+    regime: 'css-vars',
   },
   block: {
     usage: 'inspect context',
@@ -213,8 +292,13 @@ const DOC_LIST: ViewDescriptor = {
   renderer: 'doc.list',
   sourcing: {
     mode: 'bespoke',
-    allowedBespokeReason:
-      'Documents list is a host-query retarget of markdown.doc arrangement; no list library owns surface-instance patching.',
+    allowedBespokeReason: 'Document list binds the BlockHost object query to the Console collection contract.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
   },
   render: DocListView,
 };
@@ -222,15 +306,29 @@ const DOC_LIST: ViewDescriptor = {
 // The Index descriptor family (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0). The
 // arrival state is sorted, so none of these renders a pending queue, and none
 // of them renders a count: the wire contract carries no number for one.
-const INDEX_RAIL: ViewDescriptor = {
+const INDEX_RAIL: ConsoleViewDescriptor = {
   id: 'index.rail',
   name: 'Destinations',
+  paletteVisible: true,
+  palette: { id: 'index', label: 'Index', kind: 'index', material: 'sunken' },
   accepts: {},
   emits: ['select'],
   renderer: 'index.rail',
-  sourcing: {
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
     mode: 'bespoke',
-    allowedBespokeReason: 'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
+  },
+  block: {
+    usage: 'browse filing destinations',
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
   },
   render: IndexDestinationsView,
 };
@@ -241,33 +339,14 @@ const INDEX_STREAM: ViewDescriptor = {
   accepts: {},
   emits: ['update', 'select'],
   renderer: 'index.stream',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: '@dnd-kit/core/DndContext' },
+  source: {
+    package: '@dnd-kit/core',
+    component: 'DndContext',
     mode: 'wrap',
-    upstream: '@dnd-kit/core/DndContext',
+    regime: 'css-vars',
   },
   render: IndexStreamView,
-};
-
-const FIND_INDEX: ViewDescriptor = {
-  id: 'find.index',
-  name: 'Find',
-  accepts: {},
-  emits: ['select', 'open'],
-  renderer: 'find.index',
-  sourcing: {
-    mode: 'wrap',
-    upstream: 'jacksonkasi1/tnks-data-table/TnksDataTable',
-  },
-  block: {
-    usage: 'search the index',
-    placements: ['ground', 'full', 'rail'],
-    defaultSize: 'm',
-    density: 'compact',
-    surfaceClass: 'tool',
-    kindGlyph: 'memory',
-    bodyBleed: 'flush',
-  },
-  render: FindIndexView,
 };
 
 const INDEX_RULES: ViewDescriptor = {
@@ -276,9 +355,12 @@ const INDEX_RULES: ViewDescriptor = {
   accepts: {},
   emits: ['create', 'update', 'delete'],
   renderer: 'index.rules',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: 'cmdk/Command' },
+  source: {
+    package: 'cmdk',
+    component: 'Command',
     mode: 'wrap',
-    upstream: 'cmdk/Command',
+    regime: 'css-vars',
   },
   render: IndexRulesView,
 };
@@ -291,35 +373,17 @@ const INDEX_URGENT: ViewDescriptor = {
   renderer: 'index.urgent',
   sourcing: {
     mode: 'bespoke',
-    allowedBespokeReason: 'A lane whose empty state is its designed norm is a product claim, not a generic list: no library models "reassure, do not gamify".',
+    allowedBespokeReason: 'Urgent filing work is a typed BlockHost projection with a product-specific empty state.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'A lane whose empty state is its designed norm is a product claim, not a generic list: no library models "reassure, do not gamify".',
   },
   render: UrgentLaneView,
-};
-
-const MAIL_CONNECT: ViewDescriptor = {
-  id: 'mail.connect',
-  name: 'Mail connect',
-  accepts: {},
-  emits: ['update'],
-  renderer: 'mail.connect',
-  sourcing: {
-    mode: 'bespoke',
-    allowedBespokeReason: 'JMAP connect, mapping, consent, and sync status are a product contract with no ledger library for the multi-step flow.',
-  },
-  render: MailConnectView,
-};
-
-const MAIL_READER: ViewDescriptor = {
-  id: 'mail.reader',
-  name: 'Mail reader',
-  accepts: {},
-  emits: ['select'],
-  renderer: 'mail.reader',
-  sourcing: {
-    mode: 'bespoke',
-    allowedBespokeReason: 'Minimal mail reader with entity chips, thread rail, and sanitizer policy is bespoke to the JMAP spoke handoff.',
-  },
-  render: MailReaderView,
 };
 
 // The card engine descriptor family (HANDOFF-CARDS-ACTIONS-MENTIONS K1):
@@ -333,6 +397,13 @@ const CARD_FULL: ViewDescriptor = {
   renderer: 'card.full',
   sourcing: {
     mode: 'bespoke',
+    allowedBespokeReason: 'The full card is the product record contract rendered directly from BlockHost data.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
     allowedBespokeReason: 'kind-templated card layouts are a domain concept no library models',
   },
   block: {
@@ -352,9 +423,12 @@ const CARDS_GRID: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'cards.grid',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: '@tanstack/react-virtual/useVirtualizer' },
+  source: {
+    package: '@tanstack/react-virtual',
+    component: 'useVirtualizer',
     mode: 'wrap',
-    upstream: '@tanstack/react-virtual/useVirtualizer',
+    regime: 'css-vars',
   },
   block: {
     usage: 'browse record cards',
@@ -375,22 +449,121 @@ const HUNK_REVIEW: ViewDescriptor = {
   renderer: 'hunk.review',
   sourcing: {
     mode: 'bespoke',
+    allowedBespokeReason: 'Hunk review binds typed review objects and executor receipts to the product contract.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
     allowedBespokeReason: 'The typed Hunk review mechanics are the product contract; nested structured values still resolve through registered descriptors.',
   },
   render: HunkReviewView,
 };
 
-const PROACTIVITY: ViewDescriptor = {
+const PROACTIVITY: ConsoleViewDescriptor = {
   id: 'proactivity.graph',
   name: 'Proactivity',
+  paletteVisible: true,
+  palette: {
+    id: 'automation',
+    label: 'Automation',
+    kind: 'automation',
+    material: 'sunken',
+    query: { types: [...PG_TYPES], live: true },
+  },
   accepts: { required_types: ['pg.stake'], cardinality: 'many' },
   emits: ['update', 'create', 'delete'],
   renderer: 'proactivity.graph',
-  sourcing: {
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
     mode: 'bespoke',
-    allowedBespokeReason: 'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+  },
+  block: {
+    usage: 'inspect standing automation',
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'automation',
   },
   render: ProactivityView,
+};
+
+const SURVEY_BOARD: ViewDescriptor = {
+  id: 'survey.board',
+  name: 'Indexer',
+  accepts: { required_types: ['capture'], cardinality: 'many' },
+  emits: ['open'],
+  renderer: 'survey.board',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'The Researcher board is a typed evidence projection over BlockHost objects.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'The spherical topic corpus, semantic zoom ladder, and evidenced connection labels are the Indexer product contract.',
+  },
+  render: SurveyView,
+};
+
+const MODEL_STUDIO: ViewDescriptor = {
+  id: 'model.studio',
+  name: 'Models',
+  accepts: { required_types: ['model-scope'] },
+  emits: ['select', 'create', 'update', 'delete'],
+  renderer: 'model.studio',
+  sourcing: { mode: 'wrap', upstream: '@xyflow/react/ReactFlow' },
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect observed model',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'editor',
+    kindGlyph: 'model',
+    bodyBleed: 'flush',
+    acceptsDrop: { semantic: 'relate', edge: 'RELATED_TO' },
+  },
+  render: ModelView,
+};
+
+const SEARCH_STACK: ConsoleViewDescriptor = {
+  id: 'search.stack',
+  name: 'Search',
+  paletteVisible: true,
+  palette: { id: 'search', kind: 'search', material: 'sunken' },
+  accepts: {},
+  emits: ['open', 'select', 'create'],
+  renderer: 'search.stack',
+  source: {
+    package: 'cmdk',
+    component: 'Command',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'search across knowledge',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'context',
+    bodyBleed: 'flush',
+  },
+  render: SearchStackRender,
 };
 
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
@@ -399,32 +572,37 @@ const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'workspace.substrate',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: '@tanstack/react-virtual/useVirtualizer' },
+  source: {
+    package: '@tanstack/react-virtual',
+    component: 'useVirtualizer',
     mode: 'wrap',
-    upstream: '@tanstack/react-virtual/useVirtualizer',
+    regime: 'css-vars',
   },
   render: WorkspaceSubstrateView,
 };
 
-const GOAL_STACK: ViewDescriptor = {
+const GOAL_STACK: ConsoleViewDescriptor = {
   id: 'goal.stack',
   name: 'Goal Stack',
+  paletteVisible: true,
+  palette: { id: 'plan', label: 'Plan', kind: 'plan', material: 'sunken' },
   accepts: {},
-  emits: ['select', 'invoke_tool', 'update', 'link'],
+  emits: ['select', 'invoke_tool', 'update'],
   renderer: 'goal.stack',
-  sourcing: {
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
     mode: 'wrap',
-    upstream: '@xyflow/react/ReactFlow',
+    regime: 'css-vars',
   },
   block: {
-    usage: 'program a goal graph',
+    usage: 'inspect agent plan',
     placements: ['ground', 'full'],
     defaultSize: 'full',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'automation',
-    bodyBleed: 'flush',
-    acceptsDrop: { semantic: 'relate', accepts: ['*'] },
   },
   render: GoalStackView,
 };
@@ -437,7 +615,15 @@ const HARNESS_STATUS: ViewDescriptor = {
   renderer: 'harness.status',
   sourcing: {
     mode: 'bespoke',
-    allowedBespokeReason: 'The status report is a Harness contract surface with actionable waiting items and backend degradation.',
+    allowedBespokeReason: 'Harness status renders a typed health contract with actionable degradation states.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The status report is a Harness contract surface with actionable waiting items and backend degradation.',
   },
   render: StatusPanel,
 };
@@ -450,7 +636,15 @@ const HARNESS_WHY: ViewDescriptor = {
   renderer: 'harness.why',
   sourcing: {
     mode: 'bespoke',
-    allowedBespokeReason: 'The why trace renders an untransformed Harness explainer payload and optional remedy.',
+    allowedBespokeReason: 'Why trace renders the Harness explanation payload and its available remedy.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The why trace renders an untransformed Harness explainer payload and optional remedy.',
   },
   render: WhyTracePanel,
 };
@@ -463,8 +657,13 @@ const APPEARANCE: ViewDescriptor = {
   renderer: 'settings.appearance',
   sourcing: {
     mode: 'bespoke',
-    allowedBespokeReason:
-      'Appearance knobs drive the console register seed; no upstream settings panel owns --ij token mutation.',
+    allowedBespokeReason: 'Appearance binds the Console register controls to persisted theme preferences.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
   },
   render: AppearanceView,
 };
@@ -475,70 +674,29 @@ const ACCOUNT: ViewDescriptor = {
   accepts: {},
   emits: ['update'],
   renderer: 'settings.account',
-  sourcing: {
+  sourcing: { mode: 'wrap', upstream: 'next-auth/react/SessionProvider' },
+  source: {
+    package: 'next-auth/react',
+    component: 'SessionProvider',
     mode: 'wrap',
-    upstream: 'next-auth/react/SessionProvider',
+    regime: 'css-vars',
   },
   render: AccountView,
 };
 
-const TERMINAL: ViewDescriptor = {
-  id: 'terminal',
-  name: 'Terminal',
-  accepts: {},
-  emits: ['invoke_tool'],
-  renderer: 'terminal',
-  sourcing: {
-    mode: 'wrap',
-    upstream: 'textmode.js/Textmode',
-  },
-  block: {
-    usage: 'operate a shell',
-    placements: ['ground', 'full'],
-    defaultSize: 'w',
-    density: 'compact',
-    surfaceClass: 'tool',
-    kindGlyph: 'terminal',
-    bodyBleed: 'flush',
-    dataNote:
-      'Web edition: textmode (or similar) inside the React canvas. Native shell edition: native terminal surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
-  },
-  render: TerminalBlock,
-};
-
-const BROWSER_PANE: ViewDescriptor = {
-  id: 'browser-pane',
-  name: 'Browser',
-  accepts: {},
-  emits: ['open'],
-  renderer: 'browser-pane',
-  sourcing: {
-    mode: 'wrap',
-    upstream: 'servo-render-worker/POST /render',
-  },
-  block: {
-    usage: 'view a page',
-    placements: ['ground', 'full'],
-    defaultSize: 'w',
-    density: 'both',
-    surfaceClass: 'tool',
-    kindGlyph: 'browser',
-    bodyBleed: 'flush',
-    dataNote:
-      'Web edition: Servo render worker (POST /render) into the React canvas. Native shell edition: native Servo surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
-  },
-  render: BrowserPaneBlock,
-};
-
-const KANBAN: ViewDescriptor = {
+const KANBAN: ConsoleViewDescriptor = {
   id: 'kanban',
   name: 'Kanban',
+  paletteVisible: true,
+  palette: { id: 'kanban', kind: 'kanban', material: 'sunken' },
   accepts: {},
   emits: ['update', 'move', 'select'],
   renderer: 'kanban',
-  sourcing: {
+  source: {
+    package: '@dnd-kit/core',
+    component: 'DndContext',
     mode: 'wrap',
-    upstream: '@dnd-kit/core/DndContext',
+    regime: 'css-vars',
   },
   block: {
     usage: 'move work through states',
@@ -547,124 +705,35 @@ const KANBAN: ViewDescriptor = {
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'kanban',
-    acceptsChildren: { layout: 'columns', accepts: ['*'] },
+    acceptsDrop: { semantic: 'contain', layout: 'columns', accepts: ['*'] },
   },
   render: KanbanBlock,
 };
 
-const DOCUMENT_OUTPUT: ViewDescriptor = {
-  id: 'document',
-  name: 'Document output',
-  accepts: {},
-  emits: ['open', 'dispatch'],
-  renderer: 'document',
-  sourcing: {
-    mode: 'wrap',
-    upstream: 'akii09/pdfx/PdfxDocument',
-  },
-  block: {
-    usage: 'produce a document',
-    placements: ['full', 'ground'],
-    defaultSize: 'm',
-    density: 'cozy',
-    surfaceClass: 'editor',
-    kindGlyph: 'doc',
-  },
-  render: DocumentBlock,
-};
-
-const VIDEO: ViewDescriptor = {
-  id: 'video',
-  name: 'Video',
-  accepts: {},
-  emits: ['dispatch', 'open'],
-  renderer: 'video',
-  sourcing: {
-    mode: 'wrap',
-    upstream: 'remotion-dev/remotion/Composition',
-  },
-  block: {
-    usage: 'compose video',
-    placements: ['full', 'ground'],
-    defaultSize: 'w',
-    density: 'both',
-    surfaceClass: 'editor',
-    kindGlyph: 'doc',
-    bodyBleed: 'flush',
-    dataNote:
-      'Sibling to the pdfx document block: artifact production with a server-side render pipeline (Remotion → headless browser → MP4). In-app mount is composition preview plus a dispatch render action; the rendered artifact returns with a receipt. Pipeline wiring is a follow-on; this registration reserves the mount with a designed empty state only.',
-  },
-  render: VideoBlock,
-};
-
-const CANVAS: ViewDescriptor = {
+const CANVAS: ConsoleViewDescriptor = {
   id: 'canvas',
   name: 'Canvas',
+  paletteVisible: true,
+  palette: { id: 'canvas', kind: 'canvas', material: 'sunken' },
   accepts: {},
   emits: ['create', 'update', 'move', 'link', 'unlink', 'delete', 'open', 'select'],
   renderer: 'canvas',
-  sourcing: {
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
     mode: 'wrap',
-    upstream: '@xyflow/react/ReactFlow',
+    regime: 'css-vars',
   },
   block: {
     usage: 'arrange spatially',
-    placements: ['ground', 'full', 'rail'],
+    placements: ['ground', 'full'],
     defaultSize: 'full',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'canvas',
     bodyBleed: 'flush',
-    acceptsDrop: { semantic: 'relate', accepts: ['*'] },
   },
   render: CanvasView,
-};
-
-const MODEL_STUDIO: ViewDescriptor = {
-  id: 'model.studio',
-  name: 'Models',
-  accepts: { required_types: ['model-scope'] },
-  emits: ['select', 'create', 'update', 'delete'],
-  renderer: 'model.studio',
-  sourcing: {
-    mode: 'wrap',
-    upstream: '@xyflow/react/ReactFlow',
-  },
-  block: {
-    usage: 'inspect observed model',
-    placements: ['ground', 'full', 'rail'],
-    defaultSize: 'full',
-    density: 'compact',
-    surfaceClass: 'editor',
-    kindGlyph: 'model',
-    bodyBleed: 'flush',
-  },
-  render: ModelView,
-};
-
-const PROGRAM_GRAPH: ViewDescriptor = {
-  id: 'program.graph',
-  name: 'Program',
-  accepts: { required_types: ['program'] },
-  emits: ['select', 'create', 'update', 'link', 'unlink', 'delete'],
-  renderer: 'program.graph',
-  sourcing: {
-    mode: 'wrap',
-    upstream: '@xyflow/react/ReactFlow',
-  },
-  block: {
-    usage: 'compose typed dataflow',
-    placements: ['ground', 'full', 'rail'],
-    defaultSize: 'full',
-    density: 'both',
-    surfaceClass: 'editor',
-    kindGlyph: 'automation',
-    bodyBleed: 'flush',
-    acceptsDrop: { semantic: 'relate', accepts: ['program.node'] },
-    dataNote:
-      'Programmable graph is typed dataflow (ProgramDefinition), not JSON Canvas spatial arrangement. Connection validation is structural at v1.',
-  },
-  render: ProgramView,
 };
 
 const AUTOMATION_HISTORY: ViewDescriptor = {
@@ -673,9 +742,12 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'automation.history',
-  sourcing: {
+  sourcing: { mode: 'reskin', upstream: 'jal-co/ui/commit-graph' },
+  source: {
+    package: 'jal-co/ui',
+    component: 'commit-graph',
     mode: 'reskin',
-    upstream: 'jal-co/ui/commit-graph',
+    regime: 'css-vars',
   },
   block: {
     usage: 'review automation history',
@@ -688,22 +760,72 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   render: AutomationHistoryView,
 };
 
-export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
+const AGENT_RAIL: ViewDescriptor = {
+  id: 'agent.rail',
+  name: 'Agent',
+  accepts: {},
+  emits: ['run_agent', 'open'],
+  renderer: 'agent.rail',
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: AgentRailBlock,
+};
+
+const RECORDS_BLOCK: ViewDescriptor = {
+  id: 'records.block',
+  name: 'Records block',
+  accepts: {},
+  emits: ['select', 'open', 'update'],
+  renderer: 'records.block',
+  sourcing: { mode: 'wrap', upstream: '@tanstack/react-table/useReactTable' },
+  source: {
+    package: '@tanstack/react-table',
+    component: 'useReactTable',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: RecordsBlock,
+};
+
+const RECORD_PAGE: ViewDescriptor = {
+  id: 'record.page',
+  name: 'Record',
+  accepts: {},
+  emits: ['update', 'open'],
+  renderer: 'record.page',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'The Twenty record page contract binds field editors directly to BlockHost data.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'Twenty record page layout is the product contract; field editors bind from FieldSpec.',
+  },
+  render: RecordPage,
+};
+
+export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   RECORD_TABLE,
   MARKDOWN_DOC,
   CODE_FILE,
   CHAT_THREAD,
   CHAT_SURFACE,
+  THREAD_LIST,
   FILES_TREE,
   CONTEXT_GRAPH,
   DOC_LIST,
   INDEX_RAIL,
   INDEX_STREAM,
-  FIND_INDEX,
   INDEX_RULES,
   INDEX_URGENT,
-  MAIL_CONNECT,
-  MAIL_READER,
   CARD_FULL,
   CARDS_GRID,
   HUNK_REVIEW,
@@ -714,16 +836,18 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   HARNESS_STATUS,
   HARNESS_WHY,
   ACCOUNT,
-  TERMINAL,
-  BROWSER_PANE,
+  AGENT_RAIL,
+  RECORDS_BLOCK,
+  RECORD_PAGE,
   KANBAN,
-  DOCUMENT_OUTPUT,
-  VIDEO,
   CANVAS,
-  MODEL_STUDIO,
-  PROGRAM_GRAPH,
   AUTOMATION_HISTORY,
-]);
+  SURVEY_BOARD,
+  MODEL_STUDIO,
+  SEARCH_STACK,
+] as const;
+
+export const CONSOLE_VIEW_REGISTRY = createViewRegistry(CONSOLE_VIEW_DESCRIPTORS);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback
  *  card, never a crash, so shared or future arrangements stay safe. */

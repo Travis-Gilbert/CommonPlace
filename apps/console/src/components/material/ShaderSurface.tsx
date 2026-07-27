@@ -34,6 +34,7 @@ import { resolveMaterial, type MaterialState } from '@/lib/material/materials';
 const LIVE_MOUNTS = new Set<object>();
 /** Hard cap: browsers allow few live WebGL contexts (named choice 6). */
 export const SHADER_CONTEXT_BUDGET = 4;
+let sharedNoiseTexture: HTMLImageElement | undefined;
 
 /** Optional override when a surface needs a Paper fragment the material map
  *  does not name (composer streaming uses grain-gradient for directional flow). */
@@ -101,6 +102,16 @@ function ijVar(suffix: string): string {
   return `var(--ij-${suffix})`;
 }
 
+function clearShaderHost(host: HTMLDivElement): void {
+  // CS20 cause: failed ShaderMounts can leave an opaque canvas, so clear before fallback.
+  host.replaceChildren();
+}
+
+function noiseTexture(): HTMLImageElement | undefined {
+  sharedNoiseTexture ??= getShaderNoiseTexture();
+  return sharedNoiseTexture;
+}
+
 function sizingUniforms(kind: 'object' | 'pattern') {
   const sizing = kind === 'object' ? defaultObjectSizing : defaultPatternSizing;
   return {
@@ -165,7 +176,7 @@ function buildUniforms(
   const backRgba = getShaderColorFromString(back);
   const fillRgba = getShaderColorFromString(fill);
   const strokeRgba = getShaderColorFromString(stroke);
-  const noise = getShaderNoiseTexture();
+  const noise = noiseTexture();
 
   switch (shader) {
     case 'paper-texture':
@@ -257,6 +268,44 @@ function buildUniforms(
   }
 }
 
+type ShaderRuntimeInputs = {
+  readonly colorBack: string;
+  readonly colorFill: string;
+  readonly colorStroke: string;
+  readonly gap: number;
+  readonly size: number;
+  readonly amplitude: number;
+  readonly staticOnly: boolean;
+  readonly paper?: PaperSurfaceParams;
+  readonly dotGrid?: DotGridSurfaceParams;
+};
+
+function resolveRuntime(
+  shader: PaperShaderOverride,
+  inputs: ShaderRuntimeInputs,
+  reduced: boolean,
+): { readonly uniforms: ShaderMountUniforms; readonly speed: number } {
+  const requestedSpeed = inputs.paper?.speed ?? 0.35;
+  const speed =
+    reduced || inputs.staticOnly || (inputs.amplitude === 0 && shader === 'dot-grid')
+      ? 0
+      : requestedSpeed;
+  return {
+    uniforms: buildUniforms(
+      shader,
+      resolveCssColor(ijVar(inputs.colorBack)),
+      resolveCssColor(ijVar(inputs.colorFill)),
+      inputs.gap,
+      inputs.size,
+      inputs.amplitude,
+      inputs.paper,
+      inputs.dotGrid,
+      resolveCssColor(ijVar(inputs.colorStroke)),
+    ),
+    speed,
+  };
+}
+
 /**
  * Repo-owned Paper mount: owns the host, reads getContext from the mount canvas
  * in this file (motion gate), enforces context budget and reduced-motion.
@@ -281,9 +330,50 @@ export function ShaderSurface({
   const [fallback, setFallback] = useState(false);
   const descriptor = resolveMaterial(material);
   const shader = resolveShaderName(descriptor.shader, paperShader);
-  const paperKey = JSON.stringify(paper ?? null);
-  const dotGridKey = JSON.stringify(dotGrid ?? null);
   const colorStroke = dotGrid?.colorStroke ?? colorFill;
+  const visibleRef = useRef(true);
+  const runtimeRef = useRef<ShaderRuntimeInputs>({
+    colorBack,
+    colorFill,
+    colorStroke,
+    gap,
+    size,
+    amplitude: descriptor.amplitude,
+    staticOnly,
+    paper,
+    dotGrid,
+  });
+
+  useEffect(() => {
+    runtimeRef.current = {
+      colorBack,
+      colorFill,
+      colorStroke,
+      gap,
+      size,
+      amplitude: descriptor.amplitude,
+      staticOnly,
+      paper,
+      dotGrid,
+    };
+    const mount = mountRef.current;
+    if (!mount) return;
+    const runtime = resolveRuntime(shader, runtimeRef.current, reduced);
+    mount.setUniforms(runtime.uniforms);
+    mount.setSpeed(visibleRef.current ? runtime.speed : 0);
+  }, [
+    colorBack,
+    colorFill,
+    colorStroke,
+    descriptor.amplitude,
+    dotGrid,
+    gap,
+    paper,
+    reduced,
+    shader,
+    size,
+    staticOnly,
+  ]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -291,8 +381,10 @@ export function ShaderSurface({
 
     let cancelled = false;
     const markFallback = () => {
+      clearShaderHost(host);
       if (!cancelled) setFallback(true);
     };
+    clearShaderHost(host);
 
     if (LIVE_MOUNTS.size >= SHADER_CONTEXT_BUDGET) {
       queueMicrotask(markFallback);
@@ -301,31 +393,17 @@ export function ShaderSurface({
       };
     }
 
-    const paperParams = (JSON.parse(paperKey) as PaperSurfaceParams | null) ?? undefined;
-    const dotGridParams = (JSON.parse(dotGridKey) as DotGridSurfaceParams | null) ?? undefined;
-    const back = resolveCssColor(ijVar(colorBack));
-    const fill = resolveCssColor(ijVar(colorFill));
-    const stroke = resolveCssColor(ijVar(colorStroke));
-    const requestedSpeed = paperParams?.speed ?? 0.35;
-    const speed = reduced || staticOnly || (descriptor.amplitude === 0 && shader === 'dot-grid')
-      ? 0
-      : requestedSpeed;
-
-    const uniforms = buildUniforms(
-      shader,
-      back,
-      fill,
-      gap,
-      size,
-      descriptor.amplitude,
-      paperParams,
-      dotGridParams,
-      stroke,
-    );
+    const runtime = resolveRuntime(shader, runtimeRef.current, reduced);
 
     let mount: ShaderMount;
     try {
-      mount = new ShaderMount(host, fragmentFor(shader), uniforms, undefined, speed);
+      mount = new ShaderMount(
+        host,
+        fragmentFor(shader),
+        runtime.uniforms,
+        undefined,
+        runtime.speed,
+      );
     } catch {
       queueMicrotask(markFallback);
       return () => {
@@ -352,27 +430,15 @@ export function ShaderSurface({
     });
 
     const observer = new MutationObserver(() => {
-      const nextBack = resolveCssColor(ijVar(colorBack));
-      const nextFill = resolveCssColor(ijVar(colorFill));
-      const nextStroke = resolveCssColor(ijVar(colorStroke));
-      mount.setUniforms(buildUniforms(
-        shader,
-        nextBack,
-        nextFill,
-        gap,
-        size,
-        descriptor.amplitude,
-        paperParams,
-        dotGridParams,
-        nextStroke,
-      ));
+      mount.setUniforms(resolveRuntime(shader, runtimeRef.current, reduced).uniforms);
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
 
     const io = new IntersectionObserver(
       (entries) => {
-        const visible = entries.some((entry) => entry.isIntersecting);
-        mount.setSpeed(visible && !reduced && !staticOnly ? speed : 0);
+        visibleRef.current = entries.some((entry) => entry.isIntersecting);
+        const next = resolveRuntime(shader, runtimeRef.current, reduced);
+        mount.setSpeed(visibleRef.current ? next.speed : 0);
       },
       { threshold: 0.01 },
     );
@@ -383,23 +449,12 @@ export function ShaderSurface({
       observer.disconnect();
       io.disconnect();
       mount.dispose();
+      clearShaderHost(host);
       mountRef.current = null;
       if (tokenRef.current) LIVE_MOUNTS.delete(tokenRef.current);
       tokenRef.current = null;
     };
-  }, [
-    colorBack,
-    colorFill,
-    colorStroke,
-    descriptor.amplitude,
-    dotGridKey,
-    gap,
-    paperKey,
-    reduced,
-    shader,
-    size,
-    staticOnly,
-  ]);
+  }, [reduced, shader]);
 
   if (fallback) {
     const gapX = dotGrid?.gapX ?? gap;
@@ -411,9 +466,9 @@ export function ShaderSurface({
         style={{
           ...style,
           backgroundColor: ijVar(colorBack),
-          backgroundImage: shader === 'paper-texture' || shader === 'grain-gradient'
-            ? undefined
-            : `radial-gradient(circle, ${ijVar(colorFill)} 1px, transparent 1px)`,
+          backgroundImage: shader === 'dot-grid'
+            ? `radial-gradient(circle, ${ijVar(colorFill)} 1px, transparent 1px)`
+            : undefined,
           backgroundSize: `${gapX}px ${gapY}px`,
           opacity: shader === 'paper-texture' ? 0.92 : 1,
         }}

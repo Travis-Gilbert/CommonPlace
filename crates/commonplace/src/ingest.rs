@@ -12,8 +12,9 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustyred_thg_core::{
-    EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult, InMemoryGraphStore, NodeQuery,
-    NodeRecord, RedCoreGraphStore,
+    decode_legacy_vector_array, read_vector_property, EdgeRecord, GraphStore, GraphStoreError,
+    GraphStoreResult, GraphVectorPayloadAccess, InMemoryGraphStore, NodeQuery, NodeRecord,
+    RedCoreGraphStore,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -48,13 +49,28 @@ const ENTITY_EMBEDDING_PROPERTY: &str = "entity_embedding";
 /// This trait is local to the crate, so the F2 pipeline can support both the
 /// in-memory test engine and durable RedCore without changing the core
 /// [`GraphStore`] trait.
-pub trait EmbeddingGraphStore: GraphStore {
+pub trait EmbeddingGraphStore: GraphStore + GraphVectorPayloadAccess {
     fn designate_commonplace_item_embedding(&mut self, dimension: usize) -> GraphStoreResult<()>;
     fn search_commonplace_item_embedding(
         &self,
         query: &[f32],
         k: usize,
     ) -> GraphStoreResult<Vec<(String, f32)>>;
+
+    fn read_commonplace_embedding(
+        &self,
+        node: &NodeRecord,
+        property: &str,
+    ) -> GraphStoreResult<Option<Vec<f32>>> {
+        let Some(value) = node.properties.get(property) else {
+            return Ok(None);
+        };
+        if let Some(vector) = decode_legacy_vector_array(value)? {
+            return Ok(Some(vector));
+        }
+        let payloads = self.vector_payload_store()?;
+        read_vector_property(node, property, payloads.as_ref())
+    }
 }
 
 impl EmbeddingGraphStore for InMemoryGraphStore {
@@ -800,7 +816,9 @@ where
             .store()
             .query_nodes(NodeQuery::label(COLLECTION_LABEL).with_limit(usize::MAX))
         {
-            let Some(candidate) = float_array(&node.properties, COLLECTION_EMBEDDING_PROPERTY)
+            let Some(candidate) = commonplace
+                .store()
+                .read_commonplace_embedding(&node, COLLECTION_EMBEDDING_PROPERTY)?
             else {
                 continue;
             };
@@ -989,9 +1007,9 @@ where
             let score = if existing_canonical == canonical {
                 1.0
             } else {
-                node.properties
-                    .get(ENTITY_EMBEDDING_PROPERTY)
-                    .and_then(value_to_f32_vec)
+                commonplace
+                    .store()
+                    .read_commonplace_embedding(&node, ENTITY_EMBEDDING_PROPERTY)?
                     .filter(|candidate| candidate.len() == embedding.len())
                     .map(|candidate| cosine(&embedding, &candidate))
                     .unwrap_or(0.0)
@@ -1472,10 +1490,6 @@ fn cosine(left: &[f32], right: &[f32]) -> f32 {
     }
 }
 
-fn float_array(properties: &Value, key: &str) -> Option<Vec<f32>> {
-    properties.get(key).and_then(value_to_f32_vec)
-}
-
 /// Rank every collection by cosine to an item's stored embedding, best first
 /// (the body of [`IngestPipeline::classify_item`], lifted to a free function so
 /// the two-tier [`crate::organize::decide`] can classify with no embedder in
@@ -1501,7 +1515,10 @@ where
         .store()
         .query_nodes(NodeQuery::label(COLLECTION_LABEL).with_limit(usize::MAX))
     {
-        let Some(candidate) = float_array(&node.properties, COLLECTION_EMBEDDING_PROPERTY) else {
+        let Some(candidate) = commonplace
+            .store()
+            .read_commonplace_embedding(&node, COLLECTION_EMBEDDING_PROPERTY)?
+        else {
             continue;
         };
         if candidate.len() != embedding.len() {
@@ -1743,7 +1760,10 @@ mod tests {
     fn ingest_echoes_natural_language_reminder() {
         use chrono::TimeZone;
 
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         // Wednesday 2026-07-01 10:00 local.
         let now = chrono::Local
             .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
@@ -1754,7 +1774,10 @@ mod tests {
             .with_reminder_now(now);
 
         let receipt = pipeline
-            .ingest(&mut cp, IngestInput::note("Call mom", "call mom friday 9am"))
+            .ingest(
+                &mut cp,
+                IngestInput::note("Call mom", "call mom friday 9am"),
+            )
             .expect("ingest note");
         let expected = crate::reminder::parse_reminder("Call mom\ncall mom friday 9am", now)
             .expect("phrase parses");
@@ -1778,7 +1801,10 @@ mod tests {
     fn explicit_remind_at_wins_over_parser() {
         use chrono::TimeZone;
 
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         let now = chrono::Local
             .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
             .single()
@@ -1798,7 +1824,10 @@ mod tests {
 
     #[test]
     fn plain_capture_has_no_reminder() {
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         let pipeline = IngestPipeline::default().without_content_core();
         let receipt = pipeline
             .ingest(&mut cp, IngestInput::note("Groceries", "milk eggs bread"))
@@ -1810,7 +1839,10 @@ mod tests {
     fn binary_caption_feeds_reminder_and_lands_in_extra() {
         use chrono::TimeZone;
 
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         let now = chrono::Local
             .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
             .single()

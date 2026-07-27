@@ -425,7 +425,7 @@ fn domain_for_url(url: &str) -> String {
         .next()
         .unwrap_or("unknown")
         .split('@')
-        .last()
+        .next_back()
         .unwrap_or("unknown")
         .split(':')
         .next()

@@ -12,16 +12,26 @@ import { IconAccount } from '@/components/shell/icons';
 
 type ProviderState = 'loading' | 'ready' | 'unconfigured';
 
+type CredentialState =
+  | { status: 'loading' }
+  | { status: 'principal'; keyId: string; tenant: string; expiresAtMs: number | null }
+  | { status: 'service_key'; message: string }
+  | { status: 'error'; message: string };
+
 export function AccountView(_props: ViewRenderProps) {
   const { data: session, status } = useSession();
   const [providerState, setProviderState] = useState<ProviderState>('loading');
+  const [credential, setCredential] = useState<CredentialState>({ status: 'loading' });
   const user = session?.user;
   const login = user?.githubLogin;
   const tenant = githubTenantSlug(login);
+  const showCredentialPanel = status === 'authenticated' && Boolean(user);
 
   useEffect(() => {
     let active = true;
-    void fetch('/api/auth/providers', { cache: 'no-store' })
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5_000);
+    void fetch('/api/auth/providers', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         const providers = response.ok
           ? await response.json() as Record<string, unknown>
@@ -30,11 +40,68 @@ export function AccountView(_props: ViewRenderProps) {
       })
       .catch(() => {
         if (active) setProviderState('unconfigured');
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    let active = true;
+    void fetch('/api/account/credentials', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = (await response.json()) as {
+          keyId?: string;
+          tenant?: string;
+          expiresAtMs?: number | null;
+          error?: string;
+          message?: string;
+          kind?: string;
+        };
+        if (!active) return;
+        if (!response.ok) {
+          setCredential({
+            status: 'error',
+            message: body.message ?? body.error ?? 'Credential unavailable',
+          });
+          return;
+        }
+        if (body.kind === 'service_key') {
+          setCredential({
+            status: 'service_key',
+            message: body.message ?? 'Service principals use the deployment service credential.',
+          });
+          return;
+        }
+        if (typeof body.keyId === 'string' && typeof body.tenant === 'string') {
+          setCredential({
+            status: 'principal',
+            keyId: body.keyId,
+            tenant: body.tenant,
+            expiresAtMs: typeof body.expiresAtMs === 'number' ? body.expiresAtMs : null,
+          });
+          return;
+        }
+        setCredential({
+          status: 'error',
+          message: body.message ?? 'Credential unavailable',
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setCredential({ status: 'error', message: 'Could not reach credential issuance.' });
+        }
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [status]);
 
   const beginGithubSignIn = () => {
     if (providerState !== 'ready') return;
@@ -90,6 +157,45 @@ export function AccountView(_props: ViewRenderProps) {
               >
                 Sign out
               </button>
+              {showCredentialPanel ? (
+                <section
+                  className="grid gap-2 rounded-ij-arc bg-ij-editor p-4"
+                  aria-labelledby="account-credential-heading"
+                >
+                  <h3 id="account-credential-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+                    Object-seam credential
+                  </h3>
+                  <p className="text-ij-ink-info">
+                    Issued server-side for your tenant. The secret is never shown here after issuance.
+                  </p>
+                  {credential.status === 'error' ? (
+                    <p role="status" className="text-ij-warn">{credential.message}</p>
+                  ) : credential.status === 'service_key' ? (
+                    <p role="status" className="text-ij-ink-info">{credential.message}</p>
+                  ) : credential.status === 'principal' ? (
+                    <dl className="grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <dt className="text-ij-ink-info">Key id</dt>
+                        <dd className="font-ij-mono">{credential.keyId}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ij-ink-info">Tenant</dt>
+                        <dd className="font-ij-mono">{credential.tenant}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ij-ink-info">Expires</dt>
+                        <dd className="font-ij-mono">
+                          {credential.expiresAtMs
+                            ? new Date(credential.expiresAtMs).toISOString()
+                            : 'none'}
+                        </dd>
+                      </div>
+                    </dl>
+                  ) : (
+                    <p className="text-ij-ink-info">Issuing credential...</p>
+                  )}
+                </section>
+              ) : null}
             </div>
           ) : (
             <div className="grid gap-3">

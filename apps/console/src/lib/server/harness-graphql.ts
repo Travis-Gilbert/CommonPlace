@@ -2,85 +2,69 @@
 
 import 'server-only';
 
-import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
-import {
-  principalTenantHeaders,
-  resolveHarnessPrincipal,
-} from '@/lib/server/harness-principal';
+import { callHarnessMcp } from '@/lib/server/harness-mcp';
+import type { HarnessPrincipal } from '@/lib/server/harness-principal';
+
+export type HarnessGraphqlMode = 'query' | 'mutate';
 
 export type HarnessGraphqlResult =
-  | { ok: true; data: Record<string, unknown> }
+  | { ok: true; data: Record<string, unknown>; principal: HarnessPrincipal }
   | { ok: false; status: number; error: string; response?: Response };
 
 export async function callHarnessGraphql(
   query: string,
   variables: Record<string, unknown> = {},
+  mode: HarnessGraphqlMode = 'query',
 ): Promise<HarnessGraphqlResult> {
-  const resolution = await resolveHarnessPrincipal();
-  if (!resolution.ok) {
+  const result = await callHarnessMcp(
+    mode === 'mutate' ? 'graphql_mutate' : 'graphql_query',
+    { query, variables },
+  );
+  if (!result.ok) {
+    return graphqlFailure(result.response);
+  }
+
+  const errors = Array.isArray(result.data.errors) ? result.data.errors : [];
+  const data = record(result.data.data);
+  if (errors.length > 0 || !data) {
+    const first = record(errors[0]);
     return {
       ok: false,
-      status: resolution.response.status,
-      error: 'principal_resolution=unauthenticated',
-      response: resolution.response,
+      status: 502,
+      error: typeof first?.message === 'string' ? first.message : 'harness_graphql_failed',
     };
   }
-  const endpoint = graphqlUrl();
-  if (!endpoint) return { ok: false, status: 404, error: 'harness_graphql_unconfigured' };
-  const timeout = startHarnessRequestTimeout();
-  try {
-    const upstream = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...principalTenantHeaders(resolution.principal),
-        ...(process.env.CONSOLE_HARNESS_TOKEN
-          ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }
-          : {}),
-        ...(process.env.THEOREM_API_KEY ? { 'x-api-key': process.env.THEOREM_API_KEY } : {}),
-      },
-      body: JSON.stringify({ query, variables }),
-      cache: 'no-store',
-      signal: timeout.signal,
-    });
-    const passthrough = upstream.status === 401 || upstream.status === 403 ? upstream.clone() : undefined;
-    const payload = await upstream.json().catch(() => null) as {
-      data?: Record<string, unknown>;
-      errors?: Array<{ message?: unknown }>;
-      error?: unknown;
-    } | null;
-    if (!upstream.ok) {
-      const detail = payload?.errors?.[0]?.message ?? payload?.error;
-      return {
-        ok: false,
-        status: upstream.status,
-        error: typeof detail === 'string' ? detail : 'harness_graphql_failed',
-        response: passthrough,
-      };
-    }
-    if (payload?.errors || !payload?.data) {
-      const detail = payload?.errors?.[0]?.message ?? payload?.error;
-      return {
-        ok: false,
-        status: 502,
-        error: typeof detail === 'string' ? detail : 'harness_graphql_failed',
-      };
-    }
-    return { ok: true, data: payload.data };
-  } catch {
-    return {
-      ok: false,
-      status: timeout.didTimeout() ? 504 : 502,
-      error: timeout.didTimeout() ? 'harness_graphql_timeout' : 'harness_graphql_unreachable',
-    };
-  } finally {
-    timeout.clear();
-  }
+  return { ok: true, data, principal: result.principal };
 }
 
-function graphqlUrl(): string | null {
-  const explicit = process.env.THEOREM_GRAPHQL_URL;
-  if (explicit) return explicit;
-  const base = process.env.CONSOLE_HARNESS_URL;
-  return base ? `${base.replace(/\/$/, '')}/graphql` : null;
+async function graphqlFailure(response: Response): Promise<HarnessGraphqlResult> {
+  const payload = await response.clone().json().catch(() => null) as {
+    error?: unknown;
+  } | null;
+  const code = typeof payload?.error === 'string' ? payload.error : '';
+  const responseForCaller =
+    response.status === 401 || response.status === 403 ? response : undefined;
+  if (response.status === 401 || response.status === 403) {
+    return {
+      ok: false,
+      status: response.status,
+      error: 'principal_resolution=unauthenticated',
+      response: responseForCaller,
+    };
+  }
+  const error =
+    code === 'console_harness_unconfigured'
+      ? 'harness_graphql_unconfigured'
+      : code === 'harness_mcp_timeout'
+        ? 'harness_graphql_timeout'
+        : code === 'harness_mcp_unreachable'
+          ? 'harness_graphql_unreachable'
+          : 'harness_graphql_failed';
+  return { ok: false, status: response.status, error };
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }

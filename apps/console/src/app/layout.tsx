@@ -11,26 +11,31 @@ import '../styles/galley-register.css';
 import '../styles/app.css';
 
 const appearanceBootstrap = `(() => {
-  const key = 'commonplace.console.appearance.v1';
+  const key = 'commonplace.console.appearance.v2';
+  const legacy = 'commonplace.console.appearance.v1';
   const root = document.documentElement;
   let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+  // persistence-preference: key=commonplace.console.appearance.v2; preference=theme; reason=paints the chosen theme before hydration
+  try { saved = JSON.parse(localStorage.getItem(key) || localStorage.getItem(legacy) || 'null'); } catch {}
   const candidate = saved?.preference;
   const validMode = ['auto', 'dark', 'light'].includes(candidate?.mode);
-  const validFamily = ['intellij', 'github', 'navy'].includes(candidate?.family);
+  const validFamily = ['intellij', 'github', 'navy', 'paper'].includes(candidate?.family);
   const preference = validMode && validFamily
     ? candidate
     : { mode: 'auto', family: 'intellij' };
   const mode = preference.mode === 'auto'
     ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
     : preference.mode;
-  const preset = preference.family === 'navy' ? 'navy' : preference.family + '-' + mode;
+  const derived = preference.family === 'navy' || preference.family === 'paper';
+  const preset = preference.family === 'navy' || preference.family === 'paper'
+    ? preference.family
+    : preference.family + '-' + mode;
   root.dataset.theme = mode;
   root.dataset.themeMode = preference.mode;
   root.dataset.themeFamily = preference.family;
   root.dataset.themePreset = preset;
-  root.dataset.themeDerived = preference.family === 'navy' ? 'true' : 'false';
-  if (preference.family === 'navy' && saved?.resolvedMode === mode && saved?.variables) {
+  root.dataset.themeDerived = derived ? 'true' : 'false';
+  if (derived && saved?.resolvedMode === mode && saved?.variables) {
     for (const [name, value] of Object.entries(saved.variables)) root.style.setProperty(name, String(value));
   }
 })();`;

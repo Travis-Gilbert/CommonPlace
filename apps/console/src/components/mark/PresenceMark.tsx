@@ -1,13 +1,14 @@
 'use client';
 
-// SOURCING: textmode.js (SPEC-UI-SOURCING-ADDENDUM D1: the Presence mark).
-// The agent's visible identity: one living form rendered in type, replacing
-// every spinner and typing affordance on agent paths. Round-one state subset
-// (G7): idle, composing (thinking), acting (condensation with the commit
-// brightness lift), interrupted (settles within one frame). Motion math is
-// implemented by hand (the pts choreography reference ships no code).
-// Reduced motion and the no-WebGL2 path render the static constellation
-// WITHOUT the library. The canvas never intercepts pointer events.
+// SOURCING: textmode.js (https://code.textmode.art/ — SPEC-UI-SOURCING-ADDENDUM
+// D1: the Presence mark). The agent's visible identity: one living form
+// rendered in type, replacing every spinner and typing affordance on agent
+// paths. Round-one state subset (G7): idle, composing (thinking), acting
+// (condensation with the commit brightness lift), interrupted (settles within
+// one frame). Motion math is implemented by hand (the pts choreography
+// reference ships no code). Reduced motion and the no-WebGL2 path render the
+// static constellation WITHOUT the library. The canvas never intercepts
+// pointer events.
 //
 // Color register (AMENDMENT-REGISTERS-AND-MOBILE-RECONCILIATION 2.4): the mark
 // is the agent's identity, and identity belongs to the voice register, so the

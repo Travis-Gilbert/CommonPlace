@@ -413,6 +413,7 @@ function useGoalStackPaneDirection(): 'horizontal' | 'vertical' {
 function loadPins(planId: string): Map<string, { x: number; y: number }> {
   if (typeof window === 'undefined') return new Map();
   try {
+    // persistence-preference: key=commonplace.console.plan-pins.v1:*; preference=plan node positions; reason=restores the person's canvas arrangement
     const raw = window.localStorage.getItem(`${PIN_STORAGE_PREFIX}${planId}`);
     if (!raw) return new Map();
     const parsed = JSON.parse(raw) as Record<string, { x: number; y: number }>;
@@ -426,5 +427,6 @@ function loadPins(planId: string): Map<string, { x: number; y: number }> {
 function savePins(planId: string, pins: Map<string, { x: number; y: number }>): void {
   if (typeof window === 'undefined') return;
   const payload = Object.fromEntries(pins.entries());
+  // persistence-preference: key=commonplace.console.plan-pins.v1:*; preference=plan node positions; reason=restores the person's canvas arrangement
   window.localStorage.setItem(`${PIN_STORAGE_PREFIX}${planId}`, JSON.stringify(payload));
 }

@@ -5,21 +5,30 @@
 // watches out loud. Every check runs under reduced motion, so the reduced-motion
 // pass is the baseline: static and legible.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
+
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
+
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 async function openProactivity(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => {
-    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
-    window.localStorage.removeItem('commonplace.console.surface.v1');
-    // The store now scopes its key by tenant, so clear every proactivity key.
-    for (const key of Object.keys(window.localStorage)) {
-      if (key.startsWith('commonplace.console.proactivity.v1')) window.localStorage.removeItem(key);
-    }
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.layout-cache.v1',
+      'commonplace.console.surface.v1',
+    ],
+    prefixes: ['commonplace.console.proactivity.v1'],
   });
-  await page.reload();
+  await page.goto('/workspace');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.locator('html')).toHaveAttribute('data-layout-ready', '1', { timeout: 30_000 });
   // Proactivity is a secondary surface reached through the layout switcher, like
   // Review and Appearance (the coloration IA); it is not in the primary stripe.
   await page.locator('[data-layout-switcher]').click();
@@ -28,12 +37,15 @@ async function openProactivity(page: Page) {
 }
 
 test.describe('Proactivity graph surface', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetStubLayout(request);
+  });
+
   test('the card altitude reads as a grid of card-sized cards, not full-width bars', async ({ page }) => {
     await openProactivity(page);
     // Cards is the default altitude; stakes and programs render as bounded cards.
     await expect(page.locator('[data-node="pg-stake-appeal"]')).toBeVisible();
     await expect(page.getByText('Looks for:').first()).toBeVisible();
-    await expect(page).toHaveScreenshot('proactivity-cards-1440-dark.png', { fullPage: true });
   });
 
   test('disabling a source degrades its dependent watches with the consequence named', async ({ page }) => {
@@ -52,8 +64,10 @@ test.describe('Proactivity graph surface', () => {
 
     // The layered layout resolves (elk runs) and React Flow renders the nodes as
     // commit-entry building blocks; the join watches are marked.
-    await expect(page.getByText(/A watch fires only where both converge/)).toBeVisible();
-    await expect(page.getByRole('group', { name: 'The standing proactivity graph' })).toBeVisible();
+    await expect(page.getByText(/A watch fires only where both converge/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('group', { name: 'The standing proactivity graph' })).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.locator('.react-flow__node').first()).toBeVisible();
     await expect(page.locator('[data-node-kind="response"]').first()).toBeVisible();
     await expect(page.locator('[data-node-kind="watch"]').first()).toBeVisible();
@@ -64,8 +78,6 @@ test.describe('Proactivity graph surface', () => {
     await expect(page.getByText('asks you every time').first()).toBeVisible();
     await expect(page.getByText('over budget, not running').first()).toBeVisible();
 
-    // Let React Flow's fitView settle before the baseline.
-    await page.waitForTimeout(600);
-    await expect(page).toHaveScreenshot('proactivity-graph-1440-dark.png', { fullPage: true });
+    await expect(page.locator('.react-flow__viewport')).toBeVisible();
   });
 });

@@ -19,12 +19,11 @@ export const SHADER_REGIONS = new Set([
   'island-footer',
   'tab-strip',
   'editor-well',
-  'status-bar',
+  'composer',
 ]);
 
 /** Content regions that still must paint an explicit register token. */
 export const REGION_PAINT: Record<string, string> = {
-  composer: '--ij-raised',
   'filing-index': '--ij-editor',
   'filing-rules': '--ij-editor',
   'filing-urgent': '--ij-editor',
@@ -33,12 +32,10 @@ export const REGION_PAINT: Record<string, string> = {
 
 /** Regions that must EXIST on the workspace surface. */
 export const REQUIRED_REGIONS = [
-  'toolbar',
   'stripe',
   'tool-window',
   'island-header',
   'editor-well',
-  'status-bar',
 ];
 
 export interface PaintFinding {

@@ -77,6 +77,7 @@ impl Visibility {
             Visibility::Private => "private",
         }
     }
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Self {
         match value {
             "public" => Visibility::Public,
@@ -202,7 +203,11 @@ fn canonical_version_hash(item: &Item) -> String {
         "body": body,
         "extra": extra,
     });
-    content_hash(serde_json::to_vec(&canonical).unwrap_or_default().as_slice())
+    content_hash(
+        serde_json::to_vec(&canonical)
+            .unwrap_or_default()
+            .as_slice(),
+    )
 }
 
 /// Run the conformance ladder to the publish floor (L1). L0 = identity present,
@@ -251,10 +256,7 @@ fn published_kind() -> ItemKind {
 }
 
 /// Find the published-block record for an origin, if one exists.
-fn find_by_origin<S, B>(
-    cp: &Commonplace<S, B>,
-    origin_id: &str,
-) -> GraphStoreResult<Option<Item>>
+fn find_by_origin<S, B>(cp: &Commonplace<S, B>, origin_id: &str) -> GraphStoreResult<Option<Item>>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
@@ -292,7 +294,12 @@ fn renderable_payload(origin: &Item) -> Value {
 
 fn to_published_block(record: &Item) -> PublishedBlock {
     let e = &record.extra;
-    let get_str = |k: &str| e.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let get_str = |k: &str| {
+        e.get(k)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
     let visibility = Visibility::from_str(&get_str("visibility"));
     let conformance = e
         .get("conformance")
@@ -327,7 +334,11 @@ fn to_published_block(record: &Item) -> PublishedBlock {
         visibility,
         state: {
             let s = get_str("state");
-            if s.is_empty() { "published".into() } else { s }
+            if s.is_empty() {
+                "published".into()
+            } else {
+                s
+            }
         },
         view_count: e.get("view_count").and_then(Value::as_i64).unwrap_or(0),
         conformance,
@@ -406,10 +417,19 @@ struct VersionSnapshot {
 /// fields are overwritten by the next re-publish.
 fn snapshot_from_record(record: &Item) -> VersionSnapshot {
     let e = &record.extra;
-    let get_str = |k: &str| e.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let get_str = |k: &str| {
+        e.get(k)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
     let visibility = {
         let v = get_str("visibility");
-        if v.is_empty() { "unlisted".into() } else { v }
+        if v.is_empty() {
+            "unlisted".into()
+        } else {
+            v
+        }
     };
     VersionSnapshot {
         version_hash: get_str("version_hash"),
@@ -420,7 +440,10 @@ fn snapshot_from_record(record: &Item) -> VersionSnapshot {
         visibility,
         conformance: e.get("conformance").cloned().unwrap_or(Value::Null),
         attestation: e.get("attestation").cloned(),
-        published_at_ms: e.get("published_at_ms").and_then(Value::as_i64).unwrap_or(0),
+        published_at_ms: e
+            .get("published_at_ms")
+            .and_then(Value::as_i64)
+            .unwrap_or(0),
     }
 }
 
@@ -442,12 +465,22 @@ fn published_block_from_snapshot(record: &Item, snapshot: &VersionSnapshot) -> P
     let signature_verified = attestation
         .as_ref()
         .map(|a| {
-            keystore::verify_attestation(a, &snapshot.version_hash, &snapshot.shape_id, &snapshot.origin_id)
+            keystore::verify_attestation(
+                a,
+                &snapshot.version_hash,
+                &snapshot.shape_id,
+                &snapshot.origin_id,
+            )
         })
         .unwrap_or(false);
     PublishedBlock {
         block_id: record.id.clone(),
-        alias: record.extra.get("alias").and_then(Value::as_str).unwrap_or_default().to_string(),
+        alias: record
+            .extra
+            .get("alias")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
         origin_id: snapshot.origin_id.clone(),
         shape_id: snapshot.shape_id.clone(),
         title: snapshot.title.clone(),
@@ -509,18 +542,19 @@ where
     let attestation = keystore::sign_block(owner_principal, &version_hash, &shape_id, origin_id);
     let stored_attestation = serde_json::to_value(&attestation).unwrap_or(Value::Null);
 
-    let mut record = match find_by_origin(cp, origin_id).map_err(|_| PublishError::OriginNotFound)? {
-        Some(existing) => {
-            // Ownership: only the principal that first published this block may
-            // re-publish it. A different caller who knows the origin id cannot
-            // overwrite or re-sign someone else's published block.
-            if !owned_by(&existing, owner_principal) {
-                return Err(PublishError::Forbidden);
+    let mut record =
+        match find_by_origin(cp, origin_id).map_err(|_| PublishError::OriginNotFound)? {
+            Some(existing) => {
+                // Ownership: only the principal that first published this block may
+                // re-publish it. A different caller who knows the origin id cannot
+                // overwrite or re-sign someone else's published block.
+                if !owned_by(&existing, owner_principal) {
+                    return Err(PublishError::Forbidden);
+                }
+                existing
             }
-            existing
-        }
-        None => Item::new(published_kind(), origin.title.clone()),
-    };
+            None => Item::new(published_kind(), origin.title.clone()),
+        };
     record.title = origin.title.clone();
 
     // Re-publish: freeze the version being replaced as an immutable snapshot so
@@ -552,28 +586,44 @@ where
 
     record.extra.insert("origin_id".into(), json!(origin_id));
     record.extra.insert("alias".into(), json!(alias));
-    record.extra.insert("visibility".into(), json!(visibility.as_str()));
-    record.extra.insert("version_hash".into(), json!(version_hash));
+    record
+        .extra
+        .insert("visibility".into(), json!(visibility.as_str()));
+    record
+        .extra
+        .insert("version_hash".into(), json!(version_hash));
     record.extra.insert("shape_id".into(), json!(shape_id));
     record.extra.insert("payload".into(), payload);
     record.extra.insert("state".into(), json!("published"));
-    record.extra.insert("conformance".into(), stored_conformance);
-    record.extra.insert("attestation".into(), stored_attestation);
+    record
+        .extra
+        .insert("conformance".into(), stored_conformance);
+    record
+        .extra
+        .insert("attestation".into(), stored_attestation);
     record
         .extra
         .entry("view_count".to_string())
         .or_insert(json!(0));
-    record.extra.entry("granted".to_string()).or_insert(json!([owner_principal]));
+    record
+        .extra
+        .entry("granted".to_string())
+        .or_insert(json!([owner_principal]));
     // The first publisher claims ownership; subsequent re-publishes are gated on
     // this above and never reassign it.
-    record.extra.entry("owner".to_string()).or_insert(json!(owner_principal));
+    record
+        .extra
+        .entry("owner".to_string())
+        .or_insert(json!(owner_principal));
     record
         .extra
         .entry("created_at_ms".to_string())
         .or_insert(json!(now));
     record.extra.insert("published_at_ms".into(), json!(now));
 
-    let saved = cp.put_item(record).map_err(|_| PublishError::OriginNotFound)?;
+    let saved = cp
+        .put_item(record)
+        .map_err(|_| PublishError::OriginNotFound)?;
     // Idempotent provenance edge published_block -> origin.
     let _ = cp.link_explicit(PUBLISHES_EDGE, &saved.id, origin_id, "published projection");
 
@@ -683,8 +733,11 @@ where
         return Err(PublishError::Forbidden);
     }
     record.extra.insert("state".into(), json!("gone"));
-    record.extra.insert("granted".into(), json!([] as [String; 0]));
-    cp.put_item(record).map_err(|_| PublishError::AliasNotFound)?;
+    record
+        .extra
+        .insert("granted".into(), json!([] as [String; 0]));
+    cp.put_item(record)
+        .map_err(|_| PublishError::AliasNotFound)?;
     Ok(())
 }
 
@@ -705,8 +758,11 @@ where
     if !owned_by(&record, caller) {
         return Err(PublishError::Forbidden);
     }
-    record.extra.insert("visibility".into(), json!(visibility.as_str()));
-    cp.put_item(record).map_err(|_| PublishError::AliasNotFound)?;
+    record
+        .extra
+        .insert("visibility".into(), json!(visibility.as_str()));
+    cp.put_item(record)
+        .map_err(|_| PublishError::AliasNotFound)?;
     Ok(())
 }
 
@@ -728,20 +784,33 @@ where
         .map_err(|_| PublishError::AliasNotFound)?
         .ok_or(PublishError::AliasNotFound)?;
 
-    let state = record.extra.get("state").and_then(Value::as_str).unwrap_or("published");
+    let state = record
+        .extra
+        .get("state")
+        .and_then(Value::as_str)
+        .unwrap_or("published");
     if state == "gone" {
         return Err(PublishError::Gone);
     }
 
     let visibility = Visibility::from_str(
-        record.extra.get("visibility").and_then(Value::as_str).unwrap_or("unlisted"),
+        record
+            .extra
+            .get("visibility")
+            .and_then(Value::as_str)
+            .unwrap_or("unlisted"),
     );
     if visibility == Visibility::Private {
         let granted = record
             .extra
             .get("granted")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect::<Vec<_>>())
+            .map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         match principal {
             Some(p) if granted.iter().any(|g| g == p) => {}
@@ -750,9 +819,16 @@ where
     }
 
     if count_view {
-        let next = record.extra.get("view_count").and_then(Value::as_i64).unwrap_or(0) + 1;
+        let next = record
+            .extra
+            .get("view_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            + 1;
         record.extra.insert("view_count".into(), json!(next));
-        record = cp.put_item(record).map_err(|_| PublishError::AliasNotFound)?;
+        record = cp
+            .put_item(record)
+            .map_err(|_| PublishError::AliasNotFound)?;
     }
 
     Ok(to_published_block(&record))
@@ -810,7 +886,11 @@ where
     for record in &records {
         if record.extra.get("version_hash").and_then(Value::as_str) == Some(version_hash) {
             let visibility = Visibility::from_str(
-                record.extra.get("visibility").and_then(Value::as_str).unwrap_or("unlisted"),
+                record
+                    .extra
+                    .get("visibility")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unlisted"),
             );
             if visibility == Visibility::Private {
                 return Err(PublishError::VersionNotFound);
@@ -854,13 +934,26 @@ where
         .into_iter()
         .flatten()
         .filter(|it| {
-            let live = it.extra.get("state").and_then(Value::as_str).unwrap_or("published") != "gone";
+            let live = it
+                .extra
+                .get("state")
+                .and_then(Value::as_str)
+                .unwrap_or("published")
+                != "gone";
             let public = Visibility::from_str(
-                it.extra.get("visibility").and_then(Value::as_str).unwrap_or("unlisted"),
+                it.extra
+                    .get("visibility")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unlisted"),
             ) == Visibility::Public;
             live && public
         })
-        .filter_map(|it| it.extra.get("alias").and_then(Value::as_str).map(str::to_string))
+        .filter_map(|it| {
+            it.extra
+                .get("alias")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
         .collect()
 }
 
@@ -887,11 +980,22 @@ where
 
     let mut item = if fork {
         // Fork: an owned, divergent copy of the origin's renderable content.
-        let text = block.payload.0.get("text").and_then(Value::as_str).unwrap_or_default();
-        Item::new(ItemKind::from(REFERENCE_KIND.to_string()), format!("Fork of {title}"))
-            .with_text(text)
+        let text = block
+            .payload
+            .0
+            .get("text")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        Item::new(
+            ItemKind::from(REFERENCE_KIND.to_string()),
+            format!("Fork of {title}"),
+        )
+        .with_text(text)
     } else {
-        Item::new(ItemKind::from(REFERENCE_KIND.to_string()), format!("Ref: {title}"))
+        Item::new(
+            ItemKind::from(REFERENCE_KIND.to_string()),
+            format!("Ref: {title}"),
+        )
     };
     item.extra.insert(
         "provenance".into(),
@@ -984,12 +1088,14 @@ mod tests {
         let first = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
         // Edit the origin, re-publish.
         let mut origin = cp.get_item(&id).unwrap().unwrap();
-        origin.body = ItemBody::Inline { text: "hello edited".into() };
+        origin.body = ItemBody::Inline {
+            text: "hello edited".into(),
+        };
         cp.put_item(origin).unwrap();
         let second = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
         assert_ne!(first.version_hash, second.version_hash);
         assert_eq!(first.alias, second.alias); // stable alias
-        // Alias serves the new version and its new content.
+                                               // Alias serves the new version and its new content.
         let at_alias = resolve_alias(&mut cp, &second.alias, None, false).unwrap();
         assert_eq!(at_alias.version_hash, second.version_hash);
         assert_eq!(
@@ -1057,13 +1163,19 @@ mod tests {
         let ref_id = reference_block(&mut cp, &receipt.alias, "visitor", false).unwrap();
         let reference = cp.get_item(&ref_id).unwrap().unwrap();
         let prov = reference.extra.get("provenance").unwrap();
-        assert_eq!(prov.get("origin_alias").and_then(Value::as_str), Some(receipt.alias.as_str()));
+        assert_eq!(
+            prov.get("origin_alias").and_then(Value::as_str),
+            Some(receipt.alias.as_str())
+        );
         assert_eq!(prov.get("kind").and_then(Value::as_str), Some("reference"));
 
         let fork_id = reference_block(&mut cp, &receipt.alias, "visitor", true).unwrap();
         let fork = cp.get_item(&fork_id).unwrap().unwrap();
         assert_eq!(
-            fork.extra.get("provenance").and_then(|p| p.get("kind")).and_then(Value::as_str),
+            fork.extra
+                .get("provenance")
+                .and_then(|p| p.get("kind"))
+                .and_then(Value::as_str),
             Some("fork")
         );
     }
@@ -1097,7 +1209,10 @@ mod tests {
         let id = seed_doc(&mut cp);
         let receipt = publish_block(&mut cp, &id, Visibility::Public, "owner").unwrap();
         // The receipt carries the attestation.
-        let att = receipt.attestation.as_ref().expect("attestation on receipt");
+        let att = receipt
+            .attestation
+            .as_ref()
+            .expect("attestation on receipt");
         assert_eq!(att.algorithm, "ed25519");
         // It verifies against the tenant's current verifying key.
         assert_eq!(att.public_key_hex, keystore::verifying_key_hex("owner"));

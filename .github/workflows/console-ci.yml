@@ -52,6 +52,9 @@ jobs:
       - name: ACP package typecheck
         run: pnpm --filter @commonplace/theorem-acp run check
 
+      - name: ACP package unit tests
+        run: pnpm --filter @commonplace/theorem-acp run test
+
       - name: Import fence (gate 1, with probe self-test)
         run: node scripts/check-import-fence.mjs --self-test
         working-directory: apps/console

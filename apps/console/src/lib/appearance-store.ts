@@ -96,6 +96,7 @@ function validPreference(value: unknown): AppearancePreference | null {
 
 function readPreference(): AppearancePreference {
   try {
+    // persistence-preference: key=commonplace.console.appearance.v1; preference=appearance; reason=restores the chosen theme and density before hydration
     const raw = window.localStorage.getItem(APPEARANCE_STORAGE_KEY);
     if (!raw) return defaultPreference;
     const parsed = JSON.parse(raw) as { preference?: unknown };
@@ -107,6 +108,7 @@ function readPreference(): AppearancePreference {
 
 function writeSnapshot(next: AppearanceSnapshot): void {
   try {
+    // persistence-preference: key=commonplace.console.appearance.v1; preference=appearance; reason=persists the chosen theme and density preference snapshot
     window.localStorage.setItem(
       APPEARANCE_STORAGE_KEY,
       JSON.stringify({

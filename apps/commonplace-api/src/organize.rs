@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use commonplace::{
-    BlobStore, Classification, ClassificationRank, Commonplace, EmbeddingGraphStore,
-    IngestPipeline, Item, ItemBody, ItemKind,
+    mentions::MENTION_CANDIDATE_KIND, BlobStore, Classification, ClassificationRank, Commonplace,
+    EmbeddingGraphStore, IngestPipeline, Item, ItemBody, ItemKind,
 };
 use rustyred_thg_core::GraphStoreResult;
 
@@ -178,7 +178,13 @@ where
     let window_ms = config.timeframe.window_ms();
     let cutoff = config.now_ms.saturating_sub(window_ms);
 
-    let all = cp.all_items()?;
+    // Mention candidates are system seam metadata awaiting confirmation, not
+    // captured material for the person's daily organization queue.
+    let all: Vec<Item> = cp
+        .all_items()?
+        .into_iter()
+        .filter(|item| item.kind.as_str() != MENTION_CANDIDATE_KIND)
+        .collect();
 
     // Member counts over the WHOLE store: a collection is "established" once it
     // holds more than one item. Confidence is measured only against established

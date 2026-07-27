@@ -14,6 +14,11 @@ describe('multiplex-layers', () => {
     expect(state.layers).toEqual(NATIVE_LAYER_DESCRIPTORS.map((d) => d.id));
   });
 
+  it('preserves an explicitly empty layer selection', () => {
+    const state = createLayerSelection(NATIVE_LAYER_DESCRIPTORS, []);
+    expect(state.layers).toEqual([]);
+  });
+
   it('round-trips toggle without refetch semantics', () => {
     const state = createLayerSelection(NATIVE_LAYER_DESCRIPTORS);
     const off = toggleLayer(state, 'derivation');

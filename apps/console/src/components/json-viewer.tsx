@@ -592,11 +592,12 @@ function JsonViewer({
     })
   }, [])
 
-  React.useEffect(() => {
-    if (searchQuery) {
+  const handleSearchChange = React.useCallback((nextQuery: string) => {
+    setSearchQuery(nextQuery)
+    if (nextQuery) {
       setCollapsedPaths(new Set())
     }
-  }, [searchQuery])
+  }, [])
 
   const isExpandable = data !== null && typeof data === "object"
   const type = typeOf(data)
@@ -676,7 +677,7 @@ function JsonViewer({
               ref={searchRef}
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="Filter keys and values…"
               className="min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
             />

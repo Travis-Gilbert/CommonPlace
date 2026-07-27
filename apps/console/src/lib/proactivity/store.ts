@@ -2,7 +2,7 @@
 // ConsoleBlockHost's arrangement store. The ProactivityStore owns one tenant's
 // standing structure: it projects it on query (a missing tenant refuses via the
 // notes channel, named choice 10) and applies every mutation as a receipted,
-// reversible edit persisted to localStorage. Its mutation vocabulary is
+// reversible edit persisted through the authenticated object seam. Its mutation vocabulary is
 // disabled / pruned / parameter patches only: there is no code path that writes
 // a Grant or an EffectContract (the grant boundary holds structurally, PG7
 // gate 2), and an edit that would exceed the standing budget is refused with
@@ -11,6 +11,7 @@
 // away and the view is unchanged.
 
 import type {
+  BlockHost,
   JsonValue,
   ObjectAction,
   ObjectActionReceipt,
@@ -33,8 +34,10 @@ import { projectProactivityGraph } from './projection';
 import { isRefusal } from './model';
 import { graphToObjectRefs, pgKind } from './object-bridge';
 
-const STORAGE_PREFIX = 'commonplace.console.proactivity.v1';
+const STRUCTURE_TYPE = 'proactivity-structure';
+const STRUCTURE_PROPERTY = 'structure';
 export const REFUSAL_NOTE = 'refused:missing_tenant';
+export const PERSISTENCE_UNAVAILABLE_NOTE = 'refused:proactivity_persistence_unavailable';
 
 // The safe mutation surface (PG4): the only fields an update may patch, keyed by
 // node kind, each with a type guard. A patch naming any other field, or a value
@@ -110,40 +113,115 @@ export class ProactivityStore {
   private structure: StandingStructure;
   private tenant: string | null;
   private subs = new Set<() => void>();
+  private hydrated: Promise<void> | null = null;
+  private hydrationReady = false;
+  private persisted = false;
+  private mutation: Promise<unknown> = Promise.resolve();
 
-  constructor(tenant: string | null, seed: () => StandingStructure) {
+  constructor(
+    tenant: string | null,
+    private readonly seed: () => StandingStructure,
+    private readonly host?: Pick<BlockHost, 'query' | 'emit'>,
+  ) {
     this.tenant = tenant;
-    this.structure = this.hydrate(seed);
+    this.structure = seed();
   }
 
-  /** Persistence is per tenant (PG7 gate 4): a browser reused across tenants
-   *  must never read another tenant's disabled, pruned, or created nodes. A null
-   *  tenant refuses on read and never persists. */
-  private storageKey(): string | null {
-    return this.tenant ? `${STORAGE_PREFIX}.${this.tenant}` : null;
+  /** Persistence is per authenticated tenant (PG7 gate 4). The tenant remains
+   * part of the stable object id for defense in depth, while authorization and
+   * credential selection belong to the server-side object proxy. */
+  private structureId(): string | null {
+    return this.tenant ? `proactivity-structure:${this.tenant}` : null;
   }
 
-  private hydrate(seed: () => StandingStructure): StandingStructure {
-    const key = this.storageKey();
-    if (key && typeof window !== 'undefined') {
-      try {
-        const raw = window.localStorage.getItem(key);
-        if (raw) return JSON.parse(raw) as StandingStructure;
-      } catch {
-        // fall through to seed
-      }
+  private ensureHydrated(): Promise<void> {
+    if (!this.hydrated) this.hydrated = this.hydrate();
+    return this.hydrated;
+  }
+
+  private async hydrate(): Promise<void> {
+    const id = this.structureId();
+    if (!id || !this.host) {
+      this.hydrationReady = true;
+      return;
     }
-    return seed();
-  }
-
-  private persist(): void {
-    const key = this.storageKey();
-    if (!key || typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(key, JSON.stringify(this.structure));
+      const set = await this.host.query({
+        types: [STRUCTURE_TYPE],
+        where: { kind: 'eq', field: 'id', value: id },
+        page: { limit: 1 },
+      });
+      const object = set.objects.find((candidate) => candidate.id === id);
+      const value = object?.properties[STRUCTURE_PROPERTY];
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const candidate = value as unknown as Partial<StandingStructure>;
+        if (
+          Array.isArray(candidate.nodes)
+          && Array.isArray(candidate.effectContracts)
+          && Array.isArray(candidate.grants)
+          && Array.isArray(candidate.budgets)
+        ) {
+          this.structure = candidate as StandingStructure;
+          this.persisted = true;
+          this.hydrationReady = true;
+          this.notify();
+          return;
+        }
+      }
+      const initialized = await this.persist();
+      if (initialized.ok && initialized.value?.status === 'applied') {
+        this.hydrationReady = true;
+        return;
+      }
+      this.hydrated = null;
     } catch {
-      // storage unavailable: the in-memory structure still works
+      // The seed remains readable, but writes must retry the durable read first.
+      this.hydrated = null;
     }
+  }
+
+  private async persist(): Promise<Result<ObjectActionReceipt>> {
+    const id = this.structureId();
+    if (!id || !this.host) {
+      return {
+        ok: true,
+        value: {
+          action_kind: this.persisted ? 'update' : 'create',
+          status: 'applied',
+          target_ids: id ? [id] : [],
+          legacy_without_op_range: true,
+        },
+      };
+    }
+    const structure = this.structure as unknown as JsonValue;
+    const action: ObjectAction = this.persisted
+      ? {
+          kind: 'update',
+          id,
+          patch: {
+            tenant: this.tenant,
+            persistence_kind: 'proactivity-review-v1',
+            [STRUCTURE_PROPERTY]: structure,
+          },
+        }
+      : {
+          kind: 'create',
+          type: STRUCTURE_TYPE,
+          props: {
+            id,
+            title: 'Proactivity review state',
+            tenant: this.tenant,
+            persistence_kind: 'proactivity-review-v1',
+            [STRUCTURE_PROPERTY]: structure,
+          },
+    };
+    const result = await this.host.emit(action);
+    if (result.ok && result.value?.status === 'applied') this.persisted = true;
+    return result;
+  }
+
+  ready(): Promise<void> {
+    return this.ensureHydrated();
   }
 
   private notify(): void {
@@ -151,10 +229,11 @@ export class ProactivityStore {
   }
 
   /** Drop the persisted structure and return to the seed. */
-  reset(seed: () => StandingStructure): void {
-    const key = this.storageKey();
-    if (key && typeof window !== 'undefined') window.localStorage.removeItem(key);
+  async reset(seed: () => StandingStructure = this.seed): Promise<void> {
+    await this.ensureHydrated();
+    if (!this.hydrationReady) throw new Error(PERSISTENCE_UNAVAILABLE_NOTE);
     this.structure = seed();
+    await this.persist();
     this.notify();
   }
 
@@ -169,6 +248,7 @@ export class ProactivityStore {
   /** Project and serialize the graph, filtered by the query. A missing tenant
    *  refuses via the notes channel rather than returning an empty graph. */
   query(query: ObjectQuery): ObjectSet {
+    void this.ensureHydrated();
     const result = projectProactivityGraph(this.tenant, this.structure);
     if (isRefusal(result)) {
       return {
@@ -220,7 +300,43 @@ export class ProactivityStore {
     }
   }
 
-  emit(action: ObjectAction): Result<ObjectActionReceipt> {
+  emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    const run = this.mutation.then(() => this.emitOne(action));
+    this.mutation = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  private async emitOne(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    await this.ensureHydrated();
+    if (!this.hydrationReady) {
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
+    }
+    const previous = this.structure;
+    const local = this.applyLocal(action);
+    if (!local.ok) return local;
+    const durable = await this.persist();
+    if (!durable.ok) {
+      this.structure = previous;
+      this.notify();
+      return durable;
+    }
+    if (!durable.value) {
+      this.structure = previous;
+      this.notify();
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
+    }
+    return {
+      ok: true,
+      value: {
+        ...durable.value,
+        action_kind: action.kind,
+        status: local.value?.status ?? 'applied',
+        target_ids: local.value?.target_ids ?? durable.value?.target_ids ?? [],
+      },
+    };
+  }
+
+  private applyLocal(action: ObjectAction): Result<ObjectActionReceipt> {
     switch (action.kind) {
       case 'update':
         return this.applyUpdate(action.id, action.patch);
@@ -234,9 +350,16 @@ export class ProactivityStore {
   }
 
   private applied(id: string): Result<ObjectActionReceipt> {
-    this.persist();
     this.notify();
-    return { ok: true, value: { action_kind: 'update', status: 'applied', target_ids: [id] } };
+    return {
+      ok: true,
+      value: {
+        action_kind: 'update',
+        status: 'applied',
+        target_ids: [id],
+        legacy_without_op_range: true,
+      },
+    };
   }
 
   private applyUpdate(id: string, patch: Record<string, JsonValue>): Result<ObjectActionReceipt> {
@@ -285,19 +408,40 @@ export class ProactivityStore {
     }
     const node = { ...props, id, kind } as unknown as StandingNode;
     this.structure = { ...this.structure, nodes: [...this.structure.nodes, node] };
-    this.persist();
     this.notify();
-    return { ok: true, value: { action_kind: 'create', status: 'applied', target_ids: [id] } };
+    return {
+      ok: true,
+      value: {
+        action_kind: 'create',
+        status: 'applied',
+        target_ids: [id],
+        legacy_without_op_range: true,
+      },
+    };
   }
 
   private applyDelete(id: string): Result<ObjectActionReceipt> {
     if (!this.structure.nodes.some((node) => node.id === id)) {
-      return { ok: true, value: { action_kind: 'delete', status: 'accepted' } };
+      return {
+        ok: true,
+        value: {
+          action_kind: 'delete',
+          status: 'accepted',
+          legacy_without_op_range: true,
+        },
+      };
     }
     const nodes = this.structure.nodes.filter((node) => node.id !== id);
     this.structure = { ...this.structure, nodes };
-    this.persist();
     this.notify();
-    return { ok: true, value: { action_kind: 'delete', status: 'applied', target_ids: [id] } };
+    return {
+      ok: true,
+      value: {
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: [id],
+        legacy_without_op_range: true,
+      },
+    };
   }
 }

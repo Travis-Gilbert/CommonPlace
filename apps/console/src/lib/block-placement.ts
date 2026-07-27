@@ -1,7 +1,9 @@
 // SOURCING: none. Pure helpers for block reorder and placement emits.
 
 import type {
+  BlockAcceptsDrop,
   BlockGeometry,
+  BlockHost,
   BlockSize,
   JsonValue,
   ObjectAction,
@@ -70,6 +72,12 @@ export function setBlockGeometryAction(
 
 export type KanbanColumnId = 'todo' | 'doing' | 'done';
 
+export interface BlockDropTarget {
+  readonly viewInstanceId: string;
+  readonly acceptsDrop: BlockAcceptsDrop;
+  readonly columnId?: string;
+}
+
 export function readKanbanColumn(instance: ObjectRef): KanbanColumnId {
   const config = instance.properties.config;
   if (config && typeof config === 'object' && !Array.isArray(config)) {
@@ -105,6 +113,82 @@ export function nestBlockInContainerActions(
       kanbanColumn: columnId,
     }),
   ];
+}
+
+/**
+ * Resolve a typed block-on-block drop into existing object actions.
+ *
+ * Containment reparents and preserves the kanban column stamp. Relation leaves
+ * placement unchanged and creates the declared edge. A relate target without a
+ * default edge returns no action so its descriptor can open an edge picker.
+ */
+export function blockDropActions(
+  sourceId: string,
+  target: BlockDropTarget,
+  order: number,
+  existingConfig: Readonly<Record<string, JsonValue>> = {},
+): ObjectAction[] {
+  if (sourceId === target.viewInstanceId) return [];
+
+  if (target.acceptsDrop.semantic === 'contain') {
+    if (!target.columnId) {
+      return [
+        moveSurfaceNodeAction(
+          sourceId,
+          target.viewInstanceId,
+          order,
+        ),
+      ];
+    }
+    const column: KanbanColumnId =
+      target.columnId === 'doing' || target.columnId === 'done'
+        ? target.columnId
+        : 'todo';
+    return nestBlockInContainerActions(
+      sourceId,
+      target.viewInstanceId,
+      column,
+      order,
+      existingConfig,
+    );
+  }
+
+  const edge = target.acceptsDrop.edge;
+  if (!edge) return [];
+  return [
+    {
+      kind: 'link',
+      from: sourceId,
+      edge,
+      to: target.viewInstanceId,
+    },
+  ];
+}
+
+export interface BlockDropReceiptSummary {
+  readonly moves: number;
+  readonly links: number;
+  readonly allApplied: boolean;
+}
+
+/** Emit typed drop actions sequentially and count applied durable receipts. */
+export async function emitBlockDropActions(
+  host: Pick<BlockHost, 'emit'>,
+  actions: readonly ObjectAction[],
+): Promise<BlockDropReceiptSummary> {
+  let moves = 0;
+  let links = 0;
+  let allApplied = true;
+  for (const action of actions) {
+    const result = await host.emit(action);
+    if (!result.ok || result.value?.status !== 'applied') {
+      allApplied = false;
+      break;
+    }
+    if (result.value.action_kind === 'move') moves += 1;
+    if (result.value.action_kind === 'link') links += 1;
+  }
+  return { moves, links, allApplied };
 }
 
 export function placeBlockAction(

@@ -202,8 +202,10 @@
    is the Yellow1 surface the agent/warn tints already use. Defined here, not
    by editing int-ui-register.css, because that file lands as-is. */
 [data-register="intui"] {
-  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe. */
-  --ij-sidebar-expanded-w: 264px;
+  /* HANDOFF-CONSOLE-SIDEBAR fitted widths. Default expanded share is ~20% of
+     the shell columns (Stage mockup); Panel resize owns live width. These
+     tokens remain for collapsed icon rail fallbacks and spacing aliases. */
+  --ij-sidebar-expanded-w: 240px;
   --ij-sidebar-collapsed-w: 44px;
   --ij-sidebar-pip-w: 2px;
   --ij-stripe-w: var(--ij-sidebar-expanded-w);
@@ -218,12 +220,31 @@
   --ij-sidebar-label-size: 14px;
   --ij-sidebar-label-line: 20px;
   --ij-sidebar-shortcut-size: 11px;
-  /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,
+  --ij-sidebar-hint-size: 10px;
+  --ij-inspector-rail-w: 320px;
+  --ij-agent-rail-max-w: 400px;
+  --ij-chat-measure: 70ch;
+  --ij-chat-measure-min: 68ch;
+  --ij-chat-measure-max: 74ch;
+  --ij-chat-sidebar-w: 280px;
+  --ij-chat-sidebar-share: 36vw;
+  --ij-chat-drawer-w: 320px;
+  --ij-chat-drawer-share: 90vw;
+  --ij-chat-attachment-min-w: 160px;
+  --ij-chat-attachment-max-w: 256px;
+  --ij-host-overlay-z: 14;
+  --ij-host-rail-z: 15;
+  /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,
      Manrope 15/500, island radius, 40px instrument row. */
-  --ij-composer-min-h: 88px;
-  --ij-composer-max-h: 40vh;
+  --ij-composer-line-box: 23px;
+  --ij-composer-min-h: calc(var(--ij-composer-line-box) + var(--ij-composer-pad-y) * 2);
+  --ij-composer-max-h: calc(33vh - var(--ij-composer-instrument-h));
   --ij-composer-full-min-h: var(--ij-composer-min-h);
   --ij-composer-radius: var(--ij-radius-lg);
+  /* SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame. */
+  --ij-composer-frame-radius: 16px;
+  --ij-composer-frame-pad: 3px;
+  --ij-composer-inner-radius: 13px;
   --ij-composer-control-size: 32px;
   --ij-composer-control-size-compact: var(--ij-control-h);
   --ij-composer-pad-x: 16px;
@@ -238,6 +259,13 @@
   --ij-composer-meta-font-size: 12px;
   --ij-composer-counter-min-width: 48px;
   --ij-thread-column-max: 760px;
+  /* SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure. */
+  --ij-chat-measure: 72ch;
+  --ij-chat-sidebar-w: min(280px, 36vw);
+  --ij-chat-rail-overlay-w: min(320px, 90vw);
+  --ij-chat-fs-indent: 22px;
+  --ij-chat-attach-min-w: 10rem;
+  --ij-chat-attach-max-w: 16rem;
   --ij-excerpt-header-h: 24px;
   --ij-excerpt-header-font-size: 11px;
   --ij-chat-chip-h: 32px;

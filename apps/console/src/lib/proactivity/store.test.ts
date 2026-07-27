@@ -3,8 +3,20 @@
 // object-bridge round trip. Exercises the store the way the host does.
 
 import { describe, expect, it } from 'vitest';
+import type {
+  ObjectAction,
+  ObjectActionReceipt,
+  ObjectQuery,
+  ObjectRef,
+  ObjectSet,
+  Result,
+} from '@commonplace/block-view/types';
 import { FIXTURE_TENANT, seedStandingStructure } from './fixtures';
-import { ProactivityStore, REFUSAL_NOTE } from './store';
+import {
+  PERSISTENCE_UNAVAILABLE_NOTE,
+  ProactivityStore,
+  REFUSAL_NOTE,
+} from './store';
 import { graphFromObjects, graphToObjectRefs } from './object-bridge';
 import { projectProactivityGraph } from './projection';
 import { isRefusal, type ProjectedNode } from './model';
@@ -20,8 +32,53 @@ const PG_QUERY = {
   live: true,
 } as const;
 
-function makeStore(tenant: string | null = FIXTURE_TENANT): ProactivityStore {
-  return new ProactivityStore(tenant, seedStandingStructure);
+class ProactivityObjectSeam {
+  readonly objects = new Map<string, ObjectRef>();
+
+  async query(query: ObjectQuery): Promise<ObjectSet> {
+    const objects = [...this.objects.values()].filter((object) => query.types.includes(object.type));
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: [],
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      subscribe: () => () => {},
+    };
+  }
+
+  async emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    if (action.kind === 'create') {
+      const id = String(action.props.id);
+      this.objects.set(id, { id, type: action.type, properties: { ...action.props, id } });
+    } else if (action.kind === 'update') {
+      const current = this.objects.get(action.id);
+      if (!current) return { ok: false, error: `missing: ${action.id}` };
+      this.objects.set(action.id, {
+        ...current,
+        properties: { ...current.properties, ...action.patch },
+      });
+    }
+    return {
+      ok: true,
+      value: {
+        action_kind: action.kind,
+        status: 'applied',
+        legacy_without_op_range: true,
+        target_ids: action.kind === 'create' ? [String(action.props.id)] : [],
+      },
+    };
+  }
+}
+
+function makeStore(
+  tenant: string | null = FIXTURE_TENANT,
+  seam?: ProactivityObjectSeam,
+): ProactivityStore {
+  return new ProactivityStore(tenant, seedStandingStructure, seam);
 }
 
 function nodesOf(store: ProactivityStore): ProjectedNode[] {
@@ -59,20 +116,20 @@ describe('ProactivityStore', () => {
     expect(nodeById(store, 'pg-resp-appeal')?.degraded.degraded).toBe(true);
   });
 
-  it('disable is reversible (named choice 1)', () => {
+  it('disable is reversible (named choice 1)', async () => {
     const store = makeStore();
-    store.emit(setDisabledAction('pg-source-email', true));
+    await store.emit(setDisabledAction('pg-source-email', true));
     expect(nodeById(store, 'pg-source-email')?.kind === 'source' && (nodeById(store, 'pg-source-email') as { disabled: boolean }).disabled).toBe(true);
-    store.emit(setDisabledAction('pg-source-email', false));
+    await store.emit(setDisabledAction('pg-source-email', false));
     const restored = nodeById(store, 'pg-watch-appeal');
     expect(restored?.degraded.degraded).toBe(false);
   });
 
-  it('refuses an over-budget action-class edit with the budget named (gate 3)', () => {
+  it('refuses an over-budget action-class edit with the budget named (gate 3)', async () => {
     const store = makeStore();
     // Moving the appeal response (send:email, within budget) onto the push
     // class would spend 8 on top of 5 committed against a cap of 10.
-    const receipt = store.emit(setActionClassAction('pg-resp-appeal', 'push_subscription_alert'));
+    const receipt = await store.emit(setActionClassAction('pg-resp-appeal', 'push_subscription_alert'));
     expect(receipt.ok).toBe(false);
     expect(receipt.error).toMatch(/over budget/i);
     expect(receipt.error).toMatch(/10/);
@@ -81,23 +138,23 @@ describe('ProactivityStore', () => {
     expect(response?.kind === 'response' && response.actionClass).toBe('send_email_reply');
   });
 
-  it('permits a no-grant action class rather than blocking it (PG4)', () => {
+  it('permits a no-grant action class rather than blocking it (PG4)', async () => {
     const store = makeStore();
     // draft_nudge (compose:nudge) has no grant and is within budget.
-    const receipt = store.emit(setActionClassAction('pg-resp-appeal', 'draft_nudge'));
+    const receipt = await store.emit(setActionClassAction('pg-resp-appeal', 'draft_nudge'));
     expect(receipt.ok).toBe(true);
     const response = nodeById(store, 'pg-resp-appeal');
     expect(response?.kind === 'response' && response.permission.hasGrant).toBe(false);
   });
 
-  it('never writes a Grant or an EffectContract through any mutation (gate 2)', () => {
+  it('never writes a Grant or an EffectContract through any mutation (gate 2)', async () => {
     const store = makeStore();
     const seed = seedStandingStructure();
     // Apply a spread of mutations, then confirm the code-owned objects are
     // byte-identical: the graph programs attention, not capability.
-    store.emit(setDisabledAction('pg-source-email', true));
-    store.emit(setActionClassAction('pg-resp-appeal', 'draft_nudge'));
-    store.emit(setPrunedAction('pg-assume-medical', true));
+    await store.emit(setDisabledAction('pg-source-email', true));
+    await store.emit(setActionClassAction('pg-resp-appeal', 'draft_nudge'));
+    await store.emit(setPrunedAction('pg-assume-medical', true));
     const set = store.query(PG_QUERY);
     const rebuilt = graphFromObjects(set.objects);
     // Reproject a fresh structure with the same code-owned tables and confirm
@@ -112,9 +169,9 @@ describe('ProactivityStore', () => {
     }
   });
 
-  it('prunes an assumption for one stake only (PG6)', () => {
+  it('prunes an assumption for one stake only (PG6)', async () => {
     const store = makeStore();
-    store.emit(setPrunedAction('pg-assume-medical', true));
+    await store.emit(setPrunedAction('pg-assume-medical', true));
     const pruned = nodeById(store, 'pg-assume-medical');
     expect(pruned?.kind === 'assumption' && pruned.pruned).toBe(true);
     // No assumption of the other stake changed.
@@ -152,5 +209,50 @@ describe('ProactivityStore', () => {
     expect(rebuilt.edges).toHaveLength(graph.edges.length);
     expect(new Set(rebuilt.nodes.map((n) => n.kind))).toEqual(new Set(graph.nodes.map((n) => n.kind)));
     expect(rebuilt.tenant).toBe(FIXTURE_TENANT);
+  });
+
+  it('restores review edits through a fresh store instance', async () => {
+    const seam = new ProactivityObjectSeam();
+    const first = makeStore(FIXTURE_TENANT, seam);
+    await first.ready();
+    await first.emit(setDisabledAction('pg-source-email', true));
+
+    const afterRedeploy = makeStore(FIXTURE_TENANT, seam);
+    await afterRedeploy.ready();
+
+    const source = nodeById(afterRedeploy, 'pg-source-email');
+    expect(source?.kind === 'source' && source.disabled).toBe(true);
+    expect(seam.objects.get(`proactivity-structure:${FIXTURE_TENANT}`)?.properties.persistence_kind)
+      .toBe('proactivity-review-v1');
+  });
+
+  it('refuses writes until a failed durable hydration can be retried', async () => {
+    let queryAttempts = 0;
+    let emitAttempts = 0;
+    const store = new ProactivityStore(FIXTURE_TENANT, seedStandingStructure, {
+      query: async () => {
+        queryAttempts += 1;
+        throw new Error('durable read unavailable');
+      },
+      emit: async () => {
+        emitAttempts += 1;
+        return {
+          ok: true,
+          value: {
+            action_kind: 'update',
+            status: 'applied',
+            target_ids: [],
+            legacy_without_op_range: true,
+          },
+        };
+      },
+    });
+
+    await store.ready();
+    const result = await store.emit(setDisabledAction('pg-source-email', true));
+
+    expect(result).toEqual({ ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE });
+    expect(queryAttempts).toBe(2);
+    expect(emitAttempts).toBe(0);
   });
 });

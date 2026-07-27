@@ -455,6 +455,12 @@
         "src/styles/primer-register.css"
       ]
     },
+    "--ij-agent-rail-max-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-agent-tint": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -576,23 +582,105 @@
         "src/styles/int-ui-register-light.css"
       ]
     },
+    "--ij-chat-attach-max-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-attach-min-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-attachment-max-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-attachment-min-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-chat-chip-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
     "--ij-chat-chip-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
     "--ij-chat-chip-radius": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
+    },
+    "--ij-chat-drawer-share": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-drawer-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-fs-indent": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-measure": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-chat-measure-max": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-measure-min": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-rail-overlay-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-sidebar-share": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-sidebar-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-chrome": {
       "file": "src/styles/int-ui-register.css",
@@ -606,103 +694,127 @@
     "--ij-composer-control-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-control-size-compact": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-counter-min-width": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-size-compact": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-font-weight": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-frame-pad": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-frame-radius": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-full-min-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-gap": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-inner-radius": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-instrument-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
+      "resolvedAlsoIn": []
+    },
+    "--ij-composer-line-box": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-line-height": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-max-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-meta-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-min-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-compact": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-x": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-pad-y": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-composer-radius": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,",
       "resolvedAlsoIn": []
     },
     "--ij-control-border": {
@@ -797,13 +909,13 @@
     "--ij-excerpt-header-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
     "--ij-excerpt-header-h": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
     "--ij-floating-shadow": {
@@ -1061,6 +1173,18 @@
         "src/styles/register-bridge.css"
       ]
     },
+    "--ij-host-overlay-z": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-host-rail-z": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-hover-overlay": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -1121,6 +1245,12 @@
         "src/styles/primer-register.css",
         "src/styles/register-bridge.css"
       ]
+    },
+    "--ij-inspector-rail-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
     },
     "--ij-island-body-pad": {
       "file": "src/styles/register-bridge.css",
@@ -1745,16 +1875,22 @@
     "--ij-sidebar-collapsed-w": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Default expanded share is ~20% of",
       "resolvedAlsoIn": []
     },
     "--ij-sidebar-expanded-w": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Default expanded share is ~20% of",
       "resolvedAlsoIn": []
     },
     "--ij-sidebar-footer-h": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-sidebar-hint-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
@@ -1787,7 +1923,7 @@
     "--ij-sidebar-pip-w": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Override the pinned 40px stripe.",
+      "note": "HANDOFF-CONSOLE-SIDEBAR fitted widths. Default expanded share is ~20% of",
       "resolvedAlsoIn": []
     },
     "--ij-sidebar-row-gap": {
@@ -1879,7 +2015,7 @@
     "--ij-thread-column-max": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: 88px well, 40vh ceiling,",
+      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8 Skiper double frame.",
       "resolvedAlsoIn": []
     },
     "--ij-tier-floating": {

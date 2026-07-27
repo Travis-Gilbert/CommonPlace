@@ -22,12 +22,11 @@ import type {
 } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
+import { mergeSeedViews } from './seed-views';
 import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_ID } from './workspace-seed';
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
-import { CanvasStore } from './canvas/store';
-import { CANVAS_TYPES, graphToObjectRefs } from './canvas/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
@@ -38,20 +37,46 @@ import {
   projectAutomationHistory,
 } from './automation-history-projection';
 import { fetchStatus } from './harness-ux';
+import { seedSurveyObjects } from './surveySeed';
+import {
+  filterIndexerObjects,
+  parseIndexerObjectsPayload,
+} from './indexer-projection';
+import { unreachableObjectSet, UNREACHABLE_NOTE } from './chat/object-set-error';
+import { CANVAS_TYPES } from './canvas/object-bridge';
+import { CanvasStore } from './canvas/store';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
-const PG_TYPE_SET = new Set(PG_TYPES);
 const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
+const PG_TYPE_SET = new Set(PG_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
+const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
+const CONSOLE_LOCAL_TYPES = new Set([
+  'thread',
+  'files-view',
+  'context-view',
+  'surface-tool',
+  CARD_TEMPLATE_TYPE,
+]);
+const MODEL_METADATA_TYPES = new Set([
+  'model-scope',
+  'object-type-metadata',
+  'field-metadata',
+  'relation-metadata',
+  'view-metadata',
+  'schema-version',
+  // SPEC-THEOREM-CONTROL-PRIMITIVES-1.0 CP3: navigation items as data.
+  'nav-item',
+]);
 const LAYOUT_QUERY: ObjectQuery = {
   types: ['surface', 'region', 'view-instance'],
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
   page: { limit: 500 },
 };
 
-/** Transport health as the host observes it (R2.3): HTTP 403 is the
- *  identity-refusal analog of principal_resolution=unauthenticated. */
-export type TransportObserver = (status: number | null) => void;
+/** Transport health as the host observes it (R2.3 / D5): status plus the
+ *  named error body when the upstream refused with a JSON reason. */
+export type TransportObserver = (status: number | null, error?: string | null) => void;
 
 // The console theme tokens: every value is a register variable reference.
 const INTUI_TOKENS: ThemeTokens = {
@@ -131,6 +156,21 @@ function matchesPredicate(object: ObjectRef, predicate: Predicate | undefined): 
   }
 }
 
+function topicIdFromSurveyQuery(query: ObjectQuery): string | undefined {
+  const predicate = query.where;
+  if (!predicate) return undefined;
+  if (predicate.kind === 'eq' && predicate.field === 'topic_id' && typeof predicate.value === 'string') {
+    return predicate.value;
+  }
+  if (predicate.kind === 'and') {
+    for (const clause of predicate.all) {
+      const nested = topicIdFromSurveyQuery({ ...query, where: clause });
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
 function compareValues(a: JsonValue | undefined, b: JsonValue | undefined): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
   return String(a ?? '').localeCompare(String(b ?? ''));
@@ -148,8 +188,6 @@ export interface ConsoleBlockHostOptions {
    *  Omitted values default to null. Fixture or test callers that need the
    *  shared seed must pass FIXTURE_TENANT explicitly. */
   readonly proactivityTenant?: string | null;
-  /** Canvas persistence shares the proactivity tenant unless explicitly set. */
-  readonly canvasTenant?: string | null;
 }
 
 export class ConsoleBlockHost implements BlockHost {
@@ -160,6 +198,10 @@ export class ConsoleBlockHost implements BlockHost {
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
   private cardTemplates: ObjectRef[];
+  private consoleLocalObjects: ObjectRef[] = [];
+  private surveyObjects: ObjectRef[];
+  private modelMetadata: ObjectRef[] = [];
+  private modelMetadataSeq = 0;
   private layoutSubs = new Set<() => void>();
   private domainSubs = new Set<() => void>();
   private registry: Registry;
@@ -168,39 +210,12 @@ export class ConsoleBlockHost implements BlockHost {
   private proactivity: ProactivityStore;
   private canvas: CanvasStore;
   private seedLayoutTask: Promise<void> | null = null;
-  /** Serializes layout write-through so concurrent updates cannot race on the wire. */
-  private layoutWriteTail: Promise<unknown> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
     this.records = options.records ?? null;
     this.observer = options.onTransport;
     const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
-    this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
-    this.canvas = new CanvasStore(
-      options.canvasTenant === undefined ? tenant : options.canvasTenant,
-      (canvas) => {
-        // Live mode write-through: placements are ObjectActions, not localStorage.
-        if (this.records !== null) return;
-        const refs = graphToObjectRefs(canvas);
-        for (const ref of refs) {
-          void this.http.emit({
-            kind: 'update',
-            id: ref.id,
-            patch: {
-              type: ref.type,
-              ...ref.properties,
-            },
-          }).catch(() => {
-            void this.http.emit({
-              kind: 'create',
-              type: ref.type,
-              props: { id: ref.id, ...ref.properties },
-            });
-          });
-        }
-      },
-    );
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
@@ -209,19 +224,24 @@ export class ConsoleBlockHost implements BlockHost {
       changefeedUrl: '/api/proactivity/stream',
       onStatus: (status) => this.observer?.(status),
       onChangefeedStatus: (status) => {
-        if (status === 'stale' || status === 'connecting') {
-          useShellStore.getState().setProgress(status === 'stale' ? 'Live feed stale' : 'Connecting live feed');
-        } else if (status === 'live') {
+        // CS13/CS16: staleness is a property of connection state, not a second
+        // progress claim. Only an outstanding connect attempt may animate.
+        if (status === 'connecting') {
+          useShellStore.getState().setProgress('Connecting live feed');
+        } else {
           useShellStore.getState().setProgress(null);
         }
       },
     });
+    this.canvas = new CanvasStore(this.http);
+    this.proactivity = new ProactivityStore(tenant, seedStandingStructure, this.http);
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
     // Card templates are seeded objects served through this seam (K1): the
     // card engine queries them like any record, and the Model surface edits
     // them later through the same update action.
     this.cardTemplates = seedCardTemplates();
+    this.surveyObjects = seedSurveyObjects();
     this.hydrateLayout();
   }
 
@@ -230,18 +250,37 @@ export class ConsoleBlockHost implements BlockHost {
   async probe(): Promise<void> {
     try {
       const response = await fetch('/api/objects/views', { cache: 'no-store' });
-      this.observer?.(response.status);
+      let error: string | null = null;
+      if (!response.ok) {
+        try {
+          const body = (await response.clone().json()) as { error?: unknown };
+          error = typeof body.error === 'string' ? body.error : null;
+        } catch {
+          error = null;
+        }
+      }
+      this.observer?.(response.status, error);
     } catch {
-      this.observer?.(null);
+      this.observer?.(null, 'console_data_api_unreachable');
     }
   }
 
   private hydrateLayout(): void {
     const restored = readLayoutCache();
-    const seed = seedLayout();
+    const seed = mergeSeedViews(seedLayout());
     const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
     const objects = needsIaMigration ? seed : (restored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
+    // Prefer the launch Chat place as the active surface. Sparse CS8 seed
+    // views (view-*) must not steal activation from the rich console places.
+    const launchChat = this.layout.get('console-chat');
+    const seedChat = this.layout.get('view-chat');
+    if (launchChat) {
+      launchChat.properties.active = true;
+      if (seedChat) seedChat.properties.active = false;
+    } else if (seedChat) {
+      seedChat.properties.active = true;
+    }
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
@@ -330,7 +369,16 @@ export class ConsoleBlockHost implements BlockHost {
   /** Drop the persisted arrangement and return to the seed. */
   resetLayout(): void {
     clearLayoutCache();
-    this.layout = new Map(seedLayout().map((ref) => [ref.id, toMutable(ref)]));
+    const seed = mergeSeedViews(seedLayout());
+    this.layout = new Map(seed.map((ref) => [ref.id, toMutable(ref)]));
+    const launchChat = this.layout.get('console-chat');
+    const seedChat = this.layout.get('view-chat');
+    if (launchChat) {
+      launchChat.properties.active = true;
+      if (seedChat) seedChat.properties.active = false;
+    } else if (seedChat) {
+      seedChat.properties.active = true;
+    }
     this.persistLayout();
     this.notifyLayout();
     if (this.records === null) {
@@ -411,67 +459,72 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
       const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        // Snapshot AFTER the await so in-flight local edits (doc navigation,
-        // surface activation) that landed while the remote fetch was pending
-        // survive replaceLayout. A stale remote seed must not yank an open
-        // document back to the brief or undo the active-surface radio.
-        const preservedActiveId = [...this.layout.values()].find(
-          (node) => node.type === 'surface' && node.properties.active === true,
-        )?.id;
-        const localViewOverrides = new Map(
-          [...this.layout.values()]
-            .filter((node) => node.type === 'view-instance')
-            .map((node) => [node.id, {
-              title: node.properties.title,
-              query: node.properties.query,
-            }] as const),
-        );
-        // Keep local-only nodes (in-flight person arrangements, e2e proofs) that
-        // the server has not seen yet; replaceLayout alone would drop them.
-        const remoteIds = new Set(remote.objects.map((object) => object.id));
-        const localOnly = [...this.layout.values()]
-          .filter((node) => !remoteIds.has(node.id))
-          .map((node) => toMutable(toRef(node)));
-        this.replaceLayout(remote.objects);
-        for (const node of localOnly) {
-          this.layout.set(node.id, node);
-        }
-        let restored = localOnly.length > 0;
-        for (const [id, override] of localViewOverrides) {
-          const node = this.layout.get(id);
-          if (!node) continue;
-          const remoteQuery = JSON.stringify(node.properties.query ?? null);
-          const localQuery = JSON.stringify(override.query ?? null);
-          const queryChanged = localQuery !== remoteQuery;
-          const titleChanged =
-            override.title !== undefined && override.title !== node.properties.title;
-          if (!queryChanged && !titleChanged) continue;
-          node.properties = {
-            ...node.properties,
-            ...(override.title !== undefined ? { title: override.title } : {}),
-            ...(override.query !== undefined ? { query: override.query } : {}),
-          };
-          restored = true;
-        }
-        if (restored) {
-          this.persistLayout();
-          this.notifyLayout();
-        }
-        if (preservedActiveId && this.layout.has(preservedActiveId)) {
-          for (const candidate of this.layout.values()) {
-            if (candidate.type === 'surface') {
-              candidate.properties.active = candidate.id === preservedActiveId;
-            }
-          }
-          this.persistLayout();
-          this.notifyLayout();
-        }
+        const migrated = await this.migrateRemoteLayout(remote.objects);
+        this.replaceLayout(migrated);
         return;
       }
       await this.pushLayoutToServer();
     } catch {
       // Backend unreachable: the atomWithStorage cache remains the fast path.
     }
+  }
+
+  private async migrateRemoteLayout(remoteObjects: readonly ObjectRef[]): Promise<ObjectRef[]> {
+    const remoteIds = new Set(remoteObjects.map((object) => object.id));
+    const localObjects = [...this.layout.values()].map(toRef);
+    const missing = localObjects.filter((object) => !remoteIds.has(object.id));
+    if (missing.length === 0) return [...remoteObjects];
+
+    await Promise.all(
+      missing.map((ref) => {
+        const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
+        return this.http.emit({
+          kind: 'create',
+          type: ref.type,
+          props: {
+            id: ref.id,
+            title,
+            ...ref.properties,
+          },
+        });
+      }),
+    );
+
+    const missingIds = new Set(missing.map((object) => object.id));
+    const moves: Array<Promise<unknown>> = [];
+    for (const parent of localObjects) {
+      const children = parent.relations?.[CONTAINS_EDGE] ?? [];
+      for (let index = 0; index < children.length; index += 1) {
+        const childId = children[index]!;
+        if (!missingIds.has(childId)) continue;
+        moves.push(
+          this.http.emit({
+            kind: 'move',
+            id: childId,
+            new_parent: parent.id,
+            order: index + 1,
+          }),
+        );
+      }
+    }
+    await Promise.all(moves);
+
+    const localById = new Map(localObjects.map((object) => [object.id, object]));
+    const migratedRemote = remoteObjects.map((object) => {
+      const local = localById.get(object.id);
+      const seededChildren = (local?.relations?.[CONTAINS_EDGE] ?? [])
+        .filter((childId) => missingIds.has(childId));
+      if (seededChildren.length === 0) return object;
+      const remoteChildren = object.relations?.[CONTAINS_EDGE] ?? [];
+      return {
+        ...object,
+        relations: {
+          ...object.relations,
+          [CONTAINS_EDGE]: [...new Set([...remoteChildren, ...seededChildren])],
+        },
+      };
+    });
+    return [...migratedRemote, ...missing];
   }
 
   private async pushLayoutToServer(): Promise<void> {
@@ -511,19 +564,9 @@ export class ConsoleBlockHost implements BlockHost {
     actions: ReadonlyArray<ObjectAction>,
   ): Promise<void> {
     if (this.records !== null) return;
-    const run = async () => {
-      for (const action of actions) {
-        await this.http.emit(action);
-      }
-    };
-    // Chain all layout writes so out-of-order HTTP completion cannot overwrite
-    // a newer patch with an older one for the same view-instance.
-    const next = this.layoutWriteTail.then(run, run);
-    this.layoutWriteTail = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    await next;
+    for (const action of actions) {
+      await this.http.emit(action);
+    }
   }
 
   private notifyLayout(): void {
@@ -537,15 +580,20 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
+    if (query.types.some((type) => CANVAS_TYPE_SET.has(type))) {
+      return this.canvas.query(query);
+    }
     // The proactivity graph is projected and served locally from fixtures until
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
-    if (query.types.some((type) => CANVAS_TYPE_SET.has(type) || type === 'canvas')) return this.canvas.query(query);
     if (query.types.includes('memory')) return this.memorySet(query);
     // Automation history: run and dispatch objects projected from harness status
     // (B9). Not a Data API type yet; projecting here is the seam, not a stub.
     if (query.types.some((type) => AUTOMATION_TYPE_SET.has(type))) {
       return this.queryAutomationHistory(query);
+    }
+    if (query.types.some((type) => MODEL_METADATA_TYPES.has(type))) {
+      return this.modelMetadataSet(query);
     }
     // The live wire is the default (R2.1): records, hunks, and every domain
     // kind the seam serves (person, task, mention-candidate, ...) round-trip
@@ -555,18 +603,18 @@ export class ConsoleBlockHost implements BlockHost {
     // so slug and id predicates behave exactly as the seed path did.
     // Console-owned seeds stay local: card templates (K1, authored objects)
     // and 'thread' (the pane renders its own chat SSE, never the record wire).
+    // Survey types try the live Indexer harness projection first (IX-004), then
+    // fall back to the hermetic seed for e2e and unconfigured harness.
     const testMode = this.records !== null;
     const isRecord = query.types.includes('record');
     const isDoc = query.types.includes('doc');
     const isCode = query.types.includes('code-file');
     // Console-local kinds never touch the wire: 'thread' (its pane renders its
     // own chat SSE) and card templates (K1, console-authored seeds).
-    const consoleLocal =
-      query.types.includes('thread') ||
-      query.types.includes('files-view') ||
-      query.types.includes('context-view') ||
-      query.types.includes('surface-tool') ||
-      query.types.includes(CARD_TEMPLATE_TYPE);
+    const consoleLocal = query.types.some((type) => CONSOLE_LOCAL_TYPES.has(type));
+    if (query.types.some((type) => SURVEY_TYPES.has(type))) {
+      return this.querySurvey(query);
+    }
     if (!testMode && !consoleLocal) {
       // Docs and code files are client-filtered so slug/id predicates resolve
       // exactly as the seed path did; every other seam kind (record, person,
@@ -574,7 +622,7 @@ export class ConsoleBlockHost implements BlockHost {
       if (query.types.length === 1 && (isDoc || isCode)) {
         return this.queryLiveDomain(query, isDoc ? 'doc' : 'code-file');
       }
-      return this.http.query(query);
+      return this.queryLiveWire(query);
     }
     const pool = isRecord
       ? (this.records ?? [])
@@ -584,6 +632,8 @@ export class ConsoleBlockHost implements BlockHost {
           ? this.codeFiles
           : query.types.includes(CARD_TEMPLATE_TYPE)
             ? this.cardTemplates
+            : consoleLocal
+              ? this.consoleLocalObjects.filter((object) => query.types.includes(object.type))
             : [];
     let objects = pool.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
@@ -602,7 +652,9 @@ export class ConsoleBlockHost implements BlockHost {
     }
     const shape: ObjectShape = {
       types: [...query.types],
-      fields: query.types.includes('record') ? [...RECORD_FIELDS] : Object.keys(objects[0]?.properties ?? {}),
+      fields: query.types.includes('record')
+        ? [...RECORD_FIELDS]
+        : [...new Set(objects.flatMap((object) => Object.keys(object.properties)))],
       relations: [],
       axes: {},
       cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
@@ -621,6 +673,148 @@ export class ConsoleBlockHost implements BlockHost {
     };
   }
 
+  private async querySurvey(query: ObjectQuery): Promise<ObjectSet> {
+    let objects = await this.loadSurveyObjects(query);
+    objects = filterIndexerObjects(objects, query, matchesPredicate);
+    const ranker = query.rank?.[0];
+    if (ranker?.kind === 'field') {
+      const direction = ranker.direction === 'desc' ? -1 : 1;
+      objects = [...objects].sort(
+        (a, b) => direction * compareValues(a.properties[ranker.field], b.properties[ranker.field]),
+      );
+    }
+    let nextCursor: string | undefined;
+    if (query.page) {
+      const offset = query.page.cursor ? Number.parseInt(query.page.cursor, 10) || 0 : 0;
+      const end = offset + query.page.limit;
+      if (end < objects.length) nextCursor = String(end);
+      objects = objects.slice(offset, end);
+    }
+    const shape: ObjectShape = {
+      types: [...query.types],
+      fields: [
+        'topic_id',
+        'title',
+        'description',
+        'updated',
+        'capture_count',
+        'status',
+        'excerpt',
+        'source_url',
+        'matched_spans',
+        'from',
+        'to',
+        'reason',
+        'strength',
+      ],
+      relations: [],
+      axes: {},
+      cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+    };
+    return {
+      objects,
+      shape,
+      next_cursor: nextCursor,
+      subscribe: (callback) => {
+        if (!query.live) return () => {};
+        let cancelled = false;
+        const tick = () => {
+          void this.querySurvey(query).then((next) => {
+            if (!cancelled) callback(next);
+          });
+        };
+        const timer = setInterval(tick, 5000);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
+      },
+    };
+  }
+
+  private modelMetadataSet(query: ObjectQuery): ObjectSet {
+    const topicId = topicIdFromSurveyQuery(query);
+    const scopeObject: ObjectRef[] = topicId
+      ? [{
+          id: `model-scope:${topicId}`,
+          type: 'model-scope',
+          properties: { topic_id: topicId },
+        }]
+      : [];
+    const objects = [...scopeObject, ...this.modelMetadata]
+      .filter((object) => query.types.includes(object.type))
+      .filter((object) => matchesPredicate(object, query.where));
+    return {
+      objects,
+      shape: {
+        types: [...query.types],
+        fields: ['topic_id', 'id', 'key', 'label', 'provenance'],
+        relations: [],
+        axes: {},
+        cardinality: objects.length === 0 ? 'empty' : objects.length === 1 ? 'one' : 'many',
+      },
+      subscribe: (callback) => {
+        const listener = () => callback(this.modelMetadataSet(query));
+        this.domainSubs.add(listener);
+        return () => this.domainSubs.delete(listener);
+      },
+    };
+  }
+
+  private async loadSurveyObjects(query: ObjectQuery): Promise<ObjectRef[]> {
+    const topicId = topicIdFromSurveyQuery(query);
+    const includeCaptures = query.types.includes('capture') || query.types.includes('survey-edge');
+    try {
+      const params = new URLSearchParams();
+      if (topicId) params.set('topicId', topicId);
+      params.set('includeCaptures', includeCaptures ? '1' : '0');
+      const response = await fetch(`/api/indexer?${params.toString()}`, { cache: 'no-store' });
+      if (response.ok) {
+        const payload = await response.json().catch(() => null);
+        const live = parseIndexerObjectsPayload(payload);
+        // Authoritative empty corpora stay empty; seed only on invalid or unavailable.
+        if (live !== null) return live;
+      }
+    } catch {
+      // Fall through to hermetic seed.
+    }
+    return this.surveyObjects;
+  }
+
+  private liveSubscribe(
+    query: ObjectQuery,
+    run: () => Promise<ObjectSet>,
+  ): (callback: (next: ObjectSet) => void) => Unsubscribe {
+    return (callback) => {
+      if (!query.live) return () => {};
+      let cancelled = false;
+      const tick = () => {
+        void run().then((next) => {
+          if (!cancelled) callback(next);
+        });
+      };
+      const timer = setInterval(tick, 5000);
+      return () => {
+        cancelled = true;
+        clearInterval(timer);
+      };
+    };
+  }
+
+  /** CH9: transport failure is unreachable, never an empty result set. */
+  private async queryLiveWire(query: ObjectQuery): Promise<ObjectSet> {
+    try {
+      return await this.http.query(query);
+    } catch {
+      this.observer?.(null, 'console_data_api_unreachable');
+      return unreachableObjectSet(
+        query.types,
+        UNREACHABLE_NOTE,
+        this.liveSubscribe(query, () => this.queryLiveWire(query)),
+      );
+    }
+  }
+
   private async queryAutomationHistory(query: ObjectQuery): Promise<ObjectSet> {
     let objects: ObjectRef[] = [];
     try {
@@ -629,7 +823,12 @@ export class ConsoleBlockHost implements BlockHost {
         (object) => query.types.includes(object.type) && matchesPredicate(object, query.where),
       );
     } catch {
-      objects = [];
+      this.observer?.(null, 'console_data_api_unreachable');
+      return unreachableObjectSet(
+        query.types,
+        UNREACHABLE_NOTE,
+        this.liveSubscribe(query, () => this.queryAutomationHistory(query)),
+      );
     }
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {
@@ -654,20 +853,7 @@ export class ConsoleBlockHost implements BlockHost {
       objects,
       shape: { ...shape, types: [...query.types] },
       next_cursor: nextCursor,
-      subscribe: (callback) => {
-        if (!query.live) return () => {};
-        let cancelled = false;
-        const tick = () => {
-          void this.queryAutomationHistory(query).then((next) => {
-            if (!cancelled) callback(next);
-          });
-        };
-        const timer = setInterval(tick, 5000);
-        return () => {
-          cancelled = true;
-          clearInterval(timer);
-        };
-      },
+      subscribe: this.liveSubscribe(query, () => this.queryAutomationHistory(query)),
     };
   }
 
@@ -702,6 +888,7 @@ export class ConsoleBlockHost implements BlockHost {
   private async queryLiveDomain(query: ObjectQuery, type: string): Promise<ObjectSet> {
     const allObjects: ObjectRef[] = [];
     let cursor: string | undefined;
+    try {
     do {
       const page = await this.http.query({ types: [type], page: { limit: 500, cursor } });
       allObjects.push(...page.objects);
@@ -709,6 +896,14 @@ export class ConsoleBlockHost implements BlockHost {
       if (!next || next === cursor) break;
       cursor = next;
     } while (cursor);
+    } catch {
+      this.observer?.(null, 'console_data_api_unreachable');
+      return unreachableObjectSet(
+        query.types,
+        UNREACHABLE_NOTE,
+        this.liveSubscribe(query, () => this.queryLiveDomain(query, type)),
+      );
+    }
     let objects = allObjects.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
     if (ranker?.kind === 'field') {
@@ -805,18 +1000,27 @@ export class ConsoleBlockHost implements BlockHost {
   emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
     const applied = (targetIds: readonly string[]): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'applied', target_ids: targetIds },
+      value: {
+        action_kind: action.kind,
+        status: 'applied',
+        target_ids: targetIds,
+        legacy_without_op_range: true,
+      },
     });
     const accepted = (): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'accepted' },
+      value: {
+        action_kind: action.kind,
+        status: 'accepted',
+        legacy_without_op_range: true,
+      },
     });
 
     // Proactivity edits (disable, parameter edits, prune, intent commit) are
     // receipted, reversible mutations on the local projection until the kernel
     // owns them. The store refuses an over-budget action-class edit itself.
-    if (this.proactivity.owns(action)) return Promise.resolve(this.proactivity.emit(action));
-    if (this.canvas.owns(action)) return Promise.resolve(this.canvas.emit(action));
+    if (this.canvas.owns(action)) return this.canvas.emit(action);
+    if (this.proactivity.owns(action)) return this.proactivity.emit(action);
 
     switch (action.kind) {
       case 'move': {
@@ -841,32 +1045,19 @@ export class ConsoleBlockHost implements BlockHost {
       case 'update': {
         const node = this.layout.get(action.id);
         if (node) {
-          const patch = { ...action.patch } as Record<string, JsonValue>;
-          if (patch.config && typeof patch.config === 'object' && !Array.isArray(patch.config)) {
-            const previous = node.properties.config;
-            const previousRecord =
-              previous && typeof previous === 'object' && !Array.isArray(previous)
-                ? (previous as Record<string, JsonValue>)
-                : {};
-            patch.config = {
-              ...previousRecord,
-              ...(patch.config as Record<string, JsonValue>),
-            };
-          }
-          node.properties = { ...node.properties, ...patch };
+          node.properties = { ...node.properties, ...action.patch };
           this.persistLayout();
           this.notifyLayout();
-          return this.writeThroughLayoutUpdates([
-            { kind: 'update', id: action.id, patch },
-          ]).then(() => applied([action.id]));
+          return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
         }
         // In live mode only card templates patch in-session (console-authored
-        // seeds); records, docs, and code files ride the wire so edits persist.
-        // In test mode the local pools carry every kind.
+        // seeds) and survey fixtures patch in-session; records, docs, and code
+        // files ride the wire so edits persist. In test mode local pools carry
+        // every kind.
         const updatePools =
           this.records === null
-            ? [this.cardTemplates]
-            : [this.records, this.docs, this.codeFiles, this.cardTemplates];
+            ? [this.cardTemplates, this.consoleLocalObjects, this.surveyObjects, this.modelMetadata]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.consoleLocalObjects, this.surveyObjects, this.modelMetadata];
         for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
@@ -879,7 +1070,44 @@ export class ConsoleBlockHost implements BlockHost {
         return Promise.resolve({ ok: false, error: `update target missing: ${action.id}` });
       }
       case 'create': {
-        if (!LAYOUT_TYPES.has(action.type)) return Promise.resolve(accepted());
+        if (CONSOLE_LOCAL_TYPES.has(action.type)) {
+          const id = typeof action.props.id === 'string'
+            ? action.props.id
+            : `${action.type}:${this.consoleLocalObjects.length + 1}`;
+          const next: ObjectRef = {
+            id,
+            type: action.type,
+            properties: { ...action.props, id },
+          };
+          const pool = action.type === CARD_TEMPLATE_TYPE
+            ? this.cardTemplates
+            : this.consoleLocalObjects;
+          const existing = pool.findIndex((object) => object.id === id);
+          if (existing >= 0) pool[existing] = next;
+          else pool.push(next);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([id]));
+        }
+        if (MODEL_METADATA_TYPES.has(action.type)) {
+          const id = typeof action.props.id === 'string'
+            ? action.props.id
+            : `${action.type}:${++this.modelMetadataSeq}`;
+          const next: ObjectRef = {
+            id,
+            type: action.type,
+            properties: { ...action.props, id },
+          };
+          const existing = this.modelMetadata.findIndex((object) => object.id === id);
+          if (existing >= 0) this.modelMetadata[existing] = next;
+          else this.modelMetadata.push(next);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([id]));
+        }
+        if (!LAYOUT_TYPES.has(action.type)) {
+          return this.records === null
+            ? this.http.emit(action)
+            : Promise.resolve(accepted());
+        }
         const id = typeof action.props.id === 'string' ? action.props.id : `vi-${this.layout.size + 1}`;
         this.layout.set(id, { id, type: action.type, properties: { ...action.props }, children: [] });
         this.persistLayout();
@@ -889,7 +1117,25 @@ export class ConsoleBlockHost implements BlockHost {
         ]).then(() => applied([id]));
       }
       case 'delete': {
-        if (!this.layout.has(action.id)) return Promise.resolve(accepted());
+        for (const pool of [this.cardTemplates, this.consoleLocalObjects]) {
+          const localIndex = pool.findIndex((object) => object.id === action.id);
+          if (localIndex >= 0) {
+            pool.splice(localIndex, 1);
+            for (const callback of this.domainSubs) callback();
+            return Promise.resolve(applied([action.id]));
+          }
+        }
+        const metadataIndex = this.modelMetadata.findIndex((object) => object.id === action.id);
+        if (metadataIndex >= 0) {
+          this.modelMetadata.splice(metadataIndex, 1);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([action.id]));
+        }
+        if (!this.layout.has(action.id)) {
+          return this.records === null
+            ? this.http.emit(action)
+            : Promise.resolve(accepted());
+        }
         this.layout.delete(action.id);
         for (const candidate of this.layout.values()) {
           candidate.children = candidate.children.filter((childId) => childId !== action.id);
@@ -898,15 +1144,80 @@ export class ConsoleBlockHost implements BlockHost {
         this.notifyLayout();
         return this.writeThroughLayoutUpdates([action]).then(() => applied([action.id]));
       }
+      case 'upsert_complete_view': {
+        const surface = this.layout.get(action.id);
+        if (!surface || surface.type !== 'surface') {
+          return Promise.resolve({ ok: false, error: `upsert_complete_view target missing: ${action.id}` });
+        }
+        if (action.props) {
+          surface.properties = { ...surface.properties, ...action.props };
+        }
+        if (action.regions !== undefined) {
+          const previous = [...surface.children];
+          for (const childId of previous) {
+            this.deleteSubtree(childId);
+          }
+          surface.children = [];
+          const createdIds: string[] = [];
+          for (const [index, region] of action.regions.entries()) {
+            const regionId = typeof region.id === 'string' && region.id.length > 0
+              ? region.id
+              : `${action.id}.region.${index}`;
+            const instanceIds: string[] = [];
+            for (const [instanceIndex, instance] of (region.instances ?? []).entries()) {
+              const instanceId = typeof instance.id === 'string' && instance.id.length > 0
+                ? instance.id
+                : `${regionId}.vi.${instanceIndex}`;
+              this.layout.set(instanceId, {
+                id: instanceId,
+                type: 'view-instance',
+                properties: { ...instance.props },
+                children: [],
+              });
+              instanceIds.push(instanceId);
+              createdIds.push(instanceId);
+            }
+            this.layout.set(regionId, {
+              id: regionId,
+              type: 'region',
+              properties: { ...region.props },
+              children: instanceIds,
+            });
+            surface.children.push(regionId);
+            createdIds.push(regionId);
+          }
+          this.persistLayout();
+          this.notifyLayout();
+          return Promise.resolve(applied([action.id, ...createdIds]));
+        }
+        this.persistLayout();
+        this.notifyLayout();
+        return Promise.resolve(applied([action.id]));
+      }
       case 'invoke_tool':
       case 'dispatch':
         // Consequential domain actions always ride the object seam. In
         // particular hunk.accept/reject/verify/edit bind to Rust executors and
         // their receipts instead of ending at a client-side JSON scaffold.
         return this.http.emit(action);
+      case 'link':
+      case 'unlink':
+        return this.records === null
+          ? this.http.emit(action)
+          : Promise.resolve(accepted());
       default:
-        // open / select / link / run_agent are UI or substrate concerns.
+        // open / select / run_agent are UI or substrate concerns.
         return Promise.resolve(accepted());
+    }
+  }
+
+  private deleteSubtree(id: string): void {
+    const node = this.layout.get(id);
+    if (!node) return;
+    for (const childId of [...node.children]) this.deleteSubtree(childId);
+    this.layout.delete(id);
+    for (const candidate of this.layout.values()) {
+      candidate.children = candidate.children.filter((childId) => childId !== id);
     }
   }
 

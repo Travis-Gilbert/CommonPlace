@@ -12,7 +12,8 @@
 //! collection falls below the ceiling.
 
 use commonplace::{
-    Commonplace, DeterministicEmbedder, InMemoryBlobStore, IngestInput, IngestPipeline,
+    mentions::MENTION_CANDIDATE_KIND, Commonplace, DeterministicEmbedder, InMemoryBlobStore,
+    IngestInput, IngestPipeline,
 };
 use commonplace_api::{organize, OrganizeConfig, Timeframe};
 use rustyred_thg_core::InMemoryGraphStore;
@@ -101,10 +102,31 @@ fn organize_partitions_confident_from_needs_you() {
         .unwrap();
     let ambiguous_id = ambiguous.item.id.clone();
 
-    // All six items are stored (five cluster docs plus the ambiguous one); the
-    // ambiguous item joined an existing collection rather than minting a third.
-    let item_count = cp.all_items().unwrap().len();
-    assert_eq!(item_count, 6, "five cluster docs plus the ambiguous one");
+    // Six intake items are stored (five cluster docs plus the ambiguous one);
+    // the mention detector also creates two system candidates for the repeated
+    // "Rust ownership" reference. Those candidates stay out of organize intake.
+    let items = cp.all_items().unwrap();
+    let intake_items: Vec<_> = items
+        .iter()
+        .filter(|item| item.kind.as_str() != MENTION_CANDIDATE_KIND)
+        .collect();
+    let item_titles: Vec<&str> = intake_items
+        .iter()
+        .map(|item| item.title.as_str())
+        .collect();
+    assert_eq!(
+        intake_items.len(),
+        6,
+        "five cluster docs plus the ambiguous one, got {item_titles:?}"
+    );
+    assert_eq!(
+        items
+            .iter()
+            .filter(|item| item.kind.as_str() == MENTION_CANDIDATE_KIND)
+            .count(),
+        2,
+        "the two repeated ownership references become confirmation candidates"
+    );
 
     let config = OrganizeConfig {
         needs_you_ceiling: 0.58,

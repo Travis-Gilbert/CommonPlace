@@ -17,7 +17,6 @@ import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
 import { getToolMeta } from '@/components/chat/toolMeta';
 import { JsonViewer, type JsonViewerProps } from '@/components/jalco';
-import { Composer, NEW_LINE_HINT } from '@/components/composer/Composer';
 import { PresenceMark } from '@/components/mark/PresenceMark';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
@@ -25,6 +24,9 @@ import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
 import { ObjectExcerpt } from './thread/ObjectExcerpt';
 import { ThreadExcerpt } from './thread/ThreadExcerpt';
+
+import { Composer, NEW_LINE_HINT } from '@/components/chat/RuntimeComposer';
+import { reducedFromMissing } from '@/lib/degradation';
 
 type JsonViewerData = JsonViewerProps['data'];
 
@@ -166,9 +168,12 @@ function UserMessage({ host }: { host: BlockHost }) {
 function AssistantMessage({ host }: { host: BlockHost }) {
   const durations = useMotionDurations();
   const createdAt = useMessage((message) => message.createdAt);
-  const degradation = useMessage((message) => message.metadata.custom?.degradation) as
+  const degradationMeta = useMessage((message) => message.metadata.custom?.degradation) as
     | { degraded: true; missingIndexes: string[] }
     | undefined;
+  const degradation = degradationMeta?.degraded
+    ? reducedFromMissing(degradationMeta.missingIndexes)
+    : null;
   const content = useMessage((message) =>
     message.content
       .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
@@ -189,9 +194,14 @@ function AssistantMessage({ host }: { host: BlockHost }) {
           speaker="agent"
           timestamp={formatTime(createdAt)}
         >
-          {degradation?.degraded ? (
-            <span className="mb-1 inline-flex rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn" data-ask-degraded>
-              degraded: {degradation.missingIndexes.join(', ')}
+          {degradation ? (
+            <span
+              data-ask-degraded
+              data-degradation="reduced"
+              className="mb-1 block text-ij-island-meta text-ij-ink-info"
+              style={{ fontFamily: 'var(--cp-font-human)' }}
+            >
+              {degradation.cause}
             </span>
           ) : null}
           <MessagePrimitive.Parts
@@ -210,27 +220,46 @@ function AssistantMessage({ host }: { host: BlockHost }) {
 function AgentPlan({ steps }: { steps: readonly AgentPlanStep[] }) {
   if (steps.length === 0) return null;
   return (
-    <ThreadExcerpt kind="plan" excerptId="agent-plan" speaker="plan" summary={`${steps.length} steps`} defaultCollapsed>
+    <ThreadExcerpt kind="plan" excerptId="agent-plan" speaker="plan" summary={`${steps.length} steps`}>
       <div data-agent-plan aria-label="Agent plan" className="overflow-hidden">
-        {steps.map((step) => (
-          <div key={step.id} data-plan-status={step.status} className="flex h-ij-row items-center gap-2 border-b border-ij-seam last:border-b-0">
-            <span
-              aria-hidden="true"
-              className="size-2 rounded-full"
-              style={{
-                background:
-                  step.status === 'complete'
-                    ? 'var(--ij-success)'
-                    : step.status === 'refused'
-                      ? 'var(--ij-error)'
-                      : 'var(--ij-ink-disabled)',
-              }}
-            />
-            <span className="min-w-0 flex-1 truncate text-ij-ink">{step.label}</span>
-            {step.tool ? <span className="font-ij-mono text-ij-ink-info">{step.tool}</span> : null}
-            <span className="text-ij-ink-disabled">{step.status}</span>
-          </div>
-        ))}
+        {steps.map((step) => {
+          const status = String(step.status);
+          const tone =
+            status === 'complete'
+              ? 'done'
+              : status === 'refused' || status === 'failed'
+                ? 'failed'
+                : status === 'running'
+                  ? 'running'
+                  : status === 'awaiting'
+                    ? 'awaiting'
+                    : 'pending';
+          const className =
+            tone === 'running'
+              ? 'text-ij-ink-info animate-pulse'
+              : tone === 'done'
+                ? 'text-ij-ink'
+                : tone === 'awaiting'
+                  ? 'text-[color:var(--hue-status-awaiting)] animate-pulse'
+                  : tone === 'failed'
+                    ? 'text-[color:var(--hue-status-failed)]'
+                    : 'text-ij-ink-disabled';
+          return (
+            <div
+              key={step.id}
+              data-plan-status={step.status}
+              data-status-hue
+              className={`flex h-ij-row items-center gap-2 border-b border-ij-seam last:border-b-0 ${className}`}
+            >
+              <span className="min-w-0 flex-1 truncate">{step.label}</span>
+              {step.tool ? (
+                <span className="font-ij-mono text-ij-ink-info" data-mono-ok>
+                  {step.tool}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </ThreadExcerpt>
   );
@@ -255,9 +284,11 @@ const STARTER_SLOTS = [
 function chipRefusal(connection: ConnectionState, endpointMissing: boolean): string | null {
   // Endpoint unavailable is owned by the composer status slot only.
   if (endpointMissing) return 'Chat endpoint is not configured';
-  if (connection === 'identity-refused') return 'principal_resolution=unauthenticated';
-  if (connection === 'disconnected') return 'Disconnected from the object seam';
-  if (connection === 'connecting') return 'Connecting to the object seam';
+  if (connection === 'unauthenticated') return 'Sign in required';
+  if (connection === 'credential-unavailable') return 'Credential unavailable';
+  if (connection === 'identity-refused') return 'Authentication refused';
+  if (connection === 'disconnected') return 'Transport unreachable';
+  if (connection === 'connecting') return 'Transport connecting';
   return null;
 }
 
@@ -324,49 +355,6 @@ function StarterSuggestions({ host, disabled }: { host: BlockHost; disabled: boo
     </div>
   );
 }
-
-function JumpStrip() {
-  const [headers, setHeaders] = useState<readonly { id: string; label: string }[]>([]);
-
-  useEffect(() => {
-    const read = () => {
-      const roots = [...document.querySelectorAll<HTMLElement>('[data-thread-excerpt]')];
-      setHeaders(
-        roots
-          .filter((node) => node.id)
-          .map((node) => ({
-            id: node.id,
-            label: node.querySelector('[data-excerpt-speaker]')?.textContent?.trim() || node.dataset.threadExcerpt || 'excerpt',
-          })),
-      );
-    };
-    read();
-    const observer = new MutationObserver(read);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
-  if (headers.length === 0) return null;
-  return (
-    <nav
-      data-thread-jump-strip
-      aria-label="Excerpt jump strip"
-      className="thread-jump-strip absolute top-0 right-0 max-h-full w-28 overflow-y-auto border-l border-ij-seam bg-ij-chrome py-2"
-    >
-      {headers.map((header) => (
-        <a
-          key={header.id}
-          href={`#${header.id}`}
-          className="block truncate px-2 py-1 font-ij-mono text-ij-ink-info hover:text-ij-ink"
-          style={{ fontSize: 'var(--ij-excerpt-header-font-size)' }}
-        >
-          {header.label}
-        </a>
-      ))}
-    </nav>
-  );
-}
-
 export function ThreadView({ host, density = 'compact' }: { host: BlockHost; density?: 'full' | 'compact' }) {
   const runtimeAvailable = useContext(ThreadRuntimeAvailable);
   const error = useThreadStore((state) => state.error);
@@ -430,7 +418,7 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
           />
           <AgentPlan steps={plan} />
           {error ? <div className="px-4 py-1 text-ij-error">{error}</div> : null}
-          {full ? <JumpStrip /> : null}
+          {/* CS20 cause: JumpStrip mirrored excerpt labels into a floating nav, duplicating the human box. */}
         </div>
       </ThreadPrimitive.Viewport>
       <div

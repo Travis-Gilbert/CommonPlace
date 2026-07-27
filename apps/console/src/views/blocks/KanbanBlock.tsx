@@ -1,13 +1,18 @@
 'use client';
 
-// SOURCING: hand-roll + dnd-kit. First acceptsChildren container
-// (HANDOFF-CONSOLE-ONE-BLOCK-MODEL OB7). Children parent under this
-// view-instance via CONTAINS; column lives on child config.kanbanColumn.
+// SOURCING: hand-roll + dnd-kit. Typed containment target
+// (AMENDMENT-02 A2-1/A2-2). Children parent under this view-instance through
+// CONTAINS; the selected column remains on child config.kanbanColumn.
 
 import { useDroppable } from '@dnd-kit/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
-import type { BlockHost, ObjectRef, ObjectSet, ViewRenderProps } from '@commonplace/block-view/types';
+import type {
+  BlockHost,
+  ObjectRef,
+  ObjectSet,
+  ViewRenderProps,
+} from '@commonplace/block-view/types';
 import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
 import {
   readKanbanColumn,
@@ -41,9 +46,11 @@ function KanbanColumn({
     id: `container:kanban:${containerId}:${columnId}`,
     data: {
       type: 'container',
-      acceptsChildren: true,
-      accepts: ['*'] as const,
-      layout: 'columns',
+      acceptsDrop: {
+        semantic: 'contain',
+        layout: 'columns',
+        accepts: ['*'] as const,
+      },
       columnId,
       descriptorId: hostDescriptorId,
       viewInstanceId: containerId,
@@ -96,9 +103,7 @@ function useContainerChildren(
     void Promise.resolve(host.query({ ...LAYOUT_QUERY })).then((set) => {
       if (!active) return;
       publish(set);
-      if (typeof set.subscribe === 'function') {
-        unsubscribe = set.subscribe(publish);
-      }
+      unsubscribe = set.subscribe(publish);
     });
 
     return () => {
@@ -150,7 +155,7 @@ export function KanbanBlock({ host, instance }: ViewRenderProps) {
           containerId={containerId}
           hostDescriptorId={hostDescriptorId}
         >
-          {(byColumn[column.id] ?? []).map((child) => (
+          {byColumn[column.id].map((child) => (
             <div
               key={child.id}
               data-kanban-card={child.id}
@@ -159,7 +164,7 @@ export function KanbanBlock({ host, instance }: ViewRenderProps) {
               <ViewInstanceHost instance={child} host={host} bare />
             </div>
           ))}
-          {(byColumn[column.id] ?? []).length === 0 ? (
+          {byColumn[column.id].length === 0 ? (
             <p className="text-sm text-ij-ink-info">Drop a block here.</p>
           ) : null}
         </KanbanColumn>

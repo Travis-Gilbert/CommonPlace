@@ -195,6 +195,11 @@ export interface ObjectSet {
   readonly shape: ObjectShape;
   readonly next_cursor?: string;
   readonly notes?: readonly string[];
+  /**
+   * Transport or host failure. Present means the set is unreachable, not
+   * empty: callers must render an unavailable state instead of no-results.
+   */
+  readonly error?: string;
   subscribe(callback: (next: ObjectSet) => void): Unsubscribe;
 }
 
@@ -222,12 +227,39 @@ export type ObjectAction =
   | { readonly kind: "invoke_tool"; readonly tool: string; readonly args: Readonly<Record<string, JsonValue>> }
   | { readonly kind: "dispatch"; readonly job: JobSpec }
   | { readonly kind: "open"; readonly id: string; readonly view?: string }
-  | { readonly kind: "select"; readonly ids: readonly string[] };
+  | { readonly kind: "select"; readonly ids: readonly string[] }
+  /** Declarative view upsert (CS6 / Twenty upsert_complete_view semantics).
+   *  Passing regions replaces regions. Passing [] clears them. Omitting the
+   *  key leaves children alone. The caller never fetches child ids to edit. */
+  | {
+      readonly kind: "upsert_complete_view";
+      readonly id: string;
+      readonly props?: Readonly<Record<string, JsonValue>>;
+      readonly regions?: readonly UpsertRegionInput[];
+    };
+
+export interface UpsertRegionInput {
+  readonly id?: string;
+  readonly props: Readonly<Record<string, JsonValue>>;
+  readonly instances?: readonly UpsertViewInstanceInput[];
+}
+
+export interface UpsertViewInstanceInput {
+  readonly id?: string;
+  readonly props: Readonly<Record<string, JsonValue>>;
+}
 
 export type ActionKind = ObjectAction["kind"];
 export type ObjectActionStatus = "accepted" | "applied" | "deferred";
 
-export interface ObjectActionReceipt {
+/** Inclusive hash-chained span of TheoremOp ids produced by a captured action. */
+export interface OpRange {
+  readonly first_op_id: string;
+  readonly last_op_id: string;
+  readonly range_hash: string;
+}
+
+interface ObjectActionReceiptBase {
   readonly action_kind: ActionKind;
   readonly status: ObjectActionStatus;
   readonly target_ids?: readonly string[];
@@ -235,6 +267,19 @@ export interface ObjectActionReceipt {
   readonly actor_id?: string;
   readonly note?: string;
 }
+
+export type ObjectActionReceipt = ObjectActionReceiptBase & (
+  | {
+      /** Hash-chained span from a durable captured emit. */
+      readonly op_range: OpRange;
+      readonly legacy_without_op_range?: never;
+    }
+  | {
+      readonly op_range?: never;
+      /** Explicit marker for receipts minted before durable operation ranges. */
+      readonly legacy_without_op_range: true;
+    }
+);
 
 export interface ThemeTokens {
   readonly color: Readonly<Record<string, JsonValue>>;
@@ -275,29 +320,16 @@ export interface ViewRenderProps {
   readonly instance?: ObjectRef;
 }
 
-export type SourcingMode = "vendor" | "reskin" | "wrap" | "fork" | "bespoke";
-
-/** @deprecated Prefer SourcingMode. Kept for transitional imports. */
-export type ViewSourceMode = SourcingMode;
-
-/** @deprecated Ant Design regime cut by SPEC-CONSOLE-COMPONENT-SOURCING-1.0. */
+export type ViewSourceMode = "vendor" | "reskin" | "wrap" | "fork" | "bespoke";
 export type ViewSourceRegime = "css-vars" | "ant-tokens" | "scene";
+export type SourcingMode = ViewSourceMode;
 
-/**
- * Typed upstream binding for a ViewDescriptor
- * (SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC2).
- * `upstream` is required unless mode is bespoke.
- * `allowedBespokeReason` is required when mode is bespoke.
- */
 export interface ViewSourcing {
   readonly mode: SourcingMode;
   readonly upstream?: string;
   readonly allowedBespokeReason?: string;
 }
 
-/**
- * @deprecated Prefer ViewSourcing. Legacy package/component/regime shape.
- */
 export interface ViewSource {
   readonly package: string;
   readonly component: string;
@@ -306,7 +338,6 @@ export interface ViewSource {
   readonly allowedBespokeReason?: string;
 }
 
-/** Map a legacy ViewSource onto the gated ViewSourcing shape. */
 export function sourcingFromViewSource(source: ViewSource): ViewSourcing {
   if (source.mode === "bespoke") {
     return {
@@ -352,21 +383,23 @@ export interface BlockLimits {
   readonly maxRows?: number;
 }
 
-/** Opt-in nested block containers (HANDOFF-CONSOLE-ONE-BLOCK-MODEL choice 7). */
-export interface BlockAcceptsChildren {
-  readonly layout: "grid" | "stack" | "split" | "columns";
-  /** Descriptor ids or `"*"`. Omitted means any block. */
-  readonly accepts?: readonly string[];
-}
+/** Meaning of a block-on-block drop declared by the target descriptor. */
+export type BlockDropSemantic = "contain" | "relate";
 
 /**
- * Drop semantics for a block target (AMENDMENT-02 A2-1 /
- * SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC5).
- * `relate` emits `link` rather than `move` when a node is dropped on a node.
+ * Opt-in block drop target.
+ *
+ * Containment reparents the dragged block. Relation emits a graph edge and
+ * leaves both blocks in place. A descriptor without this declaration is inert
+ * to block-on-block drops.
  */
 export interface BlockAcceptsDrop {
-  readonly semantic: "move" | "relate" | "insert";
-  /** Descriptor ids or `"*"`. Omitted means any dragged block. */
+  readonly semantic: BlockDropSemantic;
+  /** Contain only: layout used by the target for its children. */
+  readonly layout?: "grid" | "stack" | "split" | "columns";
+  /** Relate only: default edge. The target may open a picker when omitted. */
+  readonly edge?: string;
+  /** Descriptor ids or `"*"`. Omitted means any block. */
   readonly accepts?: readonly string[];
 }
 
@@ -410,9 +443,7 @@ export interface BlockPresentation {
   readonly density: BlockDensity;
   /** Free-geometry clamps. Hosts supply header-fit minRows when omitted. */
   readonly limits?: BlockLimits;
-  /** When set, this block may contain other blocks. */
-  readonly acceptsChildren?: BlockAcceptsChildren;
-  /** When set, this block accepts drops with explicit semantics. */
+  /** When set, this block accepts a typed block-on-block drop. */
   readonly acceptsDrop?: BlockAcceptsDrop;
   /**
    * Paint base class. Defaults to `tool` when omitted.
@@ -436,8 +467,10 @@ export interface ViewDescriptor {
   readonly accepts: ObjectShapeMatch;
   readonly emits: readonly ActionKind[];
   readonly renderer: string;
-  /** SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC2: required typed sourcing. */
-  readonly sourcing: ViewSourcing;
+  /** Legacy component ledger shape retained while descriptors migrate. */
+  readonly source?: ViewSource;
+  /** Typed sourcing shape used by shared platform contracts. */
+  readonly sourcing?: ViewSourcing;
   readonly render: React.ComponentType<ViewRenderProps>;
   /** Additive. Descriptors without `block` still register and render inside surfaces. */
   readonly block?: BlockPresentation;

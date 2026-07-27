@@ -1,7 +1,6 @@
 // SOURCING: barrel for installed registry sources outside @jalco
 // (SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC1). The records surface keeps the
-// virtualized tanstack shell; the full @tnks/data-table install lives under
-// components/data-table for SC6 index adoption.
+// virtualized TanStack shell through the repository-owned adapter.
 
 export { TnksDataTable, type TnksDataTableProps } from './tnks-data-table';
 

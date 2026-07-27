@@ -32,6 +32,8 @@ export interface BlockShellProps {
   readonly statusNote?: string;
   readonly live?: boolean;
   readonly actions?: ReactNode;
+  /** Optional single control row (tabs or control bar, never both). */
+  readonly controlRow?: ReactNode;
   readonly onHide?: () => void;
   /** Override density when descriptor.block.density is `both`. */
   readonly density?: Exclude<BlockDensity, 'both'>;
@@ -116,6 +118,7 @@ export function BlockShell({
   statusNote,
   live = false,
   actions,
+  controlRow,
   onHide,
   density: densityOverride,
   surfaceClass: surfaceOverride,
@@ -185,9 +188,10 @@ export function BlockShell({
         <header
           ref={headerDragRef}
           data-island-header
+          data-block-identity
           data-paint-region="island-header"
           data-block-drag-surface={headerDragListeners ? 'true' : undefined}
-          className="flex h-ij-island-header shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
+          className="flex h-ij-row shrink-0 items-center gap-2 border-b border-ij-seam px-3 text-ij-ink"
           style={headerDragListeners ? { cursor: 'grab', touchAction: 'none' } : undefined}
           {...(headerDragAttributes ?? {})}
           {...(headerDragListeners ?? {})}
@@ -201,6 +205,7 @@ export function BlockShell({
           </span>
           <h2
             data-block-title
+            data-active-surface-name
             className="min-w-0 truncate font-ij-ui text-ij-island-title text-ij-ink"
             style={{ fontWeight: 600 }}
           >
@@ -210,6 +215,7 @@ export function BlockShell({
             <span
               data-block-count
               className="shrink-0 font-ij-mono text-ij-island-meta tabular-nums text-ij-ink-info"
+              data-mono-ok
             >
               {count}
             </span>
@@ -251,38 +257,62 @@ export function BlockShell({
             </button>
           ) : null}
         </header>
-      ) : headerDragListeners || actions || onHide || draggable ? (
-        <div
-          ref={headerDragRef}
-          data-block-drag-surface={headerDragListeners ? 'true' : undefined}
-          className="absolute inset-x-0 top-0 z-10 flex h-6 items-center justify-end gap-1 px-2"
-          style={headerDragListeners ? { cursor: 'grab', touchAction: 'none' } : undefined}
-          {...(headerDragAttributes ?? {})}
-          {...(headerDragListeners ?? {})}
-        >
-          {actions ? (
+      ) : (
+        <>
+          {actions || onHide || (draggable && !headerDragListeners) ? (
             <div
-              data-block-actions
-              className="flex shrink-0 items-center gap-1"
-              onPointerDown={(event) => event.stopPropagation()}
+              data-block-chrome-tools
+              className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-6 items-center justify-end gap-1 px-2"
             >
-              {actions}
+              {actions ? (
+                <div
+                  data-block-actions
+                  className="pointer-events-auto flex shrink-0 items-center gap-1"
+                >
+                  {actions}
+                </div>
+              ) : null}
+              {onHide ? (
+                <button
+                  type="button"
+                  data-block-hide
+                  aria-label={`Hide ${headerTitle}`}
+                  title={`Hide ${headerTitle}`}
+                  onClick={onHide}
+                  className="pointer-events-auto flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink group-hover:opacity-100"
+                >
+                  <IconHide size={14} />
+                </button>
+              ) : null}
+              {draggable && !headerDragListeners ? (
+                <div className="pointer-events-auto">
+                  <DragHandle id={viewInstanceId} />
+                </div>
+              ) : null}
             </div>
           ) : null}
-          {onHide ? (
+          {headerDragListeners ? (
             <button
               type="button"
-              data-block-hide
-              aria-label={`Hide ${headerTitle}`}
-              title={`Hide ${headerTitle}`}
-              onClick={onHide}
-              onPointerDown={(event) => event.stopPropagation()}
-              className="flex size-5 shrink-0 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink group-hover:opacity-100"
+              ref={headerDragRef}
+              data-block-drag-handle
+              data-block-drag-surface="true"
+              aria-label="Drag block"
+              title="Drag block"
+              className="absolute right-2 top-2 z-10 flex size-5 items-center justify-center rounded-ij-arc-underline text-ij-ink-info opacity-0 hover:bg-ij-hover-surface hover:text-ij-ink focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+              style={{ cursor: 'grab', touchAction: 'none' }}
+              {...(headerDragAttributes ?? {})}
+              {...headerDragListeners}
             >
-              <IconHide size={14} />
+              ⠿
             </button>
           ) : null}
-          {draggable && !headerDragListeners ? <DragHandle id={viewInstanceId} /> : null}
+        </>
+      )}
+
+      {controlRow ? (
+        <div data-block-control-row className="flex h-ij-control shrink-0 items-center gap-2 border-b border-ij-seam px-3">
+          {controlRow}
         </div>
       ) : null}
 

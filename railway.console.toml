@@ -1,19 +1,21 @@
-# Railway deploy config for the CommonPlace console service (apps/console).
-# A SECOND service from the same repo: point the Railway service's config-file
-# setting at this file (the same two-services-one-repo pattern Index-API uses
-# with railway.worker.toml). The web service keeps railway.toml untouched.
-# pnpm resolves the workspace file: dependency (@commonplace/block-view);
-# npm ci cannot, which is why this service does not reuse install:railway.
+# Explicit Railway deploy config for the canonical CommonPlace Console service.
+# Keep its build inputs equivalent to the root railway.toml so either service
+# configuration redeploys for the same Console and workspace-package changes.
 
 [build]
 builder = "RAILPACK"
 buildCommand = "npm run console:build:railway"
 watchPatterns = [
-  "apps/console/**",
-  "packages/block-view/**",
-  "packages/theorem-acp/**",
+  "apps/console/src/**",
+  "apps/console/public/**",
+  "apps/console/scripts/**",
+  "apps/console/next.config.ts",
+  "apps/console/package.json",
   "package.json",
   "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "packages/**",
+  "railpack.json",
   "railway.console.toml"
 ]
 
@@ -26,13 +28,17 @@ watchPatterns = [
 #   CONSOLE_MOBILE_API_KEY  (optional x-api-key gate for native chat; use the
 #     same value as the connected CommonPlace node's mobile API key)
 #   CONSOLE_DATA_API_URL + CONSOLE_DATA_API_KEY  (object seam; the record
-#     table renders its error state when unreachable, identity refused on 403)
+#     table renders its error state when unreachable, identity refused on 403;
+#     CONSOLE_DATA_API_URL is required by the Railway launcher)
+#   THEOREM_GRAPHQL_URL + THEOREM_API_KEY  (CommonPlace consumer GraphQL;
+#     THEOREM_GRAPHQL_URL accepts either the API origin or `/graphql` endpoint,
+#     and THEOREM_API_KEY is sent only as the consumer `x-api-key`)
 #   CONSOLE_HARNESS_URL + CONSOLE_HARNESS_TOKEN + CONSOLE_HARNESS_TENANT +
 #   CONSOLE_HARNESS_ROOM  (presence and runs; absent keeps presence hidden
 #     and the Runs scope in its named unavailable state)
 #   THEOREM_PROACTIVITY_CHANGEFEED_URL  (required for the Console proactivity
 #     overlay; points at RustyRed `/v1/proactivity/stream`, never the
-#     CommonPlace GraphQL host configured by `CONSOLE_HARNESS_URL`)
+#     CommonPlace GraphQL host configured by `THEOREM_GRAPHQL_URL`)
 
 [deploy]
 startCommand = "npm run console:start:railway"

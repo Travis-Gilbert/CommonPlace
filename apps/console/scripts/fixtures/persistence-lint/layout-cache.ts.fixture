@@ -1,0 +1,4 @@
+export function writeHydrationCache(value: string): void {
+  // persistence-cache: reason=accelerates hydration from durable server layout
+  window.localStorage.setItem('hydration-cache', value);
+}

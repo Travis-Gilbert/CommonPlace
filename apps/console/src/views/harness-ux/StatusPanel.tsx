@@ -9,6 +9,7 @@ import {
   type StatusReport,
   type WhyTarget,
 } from '@/lib/harness-ux';
+import { reducedFromMissing } from '@/lib/degradation';
 import { WhyTrace } from './WhyTracePanel';
 
 export function StatusPanel(_props: ViewRenderProps) {
@@ -50,8 +51,13 @@ export function StatusPanel(_props: ViewRenderProps) {
           <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Status</h2>
         </div>
         {report?.degradation.degraded ? (
-          <span className="inline-flex rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn" data-status-degraded>
-            degraded: {report.degradation.missing.join(', ')}
+          <span
+            className="text-ij-island-meta text-ij-ink-info"
+            data-status-degraded
+            data-degradation="reduced"
+            style={{ fontFamily: 'var(--cp-font-human)' }}
+          >
+            {reducedFromMissing(report.degradation.missing)?.cause ?? 'Reduced capability'}
           </span>
         ) : null}
         <button

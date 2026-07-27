@@ -13,10 +13,15 @@
 
 import type { ObjectRef, JsonValue } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
+import { SURVEY_TOPIC_ID } from './surveySeed';
 
 export const SURFACE_ID = 'console-chat';
 export const WORKSPACE_SURFACE_ID = 'console-workspace';
 export const ACCOUNT_SURFACE_ID = 'console-account';
+export const SURVEY_SURFACE_ID = 'console-survey';
+export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
+export const MODEL_SURFACE_ID = 'console-models';
+export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
 
 function layoutObject(
   id: string,
@@ -84,8 +89,14 @@ export function registerToolWindow(seed: ToolWindowSeed): ObjectRef[] {
   ];
 }
 
-function companionSeeds(prefix: string, threadOpen = false): ObjectRef[] {
-  return [
+type CompanionKind = NonNullable<ToolWindowSeed['companion']>;
+
+function companionSeeds(
+  prefix: string,
+  threadOpen = false,
+  excluded: readonly CompanionKind[] = [],
+): ObjectRef[] {
+  const seeds = [
     ...registerToolWindow({
       id: `${prefix}.region-files`,
       title: 'Files',
@@ -120,10 +131,15 @@ function companionSeeds(prefix: string, threadOpen = false): ObjectRef[] {
       descriptorId: 'chat.thread',
     }),
   ];
+  return seeds.filter((object) =>
+    !excluded.some((kind) =>
+      object.id === `${prefix}.region-${kind}` || object.id === `${prefix}.region-${kind}.view`));
 }
 
-function companionIds(prefix: string): string[] {
-  return [`${prefix}.region-files`, `${prefix}.region-context`, `${prefix}.region-thread`];
+function companionIds(prefix: string, excluded: readonly CompanionKind[] = []): string[] {
+  return (['files', 'context', 'thread'] as const)
+    .filter((kind) => !excluded.includes(kind))
+    .map((kind) => `${prefix}.region-${kind}`);
 }
 
 /** The durable IA seed: Places + Collections from the rail model, plus
@@ -154,7 +170,7 @@ export function seedLayout(): ObjectRef[] {
     }),
 
     layoutObject(SURFACE_ID, 'surface', {
-      name: 'Chat', kind: 'chat', role: 'place', stripe_order: 0, active: true, seed_revision: 4,
+      name: 'Chat', kind: 'chat', role: 'place', stripe_order: 0, active: true, seed_revision: 5,
     }, ['chat.region-editor', ...companionIds('chat')]),
     layoutObject('chat.region-editor', 'region', {
       kind: 'editor', chrome: 'bare', size: 100, active_tab: 'chat.vi-surface', seed_revision: 2,
@@ -167,7 +183,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('chat'),
 
     layoutObject(WORKSPACE_SURFACE_ID, 'surface', {
-      name: 'Workspace', kind: 'workspace', role: 'place', stripe_order: 1, active: false, seed_revision: 5,
+      name: 'Editor', kind: 'workspace', role: 'place', stripe_order: 3, active: false, seed_revision: 7,
     }, ['region-editor', ...companionIds('workspace')]),
     layoutObject('region-editor', 'region', {
       kind: 'editor', size: 72, active_tab: 'workspace.vi-substrate', seed_revision: 3,
@@ -202,7 +218,7 @@ export function seedLayout(): ObjectRef[] {
     // the Place label is Filing. The rail names the shelves; the editor holds
     // the recently-filed ribbon, the digest, and the rules tab.
     layoutObject('console-index', 'surface', {
-      name: 'Filing', kind: 'index', role: 'place', stripe_order: 2, active: false, seed_revision: 4,
+      name: 'Index', kind: 'index', role: 'place', stripe_order: 2, active: false, seed_revision: 6,
     }, ['index.region-rail', 'index.region-editor', 'index.region-urgent', ...companionIds('index')]),
     ...registerToolWindow({
       id: 'index.region-rail', title: 'Destinations', icon: 'rail', side: 'left', size: 22,
@@ -226,7 +242,7 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('index'),
 
     layoutObject('console-canvas', 'surface', {
-      name: 'Canvas', kind: 'canvas', role: 'place', stripe_order: 3, active: false, seed_revision: 1,
+      name: 'Canvas', kind: 'canvas', role: 'place', active: false, seed_revision: 2,
     }, ['canvas.region-editor', ...companionIds('canvas')]),
     layoutObject('canvas.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'canvas.vi-board', seed_revision: 1,
@@ -237,13 +253,43 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('canvas'),
 
-    layoutObject('console-models', 'surface', {
-      name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 1,
+    layoutObject('console-automation', 'surface', {
+      name: 'Automation', kind: 'automation', role: 'place', active: false, seed_revision: 2,
+    }, ['automation.region-editor', ...companionIds('automation')]),
+    layoutObject('automation.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'automation.vi-history', seed_revision: 1,
+    }, ['automation.vi-history']),
+    layoutObject('automation.vi-history', 'view-instance', {
+      descriptor_id: 'automation.history', title: 'Automation',
+      query: { types: ['run', 'dispatch'], live: true } as unknown as JsonValue,
+    }),
+    ...companionSeeds('automation'),
+
+
+    layoutObject(SURVEY_SURFACE_ID, 'surface', {
+      name: 'Researcher', kind: 'survey', role: 'place', stripe_order: 1, active: false, seed_revision: 2,
+    }, ['survey.region-editor', ...companionIds('survey')]),
+    layoutObject('survey.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: SURVEY_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [SURVEY_VIEW_INSTANCE_ID]),
+    layoutObject(SURVEY_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'survey.board',
+      title: 'Indexer',
+      query: {
+        types: ['topic', 'capture', 'survey-edge'],
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
+        live: true,
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('survey'),
+
+    layoutObject(MODEL_SURFACE_ID, 'surface', {
+      name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 2,
     }, ['models.region-editor', ...companionIds('models')]),
     layoutObject('models.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'models.vi-studio', seed_revision: 1,
-    }, ['models.vi-studio']),
-    layoutObject('models.vi-studio', 'view-instance', {
+      kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [MODEL_VIEW_INSTANCE_ID]),
+    layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
       descriptor_id: 'model.studio',
       title: 'Models',
       query: {
@@ -255,34 +301,11 @@ export function seedLayout(): ObjectRef[] {
           'view-metadata',
           'schema-version',
         ],
+        where: { kind: 'eq', field: 'topic_id', value: SURVEY_TOPIC_ID },
+        live: true,
       } as unknown as JsonValue,
     }),
     ...companionSeeds('models'),
-
-    layoutObject('console-program', 'surface', {
-      name: 'Program', kind: 'program', role: 'place', stripe_order: 5, active: false, seed_revision: 1,
-    }, ['program.region-editor', ...companionIds('program')]),
-    layoutObject('program.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'program.vi-graph', seed_revision: 1,
-    }, ['program.vi-graph']),
-    layoutObject('program.vi-graph', 'view-instance', {
-      descriptor_id: 'program.graph',
-      title: 'Program',
-      query: { types: ['program', 'program.node', 'program.edge'] } as unknown as JsonValue,
-    }),
-    ...companionSeeds('program'),
-
-    layoutObject('console-automation', 'surface', {
-      name: 'Automation', kind: 'automation', role: 'place', stripe_order: 6, active: false, seed_revision: 1,
-    }, ['automation.region-editor', ...companionIds('automation')]),
-    layoutObject('automation.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'automation.vi-history', seed_revision: 1,
-    }, ['automation.vi-history']),
-    layoutObject('automation.vi-history', 'view-instance', {
-      descriptor_id: 'automation.history', title: 'Automation',
-      query: { types: ['run', 'dispatch'], live: true } as unknown as JsonValue,
-    }),
-    ...companionSeeds('automation'),
 
     layoutObject('console-docs', 'surface', {
       name: 'Documents', kind: 'documents', role: 'collection', active: false, seed_revision: 3,
@@ -330,7 +353,7 @@ export function seedLayout(): ObjectRef[] {
 
     layoutObject('console-files', 'surface', {
       name: 'Files', kind: 'files', role: 'collection', active: false, seed_revision: 1,
-    }, ['files.region-editor', ...companionIds('files')]),
+    }, ['files.region-editor', ...companionIds('files', ['files'])]),
     layoutObject('files.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'files.vi-tree', seed_revision: 1,
     }, ['files.vi-tree']),
@@ -338,7 +361,7 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'files.tree', title: 'Files',
       query: { types: ['files-view'] } as unknown as JsonValue,
     }),
-    ...companionSeeds('files'),
+    ...companionSeeds('files', false, ['files']),
 
     layoutObject('console-records', 'surface', {
       name: 'Records', kind: 'records', role: 'collection', active: false, seed_revision: 1,
@@ -359,7 +382,7 @@ export function seedLayout(): ObjectRef[] {
       kind: 'editor', size: 100, active_tab: 'threads.vi-list', seed_revision: 1,
     }, ['threads.vi-list']),
     layoutObject('threads.vi-list', 'view-instance', {
-      descriptor_id: 'chat.surface', title: 'Threads',
+      descriptor_id: 'thread.list', title: 'Threads',
       query: { types: ['thread'] } as unknown as JsonValue,
     }),
     ...companionSeeds('threads'),

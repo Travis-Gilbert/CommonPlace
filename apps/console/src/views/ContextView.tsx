@@ -3,7 +3,7 @@
 // SOURCING: D3 for deterministic scale geometry. React owns the SVG so the
 // selected object remains the stable render key. No force simulation or
 // ambient graph motion exists. Every edge carries a worded reason.
-// Layer visibility: @commonplace/multiplex-layers + LayerPicker (Int UI chips).
+// Multiplex layer set: @commonplace/multiplex-layers (SPEC-MULTIPLEX-LAYERS ML4).
 
 import { useEffect, useMemo, useState } from 'react';
 import { scalePoint } from 'd3';
@@ -13,9 +13,9 @@ import {
   layerIdForEdgeType,
   type LayerSelectionState,
 } from '@commonplace/multiplex-layers';
-import { LayerPicker } from '@/components/context/LayerPicker';
 import { useShellStore } from '@/lib/shell-store';
-import { useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
+import { ensureMemoryProjection, useMemoryProjectionStore, type HarnessMemoryItem } from '@/lib/memory-projection-store';
+import { LayerPicker } from '@/components/context/LayerPicker';
 import { openMemoryTab } from './FilesView';
 
 interface ContextNode {
@@ -33,7 +33,7 @@ interface ContextEdge {
   readonly source: ContextNode;
   readonly target: ContextNode;
   readonly reason: string;
-  /** Substrate relation / edge_type used for multiplex layer mapping. */
+  /** Substrate relation / edge kind used for multiplex layer filtering. */
   readonly relation: string;
 }
 
@@ -57,7 +57,11 @@ export function ContextView({ host }: { host: BlockHost }) {
   const selectRecord = useShellStore((state) => state.selectRecord);
   const memories = useMemoryProjectionStore((state) => state.items);
   const [candidates, setCandidates] = useState<readonly ObjectRef[]>([]);
-  const [layerSelection, setLayerSelection] = useState<LayerSelectionState>({ layers: [] });
+  const [layerSelection, setLayerSelection] = useState<LayerSelectionState | null>(null);
+
+  useEffect(() => {
+    void ensureMemoryProjection();
+  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -95,7 +99,11 @@ export function ContextView({ host }: { host: BlockHost }) {
         const shared = words(object.properties.tags).find((tag) => selectedTags.has(tag));
         if (!shared) continue;
         seen.add(object.id);
-        related.push({ object, reason: `Shares the ${shared} tag`, relation: 'shares_tag' });
+        related.push({
+          object,
+          reason: `Shares the ${shared} tag`,
+          relation: 'shares_tag',
+        });
         if (related.length >= 8) break;
       }
     }
@@ -113,7 +121,13 @@ export function ContextView({ host }: { host: BlockHost }) {
         y: rowSlots(Math.floor(index / 2)) ?? 120,
       };
       nodes.push(node);
-      edges.push({ id: `${center.id}:${node.id}`, source: center, target: node, reason, relation });
+      edges.push({
+        id: `${center.id}:${node.id}`,
+        source: center,
+        target: node,
+        reason,
+        relation,
+      });
     });
     const selectedTerms = new Set([...selectedTags, ...titleOf(selected).toLowerCase().split(/\s+/)]);
     const memoryMatches = memories
@@ -143,30 +157,15 @@ export function ContextView({ host }: { host: BlockHost }) {
     return { nodes, edges };
   }, [candidates, memories, selected]);
 
-  const activeLayers = useMemo(() => new Set(layerSelection.layers), [layerSelection.layers]);
-
   const visibleEdges = useMemo(() => {
-    // Until the picker finishes loading, show every edge (fail open for first paint).
-    if (activeLayers.size === 0) return graph.edges;
+    if (layerSelection == null) return graph.edges;
+    const active = new Set(layerSelection.layers);
     return graph.edges.filter((edge) =>
-      edgeVisibleForLayers(layerIdForEdgeType(edge.relation), activeLayers),
+      edgeVisibleForLayers(layerIdForEdgeType(edge.relation), active),
     );
-  }, [activeLayers, graph.edges]);
-
-  const visibleNodeIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (graph.nodes[0]) ids.add(graph.nodes[0].id);
-    for (const edge of visibleEdges) {
-      ids.add(edge.source.id);
-      ids.add(edge.target.id);
-    }
-    return ids;
-  }, [graph.nodes, visibleEdges]);
-
-  const visibleNodes = useMemo(
-    () => graph.nodes.filter((node) => visibleNodeIds.has(node.id)),
-    [graph.nodes, visibleNodeIds],
-  );
+  }, [graph.edges, layerSelection]);
+  const allEdgesFiltered =
+    layerSelection !== null && graph.edges.length > 0 && visibleEdges.length === 0;
 
   if (!selected) {
     return (
@@ -198,37 +197,34 @@ export function ContextView({ host }: { host: BlockHost }) {
             aria-label={edge.reason}
           />
         ))}
-        {visibleNodes.map((node) => {
-          const index = graph.nodes.findIndex((entry) => entry.id === node.id);
-          return (
-            <g
-              key={node.id}
-              role="button"
-              tabIndex={0}
-              aria-label={`${node.label}, ${node.kind}`}
-              onClick={() => activate(node)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  activate(node);
-                }
-              }}
-              className="cursor-pointer outline-none focus-visible:outline-2 focus-visible:outline-ij-accent"
-            >
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={index === 0 ? 18 : 13}
-                fill={node.kind === 'memory' ? 'var(--ij-gold)' : index === 0 ? 'var(--ij-accent)' : 'var(--ij-raised)'}
-                stroke={node.kind === 'memory' || index === 0 ? 'var(--ij-seam-raised)' : 'var(--ij-divider)'}
-              />
-              <text x={node.x} y={node.y + (index === 0 ? 32 : 27)} textAnchor="middle" fill="var(--ij-ink)" className="font-ij-ui">
-                {node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label}
-              </text>
-              <title>{node.label}</title>
-            </g>
-          );
-        })}
+        {graph.nodes.map((node, index) => (
+          <g
+            key={node.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`${node.label}, ${node.kind}`}
+            onClick={() => activate(node)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                activate(node);
+              }
+            }}
+            className="cursor-pointer outline-none focus-visible:outline-2 focus-visible:outline-ij-accent"
+          >
+            <circle
+              cx={node.x}
+              cy={node.y}
+              r={index === 0 ? 18 : 13}
+              fill={node.kind === 'memory' ? 'var(--ij-gold)' : index === 0 ? 'var(--ij-accent)' : 'var(--ij-raised)'}
+              stroke={node.kind === 'memory' || index === 0 ? 'var(--ij-seam-raised)' : 'var(--ij-divider)'}
+            />
+            <text x={node.x} y={node.y + (index === 0 ? 32 : 27)} textAnchor="middle" fill="var(--ij-ink)" className="font-ij-ui">
+              {node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label}
+            </text>
+            <title>{node.label}</title>
+          </g>
+        ))}
       </svg>
       <div className="max-h-40 overflow-y-auto border-t border-ij-seam p-2 text-ij-ink-info" aria-label="Connection reasons">
         {visibleEdges.length > 0
@@ -239,7 +235,13 @@ export function ContextView({ host }: { host: BlockHost }) {
                 {edge.reason}
               </p>
             ))
-          : <p>No reasoned neighbors are available for this selection.</p>}
+          : (
+              <p>
+                {allEdgesFiltered
+                  ? 'No connections match the active layers.'
+                  : 'No reasoned neighbors are available for this selection.'}
+              </p>
+            )}
       </div>
     </div>
   );

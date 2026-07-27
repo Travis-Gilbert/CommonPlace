@@ -28,7 +28,8 @@ export function ThreadExcerpt({
   readonly children: ReactNode;
   readonly actions?: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const isConversationTurn = kind === 'human' || kind === 'agent';
+  const [collapsed, setCollapsed] = useState(isConversationTurn ? false : defaultCollapsed);
   const panelId = useId();
   const face =
     kind === 'human'
@@ -36,10 +37,29 @@ export function ThreadExcerpt({
       : kind === 'agent'
         ? 'font-cp-agent text-cp-agent'
         : 'font-ij-ui text-ij-ink';
+  const accessibleName = timestamp ? `${speaker} turn ${timestamp}` : `${speaker} turn`;
+
+  if (isConversationTurn) {
+    return (
+      <section
+        id={excerptId}
+        aria-label={accessibleName}
+        data-thread-excerpt={kind}
+        data-excerpt-collapsed="false"
+        data-material={kind === 'human' ? 'sunken' : 'lifted'}
+        className={`thread-turn thread-turn-${kind}`}
+      >
+        <div id={panelId} data-excerpt-body data-speaker={speaker} className={`thread-turn-body ${face}`}>
+          {children}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
       id={excerptId}
+      aria-label={accessibleName}
       data-thread-excerpt={kind}
       data-excerpt-collapsed={collapsed ? 'true' : 'false'}
       className="border-b border-ij-seam bg-ij-raised last:border-b-0"
@@ -85,7 +105,7 @@ export function ThreadExcerpt({
           </p>
         ) : null
       ) : (
-        <div id={panelId} data-excerpt-body className={`px-3 py-2 ${face}`}>
+        <div id={panelId} data-excerpt-body data-speaker={speaker} className={`px-3 py-2 ${face}`}>
           {children}
         </div>
       )}

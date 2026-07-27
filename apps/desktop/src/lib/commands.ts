@@ -102,7 +102,7 @@ export async function tabSetBounds(rect: Rect): Promise<void> {
 
 // --- Co-browse telegraph + shell events (HANDOFF-COBROWSE-PRESENCE D3/D4/D6).
 // Implemented in crates/commonplace-desktop-runtime/src/lib.rs; consumed by the
-// shipped web bridge (apps/web/src/lib/desktop.ts).
+// desktop React shell through these typed invoke wrappers.
 
 /**
  * Rust: `tab_highlight(tab_id, x, y, width, height, label: Option<String>)`.

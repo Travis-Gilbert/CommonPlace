@@ -157,10 +157,20 @@ export class MemoryBlockHost implements DbHost {
   }
 
   emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
-    const receipt = (extra: Partial<ObjectActionReceipt>): Result<ObjectActionReceipt> => ({
-      ok: true,
-      value: { action_kind: action.kind, status: "applied", ...extra },
-    });
+    const receipt = (
+      extra: Partial<Pick<ObjectActionReceipt, "target_ids" | "note" | "status">> = {},
+    ): Result<ObjectActionReceipt> => {
+      const { status = "applied", ...rest } = extra;
+      return {
+        ok: true,
+        value: {
+          action_kind: action.kind,
+          status,
+          legacy_without_op_range: true,
+          ...rest,
+        },
+      };
+    };
     switch (action.kind) {
       case "update": {
         this.objects = this.objects.map((o) => (o.id === action.id ? this.patch(o, action.patch) : o));

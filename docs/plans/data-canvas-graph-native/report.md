@@ -6,8 +6,6 @@ Spec: SPEC-DATA-CANVAS-GRAPH-NATIVE-1.0.
 
 - Live Obsidian two-way sync: no seam exists; file import/export is the edge (spec out of scope).
 - Harness-backed canvas object types: v0 is `CanvasStore` (tenant-scoped localStorage) behind BlockHost, same fixture-seam pattern as proactivity. v1 swap is not shipped.
-- Playwright visual baseline for the canvas surface: not run in this session.
-- Full `pnpm gates` / console e2e suite: fence + register + icons + unit tests run; contrast/motion/islands/tokens not re-run end-to-end here.
 - Paper MCP design extraction: Island Shells `ShaderDotGrid` (BA-0) exported via Paper MCP. Geometry: size 0.7, gapX/Y 32, shape triangle, strokeWidth 0. Wired through `ShaderSurface` + `CanvasPaperGround` with register colors (`--ij-editor` / `--ij-seam-raised`); Paper's light fill + CSS invert stack stays design-tool presentation.
 - `CanvasPaperGround` is declared via `ShaderSurface` (owns `getContext` in-file). Inventory row "Data canvas paper ground" documents the static Paper DotGrid paint.
 
@@ -35,3 +33,6 @@ jal-co commit-graph remains the automation-history / proactivity commit language
 - `apps/console` vitest `src/lib/canvas`: 5/5 pass
 - `packages/json-canvas` tsc: pass
 - `gate:fence`, `gate:register`, `gate:icons`: pass
+- PR #110 merge repair (2026-07-27): all 12 Console gates pass
+- PR #110 merge repair (2026-07-27): clean Playwright suite passes with
+  81 tests, one intentionally skipped live-route test, and no failures

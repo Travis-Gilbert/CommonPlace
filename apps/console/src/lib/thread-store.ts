@@ -3,6 +3,7 @@
 export {
   askDegradation,
   chatEndpoint,
+  threadMessagesForPersistence,
   useThreadStore,
   type AgentPlanStep,
   type ComposerMode,

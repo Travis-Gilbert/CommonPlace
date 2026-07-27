@@ -3,22 +3,22 @@
 
 import type { CollisionDetection, DroppableContainer } from '@dnd-kit/core';
 import { closestCenter, pointerWithin, rectIntersection } from '@dnd-kit/core';
+import type { BlockAcceptsDrop } from '@commonplace/block-view/types';
 
 export type BlockDropData = {
   readonly type?: string;
-  readonly acceptsChildren?: boolean;
-  readonly accepts?: readonly string[];
+  readonly acceptsDrop?: BlockAcceptsDrop;
   readonly descriptorId?: string;
   readonly viewInstanceId?: string;
   readonly kind?: string;
 };
 
-function acceptsDescriptor(
+export function acceptsBlockDrop(
   data: BlockDropData | undefined,
   draggedDescriptorId: string | undefined,
 ): boolean {
-  if (!data?.acceptsChildren) return false;
-  const accepts = data.accepts ?? ['*'];
+  if (!data?.acceptsDrop) return false;
+  const accepts = data.acceptsDrop.accepts ?? ['*'];
   if (accepts.includes('*')) return true;
   if (!draggedDescriptorId) return false;
   return accepts.includes(draggedDescriptorId);
@@ -52,7 +52,7 @@ export function createBlockCollisionDetection(): CollisionDetection {
         const container = args.droppableContainers.find((candidate) => candidate.id === hit.id);
         if (!container) return null;
         const data = container.data.current as BlockDropData | undefined;
-        if (!acceptsDescriptor(data, draggedDescriptorId)) return null;
+        if (!acceptsBlockDrop(data, draggedDescriptorId)) return null;
         return { hit, depth: depthOf(container) };
       })
       .filter((entry): entry is { hit: (typeof pointerHits)[number]; depth: number } => entry !== null)

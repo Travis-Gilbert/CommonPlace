@@ -46,9 +46,13 @@ function safeHttpUrl(value: unknown): string | null {
   }
 }
 
-export function readWebResearchSources(payload: RustyWebSearchPayload): WebResearchSource[] {
+export function readWebResearchSources(
+  payload: RustyWebSearchPayload,
+  limit: number = MAX_SOURCES,
+): WebResearchSource[] {
   const candidates = payload.acquisition?.candidates;
   if (!Array.isArray(candidates)) return [];
+  const capped = Math.max(1, Math.min(limit, 20));
   const seen = new Set<string>();
   const sources: WebResearchSource[] = [];
   for (const raw of candidates) {
@@ -64,7 +68,7 @@ export function readWebResearchSources(payload: RustyWebSearchPayload): WebResea
       snippet: boundedText(details?.snippet, MAX_SNIPPET_LENGTH),
       provider: boundedText(details?.source, 80) || 'RustyWeb',
     });
-    if (sources.length === MAX_SOURCES) break;
+    if (sources.length === capped) break;
   }
   return sources;
 }

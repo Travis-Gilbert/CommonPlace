@@ -1,4 +1,4 @@
-// SOURCING: none; pure logic, no upstream component applies.
+// SOURCING: none : pure logic, no upstream component applies
 /**
  * Multiplex layer registry client helpers (SPEC-MULTIPLEX-LAYERS ML4).
  *
@@ -86,7 +86,7 @@ export function createLayerSelection(
   active?: string[],
 ): LayerSelectionState {
   const all = registered.map((d) => d.id);
-  if (!active || active.length === 0) {
+  if (active === undefined) {
     return { layers: all };
   }
   const allowed = new Set(all);

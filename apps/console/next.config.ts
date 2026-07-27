@@ -1,8 +1,7 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-// Explicit Turbopack workspace root, same convention as apps/web: the monorepo
-// root, so Turbopack resolves workspace packages (e.g. @commonplace/block-view)
+// Explicit Turbopack workspace root so Turbopack resolves workspace packages
 // that live outside the app directory.
 const projectRoot = path.resolve('..', '..');
 
@@ -13,7 +12,7 @@ const nextConfig: NextConfig = {
   output: isStandaloneServerBuild ? 'standalone' : undefined,
   // pnpm installs file: dependencies under node_modules. block-view ships raw
   // TypeScript, so opt it into compilation in addition to normal workspace use.
-  transpilePackages: ['@commonplace/block-view'],
+  transpilePackages: ['@commonplace/block-view', '@commonplace/host-bridge'],
   // The dev-tools indicator is chrome that never exists in production; with it
   // on, dev-mode Playwright captures bake the badge into merge-gate baselines
   // (and it occludes the records table's last row). R4 punch list.
@@ -28,6 +27,12 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'app.theoremharness.com' }],
+        destination: 'https://v2.theoremharness.com/:path*',
+        permanent: true,
+      },
       // /index fights Next.js client-reference manifests; Index lives at /filing.
       { source: '/index', destination: '/filing', permanent: false },
     ];

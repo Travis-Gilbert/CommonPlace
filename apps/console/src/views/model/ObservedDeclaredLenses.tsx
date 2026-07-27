@@ -49,7 +49,7 @@ function DivergenceBadge({
     <button
       type="button"
       onClick={onOpen}
-      className="rounded-ij-arc bg-ij-warn-bg px-2 py-0.5 font-ij-mono text-[10px] text-ij-warn"
+      className="rounded-ij-arc bg-ij-warn-bg px-2 py-0.5 font-ij-mono text-ij-island-meta text-ij-warn"
       data-mono-ok
       title={divergences.flatMap((item) => item.signalNodeIds).join(', ')}
     >

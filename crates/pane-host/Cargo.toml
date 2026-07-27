@@ -1,0 +1,26 @@
+[package]
+name = "pane-host"
+version = "0.1.0"
+edition = "2021"
+description = "SPEC-COMMONPLACE-BROWSER-SHELL B2/B3/B5/B6/B7: the Servo-free half of the pane host — protocol loop, navigation safety, session graph, attention gate, and highlighter."
+license = "MIT"
+publish = false
+
+# Its own workspace, like `commonplace-desktop-runtime`: this crate reaches
+# across the repo boundary into RustyWeb, and dragging that dependency graph
+# into every root-level `cargo test` would make the cheap workspace expensive.
+[workspace]
+
+[dependencies]
+pane-protocol = { path = "../pane-protocol" }
+# B7. Canonicalization is not re-implemented here: `canonicalize_url` already
+# strips fragments and userinfo and refuses non-http(s), and two copies of that
+# rule would drift.
+rustyred-web = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-web" }
+url = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Blocking, not async: the pane host has one thread by construction (Servo's
+# `WebView` is `Rc`-based and not `Send`), so an async runtime would buy nothing
+# and cost a scheduler.
+reqwest = { version = "0.12.22", default-features = false, features = ["blocking", "json", "rustls-tls"] }
