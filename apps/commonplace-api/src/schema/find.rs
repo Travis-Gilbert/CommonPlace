@@ -359,12 +359,11 @@ mod tests {
 
     #[test]
     fn k_and_lambda_are_clamped_not_trusted() {
-        let request =
-            build_request("q".into(), None, None, Some(-5), Some(9.0)).expect("request");
+        let request = build_request("q".into(), None, None, Some(-5), Some(9.0)).expect("request");
         assert_eq!(request.k, 1);
         assert_eq!(request.lambda, 1.0);
-        let request = build_request("q".into(), None, None, Some(9_999), Some(-1.0))
-            .expect("request");
+        let request =
+            build_request("q".into(), None, None, Some(9_999), Some(-1.0)).expect("request");
         assert_eq!(request.k, 200);
         assert_eq!(request.lambda, 0.0);
     }

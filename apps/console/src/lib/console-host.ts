@@ -59,7 +59,6 @@ const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const PG_TYPE_SET = new Set(PG_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
 const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
-
 const CONSOLE_LOCAL_TYPES = new Set([
   'thread',
   'files-view',
@@ -67,7 +66,6 @@ const CONSOLE_LOCAL_TYPES = new Set([
   'surface-tool',
   CARD_TEMPLATE_TYPE,
 ]);
-
 const MODEL_METADATA_TYPES = new Set([
   'model-scope',
   'object-type-metadata',
@@ -83,12 +81,12 @@ const LAYOUT_QUERY: ObjectQuery = {
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
   page: { limit: 500 },
 };
+
 const LEGACY_CONSOLE_LAYOUT_IDS = [
   CONSOLE_DATA_SURFACE_ID,
   'console-data.region-editor',
   'console-data.vi-pane',
 ] as const;
-
 /** Transport health as the host observes it (R2.3 / D5): status plus the
  *  named error body when the upstream refused with a JSON reason. */
 export type TransportObserver = (status: number | null, error?: string | null) => void;
@@ -208,23 +206,38 @@ export class ConsoleBlockHost implements BlockHost {
   readonly tokens: ThemeTokens = INTUI_TOKENS;
 
   private layout = new Map<string, MutableLayout>();
+
   private records: ObjectRef[] | null;
+
   private docs: ObjectRef[];
+
   private codeFiles: ObjectRef[];
+
   private cardTemplates: ObjectRef[];
+
   private consoleLocalObjects: ObjectRef[] = [];
+
   private surveyObjects: ObjectRef[];
+
   private modelMetadata: ObjectRef[] = [];
+
   private modelMetadataSeq = 0;
+
   private layoutSubs = new Set<() => void>();
+
   private domainSubs = new Set<() => void>();
+
   private registry: Registry;
+
   private http: HttpBlockHost;
+
   private observer: TransportObserver | undefined;
+
   private proactivity: ProactivityStore;
+
   private canvas: CanvasStore;
+
   private seedLayoutTask: Promise<void> | null = null;
-  private activationWriteQueue: Promise<void> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -519,27 +532,85 @@ export class ConsoleBlockHost implements BlockHost {
         const ids = removeLegacyConsole
           ? new Set<string>(LEGACY_CONSOLE_LAYOUT_IDS)
           : new Set<string>();
-        this.replaceLayout(
-          remote.objects
-            .filter((object) => !ids.has(object.id))
-            .map((object) => ({
-              ...object,
-              relations: object.relations
-                ? Object.fromEntries(
-                    Object.entries(object.relations).map(([edge, children]) => [
-                      edge,
-                      children.filter((id) => !ids.has(id)),
-                    ]),
-                  )
-                : undefined,
-            })),
-        );
+        const withoutLegacyConsole = remote.objects
+          .filter((object) => !ids.has(object.id))
+          .map((object) => ({
+            ...object,
+            relations: object.relations
+              ? Object.fromEntries(
+                  Object.entries(object.relations).map(([edge, children]) => [
+                    edge,
+                    children.filter((id) => !ids.has(id)),
+                  ]),
+                )
+              : undefined,
+          }));
+        const migrated = await this.migrateRemoteLayout(withoutLegacyConsole);
+        this.replaceLayout(migrated);
         return;
       }
       await this.pushLayoutToServer();
     } catch {
       // Backend unreachable: the atomWithStorage cache remains the fast path.
     }
+  }
+
+  private async migrateRemoteLayout(remoteObjects: readonly ObjectRef[]): Promise<ObjectRef[]> {
+    const remoteIds = new Set(remoteObjects.map((object) => object.id));
+    const localObjects = [...this.layout.values()].map(toRef);
+    const missing = localObjects.filter((object) => !remoteIds.has(object.id));
+    if (missing.length === 0) return [...remoteObjects];
+
+    await Promise.all(
+      missing.map((ref) => {
+        const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
+        return this.http.emit({
+          kind: 'create',
+          type: ref.type,
+          props: {
+            id: ref.id,
+            title,
+            ...ref.properties,
+          },
+        });
+      }),
+    );
+
+    const missingIds = new Set(missing.map((object) => object.id));
+    const moves: Array<Promise<unknown>> = [];
+    for (const parent of localObjects) {
+      const children = parent.relations?.[CONTAINS_EDGE] ?? [];
+      for (let index = 0; index < children.length; index += 1) {
+        const childId = children[index]!;
+        if (!missingIds.has(childId)) continue;
+        moves.push(
+          this.http.emit({
+            kind: 'move',
+            id: childId,
+            new_parent: parent.id,
+            order: index + 1,
+          }),
+        );
+      }
+    }
+    await Promise.all(moves);
+
+    const localById = new Map(localObjects.map((object) => [object.id, object]));
+    const migratedRemote = remoteObjects.map((object) => {
+      const local = localById.get(object.id);
+      const seededChildren = (local?.relations?.[CONTAINS_EDGE] ?? [])
+        .filter((childId) => missingIds.has(childId));
+      if (seededChildren.length === 0) return object;
+      const remoteChildren = object.relations?.[CONTAINS_EDGE] ?? [];
+      return {
+        ...object,
+        relations: {
+          ...object.relations,
+          [CONTAINS_EDGE]: [...new Set([...remoteChildren, ...seededChildren])],
+        },
+      };
+    });
+    return [...migratedRemote, ...missing];
   }
 
   private async pushLayoutToServer(): Promise<void> {
@@ -1015,11 +1086,20 @@ export class ConsoleBlockHost implements BlockHost {
   emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
     const applied = (targetIds: readonly string[]): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'applied', target_ids: targetIds },
+      value: {
+        action_kind: action.kind,
+        status: 'applied',
+        target_ids: targetIds,
+        legacy_without_op_range: true,
+      },
     });
     const accepted = (): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'accepted' },
+      value: {
+        action_kind: action.kind,
+        status: 'accepted',
+        legacy_without_op_range: true,
+      },
     });
 
     // Proactivity edits (disable, parameter edits, prune, intent commit) are
@@ -1230,4 +1310,6 @@ export class ConsoleBlockHost implements BlockHost {
   viewsFor(shape: ObjectShape): readonly ViewDescriptor[] {
     return this.registry.matchingViews(shape);
   }
+
+  private activationWriteQueue: Promise<void> = Promise.resolve();
 }

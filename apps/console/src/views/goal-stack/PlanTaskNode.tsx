@@ -85,6 +85,25 @@ export function PlanTaskNode({ data, selected }: NodeProps<GoalFlowNode>) {
               escalated to {task.escalation.targetHead}
             </span>
           ) : null}
+          {task.dataTypeBadge.kind === 'determined' ? (
+            <span
+              className="rounded-ij-arc-underline bg-ij-selection-inactive px-1 font-ij-mono"
+              data-data-type-badge="determined"
+              title={`${task.dataTypeBadge.columnCount} columns`}
+            >
+              {task.dataTypeBadge.types.length > 0
+                ? task.dataTypeBadge.types.join(' · ')
+                : `${task.dataTypeBadge.columnCount} cols`}
+            </span>
+          ) : null}
+          {task.dataTypeBadge.kind === 'undetermined' ? (
+            <span
+              className="rounded-ij-arc-underline bg-ij-warn-bg px-1 font-ij-mono text-ij-warn"
+              data-data-type-badge="undetermined"
+            >
+              schema undetermined
+            </span>
+          ) : null}
           {task.changedEvents.length > 0 ? (
             <span
               className="rounded-ij-arc-underline bg-ij-selection-inactive px-1 font-ij-mono"

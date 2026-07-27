@@ -57,6 +57,7 @@ describe('CodeFileView editor-model contract helpers', () => {
     const receipt: ObjectActionReceipt = {
       action_kind: 'invoke_tool',
       status: 'applied',
+      legacy_without_op_range: true,
       note: JSON.stringify({
         available: true,
         id: 'code:fixture',
@@ -74,7 +75,12 @@ describe('CodeFileView editor-model contract helpers', () => {
       can_undo: true,
       can_redo: false,
     });
-    expect(parseEditorModelReceipt({ action_kind: 'invoke_tool', status: 'deferred', note: '{' }, 'code:fixture')).toEqual({
+    expect(parseEditorModelReceipt({
+      action_kind: 'invoke_tool',
+      status: 'deferred',
+      legacy_without_op_range: true,
+      note: '{',
+    }, 'code:fixture')).toEqual({
       available: false,
       id: 'code:fixture',
       revision: 0,
@@ -85,6 +91,7 @@ describe('CodeFileView editor-model contract helpers', () => {
     expect(parseEditorModelReceipt({
       action_kind: 'invoke_tool',
       status: 'applied',
+      legacy_without_op_range: true,
       note: JSON.stringify({ available: true, id: 'code:fixture' }),
     }, 'code:fixture')).toEqual({
       available: false,

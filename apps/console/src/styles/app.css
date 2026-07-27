@@ -11,6 +11,7 @@
 @import './geometry.css';
 @import './tokens.css';
 @import './register-bridge.css';
+@import './shadcn-bridge.css';
 @import './primer-register.css';
 @import '@travis-gilbert/markdown-theory/css';
 @import './gy-bridge.css';

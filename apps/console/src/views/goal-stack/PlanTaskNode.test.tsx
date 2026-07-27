@@ -51,4 +51,65 @@ describe('PlanTaskNode', () => {
     expect(markup).toContain('data-task-escalation="mistral"');
     expect(markup).toContain('escalated to mistral');
   });
+
+  it('renders determined and undetermined data-type badges, and none when absent', () => {
+    const determined = normalizePlanSnapshot({
+      plan_id: 'plan:dtype',
+      plan: { id: 'plan:dtype', title: 'Dtype', objective: 'badge' },
+      tasks: [{
+        id: 'task:determined',
+        title: 'Determined',
+        data_type_badge: { kind: 'determined', column_count: 3, types: ['text', 'integer', 'boolean'] },
+      }],
+    })?.tasks[0];
+    const undetermined = normalizePlanSnapshot({
+      plan_id: 'plan:dtype',
+      plan: { id: 'plan:dtype', title: 'Dtype', objective: 'badge' },
+      tasks: [{
+        id: 'task:undetermined',
+        title: 'Undetermined',
+        data_type_badge: { kind: 'undetermined' },
+      }],
+    })?.tasks[0];
+    const absent = normalizePlanSnapshot({
+      plan_id: 'plan:dtype',
+      plan: { id: 'plan:dtype', title: 'Dtype', objective: 'badge' },
+      tasks: [{ id: 'task:none', title: 'None' }],
+    })?.tasks[0];
+    if (!determined || !undetermined || !absent) throw new Error('fixture tasks missing');
+
+    const determinedMarkup = renderToStaticMarkup(
+      <PlanTaskNode
+        {...({
+          id: determined.id,
+          selected: false,
+          data: { task: determined, onPath: true, pathRole: 'idle' },
+        } as unknown as NodeProps<GoalFlowNode>)}
+      />,
+    );
+    const undeterminedMarkup = renderToStaticMarkup(
+      <PlanTaskNode
+        {...({
+          id: undetermined.id,
+          selected: false,
+          data: { task: undetermined, onPath: true, pathRole: 'idle' },
+        } as unknown as NodeProps<GoalFlowNode>)}
+      />,
+    );
+    const absentMarkup = renderToStaticMarkup(
+      <PlanTaskNode
+        {...({
+          id: absent.id,
+          selected: false,
+          data: { task: absent, onPath: true, pathRole: 'idle' },
+        } as unknown as NodeProps<GoalFlowNode>)}
+      />,
+    );
+
+    expect(determinedMarkup).toContain('data-data-type-badge="determined"');
+    expect(determinedMarkup).toContain('text · integer · boolean');
+    expect(undeterminedMarkup).toContain('data-data-type-badge="undetermined"');
+    expect(undeterminedMarkup).toContain('schema undetermined');
+    expect(absentMarkup).not.toContain('data-data-type-badge');
+  });
 });

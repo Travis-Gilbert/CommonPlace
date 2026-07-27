@@ -215,22 +215,27 @@ export interface OpRange {
   readonly range_hash: string;
 }
 
-export interface ObjectActionReceipt {
+interface ObjectActionReceiptBase {
   readonly action_kind: ActionKind;
   readonly status: ObjectActionStatus;
   readonly target_ids?: readonly string[];
   readonly graph_transform?: string;
   readonly actor_id?: string;
   readonly note?: string;
-  /**
-   * Present on durable captured emits (`emit_object_action_captured`).
-   * Absent only on explicit legacy receipts; those must be labeled legacy
-   * and must not be treated as ledger-backed.
-   */
-  readonly op_range?: OpRange;
-  /** True when this receipt was minted without an op range (legacy path). */
-  readonly legacy_without_op_range?: boolean;
 }
+
+export type ObjectActionReceipt = ObjectActionReceiptBase & (
+  | {
+      /** Hash-chained span from a durable captured emit. */
+      readonly op_range: OpRange;
+      readonly legacy_without_op_range?: never;
+    }
+  | {
+      readonly op_range?: never;
+      /** Explicit marker for receipts minted before durable operation ranges. */
+      readonly legacy_without_op_range: true;
+    }
+);
 
 export interface ThemeTokens {
   readonly color: Readonly<Record<string, JsonValue>>;

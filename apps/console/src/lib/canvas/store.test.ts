@@ -249,6 +249,7 @@ describe('CanvasStore', () => {
             action_kind: 'update',
             status: 'applied',
             target_ids: [],
+            legacy_without_op_range: true,
           },
         };
       },

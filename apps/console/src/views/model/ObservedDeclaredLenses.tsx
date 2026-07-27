@@ -13,8 +13,10 @@ import {
 } from '@xyflow/react';
 import {
   formatCoverage,
+  formatFieldType,
   isPinned,
   type DeclaredModel,
+  type Divergence,
   type ObservedModel,
   type PinKind,
 } from '@commonplace/data-model-contracts';
@@ -28,6 +30,32 @@ interface LensProps {
   readonly onSelect: (selection: ModelSelection | null) => void;
   readonly onPin: (observedKey: string, kind: PinKind, parentObservedKey?: string) => void;
   readonly onUnpin: (declaredId: string) => void;
+}
+
+function divergencesForType(declared: DeclaredModel, objectTypeId: string): Divergence[] {
+  return declared.divergences.filter((item) => item.objectTypeId === objectTypeId);
+}
+
+function DivergenceBadge({
+  divergences,
+  onOpen,
+}: {
+  readonly divergences: readonly Divergence[];
+  readonly onOpen: () => void;
+}) {
+  if (divergences.length === 0) return null;
+  const count = divergences.reduce((sum, item) => sum + item.count, 0);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="rounded-ij-arc bg-ij-warn-bg px-2 py-0.5 font-ij-mono text-ij-island-meta text-ij-warn"
+      data-mono-ok
+      title={divergences.flatMap((item) => item.signalNodeIds).join(', ')}
+    >
+      {count} diverge
+    </button>
+  );
 }
 
 function stringifySample(value: unknown): string {
@@ -59,17 +87,27 @@ export function DiagramLens({
           : '',
       ].filter(Boolean).join(' '),
     }));
-    const declaredNodes: Node[] = declared.objectTypes.map((type, index) => ({
-      id: `declared:${type.id}`,
-      position: { x: 440, y: 40 + index * 112 },
-      data: { label: type.label },
-      className: [
-        'model-node-declared rounded-ij-arc border border-ij-gold bg-ij-raised font-ij-mono text-ij-ink',
-        selection?.kind === 'declared-type' && selection.key === type.id
-          ? 'border-ij-accent'
-          : '',
-      ].filter(Boolean).join(' '),
-    }));
+    const declaredNodes: Node[] = declared.objectTypes.map((type, index) => {
+      const divergences = divergencesForType(declared, type.id);
+      const count = divergences.reduce((sum, item) => sum + item.count, 0);
+      const showBadge = type.enforcement === 'warn' && count > 0;
+      return {
+        id: `declared:${type.id}`,
+        position: { x: 440, y: 40 + index * 112 },
+        data: {
+          label: showBadge
+            ? `${type.label}\n${type.enforcement} · ${count} diverge`
+            : `${type.label}\n${type.enforcement}`,
+        },
+        className: [
+          'model-node-declared whitespace-pre-line rounded-ij-arc border bg-ij-raised font-ij-mono text-ij-ink',
+          showBadge ? 'border-ij-warn text-ij-warn' : 'border-ij-gold',
+          selection?.kind === 'declared-type' && selection.key === type.id
+            ? 'border-ij-accent'
+            : '',
+        ].filter(Boolean).join(' '),
+      };
+    });
     const observedEdges: Edge[] = observed.types.flatMap((type) =>
       type.edges.flatMap((edge) => {
         // Field-level observed edges stay in the table lens. The diagram only
@@ -101,7 +139,7 @@ export function DiagramLens({
       nodes: [...observedNodes, ...declaredNodes],
       edges: [...observedEdges, ...declaredEdges],
     };
-  }, [declared.objectTypes, declared.relations, observed.types, selection]);
+  }, [declared.divergences, declared.objectTypes, declared.relations, observed.types, selection]);
 
   if (graph.nodes.length === 0) {
     return (
@@ -251,7 +289,7 @@ export function FieldsTableLens({
                   >
                     <td className="p-2 font-ij-mono">{type.dataType}</td>
                     <td className="p-2 font-ij-mono text-ij-ink">{field.key}</td>
-                    <td className="p-2">{field.fieldType}</td>
+                    <td className="p-2">{formatFieldType(field.fieldType)}</td>
                     <td className="p-2 font-ij-mono">{formatCoverage(field.coverage)}</td>
                     <td className="p-2 font-ij-mono">{field.occurrences}</td>
                     <td className="p-2">
@@ -366,7 +404,7 @@ export function FieldsTableLens({
                 >
                   <span className="font-ij-mono text-ij-gold">field</span>
                   <span className="ml-3 text-ij-ink">{field.label}</span>
-                  <span className="ml-3 text-ij-ink-info">{field.fieldType}</span>
+                  <span className="ml-3 text-ij-ink-info">{formatFieldType(field.fieldType)}</span>
                 </button>
                 <button
                   type="button"

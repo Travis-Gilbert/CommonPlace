@@ -19,13 +19,11 @@
 //! arrive in the same graph the find lanes read.
 
 use commonplace::{
-    BlobStore, Commonplace, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline,
-    Residency,
+    BlobStore, Commonplace, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Residency,
 };
-use rustyred_thg_core::{GraphStoreResult, InMemoryGraphStore};
+use rustyred_thg_core::{GraphSnapshotSource, GraphStoreResult, InMemoryGraphStore};
 use rustyred_web::browser_engine::{web_consume_to_graph, WebConsumeRequest};
 use rustyred_web::fetch_cascade::{FetchCascade, FetchCascadeOptions};
-
 
 /// Namespace crawl nodes are written under. Matches the RustyWeb default for
 /// unverified open-web content.

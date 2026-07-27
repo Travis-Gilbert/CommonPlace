@@ -247,6 +247,11 @@ test.describe('cards, actions, mentions', () => {
     // Close the inspector: it overlays the right edge of every surface and
     // would intercept the docs entry's todo affordance below.
     await page.getByLabel('Close inspector').click();
+    // A cold route compile can reload the document between surfaces. Pending
+    // With-me context is an unsent user draft, so make reload durability an
+    // explicit contract instead of relying on an always-warm SPA transition.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await settled(page);
 
     // Entry 2: /do in the composer opens the same sheet, pre-filled.
     await openSurface(page, 'console-workspace');

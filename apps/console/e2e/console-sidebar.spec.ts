@@ -32,7 +32,9 @@ async function waitForServerLayout(request: APIRequestContext) {
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
   await page.waitForFunction(
-    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    () =>
+      document.documentElement.getAttribute('data-layout-ready') === '1'
+      && document.documentElement.getAttribute('data-place-shortcuts-ready') === '1',
     { timeout: 60_000 },
   );
 }

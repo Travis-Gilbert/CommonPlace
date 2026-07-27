@@ -13,17 +13,29 @@ function normalizePath(path: string): string {
 export async function softNavigate(
   router: { push: (href: string) => void },
   path: string,
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; hardFallback?: boolean } = {},
 ): Promise<void> {
   const target = normalizePath(path);
   if (normalizePath(window.location.pathname) === target) return;
-  router.push(path);
+  try {
+    router.push(path);
+  } catch (error) {
+    if (options.hardFallback) {
+      window.location.assign(target);
+      return;
+    }
+    throw error;
+  }
   const deadline = Date.now() + (options.timeoutMs ?? 30_000);
   while (Date.now() < deadline) {
     if (normalizePath(window.location.pathname) === target) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   if (normalizePath(window.location.pathname) !== target) {
+    if (options.hardFallback) {
+      window.location.assign(target);
+      return;
+    }
     throw new Error(`softNavigate timed out waiting for ${target} (at ${window.location.pathname})`);
   }
 }

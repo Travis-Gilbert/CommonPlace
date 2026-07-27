@@ -51,7 +51,7 @@ use commonplace::{BlobStore, Commonplace, EmbeddingGraphStore, Item, ITEM_LABEL}
 use rustyred_thg_core::fulltext::FullTextDesignation;
 use rustyred_thg_core::index::TrigramIndex;
 use rustyred_thg_core::{
-    EdgeRecord, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord,
+    EdgeRecord, GraphSnapshotSource, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord,
 };
 use rustyred_thg_find::lanes::node_text;
 use rustyred_thg_find::{
@@ -137,7 +137,7 @@ impl FindIndex {
     /// Project the live store into a searchable index, from cold.
     pub fn build<S, B>(cp: &Commonplace<S, B>, config: &FindConfig) -> GraphStoreResult<Self>
     where
-        S: EmbeddingGraphStore,
+        S: EmbeddingGraphStore + GraphSnapshotSource,
         B: BlobStore,
     {
         let mut index = Self::empty();
@@ -183,12 +183,19 @@ impl FindIndex {
         config: &FindConfig,
     ) -> GraphStoreResult<RefreshStats>
     where
-        S: EmbeddingGraphStore,
+        S: EmbeddingGraphStore + GraphSnapshotSource,
         B: BlobStore,
     {
         let graph_version = cp.store().stats().version;
         if self.graph_version == Some(graph_version) {
             return Ok(RefreshStats::default());
+        }
+        if self.graph_version.is_none() {
+            // Projected nodes retain their content-addressed vector references.
+            // Share the source payload backend so semantic lanes can resolve
+            // those references without copying or expanding dense vectors.
+            self.store =
+                InMemoryGraphStore::with_vector_payload_store(cp.store().vector_payload_store()?);
         }
 
         let (nodes, edges) = match cp.store().graph_snapshot() {
@@ -321,7 +328,7 @@ impl FindIndexCache {
         f: impl FnOnce(&FindIndex) -> R,
     ) -> GraphStoreResult<R>
     where
-        S: EmbeddingGraphStore,
+        S: EmbeddingGraphStore + GraphSnapshotSource,
         B: BlobStore,
     {
         let mut index = match self.inner.lock() {
@@ -339,10 +346,7 @@ impl FindIndexCache {
 
     /// What the most recent refresh did. For tests and diagnostics.
     pub fn last_refresh(&self) -> RefreshStats {
-        self.last
-            .lock()
-            .map(|stats| *stats)
-            .unwrap_or_default()
+        self.last.lock().map(|stats| *stats).unwrap_or_default()
     }
 }
 
@@ -353,7 +357,7 @@ pub fn find<S, B>(
     config: &FindConfig,
 ) -> GraphStoreResult<FindResponse>
 where
-    S: EmbeddingGraphStore,
+    S: EmbeddingGraphStore + GraphSnapshotSource,
     B: BlobStore,
 {
     let index = FindIndex::build(cp, config)?;
@@ -393,9 +397,18 @@ mod tests {
         let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
         let pipeline = IngestPipeline::default();
         for (title, body) in [
-            ("Rust ownership", "ownership and borrowing govern memory safety"),
-            ("Rust borrowing", "borrowing rules keep memory safety honest"),
-            ("Sourdough", "a levain needs twelve hours at room temperature"),
+            (
+                "Rust ownership",
+                "ownership and borrowing govern memory safety",
+            ),
+            (
+                "Rust borrowing",
+                "borrowing rules keep memory safety honest",
+            ),
+            (
+                "Sourdough",
+                "a levain needs twelve hours at room temperature",
+            ),
         ] {
             pipeline
                 .ingest(&mut cp, IngestInput::note(title, body))
@@ -410,7 +423,9 @@ mod tests {
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
 
-        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("cold");
         let cold = cache.last_refresh();
         assert!(
             cold.reindexed >= 3,
@@ -418,7 +433,9 @@ mod tests {
             cold.reindexed
         );
 
-        cache.with(&cp, &config, |index| index.document_count()).expect("warm");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("warm");
         let warm = cache.last_refresh();
         assert!(
             warm.was_noop(),
@@ -435,10 +452,15 @@ mod tests {
         let mut cp = seeded();
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
-        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("cold");
 
         IngestPipeline::default()
-            .ingest(&mut cp, IngestInput::note("Trigrams", "trigram indexes narrow the scan"))
+            .ingest(
+                &mut cp,
+                IngestInput::note("Trigrams", "trigram indexes narrow the scan"),
+            )
             .expect("ingest");
 
         let count = cache
@@ -463,17 +485,15 @@ mod tests {
         let mut cp = seeded();
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
-        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("cold");
 
         // A delete is a tombstoned upsert, which bumps the graph version.
         // `evict_node` deliberately does not: it is cold-tier parking, and the
         // global gate cannot see it (see `FindIndex::refresh`).
         let victim = cp.all_items().expect("items")[0].id.clone();
-        let mut record = cp
-            .store()
-            .get_node(&victim)
-            .expect("victim node")
-            .clone();
+        let mut record = cp.store().get_node(&victim).expect("victim node").clone();
         record.tombstone = true;
         cp.store_mut().upsert_node(record).expect("tombstone");
 

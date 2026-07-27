@@ -791,7 +791,11 @@ where
     /// Mark an annotation an orphan (D3): its text-quote anchor re-resolved below
     /// confidence on revisit, so it is listed in the session drawer but never
     /// highlighted on the page. Upserts by id. `None` if the id is unknown.
-    pub fn mark_orphan(&mut self, comment_id: &str, orphan: bool) -> GraphStoreResult<Option<Item>> {
+    pub fn mark_orphan(
+        &mut self,
+        comment_id: &str,
+        orphan: bool,
+    ) -> GraphStoreResult<Option<Item>> {
         let Some(item) = self.get_item(comment_id)? else {
             return Ok(None);
         };
@@ -1336,6 +1340,23 @@ where
             object.insert("id".to_string(), json!(node.id));
             // collections are edge-canonical; never trust a stored copy.
             object.remove("collections");
+            // The graph core stores designated vectors as content-addressed
+            // references. CommonPlace retains the inline consumer value under
+            // `extra.embedding`, so hydrate that value into the Item field.
+            let inline_embedding = object
+                .get("extra")
+                .and_then(Value::as_object)
+                .and_then(|extra| extra.get(EMBEDDING_PROPERTY))
+                .filter(|value| value.is_array())
+                .cloned();
+            if object
+                .get(EMBEDDING_PROPERTY)
+                .is_some_and(is_vector_payload_ref)
+            {
+                if let Some(embedding) = inline_embedding {
+                    object.insert(EMBEDDING_PROPERTY.to_string(), embedding);
+                }
+            }
         }
         let mut item: Item = serde_json::from_value(props).map_err(serde_err)?;
         item.id = node.id.clone();
@@ -1356,14 +1377,22 @@ where
 
 fn item_props(item: &Item) -> GraphStoreResult<Value> {
     let mut value = serde_json::to_value(item).map_err(serde_err)?;
+    let inline_embedding = item
+        .embedding
+        .as_ref()
+        .map(|embedding| json!(embedding))
+        .or_else(|| item.extra.get(EMBEDDING_PROPERTY).cloned());
     if let Some(object) = value.as_object_mut() {
         object.remove("id"); // node.id is the single source of truth
         object.remove("collections"); // edge-canonical (IN_COLLECTION)
-        if let Some(embedding) = item.extra.get(crate::ingest::ITEM_EMBEDDING_PROPERTY) {
-            object.insert(
-                crate::ingest::ITEM_EMBEDDING_PROPERTY.to_string(),
-                embedding.clone(),
-            );
+        if let Some(embedding) = inline_embedding {
+            object.insert(EMBEDDING_PROPERTY.to_string(), embedding.clone());
+            let extra = object
+                .entry("extra".to_string())
+                .or_insert_with(|| json!({}));
+            if let Some(extra) = extra.as_object_mut() {
+                extra.insert(EMBEDDING_PROPERTY.to_string(), embedding);
+            }
         }
         // Derived single-string key for an O(1) exact-match source-ref lookup (A3).
         if let Some(key) = item.source_ref_key() {
@@ -1424,4 +1453,46 @@ pub(crate) fn new_id(prefix: &str) -> String {
 
 fn serde_err(error: serde_json::Error) -> GraphStoreError {
     GraphStoreError::new("commonplace_serde", error.to_string())
+}
+
+fn is_vector_payload_ref(value: &Value) -> bool {
+    value.as_object().is_some_and(|object| {
+        object.len() == 2 && object.contains_key("content_id") && object.contains_key("dimension")
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::blob::InMemoryBlobStore;
+    use rustyred_thg_core::InMemoryGraphStore;
+
+    #[test]
+    fn designated_embedding_reference_hydrates_as_inline_vector() {
+        let mut commonplace = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        commonplace
+            .store_mut()
+            .designate_vector_property(ITEM_LABEL, EMBEDDING_PROPERTY, 3)
+            .expect("designate embedding");
+
+        let stored = commonplace
+            .put_item(Item::new(ItemKind::Link, "Vector item").with_embedding(vec![0.1, 0.2, 0.3]))
+            .expect("store item");
+        let node = commonplace
+            .store()
+            .get_node(&stored.id)
+            .expect("stored node");
+        assert!(
+            node.properties
+                .get(EMBEDDING_PROPERTY)
+                .is_some_and(is_vector_payload_ref),
+            "the graph should retain the content-addressed vector reference"
+        );
+
+        let hydrated = commonplace
+            .get_item(&stored.id)
+            .expect("hydrate item")
+            .expect("stored item");
+        assert_eq!(hydrated.embedding, Some(vec![0.1, 0.2, 0.3]));
+    }
 }

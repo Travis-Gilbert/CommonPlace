@@ -225,9 +225,7 @@ where
             }
         }
         if config.semantic_tier_enabled && !claimed {
-            if let Some(candidate) =
-                semantic_candidate(cp, &pipeline, &chars, passage, config)?
-            {
+            if let Some(candidate) = semantic_candidate(cp, &pipeline, &chars, passage, config)? {
                 candidates.push(candidate);
             }
         }
@@ -309,7 +307,13 @@ fn segment_passages(chars: &[char], min_chars: usize) -> Vec<Passage> {
     passages
 }
 
-fn push_passage(chars: &[char], start: usize, end: usize, min_chars: usize, out: &mut Vec<Passage>) {
+fn push_passage(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    min_chars: usize,
+    out: &mut Vec<Passage>,
+) {
     let mut begin = start;
     let mut finish = end;
     while begin < finish && chars[begin].is_whitespace() {
@@ -348,7 +352,8 @@ fn passes_information_gate(text: &str, min_content_tokens: usize) -> bool {
 fn is_stopword(lower: &str) -> bool {
     matches!(
         lower,
-        "the" | "and"
+        "the"
+            | "and"
             | "for"
             | "that"
             | "this"
@@ -563,7 +568,10 @@ fn rank_and_cap(candidates: &mut Vec<SalienceCandidate>, max_candidates: usize) 
     });
     let mut seen: HashSet<(u32, u32)> = HashSet::new();
     candidates.retain(|candidate| {
-        seen.insert((candidate.anchor.position.start, candidate.anchor.position.end))
+        seen.insert((
+            candidate.anchor.position.start,
+            candidate.anchor.position.end,
+        ))
     });
     candidates.truncate(max_candidates);
 }
@@ -578,14 +586,18 @@ fn tier_rank(tier: SalienceTier) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use commonplace::{IngestInput, InMemoryBlobStore, ItemKind};
+    use commonplace::{InMemoryBlobStore, IngestInput, ItemKind};
     use rustyred_thg_core::InMemoryGraphStore;
 
     fn store() -> Commonplace<InMemoryGraphStore, InMemoryBlobStore> {
         Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new())
     }
 
-    fn seed(cp: &mut Commonplace<InMemoryGraphStore, InMemoryBlobStore>, title: &str, text: &str) -> String {
+    fn seed(
+        cp: &mut Commonplace<InMemoryGraphStore, InMemoryBlobStore>,
+        title: &str,
+        text: &str,
+    ) -> String {
         IngestPipeline::default()
             .ingest(cp, IngestInput::text(title, text, ItemKind::Doc))
             .expect("ingest seeds an embedded item")
@@ -618,7 +630,10 @@ mod tests {
             "explanation names the connected record: {}",
             candidate.explanation
         );
-        assert!(candidate.refs.contains(&id), "refs carry the openable record");
+        assert!(
+            candidate.refs.contains(&id),
+            "refs carry the openable record"
+        );
         // The anchor's char range selects exactly the quoted passage.
         let chars: Vec<char> = page.chars().collect();
         let selected: String = chars
@@ -649,7 +664,7 @@ mod tests {
         let candidates = salience(&cp, page, &SalienceConfig::default()).unwrap();
 
         // The exact (verbatim-title) hit sorts ahead of the semantic one.
-        assert!(candidates.len() >= 1);
+        assert!(!candidates.is_empty());
         assert_eq!(candidates[0].tier, SalienceTier::Exact);
         assert_eq!(candidates[0].score, 1.0);
         assert!(candidates[0].refs.contains(&war));
@@ -716,13 +731,17 @@ mod tests {
             "Greek Art Notes",
             "marble sculpture athens acropolis parthenon frieze carving",
         );
-        let page = "The marble sculpture athens acropolis parthenon frieze carving still stands today.";
+        let page =
+            "The marble sculpture athens acropolis parthenon frieze carving still stands today.";
 
         let active = salience(&cp, page, &SalienceConfig::active()).unwrap();
         assert_eq!(active.len(), 1, "Active surfaces the semantic connection");
 
         let quiet = salience(&cp, page, &SalienceConfig::quiet()).unwrap();
-        assert!(quiet.is_empty(), "Quiet does not surface semantic connections");
+        assert!(
+            quiet.is_empty(),
+            "Quiet does not surface semantic connections"
+        );
     }
 
     #[test]
@@ -733,12 +752,14 @@ mod tests {
             "Greek Art Notes",
             "marble sculpture athens acropolis parthenon frieze carving",
         );
-        let page = "The marble sculpture athens acropolis parthenon frieze carving still stands today.";
+        let page =
+            "The marble sculpture athens acropolis parthenon frieze carving still stands today.";
         let hash = "blake3:deadbeef";
         let mut cache = SalienceCache::new();
 
         // First visit computes and caches (a miss).
-        let first = salience_cached(&cp, page, hash, &SalienceConfig::default(), &mut cache).unwrap();
+        let first =
+            salience_cached(&cp, page, hash, &SalienceConfig::default(), &mut cache).unwrap();
         assert_eq!(first.cache, CacheStatus::Miss);
         assert_eq!(first.candidates.len(), 1);
         assert_eq!(cache.len(), 1);
@@ -746,10 +767,14 @@ mod tests {
         // Revisit the same hash: served from cache, unaffected even though the
         // store changed underneath, proving it did not recompute.
         seed(&mut cp, "Distraction", "totally unrelated tokens zzz qqq");
-        let second = salience_cached(&cp, page, hash, &SalienceConfig::default(), &mut cache).unwrap();
+        let second =
+            salience_cached(&cp, page, hash, &SalienceConfig::default(), &mut cache).unwrap();
         assert_eq!(second.cache, CacheStatus::Hit);
         assert_eq!(second.elapsed_ms, 0);
-        assert_eq!(second.candidates, first.candidates, "cache returned the prior result");
+        assert_eq!(
+            second.candidates, first.candidates,
+            "cache returned the prior result"
+        );
     }
 
     #[test]
@@ -774,7 +799,10 @@ mod tests {
         assert_eq!(json["tier"], "exact");
         assert_eq!(json["anchor"]["quote"]["exact"], "the sculptor of Athens");
         assert_eq!(json["anchor"]["quote"]["prefix"], "was ");
-        assert!(json["anchor"]["quote"].get("suffix").is_none(), "absent context omitted");
+        assert!(
+            json["anchor"]["quote"].get("suffix").is_none(),
+            "absent context omitted"
+        );
         assert_eq!(json["anchor"]["position"]["start"], 4);
         assert_eq!(json["refs"][0], "item:1");
         let back: SalienceCandidate = serde_json::from_value(json).unwrap();

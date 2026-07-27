@@ -62,7 +62,10 @@ opts in.
 | D6 | Composer states | Six states on one ShaderSurface; Paper fragments (paper-texture / grain-gradient / fluted-glass); stream-driven motion | done |
 | D7 | Connection | One owner in StatusBar | done |
 | D8 | Empty causes | Default actions: reconnect / clear / loading | done |
-| G | System | Unit tests + contrast/motion/blocks gates pass; register gate blocked by pre-existing AgentAliasPane | partial |
+| G | System | Unit tests and all 12 Console gates pass in the PR #110 merge repair | done |
+
+Reverified on 2026-07-27: the full Console unit suite, all 12 repository gates,
+and the clean Playwright suite pass after reconciliation with `main`.
 
 ## Classification table (after)
 

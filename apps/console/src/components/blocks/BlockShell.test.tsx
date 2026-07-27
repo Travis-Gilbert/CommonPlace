@@ -11,11 +11,9 @@ const DESCRIPTOR: ViewDescriptor = {
   accepts: {},
   emits: ['select'],
   renderer: 'record.table',
-  source: {
-    package: '@tanstack/react-table',
-    component: 'useReactTable',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@tanstack/react-table/useReactTable',
   },
   block: {
     usage: 'browse records',

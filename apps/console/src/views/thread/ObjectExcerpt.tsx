@@ -6,8 +6,11 @@
 import { useEffect, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { parseTheoremUri } from '@commonplace/block-view/addressing';
+import { JsonViewer, type JsonViewerProps } from '@/components/jalco';
 import { ThreadExcerpt } from './ThreadExcerpt';
 import { useShellStore } from '@/lib/shell-store';
+
+type JsonViewerData = JsonViewerProps['data'];
 
 export function ObjectExcerpt({
   host,
@@ -85,9 +88,11 @@ export function ObjectExcerpt({
         {error ? (
           <p className="text-ij-error">{error}</p>
         ) : object ? (
-          <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">
-            {JSON.stringify(object.properties, null, 2)}
-          </pre>
+          <JsonViewer
+            data={object.properties as unknown as JsonViewerData}
+            defaultExpanded={1}
+            className="border-0 bg-transparent shadow-none"
+          />
         ) : (
           <p className="text-ij-ink-info">Loading through the object seam…</p>
         )}

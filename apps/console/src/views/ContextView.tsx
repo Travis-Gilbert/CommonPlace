@@ -164,6 +164,8 @@ export function ContextView({ host }: { host: BlockHost }) {
       edgeVisibleForLayers(layerIdForEdgeType(edge.relation), active),
     );
   }, [graph.edges, layerSelection]);
+  const allEdgesFiltered =
+    layerSelection !== null && graph.edges.length > 0 && visibleEdges.length === 0;
 
   if (!selected) {
     return (
@@ -233,7 +235,13 @@ export function ContextView({ host }: { host: BlockHost }) {
                 {edge.reason}
               </p>
             ))
-          : <p>No reasoned neighbors are available for this selection.</p>}
+          : (
+              <p>
+                {allEdgesFiltered
+                  ? 'No connections match the active layers.'
+                  : 'No reasoned neighbors are available for this selection.'}
+              </p>
+            )}
       </div>
     </div>
   );

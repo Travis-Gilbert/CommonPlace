@@ -64,6 +64,7 @@ class InMemoryObjectSeam implements ChatCatalogObjectSeam {
       value: {
         action_kind: action.kind,
         status: 'applied',
+        legacy_without_op_range: true,
         target_ids: action.kind === 'create'
           ? [String(action.props.id)]
           : 'id' in action
@@ -155,6 +156,7 @@ describe('DurableChatCatalog', () => {
             action_kind: action.kind,
             status: 'accepted',
             target_ids: [],
+            legacy_without_op_range: true,
           },
         };
       }

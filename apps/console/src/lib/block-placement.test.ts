@@ -239,6 +239,7 @@ describe('block placement', () => {
             value: {
               action_kind: action.kind,
               status: 'applied',
+              legacy_without_op_range: true,
               target_ids: action.kind === 'link'
                 ? [action.from, action.to]
                 : action.kind === 'move'
@@ -308,6 +309,7 @@ describe('block placement', () => {
             value: {
               action_kind: action.kind,
               status: 'applied',
+              legacy_without_op_range: true,
               target_ids: ['vi-source'],
             },
           };
