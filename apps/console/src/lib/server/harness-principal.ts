@@ -104,7 +104,6 @@ async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolu
       }
       const parsed = IdentitySessionSchema.safeParse(result.body);
       if (!parsed.success) {
-        await clearRejectedActiveWorkspaceCookie();
         return {
           ok: false,
           response: Response.json(

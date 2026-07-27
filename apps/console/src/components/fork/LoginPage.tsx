@@ -13,8 +13,15 @@ import { useIdentitySession } from '@/lib/identity/use-identity-session';
 
 type ProviderState = 'loading' | 'ready' | 'unconfigured';
 
-export function safeCallback(value: string): string {
-  return /^\/(?!\/|\\)/.test(value) ? value : '/chat';
+const UNSAFE_CALLBACK_CHARACTER = /[\u0000-\u001F\u007F\\]/;
+
+export function safeCallback(value: unknown): string {
+  return typeof value === 'string'
+    && value.startsWith('/')
+    && !value.startsWith('//')
+    && !UNSAFE_CALLBACK_CHARACTER.test(value)
+    ? value
+    : '/chat';
 }
 
 function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {

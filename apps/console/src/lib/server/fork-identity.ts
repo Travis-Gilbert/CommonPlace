@@ -12,6 +12,13 @@ const MAX_JSON_REQUEST_BYTES = 64 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 const DEFAULT_TIMEOUT_MS = 8_000;
 const DOCUMENT_TIMEOUT_MS = 70_000;
+const SERVICE_SECRET_PLACEHOLDER_PATTERNS = Object.freeze([
+  /^(?:example|test)$/i,
+  /^change[-_ ]me(?:[-_ ].*)?$/i,
+  /^replace[-_ ]with(?:[-_ ].*)?$/i,
+  /^same[-_ ]service[-_ ]secret(?:[-_ ].*)?$/i,
+  /^set[-_ ]a[-_ ]random[-_ ]secret(?:[-_ ].*)?$/i,
+]);
 
 export interface ForkIdentityPrincipal {
   readonly subject: string;
@@ -55,7 +62,11 @@ export function resolveForkServerConfig(
       'The CommonPlace identity service is not configured',
     );
   }
-  if (internalKey.length < 32 || /^(?:change-me|example|test)$/i.test(internalKey)) {
+  if (
+    internalKey.length < 32
+    || SERVICE_SECRET_PLACEHOLDER_PATTERNS.some((pattern) =>
+      pattern.test(internalKey))
+  ) {
     throw new ForkIdentityProxyError(
       503,
       'identity_service_unconfigured',
@@ -249,6 +260,25 @@ export async function requestForkDocumentIngest({
   readonly fetchImpl?: typeof fetch;
   readonly environment?: ForkServerEnvironment;
 }): Promise<ForkIdentityResponse> {
+  if (
+    typeof filename !== 'string'
+    || filename.trim().length === 0
+    || filename.length > 255
+    || filename.includes('/')
+    || filename.includes('\\')
+    || Array.from(filename).some((character) => {
+      const codePoint = character.codePointAt(0);
+      return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+    })
+    || filename === '.'
+    || filename === '..'
+  ) {
+    throw new ForkIdentityProxyError(
+      400,
+      'document_filename_invalid',
+      'The document filename is invalid',
+    );
+  }
   const config = resolveForkServerConfig(environment);
   const normalizedMediaType = mediaType.trim();
   if (

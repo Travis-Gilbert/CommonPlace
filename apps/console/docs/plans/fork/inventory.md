@@ -12,9 +12,9 @@ Generation command:
 node apps/console/scripts/generate-fork-inventory.mjs --source <anything-llm-checkout>
 ```
 
-This inventory is classification only. No source file from AnythingLLM has been copied into the CommonPlace worktree. The generator reads tracked blobs from the named upstream commit and writes only this document.
+This inventory is classification only. This generator does not copy upstream application files into the CommonPlace worktree; it reads tracked blobs from the named upstream commit and writes only this inventory document.
 
-Scope is every tracked regular file in `frontend/src`, `server`, and `collector` at the commit above. Git tree entries are authoritative, so ignored dependencies and untracked build output are excluded. Lines are LF byte counts from Git blobs. Binary assets can therefore report zero lines.
+Scope is every tracked regular file in `frontend/src`, `server`, and `collector` at the commit above. Git tree entries are authoritative, so ignored dependencies and untracked build output are excluded. Lines are stored LF byte counts from Git blobs rather than editor line numbers. Binary assets can therefore report non-semantic counts.
 
 ## Counts
 

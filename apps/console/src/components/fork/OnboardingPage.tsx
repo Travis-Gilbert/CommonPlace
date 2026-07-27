@@ -27,6 +27,38 @@ export function workspaceSlugFromName(name: string): string {
     .slice(0, 64);
 }
 
+type OnboardingWorkspaceActions = {
+  readonly create: typeof createIdentityWorkspace;
+  readonly select: typeof selectIdentityWorkspace;
+};
+
+const DEFAULT_ONBOARDING_WORKSPACE_ACTIONS: OnboardingWorkspaceActions = {
+  create: createIdentityWorkspace,
+  select: selectIdentityWorkspace,
+};
+
+export async function submitOnboardingWorkspace(
+  input: Parameters<typeof createIdentityWorkspace>[0],
+  existingWorkspace: IdentityWorkspace | null,
+  actions: OnboardingWorkspaceActions = DEFAULT_ONBOARDING_WORKSPACE_ACTIONS,
+): Promise<{
+  readonly workspace: IdentityWorkspace;
+  readonly selectionError: string | null;
+}> {
+  const workspace = existingWorkspace ?? await actions.create(input);
+  try {
+    await actions.select(workspace.id);
+    return { workspace, selectionError: null };
+  } catch (caught) {
+    return {
+      workspace,
+      selectionError: caught instanceof IdentityClientError
+        ? `Workspace created, but it could not be selected: ${caught.message}`
+        : 'Workspace created, but it could not be selected.',
+    };
+  }
+}
+
 function OnboardingContent() {
   const identity = useIdentitySession();
   const [name, setName] = useState('My workspace');
@@ -57,13 +89,32 @@ function OnboardingContent() {
     setBusy(true);
     setError(null);
     try {
-      const workspace = await createIdentityWorkspace({
-        name,
-        slug: slug || suggestedSlug,
-      });
-      await selectIdentityWorkspace(workspace.id);
+      const { workspace, selectionError } =
+        await submitOnboardingWorkspace(
+          {
+            name,
+            slug: slug || suggestedSlug,
+          },
+          created,
+        );
       setCreated(workspace);
-      await identity.refresh();
+      setError(selectionError);
+      if (selectionError) return;
+      if (created) {
+        window.location.assign(
+          `/workspace/${encodeURIComponent(workspace.slug)}/chat`,
+        );
+        return;
+      }
+      try {
+        await identity.refresh();
+      } catch (caught) {
+        setError(
+          caught instanceof Error
+            ? `Workspace created and selected, but the session could not be refreshed: ${caught.message}`
+            : 'Workspace created and selected, but the session could not be refreshed.',
+        );
+      }
     } catch (caught) {
       setError(
         caught instanceof IdentityClientError
@@ -137,6 +188,7 @@ function OnboardingContent() {
               value={name}
               maxLength={160}
               required
+              disabled={busy || created !== null}
               onChange={(event) => setName(event.target.value)}
             />
             <ForkField
@@ -147,6 +199,7 @@ function OnboardingContent() {
               maxLength={64}
               pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
               hint="Lowercase letters, numbers, and interior hyphens."
+              disabled={busy || created !== null}
               onChange={(event) => setSlug(event.target.value.toLowerCase())}
             />
           </ForkPanel>
@@ -157,23 +210,27 @@ function OnboardingContent() {
             </p>
           </ForkPanel>
           {error ? <ForkNotice tone="error">{error}</ForkNotice> : null}
-          {created ? (
+          {created && !error ? (
             <ForkNotice tone="success">{created.name} is ready and selected.</ForkNotice>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={busy || !name.trim() || !(slug || suggestedSlug)}>
-              {busy ? 'Creating workspace...' : 'Create workspace'}
+            <Button
+              type="submit"
+              disabled={
+                busy
+                || (!created && (!name.trim() || !(slug || suggestedSlug)))
+              }
+            >
+              {busy
+                ? created
+                  ? 'Selecting workspace...'
+                  : 'Creating workspace...'
+                : created
+                  ? error
+                    ? 'Retry workspace selection'
+                    : 'Open chat'
+                  : 'Create workspace'}
             </Button>
-            {created ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() => void openWorkspace(created)}
-              >
-                Open chat
-              </Button>
-            ) : null}
           </div>
         </form>
       )}

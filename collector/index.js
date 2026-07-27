@@ -71,20 +71,33 @@ function createCollectorServer({
   );
 }
 
-function startCollector({
+async function startCollector({
   host = process.env.COLLECTOR_BIND_HOST ?? "127.0.0.1",
   port = readPositiveInteger(process.env.COLLECTOR_PORT, 8888),
   ...serverOptions
 } = {}) {
   const server = createCollectorServer(serverOptions);
-  server.listen(port, host, () => {
-    const address = server.address();
-    const boundPort =
-      address && typeof address === "object" ? address.port : port;
-    console.log(
-      `CommonPlace collector parse boundary listening on ${host}:${boundPort}`
-    );
+  await new Promise((resolve, reject) => {
+    function handleError(error) {
+      server.off("listening", handleListening);
+      reject(error);
+    }
+
+    function handleListening() {
+      server.off("error", handleError);
+      resolve();
+    }
+
+    server.once("error", handleError);
+    server.once("listening", handleListening);
+    server.listen(port, host);
   });
+  const address = server.address();
+  const boundPort =
+    address && typeof address === "object" ? address.port : port;
+  console.log(
+    `CommonPlace collector parse boundary listening on ${host}:${boundPort}`
+  );
   return server;
 }
 
@@ -100,12 +113,10 @@ function readPositiveInteger(value, fallback) {
 }
 
 if (require.main === module) {
-  try {
-    startCollector();
-  } catch (error) {
+  void startCollector().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
-  }
+  });
 }
 
 module.exports = {

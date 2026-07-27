@@ -11,6 +11,85 @@ import { getIdentityAdminOverview, IdentityClientError } from '@/lib/identity/cl
 import type { AdminOverview } from '@/lib/identity/contracts';
 import { ForkNotice, ForkPageFrame, ForkPanel } from './ForkPageFrame';
 
+function adminCollectionTitle(
+  label: string,
+  count: number,
+  truncated: boolean,
+) {
+  return `${label} (${count}${truncated ? ' shown, partial' : ''})`;
+}
+
+export function AdminOverviewPanels({
+  overview,
+}: {
+  readonly overview: AdminOverview;
+}) {
+  const hasPartialCollection =
+    overview.truncated.users
+    || overview.truncated.workspaces
+    || overview.truncated.pendingInvites;
+
+  return (
+    <div className="grid gap-4">
+      {hasPartialCollection ? (
+        <ForkNotice>
+          This is a bounded result. Sections marked partial have additional
+          records that are not shown.
+        </ForkNotice>
+      ) : null}
+      <ForkPanel
+        title={adminCollectionTitle(
+          'Users',
+          overview.users.length,
+          overview.truncated.users,
+        )}
+      >
+        <ul className="grid gap-2">
+          {overview.users.map((user) => (
+            <li key={user.id} className="rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
+              <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>{user.displayName ?? user.username}</p>
+              <p className="font-ij-mono text-xs text-ij-ink-info">{user.username}</p>
+            </li>
+          ))}
+        </ul>
+      </ForkPanel>
+      <ForkPanel
+        title={adminCollectionTitle(
+          'Workspaces',
+          overview.workspaces.length,
+          overview.truncated.workspaces,
+        )}
+      >
+        <ul className="grid gap-2">
+          {overview.workspaces.map((workspace) => (
+            <li key={workspace.id} className="rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
+              <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>{workspace.name}</p>
+              <p className="font-ij-mono text-xs text-ij-ink-info">
+                {workspace.tenant} / {workspace.scopeRef}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </ForkPanel>
+      <ForkPanel
+        title={adminCollectionTitle(
+          'Pending invitations',
+          overview.pendingInvites.length,
+          overview.truncated.pendingInvites,
+        )}
+      >
+        <ul className="grid gap-2">
+          {overview.pendingInvites.map((invite) => (
+            <li key={invite.id} className="rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
+              {invite.workspace.name}: {invite.role.name}
+            </li>
+          ))}
+        </ul>
+      </ForkPanel>
+    </div>
+  );
+}
+
 function AdminContent() {
   const session = useSession();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
@@ -52,39 +131,7 @@ function AdminContent() {
       ) : !overview ? (
         <p aria-live="polite" className="text-ij-ink-info">Loading instance identity...</p>
       ) : (
-        <div className="grid gap-4">
-          <ForkPanel title={`Users (${overview.users.length})`}>
-            <ul className="grid gap-2">
-              {overview.users.map((user) => (
-                <li key={user.id} className="rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
-                  <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>{user.displayName ?? user.username}</p>
-                  <p className="font-ij-mono text-xs text-ij-ink-info">{user.username}</p>
-                </li>
-              ))}
-            </ul>
-          </ForkPanel>
-          <ForkPanel title={`Workspaces (${overview.workspaces.length})`}>
-            <ul className="grid gap-2">
-              {overview.workspaces.map((workspace) => (
-                <li key={workspace.id} className="rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
-                  <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>{workspace.name}</p>
-                  <p className="font-ij-mono text-xs text-ij-ink-info">
-                    {workspace.tenant} / {workspace.scopeRef}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </ForkPanel>
-          <ForkPanel title={`Pending invitations (${overview.pendingInvites.length})`}>
-            <ul className="grid gap-2">
-              {overview.pendingInvites.map((invite) => (
-                <li key={invite.id} className="rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
-                  {invite.workspace.name}: {invite.role.name}
-                </li>
-              ))}
-            </ul>
-          </ForkPanel>
-        </div>
+        <AdminOverviewPanels overview={overview} />
       )}
     </ForkPageFrame>
   );

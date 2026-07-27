@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  ADMIN_OVERVIEW_LIMIT,
   IdentityOperationError,
   createIdentityOperations,
   tokenHash,
@@ -20,6 +21,14 @@ function createMemoryAccess() {
     workspaceMembership: [],
     invite: [],
     apiKey: [],
+  };
+  const calls = {
+    apiKeyFindUnique: 0,
+    apiKeyUpdate: 0,
+    events: [],
+    inviteFindMany: [],
+    userFindMany: [],
+    workspaceFindMany: [],
   };
   let sequence = 0;
   const nextId = (prefix) => `${prefix}-${++sequence}`;
@@ -62,8 +71,32 @@ function createMemoryAccess() {
       return direction === "desc" ? -comparison : comparison;
     });
   };
+  const take = (records, count) =>
+    Number.isInteger(count) ? records.slice(0, count) : records;
+  const insertUser = (data) => {
+    if (
+      rows.user.some(
+        (record) =>
+          record.username === data.username ||
+          record.providerSubject === data.providerSubject
+      )
+    ) {
+      throw Object.assign(new Error("unique"), { code: "P2002" });
+    }
+    const record = {
+      id: nextId("user"),
+      status: "ACTIVE",
+      passwordHash: null,
+      createdAt: createdAt(),
+      updatedAt: createdAt(),
+      ...data,
+    };
+    rows.user.push(record);
+    return record;
+  };
 
   const access = {
+    calls,
     rows,
     async withTransaction(callback) {
       return callback(access);
@@ -73,24 +106,15 @@ function createMemoryAccess() {
         return rows.user.find((record) => matchWhere(record, where)) ?? null;
       },
       async create({ data }) {
-        if (
-          rows.user.some(
-            (record) =>
-              record.username === data.username ||
-              record.providerSubject === data.providerSubject
-          )
-        ) {
-          throw Object.assign(new Error("unique"), { code: "P2002" });
+        return insertUser(data);
+      },
+      async upsert({ where, create, update }) {
+        const record =
+          rows.user.find((entry) => matchWhere(entry, where)) ?? null;
+        if (!record) return insertUser(create);
+        if (Object.keys(update).length > 0) {
+          Object.assign(record, update, { updatedAt: createdAt() });
         }
-        const record = {
-          id: nextId("user"),
-          status: "ACTIVE",
-          passwordHash: null,
-          createdAt: createdAt(),
-          updatedAt: createdAt(),
-          ...data,
-        };
-        rows.user.push(record);
         return record;
       },
       async update({ where, data }) {
@@ -98,8 +122,9 @@ function createMemoryAccess() {
         Object.assign(record, data, { updatedAt: createdAt() });
         return record;
       },
-      async findMany({ orderBy } = {}) {
-        return order(rows.user, orderBy);
+      async findMany(options = {}) {
+        calls.userFindMany.push(options);
+        return take(order(rows.user, options.orderBy), options.take);
       },
     },
     workspace: {
@@ -129,8 +154,9 @@ function createMemoryAccess() {
         matches.forEach((entry) => Object.assign(entry, data, { updatedAt: createdAt() }));
         return { count: matches.length };
       },
-      async findMany({ orderBy } = {}) {
-        return order(rows.workspace, orderBy);
+      async findMany(options = {}) {
+        calls.workspaceFindMany.push(options);
+        return take(order(rows.workspace, options.orderBy), options.take);
       },
     },
     role: {
@@ -157,6 +183,7 @@ function createMemoryAccess() {
         );
       },
       async findUnique({ where, include }) {
+        calls.events.push("workspaceMembership.findUnique");
         return includeRelations(
           rows.workspaceMembership.find((record) => matchWhere(record, where)),
           include
@@ -215,12 +242,16 @@ function createMemoryAccess() {
         matches.forEach((record) => Object.assign(record, data));
         return { count: matches.length };
       },
-      async findMany({ where, include, orderBy }) {
-        return order(
-          rows.invite
-            .filter((record) => matchWhere(record, where))
-            .map((record) => includeRelations(record, include)),
-          orderBy
+      async findMany(options = {}) {
+        calls.inviteFindMany.push(options);
+        return take(
+          order(
+            rows.invite
+              .filter((record) => matchWhere(record, options.where))
+              .map((record) => includeRelations(record, options.include)),
+            options.orderBy
+          ),
+          options.take
         );
       },
     },
@@ -238,6 +269,8 @@ function createMemoryAccess() {
         return record;
       },
       async findUnique({ where, include }) {
+        calls.apiKeyFindUnique += 1;
+        calls.events.push("apiKey.findUnique");
         return includeRelations(
           rows.apiKey.find((record) => matchWhere(record, where)),
           include
@@ -250,6 +283,8 @@ function createMemoryAccess() {
         );
       },
       async update({ where, data }) {
+        calls.apiKeyUpdate += 1;
+        calls.events.push("apiKey.update");
         const record = rows.apiKey.find((entry) => matchWhere(entry, where));
         Object.assign(record, data);
         return record;
@@ -269,13 +304,13 @@ function principal(subject, username, email = null) {
   };
 }
 
-function operationsFixture() {
+function operationsFixture({ clock = () => new Date(NOW) } = {}) {
   const access = createMemoryAccess();
   let uuid = 0;
   let random = 0;
   const operations = createIdentityOperations(access, {
     tokenPepper: PEPPER,
-    clock: () => new Date(NOW),
+    clock,
     randomUUID: () => `00000000-0000-4000-8000-${String(++uuid).padStart(12, "0")}`,
     randomBytes: (size) => Buffer.alloc(size, ++random),
   });
@@ -314,6 +349,23 @@ test("reconciles a stable provider subject and preserves admitted tenant casing"
   );
 });
 
+test("atomically claims one user for concurrent principal reconciliation", async () => {
+  const { access, operations } = operationsFixture();
+  const providerPrincipal = principal(
+    "concurrent-42",
+    "concurrent-user",
+    "concurrent@example.test"
+  );
+
+  const [first, second] = await Promise.all([
+    operations.reconcilePrincipal(providerPrincipal),
+    operations.reconcilePrincipal(providerPrincipal),
+  ]);
+
+  assert.equal(access.rows.user.length, 1);
+  assert.equal(first.user.id, second.user.id);
+});
+
 test("isolates workspaces by membership and completes a single-use invitation", async () => {
   const { access, operations } = operationsFixture();
   const owner = principal("1", "Travis-Gilbert", "owner@example.test");
@@ -328,9 +380,12 @@ test("isolates workspaces by membership and completes a single-use invitation", 
   const created = await operations.createInvite(owner, workspace.id, {
     email: "member@example.test",
   });
-  assert.match(created.code, /^cp_inv_/);
+  assert.match(created.code, /^cp_inv_[A-Za-z0-9_-]{43}$/);
   assert.equal(created.invite.workspace.id, workspace.id);
-  assert.equal((await operations.inspectInvite(created.code)).role.key, "member");
+  assert.equal(created.invite.email, "member@example.test");
+  const inspected = await operations.inspectInvite(created.code);
+  assert.equal(inspected.role.key, "member");
+  assert.equal(inspected.email, null);
 
   const accepted = await operations.acceptInvite(member, created.code);
   assert.equal(accepted.id, workspace.id);
@@ -413,7 +468,7 @@ test("stores only API key hashes, authenticates scope, and enforces revocation",
     name: "Widget",
     scopes: ["workspace.read", "content.read"],
   });
-  assert.match(created.key, /^cpk_[a-f0-9]{8}_/);
+  assert.match(created.key, /^cpk_[a-f0-9]{8}_[A-Za-z0-9_-]{43}$/);
   assert.equal(access.rows.apiKey[0].keyHash, tokenHash(created.key, PEPPER));
   assert.equal(JSON.stringify(access.rows.apiKey).includes(created.key), false);
 
@@ -443,6 +498,117 @@ test("stores only API key hashes, authenticates scope, and enforces revocation",
   );
 });
 
+test("defaults API key scopes only when the field is omitted", async () => {
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Scope validation",
+    slug: "scope-validation",
+  });
+
+  const created = await operations.createApiKey(owner, workspace.id, {});
+  assert.deepEqual(created.record.scopes, [
+    "workspace.read",
+    "content.read",
+    "chat.write",
+  ]);
+
+  for (const scopes of [null, "workspace.read", { scope: "workspace.read" }]) {
+    await assert.rejects(
+      operations.createApiKey(owner, workspace.id, { scopes }),
+      (error) =>
+        error instanceof IdentityOperationError &&
+        error.status === 400 &&
+        error.code === "api_key_scope_invalid"
+    );
+  }
+  assert.equal(access.rows.apiKey.length, 1);
+});
+
+test("rejects invalid API key records before membership lookup", async () => {
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Refused keys",
+    slug: "refused-keys",
+  });
+  const created = await operations.createApiKey(owner, workspace.id);
+  const record = access.rows.apiKey[0];
+  const user = access.rows.user[0];
+  const membership = access.rows.workspaceMembership[0];
+  const workspaceRecord = access.rows.workspace[0];
+
+  async function expectRefusalBeforeMembership() {
+    access.calls.events.length = 0;
+    await assert.rejects(
+      operations.authenticateApiKey(created.key),
+      (error) => error.code === "api_key_refused"
+    );
+    assert.deepEqual(access.calls.events, ["apiKey.findUnique"]);
+  }
+
+  record.revokedAt = new Date(NOW);
+  await expectRefusalBeforeMembership();
+  record.revokedAt = null;
+
+  record.expiresAt = new Date(NOW.getTime() - 1);
+  await expectRefusalBeforeMembership();
+  record.expiresAt = null;
+
+  user.status = "DISABLED";
+  await expectRefusalBeforeMembership();
+  user.status = "ACTIVE";
+
+  access.rows.workspace.length = 0;
+  await expectRefusalBeforeMembership();
+  access.rows.workspace.push(workspaceRecord);
+
+  membership.status = "SUSPENDED";
+  access.calls.events.length = 0;
+  await assert.rejects(
+    operations.authenticateApiKey(created.key),
+    (error) => error.code === "api_key_refused"
+  );
+  assert.deepEqual(access.calls.events, [
+    "apiKey.findUnique",
+    "workspaceMembership.findUnique",
+  ]);
+});
+
+test("prevalidates API keys and throttles last-used writes", async () => {
+  let currentTime = new Date(NOW);
+  const { access, operations } = operationsFixture({
+    clock: () => new Date(currentTime),
+  });
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Throttled keys",
+    slug: "throttled-keys",
+  });
+  const created = await operations.createApiKey(owner, workspace.id);
+
+  const lookupsBeforeInvalidKey = access.calls.apiKeyFindUnique;
+  await assert.rejects(
+    operations.authenticateApiKey("not-a-generated-commonplace-api-key"),
+    (error) =>
+      error instanceof IdentityOperationError &&
+      error.status === 401 &&
+      error.code === "api_key_refused"
+  );
+  assert.equal(access.calls.apiKeyFindUnique, lookupsBeforeInvalidKey);
+
+  await operations.authenticateApiKey(created.key);
+  assert.equal(access.calls.apiKeyUpdate, 1);
+
+  currentTime = new Date(NOW.getTime() + 60_000);
+  await operations.authenticateApiKey(created.key);
+  assert.equal(access.calls.apiKeyUpdate, 1);
+
+  currentTime = new Date(NOW.getTime() + 6 * 60_000);
+  await operations.authenticateApiKey(created.key);
+  assert.equal(access.calls.apiKeyUpdate, 2);
+});
+
 test("admin overview uses exact login admission", async () => {
   const { operations } = operationsFixture();
   const owner = principal("1", "Travis-Gilbert");
@@ -454,5 +620,72 @@ test("admin overview uses exact login admission", async () => {
   await assert.rejects(
     operations.adminOverview(owner, ["travis-gilbert"]),
     (error) => error.code === "admin_permission_refused"
+  );
+});
+
+test("admin overview bounds every collection and reports truncation", async () => {
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Admin",
+    slug: "admin",
+  });
+  const memberRole = access.rows.role.find(
+    (role) => role.workspaceId === workspace.id && role.key === "member"
+  );
+
+  for (let index = 0; index < ADMIN_OVERVIEW_LIMIT; index += 1) {
+    const createdAt = new Date(NOW.getTime() + index + 1);
+    access.rows.user.push({
+      id: `bounded-user-${index}`,
+      username: `bounded-user-${index}`,
+      displayName: null,
+      email: null,
+      status: "ACTIVE",
+      createdAt,
+    });
+    access.rows.workspace.push({
+      id: `bounded-workspace-${index}`,
+      tenant: "Travis-Gilbert",
+      slug: `bounded-workspace-${index}`,
+      scopeRef: `workspace:bounded-workspace-${index}`,
+      name: `Bounded workspace ${index}`,
+      createdAt,
+    });
+  }
+  for (let index = 0; index <= ADMIN_OVERVIEW_LIMIT; index += 1) {
+    access.rows.invite.push({
+      id: `bounded-invite-${index}`,
+      workspaceId: workspace.id,
+      roleId: memberRole.id,
+      email: `invite-${index}@example.test`,
+      status: "PENDING",
+      expiresAt: new Date(NOW.getTime() + 60_000),
+      createdAt: new Date(NOW.getTime() + index),
+    });
+  }
+
+  const overview = await operations.adminOverview(owner, ["Travis-Gilbert"]);
+
+  assert.equal(overview.users.length, ADMIN_OVERVIEW_LIMIT);
+  assert.equal(overview.workspaces.length, ADMIN_OVERVIEW_LIMIT);
+  assert.equal(overview.pendingInvites.length, ADMIN_OVERVIEW_LIMIT);
+  assert.deepEqual(overview.truncated, {
+    users: true,
+    workspaces: true,
+    pendingInvites: true,
+  });
+  assert.match(overview.pendingInvites[0].email, /^invite-/);
+  assert.equal(
+    access.calls.userFindMany.at(-1).take,
+    ADMIN_OVERVIEW_LIMIT + 1
+  );
+  assert.equal(
+    access.calls.workspaceFindMany.at(-1).take,
+    ADMIN_OVERVIEW_LIMIT + 1
+  );
+  assert.equal(
+    access.calls.inviteFindMany.at(-1).take,
+    ADMIN_OVERVIEW_LIMIT + 1
   );
 });

@@ -23,6 +23,28 @@ test("constant-time service credential comparison fails closed", () => {
   assert.equal(secretMatches(null, INTERNAL_KEY), false);
 });
 
+test("service credential admission rejects derived placeholders precisely", () => {
+  for (const placeholder of [
+    "change-me-to-a-random-service-secret-before-deploying",
+    "replace-with-a-random-service-secret-before-deploying",
+    "same-service-secret-used-by-both-peers",
+    "set-a-random-secret-with-at-least-32-characters",
+  ]) {
+    assert.throws(
+      () => createApp({ internalKey: placeholder, operations: {} }),
+      /non-placeholder value/
+    );
+  }
+
+  assert.doesNotThrow(() =>
+    createApp({
+      internalKey:
+        "example-company-production-key-with-verified-random-suffix-7D9m",
+      operations: {},
+    })
+  );
+});
+
 test("public invite inspection is separate from internal identity routes", async (t) => {
   const calls = [];
   const app = createApp({

@@ -18,6 +18,9 @@ const API_KEY_SCOPES = Object.freeze([
   "content.write",
   "chat.write",
 ]);
+const ADMIN_OVERVIEW_LIMIT = 100;
+const API_KEY_LAST_USED_WRITE_INTERVAL_MS = 5 * 60 * 1000;
+const API_KEY_PATTERN = /^cpk_[a-f0-9]{8}_[A-Za-z0-9_-]{43}$/;
 const OWNER_PERMISSIONS = Object.freeze([
   "workspace.read",
   "workspace.manage",
@@ -127,6 +130,9 @@ function publicWorkspaceMembership(membership) {
   };
 }
 
+// Invite and API-key bearer values contain 256 random bits. This digest is a
+// deterministic lookup key, not a password verifier; the pepper also isolates
+// deployments. Any digest change requires a versioned or dual-read migration.
 function tokenHash(token, pepper) {
   return createHash("sha256")
     .update(pepper)
@@ -135,7 +141,7 @@ function tokenHash(token, pepper) {
     .digest("hex");
 }
 
-function publicInvite(invite) {
+function publicInvite(invite, { includeEmail = false } = {}) {
   return {
     id: invite.id,
     workspace: {
@@ -149,7 +155,7 @@ function publicInvite(invite) {
       key: invite.role.key,
       name: invite.role.name,
     },
-    email: invite.email ?? null,
+    email: includeEmail ? invite.email ?? null : null,
     status: invite.status,
     expiresAt: invite.expiresAt.toISOString(),
   };
@@ -252,51 +258,47 @@ function createIdentityOperations(
     const principal = normalizePrincipal(input);
     try {
       return await access.withTransaction(async (transaction) => {
-        let user = await transaction.user.findUnique({
+        let user = await transaction.user.upsert({
           where: { providerSubject: principal.subject },
+          create: {
+            authProvider: "github",
+            providerSubject: principal.subject,
+            username: principal.username,
+            displayName: principal.displayName,
+            email: principal.email,
+          },
+          update: {},
         });
 
-        if (!user) {
-          user = await transaction.user.create({
+        if (
+          user.username !== principal.username &&
+          user.username.toLowerCase() !== principal.username.toLowerCase()
+        ) {
+          throw new IdentityOperationError(
+            409,
+            "identity_rename_requires_migration",
+            "A GitHub login rename requires an explicit tenant migration"
+          );
+        }
+        const changed =
+          user.username !== principal.username ||
+          user.displayName !== principal.displayName ||
+          user.email !== principal.email;
+        if (changed) {
+          if (user.username !== principal.username) {
+            await transaction.workspace.updateMany({
+              where: { tenant: user.username },
+              data: { tenant: principal.username },
+            });
+          }
+          user = await transaction.user.update({
+            where: { id: user.id },
             data: {
-              authProvider: "github",
-              providerSubject: principal.subject,
               username: principal.username,
               displayName: principal.displayName,
               email: principal.email,
             },
           });
-        } else {
-          if (
-            user.username !== principal.username &&
-            user.username.toLowerCase() !== principal.username.toLowerCase()
-          ) {
-            throw new IdentityOperationError(
-              409,
-              "identity_rename_requires_migration",
-              "A GitHub login rename requires an explicit tenant migration"
-            );
-          }
-          const changed =
-            user.username !== principal.username ||
-            user.displayName !== principal.displayName ||
-            user.email !== principal.email;
-          if (changed) {
-            if (user.username !== principal.username) {
-              await transaction.workspace.updateMany({
-                where: { tenant: user.username },
-                data: { tenant: principal.username },
-              });
-            }
-            user = await transaction.user.update({
-              where: { id: user.id },
-              data: {
-                username: principal.username,
-                displayName: principal.displayName,
-                email: principal.email,
-              },
-            });
-          }
         }
 
         if (user.status !== "ACTIVE") {
@@ -469,7 +471,10 @@ function createIdentityOperations(
         },
         include: { workspace: true, role: true },
       });
-      return { invite: publicInvite(invite), code };
+      return {
+        invite: publicInvite(invite, { includeEmail: true }),
+        code,
+      };
     });
   }
 
@@ -572,9 +577,23 @@ function createIdentityOperations(
   async function createApiKey(principalInput, workspaceIdInput, input = {}) {
     const session = await reconcilePrincipal(principalInput);
     const workspaceId = requiredText(workspaceIdInput, "workspace.id", 80);
-    const scopes = Array.isArray(input.scopes)
-      ? [...new Set(input.scopes.map((scope) => requiredText(scope, "apiKey.scope", 64)))]
-      : ["workspace.read", "content.read", "chat.write"];
+    if (input.scopes !== undefined && !Array.isArray(input.scopes)) {
+      throw new IdentityOperationError(
+        400,
+        "api_key_scope_invalid",
+        "One or more API key scopes are invalid"
+      );
+    }
+    const scopes =
+      input.scopes === undefined
+        ? ["workspace.read", "content.read", "chat.write"]
+        : [
+            ...new Set(
+              input.scopes.map((scope) =>
+                requiredText(scope, "apiKey.scope", 64)
+              )
+            ),
+          ];
     if (
       scopes.length === 0 ||
       scopes.some((scope) => !API_KEY_SCOPES.includes(scope))
@@ -668,35 +687,47 @@ function createIdentityOperations(
   }
 
   async function authenticateApiKey(rawKeyInput) {
-    const rawKey = requiredText(rawKeyInput, "apiKey", 256);
+    if (
+      typeof rawKeyInput !== "string" ||
+      !API_KEY_PATTERN.test(rawKeyInput)
+    ) {
+      throw new IdentityOperationError(401, "api_key_refused", "API key refused");
+    }
+    const rawKey = rawKeyInput;
     const now = nowDate(clock);
     return access.withTransaction(async (transaction) => {
       const record = await transaction.apiKey.findUnique({
         where: { keyHash: tokenHash(rawKey, pepper) },
         include: { user: true, workspace: true },
       });
-      const membership =
-        record?.workspaceId && record?.userId
-          ? await membershipFor(
-              transaction,
-              record.userId,
-              record.workspaceId
-            )
-          : null;
       if (
         !record ||
         record.revokedAt ||
         (record.expiresAt && record.expiresAt.getTime() <= now.getTime()) ||
-        record.user.status !== "ACTIVE" ||
-        !record.workspace ||
-        membership?.status !== "ACTIVE"
+        record.user?.status !== "ACTIVE" ||
+        !record.workspaceId ||
+        !record.workspace
       ) {
         throw new IdentityOperationError(401, "api_key_refused", "API key refused");
       }
-      await transaction.apiKey.update({
-        where: { id: record.id },
-        data: { lastUsedAt: now },
-      });
+      const membership = await membershipFor(
+        transaction,
+        record.userId,
+        record.workspaceId
+      );
+      if (membership?.status !== "ACTIVE") {
+        throw new IdentityOperationError(401, "api_key_refused", "API key refused");
+      }
+      if (
+        !(record.lastUsedAt instanceof Date) ||
+        now.getTime() - record.lastUsedAt.getTime() >=
+          API_KEY_LAST_USED_WRITE_INTERVAL_MS
+      ) {
+        await transaction.apiKey.update({
+          where: { id: record.id },
+          data: { lastUsedAt: now },
+        });
+      }
       return {
         userId: record.userId,
         workspaceId: record.workspace.id,
@@ -719,24 +750,38 @@ function createIdentityOperations(
       );
     }
     const [users, workspaces, invites] = await Promise.all([
-      access.user.findMany({ orderBy: { createdAt: "asc" } }),
-      access.workspace.findMany({ orderBy: { createdAt: "asc" } }),
+      access.user.findMany({
+        orderBy: { createdAt: "asc" },
+        take: ADMIN_OVERVIEW_LIMIT + 1,
+      }),
+      access.workspace.findMany({
+        orderBy: { createdAt: "asc" },
+        take: ADMIN_OVERVIEW_LIMIT + 1,
+      }),
       access.invite.findMany({
         where: { status: "PENDING" },
         include: { workspace: true, role: true },
         orderBy: { createdAt: "desc" },
+        take: ADMIN_OVERVIEW_LIMIT + 1,
       }),
     ]);
     return {
-      users: users.map(publicUser),
-      workspaces: workspaces.map((workspace) => ({
+      users: users.slice(0, ADMIN_OVERVIEW_LIMIT).map(publicUser),
+      workspaces: workspaces.slice(0, ADMIN_OVERVIEW_LIMIT).map((workspace) => ({
         id: workspace.id,
         tenant: workspace.tenant,
         slug: workspace.slug,
         scopeRef: workspace.scopeRef,
         name: workspace.name,
       })),
-      pendingInvites: invites.map(publicInvite),
+      pendingInvites: invites
+        .slice(0, ADMIN_OVERVIEW_LIMIT)
+        .map((invite) => publicInvite(invite, { includeEmail: true })),
+      truncated: {
+        users: users.length > ADMIN_OVERVIEW_LIMIT,
+        workspaces: workspaces.length > ADMIN_OVERVIEW_LIMIT,
+        pendingInvites: invites.length > ADMIN_OVERVIEW_LIMIT,
+      },
     };
   }
 
@@ -760,6 +805,7 @@ function createIdentityOperations(
 }
 
 module.exports = {
+  ADMIN_OVERVIEW_LIMIT,
   API_KEY_SCOPES,
   IdentityOperationError,
   createIdentityOperations,

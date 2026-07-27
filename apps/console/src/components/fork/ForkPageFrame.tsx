@@ -111,7 +111,10 @@ export function ForkNotice({
       ? 'border-ij-success text-ij-success'
       : 'border-ij-control-border text-ij-ink-info';
   return (
-    <p role="status" className={`rounded-ij-arc border bg-ij-raised p-3 ${className}`}>
+    <p
+      role={tone === 'error' ? 'alert' : 'status'}
+      className={`rounded-ij-arc border bg-ij-raised p-3 ${className}`}
+    >
       {children}
     </p>
   );

@@ -7,13 +7,9 @@ import path from "node:path";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const CONSOLE_ROOT = path.resolve(path.dirname(SCRIPT_PATH), "..");
-const OUTPUT_PATH = path.join(
-  CONSOLE_ROOT,
-  "docs",
-  "plans",
-  "fork",
-  "inventory.md"
-);
+const OUTPUT_PATH = process.env.FORK_INVENTORY_OUTPUT_PATH
+  ? path.resolve(process.env.FORK_INVENTORY_OUTPUT_PATH)
+  : path.join(CONSOLE_ROOT, "docs", "plans", "fork", "inventory.md");
 const INVENTORY_ROOTS = ["frontend/src", "server", "collector"];
 const ROOT_ORDER = new Map(
   INVENTORY_ROOTS.map((root, index) => [root, index])
@@ -417,7 +413,9 @@ function buildRecords(source, commit) {
     throw new Error("No tracked regular files found in inventory roots");
   }
 
-  assertKnownCutCoverage(records);
+  if (process.env.FORK_INVENTORY_SKIP_CUT_ASSERT !== "1") {
+    assertKnownCutCoverage(records);
+  }
   return records;
 }
 
@@ -553,9 +551,9 @@ Generation command:
 node apps/console/scripts/generate-fork-inventory.mjs --source <anything-llm-checkout>
 \`\`\`
 
-This inventory is classification only. No source file from AnythingLLM has been copied into the CommonPlace worktree. The generator reads tracked blobs from the named upstream commit and writes only this document.
+This inventory is classification only. This generator does not copy upstream application files into the CommonPlace worktree; it reads tracked blobs from the named upstream commit and writes only this inventory document.
 
-Scope is every tracked regular file in \`frontend/src\`, \`server\`, and \`collector\` at the commit above. Git tree entries are authoritative, so ignored dependencies and untracked build output are excluded. Lines are LF byte counts from Git blobs. Binary assets can therefore report zero lines.
+Scope is every tracked regular file in \`frontend/src\`, \`server\`, and \`collector\` at the commit above. Git tree entries are authoritative, so ignored dependencies and untracked build output are excluded. Lines are stored LF byte counts from Git blobs rather than editor line numbers. Binary assets can therefore report non-semantic counts.
 
 ## Counts
 
@@ -645,7 +643,7 @@ function main() {
   const relativeOutput = path.relative(process.cwd(), OUTPUT_PATH);
   const action = options.check ? "Verified" : "Wrote";
   console.log(
-    `${action} ${relativeOutput}: ${records.length} tracked regular files, ${new Set(records.map((record) => record.path)).size} unique verdicts.`
+    `${action} ${relativeOutput}: ${records.length} tracked regular files, ${new Set(records.map((record) => record.path)).size} unique paths.`
   );
 }
 

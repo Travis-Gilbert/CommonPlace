@@ -99,6 +99,45 @@ fn a3_item_by_source_ref_finds_and_reuses_in_place() {
         .is_none());
 }
 
+#[test]
+fn a3_source_ref_preserves_an_explicit_source_lane() {
+    let mut cp = fresh();
+    let pipeline = IngestPipeline::default();
+
+    let receipt = pipeline
+        .ingest(
+            &mut cp,
+            IngestInput::document("Collector capture", "parsed body")
+                .with_source("collector://parsed-pass")
+                .with_source_ref(SourceRef::new(
+                    "upload://workspace-42/research.txt",
+                    "workspace:workspace-42:sha256:document",
+                )),
+        )
+        .unwrap();
+
+    assert_eq!(
+        receipt.item.source.as_deref(),
+        Some("collector://parsed-pass")
+    );
+    assert_eq!(
+        receipt
+            .item
+            .source_ref
+            .as_ref()
+            .map(|source_ref| source_ref.source.as_str()),
+        Some("upload://workspace-42/research.txt")
+    );
+    assert_eq!(
+        receipt
+            .item
+            .source_ref
+            .as_ref()
+            .map(|source_ref| source_ref.external_id.as_str()),
+        Some("workspace:workspace-42:sha256:document")
+    );
+}
+
 // ---- A4: batch ingest is identical to one-at-a-time -------------------------
 
 /// A structural summary that ignores time/counter-based node ids: (item title ->

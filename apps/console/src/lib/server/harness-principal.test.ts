@@ -134,4 +134,21 @@ describe('active Harness workspace resolution', () => {
       expect.objectContaining({ maxAge: 0 }),
     );
   });
+
+  it('retains the workspace cookie when the membership contract is unavailable', async () => {
+    mocks.requestForkIdentity.mockResolvedValueOnce({
+      status: 200,
+      body: { malformed: true },
+    });
+
+    const resolution = await resolveHarnessPrincipal();
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(502);
+      await expect(resolution.response.json()).resolves.toMatchObject({
+        error: 'active_workspace_contract_mismatch',
+      });
+    }
+    expect(mocks.cookieSet).not.toHaveBeenCalled();
+  });
 });

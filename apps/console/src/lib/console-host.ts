@@ -86,7 +86,21 @@ export function isRetiredSeedViewObject(id: string): boolean {
 }
 
 export function retireSeedViewObjects(objects: readonly ObjectRef[]): ObjectRef[] {
-  return objects.filter((object) => !isRetiredSeedViewObject(object.id));
+  return objects
+    .filter((object) => !isRetiredSeedViewObject(object.id))
+    .map((object) => {
+      const children = object.relations?.[CONTAINS_EDGE];
+      if (!children?.some(isRetiredSeedViewObject)) return object;
+      return {
+        ...object,
+        relations: {
+          ...(object.relations ?? {}),
+          [CONTAINS_EDGE]: children.filter(
+            (childId) => !isRetiredSeedViewObject(childId),
+          ),
+        },
+      };
+    });
 }
 
 /** Transport health as the host observes it (R2.3 / D5): status plus the

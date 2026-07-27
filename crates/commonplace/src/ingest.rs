@@ -223,10 +223,13 @@ impl IngestInput {
         self
     }
 
-    /// Stamp the source record this capture came from (A3): sets `source` to the
-    /// ref's source and records the full ref for idempotent re-fetch.
+    /// Stamp the source record this capture came from (A3). When no explicit
+    /// `source` was set, reuse the ref's source; otherwise preserve the caller's
+    /// display/source lane and only record the stable ref for idempotent re-fetch.
     pub fn with_source_ref(mut self, source_ref: SourceRef) -> Self {
-        self.source = Some(source_ref.source.clone());
+        if self.source.is_none() {
+            self.source = Some(source_ref.source.clone());
+        }
         self.source_ref = Some(source_ref);
         self
     }
@@ -1778,7 +1781,10 @@ mod tests {
     fn ingest_echoes_natural_language_reminder() {
         use chrono::TimeZone;
 
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         // Wednesday 2026-07-01 10:00 local.
         let now = chrono::Local
             .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
@@ -1789,7 +1795,10 @@ mod tests {
             .with_reminder_now(now);
 
         let receipt = pipeline
-            .ingest(&mut cp, IngestInput::note("Call mom", "call mom friday 9am"))
+            .ingest(
+                &mut cp,
+                IngestInput::note("Call mom", "call mom friday 9am"),
+            )
             .expect("ingest note");
         let expected = crate::reminder::parse_reminder("Call mom\ncall mom friday 9am", now)
             .expect("phrase parses");
@@ -1813,7 +1822,10 @@ mod tests {
     fn explicit_remind_at_wins_over_parser() {
         use chrono::TimeZone;
 
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         let now = chrono::Local
             .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
             .single()
@@ -1833,7 +1845,10 @@ mod tests {
 
     #[test]
     fn plain_capture_has_no_reminder() {
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         let pipeline = IngestPipeline::default().without_content_core();
         let receipt = pipeline
             .ingest(&mut cp, IngestInput::note("Groceries", "milk eggs bread"))
@@ -1845,7 +1860,10 @@ mod tests {
     fn binary_caption_feeds_reminder_and_lands_in_extra() {
         use chrono::TimeZone;
 
-        let mut cp = Commonplace::new(InMemoryGraphStore::new(), crate::blob::InMemoryBlobStore::new());
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
         let now = chrono::Local
             .with_ymd_and_hms(2026, 7, 1, 10, 0, 0)
             .single()

@@ -77,6 +77,17 @@ test("Harness configuration refuses implicit endpoints, credentials, and tenants
   assert.equal(config.tokenActor, "commonplace");
 });
 
+test("explicit local Harness mode admits WHATWG IPv6 loopback", () => {
+  const config = resolveHarnessConfig({
+    COMMONPLACE_HARNESS_URL: "http://[::1]:8380",
+    COMMONPLACE_HARNESS_ALLOW_INSECURE_LOCAL: "1",
+    COMMONPLACE_HARNESS_ALLOW_UNAUTHENTICATED_LOCAL: "1",
+    COMMONPLACE_HARNESS_ALLOWED_TENANTS: "Travis-Gilbert",
+  });
+
+  assert.equal(config.endpoint, "http://[::1]:8380/mcp");
+});
+
 test("the model surface stays fixed at three affordances for a 108-tool tenant", async () => {
   const catalog = Array.from({ length: 108 }, (_, index) => ({
     affordance_id: `tool-${index + 1}`,
@@ -171,7 +182,8 @@ test("explicit unauthenticated local mode retains scope provenance", async () =>
   const result = await surface.execute(
     "invoke",
     { capabilityId: "local.echo", arguments: { text: "hello" } },
-    SCOPE
+    SCOPE,
+    { toolCallId: "test:local-echo" }
   );
 
   assert.equal(result.provenance.tenant, "Travis-Gilbert");
@@ -259,7 +271,8 @@ test("suppression is applied to catalog and describe, then rechecked before invo
         capabilityId: "github.create_issue",
         arguments: { title: "Refused after discovery" },
       },
-      SCOPE
+      SCOPE,
+      { toolCallId: "test:suppressed-invoke" }
     ),
     { code: "HARNESS_CAPABILITY_SUPPRESSED" }
   );
@@ -372,11 +385,123 @@ test("invoke refuses nested identity before describe or invoke", async () => {
           metadata: { workspaceId: "workspace-other" },
         },
       },
-      SCOPE
+      SCOPE,
+      { toolCallId: "test:nested-identity" }
     ),
     { code: "HARNESS_TOOL_IDENTITY_OVERRIDE" }
   );
   assert.equal(calls.length, 0);
+});
+
+test("runner retries reuse one idempotency key while identical tool calls remain distinct", async () => {
+  const idempotencyKeys = [];
+  let interruptFirstInvoke = true;
+  const surface = new HarnessToolSurface({
+    client: {
+      async callTool(request) {
+        if (request.name === "describe") {
+          return {
+            affordance_id: "github.create_issue",
+            server_id: "github",
+            tool_name: "create_issue",
+            input_schema: { type: "object" },
+          };
+        }
+        idempotencyKeys.push(request.arguments.idempotency_key);
+        if (interruptFirstInvoke) {
+          interruptFirstInvoke = false;
+          const error = new Error("retryable transport interruption");
+          error.details = {
+            retrySafe: true,
+            completionState: "not_started",
+          };
+          throw error;
+        }
+        return {
+          planned: {
+            affordance_id: "github.create_issue",
+            server_id: "github",
+            tool_name: "create_issue",
+          },
+          recorded: {
+            node_id: `gateway:invocation:${idempotencyKeys.length}`,
+          },
+          identity_receipt: {
+            tenant: "Travis-Gilbert",
+          },
+        };
+      },
+    },
+    policy: { async authorize() { return true; } },
+  });
+  const invokeArguments = {
+    capabilityId: "github.create_issue",
+    arguments: { title: "Same payload" },
+  };
+
+  const bridge = new HarnessAgentBridge({
+    contextSource: emptyContextSource(),
+    persistence: {
+      async beginTurn() {
+        return { id: "chat-attempt-identity" };
+      },
+      async recordToolInvocation() {},
+      async commitTurn() {},
+      async failTurn() {},
+    },
+    receiptVerifier: verifiedReceipt(),
+    runner: {
+      async runTurn({ callTool }) {
+        await assert.rejects(
+          callTool({
+            name: "invoke",
+            arguments: invokeArguments,
+          }),
+          { code: "HARNESS_TOOL_CALL_ID_INVALID" }
+        );
+        await assert.rejects(
+          callTool({
+            name: "invoke",
+            arguments: invokeArguments,
+            toolCallId: "provider-call-retry",
+          }),
+          /retryable transport interruption/
+        );
+        await callTool({
+          name: "invoke",
+          arguments: invokeArguments,
+          toolCallId: "provider-call-retry",
+        });
+        await callTool({
+          name: "invoke",
+          arguments: invokeArguments,
+          toolCallId: "provider-call-2",
+        });
+        await callTool({
+          name: "invoke",
+          arguments: invokeArguments,
+          toolCallId: "provider-call-3",
+        });
+        return {
+          text: "Attempts complete.",
+          metrics: {},
+          runReceipt: { run_id: "run:attempt-identity" },
+        };
+      },
+    },
+    toolSurface: surface,
+  });
+
+  await bridge.runTurn({
+    ...SCOPE,
+    prompt: "Exercise attempt identity",
+    attachments: [],
+  });
+
+  assert.equal(idempotencyKeys.length, 4);
+  assert.equal(idempotencyKeys[0], idempotencyKeys[1]);
+  assert.notEqual(idempotencyKeys[0], idempotencyKeys[2]);
+  assert.notEqual(idempotencyKeys[2], idempotencyKeys[3]);
 });
 
 test("a turn preserves scoped context, attachments, metrics, citations, and persistence", async () => {
@@ -486,6 +611,7 @@ test("a turn preserves scoped context, attachments, metrics, citations, and pers
       observed.runnerRequest = request;
       await request.callTool({
         name: "invoke",
+        toolCallId: "provider-call:bridge-proof",
         arguments: {
           capabilityId: "github.create_issue",
           arguments: { title: "Bridge proof" },
@@ -792,7 +918,11 @@ test("failed turns preserve completed tool receipts for audit", async () => {
     receiptVerifier: verifiedReceipt(),
     runner: {
       async runTurn({ callTool }) {
-        await callTool({ name: "invoke", arguments: {} });
+        await callTool({
+          name: "invoke",
+          arguments: {},
+          toolCallId: "provider-call:failed-turn",
+        });
         throw new Error("runner failed after tool completion");
       },
     },

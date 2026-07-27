@@ -8,8 +8,12 @@ import {
   IdentityWorkspaceSchema,
   InviteSchema,
 } from './contracts';
-import { workspaceSlugFromName } from '@/components/fork/OnboardingPage';
+import {
+  submitOnboardingWorkspace,
+  workspaceSlugFromName,
+} from '@/components/fork/OnboardingPage';
 import { safeCallback } from '@/components/fork/LoginPage';
+import { IdentityClientError } from './client';
 
 const workspace = {
   id: 'workspace-1',
@@ -55,20 +59,32 @@ describe('fork identity page contracts', () => {
     ).toBe(true);
   });
 
-  it('preserves inactive user status in the admin roster', () => {
-    expect(
-      AdminOverviewSchema.parse({
-        users: [{
+  it('preserves inactive user status and truncation in the admin roster', () => {
+    const overview = AdminOverviewSchema.parse({
+      users: [
+        {
           id: 'user-2',
           username: 'suspended-user',
           displayName: null,
           email: null,
           status: 'SUSPENDED',
-        }],
-        workspaces: [],
-        pendingInvites: [],
-      }).users[0]?.status,
-    ).toBe('SUSPENDED');
+        },
+      ],
+      workspaces: [],
+      pendingInvites: [],
+      truncated: {
+        users: true,
+        workspaces: false,
+        pendingInvites: false,
+      },
+    });
+
+    expect(overview.users[0]?.status).toBe('SUSPENDED');
+    expect(overview.truncated).toEqual({
+      users: true,
+      workspaces: false,
+      pendingInvites: false,
+    });
   });
 
   it('derives only an admitted lowercase workspace slug', () => {
@@ -82,7 +98,50 @@ describe('fork identity page contracts', () => {
     );
     expect(safeCallback('//attacker.example/path')).toBe('/chat');
     expect(safeCallback('/\\attacker.example/path')).toBe('/chat');
+    expect(safeCallback('/\n//attacker.example/path')).toBe('/chat');
+    expect(safeCallback('/\u0000//attacker.example/path')).toBe('/chat');
     expect(safeCallback('https://attacker.example/path')).toBe('/chat');
+  });
+
+  it('reuses the created workspace when active selection is retried', async () => {
+    let createCalls = 0;
+    let selectCalls = 0;
+    const actions = {
+      create: async () => {
+        createCalls += 1;
+        return workspace;
+      },
+      select: async () => {
+        selectCalls += 1;
+        if (selectCalls === 1) {
+          throw new IdentityClientError(
+            503,
+            'identity_proxy_unreachable',
+            'The identity service could not be reached',
+          );
+        }
+        return workspace;
+      },
+    };
+
+    const initial = await submitOnboardingWorkspace(
+      { name: workspace.name, slug: workspace.slug },
+      null,
+      actions,
+    );
+    const retry = await submitOnboardingWorkspace(
+      { name: 'Duplicate', slug: 'duplicate' },
+      initial.workspace,
+      actions,
+    );
+
+    expect(initial.workspace).toEqual(workspace);
+    expect(initial.selectionError).toContain(
+      'Workspace created, but it could not be selected',
+    );
+    expect(retry).toEqual({ workspace, selectionError: null });
+    expect(createCalls).toBe(1);
+    expect(selectCalls).toBe(2);
   });
 
   it('requires a scope-bound receipt for every successful document upload', () => {

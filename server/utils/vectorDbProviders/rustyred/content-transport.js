@@ -103,15 +103,13 @@ class CommonplaceGraphqlTransport extends ContentTransport {
     const data = await this.#request({
       query: `
         query ContentCount {
-          items {
-            id
-          }
+          itemCount
         }
       `,
       variables: {},
       scope,
     });
-    return data.items.length;
+    return requireFiniteNumber(data.itemCount, "itemCount");
   }
 
   async ingest(scope, document) {
@@ -141,7 +139,7 @@ class CommonplaceGraphqlTransport extends ContentTransport {
       },
       scope,
     });
-    return data.ingest;
+    return requireObject(data.ingest, "ingest");
   }
 
   async retrieve(scope, { input, topN }) {
@@ -175,7 +173,7 @@ class CommonplaceGraphqlTransport extends ContentTransport {
       variables: { question: input, k: topN },
       scope,
     });
-    return data.ask;
+    return requireObject(data.ask, "ask");
   }
 
   async #request({ query, variables, scope }) {
@@ -208,6 +206,11 @@ class CommonplaceGraphqlTransport extends ContentTransport {
       }
 
       const payload = await response.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new ContentTransportError("CommonPlace GraphQL returned a malformed payload.", {
+          code: "CONTENT_RESPONSE_INVALID",
+        });
+      }
       if (Array.isArray(payload.errors) && payload.errors.length > 0) {
         throw new ContentTransportError("CommonPlace GraphQL refused the request.", {
           code: "CONTENT_GRAPHQL_ERROR",
@@ -216,9 +219,9 @@ class CommonplaceGraphqlTransport extends ContentTransport {
           },
         });
       }
-      if (!payload.data) {
+      if (!payload.data || typeof payload.data !== "object" || Array.isArray(payload.data)) {
         throw new ContentTransportError("CommonPlace GraphQL returned no data.", {
-          code: "CONTENT_EMPTY_RESPONSE",
+          code: "CONTENT_RESPONSE_INVALID",
         });
       }
       return payload.data;
@@ -268,6 +271,32 @@ function assertScope(scope) {
       });
     }
   }
+}
+
+function requireFiniteNumber(value, field) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new ContentTransportError(
+      `CommonPlace GraphQL returned an invalid ${field} field.`,
+      {
+        code: "CONTENT_RESPONSE_INVALID",
+        details: { field },
+      }
+    );
+  }
+  return value;
+}
+
+function requireObject(value, field) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ContentTransportError(
+      `CommonPlace GraphQL returned an invalid ${field} field.`,
+      {
+        code: "CONTENT_RESPONSE_INVALID",
+        details: { field },
+      }
+    );
+  }
+  return value;
 }
 
 function createContentTransport({

@@ -36,14 +36,19 @@ function createIngestPipelineClient({
         typeof scope !== "object" ||
         typeof scope.scopeRef !== "string" ||
         scope.scopeRef.trim().length === 0 ||
+        typeof idempotencyKey !== "string" ||
+        idempotencyKey.trim().length === 0 ||
         !Array.isArray(inputs) ||
         !Array.isArray(documentBindings) ||
         inputs.length === 0 ||
         inputs.length !== documentBindings.length ||
         documentBindings.some(
-          (binding) =>
+          (binding, index) =>
             !binding ||
             typeof binding !== "object" ||
+            !Number.isSafeInteger(binding.index) ||
+            binding.index < 0 ||
+            binding.index !== index ||
             typeof binding.digest !== "string" ||
             binding.digest.trim().length === 0
         )
@@ -67,11 +72,18 @@ function createIngestPipelineClient({
       const receipts = [];
       for (const [index, input] of inputs.entries()) {
         const binding = documentBindings[index];
+        const documentIdempotencyKey = [
+          idempotencyKey,
+          "document",
+          binding.index,
+          binding.digest,
+        ].join(":");
         const item = await transport.ingest(scope, {
           ...input,
+          idempotencyKey,
           sourceRef: {
             source: input.source,
-            externalId: `${scope.scopeRef}:${binding.digest}`,
+            externalId: documentIdempotencyKey,
           },
         });
         receipts.push({

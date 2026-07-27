@@ -77,6 +77,7 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
                     "title": "Research",
                     "text": "first parsed body",
                     "kind": "doc",
+                    "source": "collector://first-pass",
                     "sourceRef": source_ref
                 }
             }
@@ -87,6 +88,7 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
         .as_str()
         .expect("first item id")
         .to_string();
+    assert_eq!(first["data"]["ingest"]["source"], "collector://first-pass");
 
     let second = graphql(
         &client,
@@ -98,6 +100,7 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
                     "title": "Research revised",
                     "text": "second parsed body",
                     "kind": "doc",
+                    "source": "collector://second-pass",
                     "sourceRef": source_ref
                 }
             }
@@ -106,6 +109,10 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
     .await;
     assert_eq!(second["data"]["ingest"]["id"], first_id);
     assert_eq!(second["data"]["ingest"]["bodyText"], "second parsed body");
+    assert_eq!(
+        second["data"]["ingest"]["source"],
+        "collector://second-pass"
+    );
 
     let listed = graphql(
         &client,

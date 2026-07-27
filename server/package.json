@@ -11,6 +11,7 @@
   "scripts": {
     "start": "node index.js",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate:deploy": "node scripts/prisma-migrate-deploy.js",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "test": "node --test __tests__/app.test.js __tests__/utils/agents/*.test.js __tests__/utils/collectorApi/*.test.js __tests__/utils/identity/*.test.js __tests__/utils/vectorDbProviders/*.test.js",
     "test:agents": "node --test __tests__/utils/agents/*.test.js",

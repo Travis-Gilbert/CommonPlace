@@ -64,11 +64,21 @@ class HarnessAgentBridge {
       turnId = turnIdentity(reservation);
 
       const context = await this.#loadContext(scope, prompt);
-      const callTool = async ({ name, arguments: argumentsValue = {} }) => {
+      const callTool = async ({
+        name,
+        arguments: argumentsValue = {},
+        toolCallId,
+      }) => {
+        const execution = logicalInvoke(name)
+          ? {
+              toolCallId: requireToolCallId(toolCallId),
+            }
+          : undefined;
         const result = await this.#toolSurface.execute(
           name,
           argumentsValue,
-          scope
+          scope,
+          execution
         );
         if (logicalInvoke(name)) {
           const invocation = {
@@ -509,6 +519,16 @@ function requireMethods(value, methods, label) {
 
 function logicalInvoke(name) {
   return name === "invoke" || name === "@@mcp_invoke";
+}
+
+function requireToolCallId(toolCallId) {
+  if (typeof toolCallId !== "string" || !toolCallId.trim()) {
+    throw harnessError(
+      "HARNESS_TOOL_CALL_ID_INVALID",
+      "Harness invoke requires the runner's stable logical tool-call ID."
+    );
+  }
+  return toolCallId.trim();
 }
 
 function dedupeCitations(citations) {

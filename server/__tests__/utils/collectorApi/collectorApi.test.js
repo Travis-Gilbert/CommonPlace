@@ -22,12 +22,40 @@ const {
   parseDocumentBytes,
   parseDocumentBytesInWorker,
 } = require("../../../../collector/parser");
+const { startCollector } = require("../../../../collector");
 
 const PEER_TOKEN = "collector-peer-token-for-focused-tests";
 const SCOPE = Object.freeze({
   tenant: "Travis-Gilbert",
   workspaceId: "workspace-42",
   scopeRef: "project:commonplace",
+});
+
+test("collector startup rejects asynchronous bind failures", async (t) => {
+  const blocker = http.createServer((_request, response) => response.end());
+  await new Promise((resolve, reject) => {
+    blocker.once("error", reject);
+    blocker.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(
+    () =>
+      new Promise((resolve, reject) => {
+        blocker.close((error) => (error ? reject(error) : resolve()));
+      })
+  );
+  const address = blocker.address();
+
+  await assert.rejects(
+    startCollector({
+      host: "127.0.0.1",
+      port: address.port,
+      peerToken: PEER_TOKEN,
+      async parseBytes() {
+        return { documents: [] };
+      },
+    }),
+    { code: "EADDRINUSE" }
+  );
 });
 
 test("collector refuses unauthenticated calls before parsing and never admits request scope", async (t) => {

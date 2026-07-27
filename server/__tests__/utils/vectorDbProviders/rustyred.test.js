@@ -3,7 +3,12 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { RustyRed, normalizeDocument } = require("../../../utils/vectorDbProviders/rustyred");
+const {
+  RustyRed,
+  MAX_TOP_N,
+  normalizeDocument,
+  normalizeTopN,
+} = require("../../../utils/vectorDbProviders/rustyred");
 const {
   CommonplaceGraphqlTransport,
   UnsupportedContentOperationError,
@@ -71,6 +76,25 @@ test("document ingest delegates to the content transport without embedding in Ja
       },
     },
   ]);
+});
+
+test("adapter construction does not eagerly require a content transport", async () => {
+  let transportCreations = 0;
+  const adapter = new RustyRed({
+    transportFactory: () => {
+      transportCreations += 1;
+      return {
+        async heartbeat() {
+          return { heartbeat: 42 };
+        },
+      };
+    },
+    scopeResolver: async () => SCOPE,
+  });
+
+  assert.equal(transportCreations, 0);
+  assert.deepEqual(await adapter.heartbeat(), { heartbeat: 42 });
+  assert.equal(transportCreations, 1);
 });
 
 test("retrieval returns passages, provenance sources, and the PPR measurement", async () => {
@@ -158,7 +182,7 @@ test("GraphQL transport forwards scope headers and never places the API key in t
       return {
         ok: true,
         async json() {
-          return { data: { items: [{ id: "item-1" }] } };
+          return { data: { itemCount: 1 } };
         },
       };
     },
@@ -176,6 +200,7 @@ test("GraphQL transport forwards scope headers and never places the API key in t
   );
   assert.equal(requests[0].init.headers["x-api-key"], "secret-api-key");
   assert.equal(requests[0].init.body.includes("secret-api-key"), false);
+  assert.match(requests[0].init.body, /itemCount/);
 });
 
 test("GraphQL ingest forwards the stable source reference to IngestPipeline", async () => {
@@ -228,6 +253,27 @@ test("GraphQL transport refuses scoped reads until the endpoint can enforce them
   });
 });
 
+test("GraphQL transport rejects malformed payload shapes", async () => {
+  const transport = new CommonplaceGraphqlTransport({
+    endpoint: "https://content.example.test/graphql",
+    apiKey: "secret-api-key",
+    unsafeAllowUnscopedScopeFallback: true,
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return { data: { ask: null } };
+      },
+    }),
+  });
+
+  await assert.rejects(
+    transport.retrieve(SCOPE, { input: "graph recall", topN: 2 }),
+    {
+      code: "CONTENT_RESPONSE_INVALID",
+    }
+  );
+});
+
 test("unsupported destructive operations refuse instead of reporting success", async () => {
   const transport = new CommonplaceGraphqlTransport({
     endpoint: "https://content.example.test/graphql",
@@ -249,6 +295,54 @@ test("unsupported destructive operations refuse instead of reporting success", a
   });
 });
 
+test("adapter refuses destructive namespace and reset operations", async () => {
+  const adapter = new RustyRed({
+    transport: {
+      async deleteNamespace() {
+        throw new Error("deleteNamespace should not run");
+      },
+      async reset() {
+        throw new Error("reset should not run");
+      },
+    },
+    scopeResolver: async () => SCOPE,
+  });
+
+  await assert.rejects(adapter.deleteVectorsInNamespace({}, "research"), {
+    code: "CONTENT_OPERATION_REFUSED",
+  });
+  await assert.rejects(adapter["delete-namespace"]({ namespace: "research" }), {
+    code: "CONTENT_OPERATION_REFUSED",
+  });
+  await assert.rejects(adapter.reset(), {
+    code: "CONTENT_OPERATION_REFUSED",
+  });
+});
+
+test("namespace existence is scope-admission truth, not document-count truth", async () => {
+  let countCalls = 0;
+  const adapter = new RustyRed({
+    transport: {
+      async count() {
+        countCalls += 1;
+        return 0;
+      },
+    },
+    scopeResolver: async () => SCOPE,
+  });
+
+  assert.equal(await adapter.hasNamespace("research"), true);
+  assert.equal(countCalls, 0);
+});
+
+test("topN normalization floors finite values and clamps invalid inputs", () => {
+  assert.equal(normalizeTopN(4.8), 4);
+  assert.equal(normalizeTopN("3"), 3);
+  assert.equal(normalizeTopN(0), 1);
+  assert.equal(normalizeTopN("not-a-number"), 1);
+  assert.equal(normalizeTopN(MAX_TOP_N + 17), MAX_TOP_N);
+});
+
 test("document normalization refuses to invent user content", () => {
   assert.deepEqual(normalizeDocument({}, null), {
     title: "Untitled document",
@@ -257,4 +351,32 @@ test("document normalization refuses to invent user content", () => {
     tags: [],
     source: null,
   });
+});
+
+test("document normalization preserves stable source identity and falls back from dead titles", () => {
+  assert.deepEqual(
+    normalizeDocument(
+      {
+        pageContent: "Collector body",
+        title: "   ",
+        docId: "doc-9",
+        source_ref: {
+          source: "upload://workspace-42/doc-9.md",
+          external_id: "workspace:workspace-42:sha256:doc-9",
+        },
+      },
+      null
+    ),
+    {
+      title: "doc-9",
+      text: "Collector body",
+      kind: "doc",
+      tags: ["anythingllm-doc:doc-9"],
+      source: "upload://workspace-42/doc-9.md",
+      sourceRef: {
+        source: "upload://workspace-42/doc-9.md",
+        externalId: "workspace:workspace-42:sha256:doc-9",
+      },
+    }
+  );
 });

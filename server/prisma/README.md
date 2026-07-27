@@ -47,6 +47,9 @@ The pinned service uses Prisma 5.3.1, so this schema keeps the Prisma 5
 - `IDENTITY_DIRECT_DATABASE_URL` connects directly to the same PostgreSQL
   database and bypasses PgBouncer. It is for Prisma validation, diff, and
   migration commands only.
+- Production migration jobs use `npm run prisma:migrate:deploy` from the
+  `server` directory. The wrapper validates the pooled and direct boundaries
+  before the pinned Prisma CLI reads this schema's `directUrl`.
 - The static preflight rejects a direct URL that resolves textually to the same
   host, port, and database path as the runtime URL. DNS aliases and deployed
   routing still require a live audit.

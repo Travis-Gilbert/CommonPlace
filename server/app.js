@@ -10,12 +10,19 @@ const express = require("express");
 const { IdentityOperationError } = require("./utils/identity/operations");
 
 const DOCUMENT_UPLOAD_LIMIT = "50mb";
+const SERVICE_SECRET_PLACEHOLDER_PATTERNS = Object.freeze([
+  /^(?:example|test)$/i,
+  /^change[-_ ]me(?:[-_ ].*)?$/i,
+  /^replace[-_ ]with(?:[-_ ].*)?$/i,
+  /^same[-_ ]service[-_ ]secret(?:[-_ ].*)?$/i,
+  /^set[-_ ]a[-_ ]random[-_ ]secret(?:[-_ ].*)?$/i,
+]);
 
 function validServiceSecret(value, name) {
   if (
     typeof value !== "string" ||
     value.length < 32 ||
-    /^(?:change-me|example|test)$/i.test(value)
+    SERVICE_SECRET_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(value))
   ) {
     throw new Error(`${name} must be a non-placeholder value of at least 32 characters`);
   }

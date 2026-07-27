@@ -22,6 +22,12 @@ Migration tooling uses `IDENTITY_DIRECT_DATABASE_URL` and must bypass
 PgBouncer. Read [prisma/README.md](prisma/README.md) before generating or
 applying a migration.
 
+The controlled production entrypoint is `npm run prisma:migrate:deploy`. It
+checks both identity URLs before spawning the pinned Prisma CLI. The wrapper
+does not replace `IDENTITY_DATABASE_URL`: Prisma 5.3.1 reads the direct
+migration connection from the schema's `directUrl`, while runtime
+`PrismaClient` continues to use the pooled URL.
+
 ## Document path
 
 ```text
@@ -53,3 +59,6 @@ npm run prisma:validate
 npm test
 npm start
 ```
+
+Run `npm run prisma:migrate:deploy` only from the controlled migration job
+after the audit and rollback gates in [prisma/README.md](prisma/README.md).

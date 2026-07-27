@@ -2,12 +2,18 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ObjectRef } from '@commonplace/block-view/types';
+import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { normalizeConsolePagePath } from './chat/last-console-view';
 import { retireSeedViewObjects } from './console-host';
 import { pathForSurfaceId, surfaceIdForPath } from './surface-routes';
 
-function object(id: string): ObjectRef {
-  return { id, type: 'surface', properties: {} };
+function object(id: string, children?: readonly string[]): ObjectRef {
+  return {
+    id,
+    type: 'surface',
+    properties: {},
+    ...(children ? { relations: { [CONTAINS_EDGE]: children } } : {}),
+  };
 }
 
 describe('page-owned routing', () => {
@@ -23,6 +29,13 @@ describe('page-owned routing', () => {
     expect(normalizeConsolePagePath('/v/person-created')).toBe('/workspace');
   });
 
+  it('rejects protocol-relative, backslash, and control-character paths', () => {
+    expect(normalizeConsolePagePath('//attacker.example/path')).toBe('/workspace');
+    expect(normalizeConsolePagePath('/\\attacker.example/path')).toBe('/workspace');
+    expect(normalizeConsolePagePath('/workspace\\settings')).toBe('/workspace');
+    expect(normalizeConsolePagePath('/\n//attacker.example/path')).toBe('/workspace');
+  });
+
   it('removes only the retired seeded view trees from persisted layouts', () => {
     expect(
       retireSeedViewObjects([
@@ -32,5 +45,19 @@ describe('page-owned routing', () => {
         object('console-chat'),
       ]).map((entry) => entry.id),
     ).toEqual(['view-person-created', 'console-chat']);
+  });
+
+  it('prunes retired view references from surviving contains edges', () => {
+    const [survivor] = retireSeedViewObjects([
+      object('console-workspace', [
+        'view-chat',
+        'view-person-created',
+        'view-data-model.well',
+      ]),
+    ]);
+
+    expect(survivor?.relations?.[CONTAINS_EDGE]).toEqual([
+      'view-person-created',
+    ]);
   });
 });

@@ -7,8 +7,12 @@ import { LoginPage } from '@/components/fork/LoginPage';
 export default async function LoginRoute({
   searchParams,
 }: {
-  readonly searchParams: Promise<{ callbackUrl?: string }>;
+  readonly searchParams: Promise<{ callbackUrl?: string | string[] }>;
 }) {
   const { callbackUrl } = await searchParams;
-  return <LoginPage callbackUrl={callbackUrl} />;
+  return (
+    <LoginPage
+      callbackUrl={typeof callbackUrl === 'string' ? callbackUrl : '/chat'}
+    />
+  );
 }

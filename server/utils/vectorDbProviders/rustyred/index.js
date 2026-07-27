@@ -1,19 +1,27 @@
 "use strict";
 
 const { VectorDatabase } = require("../base");
-const { createContentTransport } = require("./content-transport");
+const {
+  ContentTransportError,
+  createContentTransport,
+} = require("./content-transport");
 const { createEnvironmentScopeResolver } = require("./scope-resolver");
+
+const MAX_TOP_N = 200;
 
 class RustyRed extends VectorDatabase {
   #resolveScope;
   #transport;
+  #transportFactory;
 
   constructor({
-    transport = createContentTransport(),
+    transport = null,
+    transportFactory = createContentTransport,
     scopeResolver = createEnvironmentScopeResolver(),
   } = {}) {
     super();
     this.#transport = transport;
+    this.#transportFactory = transportFactory;
     this.#resolveScope = scopeResolver;
   }
 
@@ -22,11 +30,11 @@ class RustyRed extends VectorDatabase {
   }
 
   async connect() {
-    return { client: this.#transport };
+    return { client: await this.#getTransport() };
   }
 
   async heartbeat() {
-    return this.#transport.heartbeat();
+    return (await this.#getTransport()).heartbeat();
   }
 
   async totalVectors() {
@@ -37,22 +45,23 @@ class RustyRed extends VectorDatabase {
 
   async namespaceCount(namespace = null) {
     const scope = await this.#resolveScope(namespace);
-    return this.#transport.count(scope);
+    return (await this.#getTransport()).count(scope);
   }
 
   async namespace(client, namespace = null) {
     const scope = await this.#resolveScope(namespace);
+    const transport = client ?? (await this.#getTransport());
     return {
       namespace,
       scopeRef: scope.scopeRef,
-      count: await client.count(scope),
+      count: await transport.count(scope),
     };
   }
 
   async hasNamespace(namespace = null) {
     try {
-      const scope = await this.#resolveScope(namespace);
-      return (await this.#transport.count(scope)) > 0;
+      await this.#resolveScope(namespace);
+      return true;
     } catch (error) {
       if (
         error?.code === "CONTENT_SCOPE_NOT_ADMITTED" ||
@@ -69,9 +78,12 @@ class RustyRed extends VectorDatabase {
   }
 
   async deleteVectorsInNamespace(client, namespace = null) {
-    const scope = await this.#resolveScope(namespace);
-    await client.deleteNamespace(scope);
-    return true;
+    void client;
+    void namespace;
+    throw refusedDestructiveOperation(
+      "deleteVectorsInNamespace",
+      "RustyRed namespace deletion is refused; workspace content must be removed by explicit item operations."
+    );
   }
 
   async addDocumentToNamespace(
@@ -87,7 +99,7 @@ class RustyRed extends VectorDatabase {
         return { vectorized: false, error: "Document text is required." };
       }
 
-      const item = await this.#transport.ingest(scope, document);
+      const item = await (await this.#getTransport()).ingest(scope, document);
       return {
         vectorized: true,
         error: null,
@@ -102,7 +114,7 @@ class RustyRed extends VectorDatabase {
 
   async deleteDocumentFromNamespace(namespace, docId) {
     const scope = await this.#resolveScope(namespace);
-    await this.#transport.deleteDocument(scope, docId);
+    await (await this.#getTransport()).deleteDocument(scope, docId);
     return true;
   }
 
@@ -117,9 +129,9 @@ class RustyRed extends VectorDatabase {
     }
 
     const scope = await this.#resolveScope(namespace);
-    const result = await this.#transport.retrieve(scope, {
+    const result = await (await this.#getTransport()).retrieve(scope, {
       input,
-      topN: Math.max(1, topN),
+      topN: normalizeTopN(topN),
     });
     const excluded = new Set(filterIdentifiers);
     const rawProvenance = result.provenance ?? [];
@@ -170,19 +182,31 @@ class RustyRed extends VectorDatabase {
   }
 
   async "delete-namespace"({ namespace = null } = {}) {
-    const { client } = await this.connect();
-    await this.deleteVectorsInNamespace(client, namespace);
-    return { message: `Namespace ${namespace} was deleted.` };
+    void namespace;
+    throw refusedDestructiveOperation(
+      "delete-namespace",
+      "RustyRed namespace deletion is refused; use explicit content deletion instead."
+    );
   }
 
   async reset() {
-    return this.#transport.reset();
+    throw refusedDestructiveOperation(
+      "reset",
+      "RustyRed reset is refused; global content wipes are outside the adapter contract."
+    );
   }
 
   curateSources(sources = []) {
     return sources
       .filter((source) => source && typeof source === "object")
       .map((source) => ({ ...source }));
+  }
+
+  async #getTransport() {
+    if (!this.#transport) {
+      this.#transport = this.#transportFactory();
+    }
+    return this.#transport;
   }
 }
 
@@ -207,28 +231,98 @@ function measureVisibleExpansion(provenance) {
 }
 
 function normalizeDocument(documentData, fullFilePath) {
-  const { pageContent, docId, title, tags, source, ...metadata } = documentData;
-  const resolvedTitle =
-    title ?? metadata?.metadata?.title ?? metadata.title ?? docId ?? "Untitled document";
-  const resolvedSource =
-    source ??
-    metadata?.metadata?.source ??
-    metadata?.metadata?.url ??
-    metadata.url ??
-    fullFilePath ??
-    (docId ? `anythingllm-doc:${docId}` : null);
+  const { pageContent, docId, title, tags, source, sourceRef, source_ref, ...metadata } = documentData;
+  const normalizedSourceRef = normalizeSourceRef(
+    sourceRef ??
+      source_ref ??
+      metadata?.metadata?.sourceRef ??
+      metadata?.metadata?.source_ref ??
+      metadata.sourceRef ??
+      metadata.source_ref
+  );
+  const resolvedTitle = pickFirstNonEmptyString(
+    title,
+    metadata?.metadata?.title,
+    metadata.title,
+    docId,
+    normalizedSourceRef?.externalId,
+    "Untitled document"
+  );
+  const resolvedSource = pickFirstNonEmptyString(
+    source,
+    metadata?.metadata?.source,
+    metadata?.metadata?.url,
+    metadata.source,
+    metadata.url,
+    fullFilePath,
+    normalizedSourceRef?.source,
+    docId ? `anythingllm-doc:${docId}` : null
+  );
   const normalizedTags = Array.isArray(tags) ? [...tags] : [];
   if (docId) {
     normalizedTags.push(`anythingllm-doc:${docId}`);
   }
 
-  return {
+  const normalized = {
     title: resolvedTitle,
     text: typeof pageContent === "string" ? pageContent.trim() : "",
     kind: "doc",
     tags: [...new Set(normalizedTags)],
     source: resolvedSource,
   };
+  if (normalizedSourceRef) {
+    normalized.sourceRef = normalizedSourceRef;
+  }
+  return normalized;
 }
 
-module.exports = { RustyRed, measureVisibleExpansion, normalizeDocument };
+function normalizeTopN(topN) {
+  const normalized = Number(topN);
+  if (!Number.isFinite(normalized) || normalized < 1) {
+    return 1;
+  }
+  return Math.min(MAX_TOP_N, Math.floor(normalized));
+}
+
+function pickFirstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return null;
+}
+
+function normalizeSourceRef(sourceRef) {
+  if (!sourceRef || typeof sourceRef !== "object") {
+    return null;
+  }
+  const source = pickFirstNonEmptyString(sourceRef.source);
+  const externalId = pickFirstNonEmptyString(
+    sourceRef.externalId,
+    sourceRef.external_id
+  );
+  if (!source || !externalId) {
+    return null;
+  }
+  return { source, externalId };
+}
+
+function refusedDestructiveOperation(operation, message) {
+  return new ContentTransportError(message, {
+    code: "CONTENT_OPERATION_REFUSED",
+    details: { operation },
+  });
+}
+
+module.exports = {
+  RustyRed,
+  measureVisibleExpansion,
+  normalizeDocument,
+  normalizeSourceRef,
+  normalizeTopN,
+  MAX_TOP_N,
+};

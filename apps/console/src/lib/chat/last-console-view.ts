@@ -10,8 +10,16 @@ const RETIRED_VIEW_PATHS: Readonly<Record<string, string>> = {
   '/v/data-model': '/models',
 };
 
+const UNSAFE_CONSOLE_PATH_CHARACTER = /[\u0000-\u001F\u007F\\]/;
+
 export function normalizeConsolePagePath(path: string | null): string {
-  if (!path?.startsWith('/')) return '/workspace';
+  if (
+    !path?.startsWith('/')
+    || path.startsWith('//')
+    || UNSAFE_CONSOLE_PATH_CHARACTER.test(path)
+  ) {
+    return '/workspace';
+  }
   if (path.startsWith('/v/')) return RETIRED_VIEW_PATHS[path] ?? '/workspace';
   return path;
 }

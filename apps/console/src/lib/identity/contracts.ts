@@ -74,6 +74,12 @@ export const ApiKeyMetaSchema = z.object({
   lastUsedAt: z.string().datetime().nullable().optional(),
 });
 
+export const AdminOverviewTruncationSchema = z.object({
+  users: z.boolean(),
+  workspaces: z.boolean(),
+  pendingInvites: z.boolean(),
+});
+
 export const AdminOverviewSchema = z.object({
   users: z.array(IdentityUserSchema),
   workspaces: z.array(
@@ -86,6 +92,7 @@ export const AdminOverviewSchema = z.object({
     }),
   ),
   pendingInvites: z.array(InviteSchema),
+  truncated: AdminOverviewTruncationSchema,
 });
 
 export const DocumentIngestReceiptSchema = z.object({

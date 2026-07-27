@@ -86,7 +86,6 @@ export async function POST(request: Request) {
 
 export async function DELETE() {
   try {
-    await resolveForkIdentityPrincipal();
     (await cookies()).set(ACTIVE_WORKSPACE_COOKIE, '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

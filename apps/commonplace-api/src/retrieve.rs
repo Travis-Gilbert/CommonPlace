@@ -19,14 +19,14 @@
 //! uses core personalized PageRank today and reports how many candidates it
 //! adds beyond the flat vector-plus-lexical candidate set.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
 use commonplace::{
     BlobStore, Commonplace, EmbeddingGraphStore, IngestPipeline, Item, ItemBody, SIMILAR_TO_EDGE,
 };
-use rustyred_thg_core::{personalized_pagerank, GraphStoreResult};
+use rustyred_thg_core::{personalized_pagerank, GraphStoreResult, NeighborQuery};
 use serde_json::{json, Value};
 
 const DEFAULT_LOCAL_OPENAI_CHAT_URL: &str = "http://127.0.0.1:8080/v1/chat/completions";
@@ -292,10 +292,14 @@ where
     let lexical = lexical_rank(question, &items, config.pool);
 
     // Arm 3: graph propagation over SIMILAR_TO from the strongest seeds.
-    let mut seeds: Vec<String> = Vec::new();
-    seeds.extend(vector.iter().take(config.graph_seeds).cloned());
-    seeds.extend(lexical.iter().take(config.graph_seeds).cloned());
-    let graph = graph_rank(cp, &seeds, config.pool);
+    let vector_seeds: Vec<String> = vector.iter().take(config.graph_seeds).cloned().collect();
+    let lexical_seeds: Vec<String> = lexical.iter().take(config.graph_seeds).cloned().collect();
+    let seeds: Vec<String> = vector_seeds
+        .iter()
+        .chain(lexical_seeds.iter())
+        .cloned()
+        .collect();
+    let graph = graph_rank(cp, &[&vector_seeds, &lexical_seeds], config.pool);
     let flat_candidates: Vec<&str> = vector
         .iter()
         .chain(lexical.iter())
@@ -434,50 +438,20 @@ fn lexical_rank(question: &str, items: &[Item], pool: usize) -> Vec<String> {
     scored.into_iter().map(|(id, _)| id).collect()
 }
 
-fn graph_rank<S, B>(cp: &Commonplace<S, B>, seeds: &[String], pool: usize) -> Vec<String>
+fn graph_rank<S, B>(cp: &Commonplace<S, B>, seed_arms: &[&[String]], pool: usize) -> Vec<String>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    if seeds.is_empty() || pool == 0 {
+    if seed_arms.iter().all(|arm| arm.is_empty()) || pool == 0 {
         return Vec::new();
     }
 
-    let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
-    for edge in cp
-        .store()
-        .live_edge_records()
-        .into_iter()
-        .filter(|edge| edge.edge_type == SIMILAR_TO_EDGE)
-    {
-        let weight = edge
-            .confidence
-            .or_else(|| edge.properties.get("score").and_then(Value::as_f64))
-            .unwrap_or(1.0);
-        if !weight.is_finite() || weight <= 0.0 {
-            continue;
-        }
-        adjacency
-            .entry(edge.from_id.clone())
-            .or_default()
-            .push((edge.to_id.clone(), weight));
-        adjacency
-            .entry(edge.to_id)
-            .or_default()
-            .push((edge.from_id, weight));
-    }
-
-    let mut seed_weights: HashMap<String, f64> = HashMap::new();
-    for (rank, seed) in seeds.iter().enumerate() {
-        *seed_weights.entry(seed.clone()).or_insert(0.0) += 1.0 / (rank as f64 + 1.0);
-    }
-    let total_seed_weight: f64 = seed_weights.values().sum();
-    if total_seed_weight <= 0.0 {
+    let seed_weights = normalized_seed_weights(seed_arms);
+    if seed_weights.is_empty() {
         return Vec::new();
     }
-    for weight in seed_weights.values_mut() {
-        *weight /= total_seed_weight;
-    }
+    let adjacency = seed_reachable_similarity_adjacency(cp, seed_weights.keys());
 
     let seed_ids: HashSet<&str> = seed_weights.keys().map(String::as_str).collect();
     let mut ranked: Vec<(String, f64)> =
@@ -492,6 +466,77 @@ where
     });
     ranked.truncate(pool);
     ranked.into_iter().map(|(id, _)| id).collect()
+}
+
+fn seed_reachable_similarity_adjacency<'a, S, B>(
+    cp: &Commonplace<S, B>,
+    seeds: impl Iterator<Item = &'a String>,
+) -> HashMap<String, Vec<(String, f64)>>
+where
+    S: EmbeddingGraphStore,
+    B: BlobStore,
+{
+    let mut pending: VecDeque<String> = seeds.cloned().collect();
+    let mut visited_nodes = HashSet::new();
+    let mut visited_edges = HashSet::new();
+    let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+
+    while let Some(node_id) = pending.pop_front() {
+        if !visited_nodes.insert(node_id.clone()) {
+            continue;
+        }
+
+        for query in [
+            NeighborQuery::out(&node_id).with_edge_type(SIMILAR_TO_EDGE),
+            NeighborQuery::in_(&node_id).with_edge_type(SIMILAR_TO_EDGE),
+        ] {
+            for hit in cp.store().neighbors(query) {
+                if !visited_edges.insert(hit.edge_id.clone()) {
+                    continue;
+                }
+                let Some(edge) = cp.store().get_edge(&hit.edge_id) else {
+                    continue;
+                };
+                let weight = edge
+                    .confidence
+                    .or_else(|| edge.properties.get("score").and_then(Value::as_f64))
+                    .unwrap_or(1.0);
+                if !weight.is_finite() || weight <= 0.0 {
+                    continue;
+                }
+
+                adjacency
+                    .entry(edge.from_id.clone())
+                    .or_default()
+                    .push((edge.to_id.clone(), weight));
+                adjacency
+                    .entry(edge.to_id.clone())
+                    .or_default()
+                    .push((edge.from_id.clone(), weight));
+                pending.push_back(edge.from_id.clone());
+                pending.push_back(edge.to_id.clone());
+            }
+        }
+    }
+
+    adjacency
+}
+
+fn normalized_seed_weights(seed_arms: &[&[String]]) -> HashMap<String, f64> {
+    let mut seed_weights: HashMap<String, f64> = HashMap::new();
+    for arm in seed_arms {
+        for (rank, seed) in arm.iter().enumerate() {
+            *seed_weights.entry(seed.clone()).or_insert(0.0) += 1.0 / (rank as f64 + 1.0);
+        }
+    }
+    let total_seed_weight: f64 = seed_weights.values().sum();
+    if total_seed_weight <= 0.0 {
+        return HashMap::new();
+    }
+    for weight in seed_weights.values_mut() {
+        *weight /= total_seed_weight;
+    }
+    seed_weights
 }
 
 fn measure_ppr_expansion(
@@ -664,7 +709,7 @@ fn env_f32(name: &str, default: f32) -> f32 {
 mod tests {
     use super::*;
     use commonplace::InMemoryBlobStore;
-    use rustyred_thg_core::InMemoryGraphStore;
+    use rustyred_thg_core::{InMemoryGraphStore, NodeRecord};
     use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
     use std::thread;
@@ -784,7 +829,7 @@ mod tests {
         cp.add_similarity(&bridge.id, &hidden.id, 0.9).unwrap();
 
         let seeds = vec![seed.id.clone()];
-        let ppr_candidates = graph_rank(&cp, &seeds, 10);
+        let ppr_candidates = graph_rank(&cp, &[&seeds], 10);
         let flat_top_n = vec![seed.id.as_str(), bridge.id.as_str()];
         let measurement = measure_ppr_expansion(&seeds, &flat_top_n, &ppr_candidates);
 
@@ -798,5 +843,41 @@ mod tests {
         assert_eq!(measurement.flat_candidate_count, 2);
         assert_eq!(measurement.ppr_candidate_count, 2);
         assert_eq!(measurement.ppr_only_candidate_count, 1);
+    }
+
+    #[test]
+    fn graph_seed_weights_merge_per_arm_before_duplicate_collapse() {
+        let vector = vec!["seed:a".to_string(), "seed:b".to_string()];
+        let lexical = vec!["seed:a".to_string(), "seed:c".to_string()];
+        let weights = normalized_seed_weights(&[&vector, &lexical]);
+
+        assert!(
+            (weights["seed:b"] - weights["seed:c"]).abs() < 1e-9,
+            "rank-two seeds from separate arms should contribute equally after duplicate collapse"
+        );
+        assert!(weights["seed:a"] > weights["seed:b"]);
+    }
+
+    #[test]
+    fn graph_projection_excludes_similarity_components_unreachable_from_seeds() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        for id in ["seed", "reachable", "unrelated:a", "unrelated:b"] {
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(id, ["Item"], json!({})))
+                .expect("node");
+        }
+        cp.add_similarity("seed", "reachable", 0.9)
+            .expect("reachable edge");
+        cp.add_similarity("unrelated:a", "unrelated:b", 0.8)
+            .expect("unrelated edge");
+
+        let seeds = ["seed".to_string()];
+        let adjacency = seed_reachable_similarity_adjacency(&cp, seeds.iter());
+
+        assert_eq!(adjacency.len(), 2);
+        assert!(adjacency.contains_key("seed"));
+        assert!(adjacency.contains_key("reachable"));
+        assert!(!adjacency.contains_key("unrelated:a"));
+        assert!(!adjacency.contains_key("unrelated:b"));
     }
 }

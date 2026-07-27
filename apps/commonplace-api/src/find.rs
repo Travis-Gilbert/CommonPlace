@@ -33,11 +33,11 @@
 //! Repeated queries between writes cost one integer compare. A write costs a
 //! re-index of what the write touched, not of the corpus.
 //!
-//! The residual O(corpus) cost after a write is the bounded node scan, live-edge
-//! clone, and version scan: pointer walks and integer compares, not text processing. That
-//! floor is `GraphStore`'s, not this module's, because there is no changefeed
-//! and no version-filtered node query to ask instead. Closing it means emitting
-//! changes from the store.
+//! The residual O(corpus) cost after a write is the live node scan, live-edge
+//! clone, and version scan: pointer walks and integer compares, not text
+//! processing. That floor is `GraphStore`'s, not this module's, because there
+//! is no changefeed and no version-filtered node query to ask instead. Closing
+//! it means emitting changes from the store.
 //!
 //! Persisting a flat text property at write time remains a separate improvement
 //! and belongs in `crates/commonplace`: it would remove the projection's need to
@@ -50,9 +50,7 @@ use std::sync::Mutex;
 use commonplace::{BlobStore, Commonplace, EmbeddingGraphStore, Item, ITEM_LABEL};
 use rustyred_thg_core::fulltext::FullTextDesignation;
 use rustyred_thg_core::index::TrigramIndex;
-use rustyred_thg_core::{
-    EdgeRecord, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord,
-};
+use rustyred_thg_core::{EdgeRecord, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord};
 use rustyred_thg_find::lanes::node_text;
 use rustyred_thg_find::{
     find as run_find, FindContext, FindRequest, FindResponse, LexicalLane, DEFAULT_TEXT_PROPERTY,
@@ -63,8 +61,9 @@ use serde_json::json;
 /// [`FindRequest`], which is the caller's contract.
 #[derive(Clone, Debug)]
 pub struct FindConfig {
-    /// Cap on nodes pulled into the projection, so one enormous store cannot
-    /// turn a single query into an unbounded copy.
+    /// Hard cap on live nodes pulled into the projection. With a fixed cap,
+    /// refresh maintains a stable id-ordered admitted prefix rather than
+    /// cloning the entire store.
     pub node_limit: usize,
 }
 
@@ -90,6 +89,8 @@ pub struct FindIndex {
     /// Graph version this projection was last brought up to date with.
     /// `None` means nothing has been indexed yet.
     graph_version: Option<u64>,
+    /// The admitted live-node prefix this projection was built against.
+    projection_limit: Option<usize>,
 }
 
 /// What one [`FindIndex::refresh`] actually did. Returned so the cost is
@@ -131,6 +132,7 @@ impl FindIndex {
             }),
             indexed: HashMap::new(),
             graph_version: None,
+            projection_limit: None,
         }
     }
 
@@ -158,9 +160,9 @@ impl FindIndex {
     ///    Tokenizing text is the expensive part and it is now proportional to the
     ///    write, not to the corpus.
     ///
-    /// The residual O(corpus) work after a write is the bounded node scan,
-    /// live-edge clone, and version scan, all pointer walks and integer compares. That
-    /// floor exists because `GraphStore` has no changefeed and no
+    /// The residual O(corpus) work after a write is the live node scan,
+    /// live-edge clone, and version scan, all pointer walks and integer
+    /// compares. That floor exists because `GraphStore` has no changefeed and no
     /// version-filtered query; closing it means emitting changes from the store,
     /// not doing anything smarter here.
     ///
@@ -186,6 +188,11 @@ impl FindIndex {
         S: EmbeddingGraphStore,
         B: BlobStore,
     {
+        if self.projection_limit != Some(config.node_limit) {
+            self.reset_projection();
+            self.projection_limit = Some(config.node_limit);
+        }
+
         let graph_version = cp.store().stats().version;
         if self.graph_version == Some(graph_version) {
             return Ok(RefreshStats::default());
@@ -196,14 +203,15 @@ impl FindIndex {
             ..NodeQuery::default()
         });
         let edges = cp.store().live_edge_records();
-
         let nodes: Vec<NodeRecord> = nodes.into_iter().take(config.node_limit).collect();
         let mut stats = RefreshStats {
             scanned: nodes.len(),
             ..RefreshStats::default()
         };
 
-        // Which nodes actually moved. A tombstoned node counts as a removal.
+        // Which nodes actually moved. `query_nodes` is a stable, id-ordered live
+        // scan, so with a fixed `projection_limit` the `indexed` set always
+        // represents the same admitted prefix semantics across refreshes.
         let live: HashSet<String> = nodes
             .iter()
             .filter(|node| !node.tombstone)
@@ -244,7 +252,8 @@ impl FindIndex {
             stats.reindexed += 1;
         }
 
-        // Nodes that left the store, or were tombstoned, leave the indexes.
+        // Nodes that left the admitted prefix, or left the store entirely,
+        // leave the projection.
         let departed: Vec<String> = self
             .indexed
             .keys()
@@ -267,16 +276,31 @@ impl FindIndex {
         // The projected store enforces referential integrity, so re-upserting a
         // dangling edge is refused outright; and a classifier that walked one
         // would be citing evidence that no longer exists.
+        let admitted: HashSet<String> = self.indexed.keys().cloned().collect();
         let edges: Vec<EdgeRecord> = edges
             .into_iter()
-            .filter(|edge| live.contains(&edge.from_id) && live.contains(&edge.to_id))
+            .filter(|edge| admitted.contains(&edge.from_id) && admitted.contains(&edge.to_id))
             .collect();
+        let next_edge_ids: HashSet<String> = edges.iter().map(|edge| edge.id.clone()).collect();
+        let departed_edges: Vec<String> = self
+            .edges
+            .iter()
+            .map(|edge| edge.id.clone())
+            .filter(|id| !next_edge_ids.contains(id))
+            .collect();
+        for id in departed_edges {
+            self.store.evict_edge(&id)?;
+        }
         for edge in &edges {
             self.store.upsert_edge(edge.clone())?;
         }
         self.edges = edges;
         self.graph_version = Some(graph_version);
         Ok(stats)
+    }
+
+    fn reset_projection(&mut self) {
+        *self = Self::empty();
     }
 
     /// Everything the composed executor needs to reach the projected data.
@@ -334,10 +358,7 @@ impl FindIndexCache {
 
     /// What the most recent refresh did. For tests and diagnostics.
     pub fn last_refresh(&self) -> RefreshStats {
-        self.last
-            .lock()
-            .map(|stats| *stats)
-            .unwrap_or_default()
+        self.last.lock().map(|stats| *stats).unwrap_or_default()
     }
 }
 
@@ -382,15 +403,25 @@ fn projected_text(node: &NodeRecord, item: Option<&Item>) -> Option<String> {
 mod tests {
     use super::*;
     use commonplace::{InMemoryBlobStore, IngestInput, IngestPipeline};
+    use rustyred_thg_core::GraphRead;
     use rustyred_thg_find::{FindScope, Lane};
 
     fn seeded() -> Commonplace<InMemoryGraphStore, InMemoryBlobStore> {
         let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
         let pipeline = IngestPipeline::default();
         for (title, body) in [
-            ("Rust ownership", "ownership and borrowing govern memory safety"),
-            ("Rust borrowing", "borrowing rules keep memory safety honest"),
-            ("Sourdough", "a levain needs twelve hours at room temperature"),
+            (
+                "Rust ownership",
+                "ownership and borrowing govern memory safety",
+            ),
+            (
+                "Rust borrowing",
+                "borrowing rules keep memory safety honest",
+            ),
+            (
+                "Sourdough",
+                "a levain needs twelve hours at room temperature",
+            ),
         ] {
             pipeline
                 .ingest(&mut cp, IngestInput::note(title, body))
@@ -405,7 +436,9 @@ mod tests {
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
 
-        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("cold");
         let cold = cache.last_refresh();
         assert!(
             cold.reindexed >= 3,
@@ -413,7 +446,9 @@ mod tests {
             cold.reindexed
         );
 
-        cache.with(&cp, &config, |index| index.document_count()).expect("warm");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("warm");
         let warm = cache.last_refresh();
         assert!(
             warm.was_noop(),
@@ -430,10 +465,15 @@ mod tests {
         let mut cp = seeded();
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
-        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("cold");
 
         IngestPipeline::default()
-            .ingest(&mut cp, IngestInput::note("Trigrams", "trigram indexes narrow the scan"))
+            .ingest(
+                &mut cp,
+                IngestInput::note("Trigrams", "trigram indexes narrow the scan"),
+            )
             .expect("ingest");
 
         let count = cache
@@ -458,17 +498,15 @@ mod tests {
         let mut cp = seeded();
         let cache = FindIndexCache::new();
         let config = FindConfig::default();
-        cache.with(&cp, &config, |index| index.document_count()).expect("cold");
+        cache
+            .with(&cp, &config, |index| index.document_count())
+            .expect("cold");
 
         // A delete is a tombstoned upsert, which bumps the graph version.
         // `evict_node` deliberately does not: it is cold-tier parking, and the
         // global gate cannot see it (see `FindIndex::refresh`).
         let victim = cp.all_items().expect("items")[0].id.clone();
-        let mut record = cp
-            .store()
-            .get_node(&victim)
-            .expect("victim node")
-            .clone();
+        let mut record = cp.store().get_node(&victim).expect("victim node").clone();
         record.tombstone = true;
         cp.store_mut().upsert_node(record).expect("tombstone");
 
@@ -478,6 +516,123 @@ mod tests {
         let stats = cache.last_refresh();
         assert_eq!(stats.removed, 1, "the tombstoned node was not dropped");
         assert_eq!(count, 2, "the tombstoned item is still searchable");
+    }
+
+    #[test]
+    fn changing_the_projection_limit_rebuilds_the_admitted_prefix() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        for id in ["doc:a", "doc:b", "doc:c"] {
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(
+                    id,
+                    ["Doc"],
+                    json!({ DEFAULT_TEXT_PROPERTY: format!("body for {id}") }),
+                ))
+                .expect("node");
+        }
+        let cache = FindIndexCache::new();
+        let wide = FindConfig { node_limit: 10 };
+        let bounded = FindConfig { node_limit: 2 };
+        let wide_count = cache
+            .with(&cp, &wide, |index| index.document_count())
+            .expect("wide build");
+        assert!(
+            wide_count == 3,
+            "manual corpus should index exactly the three admitted docs"
+        );
+
+        let bounded_count = cache
+            .with(&cp, &bounded, |index| index.document_count())
+            .expect("bounded rebuild");
+        let stats = cache.last_refresh();
+        assert_eq!(
+            bounded_count, 2,
+            "bounded rebuild should admit only two docs"
+        );
+        assert!(
+            stats.scanned <= 2 && stats.reindexed <= 2,
+            "rebuild under the tighter cap should only touch the admitted prefix: {stats:?}"
+        );
+    }
+
+    #[test]
+    fn bounded_refresh_keeps_only_edges_within_the_admitted_prefix() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        for id in ["doc:a", "doc:b", "doc:c"] {
+            let node = NodeRecord::new(
+                id,
+                ["Doc"],
+                json!({ DEFAULT_TEXT_PROPERTY: format!("body for {id}") }),
+            );
+            cp.store_mut().upsert_node(node).expect("node");
+        }
+        cp.store_mut()
+            .upsert_edge(EdgeRecord::new(
+                "edge:ab",
+                "doc:a",
+                "LINKS_TO",
+                "doc:b",
+                json!({}),
+            ))
+            .expect("edge ab");
+        cp.store_mut()
+            .upsert_edge(EdgeRecord::new(
+                "edge:bc",
+                "doc:b",
+                "LINKS_TO",
+                "doc:c",
+                json!({}),
+            ))
+            .expect("edge bc");
+
+        let mut index = FindIndex::build(&cp, &FindConfig { node_limit: 2 }).expect("build");
+        assert_eq!(index.document_count(), 2);
+        assert_eq!(
+            index
+                .edges
+                .iter()
+                .map(|edge| edge.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["edge:ab"]
+        );
+        assert_eq!(
+            index
+                .store
+                .live_edge_records()
+                .iter()
+                .map(|edge| edge.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["edge:ab"]
+        );
+
+        let mut delete = cp.store().get_node("doc:a").expect("doc a").clone();
+        delete.tombstone = true;
+        cp.store_mut().upsert_node(delete).expect("tombstone doc a");
+        index
+            .refresh(&cp, &FindConfig { node_limit: 2 })
+            .expect("refresh");
+        assert_eq!(
+            index.document_count(),
+            2,
+            "the bounded prefix should refill after a deletion"
+        );
+        assert_eq!(
+            index
+                .edges
+                .iter()
+                .map(|edge| edge.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["edge:bc"]
+        );
+        assert_eq!(
+            index
+                .store
+                .live_edge_records()
+                .iter()
+                .map(|edge| edge.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["edge:bc"]
+        );
     }
 
     #[test]

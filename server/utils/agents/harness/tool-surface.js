@@ -111,7 +111,7 @@ class HarnessToolSurface {
     return MODEL_TOOL_DEFINITIONS;
   }
 
-  async execute(name, argumentsValue, scopeValue) {
+  async execute(name, argumentsValue, scopeValue, executionValue) {
     const operation = logicalToolName(name);
     if (!operation) {
       throw harnessError(
@@ -127,7 +127,7 @@ class HarnessToolSurface {
     if (operation === "describe") {
       return this.#describe(argumentsRecord, scope);
     }
-    return this.#invoke(argumentsRecord, scope);
+    return this.#invoke(argumentsRecord, scope, executionValue);
   }
 
   async #catalog(argumentsValue, scope) {
@@ -206,7 +206,7 @@ class HarnessToolSurface {
     return capability;
   }
 
-  async #invoke(argumentsValue, scope) {
+  async #invoke(argumentsValue, scope, executionValue) {
     const capabilityId = requiredCapabilityId(argumentsValue);
     const toolArguments = record(argumentsValue.arguments);
     if (!toolArguments) {
@@ -216,6 +216,7 @@ class HarnessToolSurface {
       );
     }
     assertNoNestedIdentity(toolArguments);
+    const toolCallId = requiredToolCallId(executionValue);
     await this.#assertAuthorized({
       operation: "invoke",
       scope,
@@ -244,6 +245,7 @@ class HarnessToolSurface {
         dry_run: argumentsValue.dryRun === true,
         idempotency_key: invocationIdempotencyKey(
           scope,
+          toolCallId,
           capabilityId,
           toolArguments
         ),
@@ -391,11 +393,17 @@ function invocationReceipt(response) {
   });
 }
 
-function invocationIdempotencyKey(scope, capabilityId, toolArguments) {
+function invocationIdempotencyKey(
+  scope,
+  toolCallId,
+  capabilityId,
+  toolArguments
+) {
   const digest = createHash("sha256")
     .update(
       JSON.stringify({
         invocationId: scope.invocationId,
+        toolCallId,
         capabilityId,
         toolArguments: stableJson(toolArguments),
       })
@@ -435,6 +443,17 @@ function requiredCapabilityId(argumentsValue) {
     );
   }
   return id;
+}
+
+function requiredToolCallId(executionValue) {
+  const toolCallId = optionalText(record(executionValue)?.toolCallId);
+  if (!toolCallId) {
+    throw harnessError(
+      "HARNESS_TOOL_CALL_ID_INVALID",
+      "Harness invoke requires an immutable logical tool-call ID."
+    );
+  }
+  return toolCallId;
 }
 
 function boundedPageSize(value, maximum) {

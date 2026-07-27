@@ -51,6 +51,33 @@ describe('fork identity server configuration', () => {
       expect(() => resolveForkServerConfig(environment)).toThrow(ForkIdentityProxyError);
     }
   });
+
+  it('matches the Express derived-placeholder credential boundary', () => {
+    for (const internalKey of [
+      'change-me-to-a-random-service-secret-before-deploying',
+      'replace-with-a-random-service-secret-before-deploying',
+      'same-service-secret-used-by-both-peers',
+      'set-a-random-secret-with-at-least-32-characters',
+    ]) {
+      expect(() =>
+        resolveForkServerConfig({
+          COMMONPLACE_FORK_SERVER_URL: 'https://identity.example.test',
+          COMMONPLACE_FORK_SERVER_INTERNAL_KEY: internalKey,
+          NODE_ENV: 'production',
+        })).toThrow(ForkIdentityProxyError);
+    }
+
+    expect(
+      resolveForkServerConfig({
+        COMMONPLACE_FORK_SERVER_URL: 'https://identity.example.test',
+        COMMONPLACE_FORK_SERVER_INTERNAL_KEY:
+          'example-company-production-key-with-verified-random-suffix-7D9m',
+        NODE_ENV: 'production',
+      }).internalKey,
+    ).toBe(
+      'example-company-production-key-with-verified-random-suffix-7D9m',
+    );
+  });
 });
 
 describe('fork identity transport', () => {
@@ -268,6 +295,50 @@ describe('fork identity transport', () => {
       status: 415,
       code: 'content_media_type_invalid',
     });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('refuses filenames outside the Express document handler contract', async () => {
+    const fetchImpl = vi.fn();
+    const invalidFilenames = [
+      '',
+      ' ',
+      '.',
+      '..',
+      '../research.txt',
+      'folder\\research.txt',
+      'research\0.txt',
+      'research\nforged.txt',
+      'research\tforged.txt',
+      `research${String.fromCharCode(0x7f)}forged.txt`,
+      'x'.repeat(256),
+    ];
+
+    for (const filename of invalidFilenames) {
+      await expect(
+        requestForkDocumentIngest({
+          workspaceId: 'workspace-42',
+          principal: {
+            subject: 'github:42',
+            username: 'Travis-Gilbert',
+            displayName: null,
+            email: null,
+          },
+          filename,
+          mediaType: 'text/plain',
+          bytes: new ArrayBuffer(1),
+          fetchImpl,
+          environment: {
+            COMMONPLACE_FORK_SERVER_URL: 'https://identity.example.test',
+            COMMONPLACE_FORK_SERVER_INTERNAL_KEY: INTERNAL_KEY,
+            NODE_ENV: 'production',
+          },
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        code: 'document_filename_invalid',
+      });
+    }
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

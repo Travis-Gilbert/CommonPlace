@@ -39,20 +39,10 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 pub mod find;
 pub mod scatter;
 
-use crate::find::{FindConfig, FindIndexCache};
-use rustyred_thg_find::{expand as run_expand, scatter as run_scatter};
-use crate::save_url::{save_url as run_save_url, PageSource};
-use find::{
-    build_request as build_find_request, FindLaneGql, FindResponseGql, FindScopeInput,
-    SaveUrlReceiptGql,
-};
-use scatter::{build_request as build_scatter_request, parse_aspect_id, ScatterResponseGql};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
-use crate::salience::{
-    salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier,
-};
+use crate::find::{FindConfig, FindIndexCache};
 use crate::growth::{load_growth_snapshot_from_env, GrowthSnapshotResultGql};
 use crate::organize::{
     organize as run_organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup,
@@ -64,6 +54,14 @@ use crate::retrieve::{
     answer_from_provenance, retrieve_grounding_measured, AnswerKind, AnswerModel, AskConfig,
     AskResult, NoModel, PprExpansionMeasurement, RetrievedItem,
 };
+use crate::salience::{salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier};
+use crate::save_url::{save_url as run_save_url, PageSource};
+use find::{
+    build_request as build_find_request, FindLaneGql, FindResponseGql, FindScopeInput,
+    SaveUrlReceiptGql,
+};
+use rustyred_thg_find::{expand as run_expand, scatter as run_scatter};
+use scatter::{build_request as build_scatter_request, parse_aspect_id, ScatterResponseGql};
 
 /// The default in-memory store backing (tests + the no-data-dir binary path).
 pub type ApiStore = Commonplace<InMemoryGraphStore, InMemoryBlobStore>;
@@ -1558,6 +1556,23 @@ where
         Ok(items.into_iter().map(ItemGql::from).collect())
     }
 
+    /// Count items without materializing them into the GraphQL response body.
+    async fn item_count(&self, ctx: &Context<'_>, kind: Option<String>) -> Result<i32> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let count = match kind {
+            Some(kind) => cp
+                .items_by_kind(&ItemKind::from(kind))
+                .map_err(store_err)?
+                .len(),
+            None => cp.all_items().map_err(store_err)?.len(),
+        };
+        Ok(count as i32)
+    }
+
     /// One collection by id.
     async fn collection(&self, ctx: &Context<'_>, id: String) -> Result<Option<CollectionGql>> {
         principal(ctx)?;
@@ -1812,8 +1827,7 @@ where
                 .map_err(|_| Error::new("store lock poisoned"))?;
             retrieve_grounding_measured(&*cp, &question, &config).map_err(store_err)?
         };
-        let mut result =
-            answer_from_provenance(model.as_ref(), &question, grounding.provenance);
+        let mut result = answer_from_provenance(model.as_ref(), &question, grounding.provenance);
         result.ppr_expansion = grounding.ppr_expansion;
         Ok(AskResultGql::from(result))
     }
@@ -1888,7 +1902,9 @@ where
         principal(ctx)?;
         let request = build_find_request(query, scopes, lanes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         let response = find_index(ctx)?
             .with(&cp, &FindConfig::default(), |index| {
                 rustyred_thg_find::find(&index.context(), &request)
@@ -1910,7 +1926,9 @@ where
         principal(ctx)?;
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         let response = find_index(ctx)?
             .with(&cp, &FindConfig::default(), |index| {
                 run_scatter(&index.context(), &request)
@@ -1934,7 +1952,9 @@ where
         let aspect = parse_aspect_id(aspect_id).map_err(Error::new)?;
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         let response = find_index(ctx)?
             .with(&cp, &FindConfig::default(), |index| {
                 run_expand(&index.context(), &request, &aspect)
@@ -2084,7 +2104,9 @@ where
     ) -> Result<publish::PublishResolution> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::resolve_alias_status(
             &mut cp,
             &alias,
@@ -2102,7 +2124,9 @@ where
     ) -> Result<Option<publish::PublishedBlock>> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::resolve_version(&cp, &version_hash).ok())
     }
 
@@ -2111,7 +2135,9 @@ where
     async fn public_aliases(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::public_aliases(&cp))
     }
 }
@@ -2156,13 +2182,12 @@ where
         if let Some(tags) = input.tags {
             request = request.with_tags(tags);
         }
-        if let Some(source_ref) = input.source_ref {
-            request = request.with_source_ref(SourceRef::new(
-                source_ref.source,
-                source_ref.external_id,
-            ));
-        } else if let Some(source) = input.source {
+        if let Some(source) = input.source {
             request = request.with_source(source);
+        }
+        if let Some(source_ref) = input.source_ref {
+            request =
+                request.with_source_ref(SourceRef::new(source_ref.source, source_ref.external_id));
         }
         if let Some(residency) = input.residency {
             request = request.with_residency(Residency::from(residency));
@@ -2791,7 +2816,9 @@ where
     ) -> Result<publish::PublishOutcome> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::publish_block_outcome(
             &mut cp,
             &origin_id,
@@ -2805,7 +2832,9 @@ where
     async fn unpublish(&self, ctx: &Context<'_>, alias: String) -> Result<bool> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         publish::unpublish_block(&mut cp, &alias, &principal.id).map_err(|e| match e {
             publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
             _ => Error::new("published block not found"),
@@ -2823,11 +2852,17 @@ where
     ) -> Result<bool> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        publish::set_visibility(&mut cp, &alias, &principal.id, visibility).map_err(|e| match e {
-            publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
-            _ => Error::new("published block not found"),
-        })?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        publish::set_visibility(&mut cp, &alias, &principal.id, visibility).map_err(
+            |e| match e {
+                publish::PublishError::Forbidden => {
+                    Error::new("not authorized to modify this block")
+                }
+                _ => Error::new("published block not found"),
+            },
+        )?;
         Ok(true)
     }
 
@@ -2843,7 +2878,9 @@ where
     ) -> Result<String> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         publish::reference_block(&mut cp, &alias, &principal.id, fork.unwrap_or(false))
             .map_err(|_| Error::new("published block not found"))
     }
