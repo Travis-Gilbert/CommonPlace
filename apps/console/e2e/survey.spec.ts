@@ -62,6 +62,61 @@ async function expectSpatialIndexerOverview(page: Page) {
 }
 
 test.describe('Indexer research surface', () => {
+  test('automatically searches the web without a capture-miss step', async ({ page }) => {
+    const requests: { query: string; topicId: string }[] = [];
+    let releaseSearch: (() => void) | undefined;
+    const pendingSearch = new Promise<void>((resolve) => {
+      releaseSearch = resolve;
+    });
+    await page.route('**/api/indexer/search', async (route) => {
+      const body = route.request().postDataJSON() as { query: string; topicId: string };
+      requests.push(body);
+      expect(body).toMatchObject({
+        topicId: 'topic-evidence-research-surfaces',
+      });
+      if (requests.length === 1) await pendingSearch;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: body.query,
+          captures: [],
+        }),
+      });
+    });
+
+    await page.goto('/indexer');
+    await page.waitForSelector('[data-shell]');
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-survey',
+    );
+    await expect(page.locator('[data-survey]')).toBeVisible({ timeout: 20_000 });
+    const search = page.getByRole('searchbox', { name: 'Search the web' });
+    await search.fill('automatic web fallback');
+
+    await expect.poll(() => requests.length).toBe(1);
+    expect(requests[0]?.query).toBe('automatic web fallback');
+    await expect(page.locator('[data-survey]')).toHaveAttribute(
+      'data-indexer-search-mode',
+      'searching',
+    );
+    await expect(page.getByText(/No captures match/)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Search the web' })).toHaveCount(0);
+
+    releaseSearch?.();
+    await expect(page.locator('[data-survey]')).toHaveAttribute(
+      'data-indexer-search-mode',
+      'live',
+    );
+    await expect(page.getByText('No live sources for “automatic web fallback”.')).toBeVisible();
+
+    await search.fill('second query');
+    await search.fill('automatic web fallback');
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[1]?.query).toBe('automatic web fallback');
+  });
+
   test('a standing topic opens a source-faithful 3D Indexer with evidence and camera zoom', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSurvey(page);

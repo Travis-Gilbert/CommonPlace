@@ -17,7 +17,7 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
-import { useMotionDurations } from '@/motion/motion-tokens';
+import { DUR, useMotionDurations } from '@/motion/motion-tokens';
 import { objectChip, useShellStore } from '@/lib/shell-store';
 import { ViewState } from './ViewStates';
 import {
@@ -28,7 +28,6 @@ import {
   type SurveyEdge,
 } from './survey/surveyContract';
 import {
-  filterSurveyCaptures,
   SurveyIndexerSearch,
 } from './survey/SurveyIndexerSearch';
 import { fetchIndexerLiveSearch } from '@/lib/indexer-live-search-client';
@@ -415,27 +414,42 @@ export function SurveyView({ set }: ViewRenderProps) {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
+  const lastLiveSearchQueryRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { width, webgl, palette } = useSurfaceCapabilities(rootRef);
 
   const handleQueryChange = useCallback((next: string) => {
+    const normalized = next.trim();
     setSearchQuery(next);
-    if (!next.trim()) {
+    if (
+      searchAbortRef.current
+      && normalized !== lastLiveSearchQueryRef.current
+    ) {
+      searchAbortRef.current.abort();
+      searchAbortRef.current = null;
+      setSearching(false);
+    }
+    lastLiveSearchQueryRef.current = null;
+    if (!normalized) {
       setLiveCaptures(null);
       setLiveQuery(null);
       setSearchError(null);
       searchAbortRef.current?.abort();
       searchAbortRef.current = null;
       setSearching(false);
-    } else if (liveQuery && next.trim() !== liveQuery) {
-      // Typing after a live projection falls back to local filter until Search.
+    } else if (liveQuery && normalized !== liveQuery) {
       setLiveCaptures(null);
       setLiveQuery(null);
+      setSearchError(null);
+    } else if (normalized !== lastLiveSearchQueryRef.current) {
       setSearchError(null);
     }
   }, [liveQuery]);
 
   const runLiveSearch = useCallback(async (query: string) => {
+    const normalized = query.trim();
+    if (!normalized) return;
+    lastLiveSearchQueryRef.current = normalized;
     const topicId = model.topic?.id;
     if (!topicId) {
       setSearchError('Open a standing topic before searching the web.');
@@ -446,9 +460,9 @@ export function SurveyView({ set }: ViewRenderProps) {
     searchAbortRef.current = controller;
     setSearching(true);
     setSearchError(null);
-    setSearchQuery(query);
+    setSearchQuery(normalized);
     const result = await fetchIndexerLiveSearch({
-      query,
+      query: normalized,
       topicId,
       signal: controller.signal,
     });
@@ -467,10 +481,25 @@ export function SurveyView({ set }: ViewRenderProps) {
     setResetKey((current) => current + 1);
   }, [model.topic?.id]);
 
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (
+      !query
+      || query === liveQuery
+      || query === lastLiveSearchQueryRef.current
+    ) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      void runLiveSearch(query);
+    }, DUR.slow);
+    return () => window.clearTimeout(timeout);
+  }, [liveQuery, runLiveSearch, searchQuery]);
+
   const filteredCaptures = useMemo(() => {
     if (liveCaptures) return liveCaptures;
-    return filterSurveyCaptures(model.captures, searchQuery);
-  }, [liveCaptures, model.captures, searchQuery]);
+    return model.captures;
+  }, [liveCaptures, model.captures]);
   const filteredCaptureIds = useMemo(
     () => new Set(filteredCaptures.map((capture) => capture.id)),
     [filteredCaptures],
@@ -546,11 +575,13 @@ export function SurveyView({ set }: ViewRenderProps) {
         ? `No live sources for “${liveQuery ?? searchQuery.trim()}”`
         : `Live RustyWeb · ${liveCaptures.length} source${liveCaptures.length === 1 ? '' : 's'}`
     )
-    : filteredCaptures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
-      ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${filteredCaptures.length} matching captures in the spatial board`
+    : searchError
+      ? `Web search unavailable for “${searchQuery.trim()}”`
       : searchQuery.trim()
-        ? `${filteredCaptures.length} of ${model.captures.length} captures match · Enter searches the web`
-        : null;
+        ? `Searching the web for “${searchQuery.trim()}”`
+    : filteredCaptures.length > SURVEY_SPATIAL_CAPTURE_BUDGET
+      ? `Showing ${SURVEY_SPATIAL_CAPTURE_BUDGET} of ${filteredCaptures.length} captures in the spatial board`
+      : null;
 
   return (
     <div
@@ -558,7 +589,15 @@ export function SurveyView({ set }: ViewRenderProps) {
       className="relative flex h-full min-h-0 flex-col"
       data-survey
       data-indexer
-      data-indexer-search-mode={liveCaptures ? 'live' : searchQuery.trim() ? 'filter' : 'idle'}
+      data-indexer-search-mode={
+        liveCaptures
+          ? 'live'
+          : searchError
+            ? 'error'
+            : searchQuery.trim()
+              ? 'searching'
+              : 'idle'
+      }
       data-reduced-motion={durations.reduced ? 'true' : 'false'}
       data-scene-mode={flat ? 'flat' : sceneReady ? '3d' : 'loading'}
       data-scene-calls={metrics?.calls}
@@ -611,14 +650,10 @@ export function SurveyView({ set }: ViewRenderProps) {
       <div className="min-h-0 flex-1">
         {filteredCaptures.length === 0 ? (
           <div
-            data-survey-layout="empty-filter"
+            data-survey-layout="empty-search"
             className="flex h-full flex-col items-center justify-center gap-3 text-sm text-ij-ink"
           >
-            <p>
-              {liveCaptures
-                ? `No live sources for “${liveQuery ?? searchQuery.trim()}”.`
-                : `No captures match “${searchQuery.trim()}”.`}
-            </p>
+            <p>{`No live sources for “${liveQuery ?? searchQuery.trim()}”.`}</p>
             <button
               type="button"
               onClick={() => handleQueryChange('')}
@@ -626,15 +661,6 @@ export function SurveyView({ set }: ViewRenderProps) {
             >
               Clear search
             </button>
-            {!liveCaptures && searchQuery.trim() ? (
-              <button
-                type="button"
-                onClick={() => void runLiveSearch(searchQuery.trim())}
-                className="survey-focusable h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-ij-ink hover:bg-ij-hover-surface"
-              >
-                Search the web
-              </button>
-            ) : null}
           </div>
         ) : flat ? (
           <FlatSurvey

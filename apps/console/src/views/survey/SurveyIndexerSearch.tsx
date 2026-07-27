@@ -1,7 +1,7 @@
 // SOURCING: 21st.dev gooey SearchBar (behavior extraction). Restyled to Int UI;
 // gooey SVG, particles, rainbow gradients, width expand, and lucide dropped.
-// Local suggestions filter the open standing-topic harvest; Enter / Search
-// commits a live RustyWeb query projected onto the Indexer board.
+// Local suggestions provide immediate capture navigation while every settled
+// query automatically runs through RustyWeb and projects onto the Indexer.
 
 'use client';
 
@@ -31,7 +31,7 @@ export interface SurveyIndexerSearchProps {
   readonly query: string;
   readonly onQueryChange: (query: string) => void;
   readonly onSelectCapture?: (captureId: string) => void;
-  /** Commit the current query to live RustyWeb search (Enter / Search). */
+  /** Commit the current query to live RustyWeb search immediately. */
   readonly onLiveSearch?: (query: string) => void;
   readonly searching?: boolean;
   readonly className?: string;
@@ -135,7 +135,7 @@ export function SurveyIndexerSearch({
   onLiveSearch,
   searching = false,
   className,
-  placeholder = 'Search harvest or the web',
+  placeholder = 'Search the web',
 }: SurveyIndexerSearchProps) {
   const durations = useMotionDurations();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,7 +145,12 @@ export function SurveyIndexerSearch({
     () => (focused ? suggestIndexerCaptures(captures, query) : []),
     [captures, focused, query],
   );
-  const listOpen = focused && normalize(query).length > 0 && !searching;
+  const listOpen = (
+    focused
+    && normalize(query).length > 0
+    && suggestions.length > 0
+    && !searching
+  );
 
   const applySuggestion = (suggestion: IndexerSearchSuggestion) => {
     onQueryChange(suggestion.value);
@@ -227,7 +232,7 @@ export function SurveyIndexerSearch({
           type="search"
           value={query}
           placeholder={placeholder}
-          aria-label="Search Indexer captures and the web"
+          aria-label="Search the web"
           aria-busy={searching || undefined}
           aria-expanded={listOpen}
           aria-controls="indexer-search-suggestions"
@@ -287,35 +292,31 @@ export function SurveyIndexerSearch({
             transition={{ duration: seconds(durations.fast), ease: EASE_OUT }}
             className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-ij-arc border border-ij-seam-raised bg-ij-chrome shadow-none"
           >
-            {suggestions.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-ij-ink-info">No captures match</p>
-            ) : (
-              <ul className="p-1">
-                {suggestions.map((suggestion, index) => (
-                  <li key={suggestion.id}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={index === activeIndex}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => applySuggestion(suggestion)}
-                      className={cn(
-                        'survey-focusable flex w-full items-center gap-2 rounded-ij-arc px-3 py-2 text-left text-sm text-ij-ink',
-                        index === activeIndex ? 'bg-ij-selection' : 'hover:bg-ij-hover-surface',
-                      )}
+            <ul className="p-1">
+              {suggestions.map((suggestion, index) => (
+                <li key={suggestion.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => applySuggestion(suggestion)}
+                    className={cn(
+                      'survey-focusable flex w-full items-center gap-2 rounded-ij-arc px-3 py-2 text-left text-sm text-ij-ink',
+                      index === activeIndex ? 'bg-ij-selection' : 'hover:bg-ij-hover-surface',
+                    )}
+                  >
+                    <span
+                      className="font-ij-mono uppercase tracking-wider text-ij-gold"
+                      style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
                     >
-                      <span
-                        className="font-ij-mono uppercase tracking-wider text-ij-gold"
-                        style={{ fontSize: 'var(--ij-sidebar-hint-size)' }}
-                      >
-                        {suggestion.kind}
-                      </span>
-                      <span className="min-w-0 truncate">{suggestion.value}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      {suggestion.kind}
+                    </span>
+                    <span className="min-w-0 truncate">{suggestion.value}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </motion.div>
         ) : null}
       </AnimatePresence>
