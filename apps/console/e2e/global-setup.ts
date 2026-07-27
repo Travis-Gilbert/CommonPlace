@@ -114,7 +114,11 @@ async function warmRoute(page: Page, baseURL: string, route: string): Promise<vo
 }
 
 async function resetStubState(request: APIRequestContext): Promise<void> {
-  for (const endpoint of ['reset-layout', 'reset-domain'] as const) {
+  for (const endpoint of [
+    'reset-layout',
+    'reset-domain',
+    'reset-console-plugin',
+  ] as const) {
     const response = await request.post(`${STUB_BASE}/objects/test/${endpoint}`, {
       headers: { 'x-api-key': 'dev-key' },
     });

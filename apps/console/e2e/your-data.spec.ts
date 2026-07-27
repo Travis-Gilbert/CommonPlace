@@ -53,7 +53,9 @@ test.describe('Your data plugin', () => {
   test.beforeEach(async ({ page }) => resetProfile(page));
 
   test('installs, renders all surfaces, reopens, unmounts, and appears in Index settings', async ({ page }) => {
+    await expect(page.locator('[data-block-palette="your-data"]')).toHaveCount(0);
     await installFromAppearance(page);
+    await expect(page.locator('[data-block-palette="your-data"]')).toBeVisible();
 
     await expect(page.locator('[data-console-surface="overview"]')).toContainText('4', {
       timeout: 30_000,
@@ -122,6 +124,7 @@ test.describe('Your data plugin', () => {
     await page.locator('[data-layout-switcher]').click();
     await expect(page.locator('[data-layout-option="console-your-data"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
+    await expect(page.locator('[data-block-palette="your-data"]')).toHaveCount(0);
 
     await page.locator('[data-surface-nav="console-index"]').click();
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-index');
