@@ -293,11 +293,21 @@ export function ChatPage({ threadId }: { threadId?: string }) {
     const run = async () => {
       try {
         if (threadId) {
-          const loaded = await fetchChatThread(threadId);
-          if (!active) return;
-          setThread(loaded);
-          setRailCollapsed(loaded.railCollapsed);
-          return;
+          try {
+            const loaded = await fetchChatThread(threadId);
+            if (!active) return;
+            setLoadError(null);
+            setThread(loaded);
+            setRailCollapsed(loaded.railCollapsed);
+            return;
+          } catch (error) {
+            // In-memory catalog is per-instance: a stale URL must not be reported
+            // as harness/data-API failure. Drop into create-or-select below.
+            const message = error instanceof Error ? error.message : '';
+            if (!message.includes('thread_not_found') && !message.includes('404')) {
+              throw error;
+            }
+          }
         }
         const existing = catalog.threads.find(
           (item) => item.projectId === catalog.activeProjectId,
@@ -311,6 +321,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
           title: 'New thread',
         });
         if (!active) return;
+        setLoadError(null);
         setCatalog({ ...catalog, threads: [created, ...catalog.threads] });
         router.replace(`/chat/${created.id}`);
       } catch (error) {
@@ -327,7 +338,9 @@ export function ChatPage({ threadId }: { threadId?: string }) {
 
   const unreachable =
     connection === 'disconnected'
-    || loadError != null;
+    || (loadError != null && connection !== 'unauthenticated' && connection !== 'identity-refused');
+
+  const needsSignIn = connection === 'unauthenticated';
 
   const toggleRail = useCallback(() => {
     setRailCollapsed((current) => {
@@ -413,7 +426,11 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                     className="border-r border-ij-seam p-3 text-ij-ink-info"
                     style={{ width: 'var(--ij-chat-sidebar-w)' }}
                   >
-                    {degradation ? degradation.cause : 'Loading projects…'}
+                    {needsSignIn
+                      ? 'Sign in with GitHub to connect the harness.'
+                      : degradation
+                        ? degradation.cause
+                        : 'Loading projects…'}
                   </aside>
                 )}
 
@@ -423,12 +440,23 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                     wide && !railCollapsed && 'pr-0',
                   )}
                 >
-                  {degradation && !thread ? (
+                  {needsSignIn ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-ij-ink-info" role="status">
+                      <p>Sign in with GitHub to bind this console to the harness.</p>
+                      <a
+                        href="/api/auth/signin"
+                        className="rounded-[var(--radius-control)] border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface"
+                      >
+                        Sign in with GitHub
+                      </a>
+                    </div>
+                  ) : null}
+                  {!needsSignIn && degradation && !thread ? (
                     <div className="flex flex-1 items-center justify-center text-ij-ink-info" role="status">
                       {degradation.cause}
                     </div>
                   ) : null}
-                  {thread ? (
+                  {!needsSignIn && thread ? (
                     <RuntimeTree
                       host={host}
                       thread={thread}
