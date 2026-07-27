@@ -43,11 +43,21 @@ import {
   parseIndexerObjectsPayload,
 } from './indexer-projection';
 import { unreachableObjectSet, UNREACHABLE_NOTE } from './chat/object-set-error';
+import { CANVAS_TYPES } from './canvas/object-bridge';
+import { CanvasStore } from './canvas/store';
 
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
+const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const PG_TYPE_SET = new Set(PG_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
 const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
+const CONSOLE_LOCAL_TYPES = new Set([
+  'thread',
+  'files-view',
+  'context-view',
+  'surface-tool',
+  CARD_TEMPLATE_TYPE,
+]);
 const MODEL_METADATA_TYPES = new Set([
   'model-scope',
   'object-type-metadata',
@@ -188,6 +198,7 @@ export class ConsoleBlockHost implements BlockHost {
   private docs: ObjectRef[];
   private codeFiles: ObjectRef[];
   private cardTemplates: ObjectRef[];
+  private consoleLocalObjects: ObjectRef[] = [];
   private surveyObjects: ObjectRef[];
   private modelMetadata: ObjectRef[] = [];
   private modelMetadataSeq = 0;
@@ -197,6 +208,7 @@ export class ConsoleBlockHost implements BlockHost {
   private http: HttpBlockHost;
   private observer: TransportObserver | undefined;
   private proactivity: ProactivityStore;
+  private canvas: CanvasStore;
   private seedLayoutTask: Promise<void> | null = null;
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
@@ -204,7 +216,6 @@ export class ConsoleBlockHost implements BlockHost {
     this.records = options.records ?? null;
     this.observer = options.onTransport;
     const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
-    this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({
@@ -222,6 +233,8 @@ export class ConsoleBlockHost implements BlockHost {
         }
       },
     });
+    this.canvas = new CanvasStore(this.http);
+    this.proactivity = new ProactivityStore(tenant, seedStandingStructure, this.http);
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
     // Card templates are seeded objects served through this seam (K1): the
@@ -508,6 +521,9 @@ export class ConsoleBlockHost implements BlockHost {
 
   query(query: ObjectQuery): ObjectSet | Promise<ObjectSet> {
     if (query.types.some((type) => LAYOUT_TYPES.has(type))) return this.layoutSet(query);
+    if (query.types.some((type) => CANVAS_TYPE_SET.has(type))) {
+      return this.canvas.query(query);
+    }
     // The proactivity graph is projected and served locally from fixtures until
     // the kernel lands behind the same seam (verify-first V4 through V9).
     if (query.types.some((type) => PG_TYPE_SET.has(type))) return this.proactivity.query(query);
@@ -536,12 +552,7 @@ export class ConsoleBlockHost implements BlockHost {
     const isCode = query.types.includes('code-file');
     // Console-local kinds never touch the wire: 'thread' (its pane renders its
     // own chat SSE) and card templates (K1, console-authored seeds).
-    const consoleLocal =
-      query.types.includes('thread') ||
-      query.types.includes('files-view') ||
-      query.types.includes('context-view') ||
-      query.types.includes('surface-tool') ||
-      query.types.includes(CARD_TEMPLATE_TYPE);
+    const consoleLocal = query.types.some((type) => CONSOLE_LOCAL_TYPES.has(type));
     if (query.types.some((type) => SURVEY_TYPES.has(type))) {
       return this.querySurvey(query);
     }
@@ -562,6 +573,8 @@ export class ConsoleBlockHost implements BlockHost {
           ? this.codeFiles
           : query.types.includes(CARD_TEMPLATE_TYPE)
             ? this.cardTemplates
+            : consoleLocal
+              ? this.consoleLocalObjects.filter((object) => query.types.includes(object.type))
             : [];
     let objects = pool.filter((object) => matchesPredicate(object, query.where));
     const ranker = query.rank?.[0];
@@ -938,7 +951,8 @@ export class ConsoleBlockHost implements BlockHost {
     // Proactivity edits (disable, parameter edits, prune, intent commit) are
     // receipted, reversible mutations on the local projection until the kernel
     // owns them. The store refuses an over-budget action-class edit itself.
-    if (this.proactivity.owns(action)) return Promise.resolve(this.proactivity.emit(action));
+    if (this.canvas.owns(action)) return this.canvas.emit(action);
+    if (this.proactivity.owns(action)) return this.proactivity.emit(action);
 
     switch (action.kind) {
       case 'move': {
@@ -974,8 +988,8 @@ export class ConsoleBlockHost implements BlockHost {
         // every kind.
         const updatePools =
           this.records === null
-            ? [this.cardTemplates, this.surveyObjects, this.modelMetadata]
-            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.surveyObjects, this.modelMetadata];
+            ? [this.cardTemplates, this.consoleLocalObjects, this.surveyObjects, this.modelMetadata]
+            : [this.records, this.docs, this.codeFiles, this.cardTemplates, this.consoleLocalObjects, this.surveyObjects, this.modelMetadata];
         for (const pool of updatePools) {
           const index = pool.findIndex((object) => object.id === action.id);
           if (index >= 0) {
@@ -988,6 +1002,24 @@ export class ConsoleBlockHost implements BlockHost {
         return Promise.resolve({ ok: false, error: `update target missing: ${action.id}` });
       }
       case 'create': {
+        if (CONSOLE_LOCAL_TYPES.has(action.type)) {
+          const id = typeof action.props.id === 'string'
+            ? action.props.id
+            : `${action.type}:${this.consoleLocalObjects.length + 1}`;
+          const next: ObjectRef = {
+            id,
+            type: action.type,
+            properties: { ...action.props, id },
+          };
+          const pool = action.type === CARD_TEMPLATE_TYPE
+            ? this.cardTemplates
+            : this.consoleLocalObjects;
+          const existing = pool.findIndex((object) => object.id === id);
+          if (existing >= 0) pool[existing] = next;
+          else pool.push(next);
+          for (const callback of this.domainSubs) callback();
+          return Promise.resolve(applied([id]));
+        }
         if (MODEL_METADATA_TYPES.has(action.type)) {
           const id = typeof action.props.id === 'string'
             ? action.props.id
@@ -1003,7 +1035,11 @@ export class ConsoleBlockHost implements BlockHost {
           for (const callback of this.domainSubs) callback();
           return Promise.resolve(applied([id]));
         }
-        if (!LAYOUT_TYPES.has(action.type)) return Promise.resolve(accepted());
+        if (!LAYOUT_TYPES.has(action.type)) {
+          return this.records === null
+            ? this.http.emit(action)
+            : Promise.resolve(accepted());
+        }
         const id = typeof action.props.id === 'string' ? action.props.id : `vi-${this.layout.size + 1}`;
         this.layout.set(id, { id, type: action.type, properties: { ...action.props }, children: [] });
         this.persistLayout();
@@ -1013,13 +1049,25 @@ export class ConsoleBlockHost implements BlockHost {
         ]).then(() => applied([id]));
       }
       case 'delete': {
+        for (const pool of [this.cardTemplates, this.consoleLocalObjects]) {
+          const localIndex = pool.findIndex((object) => object.id === action.id);
+          if (localIndex >= 0) {
+            pool.splice(localIndex, 1);
+            for (const callback of this.domainSubs) callback();
+            return Promise.resolve(applied([action.id]));
+          }
+        }
         const metadataIndex = this.modelMetadata.findIndex((object) => object.id === action.id);
         if (metadataIndex >= 0) {
           this.modelMetadata.splice(metadataIndex, 1);
           for (const callback of this.domainSubs) callback();
           return Promise.resolve(applied([action.id]));
         }
-        if (!this.layout.has(action.id)) return Promise.resolve(accepted());
+        if (!this.layout.has(action.id)) {
+          return this.records === null
+            ? this.http.emit(action)
+            : Promise.resolve(accepted());
+        }
         this.layout.delete(action.id);
         for (const candidate of this.layout.values()) {
           candidate.children = candidate.children.filter((childId) => childId !== action.id);
@@ -1084,8 +1132,13 @@ export class ConsoleBlockHost implements BlockHost {
         // particular hunk.accept/reject/verify/edit bind to Rust executors and
         // their receipts instead of ending at a client-side JSON scaffold.
         return this.http.emit(action);
+      case 'link':
+      case 'unlink':
+        return this.records === null
+          ? this.http.emit(action)
+          : Promise.resolve(accepted());
       default:
-        // open / select / link / run_agent are UI or substrate concerns.
+        // open / select / run_agent are UI or substrate concerns.
         return Promise.resolve(accepted());
     }
   }

@@ -13,6 +13,7 @@ import {
   fetchWorkspaceReadiness,
   type WorkspaceReadiness,
 } from '@commonplace/theorem-acp/workspace-state';
+import type { ChatPersistedMessage } from '../chat/project-types';
 import { createAtomStoreFacade } from './store-facade';
 
 export interface ThreadTextPart {
@@ -79,7 +80,25 @@ export function chatEndpoint(): string | null {
 }
 
 let SEQ = 0;
-const nextId = () => `msg-${++SEQ}`;
+const nextId = () => (
+  typeof globalThis.crypto?.randomUUID === 'function'
+    ? `msg-${globalThis.crypto.randomUUID()}`
+    : `msg-${Date.now()}-${++SEQ}`
+);
+
+/** Snapshot the Jotai transcript for the durable chat-thread object. This is a
+ * projection helper only: the catalog remains the single persistence owner. */
+export function threadMessagesForPersistence(
+  messages: readonly ThreadMessage[],
+  incomplete = false,
+): ChatPersistedMessage[] {
+  return messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    text: message.parts.map((part) => part.text).join(''),
+    incomplete: message.role === 'assistant' && incomplete,
+  }));
+}
 
 function textOf(data: string): string {
   try {

@@ -181,6 +181,30 @@ describe('ConsoleBlockHost', () => {
     expect(set.objects).toEqual([]);
   });
 
+  it('keeps console-local object lifecycles off the live wire', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    const created = await host.emit({
+      kind: 'create',
+      type: 'thread',
+      props: { id: 'thread.local', title: 'Local thread' },
+    });
+    let set = await Promise.resolve(host.query({ types: ['thread'] }));
+    expect(created.value?.status).toBe('applied');
+    expect(set.objects.map((object) => object.id)).toEqual(['thread.local']);
+
+    await host.emit({ kind: 'update', id: 'thread.local', patch: { title: 'Updated' } });
+    set = await Promise.resolve(host.query({ types: ['thread'] }));
+    expect(set.objects[0]?.properties.title).toBe('Updated');
+
+    await host.emit({ kind: 'delete', id: 'thread.local' });
+    set = await Promise.resolve(host.query({ types: ['thread'] }));
+    expect(set.objects).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const receipt = await host.emit({ kind: 'move', id: 'vi-code', new_parent: 'workspace.region-files', order: 0 });
@@ -306,5 +330,72 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
+  });
+
+  it('routes canvas ObjectRefs and mutations through the authenticated object seam', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        props?: Record<string, unknown>;
+        patch?: Record<string, unknown>;
+      };
+      if (!body.kind) {
+        return new Response(JSON.stringify({
+          objects: [],
+          shape: { types: ['canvas'], fields: [], relations: [], axes: {}, cardinality: 'empty' },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        action_kind: body.kind,
+        status: 'applied',
+        target_ids: ['canvas.default'],
+        op_range: {
+          first_op_id: 'op-1',
+          last_op_id: 'op-1',
+          range_hash: 'hash-1',
+        },
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    host.query({
+      types: ['canvas', 'canvas.card', 'canvas.group', 'canvas.connection'],
+      page: { limit: 500 },
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const receipt = await host.emit({
+      kind: 'create',
+      type: 'note',
+      props: {
+        id: 'note.object-seam',
+        title: 'Persisted note',
+        canvasId: 'canvas.default',
+        x: 12,
+        y: 24,
+      },
+    });
+    const set = host.query({
+      types: ['canvas', 'canvas.card', 'canvas.group', 'canvas.connection'],
+      page: { limit: 500 },
+    });
+
+    expect(receipt.ok).toBe(true);
+    expect(receipt.value?.op_range).toBeDefined();
+    expect(set).not.toBeInstanceOf(Promise);
+    if (set instanceof Promise) throw new Error('canvas query must stay synchronous');
+    expect(set.objects.find((object) => object.id === 'note.object-seam')).toMatchObject({
+      type: 'canvas.card',
+      properties: { x: 12, y: 24 },
+    });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/objects/query',
+      '/api/objects/action',
+      '/api/objects/action',
+    ]);
+    const update = JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body ?? '{}')) as {
+      patch?: Record<string, unknown>;
+    };
+    expect(update.patch?.persistence_kind).toBe('canvas-work-v1');
   });
 });

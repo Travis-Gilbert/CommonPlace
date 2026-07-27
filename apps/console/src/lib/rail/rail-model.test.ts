@@ -4,10 +4,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertUniqueRailLabels,
+  deriveBlockPaletteItems,
   deriveLayoutCollections,
   deriveRailCollections,
   KIND_RAIL_POLICY,
   PLACE_ENTRIES,
+  type ConsoleViewDescriptor,
 } from './rail-model';
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
 
@@ -76,4 +78,58 @@ describe('rail-model', () => {
       expect(KIND_GLYPH_ORDER.includes(glyph)).toBe(true);
     }
   });
+
+  it('derives Blocks membership only from descriptor palette flags', () => {
+    const visible = descriptor('visible', true);
+    const hidden = descriptor('hidden', false);
+
+    expect(deriveBlockPaletteItems([visible, hidden])).toEqual([
+      {
+        id: 'visible',
+        label: 'Visible',
+        kind: 'records',
+        descriptorId: 'visible',
+        material: 'sunken',
+      },
+    ]);
+  });
+
+  it('adds and removes palette rows by changing only the descriptor list', () => {
+    const baseline = [descriptor('records', true)];
+    const added = descriptor('canvas', true);
+
+    expect(deriveBlockPaletteItems(baseline).map((item) => item.id)).toEqual(['records']);
+    expect(deriveBlockPaletteItems([...baseline, added]).map((item) => item.id)).toEqual([
+      'records',
+      'canvas',
+    ]);
+    expect(deriveBlockPaletteItems([added]).map((item) => item.id)).toEqual(['canvas']);
+  });
 });
+
+function descriptor(id: string, paletteVisible: boolean): ConsoleViewDescriptor {
+  const label = `${id.charAt(0).toUpperCase()}${id.slice(1)}`;
+  return {
+    id,
+    name: label,
+    paletteVisible,
+    accepts: {},
+    emits: [],
+    renderer: id,
+    source: {
+      package: 'rail-model-test',
+      component: 'Fixture',
+      mode: 'bespoke',
+      regime: 'css-vars',
+      allowedBespokeReason: 'Pure palette derivation fixture.',
+    },
+    block: {
+      usage: 'test palette membership',
+      placements: ['ground'],
+      defaultSize: 'm',
+      density: 'compact',
+      kindGlyph: 'records',
+    },
+    render: () => null,
+  };
+}

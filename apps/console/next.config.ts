@@ -1,8 +1,7 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-// Explicit Turbopack workspace root, same convention as apps/web: the monorepo
-// root, so Turbopack resolves workspace packages (e.g. @commonplace/block-view)
+// Explicit Turbopack workspace root so Turbopack resolves workspace packages
 // that live outside the app directory.
 const projectRoot = path.resolve('..', '..');
 
@@ -28,6 +27,12 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'app.theoremharness.com' }],
+        destination: 'https://v2.theoremharness.com/:path*',
+        permanent: true,
+      },
       // /index fights Next.js client-reference manifests; Index lives at /filing.
       { source: '/index', destination: '/filing', permanent: false },
     ];

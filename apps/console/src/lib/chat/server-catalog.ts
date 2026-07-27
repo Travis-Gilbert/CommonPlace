@@ -1,132 +1,83 @@
-// SOURCING: none. Server-side chat catalog: process-global so reload and a
-// second browser on the same instance see the same threads (CH9).
+// SOURCING: @commonplace/block-view object contract. The server catalog is a
+// compatibility facade over the authenticated object seam, not process memory.
 
-import { randomUUID } from 'node:crypto';
 import type {
-  ChatCatalog,
+  ObjectAction,
+  ObjectActionReceipt,
+  ObjectSet,
+  Result,
+} from '@commonplace/block-view/types';
+import { forward } from '@/app/api/objects/_upstream';
+import {
+  DurableChatCatalog,
+  type ChatCatalogObjectSeam,
+} from './catalog-repository';
+import type {
   ChatPersistedMessage,
   ChatProject,
   ChatThreadRecord,
-} from '@/lib/chat/project-types';
+} from './project-types';
 
-const GLOBAL_KEY = Symbol.for('commonplace.console.chat-catalog');
-
-interface CatalogStore {
-  projects: Map<string, ChatProject>;
-  threads: Map<string, ChatThreadRecord>;
-  activeProjectId: string | null;
+async function responseError(response: Response, operation: string): Promise<Error> {
+  const body = await response.json().catch(() => null) as {
+    error?: unknown;
+    message?: unknown;
+  } | null;
+  const reason = typeof body?.message === 'string'
+    ? body.message
+    : typeof body?.error === 'string'
+      ? body.error
+      : `${operation} failed: ${response.status}`;
+  return new Error(reason);
 }
 
-function store(): CatalogStore {
-  const registry = globalThis as typeof globalThis & { [GLOBAL_KEY]?: CatalogStore };
-  if (!registry[GLOBAL_KEY]) {
-    const projectId = randomUUID();
-    const project: ChatProject = {
-      id: projectId,
-      name: 'Default project',
-      description: '',
-      documentIds: [],
-      objectTypes: ['person', 'task', 'project', 'org', 'doc', 'record'],
-      updatedAt: Date.now(),
+const authenticatedObjectSeam: ChatCatalogObjectSeam = {
+  async query(query) {
+    const response = await forward('/objects/query', {
+      method: 'POST',
+      body: JSON.stringify(query),
+    });
+    if (!response.ok) throw await responseError(response, 'chat catalog query');
+    const set = await response.json() as Omit<ObjectSet, 'subscribe'>;
+    return { ...set, subscribe: () => () => {} };
+  },
+  async emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    const response = await forward('/objects/action', {
+      method: 'POST',
+      body: JSON.stringify(action),
+    });
+    if (!response.ok) {
+      const error = await responseError(response, 'chat catalog action');
+      return { ok: false, error: error.message };
+    }
+    return {
+      ok: true,
+      value: await response.json() as ObjectActionReceipt,
     };
-    registry[GLOBAL_KEY] = {
-      projects: new Map([[projectId, project]]),
-      threads: new Map(),
-      activeProjectId: projectId,
-    };
-  }
-  return registry[GLOBAL_KEY]!;
-}
+  },
+};
 
-export function readCatalog(): ChatCatalog {
-  const current = store();
-  return {
-    projects: [...current.projects.values()].sort((a, b) => b.updatedAt - a.updatedAt),
-    threads: [...current.threads.values()].sort((a, b) => b.updatedAt - a.updatedAt),
-    activeProjectId: current.activeProjectId,
-  };
-}
+const catalog = new DurableChatCatalog(authenticatedObjectSeam);
 
-export function setActiveProject(projectId: string): ChatCatalog {
-  const current = store();
-  if (!current.projects.has(projectId)) {
-    throw new Error(`Unknown project: ${projectId}`);
-  }
-  current.activeProjectId = projectId;
-  return readCatalog();
-}
-
-export function upsertProject(input: Partial<ChatProject> & { name?: string }): ChatProject {
-  const current = store();
-  const id = input.id ?? randomUUID();
-  const existing = current.projects.get(id);
-  const next: ChatProject = {
-    id,
-    name: input.name ?? existing?.name ?? 'Untitled project',
-    description: input.description ?? existing?.description ?? '',
-    documentIds: input.documentIds ?? existing?.documentIds ?? [],
-    objectTypes: input.objectTypes ?? existing?.objectTypes ?? ['person', 'task', 'doc'],
-    updatedAt: Date.now(),
-  };
-  current.projects.set(id, next);
-  if (!current.activeProjectId) current.activeProjectId = id;
-  return next;
-}
-
-export function createThread(input: {
+export const readCatalog = () => catalog.readCatalog();
+export const setActiveProject = (projectId: string) => catalog.setActiveProject(projectId);
+export const upsertProject = (input: Partial<ChatProject> & { name?: string }) => (
+  catalog.upsertProject(input)
+);
+export const createThread = (input: {
   projectId?: string;
   title?: string;
   capability?: ChatThreadRecord['capability'];
   sessionId?: string | null;
-}): ChatThreadRecord {
-  const current = store();
-  const projectId = input.projectId ?? current.activeProjectId;
-  if (!projectId || !current.projects.has(projectId)) {
-    throw new Error('No active project for the new thread.');
-  }
-  const id = randomUUID();
-  const thread: ChatThreadRecord = {
-    id,
-    projectId,
-    title: input.title ?? 'New thread',
-    sessionId: input.sessionId ?? null,
-    capability: input.capability ?? null,
-    railCollapsed: false,
-    updatedAt: Date.now(),
-    scrollTop: 0,
-    messages: [],
-  };
-  current.threads.set(id, thread);
-  return thread;
-}
-
-export function getThread(threadId: string): ChatThreadRecord | null {
-  return store().threads.get(threadId) ?? null;
-}
-
-export function updateThread(
+}) => catalog.createThread(input);
+export const getThread = (threadId: string) => catalog.getThread(threadId);
+export const updateThread = (
   threadId: string,
-  patch: Partial<Omit<ChatThreadRecord, 'id' | 'messages'>> & {
+  patch: Partial<Omit<ChatThreadRecord, 'id' | 'messages' | 'sessionResumable'>> & {
     messages?: ChatPersistedMessage[];
   },
-): ChatThreadRecord {
-  const current = store();
-  const existing = current.threads.get(threadId);
-  if (!existing) throw new Error(`Unknown thread: ${threadId}`);
-  const next: ChatThreadRecord = {
-    ...existing,
-    ...patch,
-    id: existing.id,
-    messages: patch.messages ?? existing.messages,
-    updatedAt: Date.now(),
-  };
-  current.threads.set(threadId, next);
-  return next;
-}
-
-export function replaceThreadMessages(
+) => catalog.updateThread(threadId, patch);
+export const replaceThreadMessages = (
   threadId: string,
   messages: ChatPersistedMessage[],
-): ChatThreadRecord {
-  return updateThread(threadId, { messages });
-}
+) => catalog.replaceThreadMessages(threadId, messages);

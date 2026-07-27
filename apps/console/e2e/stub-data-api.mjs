@@ -10,6 +10,8 @@ import { createServer } from 'node:http';
 
 const PORT = Number(process.env.STUB_DATA_API_PORT ?? 50591);
 const WEB_SEARCH_ENABLED = process.env.STUB_WEB_SEARCH_ENABLED !== 'false';
+const MCP_PROTOCOL_VERSION = '2025-06-18';
+const MCP_SESSION_ID = 'console-e2e-session';
 
 function djb2(text) {
   let hash = 5381;
@@ -283,7 +285,93 @@ const HUNKS = [
   },
 ];
 
+// CN3/CN4 visual fixture: one durable CanvasStore aggregate, matching the
+// production canvas-work-v1 object shape restored from the object seam.
+const CANVAS_GRAPH_FIXTURE = {
+  id: 'canvas.default',
+  title: 'Evidence synthesis',
+  tenant: 'Travis-Gilbert',
+  placements: [
+    {
+      canvasId: 'canvas.default',
+      objectId: 'canvas.card-observe',
+      x: 80,
+      y: 80,
+      width: 240,
+      height: 120,
+    },
+    {
+      canvasId: 'canvas.default',
+      objectId: 'canvas.card-connect',
+      x: 420,
+      y: 250,
+      width: 240,
+      height: 120,
+    },
+    {
+      canvasId: 'canvas.default',
+      objectId: 'canvas.card-verify',
+      x: 760,
+      y: 80,
+      width: 240,
+      height: 120,
+    },
+  ],
+  groups: [],
+  objects: [
+    {
+      id: 'canvas.card-observe',
+      type: 'note',
+      title: 'Observe the source',
+      text: 'Read the repository state and preserve the evidence boundary.',
+    },
+    {
+      id: 'canvas.card-connect',
+      type: 'url',
+      title: 'Connect the claim',
+      text: 'Relate the grounded source to the working conclusion.',
+    },
+    {
+      id: 'canvas.card-verify',
+      type: 'file',
+      title: 'Verify the result',
+      text: 'Hold the final statement against deterministic proof.',
+    },
+  ],
+  connections: [
+    {
+      id: 'canvas.connection-observe-connect',
+      canvasId: 'canvas.default',
+      fromObjectId: 'canvas.card-observe',
+      toObjectId: 'canvas.card-connect',
+      label: 'grounds',
+    },
+    {
+      id: 'canvas.connection-connect-verify',
+      canvasId: 'canvas.default',
+      fromObjectId: 'canvas.card-connect',
+      toObjectId: 'canvas.card-verify',
+      label: 'supports',
+    },
+  ],
+};
+
+const CANVAS_FIXTURE = [
+  {
+    id: 'canvas.default',
+    type: 'canvas',
+    properties: {
+      title: CANVAS_GRAPH_FIXTURE.title,
+      tenant: CANVAS_GRAPH_FIXTURE.tenant,
+      persistence_kind: 'canvas-work-v1',
+      graph: CANVAS_GRAPH_FIXTURE,
+    },
+    relations: {},
+  },
+];
+
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
+const RESETTABLE_STATE_TYPES = new Set([...LAYOUT_TYPES, 'proactivity-structure']);
 
 const POOLS = new Map([
   ['record', RECORDS],
@@ -296,6 +384,12 @@ const POOLS = new Map([
   ['doc', DOCS],
   ['code-file', CODE_FILES],
   ['hunk', HUNKS],
+  ['canvas', CANVAS_FIXTURE],
+  ['chat-project', []],
+  ['chat-catalog', []],
+  ['chat-thread', []],
+  ['search-session-origin', []],
+  ['proactivity-structure', []],
   // B6 / sidebar acceptance: layout write-through and cleared-cache restore.
   ['surface', []],
   ['region', []],
@@ -308,7 +402,7 @@ function allStored() {
 }
 
 function resetLayoutPools() {
-  for (const type of LAYOUT_TYPES) {
+  for (const type of RESETTABLE_STATE_TYPES) {
     const pool = POOLS.get(type);
     if (pool) pool.length = 0;
   }
@@ -426,7 +520,9 @@ function runQuery(query) {
 
 const server = createServer((request, response) => {
   const key = request.headers['x-api-key'];
-  if (key !== (process.env.STUB_DATA_API_KEY ?? 'dev-key')) {
+  const authorization = request.headers.authorization;
+  const fixtureCredential = process.env.STUB_DATA_API_KEY ?? 'dev-key';
+  if (key !== fixtureCredential && authorization !== `Bearer ${fixtureCredential}`) {
     response.writeHead(403, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ error: 'forbidden' }));
     return;
@@ -452,6 +548,92 @@ const server = createServer((request, response) => {
     resetDomainPools();
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ ok: true, note: 'domain fixtures restored' }));
+    return;
+  }
+  if (request.url === '/mcp') {
+    if (!request.headers['x-theorem-tenant']) {
+      response.writeHead(400, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: 'missing_mcp_tenant' }));
+      return;
+    }
+    if (request.method === 'DELETE') {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+    if (request.method !== 'POST') {
+      response.writeHead(405, { Allow: 'POST, DELETE' });
+      response.end();
+      return;
+    }
+    let body = '';
+    request.on('data', (chunk) => {
+      body += chunk;
+    });
+    request.on('end', () => {
+      try {
+        const rpc = JSON.parse(body);
+        if (rpc.method === 'initialize') {
+          const requestedVersion = rpc.params?.protocolVersion;
+          response.writeHead(200, {
+            'Content-Type': 'application/json',
+            'MCP-Session-Id': MCP_SESSION_ID,
+          });
+          response.end(JSON.stringify({
+            jsonrpc: '2.0',
+            id: rpc.id ?? null,
+            result: {
+              protocolVersion: typeof requestedVersion === 'string'
+                ? requestedVersion
+                : MCP_PROTOCOL_VERSION,
+              capabilities: {},
+              serverInfo: { name: 'commonplace-e2e-harness', version: '1' },
+            },
+          }));
+          return;
+        }
+        if (rpc.method === 'notifications/initialized') {
+          if (request.headers['mcp-session-id'] !== MCP_SESSION_ID) {
+            response.writeHead(404, { 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({ error: 'unknown_mcp_session' }));
+            return;
+          }
+          response.writeHead(202);
+          response.end();
+          return;
+        }
+        const name = rpc.params?.name;
+        const query = rpc.params?.arguments?.query;
+        if (
+          rpc.method !== 'tools/call'
+          || request.headers['mcp-session-id'] !== MCP_SESSION_ID
+          || name !== 'graphql_query'
+          || typeof query !== 'string'
+          || !query.includes('itemsByKind')
+        ) {
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({
+            jsonrpc: '2.0',
+            id: rpc.id ?? null,
+            error: { code: -32602, message: 'unsupported fixture tool call' },
+          }));
+          return;
+        }
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({
+          jsonrpc: '2.0',
+          id: rpc.id ?? null,
+          result: {
+            structuredContent: {
+              data: { itemsByKind: MEMORIES },
+            },
+          },
+        }));
+      } catch (error) {
+        response.writeHead(400, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ error: String(error) }));
+      }
+    });
     return;
   }
   if (request.method === 'POST' && request.url === '/graphql') {

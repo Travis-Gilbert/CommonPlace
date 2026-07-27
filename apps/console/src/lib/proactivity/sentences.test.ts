@@ -57,15 +57,15 @@ describe('decompileGraph', () => {
     expect(appeal?.assumptionSummary).not.toMatch(/beyond what has been explored/);
   });
 
-  it('is stable across a sentence-to-nodes-to-sentence round trip (gate 6)', () => {
+  it('is stable across a sentence-to-nodes-to-sentence round trip (gate 6)', async () => {
     const store = new ProactivityStore(FIXTURE_TENANT, seedStandingStructure);
     const read = () => decompileGraph(graphFromStore(store)).programs.map(lineToText);
     const original = read();
     // Edit a threshold: the sentence changes (they share one object).
-    store.emit(setConditionParamsAction('pg-watch-owe', { quietDays: 9 }));
+    await store.emit(setConditionParamsAction('pg-watch-owe', { quietDays: 9 }));
     expect(read()).not.toEqual(original);
     // Revert it: the sentence returns exactly, so the altitudes cannot drift.
-    store.emit(setConditionParamsAction('pg-watch-owe', { quietDays: 3 }));
+    await store.emit(setConditionParamsAction('pg-watch-owe', { quietDays: 3 }));
     expect(read()).toEqual(original);
   });
 });

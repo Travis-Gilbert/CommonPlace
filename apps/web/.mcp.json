@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "plugin-tools": {
-      "type": "url",
-      "url": "https://plugins-building-production.up.railway.app/mcp/"
-    }
-  }
-}

@@ -8,10 +8,52 @@
 // wells), not the sparse CS8 seed-view shells. Seed views remain for /v/*
 // idempotent seeding and list membership.
 
-import type { BlockKindGlyph } from '@commonplace/block-view/types';
+import type { BlockKindGlyph, ViewDescriptor } from '@commonplace/block-view/types';
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
 
 export type RailTier = 'place' | 'collection' | 'pin';
+
+export type BlockPaletteMaterial = 'sunken' | 'lifted' | 'docked';
+
+export interface BlockPaletteItem {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: string;
+  readonly descriptorId: string;
+  readonly material: BlockPaletteMaterial;
+}
+
+export interface ConsoleViewDescriptor extends ViewDescriptor {
+  /**
+   * Opts this descriptor into the Blocks group. Places and Collections remain
+   * separate navigation concepts and do not imply palette membership.
+   */
+  readonly paletteVisible?: boolean;
+  readonly palette?: {
+    readonly id?: string;
+    readonly label?: string;
+    readonly kind?: string;
+    readonly material?: BlockPaletteMaterial;
+  };
+}
+
+/**
+ * CN2: derive one Blocks row per opted-in descriptor. The registry is the
+ * membership source; optional palette metadata only controls presentation.
+ */
+export function deriveBlockPaletteItems(
+  descriptors: readonly ConsoleViewDescriptor[],
+): readonly BlockPaletteItem[] {
+  return descriptors
+    .filter((descriptor) => descriptor.paletteVisible === true)
+    .map((descriptor) => ({
+      id: descriptor.palette?.id ?? descriptor.id,
+      label: descriptor.palette?.label ?? descriptor.name,
+      kind: descriptor.palette?.kind ?? descriptor.block?.kindGlyph ?? descriptor.id,
+      descriptorId: descriptor.id,
+      material: descriptor.palette?.material ?? 'sunken',
+    }));
+}
 
 export interface RailPlace {
   readonly tier: 'place';

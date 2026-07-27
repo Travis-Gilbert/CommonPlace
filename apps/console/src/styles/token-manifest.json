@@ -594,6 +594,18 @@
       "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
+    "--ij-chat-attachment-max-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-attachment-min-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-chat-chip-font-size": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
@@ -612,6 +624,18 @@
       "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
+    "--ij-chat-drawer-share": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-drawer-w": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-chat-fs-indent": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
@@ -621,7 +645,21 @@
     "--ij-chat-measure": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
+    },
+    "--ij-chat-measure-max": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
+    "--ij-chat-measure-min": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
       "resolvedAlsoIn": []
     },
     "--ij-chat-rail-overlay-w": {
@@ -630,11 +668,19 @@
       "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
       "resolvedAlsoIn": []
     },
+    "--ij-chat-sidebar-share": {
+      "file": "src/styles/register-bridge.css",
+      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": []
+    },
     "--ij-chat-sidebar-w": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH4/SH5 sidebar and measure.",
-      "resolvedAlsoIn": []
+      "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
+      "resolvedAlsoIn": [
+        "src/styles/register-bridge.css"
+      ]
     },
     "--ij-chrome": {
       "file": "src/styles/int-ui-register.css",

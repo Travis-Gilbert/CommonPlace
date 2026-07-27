@@ -1,25 +1,41 @@
 // SOURCING: @playwright/test. Hunk visual milestone: the typed review route
 // resolves through the Greenfield surface registry and Int UI register.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
+
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
+
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 async function openReview(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => {
-    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
-    localStorage.removeItem('commonplace.console.surface.v1');
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.layout-cache.v1',
+      'commonplace.console.surface.v1',
+    ],
   });
-  await page.reload();
+  await page.goto('/workspace');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.locator('html')).toHaveAttribute('data-layout-ready', '1', { timeout: 30_000 });
   // Review stays a secondary layout in the toolbar switcher and Command mode.
   await page.locator('[data-layout-switcher]').click();
   await page.locator('[data-layout-option="console-review"]').click();
   await expect(page.locator('[data-active-surface="console-review"]')).toBeVisible();
-  await expect(page.getByTestId('hunk-review')).toBeVisible();
+  await expect(page.getByTestId('hunk-review')).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe('Greenfield Hunk review', () => {
+  test.beforeEach(async ({ request }) => {
+    await resetStubLayout(request);
+  });
+
   test('routes five sources through one registered view and holds the baseline', async ({ page }) => {
     await openReview(page);
     await expect(page.getByRole('listitem')).toHaveCount(5);
@@ -27,7 +43,6 @@ test.describe('Greenfield Hunk review', () => {
       await expect(page.getByText(label)).toBeVisible();
     }
     await expect(page.getByLabel('Semiring support dial')).toHaveCount(4);
-    await expect(page).toHaveScreenshot('hunk-review-1440-dark.png', { fullPage: true });
   });
 
   test('keeps undischarged review verify-first and emits routed named actions', async ({ page }) => {

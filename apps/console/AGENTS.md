@@ -16,10 +16,10 @@ easily as they show data models. The mechanism: IntelliJ chrome outside, the
 block-view object contract inside every pane.
 
 Canonical product host: `https://v2.theoremharness.com`. The `apps/web`
-deployment at `https://app.theoremharness.com` is a legacy frontend and is not
-the primary CommonPlace product surface.
-Railway must deploy this app with `railway.console.toml`; the root
-`railway.toml` belongs to the legacy web service.
+application has been deleted. `https://app.theoremharness.com` is a redirect
+only and must never host a different application. Railway deploys this app
+through the root `railway.toml`; `railway.console.toml` remains an equivalent
+explicit console configuration.
 
 Workspace imports require matching path-separator-delimited allowlists on both
 services: `CONSOLE_WORKSPACE_ALLOWED_ROOTS` on this Console and the JSON tenant
@@ -111,7 +111,7 @@ asks for inspiration, reference, mood, or direction.
 | Code viewing and editing | CodeMirror 6 (`@codemirror/*`) | editor, syntax, one theme file from `--ij-*` |
 | React lifecycle motion | `motion` (`motion/react`) | entrances per the interaction inventory |
 | Agent presence | `textmode.js` | the Presence mark, sole agent activity glyph |
-| Client state | `jotai` | shell, thread, memory projection, proactivity (atomFamily / atomWithStorage) |
+| Client state | `jotai` | ephemeral shell, thread, memory projection, and proactivity state; user work persists through the authenticated object seam |
 | Account identity | Auth.js with GitHub | OAuth, session state, sign-in, sign-out, verified user claims |
 | SSE consumption | `eventsource-parser` over fetch streams | parsing text/event-stream; EventSource is banned (cannot POST) |
 | Icons | Noun Project SVGs (workspace subscription, `NOTICE.md`) normalized to `currentColor` on the icon ladder; small control primitives stay register strokes | every product/domain glyph, one file: `src/components/shell/icons.tsx`; `gate:icons` rejects hardcoded fills; expressive channels are domain tint (`--ij-memory`/`agent`/`room`/`graph`) and file-kind dots, per HANDOFF-CONSOLE-COLORATION named choice 7 / T5 |
@@ -167,6 +167,9 @@ markdown. Use colons, periods, commas, semicolons, or parentheses instead.
 
 | Date | Decision | Why |
 |---|---|---|
+| 2026-07-26 | `apps/console` is the sole web console. `apps/web` is deleted, the root Railway config builds Console, and `app.theoremharness.com` redirects to `v2.theoremharness.com`. | Three competing consoles caused registered surfaces, specs, and deployments to drift apart. |
+| 2026-07-26 | Canvas, chat catalog and transcripts, proactivity review state, and search session origins persist through the authenticated object seam. Browser storage is limited to explicitly commented UI preferences. | User work must survive a browser close and redeploy; an accepted local receipt is not durable proof. |
+| 2026-07-26 | The Blocks palette derives only from `paletteVisible` registry descriptors. Kanban stays because AMENDMENT-02 requires its typed containment behavior and is palette-reachable. | Registry reachability and typed drop acceptance must agree; a separate hardcoded palette had drifted. |
 | 2026-07-18 | The user-facing topic result surface is Indexer. Existing `survey.*` identifiers remain stable. | A topic click returns the full indexed evidence corpus. Keeping internal identifiers avoids breaking persisted surface objects while the product language settles. |
 | 2026-07-18 | Indexer keeps the installed 21st.dev golden-ratio sphere. Relationship data may contain cycles and never controls card placement. | The spatial shape is the primary reading surface. Edges stay faint at rest, strengthen on hover, and pin on click. |
 | 2026-07-18 | Indexer pegboard is retired in favor of MaterialLayer grammar. | Source cards and their evidence connections remain the canvas while the transparent scene shell preserves the shared ambient ground. |

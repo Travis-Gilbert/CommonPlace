@@ -1,3 +1,0 @@
-site: .next
-output_path: public/pagefind
-glob: "**/*.html"
