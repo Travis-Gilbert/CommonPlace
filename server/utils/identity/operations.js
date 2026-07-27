@@ -21,6 +21,8 @@ const API_KEY_SCOPES = Object.freeze([
 const ADMIN_OVERVIEW_LIMIT = 100;
 const API_KEY_LAST_USED_WRITE_INTERVAL_MS = 5 * 60 * 1000;
 const API_KEY_PATTERN = /^cpk_[a-f0-9]{8}_[A-Za-z0-9_-]{43}$/;
+const INVITE_EMAIL_PATTERN =
+  /^(?![\s\S]*\s)[^@]+@[^@.]+(?:\.[^@.]+)+$/;
 const OWNER_PERMISSIONS = Object.freeze([
   "workspace.read",
   "workspace.manage",
@@ -62,6 +64,21 @@ function requiredText(value, name, maxLength) {
 function optionalText(value, name, maxLength) {
   if (value === undefined || value === null || value === "") return null;
   return requiredText(value, name, maxLength);
+}
+
+function normalizeInviteEmail(value) {
+  const email = optionalText(value, "invite.email", 320)?.toLowerCase() ?? null;
+  if (
+    email &&
+    (value !== value.trim() || !INVITE_EMAIL_PATTERN.test(email))
+  ) {
+    throw new IdentityOperationError(
+      400,
+      "invite_email_invalid",
+      "The invitation email address is invalid"
+    );
+  }
+  return email;
 }
 
 function normalizePrincipal(input) {
@@ -270,10 +287,7 @@ function createIdentityOperations(
           update: {},
         });
 
-        if (
-          user.username !== principal.username &&
-          user.username.toLowerCase() !== principal.username.toLowerCase()
-        ) {
+        if (user.username !== principal.username) {
           throw new IdentityOperationError(
             409,
             "identity_rename_requires_migration",
@@ -281,20 +295,12 @@ function createIdentityOperations(
           );
         }
         const changed =
-          user.username !== principal.username ||
           user.displayName !== principal.displayName ||
           user.email !== principal.email;
         if (changed) {
-          if (user.username !== principal.username) {
-            await transaction.workspace.updateMany({
-              where: { tenant: user.username },
-              data: { tenant: principal.username },
-            });
-          }
           user = await transaction.user.update({
             where: { id: user.id },
             data: {
-              username: principal.username,
               displayName: principal.displayName,
               email: principal.email,
             },
@@ -430,7 +436,7 @@ function createIdentityOperations(
   async function createInvite(principalInput, workspaceIdInput, input = {}) {
     const session = await reconcilePrincipal(principalInput);
     const workspaceId = requiredText(workspaceIdInput, "workspace.id", 80);
-    const email = optionalText(input.email, "invite.email", 320)?.toLowerCase() ?? null;
+    const email = normalizeInviteEmail(input.email);
     const code = `cp_inv_${randomBytes(32).toString("base64url")}`;
     const expiresAt = new Date(nowDate(clock).getTime() + inviteTtlMs);
 

@@ -12,7 +12,7 @@ export default async function WorkspaceChatRoute({
 }: {
   readonly params: Promise<{ workspaceSlug: string }>;
 }) {
-  const [{ workspaceSlug }, resolution] = await Promise.all([
+  const [{ workspaceSlug: workspaceRef }, resolution] = await Promise.all([
     params,
     resolveHarnessPrincipal(),
   ]);
@@ -24,13 +24,13 @@ export default async function WorkspaceChatRoute({
         description="The active membership could not be verified."
       >
         <ForkNotice tone="error">
-          Select the workspace again from its <Link className="text-ij-link" href={`/workspace/${encodeURIComponent(workspaceSlug)}/settings`}>settings page</Link>.
+          Select the workspace again from its <Link className="text-ij-link" href={`/workspace/${encodeURIComponent(workspaceRef)}/settings`}>settings page</Link>.
         </ForkNotice>
       </ForkPageFrame>
     );
   }
   if (
-    resolution.principal.workspaceSlug !== workspaceSlug
+    resolution.principal.workspaceId !== workspaceRef
     || !resolution.principal.workspaceId
     || !resolution.principal.scopeRef
   ) {
@@ -41,7 +41,7 @@ export default async function WorkspaceChatRoute({
         description="Graph access follows an active, server-verified workspace membership."
       >
         <ForkNotice>
-          Open <Link className="text-ij-link" href={`/workspace/${encodeURIComponent(workspaceSlug)}/settings`}>workspace settings</Link> and select this workspace for chat.
+          Open <Link className="text-ij-link" href={`/workspace/${encodeURIComponent(workspaceRef)}/settings`}>workspace settings</Link> and select this workspace for chat.
         </ForkNotice>
       </ForkPageFrame>
     );

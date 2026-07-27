@@ -327,6 +327,61 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
   });
 
+  it('retries refused remote deletes before adopting a retired layout', async () => {
+    let deleteAttempts = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        id?: string;
+      };
+      if (!body.kind) {
+        return Response.json({
+          objects: [
+            { id: 'console-chat', type: 'surface', properties: { name: 'Chat' } },
+            {
+              id: 'console.region-landmarks',
+              type: 'region',
+              properties: { kind: 'landmarks' },
+            },
+            { id: 'view-chat', type: 'view-instance', properties: {} },
+          ],
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      deleteAttempts += 1;
+      if (deleteAttempts === 1) {
+        return Response.json({ error: 'temporary refusal' }, { status: 503 });
+      }
+      return Response.json({
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: [body.id],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    await host.ensureSeedLayout();
+
+    expect(deleteAttempts).toBe(2);
+    expect(
+      host.queryLayout(surfaceQuery()).objects.some((object) => object.id === 'view-chat'),
+    ).toBe(false);
+    const deleteBodies = fetchMock.mock.calls
+      .slice(1)
+      .map(([, init]) => JSON.parse(String(init?.body ?? '{}')));
+    expect(deleteBodies).toEqual([
+      { kind: 'delete', id: 'view-chat' },
+      { kind: 'delete', id: 'view-chat' },
+    ]);
+  });
+
   it('routes canvas ObjectRefs and mutations through the authenticated object seam', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? '{}')) as {

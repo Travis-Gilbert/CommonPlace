@@ -1,10 +1,22 @@
 "use strict";
 
+const DEFAULT_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+
 class ContentTransportError extends Error {
-  constructor(message, { code = "CONTENT_TRANSPORT_ERROR", details = null } = {}) {
+  constructor(
+    message,
+    {
+      code = "CONTENT_TRANSPORT_ERROR",
+      retryable = false,
+      status = null,
+      details = null,
+    } = {}
+  ) {
     super(message);
     this.name = "ContentTransportError";
     this.code = code;
+    this.retryable = retryable;
+    this.status = status;
     this.details = details;
   }
 }
@@ -53,6 +65,7 @@ class CommonplaceGraphqlTransport extends ContentTransport {
   #apiKey;
   #endpoint;
   #fetch;
+  #maxResponseBytes;
   #timeoutMs;
   #unsafeAllowUnscopedScopeFallback;
 
@@ -60,6 +73,7 @@ class CommonplaceGraphqlTransport extends ContentTransport {
     endpoint,
     apiKey,
     fetchImpl = globalThis.fetch,
+    maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
     timeoutMs = 30_000,
     unsafeAllowUnscopedScopeFallback = false,
   }) {
@@ -81,10 +95,17 @@ class CommonplaceGraphqlTransport extends ContentTransport {
         code: "FETCH_MISSING",
       });
     }
+    if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1) {
+      throw new ContentTransportError(
+        "CommonPlace response limit must be a positive safe integer.",
+        { code: "CONTENT_RESPONSE_LIMIT_INVALID" }
+      );
+    }
 
     this.#endpoint = endpoint;
     this.#apiKey = apiKey;
     this.#fetch = fetchImpl;
+    this.#maxResponseBytes = maxResponseBytes;
     this.#timeoutMs = timeoutMs;
     this.#unsafeAllowUnscopedScopeFallback = unsafeAllowUnscopedScopeFallback;
   }
@@ -201,11 +222,16 @@ class CommonplaceGraphqlTransport extends ContentTransport {
       if (!response.ok) {
         throw new ContentTransportError(
           `CommonPlace GraphQL returned HTTP ${response.status}.`,
-          { code: "CONTENT_HTTP_ERROR", details: { status: response.status } }
+          {
+            code: "CONTENT_HTTP_ERROR",
+            retryable: response.status >= 500,
+            status: response.status,
+            details: { status: response.status },
+          }
         );
       }
 
-      const payload = await response.json();
+      const payload = await readJsonResponse(response, this.#maxResponseBytes);
       if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
         throw new ContentTransportError("CommonPlace GraphQL returned a malformed payload.", {
           code: "CONTENT_RESPONSE_INVALID",
@@ -260,6 +286,57 @@ class CommonplaceGraphqlTransport extends ContentTransport {
       }
     );
   }
+}
+
+async function readJsonResponse(response, maxResponseBytes) {
+  const declaredLength = Number(response.headers?.get?.("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > maxResponseBytes) {
+    await response.body?.cancel?.().catch(() => undefined);
+    throw responseTooLargeError();
+  }
+
+  if (!response.body || typeof response.body.getReader !== "function") {
+    throw new ContentTransportError(
+      "CommonPlace GraphQL returned an unreadable response body.",
+      { code: "CONTENT_HTTP_RESPONSE_INVALID", status: 502 }
+    );
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      totalBytes += chunk.value.byteLength;
+      if (totalBytes > maxResponseBytes) {
+        throw responseTooLargeError();
+      }
+      chunks.push(Buffer.from(chunk.value));
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return parseJsonPayload(Buffer.concat(chunks, totalBytes).toString("utf8"));
+}
+
+function parseJsonPayload(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new ContentTransportError(
+      "CommonPlace GraphQL returned invalid JSON.",
+      { code: "CONTENT_RESPONSE_INVALID", status: 502 }
+    );
+  }
+}
+
+function responseTooLargeError() {
+  return new ContentTransportError(
+    "CommonPlace GraphQL response exceeded the configured limit.",
+    { code: "CONTENT_RESPONSE_TOO_LARGE", status: 502 }
+  );
 }
 
 function assertScope(scope) {

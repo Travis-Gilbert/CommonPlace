@@ -32,7 +32,7 @@ describe('workspace chat route', () => {
     });
 
     const page = await WorkspaceChatRoute({
-      params: Promise.resolve({ workspaceSlug: 'research' }),
+      params: Promise.resolve({ workspaceSlug: 'workspace-1' }),
     });
 
     expect(page.props.title).toBe('Workspace chat unavailable');
@@ -41,6 +41,26 @@ describe('workspace chat route', () => {
     expect(page.props.children.props.children).toContain(
       'legacy unscoped ACP fallback',
     );
+  });
+
+  it('refuses a legacy slug even when the active workspace uses it', async () => {
+    mocks.resolveHarnessPrincipal.mockResolvedValue({
+      ok: true,
+      principal: {
+        tenant: 'Travis-Gilbert',
+        githubLogin: 'Travis-Gilbert',
+        harnessIdentity: 'github:1',
+        workspaceId: 'workspace-1',
+        workspaceSlug: 'research',
+        scopeRef: 'workspace:workspace-1',
+      },
+    });
+
+    const page = await WorkspaceChatRoute({
+      params: Promise.resolve({ workspaceSlug: 'research' }),
+    });
+
+    expect(page.props.title).toBe('Select this workspace');
   });
 
   it('remains unavailable when active membership resolution fails', async () => {

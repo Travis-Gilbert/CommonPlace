@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { ForkPageFrame, ForkPanel } from './ForkPageFrame';
 
 export function GeneralSettingsPage({
-  workspaceSlug,
+  workspaceId,
 }: {
-  readonly workspaceSlug?: string;
+  readonly workspaceId?: string;
 }) {
   const settings = [
     {
@@ -18,12 +18,12 @@ export function GeneralSettingsPage({
       href: '/login',
     },
     {
-      title: workspaceSlug ? 'Workspace settings' : 'Create or select a workspace',
-      description: workspaceSlug
-        ? 'Names, membership invitations, roles, and API keys.'
+      title: workspaceId ? 'Workspace settings' : 'Create or select a workspace',
+      description: workspaceId
+        ? 'Names, membership invitations, roles, documents, and consumer-boundary status.'
         : 'Choose the workspace that will own graph and chat scope.',
-      href: workspaceSlug
-        ? `/workspace/${encodeURIComponent(workspaceSlug)}/settings`
+      href: workspaceId
+        ? `/workspace/${encodeURIComponent(workspaceId)}/settings`
         : '/onboarding',
     },
     {

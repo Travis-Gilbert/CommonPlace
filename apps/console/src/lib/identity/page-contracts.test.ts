@@ -14,6 +14,7 @@ import {
 } from '@/components/fork/OnboardingPage';
 import { safeCallback } from '@/components/fork/LoginPage';
 import { IdentityClientError } from './client';
+import { resolveIdentityWorkspaceRoute } from './workspace-route';
 
 const workspace = {
   id: 'workspace-1',
@@ -91,6 +92,26 @@ describe('fork identity page contracts', () => {
     expect(workspaceSlugFromName('  Graph Native Research  ')).toBe('graph-native-research');
     expect(workspaceSlugFromName('---')).toBe('');
     expect(workspaceSlugFromName(`${'a'.repeat(63)} b`)).toBe('a'.repeat(63));
+  });
+
+  it('uses workspace IDs canonically and refuses ambiguous legacy slugs', () => {
+    const secondTenant = {
+      ...workspace,
+      id: 'workspace-2',
+      tenant: 'Second-Tenant',
+      scopeRef: 'workspace:workspace-2',
+    };
+
+    expect(
+      resolveIdentityWorkspaceRoute([workspace, secondTenant], 'workspace-2'),
+    ).toEqual({ kind: 'resolved', workspace: secondTenant });
+    expect(
+      resolveIdentityWorkspaceRoute([workspace, secondTenant], 'research'),
+    ).toEqual({ kind: 'ambiguous' });
+    expect(resolveIdentityWorkspaceRoute([workspace], 'research')).toEqual({
+      kind: 'resolved',
+      workspace,
+    });
   });
 
   it('keeps login callbacks on same-origin paths', () => {

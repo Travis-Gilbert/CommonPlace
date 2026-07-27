@@ -106,7 +106,7 @@ function InviteContent({ code }: { readonly code: string }) {
               </ForkNotice>
             ) : null}
             <Button asChild>
-              <Link href={`/workspace/${encodeURIComponent(state.workspace.slug)}/${'selectionError' in state ? 'settings' : 'chat'}`}>
+              <Link href={`/workspace/${encodeURIComponent(state.workspace.id)}/${'selectionError' in state ? 'settings' : 'chat'}`}>
                 {'selectionError' in state ? 'Open workspace settings' : 'Open workspace chat'}
               </Link>
             </Button>

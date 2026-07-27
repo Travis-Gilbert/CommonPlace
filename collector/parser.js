@@ -10,6 +10,7 @@ const TEXT_MEDIA_TYPES = new Set([
 ]);
 const DEFAULT_MAX_EXTRACTED_TEXT_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MAX_PARSER_WORKERS = 2;
+const DEFAULT_MAX_PARSER_QUEUE = 2;
 const PARSER_RESOURCE_LIMITS = Object.freeze({
   maxOldGenerationSizeMb: 96,
   maxYoungGenerationSizeMb: 16,
@@ -30,6 +31,14 @@ class InvalidCollectorTextError extends Error {
     super(message);
     this.name = "InvalidCollectorTextError";
     this.statusCode = 422;
+  }
+}
+
+class CollectorParserBusyError extends Error {
+  constructor() {
+    super("Collector parser capacity is full.");
+    this.name = "CollectorParserBusyError";
+    this.statusCode = 503;
   }
 }
 
@@ -128,6 +137,7 @@ async function parseDocumentBytesInWorker({
   correlationId,
   signal,
   maxExtractedTextBytes = DEFAULT_MAX_EXTRACTED_TEXT_BYTES,
+  maxQueue = DEFAULT_MAX_PARSER_QUEUE,
   maxWorkers = DEFAULT_MAX_PARSER_WORKERS,
 }) {
   if (
@@ -147,7 +157,11 @@ async function parseDocumentBytesInWorker({
       "Parsed text exceeds the extracted text limit."
     );
   }
-  const releaseWorkerSlot = await acquireWorkerSlot(maxWorkers, signal);
+  const releaseWorkerSlot = await acquireWorkerSlot(
+    maxWorkers,
+    maxQueue,
+    signal
+  );
   try {
     return await new Promise((resolve, reject) => {
       if (signal?.aborted) {
@@ -217,7 +231,7 @@ async function parseDocumentBytesInWorker({
   }
 }
 
-function acquireWorkerSlot(maxWorkers, signal) {
+function acquireWorkerSlot(maxWorkers, maxQueue, signal) {
   if (!Number.isSafeInteger(maxWorkers) || maxWorkers < 1) {
     return Promise.reject(
       new InvalidCollectorTextError(
@@ -228,10 +242,20 @@ function acquireWorkerSlot(maxWorkers, signal) {
   if (signal?.aborted) {
     return Promise.reject(createAbortError());
   }
+  if (!Number.isSafeInteger(maxQueue) || maxQueue < 0) {
+    return Promise.reject(
+      new InvalidCollectorTextError(
+        "Collector parser queue limit must be a non-negative safe integer."
+      )
+    );
+  }
   const pool = workerPool(maxWorkers);
   if (pool.active < maxWorkers) {
     pool.active += 1;
     return Promise.resolve(createWorkerSlotRelease(pool));
+  }
+  if (pool.waiters.length >= maxQueue) {
+    return Promise.reject(new CollectorParserBusyError());
   }
   return new Promise((resolve, reject) => {
     const waiter = { resolve, reject, signal, onAbort: null };
@@ -310,8 +334,10 @@ function createAbortError() {
 }
 
 module.exports = {
+  CollectorParserBusyError,
   countWords,
   DEFAULT_MAX_EXTRACTED_TEXT_BYTES,
+  DEFAULT_MAX_PARSER_QUEUE,
   DEFAULT_MAX_PARSER_WORKERS,
   getParserWorkerState,
   InvalidCollectorTextError,

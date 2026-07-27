@@ -9,8 +9,8 @@ export default async function SettingsPage() {
   const resolution = await resolveHarnessPrincipal();
   return (
     <GeneralSettingsPage
-      workspaceSlug={
-        resolution.ok ? resolution.principal.workspaceSlug : undefined
+      workspaceId={
+        resolution.ok ? resolution.principal.workspaceId : undefined
       }
     />
   );

@@ -13,6 +13,7 @@ const DEFAULT_MAX_DOCUMENTS = 32;
 const DEFAULT_MAX_EXTRACTED_TEXT_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
 const DEFAULT_PARSE_TIMEOUT_MS = 60_000;
+const DEFAULT_MAX_CONCURRENT_PARSES = 2;
 const CORRELATION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 
 class CollectorServiceConfigurationError extends Error {
@@ -48,6 +49,7 @@ function createCollectorRequestHandler({
   maxExtractedTextBytes = DEFAULT_MAX_EXTRACTED_TEXT_BYTES,
   maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
   parseTimeoutMs = DEFAULT_PARSE_TIMEOUT_MS,
+  maxConcurrentParses = DEFAULT_MAX_CONCURRENT_PARSES,
 } = {}) {
   const peerTokens = normalizePeerTokens(peerToken, previousPeerToken);
   if (typeof parseBytes !== "function") {
@@ -89,6 +91,13 @@ function createCollectorRequestHandler({
       "COLLECTOR_PARSE_TIMEOUT_INVALID"
     );
   }
+  if (!Number.isSafeInteger(maxConcurrentParses) || maxConcurrentParses < 1) {
+    throw new CollectorServiceConfigurationError(
+      "maxConcurrentParses must be a positive safe integer.",
+      "COLLECTOR_PARSE_CONCURRENCY_INVALID"
+    );
+  }
+  const parseAdmission = createParseAdmission(maxConcurrentParses);
 
   return function collectorRequestHandler(request, response) {
     handleRequest({
@@ -101,6 +110,7 @@ function createCollectorRequestHandler({
       maxExtractedTextBytes,
       maxResponseBytes,
       parseTimeoutMs,
+      parseAdmission,
     }).catch(() => {
       if (response.destroyed) {
         return;
@@ -127,6 +137,7 @@ async function handleRequest({
   maxExtractedTextBytes,
   maxResponseBytes,
   parseTimeoutMs,
+  parseAdmission,
 }) {
   const requestUrl = new URL(request.url ?? "/", "http://collector.internal");
 
@@ -192,78 +203,109 @@ async function handleRequest({
     return;
   }
 
-  try {
-    const bytes = await readRequestBytes(request, maxUploadBytes);
-    if (bytes.length === 0) {
-      sendJson(response, 400, {
-        success: false,
-        correlationId,
-        reason: "Upload bytes are required.",
-      });
-      return;
-    }
-
-    const parseController = new AbortController();
-    const abortParsing = () => parseController.abort();
-    request.once("aborted", abortParsing);
-    response.once("close", abortParsing);
-    const parseTimeout = setTimeout(abortParsing, parseTimeoutMs);
-    let parsed;
-    try {
-      parsed = await runParserWithAbort(
-        parseBytes,
-        {
-          bytes,
-          filename,
-          mediaType,
-          correlationId,
-          maxExtractedTextBytes,
-        },
-        parseController.signal
-      );
-    } finally {
-      clearTimeout(parseTimeout);
-      request.removeListener("aborted", abortParsing);
-      response.removeListener("close", abortParsing);
-    }
-    const normalized = normalizeParserResult(parsed, {
-      maxDocuments,
-      maxExtractedTextBytes,
-    });
-    const successPayload = {
-      success: true,
-      correlationId,
-      documents: normalized.documents,
-      sourceFacts: normalized.sourceFacts,
-    };
-    if (measureJsonBytes(successPayload, maxResponseBytes) > maxResponseBytes) {
-      const error = new Error(
-        "Parser output exceeds the collector response limit."
-      );
-      error.statusCode = 422;
-      throw error;
-    }
-    const serializedPayload = JSON.stringify(successPayload);
-    sendJson(response, 200, successPayload, serializedPayload);
-  } catch (error) {
-    if (response.destroyed) {
-      return;
-    }
-    const statusCode =
-      Number.isInteger(error?.statusCode) &&
-      error.statusCode >= 400 &&
-      error.statusCode < 600
-        ? error.statusCode
-        : 500;
-    sendJson(response, statusCode, {
+  const releaseParseAdmission = parseAdmission.tryAcquire();
+  if (!releaseParseAdmission) {
+    request.resume();
+    sendJson(response, 503, {
       success: false,
       correlationId,
-      reason:
-        statusCode < 500
-          ? error.message
-          : "Collector parser failed without producing ingestible content.",
+      reason: "Collector parser capacity is full.",
     });
+    return;
   }
+
+  try {
+    try {
+      const bytes = await readRequestBytes(request, maxUploadBytes);
+      if (bytes.length === 0) {
+        sendJson(response, 400, {
+          success: false,
+          correlationId,
+          reason: "Upload bytes are required.",
+        });
+        return;
+      }
+
+      const parseController = new AbortController();
+      const abortParsing = () => parseController.abort();
+      request.once("aborted", abortParsing);
+      response.once("close", abortParsing);
+      const parseTimeout = setTimeout(abortParsing, parseTimeoutMs);
+      let parsed;
+      try {
+        parsed = await runParserWithAbort(
+          parseBytes,
+          {
+            bytes,
+            filename,
+            mediaType,
+            correlationId,
+            maxExtractedTextBytes,
+          },
+          parseController.signal
+        );
+      } finally {
+        clearTimeout(parseTimeout);
+        request.removeListener("aborted", abortParsing);
+        response.removeListener("close", abortParsing);
+      }
+      const normalized = normalizeParserResult(parsed, {
+        maxDocuments,
+        maxExtractedTextBytes,
+      });
+      const successPayload = {
+        success: true,
+        correlationId,
+        documents: normalized.documents,
+        sourceFacts: normalized.sourceFacts,
+      };
+      if (measureJsonBytes(successPayload, maxResponseBytes) > maxResponseBytes) {
+        const error = new Error(
+          "Parser output exceeds the collector response limit."
+        );
+        error.statusCode = 422;
+        throw error;
+      }
+      const serializedPayload = JSON.stringify(successPayload);
+      sendJson(response, 200, successPayload, serializedPayload);
+    } catch (error) {
+      if (response.destroyed) {
+        return;
+      }
+      const statusCode =
+        Number.isInteger(error?.statusCode) &&
+        error.statusCode >= 400 &&
+        error.statusCode < 600
+          ? error.statusCode
+          : 500;
+      sendJson(response, statusCode, {
+        success: false,
+        correlationId,
+        reason:
+          statusCode < 500
+            ? error.message
+            : "Collector parser failed without producing ingestible content.",
+      });
+    }
+  } finally {
+    releaseParseAdmission();
+  }
+}
+
+function createParseAdmission(limit) {
+  let active = 0;
+  return {
+    tryAcquire() {
+      if (active >= limit) return null;
+      active += 1;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        active -= 1;
+      };
+    },
+  };
 }
 
 function normalizePeerTokens(peerToken, previousPeerToken) {
@@ -607,6 +649,7 @@ function sendJson(response, statusCode, payload, serializedPayload = null) {
 module.exports = {
   CollectorParserAbortedError,
   CollectorServiceConfigurationError,
+  DEFAULT_MAX_CONCURRENT_PARSES,
   DEFAULT_MAX_DOCUMENTS,
   DEFAULT_MAX_EXTRACTED_TEXT_BYTES,
   DEFAULT_MAX_RESPONSE_BYTES,

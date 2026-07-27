@@ -5,59 +5,40 @@
 // paths=frontend/src/pages/WorkspaceSettings/{GeneralAppearance,Members}.
 // Provider and vector settings are cut in favor of the Harness and RustyRed.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { SessionProvider } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
-  createIdentityApiKey,
   createIdentityInvite,
   IdentityClientError,
-  listIdentityApiKeys,
-  revokeIdentityApiKey,
   selectIdentityWorkspace,
   updateIdentityWorkspace,
   uploadIdentityWorkspaceDocument,
 } from '@/lib/identity/client';
-import type { ApiKeyMeta } from '@/lib/identity/contracts';
 import { useIdentitySession } from '@/lib/identity/use-identity-session';
+import { resolveIdentityWorkspaceRoute } from '@/lib/identity/workspace-route';
 import { useCopyToClipboard } from '@/lib/use-copy';
 import { ForkField, ForkNotice, ForkPageFrame, ForkPanel } from './ForkPageFrame';
 
-function WorkspaceSettingsContent({ workspaceSlug }: { readonly workspaceSlug: string }) {
+function WorkspaceSettingsContent({ workspaceRef }: { readonly workspaceRef: string }) {
   const identity = useIdentitySession();
   const copy = useCopyToClipboard();
-  const workspace = identity.state.status === 'ready'
-    ? identity.state.session.workspaces.find((entry) => entry.slug === workspaceSlug)
+  const routeResolution = identity.state.status === 'ready'
+    ? resolveIdentityWorkspaceRoute(identity.state.session.workspaces, workspaceRef)
+    : null;
+  const workspace = routeResolution?.kind === 'resolved'
+    ? routeResolution.workspace
     : null;
   const canManageWorkspace = workspace?.role.permissions.includes('workspace.manage') ?? false;
   const canManageMembers = workspace?.role.permissions.includes('members.manage') ?? false;
-  const canManageKeys = workspace?.role.permissions.includes('keys.manage') ?? false;
   const canWriteContent = workspace?.role.permissions.includes('content.write') ?? false;
   const [name, setName] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [keyName, setKeyName] = useState('');
-  const [revealedKey, setRevealedKey] = useState<string | null>(null);
-  const [apiKeys, setApiKeys] = useState<readonly ApiKeyMeta[]>([]);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; message: string } | null>(null);
-
-  useEffect(() => {
-    if (!workspace || !canManageKeys) return;
-    let active = true;
-    void listIdentityApiKeys(workspace.id)
-      .then((records) => {
-        if (active) setApiKeys(records);
-      })
-      .catch(() => {
-        if (active) setNotice({ tone: 'error', message: 'API keys could not be loaded.' });
-      });
-    return () => {
-      active = false;
-    };
-  }, [canManageKeys, workspace]);
 
   const scopeSummary = useMemo(
     () => workspace ? `${workspace.tenant} / ${workspace.scopeRef}` : null,
@@ -75,7 +56,7 @@ function WorkspaceSettingsContent({ workspaceSlug }: { readonly workspaceSlug: s
     return (
       <ForkPageFrame eyebrow="Workspace" title="Workspace settings" description="Sign in to resolve this workspace.">
         <ForkNotice tone="error">
-          Sign in to continue. <Link className="text-ij-link" href={`/login?callbackUrl=/workspace/${encodeURIComponent(workspaceSlug)}/settings`}>Open login</Link>.
+          Sign in to continue. <Link className="text-ij-link" href={`/login?callbackUrl=/workspace/${encodeURIComponent(workspaceRef)}/settings`}>Open login</Link>.
         </ForkNotice>
       </ForkPageFrame>
     );
@@ -93,7 +74,9 @@ function WorkspaceSettingsContent({ workspaceSlug }: { readonly workspaceSlug: s
         <p aria-live="polite" className="text-ij-ink-info">Resolving workspace membership...</p>
       ) : !workspace ? (
         <ForkNotice tone="error">
-          This identity has no membership in workspace {workspaceSlug}.
+          {routeResolution?.kind === 'ambiguous'
+            ? 'This slug matches workspaces in more than one tenant. Open the workspace from onboarding to use its unambiguous ID.'
+            : `This identity has no membership in workspace ${workspaceRef}.`}
         </ForkNotice>
       ) : (
         <div className="grid gap-4">
@@ -133,7 +116,7 @@ function WorkspaceSettingsContent({ workspaceSlug }: { readonly workspaceSlug: s
                 void selectIdentityWorkspace(workspace.id)
                   .then(() => {
                     window.location.assign(
-                      `/workspace/${encodeURIComponent(workspace.slug)}/chat`,
+                      `/workspace/${encodeURIComponent(workspace.id)}/chat`,
                     );
                   })
                   .catch((error) => {
@@ -234,74 +217,12 @@ function WorkspaceSettingsContent({ workspaceSlug }: { readonly workspaceSlug: s
 
           <ForkPanel
             title="API keys"
-            description="Secrets are shown once. Stored records contain only a prefix and a hash."
+            description="Issuance remains disabled until a public consumer can enforce the admitted tenant and workspace scope."
           >
-            {canManageKeys ? (
-              <>
-                <ForkField
-                  label="Key name"
-                  value={keyName}
-                  placeholder="Embed widget"
-                  maxLength={120}
-                  onChange={(event) => setKeyName(event.target.value)}
-                />
-                <Button
-                  type="button"
-                  disabled={busy !== null}
-                  onClick={() => {
-                    setBusy('key');
-                    setNotice(null);
-                    void createIdentityApiKey(workspace.id, {
-                      ...(keyName.trim() ? { name: keyName.trim() } : {}),
-                    })
-                      .then((created) => {
-                        setRevealedKey(created.key);
-                        setApiKeys((current) => [created.record, ...current]);
-                        setNotice({ tone: 'success', message: 'API key created. Copy it before leaving this page.' });
-                      })
-                      .catch((error) => fail(error, 'The API key could not be created.'))
-                      .finally(() => setBusy(null));
-                  }}
-                >
-                  {busy === 'key' ? 'Creating key...' : 'Create API key'}
-                </Button>
-                {revealedKey ? (
-                  <div className="grid gap-2 rounded-ij-arc border border-ij-control-border bg-ij-raised p-3">
-                    <code className="break-all font-ij-mono">{revealedKey}</code>
-                    <Button type="button" variant="outline" onClick={() => copy.copy(revealedKey)}>
-                      {copy.state === 'copied' ? 'Copied' : copy.state === 'unavailable' ? 'Clipboard unavailable' : 'Copy API key'}
-                    </Button>
-                  </div>
-                ) : null}
-                <ul className="grid gap-2">
-                  {apiKeys.map((apiKey) => (
-                    <li key={apiKey.id} className="flex flex-wrap items-center gap-3 rounded-ij-arc border border-ij-seam bg-ij-raised p-3">
-                      <div className="min-w-0 flex-1">
-                        <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>{apiKey.name ?? 'Unnamed key'}</p>
-                        <p className="font-ij-mono text-xs text-ij-ink-info">{apiKey.prefix}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        disabled={busy !== null}
-                        onClick={() => {
-                          setBusy(apiKey.id);
-                          void revokeIdentityApiKey(apiKey.id)
-                            .then(() => setApiKeys((current) => current.filter((entry) => entry.id !== apiKey.id)))
-                            .catch((error) => fail(error, 'The API key could not be revoked.'))
-                            .finally(() => setBusy(null));
-                        }}
-                      >
-                        {busy === apiKey.id ? 'Revoking...' : 'Revoke'}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="text-ij-ink-info">Your role cannot manage API keys.</p>
-            )}
+            <ForkNotice tone="error">
+              No secret will be created here while the CommonPlace API still
+              relies on an independent service-key registry.
+            </ForkNotice>
           </ForkPanel>
           {notice ? <ForkNotice tone={notice.tone}>{notice.message}</ForkNotice> : null}
         </div>
@@ -310,10 +231,10 @@ function WorkspaceSettingsContent({ workspaceSlug }: { readonly workspaceSlug: s
   );
 }
 
-export function WorkspaceSettingsPage({ workspaceSlug }: { readonly workspaceSlug: string }) {
+export function WorkspaceSettingsPage({ workspaceRef }: { readonly workspaceRef: string }) {
   return (
     <SessionProvider>
-      <WorkspaceSettingsContent workspaceSlug={workspaceSlug} />
+      <WorkspaceSettingsContent workspaceRef={workspaceRef} />
     </SessionProvider>
   );
 }

@@ -279,6 +279,15 @@ test("parser worker admission is bounded and queued calls honor abort", async ()
     queued: 2,
     limit: 1,
   });
+  await assert.rejects(
+    parseDocumentBytesInWorker({
+      bytes: Buffer.from("rejected worker"),
+      filename: "rejected.txt",
+      mediaType: "text/plain",
+      maxWorkers: 1,
+    }),
+    { name: "CollectorParserBusyError", statusCode: 503 }
+  );
   for (const controller of controllers) controller.abort();
   const settled = await Promise.allSettled(parses);
   assert.equal(
@@ -293,6 +302,57 @@ test("parser worker admission is bounded and queued calls honor abort", async ()
     queued: 0,
     limit: 1,
   });
+});
+
+test("collector rejects excess parser admission before reading another upload", async (t) => {
+  let releaseFirstParser;
+  let signalFirstParser;
+  const firstParserEntered = new Promise((resolve) => {
+    signalFirstParser = resolve;
+  });
+  let parserCalls = 0;
+  const handler = createCollectorRequestHandler({
+    peerToken: PEER_TOKEN,
+    maxConcurrentParses: 1,
+    async parseBytes({ filename }) {
+      parserCalls += 1;
+      signalFirstParser();
+      await new Promise((resolve) => {
+        releaseFirstParser = resolve;
+      });
+      return {
+        documents: [{ title: filename, pageContent: "admitted" }],
+      };
+    },
+  });
+  const baseUrl = await listen(handler, t);
+  const headers = {
+    authorization: `Bearer ${PEER_TOKEN}`,
+    "content-type": "text/plain",
+  };
+  const firstResponse = fetch(`${baseUrl}/v1/parse?filename=first.txt`, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "x-commonplace-correlation-id": "express-request-admission-1",
+    },
+    body: "first",
+  });
+  await firstParserEntered;
+
+  const refused = await fetch(`${baseUrl}/v1/parse?filename=second.txt`, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "x-commonplace-correlation-id": "express-request-admission-2",
+    },
+    body: "second",
+  });
+  assert.equal(refused.status, 503);
+  assert.equal(parserCalls, 1);
+
+  releaseFirstParser();
+  assert.equal((await firstResponse).status, 200);
 });
 
 test("parser worker enforces the extracted-text limit before decoding", async () => {

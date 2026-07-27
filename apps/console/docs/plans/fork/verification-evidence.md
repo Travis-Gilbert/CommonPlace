@@ -152,6 +152,12 @@ route fails closed instead of falling back to the legacy unscoped ACP transport
 until production runner and persistence adapters connect that bridge. A
 deployed authenticated turn has not been observed.
 
+An authenticated user session is not itself a graph principal. User-scoped
+object, indexer, and Harness routes now require a signed active-workspace claim
+and revalidate its exact membership before adding tenant, workspace, or
+`ScopeRef` headers. Missing configuration, an unreadable cookie store, and an
+absent claim all refuse instead of falling back to a tenant-wide connector.
+
 ## Frontend client seam
 
 `frontend/src/models` contains 28 files and 4,205 lines. It is an endpoint map,
@@ -167,6 +173,13 @@ not a complete client boundary:
 The port needs explicit Express, CommonPlace, and Harness destinations or one
 same-origin gateway, plus separate SSE and websocket contracts.
 
+The implemented page seam uses a workspace's durable ID as its canonical route
+reference. A legacy slug remains compatible only when it resolves to exactly
+one of the principal's memberships; duplicate slugs across tenants refuse as
+ambiguous. Same-origin API-key issuance also returns an explicit unavailable
+response while the public CommonPlace consumer cannot enforce the admitted
+tenant and workspace scope.
+
 ## Collector service
 
 The inherited collector could not run unchanged as a peer because it depended
@@ -181,6 +194,8 @@ The implemented service replaces that coupling with:
 - authentication before parser admission
 - bounded parser concurrency, queue abort, and physical worker termination at
   the deadline
+- parser capacity reserved before request bytes are read, plus a finite
+  internal waiter queue
 - correlation checks and aligned per-document ingest receipts
 - scope derived by Express, never by the browser or collector
 
@@ -215,8 +230,9 @@ Harness Plan routes and is not treated as local acceptance.
 
 ## Current verification receipts
 
-- Fork Express service: 116 of 116 tests passed.
-- Console: 89 Vitest files and 393 tests passed, plus 2 Railway tests.
+- Fork Express service: 121 of 121 tests passed.
+- Console: 90 Vitest files and 400 tests passed, plus 2 Railway tests.
+- CommonPlace API library: 64 of 64 tests passed.
 - Console architecture and visual gates: all passed.
 - Console production build: passed; 29 pages generated and no `/v` route.
 - Playwright: 83 passed, 1 live-service case skipped, 0 failed.

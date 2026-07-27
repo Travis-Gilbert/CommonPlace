@@ -67,6 +67,7 @@ function createCollectorServer({
       maxExtractedTextBytes,
       maxResponseBytes,
       parseTimeoutMs,
+      maxConcurrentParses: maxParserWorkers,
     })
   );
 }

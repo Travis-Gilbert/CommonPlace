@@ -171,6 +171,34 @@ test("retrieval returns passages, provenance sources, and the PPR measurement", 
   assert.equal(result.message, false);
 });
 
+test("adapter refuses cosine thresholds against fused RRF scores", async () => {
+  let retrievals = 0;
+  const adapter = new RustyRed({
+    scopeResolver: async () => SCOPE,
+    transport: {
+      async retrieve() {
+        retrievals += 1;
+        return { provenance: [] };
+      },
+    },
+  });
+
+  for (const similarityThreshold of [0.8, 0.25]) {
+    await assert.rejects(
+      adapter.performSimilaritySearch({
+        namespace: "research",
+        input: "graph recall",
+        similarityThreshold,
+      }),
+      {
+        code: "CONTENT_SIMILARITY_THRESHOLD_UNSUPPORTED",
+        details: { similarityThreshold, scoreLane: "rrf" },
+      }
+    );
+  }
+  assert.equal(retrievals, 0);
+});
+
 test("GraphQL transport forwards scope headers and never places the API key in the body", async () => {
   const requests = [];
   const transport = new CommonplaceGraphqlTransport({
@@ -179,12 +207,7 @@ test("GraphQL transport forwards scope headers and never places the API key in t
     unsafeAllowUnscopedScopeFallback: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
-      return {
-        ok: true,
-        async json() {
-          return { data: { itemCount: 1 } };
-        },
-      };
+      return new Response(JSON.stringify({ data: { itemCount: 1 } }));
     },
   });
 
@@ -203,6 +226,37 @@ test("GraphQL transport forwards scope headers and never places the API key in t
   assert.match(requests[0].init.body, /itemCount/);
 });
 
+test("GraphQL transport preserves upstream 5xx retry semantics", async () => {
+  const transport = new CommonplaceGraphqlTransport({
+    endpoint: "https://content.example.test/graphql",
+    apiKey: "secret-api-key",
+    fetchImpl: async () =>
+      new Response("temporarily unavailable", { status: 503 }),
+  });
+
+  await assert.rejects(transport.heartbeat(), {
+    code: "CONTENT_HTTP_ERROR",
+    retryable: true,
+    status: 503,
+    details: { status: 503 },
+  });
+});
+
+test("GraphQL transport bounds response bytes before parsing JSON", async () => {
+  const transport = new CommonplaceGraphqlTransport({
+    endpoint: "https://content.example.test/graphql",
+    apiKey: "secret-api-key",
+    maxResponseBytes: 32,
+    fetchImpl: async () =>
+      new Response(JSON.stringify({ data: { itemCount: 1 }, padding: "x".repeat(64) })),
+  });
+
+  await assert.rejects(transport.heartbeat(), {
+    code: "CONTENT_RESPONSE_TOO_LARGE",
+    status: 502,
+  });
+});
+
 test("GraphQL ingest forwards the stable source reference to IngestPipeline", async () => {
   const requests = [];
   const transport = new CommonplaceGraphqlTransport({
@@ -211,12 +265,9 @@ test("GraphQL ingest forwards the stable source reference to IngestPipeline", as
     unsafeAllowUnscopedScopeFallback: true,
     fetchImpl: async (_url, init) => {
       requests.push(init);
-      return {
-        ok: true,
-        async json() {
-          return { data: { ingest: { id: "item-1" } } };
-        },
-      };
+      return new Response(
+        JSON.stringify({ data: { ingest: { id: "item-1" } } })
+      );
     },
   });
 
@@ -258,12 +309,8 @@ test("GraphQL transport rejects malformed payload shapes", async () => {
     endpoint: "https://content.example.test/graphql",
     apiKey: "secret-api-key",
     unsafeAllowUnscopedScopeFallback: true,
-    fetchImpl: async () => ({
-      ok: true,
-      async json() {
-        return { data: { ask: null } };
-      },
-    }),
+    fetchImpl: async () =>
+      new Response(JSON.stringify({ data: { ask: null } })),
   });
 
   await assert.rejects(

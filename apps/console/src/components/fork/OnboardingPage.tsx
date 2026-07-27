@@ -73,7 +73,7 @@ function OnboardingContent() {
     setError(null);
     try {
       await selectIdentityWorkspace(workspace.id);
-      window.location.assign(`/workspace/${encodeURIComponent(workspace.slug)}/chat`);
+      window.location.assign(`/workspace/${encodeURIComponent(workspace.id)}/chat`);
     } catch (caught) {
       setError(
         caught instanceof IdentityClientError
@@ -102,7 +102,7 @@ function OnboardingContent() {
       if (selectionError) return;
       if (created) {
         window.location.assign(
-          `/workspace/${encodeURIComponent(workspace.slug)}/chat`,
+          `/workspace/${encodeURIComponent(workspace.id)}/chat`,
         );
         return;
       }

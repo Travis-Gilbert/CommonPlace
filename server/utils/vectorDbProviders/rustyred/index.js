@@ -121,12 +121,14 @@ class RustyRed extends VectorDatabase {
   async performSimilaritySearch({
     namespace = null,
     input = "",
+    similarityThreshold = null,
     topN = 4,
     filterIdentifiers = [],
   }) {
     if (!namespace || !input) {
       throw new Error("Invalid request to performSimilaritySearch.");
     }
+    assertSupportedSimilarityThreshold(similarityThreshold);
 
     const scope = await this.#resolveScope(namespace);
     const result = await (await this.#getTransport()).retrieve(scope, {
@@ -284,6 +286,34 @@ function normalizeTopN(topN) {
   return Math.min(MAX_TOP_N, Math.floor(normalized));
 }
 
+function assertSupportedSimilarityThreshold(value) {
+  if (value === null || value === undefined) {
+    return;
+  }
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 1
+  ) {
+    throw new ContentTransportError(
+      "Similarity threshold must be a finite number between zero and one.",
+      {
+        code: "CONTENT_SIMILARITY_THRESHOLD_INVALID",
+        details: { similarityThreshold: value },
+      }
+    );
+  }
+  if (value === 0) return;
+  throw new ContentTransportError(
+    "RustyRed retrieval returns fused RRF scores, so cosine-style similarity thresholds are not supported.",
+    {
+      code: "CONTENT_SIMILARITY_THRESHOLD_UNSUPPORTED",
+      details: { similarityThreshold: value, scoreLane: "rrf" },
+    }
+  );
+}
+
 function pickFirstNonEmptyString(...values) {
   for (const value of values) {
     if (typeof value === "string") {
@@ -319,6 +349,7 @@ function refusedDestructiveOperation(operation, message) {
 }
 
 module.exports = {
+  assertSupportedSimilarityThreshold,
   RustyRed,
   measureVisibleExpansion,
   normalizeDocument,

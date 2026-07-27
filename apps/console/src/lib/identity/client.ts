@@ -159,17 +159,6 @@ export async function listIdentityApiKeys(
   return result.apiKeys;
 }
 
-export async function createIdentityApiKey(
-  workspaceId: string,
-  input: { readonly name?: string; readonly scopes?: readonly string[] },
-): Promise<{ readonly key: string; readonly record: ApiKeyMeta }> {
-  return requestJson(
-    `/api/identity/workspaces/${encodeURIComponent(workspaceId)}/api-keys`,
-    z.object({ key: z.string().min(1), record: ApiKeyMetaSchema }),
-    { method: 'POST', body: JSON.stringify(input) },
-  );
-}
-
 export async function revokeIdentityApiKey(keyId: string): Promise<void> {
   await requestJson(
     `/api/identity/api-keys/${encodeURIComponent(keyId)}`,

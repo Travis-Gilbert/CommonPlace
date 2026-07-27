@@ -317,7 +317,7 @@ function operationsFixture({ clock = () => new Date(NOW) } = {}) {
   return { access, operations };
 }
 
-test("reconciles a stable provider subject and preserves admitted tenant casing", async () => {
+test("reconciles a stable provider subject and requires migration for tenant casing changes", async () => {
   const { access, operations } = operationsFixture();
   const initial = await operations.reconcilePrincipal(
     principal("42", "Travis-Gilbert", "TRAVIS@example.test")
@@ -333,13 +333,17 @@ test("reconciles a stable provider subject and preserves admitted tenant casing"
   assert.equal(workspace.tenant, "Travis-Gilbert");
   assert.match(workspace.scopeRef, /^workspace:00000000-/);
 
-  const corrected = await operations.reconcilePrincipal(
-    principal("42", "TRAVIS-GILBERT", "travis@example.test")
+  await assert.rejects(
+    operations.reconcilePrincipal(
+      principal("42", "TRAVIS-GILBERT", "travis@example.test")
+    ),
+    (error) =>
+      error instanceof IdentityOperationError &&
+      error.code === "identity_rename_requires_migration"
   );
-  assert.equal(corrected.user.username, "TRAVIS-GILBERT");
-  assert.equal(corrected.workspaces[0].tenant, "TRAVIS-GILBERT");
-  assert.equal(corrected.workspaces[0].scopeRef, workspace.scopeRef);
-  assert.equal(access.rows.workspace[0].tenant, "TRAVIS-GILBERT");
+  assert.equal(access.rows.user[0].username, "Travis-Gilbert");
+  assert.equal(access.rows.workspace[0].tenant, "Travis-Gilbert");
+  assert.equal(access.rows.workspace[0].scopeRef, workspace.scopeRef);
 
   await assert.rejects(
     operations.reconcilePrincipal(principal("42", "renamed-owner")),
@@ -432,6 +436,32 @@ test("isolates workspaces by membership and completes a single-use invitation", 
     (await operations.inspectInvite(secondInvite.code)).status,
     "PENDING"
   );
+});
+
+test("rejects invitation addresses that cannot match a verified email", async () => {
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert", "owner@example.test");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Invite validation",
+    slug: "invite-validation",
+  });
+
+  for (const email of [
+    "member",
+    "member@",
+    "@example.test",
+    "member@example",
+    "member@example.test\n",
+  ]) {
+    await assert.rejects(
+      operations.createInvite(owner, workspace.id, { email }),
+      (error) =>
+        error instanceof IdentityOperationError &&
+        error.code === "invite_email_invalid"
+    );
+  }
+
+  assert.deepEqual(access.rows.invite, []);
 });
 
 test("accepting a lower-role invitation preserves an active owner membership", async () => {

@@ -501,7 +501,9 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let seed_ids: Vec<String> = seeds.cloned().collect();
+    let mut seed_ids: Vec<String> = seeds.cloned().collect();
+    seed_ids.sort();
+    seed_ids.dedup();
     let mut pending: VecDeque<String> = seed_ids.iter().cloned().collect();
     let mut admitted_nodes: HashSet<String> = seed_ids.into_iter().collect();
     let mut visited_nodes = HashSet::new();
@@ -519,7 +521,9 @@ where
             NeighborQuery::out(&node_id).with_edge_type(SIMILAR_TO_EDGE),
             NeighborQuery::in_(&node_id).with_edge_type(SIMILAR_TO_EDGE),
         ] {
-            for hit in cp.store().neighbors(query) {
+            let mut hits: Vec<_> = cp.store().neighbors(query).into_iter().collect();
+            hits.sort_by(|left, right| left.edge_id.cmp(&right.edge_id));
+            for hit in hits {
                 if admitted_edge_count >= budget.edge_limit {
                     break 'projection;
                 }
@@ -956,5 +960,33 @@ mod tests {
 
         assert!(adjacency.len() <= 4);
         assert!(undirected_edges <= 3);
+    }
+
+    #[test]
+    fn graph_projection_budget_is_independent_of_seed_iteration_order() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        for id in ["seed:a", "seed:b", "neighbor:a", "neighbor:b"] {
+            cp.store_mut()
+                .upsert_node(NodeRecord::new(id, ["Item"], json!({})))
+                .expect("node");
+        }
+        cp.add_similarity("seed:a", "neighbor:a", 0.9)
+            .expect("first similarity");
+        cp.add_similarity("seed:b", "neighbor:b", 0.9)
+            .expect("second similarity");
+
+        let forward = ["seed:a".to_string(), "seed:b".to_string()];
+        let reverse = ["seed:b".to_string(), "seed:a".to_string()];
+        let budget = SimilarityProjectionBudget {
+            node_limit: 3,
+            edge_limit: 1,
+        };
+
+        let forward_adjacency = seed_reachable_similarity_adjacency(&cp, forward.iter(), budget);
+        let reverse_adjacency = seed_reachable_similarity_adjacency(&cp, reverse.iter(), budget);
+        let undirected_edges = forward_adjacency.values().map(Vec::len).sum::<usize>() / 2;
+
+        assert_eq!(forward_adjacency, reverse_adjacency);
+        assert_eq!(undirected_edges, 1);
     }
 }

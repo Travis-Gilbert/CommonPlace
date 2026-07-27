@@ -9,6 +9,6 @@ export default async function WorkspaceSettingsRoute({
 }: {
   readonly params: Promise<{ workspaceSlug: string }>;
 }) {
-  const { workspaceSlug } = await params;
-  return <WorkspaceSettingsPage workspaceSlug={workspaceSlug} />;
+  const { workspaceSlug: workspaceRef } = await params;
+  return <WorkspaceSettingsPage workspaceRef={workspaceRef} />;
 }

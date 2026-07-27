@@ -483,17 +483,34 @@ export class ConsoleBlockHost implements BlockHost {
       const hasPrimarySurface = durable.some((object) => object.id === 'console-chat');
       const hasLandmarks = durable.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
+        await this.retireRemoteSeedViews(retired);
         this.replaceLayout(durable);
-        await Promise.all(
-          [...retired]
-            .sort((left, right) => right.id.length - left.id.length)
-            .map((object) => this.http.emit({ kind: 'delete', id: object.id })),
-        );
         return;
       }
       await this.pushLayoutToServer();
     } catch {
       // Backend unreachable: the atomWithStorage cache remains the fast path.
+    }
+  }
+
+  private async retireRemoteSeedViews(retired: readonly ObjectRef[]): Promise<void> {
+    const ordered = [...retired].sort(
+      (left, right) => right.id.length - left.id.length,
+    );
+    const firstPass = await Promise.all(
+      ordered.map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+    );
+    const retry = ordered.filter((_object, index) => !firstPass[index]?.ok);
+    if (retry.length === 0) return;
+
+    const secondPass = await Promise.all(
+      retry.map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+    );
+    const refused = retry.filter((_object, index) => !secondPass[index]?.ok);
+    if (refused.length > 0) {
+      throw new Error(
+        `Retired layout deletion refused for ${refused.map((object) => object.id).join(', ')}`,
+      );
     }
   }
 

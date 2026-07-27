@@ -3,7 +3,6 @@
 import {
   forkIdentityErrorResponse,
   forkIdentityResponse,
-  readJsonObject,
   requestForkIdentity,
   resolveForkIdentityPrincipal,
 } from '@/lib/server/fork-identity';
@@ -28,21 +27,16 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ workspaceId: string }> },
-) {
+export async function POST() {
   try {
-    const principal = await resolveForkIdentityPrincipal();
-    const [{ workspaceId }, apiKey] = await Promise.all([
-      params,
-      readJsonObject(request),
-    ]);
-    return forkIdentityResponse(
-      await requestForkIdentity(
-        `/v1/workspaces/${encodeURIComponent(workspaceId)}/api-keys`,
-        { body: { principal, apiKey } },
-      ),
+    await resolveForkIdentityPrincipal();
+    return Response.json(
+      {
+        error: 'api_key_consumer_unavailable',
+        message:
+          'API key issuance is disabled until a public consumer enforces workspace scope',
+      },
+      { status: 503 },
     );
   } catch (error) {
     return forkIdentityErrorResponse(error);

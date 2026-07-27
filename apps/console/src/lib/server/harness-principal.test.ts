@@ -151,4 +151,48 @@ describe('active Harness workspace resolution', () => {
     }
     expect(mocks.cookieSet).not.toHaveBeenCalled();
   });
+
+  it('refuses scoped resolution when claim verification is not configured', async () => {
+    vi.stubEnv('COMMONPLACE_ACTIVE_WORKSPACE_SECRET', '');
+
+    const resolution = await resolveHarnessPrincipal();
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(503);
+      await expect(resolution.response.json()).resolves.toMatchObject({
+        error: 'active_workspace_configuration_missing',
+      });
+    }
+    expect(mocks.requestForkIdentity).not.toHaveBeenCalled();
+  });
+
+  it('requires a signed active-workspace claim for an authenticated user', async () => {
+    mocks.cookieGet.mockReturnValueOnce(undefined);
+
+    const resolution = await resolveHarnessPrincipal();
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(403);
+      await expect(resolution.response.json()).resolves.toMatchObject({
+        error: 'active_workspace_claim_required',
+      });
+    }
+    expect(mocks.requestForkIdentity).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the active-workspace cookie store cannot be read', async () => {
+    mocks.cookieGet.mockImplementationOnce(() => {
+      throw new Error('cookie store unavailable');
+    });
+
+    const resolution = await resolveHarnessPrincipal();
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(503);
+      await expect(resolution.response.json()).resolves.toMatchObject({
+        error: 'active_workspace_claim_unavailable',
+      });
+    }
+    expect(mocks.requestForkIdentity).not.toHaveBeenCalled();
+  });
 });

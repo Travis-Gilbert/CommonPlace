@@ -66,14 +66,45 @@ async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolu
   const principal = principalFromSession(session);
   if (principal) {
     const secret = resolveActiveWorkspaceSecret();
-    if (!secret) return { ok: true, principal };
+    if (!secret) {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_configuration_missing',
+            message: 'Active workspace verification is not configured.',
+          },
+          { status: 503 },
+        ),
+      };
+    }
     let encoded: string | undefined;
     try {
       encoded = (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value;
     } catch {
-      return { ok: true, principal };
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_claim_unavailable',
+            message: 'The active workspace claim could not be read.',
+          },
+          { status: 503 },
+        ),
+      };
     }
-    if (!encoded) return { ok: true, principal };
+    if (!encoded) {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            error: 'active_workspace_claim_required',
+            message: 'Select an active workspace before accessing scoped data.',
+          },
+          { status: 403 },
+        ),
+      };
+    }
     const claims = decodeActiveWorkspaceClaims(encoded, secret);
     if (!claims || claims.subject !== principal.harnessIdentity) {
       await clearRejectedActiveWorkspaceCookie();
