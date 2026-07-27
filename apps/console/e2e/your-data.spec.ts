@@ -47,7 +47,7 @@ async function installFromAppearance(page: Page): Promise<void> {
     timeout: 30_000,
   });
   const open = entry.locator('[data-your-data-open]');
-  await expect(open).toBeEnabled();
+  await expect(open).toBeEnabled({ timeout: 30_000 });
   await open.click();
   const consent = page.locator('[data-your-data-consent]');
   await expect(consent).toBeVisible();

@@ -32,9 +32,10 @@ async function waitForThreadChrome(page: import('@playwright/test').Page) {
   await expect.poll(async () => {
     const empty = await page.locator('[data-chat-empty-state]').boundingBox();
     const composer = await page.locator('[data-composer-zone]').boundingBox();
-    if (!empty || !composer) return Number.POSITIVE_INFINITY;
-    return Math.round(composer.y - (empty.y + empty.height));
-  }, { timeout: 30_000 }).toBeLessThan(80);
+    if (!empty || !composer) return false;
+    const gap = Math.round(composer.y - (empty.y + empty.height));
+    return gap >= 0 && gap < 80;
+  }, { timeout: 30_000 }).toBe(true);
 }
 
 async function openAppearance(page: import('@playwright/test').Page) {
