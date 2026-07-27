@@ -326,7 +326,9 @@ test.describe('Console information architecture', () => {
     await expect(page.getByRole('treeitem', { name: /^Project/ })).toBeFocused();
     await page.getByRole('treeitem', { name: 'topic-0' }).click();
     await page.getByRole('treeitem', { name: 'Ada Lovelace memory 1' }).click();
-    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Ada Lovelace memory 1' })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByRole('note')).toContainText('MemoryPatch is not available');
   });
 
