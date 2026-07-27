@@ -9,6 +9,7 @@ const {
 } = require("./mcp-client");
 const { normalizeAgentScope } = require("./scope");
 
+const MAX_MODEL_CATALOG_PAGE_SIZE = 20;
 const MODEL_TOOL_NAMES = Object.freeze(["catalog", "describe", "invoke"]);
 const MODEL_TOOL_IDS = Object.freeze([
   "@@mcp_catalog",
@@ -25,7 +26,11 @@ const MODEL_TOOL_DEFINITIONS = deepFreeze([
       type: "object",
       properties: {
         query: { type: "string" },
-        pageSize: { type: "integer", minimum: 1, maximum: 20 },
+        pageSize: {
+          type: "integer",
+          minimum: 1,
+          maximum: MAX_MODEL_CATALOG_PAGE_SIZE,
+        },
         cursor: { type: "string" },
       },
       additionalProperties: false,
@@ -66,6 +71,7 @@ const MODEL_TOOL_DEFINITIONS = deepFreeze([
 
 class HarnessToolSurface {
   #client;
+  #definitions;
   #policy;
   #maxPageSize;
   #maxWindow;
@@ -91,7 +97,7 @@ class HarnessToolSurface {
     if (
       !Number.isSafeInteger(maxPageSize) ||
       maxPageSize < 1 ||
-      maxPageSize > 20 ||
+      maxPageSize > MAX_MODEL_CATALOG_PAGE_SIZE ||
       !Number.isSafeInteger(maxWindow) ||
       maxWindow < maxPageSize ||
       maxWindow > 100
@@ -102,13 +108,14 @@ class HarnessToolSurface {
       );
     }
     this.#client = client;
+    this.#definitions = withCatalogPageSizeBound(maxPageSize);
     this.#policy = policy;
     this.#maxPageSize = maxPageSize;
     this.#maxWindow = maxWindow;
   }
 
   definitions() {
-    return MODEL_TOOL_DEFINITIONS;
+    return this.#definitions;
   }
 
   async execute(name, argumentsValue, scopeValue, executionValue) {
@@ -217,6 +224,9 @@ class HarnessToolSurface {
     }
     assertNoNestedIdentity(toolArguments);
     const toolCallId = requiredToolCallId(executionValue);
+    const taskType =
+      optionalText(argumentsValue.taskType) ?? "commonplace-chat";
+    const dryRun = argumentsValue.dryRun === true;
     await this.#assertAuthorized({
       operation: "invoke",
       scope,
@@ -240,14 +250,16 @@ class HarnessToolSurface {
       arguments: {
         affordance_id: capabilityId,
         arguments: toolArguments,
-        task_type: optionalText(argumentsValue.taskType) ?? "commonplace-chat",
+        task_type: taskType,
         candidate_affordance_ids: [capabilityId],
-        dry_run: argumentsValue.dryRun === true,
+        dry_run: dryRun,
         idempotency_key: invocationIdempotencyKey(
           scope,
           toolCallId,
           capabilityId,
-          toolArguments
+          toolArguments,
+          taskType,
+          dryRun
         ),
       },
       scope,
@@ -397,7 +409,9 @@ function invocationIdempotencyKey(
   scope,
   toolCallId,
   capabilityId,
-  toolArguments
+  toolArguments,
+  taskType,
+  dryRun
 ) {
   const digest = createHash("sha256")
     .update(
@@ -406,6 +420,8 @@ function invocationIdempotencyKey(
         toolCallId,
         capabilityId,
         toolArguments: stableJson(toolArguments),
+        taskType,
+        dryRun,
       })
     )
     .digest("hex")
@@ -422,6 +438,29 @@ function stableJson(value) {
       .sort()
       .map((key) => [key, stableJson(source[key])])
   );
+}
+
+function withCatalogPageSizeBound(maximum) {
+  if (maximum === MAX_MODEL_CATALOG_PAGE_SIZE) {
+    return MODEL_TOOL_DEFINITIONS;
+  }
+  const [catalog, ...remaining] = MODEL_TOOL_DEFINITIONS;
+  return deepFreeze([
+    {
+      ...catalog,
+      inputSchema: {
+        ...catalog.inputSchema,
+        properties: {
+          ...catalog.inputSchema.properties,
+          pageSize: {
+            ...catalog.inputSchema.properties.pageSize,
+            maximum,
+          },
+        },
+      },
+    },
+    ...remaining,
+  ]);
 }
 
 function logicalToolName(name) {

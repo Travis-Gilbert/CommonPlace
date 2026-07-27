@@ -691,20 +691,21 @@ where
         };
 
         let stored_item = commonplace.put_item(item)?;
-        let item = commonplace
-            .get_item(&stored_item.id)?
-            .ok_or_else(|| GraphStoreError::new("item_missing", "ingested item missing"))?;
-        let similar_items =
-            self.write_similarity_edges(commonplace, &item.id, prior_items.as_slice(), &embedding)?;
-        let entities = self.resolve_entities(commonplace, &item.id, &searchable_text)?;
+        let similar_items = self.write_similarity_edges(
+            commonplace,
+            &stored_item.id,
+            prior_items.as_slice(),
+            &embedding,
+        )?;
+        let entities = self.resolve_entities(commonplace, &stored_item.id, &searchable_text)?;
         // Incremental mention detection (HANDOFF-CARDS-ACTIONS-MENTIONS K5):
         // the freshly ingested item is a new atom; evaluate it once, in the
         // same seam the entity resolver rides. Never a full rescan.
-        commonplace.evaluate_mentions_for_atom(&item.id)?;
-        prior_items.push(item.clone());
+        commonplace.evaluate_mentions_for_atom(&stored_item.id)?;
+        prior_items.push(stored_item.clone());
 
         Ok(IngestReceipt {
-            item,
+            item: stored_item,
             collection,
             folder_path,
             embedding,
@@ -1574,12 +1575,7 @@ fn read_vector_property_value(
         return Ok(None);
     };
     if value.is_array() {
-        return value_to_f32_vec(value).map(Some).ok_or_else(|| {
-            GraphStoreError::new(
-                "vector_property_legacy_invalid",
-                "legacy vector property contains a non-number",
-            )
-        });
+        return Ok(value_to_f32_vec(value));
     }
     let mut properties = serde_json::Map::new();
     properties.insert("vector".to_string(), value.clone());
@@ -1854,6 +1850,33 @@ mod tests {
             .ingest(&mut cp, IngestInput::note("Groceries", "milk eggs bread"))
             .expect("ingest note");
         assert_eq!(receipt.item.remind_at_ms, None);
+    }
+
+    #[test]
+    fn malformed_legacy_vector_array_is_skipped() {
+        let payloads = rustyred_thg_core::InMemoryTensorBlockPayloadStore::new();
+        let vector = read_vector_property_value(&payloads, Some(&json!([1.0, "bad", 3.0])))
+            .expect("legacy arrays should not abort the scan");
+        assert_eq!(vector, None);
+    }
+
+    #[test]
+    fn receipt_uses_put_item_returned_growth_stamp_for_notes() {
+        let mut cp = Commonplace::new(
+            InMemoryGraphStore::new(),
+            crate::blob::InMemoryBlobStore::new(),
+        );
+        let pipeline = IngestPipeline::default().without_content_core();
+        let receipt = pipeline
+            .ingest(&mut cp, IngestInput::note("Stamped", "note body"))
+            .expect("ingest note");
+        assert!(
+            receipt
+                .item
+                .extra
+                .contains_key(crate::GROWTH_STAMP_PROPERTY),
+            "put_item should return the growth-stamped note without a follow-up reread"
+        );
     }
 
     #[test]

@@ -516,14 +516,25 @@ pub struct PprExpansionMeasurementGql {
     pub ppr_only_candidate_count: i32,
 }
 
-impl From<PprExpansionMeasurement> for PprExpansionMeasurementGql {
-    fn from(measurement: PprExpansionMeasurement) -> Self {
-        Self {
-            seed_count: measurement.seed_count as i32,
-            flat_candidate_count: measurement.flat_candidate_count as i32,
-            ppr_candidate_count: measurement.ppr_candidate_count as i32,
-            ppr_only_candidate_count: measurement.ppr_only_candidate_count as i32,
-        }
+impl TryFrom<PprExpansionMeasurement> for PprExpansionMeasurementGql {
+    type Error = Error;
+
+    fn try_from(measurement: PprExpansionMeasurement) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            seed_count: graphql_int_from_usize(measurement.seed_count, "seed_count")?,
+            flat_candidate_count: graphql_int_from_usize(
+                measurement.flat_candidate_count,
+                "flat_candidate_count",
+            )?,
+            ppr_candidate_count: graphql_int_from_usize(
+                measurement.ppr_candidate_count,
+                "ppr_candidate_count",
+            )?,
+            ppr_only_candidate_count: graphql_int_from_usize(
+                measurement.ppr_only_candidate_count,
+                "ppr_only_candidate_count",
+            )?,
+        })
     }
 }
 
@@ -536,9 +547,11 @@ pub struct AskResultGql {
     pub ppr_expansion: PprExpansionMeasurementGql,
 }
 
-impl From<AskResult> for AskResultGql {
-    fn from(result: AskResult) -> Self {
-        Self {
+impl TryFrom<AskResult> for AskResultGql {
+    type Error = Error;
+
+    fn try_from(result: AskResult) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
             answer: result.answer,
             answer_kind: AnswerKindGql::from(result.answer_kind),
             provenance: result
@@ -546,8 +559,8 @@ impl From<AskResult> for AskResultGql {
                 .into_iter()
                 .map(ProvenanceGql::from)
                 .collect(),
-            ppr_expansion: PprExpansionMeasurementGql::from(result.ppr_expansion),
-        }
+            ppr_expansion: PprExpansionMeasurementGql::try_from(result.ppr_expansion)?,
+        })
     }
 }
 
@@ -1014,6 +1027,10 @@ fn extra_i64(item: &Item, key: &str) -> Option<i64> {
 
 fn extra_i32(item: &Item, key: &str) -> Option<i32> {
     extra_i64(item, key).map(|value| value as i32)
+}
+
+fn graphql_int_from_usize(value: usize, field: &str) -> Result<i32> {
+    i32::try_from(value).map_err(|_| Error::new(format!("{field} exceeds GraphQL Int range")))
 }
 
 fn item_embedding(item: &Item) -> Option<Vec<f32>> {
@@ -1570,7 +1587,7 @@ where
                 .len(),
             None => cp.all_items().map_err(store_err)?.len(),
         };
-        Ok(count as i32)
+        graphql_int_from_usize(count, "item_count")
     }
 
     /// One collection by id.
@@ -1821,15 +1838,20 @@ where
             k: k.unwrap_or(5).max(1) as usize,
             ..AskConfig::default()
         };
-        let grounding = {
+        let retrieval_question = question.clone();
+        let grounding = tokio::task::spawn_blocking(move || -> std::result::Result<_, String> {
             let cp = store
                 .lock()
-                .map_err(|_| Error::new("store lock poisoned"))?;
-            retrieve_grounding_measured(&*cp, &question, &config).map_err(store_err)?
-        };
+                .map_err(|_| "store lock poisoned".to_string())?;
+            retrieve_grounding_measured(&*cp, &retrieval_question, &config)
+                .map_err(|error| format!("{error:?}"))
+        })
+        .await
+        .map_err(|error| Error::new(format!("ask worker join failed: {error}")))?
+        .map_err(Error::new)?;
         let mut result = answer_from_provenance(model.as_ref(), &question, grounding.provenance);
         result.ppr_expansion = grounding.ppr_expansion;
-        Ok(AskResultGql::from(result))
+        AskResultGql::try_from(result)
     }
 
     /// Run the composed Theorem API agent through the CommonPlace GraphQL edge.
@@ -2940,4 +2962,40 @@ where
         .data(model)
         .data(Arc::new(FindIndexCache::new()))
         .finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn graphql_int_from_usize_rejects_overflow() {
+        let error = graphql_int_from_usize(i32::MAX as usize + 1, "item_count")
+            .expect_err("overflow should be rejected");
+        assert!(error
+            .message
+            .contains("item_count exceeds GraphQL Int range"));
+    }
+
+    #[test]
+    fn ask_result_gql_rejects_overflowing_ppr_counts() {
+        let result = AskResultGql::try_from(AskResult {
+            answer: "ok".to_string(),
+            answer_kind: AnswerKind::Empty,
+            provenance: Vec::new(),
+            ppr_expansion: PprExpansionMeasurement {
+                seed_count: usize::MAX,
+                flat_candidate_count: 0,
+                ppr_candidate_count: 0,
+                ppr_only_candidate_count: 0,
+            },
+        });
+        let error = match result {
+            Ok(_) => panic!("overflow should be rejected"),
+            Err(error) => error,
+        };
+        assert!(error
+            .message
+            .contains("seed_count exceeds GraphQL Int range"));
+    }
 }

@@ -337,6 +337,22 @@ test("catalog pages use one stable bounded upstream window", async () => {
     maxWindow: 100,
   });
 
+  const catalogDefinition = surface
+    .definitions()
+    .find(({ name }) => name === "catalog");
+  assert.equal(
+    catalogDefinition.inputSchema.properties.pageSize.maximum,
+    3
+  );
+  await assert.rejects(
+    surface.execute(
+      "catalog",
+      { query: "stable", pageSize: 4 },
+      SCOPE
+    ),
+    { code: "HARNESS_TOOL_ARGUMENTS_INVALID" }
+  );
+
   const first = await surface.execute(
     "catalog",
     { query: "stable", pageSize: 3 },
@@ -393,7 +409,7 @@ test("invoke refuses nested identity before describe or invoke", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("runner retries reuse one idempotency key while identical tool calls remain distinct", async () => {
+test("invoke idempotency binds retry identity and execution options", async () => {
   const idempotencyKeys = [];
   let interruptFirstInvoke = true;
   const surface = new HarnessToolSurface({
@@ -482,6 +498,26 @@ test("runner retries reuse one idempotency key while identical tool calls remain
           arguments: invokeArguments,
           toolCallId: "provider-call-3",
         });
+        await callTool({
+          name: "invoke",
+          arguments: { ...invokeArguments, dryRun: true },
+          toolCallId: "provider-call-mode",
+        });
+        await callTool({
+          name: "invoke",
+          arguments: { ...invokeArguments, dryRun: false },
+          toolCallId: "provider-call-mode",
+        });
+        await callTool({
+          name: "invoke",
+          arguments: { ...invokeArguments, taskType: "research" },
+          toolCallId: "provider-call-task",
+        });
+        await callTool({
+          name: "invoke",
+          arguments: { ...invokeArguments, taskType: "synthesis" },
+          toolCallId: "provider-call-task",
+        });
         return {
           text: "Attempts complete.",
           metrics: {},
@@ -498,10 +534,12 @@ test("runner retries reuse one idempotency key while identical tool calls remain
     attachments: [],
   });
 
-  assert.equal(idempotencyKeys.length, 4);
+  assert.equal(idempotencyKeys.length, 8);
   assert.equal(idempotencyKeys[0], idempotencyKeys[1]);
   assert.notEqual(idempotencyKeys[0], idempotencyKeys[2]);
   assert.notEqual(idempotencyKeys[2], idempotencyKeys[3]);
+  assert.notEqual(idempotencyKeys[4], idempotencyKeys[5]);
+  assert.notEqual(idempotencyKeys[6], idempotencyKeys[7]);
 });
 
 test("a turn preserves scoped context, attachments, metrics, citations, and persistence", async () => {

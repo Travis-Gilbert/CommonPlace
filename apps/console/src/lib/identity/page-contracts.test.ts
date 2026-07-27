@@ -90,6 +90,7 @@ describe('fork identity page contracts', () => {
   it('derives only an admitted lowercase workspace slug', () => {
     expect(workspaceSlugFromName('  Graph Native Research  ')).toBe('graph-native-research');
     expect(workspaceSlugFromName('---')).toBe('');
+    expect(workspaceSlugFromName(`${'a'.repeat(63)} b`)).toBe('a'.repeat(63));
   });
 
   it('keeps login callbacks on same-origin paths', () => {
