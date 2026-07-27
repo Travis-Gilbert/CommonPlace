@@ -390,7 +390,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       event.preventDefault();
       const place = PLACE_ENTRIES[digit - 1];
       void host.activateSurface(place.surfaceId);
-      void softNavigate(router, place.path).catch(() => undefined);
+      void softNavigate(router, place.path, {
+        timeoutMs: 4_000,
+        hardFallback: true,
+      }).catch(() => undefined);
     };
     window.addEventListener('keydown', onKeyDown);
     document.documentElement.setAttribute('data-place-shortcuts-ready', '1');

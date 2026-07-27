@@ -392,7 +392,10 @@ export function Sidebar({
 
   const navigateTo = useCallback((surfaceId: string, path: string) => {
     void host.activateSurface(surfaceId);
-    void softNavigate(router, path).catch(() => undefined);
+    void softNavigate(router, path, {
+      timeoutMs: 4_000,
+      hardFallback: true,
+    }).catch(() => undefined);
   }, [host, router]);
 
   const navigateToObjectType = useCallback(async (objectTypeId: string) => {

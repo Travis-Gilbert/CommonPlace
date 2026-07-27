@@ -305,7 +305,9 @@ export function Composer({
   }, [composerRuntime, pasted]);
 
   const handleSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
-    const text = composerRuntime?.getState().text ?? '';
+    const text = event.currentTarget
+      .querySelector<HTMLTextAreaElement>('[data-composer-input]')
+      ?.value ?? composerRuntime?.getState().text ?? '';
     const instruction = actionInstructionFromThreadText(text);
     if (instruction === null) {
       setCharacterCount(0);

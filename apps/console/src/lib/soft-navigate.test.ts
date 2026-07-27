@@ -34,4 +34,22 @@ describe('softNavigate', () => {
     await expect(pending).resolves.toBeUndefined();
     expect(push).toHaveBeenCalledWith('/workspace/');
   });
+
+  it('falls back to a hard navigation when a soft push is dropped', async () => {
+    vi.useFakeTimers();
+    const assign = vi.fn();
+    vi.stubGlobal('window', {
+      location: { pathname: '/workspace', assign },
+    });
+    const push = vi.fn();
+    const pending = softNavigate(
+      { push },
+      '/filing',
+      { timeoutMs: 100, hardFallback: true },
+    );
+    await vi.advanceTimersByTimeAsync(150);
+    await expect(pending).resolves.toBeUndefined();
+    expect(push).toHaveBeenCalledWith('/filing');
+    expect(assign).toHaveBeenCalledWith('/filing');
+  });
 });

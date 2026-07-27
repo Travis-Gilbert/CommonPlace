@@ -209,7 +209,7 @@ function FloatingCard({
         <button
           type="button"
           ref={handleFrameMount}
-          aria-label={`Open captured source: ${card.title}`}
+          aria-label={`Open 3D captured source: ${card.title}`}
           className="stellar-gallery-card-frame appearance-none border-0 bg-transparent p-0 text-left"
           data-world-x={position.x}
           data-world-y={position.y}
