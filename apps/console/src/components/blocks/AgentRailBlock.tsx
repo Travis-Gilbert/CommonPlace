@@ -1,16 +1,17 @@
 'use client';
 
-// SOURCING: @assistant-ui/react (thread primitives) plus hand-roll for the
-// docked rail contract. SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS10: one transcript
-// column, docked right, collapsible to 32. Plan renders inline. Step status is
-// name treatment, never a progress fraction.
+// SOURCING: BlockShell docked rail (CS10) without a composer.
+// SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1: the rail never embeds input. It carries
+// the run, its artifacts, the objects it touched, and the inspector ledger.
+// Supersedes PR 127 showComposer=false: the shell Composer is not mounted here.
 
 import { useEffect, useRef, useState } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { BlockShell } from '@/components/block/BlockShell';
-import { Composer } from '@/components/composer/Composer';
 import { useThreadStore, type AgentPlanStep } from '@/lib/thread-store';
 import { markViewDirty } from '@/lib/surface-object';
+import type { ChatArtifactPayload } from '@/lib/chat/project-types';
+import type { ContextEntry } from '@/lib/chat/context-types';
 
 type StepTone = AgentPlanStep['status'] | 'awaiting' | 'failed' | 'done';
 
@@ -73,17 +74,17 @@ function InlinePlan({
 }
 
 export function AgentRailBlock({
-  host,
   collapsed: collapsedProp,
   onToggleCollapse,
   onOpenPlanInCanvas,
-  showComposer = true,
+  artifacts = [],
+  contextEntries = [],
 }: ViewRenderProps & {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenPlanInCanvas?: () => void;
-  /** Chat page owns the main composer; hide the shell Composer there. */
-  showComposer?: boolean;
+  artifacts?: readonly ChatArtifactPayload[];
+  contextEntries?: readonly ContextEntry[];
 }) {
   const messages = useThreadStore((state) => state.messages);
   const plan = useThreadStore((state) => state.plan);
@@ -111,17 +112,20 @@ export function AgentRailBlock({
     markViewDirty('view-chat');
   };
 
+  const included = contextEntries.filter((entry) => entry.included !== false);
+  const touched = included.filter((entry) => !entry.unavailable);
+
   return (
     <BlockShell
       material="docked"
       dock="right"
       collapsed={collapsed}
-      title="Agent"
+      title="Runs"
       onToggleCollapse={toggle}
       className="w-full"
       style={{ width: collapsed ? 32 : undefined, maxWidth: 'var(--ij-agent-rail-max-w)' }}
     >
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 flex-col" data-agent-rail data-has-composer="false">
         <div
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto"
@@ -129,39 +133,71 @@ export function AgentRailBlock({
             scrollTopRef.current = event.currentTarget.scrollTop;
           }}
         >
-          {messages.map((message) => (
-            <div key={message.id} className="px-3 py-2">
-              <div
-                data-speaker={message.role === 'user' ? 'human' : 'agent'}
-                className={
-                  message.role === 'user'
-                    ? 'rounded-[var(--radius-control)] bg-ij-raised px-3 py-2 font-cp-human text-cp-human'
-                    : 'px-1 font-cp-agent text-cp-agent'
-                }
-              >
-                {message.parts.map((part, index) => (
-                  <p key={`${message.id}-${index}`}>{part.text}</p>
+          <section className="border-b border-ij-seam px-3 py-2" aria-label="Run">
+            <p className="text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+              {isRunning ? 'Running' : 'Idle'}
+            </p>
+            {plan.length > 0 ? (
+              <InlinePlan steps={plan} onOpenCanvas={openCanvas} />
+            ) : (
+              <p className="text-ij-ink-disabled">No active plan steps.</p>
+            )}
+          </section>
+
+          <section className="border-b border-ij-seam px-3 py-2" aria-label="Artifacts">
+            <p className="mb-1 text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+              Artifacts
+            </p>
+            {artifacts.length === 0 ? (
+              <p className="text-ij-ink-disabled">None on this run.</p>
+            ) : (
+              <ul className="grid gap-1">
+                {artifacts.map((artifact, index) => (
+                  <li key={`${artifact.kind}-${index}`} className="text-ij-ink">
+                    {artifact.kind}
+                    {artifact.kind === 'markdown' ? ` · ${artifact.markdown.slice(0, 48)}` : null}
+                    {artifact.kind === 'code' ? ` · ${artifact.language}` : null}
+                    {artifact.kind === 'data-model' ? ` · ${artifact.title}` : null}
+                  </li>
                 ))}
-              </div>
-              {message.role === 'user' ? (
-                <InlinePlan steps={plan} onOpenCanvas={openCanvas} />
-              ) : null}
-            </div>
-          ))}
-          {isRunning && plan.length > 0 && messages.at(-1)?.role !== 'user' ? (
-            <InlinePlan steps={plan} onOpenCanvas={openCanvas} />
-          ) : null}
-        </div>
-        <div className="shrink-0 border-t border-ij-seam p-2">
-          <Composer host={host} compact />
+              </ul>
+            )}
+          </section>
+
+          <section className="border-b border-ij-seam px-3 py-2" aria-label="Objects touched">
+            <p className="mb-1 text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+              Objects
+            </p>
+            {touched.length === 0 ? (
+              <p className="text-ij-ink-disabled">No context objects included.</p>
+            ) : (
+              <ul className="grid gap-1">
+                {touched.map((entry) => (
+                  <li key={entry.id} className="flex items-center gap-2 text-ij-ink">
+                    <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+                    <span className="shrink-0 text-ij-ink-disabled">{entry.provenance}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="px-3 py-2" aria-label="Inspector">
+            <p className="mb-1 text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+              Inspector
+            </p>
+            <ul className="grid gap-1 text-ij-ink-info">
+              <li>messages: {messages.length}</li>
+              <li>plan steps: {plan.length}</li>
+              <li>context: {included.length} included</li>
+            </ul>
+          </section>
         </div>
         <footer
           data-agent-ledger
           className="flex h-ij-statusbar shrink-0 items-center gap-3 border-t border-ij-seam px-2 text-ij-ink-info"
         >
-          {/* Ledger fields are rendered only when the substrate emits them.
-              Until then, report absence honestly instead of inventing a fraction. */}
-          <span>context: unavailable</span>
+          <span>context: {included.length > 0 ? `${included.length}` : 'unavailable'}</span>
           <span>spend: unavailable</span>
           <span>{isRunning ? 'budget: running' : 'budget: idle'}</span>
         </footer>

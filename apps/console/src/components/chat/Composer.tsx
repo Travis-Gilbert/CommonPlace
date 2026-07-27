@@ -1,19 +1,24 @@
 'use client';
 
-// SOURCING: Claude-style composer anatomy (paper extract + CH5 deletions).
-// Register tokens only. No alert(), no colour literals, no Math.random ids,
-// no fabricated upload progress, no textarea paste duplication.
+// SOURCING: Skiper AI input structure (wrap) per SPEC-COMMONPLACE-CHAT-COMPONENTS-1.1
+// CC1/CC2, rebuilt under SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH8/SH9.
+// Double frame: 16px outer radius, 3px padding, 13px inner radius. Zero internal
+// dividers. Pills transparent at rest. Ticker sized to content. Attachments
+// render above the frame (CC1). Material via ComposerMaterial (GrainGradient).
 
 import {
   useCallback,
   useEffect,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
   type ClipboardEvent,
   type DragEvent,
   type FormEvent,
 } from 'react';
 import { useAssistantTransportSendCommand } from '@assistant-ui/react';
+import { ComposerMaterial, type ComposerMaterialState } from '@/components/chat/ComposerMaterial';
+import { IconAttach, IconSend } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
 import {
   isTextualFile,
@@ -21,13 +26,13 @@ import {
   PASTE_CARD_THRESHOLD,
   readFileAsText,
 } from '@/lib/chat/file-text';
+import { useThreadStore } from '@/lib/thread-store';
 
 export interface FileWithPreview {
   readonly id: string;
   readonly file: File;
   readonly preview?: string;
   readonly textPreview?: string;
-  /** 0..1 when known; null means indeterminate. */
   progress: number | null;
   status: 'pending' | 'uploading' | 'ready' | 'error';
   error?: string;
@@ -194,11 +199,27 @@ export function useChatAttachments(): ComposerAttachmentHandlers {
       setObjectRefs((current) => (current.some((item) => item.id === ref.id) ? current : [...current, ref])),
     objectRefs,
     removeObjectRef: (id) => setObjectRefs((current) => current.filter((ref) => ref.id !== id)),
-    // expose setter for paste cards via a side channel on the handlers object
-    ...( {
-      _setPastes: setPastes,
-    } as object),
   };
+}
+
+function Pill({
+  active,
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={cn(
+        'inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-ij-ink-info transition-colors',
+        active ? 'bg-ij-hover-surface text-ij-ink' : 'bg-transparent hover:bg-ij-hover-surface hover:text-ij-ink',
+        props.className,
+      )}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function ChatComposer({
@@ -210,8 +231,10 @@ export function ChatComposer({
   attachmentApi,
 }: ChatComposerProps) {
   const sendCommand = useAssistantTransportSendCommand();
+  const isRunning = useThreadStore((state) => state.isRunning);
   const [text, setText] = useState('');
   const [pastes, setPastes] = useState<PastedContent[]>([]);
+  const [focused, setFocused] = useState(false);
   const localAttachments = useChatAttachments();
   const attachments = attachmentApi ?? localAttachments;
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -224,11 +247,16 @@ export function ChatComposer({
     node.style.height = `${Math.min(node.scrollHeight, 200)}px`;
   }, [text]);
 
+  const materialState: ComposerMaterialState = isRunning
+    ? 'streaming'
+    : focused || text.length > 0
+      ? 'composing'
+      : 'idle';
+
   const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const clipped = event.clipboardData.getData('text');
     if (clipped.length < PASTE_CARD_THRESHOLD) return;
     event.preventDefault();
-    // Store the card only; leave the textarea alone (CH5).
     setPastes((current) => [
       ...current,
       {
@@ -274,6 +302,8 @@ export function ChatComposer({
     attachments.addFiles(dropped);
   };
 
+  const ticker = isRunning ? 'streaming' : unreachable ? 'offline' : null;
+
   return (
     <form
       data-chat-composer
@@ -310,7 +340,8 @@ export function ChatComposer({
               key={file.id}
               data-attachment-item
               data-status={file.status}
-              className="relative min-w-[10rem] max-w-[16rem] rounded-[var(--radius-control)] border border-ij-control-border bg-ij-raised px-2 py-1"
+              className="relative rounded-[var(--radius-control)] border border-ij-control-border bg-ij-raised px-2 py-1"
+              style={{ minWidth: 'var(--ij-chat-attach-min-w)', maxWidth: 'var(--ij-chat-attach-max-w)' }}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => onDropReplace(event, file.id)}
             >
@@ -331,14 +362,10 @@ export function ChatComposer({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={file.progress == null ? undefined : Math.round(file.progress * 100)}
-                  aria-label={file.progress == null ? 'Upload in progress' : undefined}
                   className="mt-1 h-1 overflow-hidden rounded-sm bg-ij-hover-surface"
                 >
                   <div
-                    className={cn(
-                      'h-full bg-ij-accent',
-                      file.progress == null && 'w-1/3 animate-pulse',
-                    )}
+                    className={cn('h-full bg-ij-accent', file.progress == null && 'w-1/3 animate-pulse')}
                     style={file.progress == null ? undefined : { width: `${Math.round(file.progress * 100)}%` }}
                   />
                 </div>
@@ -346,11 +373,7 @@ export function ChatComposer({
               {file.status === 'error' ? (
                 <div className="mt-1 flex items-center gap-2 text-[color:var(--hue-status-failed)]">
                   <span className="truncate">{file.error ?? 'Upload failed.'}</span>
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => attachments.replaceFile(file.id, file.file)}
-                  >
+                  <button type="button" className="underline" onClick={() => attachments.replaceFile(file.id, file.file)}>
                     Retry
                   </button>
                 </div>
@@ -360,67 +383,101 @@ export function ChatComposer({
         </div>
       )}
 
-      <div className="rounded-[var(--ij-composer-radius)] border border-ij-control-border bg-ij-raised p-2">
-        <textarea
-          ref={textareaRef}
-          data-composer-input
-          value={text}
-          disabled={disabled || unreachable}
-          onChange={(event) => setText(event.target.value)}
-          onPaste={onPaste}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submit();
-            }
-          }}
-          placeholder={unreachable ? 'Harness unreachable' : 'Message the project…'}
-          rows={1}
-          className="composer-input min-h-[var(--ij-composer-min-h)] w-full resize-none bg-transparent text-ij-ink outline-none placeholder:text-ij-ink-disabled"
+      {/* Outer frame: 16px radius, 3px padding. Inner: 13px. No internal borders. */}
+      <div
+        data-composer-frame
+        data-composer-state={materialState}
+        className="relative overflow-hidden border border-ij-seam-raised bg-ij-raised"
+        style={{
+          borderRadius: 'var(--ij-composer-frame-radius)',
+          padding: 'var(--ij-composer-frame-pad)',
+        }}
+      >
+        <ComposerMaterial
+          state={materialState}
+          className="rounded-[var(--ij-composer-inner-radius)]"
         />
-        <div className="composer-controls mt-2 flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(event) => {
-              if (event.target.files) attachments.addFiles(event.target.files);
-              event.target.value = '';
-            }}
-          />
-          <button
-            type="button"
-            aria-label="Attach file"
-            className="h-ij-control rounded-[var(--radius-control)] border border-ij-control-border px-2 text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-            onClick={() => fileInputRef.current?.click()}
+        <div
+          className="relative z-10 bg-ij-raised"
+          style={{ borderRadius: 'var(--ij-composer-inner-radius)' }}
+          data-composer-surface
+        >
+          <textarea
+            ref={textareaRef}
+            data-composer-input
+            value={text}
             disabled={disabled || unreachable}
-          >
-            Attach
-          </button>
-          <label className="ml-auto flex items-center gap-1 text-ij-ink-info">
-            <span className="sr-only">Model</span>
-            <select
-              className="composer-mode-select h-ij-control rounded-[var(--radius-control)] border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
-              value={modelLabel}
-              onChange={(event) => onModelChange?.(event.target.value)}
+            onChange={(event) => setText(event.target.value)}
+            onPaste={onPaste}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={unreachable ? 'Harness unreachable' : 'Message the project…'}
+            rows={1}
+            className="composer-input min-h-[var(--ij-composer-min-h)] w-full resize-none bg-transparent px-3 pt-3 text-ij-ink outline-none placeholder:text-ij-ink-disabled"
+          />
+          <div className="composer-controls flex items-center gap-1 px-2 pb-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                if (event.target.files) attachments.addFiles(event.target.files);
+                event.target.value = '';
+              }}
+            />
+            <Pill
+              aria-label="Attach file"
               disabled={disabled || unreachable}
+              onClick={() => fileInputRef.current?.click()}
             >
-              {models.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            aria-label="Send"
-            disabled={disabled || unreachable || (!text.trim() && pastes.length === 0 && attachments.files.every((f) => f.status !== 'ready'))}
-            className="composer-send-button h-ij-control rounded-[var(--radius-control)] bg-ij-accent px-3 text-white disabled:opacity-40"
-          >
-            Send
-          </button>
+              <IconAttach size={16} />
+            </Pill>
+            <label className="ml-auto">
+              <span className="sr-only">Model</span>
+              <select
+                className="composer-mode-select h-8 rounded-full bg-transparent px-2 font-ij-mono text-ij-ink-info outline-none hover:bg-ij-hover-surface hover:text-ij-ink"
+                style={{ fontSize: 'var(--ij-composer-meta-font-size)' }}
+                value={modelLabel}
+                onChange={(event) => onModelChange?.(event.target.value)}
+                disabled={disabled || unreachable}
+              >
+                {models.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {ticker ? (
+              <span
+                data-composer-ticker
+                className="px-2 font-ij-mono text-ij-ink-info"
+                style={{ fontSize: 'var(--ij-composer-meta-font-size)', width: 'max-content' }}
+              >
+                {ticker}
+              </span>
+            ) : null}
+            <Pill
+              type="submit"
+              aria-label="Send"
+              active
+              disabled={
+                disabled
+                || unreachable
+                || (!text.trim() && pastes.length === 0 && attachments.files.every((f) => f.status !== 'ready'))
+              }
+              className="composer-send-button disabled:opacity-40"
+            >
+              <IconSend size={16} />
+            </Pill>
+          </div>
         </div>
       </div>
       {unreachable ? (
@@ -432,5 +489,4 @@ export function ChatComposer({
   );
 }
 
-// Keep the CH5 export name the page imports.
 export { ChatComposer as Composer };

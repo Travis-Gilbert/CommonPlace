@@ -1,8 +1,9 @@
 'use client';
 
-// SOURCING: @assistant-ui/react composer primitives. SPEC-CONSOLE-INFORMATION-
-// ARCHITECTURE D5/D6: one flat surface, no lit edge, no inset well. Material
-// states ride a single ShaderSurface behind the content plane.
+// SOURCING: @assistant-ui/react composer primitives. Relocated from
+// components/composer/Composer.tsx for SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1:
+// the chat page owns components/chat/Composer.tsx; this RuntimeComposer serves
+// ThreadView only (assistant-ui ComposerPrimitive runtime).
 
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';

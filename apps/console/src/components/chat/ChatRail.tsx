@@ -1,17 +1,21 @@
 'use client';
 
-// SOURCING: AgentRailBlock (CS10). CH6 mounts the existing rail directly; no
-// new rail component. Collapse state is controlled by the chat page and
-// persists per thread.
+// SOURCING: AgentRailBlock (CS10). SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1: rail
+// mounts without a composer; artifacts and context feed the inspector.
+// Rail no longer needs AssistantRuntimeProvider (SH1 dissolved that constraint).
 
 import type { BlockHost, ObjectSet } from '@commonplace/block-view/types';
 import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
+import type { ChatArtifactPayload } from '@/lib/chat/project-types';
+import type { ContextEntry } from '@/lib/chat/context-types';
 
 export interface ChatRailProps {
   readonly host: BlockHost;
   readonly collapsed: boolean;
   readonly onToggleCollapse: () => void;
   readonly onOpenPlanInCanvas?: () => void;
+  readonly artifacts?: readonly ChatArtifactPayload[];
+  readonly contextEntries?: readonly ContextEntry[];
 }
 
 const EMPTY_SET: ObjectSet = {
@@ -25,6 +29,8 @@ export function ChatRail({
   collapsed,
   onToggleCollapse,
   onOpenPlanInCanvas,
+  artifacts = [],
+  contextEntries = [],
 }: ChatRailProps) {
   return (
     <div
@@ -38,7 +44,8 @@ export function ChatRail({
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
         onOpenPlanInCanvas={onOpenPlanInCanvas}
-        showComposer={false}
+        artifacts={artifacts}
+        contextEntries={contextEntries}
       />
     </div>
   );

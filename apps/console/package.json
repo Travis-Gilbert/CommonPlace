@@ -19,10 +19,11 @@
     "gate:icons": "node scripts/check-icon-svg.mjs",
     "gate:tokens": "node scripts/check-token-manifest.mjs",
     "gate:blocks": "node scripts/check-block-classes.mjs",
+    "gate:paper-shader-colors": "node scripts/check-paper-shader-colors.mjs",
     "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks && npm run gate:canonical-root",
+    "gates": "npm run gate:fence && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:tokens && npm run gate:blocks && npm run gate:paper-shader-colors && npm run gate:canonical-root",
     "test:e2e": "playwright test",
     "gate:radius": "node scripts/check-radius-lint.mjs",
     "gate:canonical-root": "node ../../scripts/assert-canonical-root.mjs"
