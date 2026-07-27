@@ -12,6 +12,7 @@ import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
 import { ThreadView } from './ThreadView';
+import { ThreadListView } from './ThreadListView';
 import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
 import { IndexStreamView } from './IndexStreamView';
@@ -42,6 +43,7 @@ import {
 import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
 import { RecordsBlock } from '@/components/blocks/RecordsBlock';
 import { RecordPage } from '@/components/blocks/RecordPage';
+
 import { ConsoleDataView } from './ConsoleDataView';
 
 function ThreadRender(props: ViewRenderProps) {
@@ -140,6 +142,7 @@ const CODE_FILE: ViewDescriptor = {
   accepts: {},
   emits: ['open', 'invoke_tool'],
   renderer: 'code.file',
+  sourcing: { mode: 'wrap', upstream: 'codemirror/EditorView' },
   source: {
     package: 'codemirror',
     component: 'EditorView',
@@ -163,6 +166,7 @@ const CHAT_THREAD: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.thread',
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
   source: {
     package: '@assistant-ui/react',
     component: 'ThreadPrimitive',
@@ -186,6 +190,7 @@ const CHAT_SURFACE: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.surface',
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/Composer' },
   source: {
     package: '@assistant-ui/react',
     component: 'Composer',
@@ -201,6 +206,30 @@ const CHAT_SURFACE: ViewDescriptor = {
     kindGlyph: 'thread',
   },
   render: ChatSurfaceRender,
+};
+
+const THREAD_LIST: ViewDescriptor = {
+  id: 'thread.list',
+  name: 'Threads',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'thread.list',
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse threads',
+    placements: ['full', 'ground'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'thread',
+  },
+  render: ThreadListView,
 };
 
 const FILES_TREE: ConsoleViewDescriptor = {
@@ -239,6 +268,7 @@ const CONTEXT_GRAPH: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'context.graph',
+  sourcing: { mode: 'wrap', upstream: 'd3/scalePoint' },
   source: {
     package: 'd3',
     component: 'scalePoint',
@@ -262,6 +292,10 @@ const DOC_LIST: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'update'],
   renderer: 'doc.list',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Document list binds the BlockHost object query to the Console collection contract.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -307,6 +341,7 @@ const INDEX_STREAM: ViewDescriptor = {
   accepts: {},
   emits: ['update', 'select'],
   renderer: 'index.stream',
+  sourcing: { mode: 'wrap', upstream: '@dnd-kit/core/DndContext' },
   source: {
     package: '@dnd-kit/core',
     component: 'DndContext',
@@ -322,6 +357,7 @@ const INDEX_RULES: ViewDescriptor = {
   accepts: {},
   emits: ['create', 'update', 'delete'],
   renderer: 'index.rules',
+  sourcing: { mode: 'wrap', upstream: 'cmdk/Command' },
   source: {
     package: 'cmdk',
     component: 'Command',
@@ -337,6 +373,10 @@ const INDEX_URGENT: ViewDescriptor = {
   accepts: {},
   emits: ['select'],
   renderer: 'index.urgent',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Urgent filing work is a typed BlockHost projection with a product-specific empty state.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -357,6 +397,10 @@ const CARD_FULL: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'card.full',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'The full card is the product record contract rendered directly from BlockHost data.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -381,6 +425,7 @@ const CARDS_GRID: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'cards.grid',
+  sourcing: { mode: 'wrap', upstream: '@tanstack/react-virtual/useVirtualizer' },
   source: {
     package: '@tanstack/react-virtual',
     component: 'useVirtualizer',
@@ -404,6 +449,10 @@ const HUNK_REVIEW: ViewDescriptor = {
   accepts: { required_types: ['hunk'], cardinality: 'many' },
   emits: ['invoke_tool'],
   renderer: 'hunk.review',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Hunk review binds typed review objects and executor receipts to the product contract.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -453,6 +502,10 @@ const SURVEY_BOARD: ViewDescriptor = {
   accepts: { required_types: ['capture'], cardinality: 'many' },
   emits: ['open'],
   renderer: 'survey.board',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'The Researcher board is a typed evidence projection over BlockHost objects.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -469,6 +522,7 @@ const MODEL_STUDIO: ViewDescriptor = {
   accepts: { required_types: ['model-scope'] },
   emits: ['select', 'create', 'update', 'delete'],
   renderer: 'model.studio',
+  sourcing: { mode: 'wrap', upstream: '@xyflow/react/ReactFlow' },
   source: {
     package: '@xyflow/react',
     component: 'ReactFlow',
@@ -520,6 +574,7 @@ const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'workspace.substrate',
+  sourcing: { mode: 'wrap', upstream: '@tanstack/react-virtual/useVirtualizer' },
   source: {
     package: '@tanstack/react-virtual',
     component: 'useVirtualizer',
@@ -560,6 +615,10 @@ const HARNESS_STATUS: ViewDescriptor = {
   accepts: {},
   emits: ['open', 'select', 'update'],
   renderer: 'harness.status',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Harness status renders a typed health contract with actionable degradation states.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -577,6 +636,10 @@ const HARNESS_WHY: ViewDescriptor = {
   accepts: {},
   emits: ['open', 'select'],
   renderer: 'harness.why',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Why trace renders the Harness explanation payload and its available remedy.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -594,6 +657,10 @@ const APPEARANCE: ViewDescriptor = {
   accepts: {},
   emits: ['update'],
   renderer: 'settings.appearance',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Appearance binds the Console register controls to persisted theme preferences.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -609,6 +676,7 @@ const ACCOUNT: ViewDescriptor = {
   accepts: {},
   emits: ['update'],
   renderer: 'settings.account',
+  sourcing: { mode: 'wrap', upstream: 'next-auth/react/SessionProvider' },
   source: {
     package: 'next-auth/react',
     component: 'SessionProvider',
@@ -676,6 +744,7 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'automation.history',
+  sourcing: { mode: 'reskin', upstream: 'jal-co/ui/commit-graph' },
   source: {
     package: 'jal-co/ui',
     component: 'commit-graph',
@@ -699,6 +768,7 @@ const AGENT_RAIL: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'agent.rail',
+  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
   source: {
     package: '@assistant-ui/react',
     component: 'ThreadPrimitive',
@@ -714,6 +784,7 @@ const RECORDS_BLOCK: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'records.block',
+  sourcing: { mode: 'wrap', upstream: '@tanstack/react-table/useReactTable' },
   source: {
     package: '@tanstack/react-table',
     component: 'useReactTable',
@@ -729,6 +800,10 @@ const RECORD_PAGE: ViewDescriptor = {
   accepts: {},
   emits: ['update', 'open'],
   renderer: 'record.page',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'The Twenty record page contract binds field editors directly to BlockHost data.',
+  },
   source: {
     package: '@commonplace/block-view',
     component: 'BlockHost',
@@ -771,13 +846,13 @@ const COMMONPLACE_CONSOLE: ConsoleViewDescriptor = {
   },
   render: ConsoleDataView,
 };
-
 export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   RECORD_TABLE,
   MARKDOWN_DOC,
   CODE_FILE,
   CHAT_THREAD,
   CHAT_SURFACE,
+  THREAD_LIST,
   FILES_TREE,
   CONTEXT_GRAPH,
   DOC_LIST,

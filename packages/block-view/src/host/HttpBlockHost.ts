@@ -53,7 +53,7 @@ function descriptor(id: string, name: string): ViewDescriptor {
     renderer: id,
     accepts: { cardinality: 'any' },
     emits: ['open', 'select', 'update', 'create'],
-    source: { package: 'commonplace-api', component: id, mode: 'wrap', regime: 'css-vars' },
+    sourcing: { mode: 'wrap', upstream: `commonplace-api/${id}` },
     render: (() => null) as unknown as ViewDescriptor['render'],
   };
 }

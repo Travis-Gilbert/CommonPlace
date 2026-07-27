@@ -48,6 +48,7 @@ describe('search host adapter', () => {
           action_kind: next.kind,
           status: 'applied' as const,
           target_ids: ['origin-1'],
+          legacy_without_op_range: true as const,
         },
       };
     });

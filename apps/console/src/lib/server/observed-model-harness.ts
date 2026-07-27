@@ -3,8 +3,13 @@
 import 'server-only';
 
 import {
+  coerceIndexPolicy,
+  coerceObservedFieldType,
+  emptyDeclaredModel,
   emptyObservedModel,
   type DeclaredModel,
+  type Divergence,
+  type Enforcement,
   type FieldMetadata,
   type MetadataProvenance,
   type ObjectTypeMetadata,
@@ -138,14 +143,29 @@ function scopeFor(topicId: string, tenant?: string): ScopeRef {
   return { kind: 'topic', topicId, ...(tenant ? { tenant } : {}) };
 }
 
-function emptyDeclaredModel(scope: ScopeRef): DeclaredModel {
+function normalizeEnforcement(value: unknown): Enforcement {
+  const raw = text(value).toLowerCase();
+  if (raw === 'observe' || raw === 'reject') return raw;
+  return 'warn';
+}
+
+function normalizeDivergence(value: unknown): Divergence | null {
+  const source = record(value);
+  if (!source) return null;
+  const objectTypeId = text(sourceValue(source, 'objectTypeId', 'object_type_id'));
+  if (!objectTypeId) return null;
+  const rawKind = text(source.kind).toLowerCase().replace(/_/g, '-');
+  const kind = rawKind === 'missing-required' || rawKind === 'missing-required-field'
+    ? 'missing-required'
+    : rawKind === 'type-mismatch'
+      ? 'type-mismatch'
+      : 'unknown-key';
   return {
-    scope,
-    objectTypes: [],
-    fields: [],
-    relations: [],
-    views: [],
-    versions: [],
+    objectTypeId,
+    fieldKey: text(sourceValue(source, 'fieldKey', 'field') || sourceValue(source, 'field', 'field_key')) || undefined,
+    kind,
+    count: numberValue(source.count),
+    signalNodeIds: stringList(sourceValue(source, 'signalNodeIds', 'signal_node_ids')),
   };
 }
 
@@ -154,11 +174,12 @@ function normalizeObservedField(value: unknown, dataType: string): ObservedField
   if (!source) return null;
   const key = text(source.key);
   if (!key) return null;
+  const observedKey = text(sourceValue(source, 'observedKey', 'observed_key'), `${dataType}.${key}`);
   return {
-    observedKey: text(sourceValue(source, 'observedKey', 'observed_key'), `${dataType}.${key}`),
+    observedKey,
     key,
-    fieldType: text(sourceValue(source, 'fieldType', 'field_type'), 'unknown'),
-    indexPolicy: sourceValue(source, 'indexPolicy', 'index_policy') ?? null,
+    fieldType: coerceObservedFieldType(sourceValue(source, 'fieldType', 'field_type')),
+    indexPolicy: coerceIndexPolicy(sourceValue(source, 'indexPolicy', 'index_policy')),
     origin: text(source.origin, 'observed'),
     occurrences: numberValue(source.occurrences),
     coverage: numberValue(source.coverage),
@@ -166,7 +187,7 @@ function normalizeObservedField(value: unknown, dataType: string): ObservedField
     eventIds: stringList(sourceValue(source, 'eventIds', 'event_ids')),
     sourceRefs: stringList(sourceValue(source, 'sourceRefs', 'source_refs')),
     routeDecision: sourceValue(source, 'routeDecision', 'route_decision'),
-    provenanceNodeId: text(sourceValue(source, 'provenanceNodeId', 'provenance_node_id')) || undefined,
+    provenanceNodeId: text(sourceValue(source, 'provenanceNodeId', 'provenance_node_id'), observedKey) || observedKey,
   };
 }
 
@@ -265,10 +286,21 @@ function normalizeObjectType(value: unknown): ObjectTypeMetadata | null {
   const id = text(source.id);
   const key = text(source.key ?? source.name ?? sourceValue(source, 'dataType', 'data_type'));
   if (!id || !key) return null;
+  const nameSingular = text(sourceValue(source, 'nameSingular', 'name_singular'), key);
+  const namePlural = text(sourceValue(source, 'namePlural', 'name_plural'), `${nameSingular}s`);
   return {
     id,
     key,
     label: text(source.label ?? source.name, key),
+    enforcement: normalizeEnforcement(source.enforcement),
+    nameSingular,
+    namePlural,
+    labelIdentifierField: text(
+      sourceValue(source, 'labelIdentifierField', 'label_identifier_field'),
+      'id',
+    ),
+    system: Boolean(source.system),
+    contentAnchor: text(sourceValue(source, 'contentAnchor', 'content_anchor'), id),
     provenance: normalizeMetadataProvenance(source),
   };
 }
@@ -285,8 +317,9 @@ function normalizeField(value: unknown): FieldMetadata | null {
     objectTypeId,
     key,
     label: text(source.label, key),
-    fieldType: text(sourceValue(source, 'fieldType', 'field_type'), 'unknown'),
-    indexPolicy: sourceValue(source, 'indexPolicy', 'index_policy'),
+    fieldType: coerceObservedFieldType(sourceValue(source, 'fieldType', 'field_type')),
+    required: Boolean(source.required),
+    indexPolicy: coerceIndexPolicy(sourceValue(source, 'indexPolicy', 'index_policy')),
     provenance: normalizeMetadataProvenance(source),
   };
 }
@@ -398,6 +431,9 @@ function normalizeDeclaredModel(value: unknown, topicId: string, tenant: string)
     relations,
     views: list(source.views).map(normalizeView).filter((item): item is ViewMetadata => item !== null),
     versions: normalizedVersion ? [normalizedVersion] : [],
+    divergences: list(source.divergences)
+      .map(normalizeDivergence)
+      .filter((item): item is Divergence => item !== null),
   };
 }
 

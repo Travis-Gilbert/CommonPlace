@@ -19,6 +19,9 @@ const REGISTER_FILES = new Set([
   path.join(srcRoot, 'styles', 'theme-engine.ts'),
   path.join(srcRoot, 'styles', 'rec-structural.css'),
   path.join(srcRoot, 'styles', 'register-bridge.css'),
+  path.join(srcRoot, 'styles', 'shadcn-bridge.css'),
+  path.join(srcRoot, 'styles', 'jalco-json-themes.ts'),
+  path.join(srcRoot, 'styles', 'jalco-file-tree-colors.ts'),
   path.join(srcRoot, 'styles', 'gy-bridge.css'),
   path.join(srcRoot, 'styles', 'galley-register.css'),
   path.join(srcRoot, 'styles', 'app.css'),
@@ -26,6 +29,26 @@ const REGISTER_FILES = new Set([
   path.join(srcRoot, 'styles', 'geometry.css'),
   path.join(srcRoot, 'styles', 'tokens.css'),
 ]);
+
+// Registry installs (SC1) land with upstream metric arbitrary values
+// (ring-[3px], text-[10px]). Color must still clear: hex, raw color
+// functions, and Tailwind palette utilities remain banned everywhere.
+function isRegistryInstallPath(file) {
+  const rel = path.relative(srcRoot, file).split(path.sep).join('/');
+  return (
+    rel.startsWith('components/ui/') ||
+    rel.startsWith('components/data-table/') ||
+    rel === 'components/json-viewer.tsx' ||
+    rel === 'components/log-viewer.tsx' ||
+    rel === 'components/diff-viewer.tsx' ||
+    rel === 'components/diff-viewer-client.tsx' ||
+    rel === 'components/file-tree.tsx' ||
+    rel === 'components/command-menu-01.tsx' ||
+    rel === 'components/status-indicator.tsx' ||
+    rel === 'components/kbd.tsx' ||
+    rel === 'components/calendar-date-picker.tsx'
+  );
+}
 
 const HEX_RE = /#[0-9a-fA-F]{3,8}\b/g;
 // Tailwind arbitrary-value classes: utility-[...] carrying a raw value.
@@ -66,11 +89,12 @@ for (const file of walk(srcRoot)) {
   if (REGISTER_FILES.has(file)) continue;
   const text = readFileSync(file, 'utf8');
   const lines = text.split('\n');
+  const registryInstall = isRegistryInstallPath(file);
   lines.forEach((line, index) => {
     for (const [name, re] of [
       ['hex literal', HEX_RE],
       ['raw color function', RAW_COLOR_FN_RE],
-      ['arbitrary-value class', ARBITRARY_RE],
+      ...(registryInstall ? [] : [['arbitrary-value class', ARBITRARY_RE]]),
       ['raw palette utility', PALETTE_RE],
       ['module.css', MODULE_CSS_RE],
     ]) {

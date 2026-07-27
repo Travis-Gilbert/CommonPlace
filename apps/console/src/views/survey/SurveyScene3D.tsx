@@ -134,11 +134,16 @@ function ConnectionGeometry({
               position={midpoint}
               distanceFactor={10}
               zIndexRange={[12, 0]}
-              pointerEvents="none"
-              style={{ pointerEvents: 'none' }}
+              pointerEvents={active ? 'auto' : 'none'}
+              style={{ pointerEvents: active ? 'auto' : 'none' }}
             >
-              <div
-                className="survey-edge-reason flex h-6 items-center rounded-full bg-ij-editor px-2 text-xs text-ij-ink"
+              <button
+                type="button"
+                aria-label={`Pin connection: ${edge.reason}`}
+                aria-pressed={edgePinned}
+                aria-hidden={active ? undefined : true}
+                tabIndex={active ? 0 : -1}
+                className="survey-edge-reason flex h-6 appearance-none items-center rounded-full border-0 bg-ij-editor px-2 text-xs text-ij-ink"
                 data-survey-edge-id={edge.id}
                 data-edge-active={active ? 'true' : 'false'}
                 data-edge-emphasis={emphasis}
@@ -146,14 +151,20 @@ function ConnectionGeometry({
                 data-edge-from={edge.from}
                 data-edge-to={edge.to}
                 data-edge-idle-opacity={idleOpacity}
-                aria-hidden="true"
-                style={{ opacity: active ? 1 : 0 }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setPinnedEdgeId((current) => current === edge.id ? null : edge.id);
+                }}
+                style={{
+                  opacity: active ? 1 : 0,
+                  pointerEvents: active ? 'auto' : 'none',
+                }}
               >
                 <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ij-graph" />
                 {active ? (
                   <span className="ml-2 max-w-64">{edge.reason}</span>
                 ) : null}
-              </div>
+              </button>
             </Html>
           </group>
         );

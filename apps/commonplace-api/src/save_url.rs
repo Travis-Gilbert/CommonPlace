@@ -25,7 +25,6 @@ use rustyred_thg_core::{GraphSnapshotSource, GraphStoreResult, InMemoryGraphStor
 use rustyred_web::browser_engine::{web_consume_to_graph, WebConsumeRequest};
 use rustyred_web::fetch_cascade::{FetchCascade, FetchCascadeOptions};
 
-
 /// Namespace crawl nodes are written under. Matches the RustyWeb default for
 /// unverified open-web content.
 const SAVE_NAMESPACE: &str = "open_web_unverified";

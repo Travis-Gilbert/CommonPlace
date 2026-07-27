@@ -51,7 +51,7 @@ use commonplace::{BlobStore, Commonplace, EmbeddingGraphStore, Item, ITEM_LABEL}
 use rustyred_thg_core::fulltext::FullTextDesignation;
 use rustyred_thg_core::index::TrigramIndex;
 use rustyred_thg_core::{
-    EdgeRecord, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord,
+    EdgeRecord, GraphSnapshotSource, GraphStoreResult, InMemoryGraphStore, NodeQuery, NodeRecord,
     TensorBlockPayloadStore,
 };
 use rustyred_thg_find::lanes::node_text;
@@ -146,7 +146,7 @@ impl FindIndex {
     /// Project the live store into a searchable index, from cold.
     pub fn build<S, B>(cp: &Commonplace<S, B>, config: &FindConfig) -> GraphStoreResult<Self>
     where
-        S: EmbeddingGraphStore,
+        S: EmbeddingGraphStore + GraphSnapshotSource,
         B: BlobStore,
     {
         let mut index = Self::empty();
@@ -192,7 +192,7 @@ impl FindIndex {
         config: &FindConfig,
     ) -> GraphStoreResult<RefreshStats>
     where
-        S: EmbeddingGraphStore,
+        S: EmbeddingGraphStore + GraphSnapshotSource,
         B: BlobStore,
     {
         if self.projection_limit != Some(config.node_limit) {
@@ -203,6 +203,13 @@ impl FindIndex {
         let graph_version = cp.store().stats().version;
         if self.graph_version == Some(graph_version) {
             return Ok(RefreshStats::default());
+        }
+        if self.graph_version.is_none() {
+            // Projected nodes retain their content-addressed vector references.
+            // Share the source payload backend so semantic lanes can resolve
+            // those references without copying or expanding dense vectors.
+            self.store =
+                InMemoryGraphStore::with_vector_payload_store(cp.store().vector_payload_store()?);
         }
 
         let nodes = cp.store().query_nodes(NodeQuery {
@@ -348,7 +355,7 @@ impl FindIndexCache {
         f: impl FnOnce(&FindIndex) -> R,
     ) -> GraphStoreResult<R>
     where
-        S: EmbeddingGraphStore,
+        S: EmbeddingGraphStore + GraphSnapshotSource,
         B: BlobStore,
     {
         let mut index = match self.inner.lock() {
@@ -377,7 +384,7 @@ pub fn find<S, B>(
     config: &FindConfig,
 ) -> GraphStoreResult<FindResponse>
 where
-    S: EmbeddingGraphStore,
+    S: EmbeddingGraphStore + GraphSnapshotSource,
     B: BlobStore,
 {
     let index = FindIndex::build(cp, config)?;

@@ -67,6 +67,7 @@ class ProactivityObjectSeam {
       value: {
         action_kind: action.kind,
         status: 'applied',
+        legacy_without_op_range: true,
         target_ids: action.kind === 'create' ? [String(action.props.id)] : [],
       },
     };
@@ -241,6 +242,7 @@ describe('ProactivityStore', () => {
             action_kind: 'update',
             status: 'applied',
             target_ids: [],
+            legacy_without_op_range: true,
           },
         };
       },

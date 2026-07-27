@@ -56,7 +56,7 @@
   --ij-frame: #D9D6CF;
   --ij-editor: #D2CEC5;
   --ij-chrome: #EEEDE9;
-  --ij-raised: #FFFEFC;
+  --ij-raised: var(--ij-tier-floating);
   --ij-seam: #C9C5BC;
   --ij-seam-raised: var(--ij-gray-9);
   --ij-divider: #C9C5BC;

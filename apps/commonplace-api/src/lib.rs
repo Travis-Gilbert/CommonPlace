@@ -21,6 +21,7 @@ pub mod mcp;
 pub mod organize;
 pub mod portability;
 pub mod publish;
+pub mod reconstruction;
 pub mod retrieve;
 pub mod salience;
 pub mod save_url;
@@ -31,10 +32,6 @@ pub mod voice;
 pub use auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 pub use briefing::{briefing, Briefing, BriefingConfig, ConnectedItem};
 pub use discover::{discover, CandidateLink, DiscoverConfig};
-pub use salience::{
-    salience, salience_cached, CacheStatus, SalienceAnchor, SalienceCache, SalienceCandidate,
-    SalienceConfig, SalienceResult, SalienceTier,
-};
 pub use growth::{GrowthSnapshotGql, GrowthSnapshotResultGql};
 pub use organize::{
     organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup, OrganizeItem,
@@ -47,6 +44,10 @@ pub use retrieve::{
     answer_model_from_env, ask, retrieve_grounding_measured, AnswerKind, AnswerModel, AskConfig,
     AskResult, GroundingResult, LocalOpenAiAnswerModel, NoModel, PprExpansionMeasurement,
     RetrievedItem,
+};
+pub use salience::{
+    salience, salience_cached, CacheStatus, SalienceAnchor, SalienceCache, SalienceCandidate,
+    SalienceConfig, SalienceResult, SalienceTier,
 };
 pub use schema::{
     build_schema, build_schema_with_model, AnswerKindGql, ApiStore, AskResultGql, BriefingGql,

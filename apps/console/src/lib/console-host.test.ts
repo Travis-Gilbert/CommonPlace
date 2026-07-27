@@ -9,23 +9,22 @@ import { afterEach, vi } from 'vitest';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ConsoleBlockHost } from './console-host';
-import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
 import {
   activateConsoleDataSurface,
   unmountConsoleDataSurface,
 } from './console-plugin/open-console';
+import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
 import {
   CONSOLE_DATA_SURFACE_ID,
   RECORD_COUNT,
   SURFACE_ID,
+  SURVEY_SURFACE_ID,
+  SURVEY_VIEW_INSTANCE_ID,
   seedLayout,
   seedRecords,
   MODEL_SURFACE_ID,
-  SURVEY_VIEW_INSTANCE_ID,
   MODEL_VIEW_INSTANCE_ID,
-  SURVEY_SURFACE_ID,
 } from './workspace-seed';
-
 import { PLACE_ENTRIES } from './rail/rail-model';
 
 const NO_VIEWS = { matchingViews: () => [] };
@@ -109,6 +108,14 @@ describe('ConsoleBlockHost', () => {
       'index.region-thread',
     ]);
     expect(index!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+    const files = buildSurfaceTree('console-files', set.objects);
+    expect(files!.children.map((child) => child.object.id)).toEqual([
+      'files.region-editor',
+      'files.region-context',
+      'files.region-thread',
+    ]);
+    const threads = buildSurfaceTree('console-threads', set.objects);
+    expect(threads!.children[0]?.children[0]?.object.properties.descriptor_id).toBe('thread.list');
     expect(set.objects.some((object) => object.id === CONSOLE_DATA_SURFACE_ID)).toBe(false);
   });
 
@@ -141,6 +148,53 @@ describe('ConsoleBlockHost', () => {
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
     const models = buildSurfaceTree(MODEL_SURFACE_ID, set.objects);
     expect(models!.children[0]?.children[0]?.object.id).toBe(MODEL_VIEW_INSTANCE_ID);
+  });
+
+  it('adds missing seed surfaces to an existing server layout before adopting it', async () => {
+    const remote = seedLayout().filter(
+      (object) => object.id !== SURVEY_SURFACE_ID && !object.id.startsWith('survey.'),
+    );
+    const actionBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      if (!('kind' in body)) {
+        return Response.json({
+          objects: remote,
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [CONTAINS_EDGE],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      actionBodies.push(body);
+      return Response.json({
+        action_kind: body.kind,
+        status: 'applied',
+        target_ids: [],
+        legacy_without_op_range: true,
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    await host.ensureSeedLayout();
+
+    const migrated = host.queryLayout(surfaceQuery()).objects;
+    expect(migrated.some((object) => object.id === SURVEY_SURFACE_ID)).toBe(true);
+    expect(migrated.some((object) => object.id === SURVEY_VIEW_INSTANCE_ID)).toBe(true);
+    expect(actionBodies).toContainEqual(expect.objectContaining({
+      kind: 'create',
+      type: 'surface',
+      props: expect.objectContaining({ id: SURVEY_SURFACE_ID }),
+    }));
+    expect(actionBodies).toContainEqual(expect.objectContaining({
+      kind: 'move',
+      id: SURVEY_VIEW_INSTANCE_ID,
+      new_parent: 'survey.region-editor',
+    }));
   });
 
   it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {

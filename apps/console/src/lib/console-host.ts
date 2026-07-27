@@ -86,6 +86,7 @@ const LEGACY_CONSOLE_LAYOUT_IDS = [
   'console-data.vi-pane',
 ] as const;
 
+
 const RETIRED_SEED_VIEW_ROOTS = [
   'view-chat',
   'view-researcher',
@@ -267,6 +268,7 @@ export class ConsoleBlockHost implements BlockHost {
   private canvas: CanvasStore;
 
   private seedLayoutTask: Promise<void> | null = null;
+
 
   private activationWriteQueue: Promise<void> = Promise.resolve();
 
@@ -1077,11 +1079,20 @@ export class ConsoleBlockHost implements BlockHost {
   emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
     const applied = (targetIds: readonly string[]): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'applied', target_ids: targetIds },
+      value: {
+        action_kind: action.kind,
+        status: 'applied',
+        target_ids: targetIds,
+        legacy_without_op_range: true,
+      },
     });
     const accepted = (): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'accepted' },
+      value: {
+        action_kind: action.kind,
+        status: 'accepted',
+        legacy_without_op_range: true,
+      },
     });
 
     // Proactivity edits (disable, parameter edits, prune, intent commit) are

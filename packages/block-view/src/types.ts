@@ -259,22 +259,27 @@ export interface OpRange {
   readonly range_hash: string;
 }
 
-export interface ObjectActionReceipt {
+interface ObjectActionReceiptBase {
   readonly action_kind: ActionKind;
   readonly status: ObjectActionStatus;
   readonly target_ids?: readonly string[];
   readonly graph_transform?: string;
   readonly actor_id?: string;
   readonly note?: string;
-  /**
-   * Present on durable captured emits (`emit_object_action_captured`).
-   * Absent only on explicit legacy receipts; those must be labeled legacy
-   * and must not be treated as ledger-backed.
-   */
-  readonly op_range?: OpRange;
-  /** True when this receipt was minted without an op range (legacy path). */
-  readonly legacy_without_op_range?: boolean;
 }
+
+export type ObjectActionReceipt = ObjectActionReceiptBase & (
+  | {
+      /** Hash-chained span from a durable captured emit. */
+      readonly op_range: OpRange;
+      readonly legacy_without_op_range?: never;
+    }
+  | {
+      readonly op_range?: never;
+      /** Explicit marker for receipts minted before durable operation ranges. */
+      readonly legacy_without_op_range: true;
+    }
+);
 
 export interface ThemeTokens {
   readonly color: Readonly<Record<string, JsonValue>>;
@@ -317,6 +322,13 @@ export interface ViewRenderProps {
 
 export type ViewSourceMode = "vendor" | "reskin" | "wrap" | "fork" | "bespoke";
 export type ViewSourceRegime = "css-vars" | "ant-tokens" | "scene";
+export type SourcingMode = ViewSourceMode;
+
+export interface ViewSourcing {
+  readonly mode: SourcingMode;
+  readonly upstream?: string;
+  readonly allowedBespokeReason?: string;
+}
 
 export interface ViewSource {
   readonly package: string;
@@ -324,6 +336,19 @@ export interface ViewSource {
   readonly mode: ViewSourceMode;
   readonly regime: ViewSourceRegime;
   readonly allowedBespokeReason?: string;
+}
+
+export function sourcingFromViewSource(source: ViewSource): ViewSourcing {
+  if (source.mode === "bespoke") {
+    return {
+      mode: "bespoke",
+      allowedBespokeReason: source.allowedBespokeReason,
+    };
+  }
+  return {
+    mode: source.mode,
+    upstream: `${source.package}/${source.component}`,
+  };
 }
 
 /**
@@ -442,7 +467,10 @@ export interface ViewDescriptor {
   readonly accepts: ObjectShapeMatch;
   readonly emits: readonly ActionKind[];
   readonly renderer: string;
-  readonly source: ViewSource;
+  /** Legacy component ledger shape retained while descriptors migrate. */
+  readonly source?: ViewSource;
+  /** Typed sourcing shape used by shared platform contracts. */
+  readonly sourcing?: ViewSourcing;
   readonly render: React.ComponentType<ViewRenderProps>;
   /** Additive. Descriptors without `block` still register and render inside surfaces. */
   readonly block?: BlockPresentation;

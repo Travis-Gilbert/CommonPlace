@@ -1,8 +1,36 @@
 // SOURCING: none. Pure data contracts and formatting helpers.
+// FieldType is generated from rustyred-thg-schema (MR1); do not widen to string.
+
+export type {
+  Cardinality,
+  FieldType,
+  FieldTypeKind,
+  IndexPolicy,
+} from './field-type.generated';
+export {
+  FIELD_TYPE_KINDS,
+  INDEX_POLICY_NONE,
+  formatFieldType,
+  parseFieldType,
+  parseIndexPolicy,
+} from './field-type.generated';
+
+import type { FieldType, IndexPolicy } from './field-type.generated';
+import { INDEX_POLICY_NONE, parseFieldType, parseIndexPolicy } from './field-type.generated';
 
 export type ScopeRef =
   | { readonly kind: 'topic'; readonly topicId: string; readonly tenant?: string }
   | { readonly kind: 'tenant'; readonly tenant: string };
+
+export type Enforcement = 'observe' | 'warn' | 'reject';
+
+export interface Divergence {
+  readonly objectTypeId: string;
+  readonly fieldKey?: string;
+  readonly kind: 'missing-required' | 'type-mismatch' | 'unknown-key';
+  readonly count: number;
+  readonly signalNodeIds: readonly string[];
+}
 
 export interface ObservedCardinality {
   readonly maxOut: number;
@@ -12,8 +40,8 @@ export interface ObservedCardinality {
 export interface ObservedField {
   readonly observedKey: string;
   readonly key: string;
-  readonly fieldType: string;
-  readonly indexPolicy: unknown;
+  readonly fieldType: FieldType;
+  readonly indexPolicy: IndexPolicy;
   readonly origin: string;
   readonly occurrences: number;
   readonly coverage: number;
@@ -66,6 +94,12 @@ export interface ObjectTypeMetadata {
   readonly id: string;
   readonly key: string;
   readonly label: string;
+  readonly enforcement: Enforcement;
+  readonly nameSingular: string;
+  readonly namePlural: string;
+  readonly labelIdentifierField: string;
+  readonly system: boolean;
+  readonly contentAnchor: string;
   readonly provenance?: MetadataProvenance;
 }
 
@@ -74,8 +108,9 @@ export interface FieldMetadata {
   readonly objectTypeId: string;
   readonly key: string;
   readonly label: string;
-  readonly fieldType: string;
-  readonly indexPolicy?: unknown;
+  readonly fieldType: FieldType;
+  readonly required: boolean;
+  readonly indexPolicy?: IndexPolicy;
   readonly provenance?: MetadataProvenance;
 }
 
@@ -120,6 +155,7 @@ export interface DeclaredModel {
   readonly relations: readonly RelationMetadata[];
   readonly views: readonly ViewMetadata[];
   readonly versions: readonly SchemaVersion[];
+  readonly divergences: readonly Divergence[];
 }
 
 export type PinKind = 'type' | 'field' | 'edge';
@@ -157,6 +193,18 @@ export function emptyObservedModel(scope: ScopeRef): ObservedModel {
   };
 }
 
+export function emptyDeclaredModel(scope: ScopeRef): DeclaredModel {
+  return {
+    scope,
+    objectTypes: [],
+    fields: [],
+    relations: [],
+    views: [],
+    versions: [],
+    divergences: [],
+  };
+}
+
 export function isPinned(observedKey: string, declared: DeclaredModel): boolean {
   return [
     ...declared.objectTypes,
@@ -169,4 +217,13 @@ export function isPinned(observedKey: string, declared: DeclaredModel): boolean 
 export function formatCoverage(coverage: number, fractionDigits = 0): string {
   const normalized = Number.isFinite(coverage) ? Math.min(1, Math.max(0, coverage)) : 0;
   return `${(normalized * 100).toFixed(fractionDigits)}%`;
+}
+
+/** Normalize helpers used by harness adapters when mapping live GraphQL JSON. */
+export function coerceObservedFieldType(value: unknown): FieldType {
+  return parseFieldType(value, { kind: 'text' });
+}
+
+export function coerceIndexPolicy(value: unknown): IndexPolicy {
+  return parseIndexPolicy(value) ?? INDEX_POLICY_NONE;
 }

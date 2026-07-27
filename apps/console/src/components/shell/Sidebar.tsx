@@ -136,52 +136,27 @@ function useLandmarkObjects(host: ConsoleBlockHost): readonly ObjectRef[] {
       page: { limit: 12 },
       live: true,
     };
-    const recentQuery = {
-      types: [...LANDMARK_TYPES],
-      rank: [{ kind: 'field' as const, field: 'updated', direction: 'desc' as const }],
-      page: { limit: 12 },
-      live: true,
-    };
     let unsubscribePinned = () => {};
-    let unsubscribeRecent = () => {};
-    let pinned: readonly ObjectRef[] = [];
-    let recent: readonly ObjectRef[] = [];
-
-    const publish = () => {
-      if (!active) return;
-      const seen = new Set<string>();
-      setObjects([...pinned, ...recent].filter((object) => {
-        if (seen.has(object.id)) return false;
-        seen.add(object.id);
-        return true;
-      }).slice(0, 12));
-    };
     const bind = (
       result: ObjectSet | Promise<ObjectSet>,
-      assign: (next: readonly ObjectRef[]) => void,
       setUnsubscribe: (unsubscribe: () => void) => void,
     ) => {
       void Promise.resolve(result).then((set) => {
         if (!active) return;
-        assign(set.objects);
-        publish();
+        setObjects(set.objects.slice(0, 12));
         setUnsubscribe(set.subscribe((next) => {
-          assign(next.objects);
-          publish();
+          setObjects(next.objects.slice(0, 12));
         }));
       }).catch(() => {
         if (!active) return;
-        assign([]);
-        publish();
+        setObjects([]);
       });
     };
 
-    bind(host.query(pinnedQuery), (next) => { pinned = next; }, (next) => { unsubscribePinned = next; });
-    bind(host.query(recentQuery), (next) => { recent = next; }, (next) => { unsubscribeRecent = next; });
+    bind(host.query(pinnedQuery), (next) => { unsubscribePinned = next; });
     return () => {
       active = false;
       unsubscribePinned();
-      unsubscribeRecent();
     };
   }, [host]);
 
@@ -427,8 +402,27 @@ export function Sidebar({
 
   const navigateTo = useCallback((surfaceId: string, path: string) => {
     void host.activateSurface(surfaceId);
-    void softNavigate(router, path).catch(() => undefined);
+    void softNavigate(router, path, {
+      timeoutMs: 4_000,
+      hardFallback: true,
+    }).catch(() => undefined);
   }, [host, router]);
+
+  const navigateToObjectType = useCallback(async (objectTypeId: string) => {
+    const updated = await host.emit({
+      kind: 'update',
+      id: 'records.vi-table',
+      patch: {
+        query: {
+          types: [objectTypeId],
+          page: { limit: 100 },
+          live: true,
+        } as unknown as JsonValue,
+      },
+    });
+    if (!updated.ok) return;
+    navigateTo('console-records', `/records?type=${encodeURIComponent(objectTypeId)}`);
+  }, [host, navigateTo]);
 
   const ensureLandmarkInstance = useCallback(async (landmark: ObjectRef): Promise<string | null> => {
     if (landmark.type === 'view-instance') return landmark.id;
@@ -529,9 +523,14 @@ export function Sidebar({
         name: item.label,
         count: 0,
         key: item.id,
+        objectTypeId: item.objectTypeId,
       }));
     }
-    return objectTypes.map((type) => ({ ...type, key: type.name }));
+    return objectTypes.map((type) => ({
+      ...type,
+      key: type.name,
+      objectTypeId: type.name,
+    }));
   }, [navigationObjects, objectTypes]);
 
   return (
@@ -668,6 +667,7 @@ export function Sidebar({
               type="button"
               data-rail-tier="objects"
               data-nav-item={type.key}
+              onClick={() => void navigateToObjectType(type.objectTypeId)}
               className="flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
               style={{
                 paddingInline: 'var(--ij-sidebar-pad)',

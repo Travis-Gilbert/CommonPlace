@@ -15,11 +15,9 @@ export const fieldOrganContracts = {
     accepts: { cardinality: 'one' },
     emits: ['open', 'select'],
     renderer: 'card.compact',
-    source: {
-      package: '@commonplace/block-view',
-      component: 'CompactCardRenderer',
+    sourcing: {
       mode: 'wrap',
-      regime: 'css-vars',
+      upstream: '@commonplace/block-view/CompactCardRenderer',
     },
   },
   thread: {
@@ -28,11 +26,9 @@ export const fieldOrganContracts = {
     accepts: { required_types: ['thread'], cardinality: 'one' },
     emits: ['open', 'invoke_tool'],
     renderer: 'chat.thread',
-    source: {
-      package: '@assistant-ui/react',
-      component: 'ThreadPrimitive',
+    sourcing: {
       mode: 'wrap',
-      regime: 'css-vars',
+      upstream: '@assistant-ui/react/ThreadPrimitive',
     },
   },
   markdownDocument: {
@@ -41,11 +37,9 @@ export const fieldOrganContracts = {
     accepts: { required_types: ['doc'], required_fields: ['bodyText'], cardinality: 'one' },
     emits: ['open'],
     renderer: 'markdown.doc',
-    source: {
-      package: '@travis-gilbert/markdown-theory',
-      component: 'Galley',
+    sourcing: {
       mode: 'wrap',
-      regime: 'css-vars',
+      upstream: '@travis-gilbert/markdown-theory/Galley',
     },
   },
   proposalCard: {
@@ -54,11 +48,9 @@ export const fieldOrganContracts = {
     accepts: { required_types: ['agency.proposal'], cardinality: 'one' },
     emits: ['open', 'invoke_tool'],
     renderer: 'agency.proposal',
-    source: {
-      package: '@commonplace/block-view',
-      component: 'ProposalCardRenderer',
+    sourcing: {
       mode: 'wrap',
-      regime: 'css-vars',
+      upstream: '@commonplace/block-view/ProposalCardRenderer',
     },
   },
 } as const satisfies Record<string, ViewDescriptorContract>;
