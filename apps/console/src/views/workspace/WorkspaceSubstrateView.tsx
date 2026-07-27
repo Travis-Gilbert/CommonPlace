@@ -372,6 +372,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
               Find in project
               <Command.Input
                 id="workspace-find-query"
+                aria-label="Find in project"
                 value={findQuery}
                 onValueChange={setFindQuery}
                 placeholder="status receipt"

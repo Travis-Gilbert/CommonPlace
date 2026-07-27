@@ -223,6 +223,15 @@
   --ij-sidebar-hint-size: 10px;
   --ij-inspector-rail-w: 320px;
   --ij-agent-rail-max-w: 400px;
+  --ij-chat-measure: 70ch;
+  --ij-chat-measure-min: 68ch;
+  --ij-chat-measure-max: 74ch;
+  --ij-chat-sidebar-w: 280px;
+  --ij-chat-sidebar-share: 36vw;
+  --ij-chat-drawer-w: 320px;
+  --ij-chat-drawer-share: 90vw;
+  --ij-chat-attachment-min-w: 160px;
+  --ij-chat-attachment-max-w: 256px;
   --ij-host-overlay-z: 14;
   --ij-host-rail-z: 15;
   /* HANDOFF-CONSOLE-CHAT-SURFACE choices 2-3: one row well, third-screen ceiling,

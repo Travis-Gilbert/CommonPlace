@@ -7,15 +7,17 @@
 // is checked here on the tree the browser actually built.
 
 import { expect, test, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
 
 async function openIndex(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => {
-    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
-    window.localStorage.removeItem('commonplace.console.surface.v1');
-    window.localStorage.removeItem('commonplace.console.filing.law.v1');
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.layout-cache.v1',
+      'commonplace.console.surface.v1',
+      'commonplace.console.filing.law.v1',
+    ],
   });
-  await page.reload();
+  await page.goto('/workspace');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForSelector('[data-shell]');

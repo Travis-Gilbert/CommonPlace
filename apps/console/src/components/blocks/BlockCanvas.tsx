@@ -35,7 +35,12 @@ import {
   clampGeometry,
   gridStyleForGeometry,
 } from '@/lib/block-geometry';
-import { createBlockCollisionDetection } from '@/lib/block-collision';
+import {
+  acceptsBlockDrop,
+  createBlockCollisionDetection,
+  type BlockDropData,
+} from '@/lib/block-collision';
+import type { BlockDropTarget } from '@/lib/block-placement';
 
 export type BlockDropKind = 'ground' | 'rail' | 'dock' | 'full';
 
@@ -63,11 +68,10 @@ export interface BlockCanvasProps {
     viewInstanceId: string,
     zone: BlockPlacementZone,
   ) => void;
-  /** Nest under an acceptsChildren container (durable CONTAINS parenting). */
-  readonly onNest?: (
-    childId: string,
-    containerId: string,
-    columnId: string,
+  /** Resolve a declared contain or relate block-on-block drop. */
+  readonly onBlockDrop?: (
+    sourceId: string,
+    target: BlockDropTarget,
   ) => void;
   readonly children?: ReactNode;
 }
@@ -182,6 +186,7 @@ function SortableBlockCanvasCell({
       viewInstanceId: item.viewInstanceId,
       kind: 'ground' as const,
       descriptorId: item.descriptor.id,
+      acceptsDrop: item.descriptor.block?.acceptsDrop,
     },
   });
   const cellRef = useRef<HTMLDivElement | null>(null);
@@ -324,7 +329,7 @@ export function BlockCanvas({
   onGeometryChange,
   onReorder,
   onPromote,
-  onNest,
+  onBlockDrop,
 }: BlockCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -360,13 +365,10 @@ export function BlockCanvas({
       const over = event.over;
       if (!over) return;
       const overData = over.data.current as
-        | {
-            type?: string;
+        | (BlockDropData & {
             zone?: BlockPlacementZone;
-            viewInstanceId?: string;
             columnId?: string;
-            acceptsChildren?: boolean;
-          }
+          })
         | undefined;
       if (overData?.type === 'promote' && overData.zone) {
         const activeItem = items.find((item) => item.viewInstanceId === activeBlockId);
@@ -376,17 +378,26 @@ export function BlockCanvas({
         onPromote?.(activeBlockId, overData.zone);
         return;
       }
-      if (overData?.type === 'container' && overData.acceptsChildren) {
-        const containerId = overData.viewInstanceId;
-        if (containerId && containerId !== activeBlockId) {
-          onNest?.(activeBlockId, containerId, overData.columnId ?? 'todo');
+      const activeDescriptorId = (event.active.data.current as BlockDropData | undefined)
+        ?.descriptorId;
+      if (
+        overData?.acceptsDrop &&
+        acceptsBlockDrop(overData, activeDescriptorId)
+      ) {
+        const targetId = overData.viewInstanceId;
+        if (targetId && targetId !== activeBlockId) {
+          onBlockDrop?.(activeBlockId, {
+            viewInstanceId: targetId,
+            acceptsDrop: overData.acceptsDrop,
+            ...(overData.columnId ? { columnId: overData.columnId } : {}),
+          });
         }
         return;
       }
       const overId = String(over.id).replace(/^block:/, '');
       if (overId !== activeBlockId) onReorder?.(activeBlockId, overId);
     },
-    [items, onNest, onPromote, onReorder],
+    [items, onBlockDrop, onPromote, onReorder],
   );
 
   const activeItem = items.find((item) => item.viewInstanceId === activeId) ?? null;

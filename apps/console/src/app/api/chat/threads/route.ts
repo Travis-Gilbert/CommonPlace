@@ -7,8 +7,15 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(): Promise<Response> {
-  const catalog = readCatalog();
-  return Response.json({ threads: catalog.threads });
+  try {
+    const catalog = await readCatalog();
+    return Response.json({ threads: catalog.threads });
+  } catch (error) {
+    return Response.json(
+      { error: 'thread_catalog_failed', message: error instanceof Error ? error.message : 'failed' },
+      { status: 502 },
+    );
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -18,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
       title?: string;
       capability?: ChatThreadRecord['capability'];
     } | null;
-    const thread = createThread({
+    const thread = await createThread({
       projectId: body?.projectId,
       title: body?.title,
       capability: body?.capability ?? null,

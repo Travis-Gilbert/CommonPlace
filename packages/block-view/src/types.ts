@@ -358,9 +358,22 @@ export interface BlockLimits {
   readonly maxRows?: number;
 }
 
-/** Opt-in nested block containers (HANDOFF-CONSOLE-ONE-BLOCK-MODEL choice 7). */
-export interface BlockAcceptsChildren {
-  readonly layout: "grid" | "stack" | "split" | "columns";
+/** Meaning of a block-on-block drop declared by the target descriptor. */
+export type BlockDropSemantic = "contain" | "relate";
+
+/**
+ * Opt-in block drop target.
+ *
+ * Containment reparents the dragged block. Relation emits a graph edge and
+ * leaves both blocks in place. A descriptor without this declaration is inert
+ * to block-on-block drops.
+ */
+export interface BlockAcceptsDrop {
+  readonly semantic: BlockDropSemantic;
+  /** Contain only: layout used by the target for its children. */
+  readonly layout?: "grid" | "stack" | "split" | "columns";
+  /** Relate only: default edge. The target may open a picker when omitted. */
+  readonly edge?: string;
   /** Descriptor ids or `"*"`. Omitted means any block. */
   readonly accepts?: readonly string[];
 }
@@ -405,8 +418,8 @@ export interface BlockPresentation {
   readonly density: BlockDensity;
   /** Free-geometry clamps. Hosts supply header-fit minRows when omitted. */
   readonly limits?: BlockLimits;
-  /** When set, this block may contain other blocks. */
-  readonly acceptsChildren?: BlockAcceptsChildren;
+  /** When set, this block accepts a typed block-on-block drop. */
+  readonly acceptsDrop?: BlockAcceptsDrop;
   /**
    * Paint base class. Defaults to `tool` when omitted.
    * Homogeneous ground (three or more of one class) is a defect.

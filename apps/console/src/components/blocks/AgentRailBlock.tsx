@@ -1,13 +1,14 @@
 'use client';
 
-// SOURCING: BlockShell docked rail (CS10) without a composer.
-// SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1: the rail never embeds input. It carries
-// the run, its artifacts, the objects it touched, and the inspector ledger.
-// Supersedes PR 127 showComposer=false: the shell Composer is not mounted here.
+// SOURCING: BlockShell docked rail (CS10).
+// SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH1: the chat rail does not embed input. It
+// carries the run, its artifacts, the objects it touched, and the inspector
+// ledger. Other hosts may opt into the runtime Composer explicitly.
 
 import { useEffect, useRef, useState } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { BlockShell } from '@/components/block/BlockShell';
+import { Composer } from '@/components/chat/RuntimeComposer';
 import { useThreadStore, type AgentPlanStep } from '@/lib/thread-store';
 import { markViewDirty } from '@/lib/surface-object';
 import type { ChatArtifactPayload } from '@/lib/chat/project-types';
@@ -74,17 +75,21 @@ function InlinePlan({
 }
 
 export function AgentRailBlock({
+  host,
   collapsed: collapsedProp,
   onToggleCollapse,
   onOpenPlanInCanvas,
   artifacts = [],
   contextEntries = [],
+  showComposer = false,
 }: ViewRenderProps & {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenPlanInCanvas?: () => void;
   artifacts?: readonly ChatArtifactPayload[];
   contextEntries?: readonly ContextEntry[];
+  /** The chat page owns the main composer; rail input is opt-in elsewhere. */
+  showComposer?: boolean;
 }) {
   const messages = useThreadStore((state) => state.messages);
   const plan = useThreadStore((state) => state.plan);
@@ -125,7 +130,11 @@ export function AgentRailBlock({
       className="w-full"
       style={{ width: collapsed ? 32 : undefined, maxWidth: 'var(--ij-agent-rail-max-w)' }}
     >
-      <div className="flex h-full min-h-0 flex-col" data-agent-rail data-has-composer="false">
+      <div
+        className="flex h-full min-h-0 flex-col"
+        data-agent-rail
+        data-has-composer={showComposer ? 'true' : 'false'}
+      >
         <div
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto"
@@ -193,6 +202,11 @@ export function AgentRailBlock({
             </ul>
           </section>
         </div>
+        {showComposer ? (
+          <div className="shrink-0 border-t border-ij-seam p-2">
+            <Composer host={host} compact />
+          </div>
+        ) : null}
         <footer
           data-agent-ledger
           className="flex h-ij-statusbar shrink-0 items-center gap-3 border-t border-ij-seam px-2 text-ij-ink-info"

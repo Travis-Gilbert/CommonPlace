@@ -24,7 +24,7 @@ export async function POST(request: Request): Promise<Response> {
     const body = await readBody(request);
     const threadId = typeof body.threadId === 'string' ? body.threadId : null;
     if (threadId) {
-      const thread = getThread(threadId);
+      const thread = await getThread(threadId);
       if (thread?.sessionId && (!body.state || typeof body.state !== 'object')) {
         body.state = { sessionId: thread.sessionId };
       } else if (thread?.sessionId && body.state && typeof body.state === 'object') {
@@ -37,7 +37,7 @@ export async function POST(request: Request): Promise<Response> {
     const sessionId = session.getState().sessionId;
     if (threadId && sessionId) {
       try {
-        updateThread(threadId, { sessionId });
+        await updateThread(threadId, { sessionId });
       } catch {
         // Thread may not exist yet; the page creates it before send.
       }

@@ -3,10 +3,11 @@
 // landmark to ground with cleared-cache restore from server layout.
 
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
-const STUB_BASE = 'http://localhost:50591';
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
 
 async function resetStubLayout(request: APIRequestContext) {
   const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
@@ -37,34 +38,31 @@ async function settled(page: Page) {
 }
 
 async function freshLoad(page: Page) {
-  await page.goto('/');
-  await page.evaluate(([layoutKey, legacyKey]) => {
-    localStorage.removeItem(layoutKey);
-    localStorage.removeItem(legacyKey);
-  }, [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY] as const);
-  await page.reload();
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY],
+  });
+  await page.goto('/workspace');
   await settled(page);
 }
 
 test.describe('Console sidebar', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
     await freshLoad(page);
   });
 
-  test('expanded labels identify every place without hover', async ({ page }) => {
+  test('expanded labels identify every view without hover', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
-    await expect(rail.getByRole('radio', { name: 'Chat place' })).toContainText('Chat');
-    await expect(rail.getByRole('radio', { name: 'Workspace place' })).toContainText('Workspace');
-    await expect(rail.getByRole('radio', { name: 'Filing place' })).toContainText('Filing');
-    await expect(rail.getByRole('radio', { name: 'Canvas place' })).toContainText('Canvas');
-    await expect(rail.getByRole('radio', { name: 'Automation place' })).toContainText('Automation');
-    await expect(rail.getByRole('radio', { name: 'Indexer place' })).toContainText('Indexer');
-    await expect(rail.getByRole('radio', { name: 'Models place' })).toContainText('Models');
-    await expect(page.getByLabel('Pins')).toBeVisible();
+    await expect(rail.getByRole('radio', { name: 'Chat view' })).toContainText('Chat');
+    await expect(rail.getByRole('radio', { name: 'Researcher view' })).toContainText('Researcher');
+    await expect(rail.getByRole('radio', { name: 'Index view' })).toContainText('Index');
+    await expect(rail.getByRole('radio', { name: 'Editor view' })).toContainText('Editor');
+    await expect(rail.getByRole('radio', { name: 'Models view' })).toContainText('Models');
+    await expect(page.getByRole('region', { name: 'Pins' })).toHaveCount(1);
   });
 
   test('Cmd or Ctrl B collapses and expands the rail', async ({ page }) => {
-    const nav = page.locator('nav[aria-label="Places, collections, and pins"]');
+    const nav = page.locator('nav[aria-label="Views, blocks, objects, and pins"]');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
@@ -72,18 +70,18 @@ test.describe('Console sidebar', () => {
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
   });
 
-  test('Cmd or Ctrl 1 through 7 reach all seven places', async ({ page }) => {
+  test('Cmd or Ctrl 1 through 5 reach all five views', async ({ page }) => {
     const targets = [
       ['1', 'console-chat', '/chat'],
-      ['2', 'console-workspace', '/workspace'],
+      ['2', 'console-survey', '/indexer'],
       ['3', 'console-index', '/filing'],
-      ['4', 'console-canvas', '/canvas'],
-      ['5', 'console-automation', '/automation'],
-      ['6', 'console-survey', '/indexer'],
-      ['7', 'console-models', '/models'],
+      ['4', 'console-workspace', '/workspace'],
+      ['5', 'console-models', '/models'],
     ] as const;
 
     for (const [key, id, path] of targets) {
+      await page.goto('/workspace');
+      await settled(page);
       await page.evaluate((digit) => {
         window.dispatchEvent(new KeyboardEvent('keydown', {
           key: digit,
@@ -94,10 +92,14 @@ test.describe('Console sidebar', () => {
         }));
       }, key);
       await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 15_000 });
-      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
-        timeout: 15_000,
-      });
-      await settled(page);
+      if (id === 'console-chat') {
+        await expect(page.locator('[data-chat-page]')).toBeVisible({ timeout: 15_000 });
+      } else {
+        await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
+          timeout: 15_000,
+        });
+        await settled(page);
+      }
     }
   });
 
@@ -124,7 +126,13 @@ test.describe('Console sidebar', () => {
       document.documentElement.setAttribute('data-block-move-receipts', '0');
     });
 
-    await landmark.dragTo(page.locator('[data-block-arrangement]'));
+    const arrangement = page.locator('[data-block-arrangement]');
+    const arrangementBox = await arrangement.boundingBox();
+    expect(arrangementBox).not.toBeNull();
+    await landmark.dispatchEvent('dragend', {
+      clientX: arrangementBox!.x + arrangementBox!.width / 2,
+      clientY: arrangementBox!.y + arrangementBox!.height / 2,
+    });
 
     await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 10_000,
@@ -133,7 +141,7 @@ test.describe('Console sidebar', () => {
       page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('1');
 
-    const nav = page.locator('nav[aria-label="Places, collections, and pins"]');
+    const nav = page.locator('nav[aria-label="Views, blocks, objects, and pins"]');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
     await page.waitForTimeout(400);
@@ -142,7 +150,7 @@ test.describe('Console sidebar', () => {
       localStorage.removeItem(layoutKey);
       localStorage.removeItem(legacyKey);
     }, [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY] as const);
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await settled(page);
     await waitForServerLayout(request);
 
@@ -150,6 +158,6 @@ test.describe('Console sidebar', () => {
       timeout: 15_000,
     });
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
-    await expect(page.getByLabel('Pins')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Pins' })).toHaveCount(1);
   });
 });

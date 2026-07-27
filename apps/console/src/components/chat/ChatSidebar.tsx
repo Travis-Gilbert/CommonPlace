@@ -100,7 +100,8 @@ export function ChatSidebar({
   const activeThread = catalog.threads.find((thread) => thread.id === activeThreadId) ?? null;
 
   useEffect(() => {
-    setPinnedIds(readPinned());
+    const frame = window.requestAnimationFrame(() => setPinnedIds(readPinned()));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const pinnedThreads = useMemo(() => {
@@ -124,7 +125,7 @@ export function ChatSidebar({
       return;
     }
     if (next === 'chat') {
-      if (activeThreadId) router.push(`/chat/${activeThreadId}`);
+      if (activeThreadId) router.push(`/chat/${encodeURIComponent(activeThreadId)}`);
       else router.push('/chat');
       return;
     }
@@ -363,6 +364,7 @@ export function ChatSidebar({
 
             {activeProject ? (
               <ProjectEditorInline
+                key={`${activeProject.id}:${activeProject.name}:${activeProject.description}`}
                 project={activeProject}
                 unreachable={unreachable}
                 onSave={async (project) => {
@@ -409,11 +411,6 @@ function ProjectEditorInline({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description);
-
-  useEffect(() => {
-    setName(project.name);
-    setDescription(project.description);
-  }, [project.id, project.name, project.description]);
 
   return (
     <div className="mt-4 border-t border-ij-seam pt-3" data-project-panel>

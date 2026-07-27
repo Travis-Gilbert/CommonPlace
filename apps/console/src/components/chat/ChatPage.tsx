@@ -5,6 +5,7 @@
 // shared measure, artifacts wired, rail without input.
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   AssistantRuntimeProvider,
@@ -40,11 +41,12 @@ import {
   type ContextProvenance,
 } from '@/lib/chat/context-types';
 import { degradationFor } from '@/lib/degradation';
-import { useThreadStore } from '@/lib/thread-store';
+import { threadMessagesForPersistence, useThreadStore } from '@/lib/thread-store';
 import { cn } from '@/lib/cn';
 
 const emptySubscribe = () => () => {};
 const MESSAGE_PERSIST_DEBOUNCE_MS = 500;
+const EMPTY_CAPABILITIES: readonly CapabilityItem[] = [];
 
 function connectionFor(status: number | null, error?: string | null): ConnectionState {
   if (status === 401 || error === 'principal_resolution=unauthenticated') return 'unauthenticated';
@@ -173,12 +175,7 @@ function RuntimeTree({
     if (state.messages.length === 0) return;
     void persistChatMessages(
       thread.id,
-      state.messages.map((message) => ({
-        id: message.id,
-        role: message.role,
-        text: message.parts.map((part) => part.text).join(''),
-        incomplete: Boolean(state.error),
-      })),
+      threadMessagesForPersistence(state.messages, Boolean(state.error)),
     ).catch(() => {});
   }, [thread.id]);
 
@@ -235,7 +232,6 @@ export function ChatPage({ threadId }: { threadId?: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [wide, setWide] = useState(true);
-  const [capabilities, setCapabilities] = useState<CapabilityItem[]>([]);
   const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
   const attachments = useChatAttachments();
 
@@ -281,7 +277,6 @@ export function ChatPage({ threadId }: { threadId?: string }) {
           setLoadError(error instanceof Error ? error.message : 'catalog_unreachable');
         }
       });
-    setCapabilities([]);
     return () => {
       active = false;
     };
@@ -313,7 +308,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
           (item) => item.projectId === catalog.activeProjectId,
         );
         if (existing) {
-          router.replace(`/chat/${existing.id}`);
+          router.replace(`/chat/${encodeURIComponent(existing.id)}`);
           return;
         }
         const created = await createChatThread({
@@ -323,7 +318,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
         if (!active) return;
         setLoadError(null);
         setCatalog({ ...catalog, threads: [created, ...catalog.threads] });
-        router.replace(`/chat/${created.id}`);
+        router.replace(`/chat/${encodeURIComponent(created.id)}`);
       } catch (error) {
         if (active) {
           setLoadError(error instanceof Error ? error.message : 'thread_unreachable');
@@ -354,7 +349,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
 
   const onOpenThread = useCallback(
     (id: string) => {
-      router.push(`/chat/${id}`);
+      router.push(`/chat/${encodeURIComponent(id)}`);
     },
     [router],
   );
@@ -413,7 +408,7 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                   <ChatSidebar
                     catalog={catalog}
                     activeThreadId={thread?.id ?? null}
-                    capabilities={capabilities}
+                    capabilities={EMPTY_CAPABILITIES}
                     unreachable={unreachable}
                     onCatalogChange={setCatalog}
                     onOpenThread={onOpenThread}
@@ -443,12 +438,12 @@ export function ChatPage({ threadId }: { threadId?: string }) {
                   {needsSignIn ? (
                     <div className="flex flex-1 flex-col items-center justify-center gap-3 text-ij-ink-info" role="status">
                       <p>Sign in with GitHub to bind this console to the harness.</p>
-                      <a
+                      <Link
                         href="/api/auth/signin"
                         className="rounded-[var(--radius-control)] border border-ij-control-border bg-ij-raised px-3 py-2 text-ij-ink hover:bg-ij-hover-surface"
                       >
                         Sign in with GitHub
-                      </a>
+                      </Link>
                     </div>
                   ) : null}
                   {!needsSignIn && degradation && !thread ? (

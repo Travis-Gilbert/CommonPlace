@@ -7,16 +7,59 @@
 //! unchanged whether the host is in-memory or this live substrate.
 
 use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use commonplace_api::{in_memory_store, serve::build_router, ApiKeyRegistry};
+use commonplace_api::{in_memory_store, redcore_store, serve::build_router, ApiKeyRegistry};
 use serde_json::json;
 use tokio::sync::oneshot;
 
 const KEY: &str = "objects-key";
 
+struct TestDataDir(PathBuf);
+
+impl TestDataDir {
+    fn new() -> Self {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "commonplace-api-cn4-{}-{suffix}",
+            std::process::id()
+        ));
+        Self(path)
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TestDataDir {
+    fn drop(&mut self) {
+        if self
+            .0
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("commonplace-api-cn4-"))
+        {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+}
+
 async fn spawn_router() -> (String, oneshot::Sender<()>, tokio::task::JoinHandle<()>) {
     let registry = Arc::new(ApiKeyRegistry::new().with_key(KEY, "instance"));
     let app = build_router(in_memory_store(), registry);
+    spawn_app(app).await
+}
+
+async fn spawn_app(
+    app: axum::Router,
+) -> (String, oneshot::Sender<()>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
         .await
         .expect("bind ephemeral port");
@@ -31,6 +74,105 @@ async fn spawn_router() -> (String, oneshot::Sender<()>, tokio::task::JoinHandle
             .expect("serve objects test server");
     });
     (format!("http://127.0.0.1:{port}"), shutdown_tx, server)
+}
+
+#[tokio::test]
+async fn canvas_and_chat_work_survive_object_seam_restart() {
+    let data_dir = TestDataDir::new();
+    let registry = || Arc::new(ApiKeyRegistry::new().with_key(KEY, "instance"));
+
+    let first_store = redcore_store(data_dir.path()).expect("open first durable store");
+    let (base, shutdown, server) = spawn_app(build_router(first_store, registry())).await;
+    let client = reqwest::Client::new();
+
+    for (type_ref, props) in [
+        (
+            "canvas",
+            json!({
+                "id": "canvas.default",
+                "title": "Canvas",
+                "persistence_kind": "canvas-work-v1",
+                "graph": {
+                    "id": "canvas.default",
+                    "title": "Canvas",
+                    "tenant": "authenticated-object-seam",
+                    "placements": [{
+                        "canvasId": "canvas.default",
+                        "objectId": "note.restart",
+                        "x": 40,
+                        "y": 80,
+                        "width": 240,
+                        "height": 120
+                    }],
+                    "groups": [],
+                    "connections": [],
+                    "objects": [{
+                        "id": "note.restart",
+                        "type": "note",
+                        "title": "Survives"
+                    }]
+                }
+            }),
+        ),
+        (
+            "chat-thread",
+            json!({
+                "id": "chat-thread:restart",
+                "title": "Durable transcript",
+                "projectId": "chat-project:default",
+                "sessionId": "runtime-hint-only",
+                "sessionResumable": false,
+                "updatedAt": 1,
+                "messages": [
+                    { "id": "message-1", "role": "user", "text": "Persist this" },
+                    { "id": "message-2", "role": "assistant", "text": "Persisted" }
+                ],
+                "persistence_kind": "chat-transcript-v1"
+            }),
+        ),
+    ] {
+        let response = client
+            .post(format!("{base}/objects/action"))
+            .header("x-api-key", KEY)
+            .json(&json!({ "kind": "create", "type": type_ref, "props": props }))
+            .send()
+            .await
+            .expect("persist work object");
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+    }
+
+    let _ = shutdown.send(());
+    let _ = server.await;
+
+    let reopened_store = redcore_store(data_dir.path()).expect("reopen durable store");
+    let (base, shutdown, server) = spawn_app(build_router(reopened_store, registry())).await;
+    let response = client
+        .post(format!("{base}/objects/query"))
+        .header("x-api-key", KEY)
+        .json(&json!({ "types": ["canvas", "chat-thread"], "page": { "limit": 10 } }))
+        .send()
+        .await
+        .expect("query reopened work");
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let set: serde_json::Value = response.json().await.expect("reopened set json");
+    let objects = set["objects"].as_array().expect("reopened objects");
+    let canvas = objects
+        .iter()
+        .find(|object| object["id"] == "canvas.default")
+        .expect("canvas survived");
+    assert_eq!(
+        canvas["properties"]["graph"]["placements"][0]["objectId"],
+        "note.restart"
+    );
+    let thread = objects
+        .iter()
+        .find(|object| object["id"] == "chat-thread:restart")
+        .expect("thread survived");
+    assert_eq!(thread["properties"]["messages"][1]["text"], "Persisted");
+    assert_eq!(thread["properties"]["sessionResumable"], false);
+
+    let _ = shutdown.send(());
+    let _ = server.await;
 }
 
 #[tokio::test]

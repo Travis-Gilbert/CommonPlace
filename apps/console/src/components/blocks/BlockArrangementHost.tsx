@@ -1,7 +1,8 @@
 'use client';
 
 // SOURCING: hand-roll. Hosts BlockCanvas for ground regions and writes
-// reorder, resize, and placement through BlockHost.emit (receipted moves).
+// reorder, resize, placement, and typed drops through BlockHost.emit
+// (receipted moves and links).
 
 import { useCallback, useMemo, useState } from 'react';
 import type { BlockGeometry, BlockHost, ObjectRef } from '@commonplace/block-view/types';
@@ -16,15 +17,16 @@ import { ViewInstanceHost } from '@/components/shell/ViewInstanceHost';
 import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import { geometryFromSize, packOrigins } from '@/lib/block-geometry';
 import {
+  blockDropActions,
+  emitBlockDropActions,
   hasPersistedGeometry,
-  nestBlockInContainerActions,
   placeBlockAction,
   readBlockGeometry,
   readBlockSize,
   readConfigRecord,
   reorderBlockActions,
   setBlockGeometryAction,
-  type KanbanColumnId,
+  type BlockDropTarget,
 } from '@/lib/block-placement';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 
@@ -47,6 +49,7 @@ export function BlockArrangementHost({
   fullRegionId = null,
 }: BlockArrangementHostProps) {
   const [moveReceiptCount, setMoveReceiptCount] = useState(0);
+  const [linkReceiptCount, setLinkReceiptCount] = useState(0);
   const orderedIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
 
   const items = useMemo((): BlockCanvasItem[] => {
@@ -137,38 +140,28 @@ export function BlockArrangementHost({
     [host, instances],
   );
 
-  const onNest = useCallback(
-    (childId: string, containerId: string, columnId: string) => {
+  const onBlockDrop = useCallback(
+    (sourceId: string, target: BlockDropTarget) => {
       void (async () => {
-        const child = instances.find((instance) => instance.id === childId);
-        const container = instances.find((instance) => instance.id === containerId);
-        if (!container || childId === containerId) return;
-        const column: KanbanColumnId =
-          columnId === 'doing' || columnId === 'done' || columnId === 'todo'
-            ? columnId
-            : 'todo';
-        const order = container.relations?.[CONTAINS_EDGE]?.length ?? 0;
-        const actions = nestBlockInContainerActions(
-          childId,
-          containerId,
-          column,
-          order,
-          child ? readConfigRecord(child) : {},
+        const source = instances.find((instance) => instance.id === sourceId);
+        const targetInstance = instances.find(
+          (instance) => instance.id === target.viewInstanceId,
         );
-        let moves = 0;
-        for (const action of actions) {
-          const result = await host.emit(action);
-          if (
-            result.ok &&
-            result.value?.action_kind === 'move' &&
-            result.value.status === 'applied'
-          ) {
-            moves += 1;
-          }
+        if (!targetInstance || sourceId === target.viewInstanceId) return;
+        const order = targetInstance.relations?.[CONTAINS_EDGE]?.length ?? 0;
+        const actions = blockDropActions(
+          sourceId,
+          target,
+          order,
+          source ? readConfigRecord(source) : {},
+        );
+        const receipts = await emitBlockDropActions(host, actions);
+        if (receipts.allApplied && receipts.moves > 0) {
+          recordBlockMoveReceipts(receipts.moves);
+          setMoveReceiptCount((count) => count + receipts.moves);
         }
-        if (moves > 0) {
-          recordBlockMoveReceipts(moves);
-          setMoveReceiptCount((count) => count + moves);
+        if (receipts.allApplied && receipts.links > 0) {
+          setLinkReceiptCount((count) => count + receipts.links);
         }
       })();
     },
@@ -236,6 +229,7 @@ export function BlockArrangementHost({
     <div
       data-block-arrangement
       data-block-move-receipt-count={moveReceiptCount}
+      data-block-link-receipt-count={linkReceiptCount}
       className="flex h-full min-h-0 flex-col overflow-auto p-ij-island-gutter"
     >
       <BlockCanvas
@@ -244,7 +238,7 @@ export function BlockArrangementHost({
         onReorder={onReorder}
         onGeometryChange={onGeometryChange}
         onPromote={onPromote}
-        onNest={onNest}
+        onBlockDrop={onBlockDrop}
       />
     </div>
   );

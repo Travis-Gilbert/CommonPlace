@@ -1,0 +1,4 @@
+export function persistPreference(value: string): void {
+  // persistence-preference: key=fixture.theme; preference=theme; reason=restores the chosen fixture theme
+  window.localStorage.setItem('fixture.theme', value);
+}

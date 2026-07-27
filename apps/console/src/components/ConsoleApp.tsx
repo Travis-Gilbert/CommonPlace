@@ -35,6 +35,8 @@ import { useProactivityStore } from '@/lib/proactivity/proactivity-store';
 import type { ProactivityGraph } from '@/lib/proactivity/types';
 import type { OpenTarget } from '@commonplace/host-bridge';
 
+const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
+
 const ATTACHMENT_ADAPTER = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
   new SimpleTextAttachmentAdapter(),
@@ -215,6 +217,7 @@ export function ConsoleApp({
     void host.ensureSeedLayout().finally(() => {
       if (!active || typeof document === 'undefined') return;
       document.documentElement.setAttribute('data-layout-ready', '1');
+      window.dispatchEvent(new Event(LAYOUT_READY_EVENT));
     });
     void fetch('/api/harness/presence', { cache: 'no-store' })
       .then(async (response) => {

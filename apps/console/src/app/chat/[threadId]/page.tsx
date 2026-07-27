@@ -7,6 +7,7 @@ export default async function ChatThreadPage({
 }: {
   params: Promise<{ threadId: string }>;
 }) {
-  const { threadId } = await params;
+  const { threadId: routeThreadId } = await params;
+  const threadId = decodeURIComponent(routeThreadId);
   return <ChatPage threadId={threadId} />;
 }

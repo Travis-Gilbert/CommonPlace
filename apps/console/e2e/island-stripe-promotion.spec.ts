@@ -1,6 +1,7 @@
 // SOURCING: @playwright/test. Ground to rail round-trip with stable receipts.
 
 import { expect, test, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
 
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
@@ -11,13 +12,13 @@ async function settled(page: Page) {
 }
 
 async function freshLoad(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => {
-    window.localStorage.removeItem('commonplace.console.layout-cache.v1');
-    window.localStorage.removeItem('commonplace.console.surface.v1');
-    document.documentElement.removeAttribute('data-block-move-receipts');
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.layout-cache.v1',
+      'commonplace.console.surface.v1',
+    ],
   });
-  await page.reload();
+  await page.goto('/workspace');
   await settled(page);
 }
 
@@ -97,7 +98,7 @@ test.describe('block rail placement', () => {
       page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('2');
 
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await settled(page);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-cards');
     await expect(page.locator('[data-block-canvas-cell="cards.vi-records"]')).toBeVisible();

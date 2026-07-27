@@ -19,10 +19,40 @@
    edges are custom and register-styled, so only the layout/transform styles are
    needed. Its theme variables are mapped to the register below. */
 @import '@xyflow/react/dist/base.css';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 @media (min-width: 768px) {
   [data-record-page-grid] {
     grid-template-columns: minmax(0, 1fr) var(--ij-inspector-rail-w);
+  }
+}
+
+.chat-measure {
+  width: var(--ij-chat-measure);
+  min-width: var(--ij-chat-measure-min);
+  max-width: var(--ij-chat-measure-max);
+}
+
+.chat-sidebar-width {
+  width: min(var(--ij-chat-sidebar-w), var(--ij-chat-sidebar-share));
+}
+
+.chat-drawer-width {
+  width: min(var(--ij-chat-drawer-w), var(--ij-chat-drawer-share));
+}
+
+.chat-attachment-width {
+  min-width: var(--ij-chat-attachment-min-w);
+  max-width: var(--ij-chat-attachment-max-w);
+}
+
+@media (max-width: 900px) {
+  .chat-measure {
+    width: 100%;
+    min-width: 0;
   }
 }
 
@@ -394,6 +424,60 @@ body {
   outline: none;
 }
 
+/* Data canvas nodes take the graph paint cues from SPEC-ISOMETRIC-REGISTER:
+   a hard register keyline, a separate offset plane with no blur, and flat
+   text. The base handle rule above stays untouched for read-only graphs. */
+[data-canvas-view] .canvas-card-node {
+  position: relative;
+  isolation: isolate;
+  border: calc(var(--rec-grid) / 2) solid var(--ij-keyline);
+  border-radius: var(--ij-radius-xs);
+  corner-shape: var(--ij-corner-raised);
+  background: var(--ij-raised);
+  box-shadow: none;
+}
+
+[data-canvas-view] .canvas-card-node::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border: calc(var(--rec-grid) / 2) solid var(--ij-keyline);
+  border-radius: inherit;
+  corner-shape: inherit;
+  background: var(--ij-chrome);
+  box-shadow: none;
+  transform: translate(var(--rec-grid), var(--rec-grid));
+}
+
+[data-canvas-view] .canvas-card-text-plane {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  transform: none;
+}
+
+[data-canvas-view] .react-flow__handle.canvas-card-handle {
+  z-index: 2;
+  width: calc(var(--rec-grid) * 2);
+  height: calc(var(--rec-grid) * 2);
+  min-width: calc(var(--rec-grid) * 2);
+  min-height: calc(var(--rec-grid) * 2);
+  pointer-events: auto;
+  opacity: 1;
+  border: calc(var(--rec-grid) / 4) solid var(--ij-keyline);
+  background: var(--ij-editor);
+}
+
+[data-canvas-view] .react-flow__handle.canvas-card-handle:hover,
+[data-canvas-view] .react-flow__handle.canvas-card-handle.connectingfrom,
+[data-canvas-view] .react-flow__handle.canvas-card-handle.connectingto,
+[data-canvas-view] .react-flow__handle.canvas-card-handle.valid {
+  border-color: var(--ij-accent);
+  background: var(--ij-accent);
+}
+
 /* Survey source artifacts. R3F owns world geometry. These rules own only the
    DOM artifacts billboarded into that space and their flat fallback. */
 .survey-source-card {
@@ -508,4 +592,82 @@ body {
 .survey-focusable:focus-visible {
   outline: var(--ij-focus-ring);
   outline-offset: var(--survey-focus-offset);
+}
+
+@theme inline {
+  --font-heading: var(--ij-font-ui);
+  --font-sans: var(--ij-font-ui);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: var(--ij-editor);
+  --foreground: var(--ij-ink);
+  --card: var(--ij-raised);
+  --card-foreground: var(--ij-ink);
+  --popover: var(--ij-raised);
+  --popover-foreground: var(--ij-ink);
+  --primary: var(--ij-accent);
+  --primary-foreground: var(--ij-ink-bright);
+  --secondary: var(--ij-chrome);
+  --secondary-foreground: var(--ij-ink);
+  --muted: var(--ij-hover-surface);
+  --muted-foreground: var(--ij-ink-info);
+  --accent: var(--ij-hover-surface);
+  --accent-foreground: var(--ij-ink);
+  --destructive: var(--ij-error);
+  --border: var(--ij-seam);
+  --input: var(--ij-control-border);
+  --ring: var(--ij-accent);
+  --chart-1: var(--ij-graph);
+  --chart-2: var(--ij-gold);
+  --chart-3: var(--ij-memory);
+  --chart-4: var(--ij-agent);
+  --chart-5: var(--ij-room);
+  --radius: var(--ij-arc);
+  --sidebar: var(--ij-chrome);
+  --sidebar-foreground: var(--ij-ink);
+  --sidebar-primary: var(--ij-accent);
+  --sidebar-primary-foreground: var(--ij-ink-bright);
+  --sidebar-accent: var(--ij-hover-surface);
+  --sidebar-accent-foreground: var(--ij-ink);
+  --sidebar-border: var(--ij-seam);
+  --sidebar-ring: var(--ij-accent);
 }

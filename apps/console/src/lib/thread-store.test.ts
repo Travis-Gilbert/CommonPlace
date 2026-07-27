@@ -4,7 +4,10 @@
 // the mark bind to it), and errors surface without theater.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useThreadStore } from './thread-store';
+import {
+  threadMessagesForPersistence,
+  useThreadStore,
+} from './thread-store';
 
 function sseResponse(events: string[]): Response {
   const body = new ReadableStream<Uint8Array>({
@@ -79,5 +82,17 @@ describe('thread store', () => {
     await useThreadStore.getState().send('Research this change');
     const payloads = fetchSpy.mock.calls.map(([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>);
     expect(payloads).toContainEqual(expect.objectContaining({ capability: { kind: 'web' } }));
+  });
+
+  it('projects stable transcript message ids without becoming a second store', () => {
+    const transcript = threadMessagesForPersistence([
+      { id: 'message-user', role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
+      { id: 'message-agent', role: 'assistant', parts: [{ type: 'text', text: 'Hi' }] },
+    ], true);
+
+    expect(transcript).toEqual([
+      { id: 'message-user', role: 'user', text: 'Hello', incomplete: false },
+      { id: 'message-agent', role: 'assistant', text: 'Hi', incomplete: true },
+    ]);
   });
 });
