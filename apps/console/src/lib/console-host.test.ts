@@ -11,15 +11,21 @@ import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-
 import { ConsoleBlockHost } from './console-host';
 import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
 import {
+  activateConsoleDataSurface,
+  unmountConsoleDataSurface,
+} from './console-plugin/open-console';
+import {
+  CONSOLE_DATA_SURFACE_ID,
   RECORD_COUNT,
   SURFACE_ID,
-  SURVEY_SURFACE_ID,
-  SURVEY_VIEW_INSTANCE_ID,
   seedLayout,
   seedRecords,
   MODEL_SURFACE_ID,
+  SURVEY_VIEW_INSTANCE_ID,
   MODEL_VIEW_INSTANCE_ID,
+  SURVEY_SURFACE_ID,
 } from './workspace-seed';
+
 import { PLACE_ENTRIES } from './rail/rail-model';
 
 const NO_VIEWS = { matchingViews: () => [] };
@@ -108,6 +114,7 @@ describe('ConsoleBlockHost', () => {
       'index.region-thread',
     ]);
     expect(index!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+    expect(set.objects.some((object) => object.id === CONSOLE_DATA_SURFACE_ID)).toBe(false);
   });
 
   it('seeds the landmarks region as frame chrome with stripe view instances', () => {
@@ -248,6 +255,59 @@ describe('ConsoleBlockHost', () => {
     expect(current.find((object) => object.id === 'workspace.region-context')?.properties.open).toBe(false);
     expect(current.find((object) => object.id === 'workspace.region-thread')?.properties.open).toBe(true);
     unsubscribe();
+  });
+
+  it('serializes rapid surface write-through so the latest activation persists', async () => {
+    const upstream = new Map<string, boolean>();
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const action = JSON.parse(String(init?.body ?? '{}')) as {
+        id?: string;
+        patch?: { active?: boolean };
+      };
+      if (action.id === SURFACE_ID && action.patch?.active === true) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      if (action.id && typeof action.patch?.active === 'boolean') {
+        upstream.set(action.id, action.patch.active);
+      }
+      return new Response(JSON.stringify({
+        action_kind: 'update',
+        status: 'applied',
+        target_ids: action.id ? [action.id] : [],
+      }), { status: 200 });
+    }));
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    await Promise.all([
+      host.activateSurface(SURFACE_ID),
+      host.activateSurface('console-workspace'),
+    ]);
+
+    expect([...upstream.entries()].filter(([, active]) => active).map(([id]) => id))
+      .toEqual(['console-workspace']);
+  });
+
+  it('mounts and unmounts the plugin pane as a live contribution', async () => {
+    const host = fixtureHost();
+    expect(host.queryLayout(surfaceQuery()).objects.some(
+      (object) => object.id === CONSOLE_DATA_SURFACE_ID,
+    )).toBe(false);
+
+    expect(await activateConsoleDataSurface(host)).toBe(true);
+    let objects = host.queryLayout(surfaceQuery()).objects;
+    const consoleData = buildSurfaceTree(CONSOLE_DATA_SURFACE_ID, objects);
+    expect(consoleData?.children[0]?.children[0]?.object.properties.descriptor_id).toBe(
+      'commonplace.console',
+    );
+    expect(objects.find((object) => object.id === CONSOLE_DATA_SURFACE_ID)?.properties.active)
+      .toBe(true);
+
+    expect(await host.activateSurface(SURFACE_ID)).toBe(true);
+    expect(await unmountConsoleDataSurface(host)).toBe(true);
+    objects = host.queryLayout(surfaceQuery()).objects;
+    expect(objects.some((object) => object.id === CONSOLE_DATA_SURFACE_ID)).toBe(false);
+    expect(objects.some((object) => object.id === 'console-data.region-editor')).toBe(false);
+    expect(objects.some((object) => object.id === 'console-data.vi-pane')).toBe(false);
   });
 
   it('round-trips server-driven filter and sort through ObjectQuery', async () => {

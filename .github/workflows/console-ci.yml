@@ -14,7 +14,10 @@ on:
   pull_request:
     paths:
       - "apps/console/**"
+      - "apps/console-native/**"
+      - "crates/console-core/**"
       - "packages/block-view/**"
+      - "packages/console-block/**"
       - "packages/theorem-acp/**"
       - ".github/workflows/console-ci.yml"
 
@@ -25,6 +28,39 @@ env:
   PNPM_FLAGS: "--no-frozen-lockfile"
 
 jobs:
+  console-core:
+    name: Shared console core, host and wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Rust with wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Test deterministic core across native, gpu fallback, and wasm
+        run: node crates/console-core/src/sim/prove.mjs
+
+  native-console:
+    name: Native console shell
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test native console shell
+        run: cargo test --manifest-path apps/console-native/Cargo.toml --locked
+
   gates:
     name: Gates, unit tests, build
     runs-on: ubuntu-latest
@@ -48,6 +84,12 @@ jobs:
 
       - name: Contract package typecheck
         run: pnpm --filter @commonplace/block-view run check
+
+      - name: Console block typecheck
+        run: pnpm --filter @commonplace/console-block run check
+
+      - name: Console block unit tests
+        run: pnpm --filter @commonplace/console-block run test
 
       - name: ACP package typecheck
         run: pnpm --filter @commonplace/theorem-acp run check

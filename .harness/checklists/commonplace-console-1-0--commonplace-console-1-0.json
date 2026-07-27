@@ -1,0 +1,257 @@
+{
+  "schema": "plan-contract/1",
+  "plan": {
+    "id": "commonplace-console-1-0",
+    "run_id": "commonplace-console-1-0-7ee7",
+    "title": "CommonPlace Console 1.0",
+    "objective": "Ship one read-only RustyRed console core into a pinned gpui-component native operator console and a consent-installed CommonPlace web block, with identical seeded data, transparent authenticated doors, deterministic graph layout, live watch inspection, and explicit visual and cross-realm proof.",
+    "status": "active",
+    "room_id": "",
+    "source_spec_id": "",
+    "claim_anchor_kind": "graph_version_watermark",
+    "acceptance_criteria": [
+      {
+        "id": "ac-1",
+        "text": "B1, B2, B3, F1, F2, F3, named choices, reporting, and every out-of-scope boundary in SPEC-COMMONPLACE-CONSOLE-1.0 are represented by grounded plan tasks."
+      },
+      {
+        "id": "ac-2",
+        "text": "Both native and wasm32 console-core targets build from the same serde types and fixture results."
+      },
+      {
+        "id": "ac-3",
+        "text": "The native console uses gpui-component v0.5.1 pinned at 0f0ab35233212f8f3277028995caf0c41e13ee6c and GPUI v0.2.2 pinned at 69e2130295c2649963eb639fc70b4f2ee8ea1624."
+      },
+      {
+        "id": "ac-4",
+        "text": "The web console installs through explicit corpus-read consent, remains read-only, and exposes the same five v1 surfaces."
+      },
+      {
+        "id": "ac-5",
+        "text": "A seeded cross-realm honesty test proves equal counts and entity identities."
+      },
+      {
+        "id": "ac-6",
+        "text": "Runtime complete, Product complete, and Vision complete are reported independently with baseline, target, after, and Do Not Downgrade evidence."
+      }
+    ],
+    "named_parameters": [
+      "branch=Travis-Gilbert/commonplace-console-1-0",
+      "gpui_commit=69e2130295c2649963eb639fc70b4f2ee8ea1624",
+      "gpui_component_commit=0f0ab35233212f8f3277028995caf0c41e13ee6c",
+      "plugin_contract_commit=440987aeaa5c60bab02d169ea71a7a3e0a3b9e3a",
+      "repo=/Users/travisgilbert/.codex/worktrees/7ee7/CommonPlace",
+      "source_spec=/Users/travisgilbert/Downloads/SPEC-COMMONPLACE-CONSOLE-1.0 (1).md",
+      "standing_contract_commit=9277f07b9ee0b8f77e9b3fec304b0f3809c8d312"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "task:0472b406383133e00eead157",
+      "alias": "CC7",
+      "title": "Prove cross-realm honesty and visual acceptance",
+      "goal": "Run deterministic cross-realm fixtures, behavioral tests, web visual baselines, native visual evidence, and repository gates; document runtime, product, and vision as separate truth layers.",
+      "acceptance_criteria": [
+        "Existing console fence, token, contrast, motion, icon, type, unit, and Playwright gates remain green.",
+        "Final documentation separates implemented runtime facts, shipped product integration, and future vision, including branch-local backend dependencies.",
+        "Native and web realms consume the same serialized dataset and produce matching formatted values, diffs, watch ordering, and graph position hashes.",
+        "Native screenshots are captured and compared against the declared target, or the exact inability to capture is reported.",
+        "Updated web screenshots are reviewed at desktop and compact viewports."
+      ],
+      "status": "pending",
+      "dependencies": [
+        "task:28ebbc7389025825848a7237",
+        "task:40e5d5d8d419e7197d25243a",
+        "task:eb6901c91e3a1ea6a93809ec"
+      ],
+      "file_scope": [
+        "crates/console-core/tests/cross_realm.rs",
+        "apps/console/e2e/console-data.spec.ts-snapshots/**",
+        "apps/console-native/tests/**",
+        "docs/records/0*-commonplace-console-1-0.md"
+      ],
+      "proof_command": "npm --prefix apps/console run test:e2e -- --grep \"Your data|Data console\"",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 acceptance criteria; UI visual project gates; CommonPlace console merge gates"
+    },
+    {
+      "id": "task:28ebbc7389025825848a7237",
+      "alias": "CC5",
+      "title": "Build the consent-installed web console block",
+      "goal": "Create the CommonPlace console plugin package and web block renderer using the same Rust core through WASM, register it in the descriptor registry, and implement transparent plugin and standing-query door adapters without importing apps/web.",
+      "acceptance_criteria": [
+        "No RustyRed, GPUI, or native transport type crosses into the React renderer.",
+        "The graph surface uses cosmos.gl with static shared positions and lifecycle-safe cleanup.",
+        "The package exposes install, consent, deny, uninstall, capability, and slot metadata matching the audited plugin GraphQL contract.",
+        "The web console is a registered block/view descriptor and not a bespoke route-only island.",
+        "The web realm loads shared fixture/core behavior through WASM and renders the five read-only surfaces."
+      ],
+      "status": "pending",
+      "dependencies": [
+        "task:54cb679c0945a79ecff23c52",
+        "task:9d379899268a0a896edd7fcb",
+        "task:bc62f53930459236f0874f0a"
+      ],
+      "file_scope": [
+        "packages/console-block/**",
+        "apps/console/src/lib/console-plugin/**",
+        "apps/console/src/views/ConsoleDataView.tsx",
+        "apps/console/src/views/registry.tsx",
+        "apps/console/package.json",
+        "package-lock.json"
+      ],
+      "proof_command": "npm --prefix apps/console exec vitest run src/lib/console-plugin/console-plugin.test.ts src/views/ConsoleDataView.test.tsx",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 F2; SPEC-COMMONPLACE-PLUGINS-1.0; audited plugin branch commit 440987aeaa5c60bab02d169ea71a7a3e0a3b9e3a; cosmos.gl v3 documentation"
+    },
+    {
+      "id": "task:40e5d5d8d419e7197d25243a",
+      "alias": "CC4",
+      "title": "Build the native GPUI operator console",
+      "goal": "Create the pinned native GPUI application and render the five read-only operator surfaces using gpui-component for shell, dock, tables, charts, controls, dialogs, tabs, and lists, with a custom graph element only where the library has no equivalent.",
+      "acceptance_criteria": [
+        "Golden records, graph, merge receipts, standing queries, and watch inspector surfaces are usable with shared fixture data.",
+        "Native tests and a launch smoke check pass, or any platform/build limitation is recorded with exact evidence.",
+        "Theorem-owned Shell, DockHost, and SurfaceHost public traits do not expose GPUI types.",
+        "apps/console-native is a standalone locked Cargo workspace pinned to gpui-component 0f0ab35233212f8f3277028995caf0c41e13ee6c and GPUI 69e2130295c2649963eb639fc70b4f2ee8ea1624.",
+        "gpui-component supplies the standard shell and controls; only graph painting is custom."
+      ],
+      "status": "pending",
+      "dependencies": [
+        "task:54cb679c0945a79ecff23c52",
+        "task:9d379899268a0a896edd7fcb",
+        "task:bc62f53930459236f0874f0a"
+      ],
+      "file_scope": ["apps/console-native/**"],
+      "proof_command": "cargo test --manifest-path apps/console-native/Cargo.toml",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 F1; SPEC-COMMONPLACE-NATIVE-SHELL-1.0; official gpui-component v0.5.1 docs and examples"
+    },
+    {
+      "id": "task:54cb679c0945a79ecff23c52",
+      "alias": "CC1",
+      "title": "Establish console core contracts and dependency baselines",
+      "goal": "Create the dual-target Rust console core, shared seeded dataset, realm-neutral Door contract, GraphQL request documents, deterministic formatter and diff model, exact dependency evidence, and visual baseline manifest.",
+      "acceptance_criteria": [
+        "Dependency baselines name the exact gpui-component, GPUI, plugin-contract, and standing-query commits and distinguish branch-local contracts from mainline availability.",
+        "Fixture data and formatting are deterministic and reusable by both realms.",
+        "The core expresses GoldenId, records, merges, standing-query definitions and firings, plugin metadata, query results, and door capability/receipt metadata.",
+        "The shared console core builds for host and wasm32 without RustyRed, GPUI, React, browser, or transport types in its public domain API.",
+        "The visual baseline manifest records existing web snapshots and explicitly records the native baseline as unavailable."
+      ],
+      "status": "pending",
+      "dependencies": [],
+      "file_scope": [
+        "crates/console-core/**",
+        "docs/records/0*-commonplace-console-1-0.md",
+        ".harness/baselines/commonplace-console-1-0.json",
+        ".harness/checklists/commonplace-console-1-0--commonplace-console-1-0.json"
+      ],
+      "proof_command": "cargo test --manifest-path crates/console-core/Cargo.toml door::",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 sections 0-4, B1, Named choices; companion native-shell, plugins, and standing-query specs; exact upstream refs recorded during dependency audit"
+    },
+    {
+      "id": "task:9d379899268a0a896edd7fcb",
+      "alias": "CC2",
+      "title": "Implement deterministic graph simulation",
+      "goal": "Implement the shared seeded velocity-Verlet and Barnes-Hut force simulation with stable graph topology, deterministic positions, bounded numerical behavior, and realm-neutral frame output.",
+      "acceptance_criteria": [
+        "Pinned or selected nodes remain stable, invalid values are rejected, and repeated runs produce byte-equivalent serialized frames.",
+        "Repulsion uses a Barnes-Hut quadtree and integration uses velocity-Verlet semantics.",
+        "Tests cover empty, singleton, disconnected, pinned, and non-finite inputs.",
+        "The simulator accepts the shared graph model and emits deterministic frames for a fixed seed."
+      ],
+      "status": "pending",
+      "dependencies": ["task:54cb679c0945a79ecff23c52"],
+      "file_scope": ["crates/console-core/src/sim/**", "crates/console-core/tests/sim.rs"],
+      "proof_command": "cargo test --manifest-path crates/console-core/Cargo.toml sim::",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 B2 and graph-surface requirements"
+    },
+    {
+      "id": "task:bc62f53930459236f0874f0a",
+      "alias": "CC3",
+      "title": "Implement bounded live-watch inspection",
+      "goal": "Implement the shared watch-inspector model with ordered delivery, bounded ring storage, rate accounting, pause/resume, filter semantics, and drop-safe subscription ownership.",
+      "acceptance_criteria": [
+        "Dropping a subscription handle unregisters it from the realm door.",
+        "Pause, resume, filtering, empty streams, bursts, and unsubscribe are covered by deterministic tests.",
+        "The inspector ring is bounded and reports dropped-event counts and event rate.",
+        "Watch events preserve source order and expose monotonic sequence metadata."
+      ],
+      "status": "pending",
+      "dependencies": ["task:54cb679c0945a79ecff23c52"],
+      "file_scope": ["crates/console-core/src/watch/**", "crates/console-core/tests/watch.rs"],
+      "proof_command": "cargo test --manifest-path crates/console-core/Cargo.toml watch::",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 B3 and Standing Queries watch behavior"
+    },
+    {
+      "id": "task:eb6901c91e3a1ea6a93809ec",
+      "alias": "CC6",
+      "title": "Add consent-aware Your data entry points",
+      "goal": "Add Your data entry points in Index and Appearance so first use explains read-only permissions and requests consent while installed users open the console directly.",
+      "acceptance_criteria": [
+        "Consent persists through the plugin contract and installed users open directly.",
+        "Denial leaves the console uninstalled and does not expose data.",
+        "First use shows purpose, read-only capability scope, data doors, allow, and deny actions before opening.",
+        "Index and Appearance expose a discoverable Your data action.",
+        "Keyboard and pointer paths are covered by browser tests."
+      ],
+      "status": "pending",
+      "dependencies": ["task:28ebbc7389025825848a7237"],
+      "file_scope": [
+        "apps/console/src/views/IndexView.tsx",
+        "apps/console/src/views/AppearanceView.tsx",
+        "apps/console/src/components/**",
+        "apps/console/e2e/console-data.spec.ts"
+      ],
+      "proof_command": "npm --prefix apps/console exec playwright test e2e/console-data.spec.ts",
+      "proof_status": "",
+      "proof_patch_digest": "",
+      "verify_sibling": "",
+      "verify_submitted": false,
+      "verify_patch_digest": "",
+      "patch_digest": "",
+      "patch_generation": 0,
+      "provenance": "SPEC-COMMONPLACE-CONSOLE-1.0 F3 and consent-first product flow"
+    }
+  ]
+}

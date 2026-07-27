@@ -1,0 +1,67 @@
+{
+  "schema": "ui-baseline-manifest/1",
+  "captured_at": "2026-07-21",
+  "source_spec": "/Users/travisgilbert/Downloads/SPEC-COMMONPLACE-CONSOLE-1.0 (1).md",
+  "baseline": {
+    "web": {
+      "status": "available",
+      "root": "apps/console/e2e",
+      "representative_snapshots": [
+        "appearance.spec.ts-snapshots/workspace-1280-light-darwin.png",
+        "appearance.spec.ts-snapshots/workspace-1440-light-darwin.png",
+        "signatures.spec.ts-snapshots/workspace-1280-dark-darwin.png",
+        "signatures.spec.ts-snapshots/workspace-1440-dark-darwin.png",
+        "workspace-goal-stack.spec.ts-snapshots/workspace-substrate-v2-1440-dark-darwin.png"
+      ],
+      "do_not_downgrade": [
+        "Warm paper hierarchy and registered token usage",
+        "Persistent stripe, rail, tool window, and composer anatomy",
+        "Keyboard-visible surface switching",
+        "Reduced-motion behavior and existing contrast gates"
+      ]
+    },
+    "native": {
+      "status": "unavailable",
+      "reason": "apps/console-native did not exist at baseline capture time",
+      "target_sources": [
+        "SPEC-COMMONPLACE-CONSOLE-1.0",
+        "SPEC-COMMONPLACE-NATIVE-SHELL-1.0",
+        "gpui-component v0.5.1 official component documentation"
+      ]
+    }
+  },
+  "target": {
+    "surfaces": [
+      "store_overview",
+      "entity_browser",
+      "receipts_browser",
+      "watch_inspector",
+      "graph_neighborhood"
+    ],
+    "viewports": [
+      { "name": "desktop", "width": 1440, "height": 1000 },
+      { "name": "compact", "width": 1024, "height": 768 }
+    ],
+    "themes": ["light", "dark"]
+  },
+  "after": {
+    "web": {
+      "status": "reviewed",
+      "snapshots": [
+        "apps/console/e2e/your-data.spec.ts-snapshots/your-data-overview-1440-dark-darwin.png",
+        "apps/console/e2e/your-data.spec.ts-snapshots/your-data-graph-compact-dark-darwin.png"
+      ],
+      "viewports": [
+        { "name": "desktop", "width": 1440, "height": 1000 },
+        { "name": "compact", "width": 1024, "height": 768 }
+      ],
+      "review": "Overview hierarchy and the interactive Graph state preserve the registered shell, token, contrast, and reduced-motion contracts."
+    },
+    "native": {
+      "status": "evidence_only",
+      "snapshots": [],
+      "evidence": ".harness/evidence/native-console-visual-review.md",
+      "reason": "The interactive macOS review completed before the visual host locked, but final screenshot files could not be saved afterward."
+    }
+  }
+}
