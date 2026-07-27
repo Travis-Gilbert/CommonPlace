@@ -9,6 +9,16 @@
     "node": ">=22"
   },
   "scripts": {
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
+    "test:collector": "node --test __tests__/utils/collectorApi/collectorApi.test.js",
+    "test:identity": "node --test __tests__/utils/identity/*.test.js",
     "test:rustyred": "node --test __tests__/utils/vectorDbProviders/rustyred.test.js"
+  },
+  "dependencies": {
+    "@prisma/client": "5.3.1"
+  },
+  "devDependencies": {
+    "prisma": "5.3.1"
   }
 }
