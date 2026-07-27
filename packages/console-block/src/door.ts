@@ -105,6 +105,9 @@ export class WasmFixtureDoor implements ConsoleDoor {
         'Receipt page limit must be between 1 and 250',
       );
     }
+    if (page.cursor !== undefined && !/^(0|[1-9]\d*)$/.test(page.cursor)) {
+      throw new ConsoleDoorError('invalid_request', 'Receipt cursor must be a decimal offset');
+    }
     const offset = page.cursor === undefined ? 0 : Number(page.cursor);
     if (!Number.isInteger(offset) || offset < 0) {
       throw new ConsoleDoorError('invalid_request', 'Receipt cursor must be a decimal offset');
@@ -216,8 +219,14 @@ export class SameOriginGraphqlDoor implements ConsoleDoor {
     assertCorpusRead(this.capabilities.grants);
     const response = await fetch(this.#endpoint, { credentials: 'same-origin' });
     if (!response.ok) {
+      const code =
+        response.status === 401
+          ? 'unauthenticated'
+          : response.status === 403
+            ? 'forbidden'
+            : 'unavailable';
       throw new ConsoleDoorError(
-        'unavailable',
+        code,
         `Console GraphQL door is unavailable (${response.status})`,
         response.status >= 500,
       );

@@ -14,7 +14,6 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { Command } from 'cmdk';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import type { FilingPredicateKind, FilingRule } from '@/lib/filing/types';
-import { YourDataEntry } from '@/components/console-plugin/YourDataEntry';
 import { ViewState } from './ViewStates';
 import {
   consentRule,
@@ -23,6 +22,8 @@ import {
   putRule,
   useFilingRules,
 } from './filing/filing-client';
+import { AgentAliasPane } from '@/components/agent-address/AgentAliasPane';
+import { YourDataEntry } from '@/components/console-plugin/YourDataEntry';
 
 const PREDICATE_KINDS: ReadonlyArray<{
   readonly kind: FilingPredicateKind;
@@ -221,6 +222,7 @@ function Author({ onSaved }: { readonly onSaved: () => void }) {
 export function IndexRulesView({ host }: ViewRenderProps) {
   const { state, refresh } = useFilingRules();
   let content: ReactNode;
+
   if (state.status === 'loading') {
     content = <ViewState state="loading" />;
   } else if (state.status === 'unavailable') {
@@ -258,6 +260,7 @@ export function IndexRulesView({ host }: ViewRenderProps) {
       </div>
       <YourDataEntry host={host} returnSurfaceId="console-index" compact />
       {content}
+      <AgentAliasPane />
     </div>
   );
 }

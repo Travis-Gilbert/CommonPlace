@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONSOLE_LAYOUT_FINGERPRINT,
   CONSOLE_LAYOUT_SEED,
+  orderedPositionArray,
 } from './fixture-layout';
 import { instantiateConsoleWasm } from './wasm-fixture';
 
@@ -34,5 +35,12 @@ describe('console-core WASM artifact', () => {
     expect(runtime.settledLayoutFingerprint(CONSOLE_LAYOUT_SEED, 10_000)).toBe(
       CONSOLE_LAYOUT_FINGERPRINT,
     );
+  });
+
+  it('lays out arbitrary graph nodes deterministically', () => {
+    const first = orderedPositionArray(['node:dynamic-b', 'node:dynamic-a']);
+    const repeated = orderedPositionArray(['node:dynamic-b', 'node:dynamic-a']);
+    expect([...first]).toEqual([...repeated]);
+    expect([...first]).not.toContain(Number.NaN);
   });
 });

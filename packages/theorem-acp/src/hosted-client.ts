@@ -373,7 +373,7 @@ function appendToken(url: string, authRequest?: Request): string {
       typeof (headers as Record<string, string>).Authorization === 'string'
         ? (headers as Record<string, string>).Authorization
         : undefined;
-    const token = authorization?.replace(/^Bearer\s+/i, '').trim();
+    const token = authorization?.replace(/^Bearer\s+/i, '').trim() || process.env.THEOREM_API_KEY?.trim();
     if (token) parsed.searchParams.set('token', token);
     return parsed.toString();
   } catch {

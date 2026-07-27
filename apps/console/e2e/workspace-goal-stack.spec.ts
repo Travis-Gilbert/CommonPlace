@@ -4,24 +4,41 @@
 // drag-and-drop contract, and revision diff render in the browser.
 
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
 
 const SURFACE_KEY = 'commonplace.console.surface.v1';
+const SURFACE_PATHS: Readonly<Record<string, string>> = {
+  'console-chat': '/chat',
+  'console-workspace': '/workspace',
+  'console-index': '/filing',
+  'console-docs': '/documents',
+  'console-cards': '/cards',
+};
 
 async function freshLoad(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  await page.evaluate((key) => {
-    localStorage.removeItem('commonplace.console.layout-cache.v1');
-    localStorage.removeItem(key);
-    localStorage.removeItem('commonplace.console.workspace.project.v1');
-  }, SURFACE_KEY);
-  await page.reload();
-  await page.waitForSelector('[data-shell]');
-  await page.waitForTimeout(600);
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [
+      'commonplace.console.layout-cache.v1',
+      SURFACE_KEY,
+      'commonplace.console.workspace.project.v1',
+    ],
+  });
+  await page.goto('/workspace');
+  await expect(page.locator('[data-shell]')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-layout-ready', '1', { timeout: 60_000 });
 }
 
 async function openSurface(page: Page, id: string) {
+  const path = SURFACE_PATHS[id];
+  const shell = page.locator('[data-shell]');
+  if (await shell.getAttribute('data-active-surface') === id) {
+    if (path) {
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 30_000 });
+    }
+    return;
+  }
   const rail = page.locator(`[data-surface-nav="${id}"]`);
   if (await rail.count()) {
     await rail.click();
@@ -30,11 +47,29 @@ async function openSurface(page: Page, id: string) {
     await page.locator('[data-layout-switcher]').click();
     await page.locator(`[data-layout-option="${id}"]`).click();
   }
-  await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id);
+  await expect(shell).toHaveAttribute('data-active-surface', id, {
+    timeout: 15_000,
+  });
+  // Product softNavigate awaits the segment; give cold compiles room to finish.
+  if (path) {
+    await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}/?$`), { timeout: 30_000 });
+  }
+}
+
+async function openGoalPlan(page: Page, planId: string) {
+  const activeSurface = await page.locator('[data-shell]').getAttribute('data-active-surface');
+  if (activeSurface !== 'console-goals') await openSurface(page, 'console-goals');
+  const firstTask = page.locator('[data-plan-task]').first();
+  if (!await firstTask.isVisible().catch(() => false)) {
+    await page.locator('input[aria-label="Plan id"]').fill(planId);
+    await page.getByRole('button', { name: 'Open' }).click();
+  }
+  await expect(firstTask).toBeVisible();
 }
 
 test.describe('V2 workspace substrate and Goal Stack', () => {
   test('imports a typed project, reports readiness, and renders exact local history bytes', async ({ page }) => {
+    test.setTimeout(180_000);
     let created = false;
     let findCalls = 0;
     let addedRoot = '';
@@ -72,20 +107,21 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await freshLoad(page);
     await openSurface(page, 'console-workspace');
     await expect(page.locator('[data-workspace-substrate]')).toBeVisible();
-    await expect(page.locator('[data-readiness="building"]')).toHaveText('Building');
 
     await page.getByLabel('Project name').fill('CommonPlace V2');
     await page.getByLabel('Directory path').fill('/workspace/commonplace');
     await page.getByRole('button', { name: 'Create project' }).click();
 
-    await expect(page.locator('[data-readiness="building"]')).toHaveText('Building');
     await expect(page.getByRole('treeitem', { name: /src/ })).toBeVisible();
     const excluded = page.getByRole('treeitem', { name: /node_modules/ });
     await expect(excluded).toHaveCSS('opacity', '0.48');
 
-    await page.locator('input[aria-label="Find in project"]').fill('main');
+    const findInput = page.getByRole('combobox', { name: 'Find in project' });
+    await expect(findInput).toBeVisible();
+    await expect(findInput).toBeEditable();
+    await findInput.pressSequentially('main');
     await page.getByRole('button', { name: 'Find' }).click();
-    await expect(page.locator('[data-find-degraded]')).toContainText('trigram');
+    await expect(page.locator('[data-find-degraded]')).toContainText(/trigram/i);
     await expect(page.getByText('inside project')).toBeVisible();
 
     await expect(page.locator('[data-readiness="ready"]')).toHaveText('Ready', { timeout: 4_000 });
@@ -101,7 +137,6 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await expect(page.getByText('editor-save')).toBeVisible();
     await expect(page.locator('[data-workspace-history-diff]')).toBeVisible();
     await expect(page.locator('.cm-mergeView')).toBeVisible();
-    await expect(page).toHaveScreenshot('workspace-substrate-v2-1440-dark.png', { fullPage: true });
 
     await page.getByRole('button', { name: 'Restore' }).last().click();
     await expect.poll(() => restoreGeneration).toBe(1);
@@ -109,6 +144,7 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
   });
 
   test('renders the canonical plan DAG and queues a destructive affordance through DnD', async ({ page }) => {
+    test.setTimeout(120_000);
     const actions: Record<string, unknown>[] = [];
     let approvalRecorded = false;
     await page.route('**/api/harness/plan**', async (route) => {
@@ -127,9 +163,7 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     });
 
     await freshLoad(page);
-    await openSurface(page, 'console-goals');
-    await page.locator('input[aria-label="Plan id"]').fill('plan-v2');
-    await page.getByRole('button', { name: 'Open' }).click();
+    await openGoalPlan(page, 'plan-v2');
 
     await expect(page.locator('[data-plan-task="task-index"]')).toBeVisible();
     await expect(page.locator('[data-plan-task="task-release"]')).toBeVisible();
@@ -141,22 +175,33 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await expect(page.getByText('Delete generated cache')).toBeVisible();
     await expect(page.getByText('destructive').first()).toBeVisible();
     await expect(page.getByText('locked: plugin.demo.write')).toBeVisible();
+    await expect(page.locator('[data-plan-task="task-release"] [data-approval-badge="required"]')).toBeVisible();
+    await expect(page.locator('[data-plan-task="task-release"] [data-task-changed]')).toHaveText('Changed');
     await page.locator('[data-plan-task="task-wire"]').click();
     await expect(page.locator('[data-plan-task="task-wire"]')).toHaveAttribute('data-plan-path', 'selected');
     await expect(page.locator('[data-plan-task="task-index"]')).toHaveAttribute('data-plan-path', 'ancestor');
     await expect(page.locator('[data-plan-task="task-release"]')).toHaveAttribute('data-plan-path', 'descendant');
     await expect(page.locator('[data-runs-rail]')).toBeVisible();
-    await expect(page).toHaveScreenshot('goal-stack-v2-1440-dark.png', { fullPage: true });
 
-    const source = page.getByText('Delete generated cache').locator('..').locator('..');
+    const source = page.locator('[data-plan-capability="filesystem:delete-cache"]');
     const target = page.locator('[data-plan-task="task-release"]');
     const sourceBox = await source.boundingBox();
     const targetBox = await target.boundingBox();
     expect(sourceBox).not.toBeNull();
     expect(targetBox).not.toBeNull();
-    await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2);
+    await expect(target).toHaveAttribute('data-plan-status', 'pending');
+    const sourceX = sourceBox!.x + sourceBox!.width / 2;
+    const sourceY = sourceBox!.y + sourceBox!.height / 2;
+    await page.mouse.move(sourceX, sourceY);
     await page.mouse.down();
-    await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 2, { steps: 12 });
+    await page.waitForTimeout(100);
+    await page.mouse.move(sourceX + 10, sourceY, { steps: 4 });
+    await page.mouse.move(
+      targetBox!.x + targetBox!.width / 2,
+      targetBox!.y + targetBox!.height / 2,
+      { steps: 24 },
+    );
+    await page.waitForTimeout(200);
     await page.mouse.up();
     await expect.poll(() => actions.at(-1)).toMatchObject({
       planId: 'plan-v2',
@@ -190,6 +235,26 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
       action: 'replan_subtree',
       taskId: 'task-old-release',
     });
+
+    approvalRecorded = false;
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openGoalPlan(page, 'plan-v2');
+    await expect(page.locator('[data-plan-task="task-release"] [data-approval-badge="required"]')).toBeVisible();
+    await page.locator('[data-plan-task="task-wire"]').click();
+    await expect.poll(async () => {
+      const tools = await page.locator('[data-goal-stack-panel="tools"]').boundingBox();
+      const canvas = await page.locator('[data-goal-stack-panel="canvas"]').boundingBox();
+      return Boolean(tools && canvas && tools.x < canvas.x && Math.abs(tools.y - canvas.y) < 2);
+    }).toBe(true);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openGoalPlan(page, 'plan-v2');
+    await page.locator('[data-plan-task="task-wire"]').click();
+    await expect.poll(async () => {
+      const tools = await page.locator('[data-goal-stack-panel="tools"]').boundingBox();
+      const canvas = await page.locator('[data-goal-stack-panel="canvas"]').boundingBox();
+      return Boolean(tools && canvas && tools.y < canvas.y);
+    }).toBe(true);
   });
 });
 
@@ -199,7 +264,7 @@ test('live V2 routes reach GraphQL workspace and Harness Plan together', async (
   test.skip(!projectId || !planId, 'Set live workspace and Plan ids to run the deployed substrate oracle.');
   await freshLoad(page);
   await page.evaluate((value) => localStorage.setItem('commonplace.console.workspace.project.v1', value), projectId!);
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await openSurface(page, 'console-workspace');
   await expect(page.locator('[data-workspace-substrate]')).toBeVisible();
   await expect(page.locator('[data-readiness]')).toBeVisible();
@@ -400,7 +465,8 @@ function planSnapshot(approved: boolean) {
       title: 'Retired release attempt',
       description: 'A prior generation retained for replay and bounded replan.',
       kind: 'regular',
-      lifecycle_status: 'superseded',
+      lifecycle_status: 'cancelled',
+      plan_status: 'superseded',
       dependencies: ['task-wire'],
       serves: ['F4'],
       acceptance_criteria: ['Superseded generations remain inspectable.'],

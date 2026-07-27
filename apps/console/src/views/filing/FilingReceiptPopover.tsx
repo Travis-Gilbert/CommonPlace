@@ -7,7 +7,7 @@
 // --ij-popover-shadow for popovers and gives resting panels their depth from
 // the ladder and their boundaries from seams instead.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import type { FilingReceipt, IndexCollection } from '@/lib/filing/types';
 import { attributionSentence, FILING_LAW, tierLabel } from '@/lib/filing/types';
@@ -20,10 +20,11 @@ const LAW_SEEN_KEY = 'commonplace.console.filing.law.v1';
 // line on one receipt leaves it armed on all the others, and the line that
 // promised to appear once appears once per item. The subscriber set is the
 // smallest thing that makes one dismissal reach every mounted popover.
-const lawSubscribers = new Set<(seen: boolean) => void>();
+const lawSubscribers = new Set<() => void>();
 
 function readLawSeen(): boolean {
   try {
+    // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
     return window.localStorage.getItem(LAW_SEEN_KEY) === 'seen';
   } catch {
     // A browser that refuses storage gets the line every time rather than
@@ -34,25 +35,29 @@ function readLawSeen(): boolean {
 
 function markLawSeen() {
   try {
+    // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
     window.localStorage.setItem(LAW_SEEN_KEY, 'seen');
   } catch {
     // Nothing to persist: the line simply reappears next session.
   }
-  for (const notify of lawSubscribers) notify(true);
+  for (const notify of lawSubscribers) notify();
+}
+
+function subscribeLawSeen(onStoreChange: () => void): () => void {
+  lawSubscribers.add(onStoreChange);
+  return () => {
+    lawSubscribers.delete(onStoreChange);
+  };
 }
 
 /** The one-line law appears once and is dismissible. It teaches the thing that
  *  makes a wrong file cheap, so it is worth saying, and saying once. */
 function useFirstUseLaw(): { readonly show: boolean; readonly dismiss: () => void } {
-  const [seen, setSeen] = useState(true);
-  useEffect(() => {
-    setSeen(readLawSeen());
-    lawSubscribers.add(setSeen);
-    return () => {
-      lawSubscribers.delete(setSeen);
-    };
+  const seen = useSyncExternalStore(subscribeLawSeen, readLawSeen, () => true);
+  const dismiss = useCallback(() => {
+    markLawSeen();
   }, []);
-  return { show: !seen, dismiss: useCallback(markLawSeen, []) };
+  return { show: !seen, dismiss };
 }
 
 export interface FilingReceiptPopoverProps {
@@ -71,7 +76,7 @@ export function FilingReceiptPopover({
   onCorrect,
 }: FilingReceiptPopoverProps) {
   const { show: showLaw, dismiss: dismissLaw } = useFirstUseLaw();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>

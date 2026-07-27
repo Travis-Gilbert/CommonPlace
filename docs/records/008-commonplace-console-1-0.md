@@ -1,8 +1,8 @@
 # Record 008: CommonPlace Console 1.0
 
-Status: Implemented with recorded integration limits  
-Plan: `commonplace-console-1-0`  
-Run: `commonplace-console-1-0-7ee7`  
+Status: Implemented with recorded integration limits
+Plan: `commonplace-console-1-0`
+Run: `commonplace-console-1-0-7ee7`
 Source: `/Users/travisgilbert/Downloads/SPEC-COMMONPLACE-CONSOLE-1.0 (1).md`
 
 ## Objective

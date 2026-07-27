@@ -25,7 +25,7 @@ function run(command, argv) {
   }
 }
 
-run("cargo", ["test", "--manifest-path", manifest, "--test", "sim", "sim::"]);
+run("cargo", ["test", "--manifest-path", manifest]);
 run("cargo", [
   "test",
   "--manifest-path",
@@ -56,6 +56,25 @@ run("node", [
   wasmArtifact,
   "5604591119938928748",
 ]);
+run("cargo", [
+  "build",
+  "--manifest-path",
+  manifest,
+  "--bin",
+  "fixture-json",
+]);
+const nativeFixtureBinary = join(targetDirectory, "debug", "fixture-json");
+const committedWasmArtifact = resolve(
+  crateRoot,
+  "../../apps/console/public/wasm/commonplace_console_core.wasm",
+);
+for (const artifact of [wasmArtifact, committedWasmArtifact]) {
+  run("node", [
+    join(crateRoot, "scripts/check-wasm-fixture.mjs"),
+    artifact,
+    nativeFixtureBinary,
+  ]);
+}
 run("cargo", [
   "test",
   "--manifest-path",

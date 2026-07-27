@@ -3,10 +3,11 @@
 // landmark to ground with cleared-cache restore from server layout.
 
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { resetLocalStorageBeforeNavigation } from './storage-reset';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const LEGACY_SURFACE_KEY = 'commonplace.console.surface.v1';
-const STUB_BASE = 'http://localhost:50591';
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
 
 async function resetStubLayout(request: APIRequestContext) {
   const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
@@ -37,32 +38,31 @@ async function settled(page: Page) {
 }
 
 async function freshLoad(page: Page) {
-  await page.goto('/');
-  await page.evaluate(([layoutKey, legacyKey]) => {
-    localStorage.removeItem(layoutKey);
-    localStorage.removeItem(legacyKey);
-  }, [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY] as const);
-  await page.reload();
+  await resetLocalStorageBeforeNavigation(page, {
+    keys: [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY],
+  });
+  await page.goto('/workspace');
   await settled(page);
 }
 
 test.describe('Console sidebar', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
     await freshLoad(page);
   });
 
-  test('expanded labels identify every surface without hover', async ({ page }) => {
+  test('expanded labels identify every view without hover', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
-    await expect(rail.getByRole('radio', { name: 'Chat surface' })).toContainText('Chat');
-    await expect(rail.getByRole('radio', { name: 'Workspace surface' })).toContainText('Workspace');
-    await expect(rail.getByRole('radio', { name: 'Index surface' })).toContainText('Index');
-    await expect(rail.getByRole('radio', { name: 'Documents surface' })).toContainText('Documents');
-    await expect(rail.getByRole('radio', { name: 'Cards surface' })).toContainText('Cards');
-    await expect(page.getByLabel('Landmarks')).toBeVisible();
+    await expect(rail.getByRole('radio', { name: 'Chat view' })).toContainText('Chat');
+    await expect(rail.getByRole('radio', { name: 'Researcher view' })).toContainText('Researcher');
+    await expect(rail.getByRole('radio', { name: 'Index view' })).toContainText('Index');
+    await expect(rail.getByRole('radio', { name: 'Editor view' })).toContainText('Editor');
+    await expect(rail.getByRole('radio', { name: 'Models view' })).toContainText('Models');
+    await expect(page.getByRole('region', { name: 'Pins' })).toHaveCount(1);
   });
 
   test('Cmd or Ctrl B collapses and expands the rail', async ({ page }) => {
-    const nav = page.locator('nav[aria-label="Surfaces and companions"]');
+    const nav = page.locator('nav[aria-label="Views, blocks, objects, and pins"]');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
@@ -70,16 +70,18 @@ test.describe('Console sidebar', () => {
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
   });
 
-  test('Cmd or Ctrl 1 through 5 reach all five surfaces', async ({ page }) => {
+  test('Cmd or Ctrl 1 through 5 reach all five views', async ({ page }) => {
     const targets = [
       ['1', 'console-chat', '/chat'],
-      ['2', 'console-workspace', '/workspace'],
+      ['2', 'console-survey', '/indexer'],
       ['3', 'console-index', '/filing'],
-      ['4', 'console-docs', '/documents'],
-      ['5', 'console-cards', '/cards'],
+      ['4', 'console-workspace', '/workspace'],
+      ['5', 'console-models', '/models'],
     ] as const;
 
     for (const [key, id, path] of targets) {
+      await page.goto('/workspace');
+      await settled(page);
       await page.evaluate((digit) => {
         window.dispatchEvent(new KeyboardEvent('keydown', {
           key: digit,
@@ -90,10 +92,14 @@ test.describe('Console sidebar', () => {
         }));
       }, key);
       await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 15_000 });
-      await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
-        timeout: 15_000,
-      });
-      await settled(page);
+      if (id === 'console-chat') {
+        await expect(page.locator('[data-chat-page]')).toBeVisible({ timeout: 15_000 });
+      } else {
+        await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
+          timeout: 15_000,
+        });
+        await settled(page);
+      }
     }
   });
 
@@ -106,7 +112,7 @@ test.describe('Console sidebar', () => {
     await page.goto('/cards');
     await settled(page);
     await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', 'console-cards');
-    await expect(page.locator('[data-island-arrangement]')).toBeVisible();
+    await expect(page.locator('[data-block-arrangement]')).toBeVisible();
 
     const landmark = page.locator('[data-sidebar-landmark]').first();
     await expect(landmark).toBeVisible({ timeout: 10_000 });
@@ -117,19 +123,25 @@ test.describe('Console sidebar', () => {
       : `console.landmark-record-${landmarkId}`;
 
     await page.evaluate(() => {
-      document.documentElement.setAttribute('data-island-move-receipts', '0');
+      document.documentElement.setAttribute('data-block-move-receipts', '0');
     });
 
-    await landmark.dragTo(page.locator('[data-island-arrangement]'));
+    const arrangement = page.locator('[data-block-arrangement]');
+    const arrangementBox = await arrangement.boundingBox();
+    expect(arrangementBox).not.toBeNull();
+    await landmark.dispatchEvent('dragend', {
+      clientX: arrangementBox!.x + arrangementBox!.width / 2,
+      clientY: arrangementBox!.y + arrangementBox!.height / 2,
+    });
 
-    await expect(page.locator(`[data-island-grid-cell="${instanceId}"]`)).toBeVisible({
+    await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 10_000,
     });
     await expect.poll(async () =>
-      page.evaluate(() => document.documentElement.getAttribute('data-island-move-receipts')),
+      page.evaluate(() => document.documentElement.getAttribute('data-block-move-receipts')),
     ).toBe('1');
 
-    const nav = page.locator('nav[aria-label="Surfaces and companions"]');
+    const nav = page.locator('nav[aria-label="Views, blocks, objects, and pins"]');
     await page.keyboard.press('Meta+b');
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
     await page.waitForTimeout(400);
@@ -138,14 +150,14 @@ test.describe('Console sidebar', () => {
       localStorage.removeItem(layoutKey);
       localStorage.removeItem(legacyKey);
     }, [LAYOUT_CACHE_KEY, LEGACY_SURFACE_KEY] as const);
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await settled(page);
     await waitForServerLayout(request);
 
-    await expect(page.locator(`[data-island-grid-cell="${instanceId}"]`)).toBeVisible({
+    await expect(page.locator(`[data-block-canvas-cell="${instanceId}"]`)).toBeVisible({
       timeout: 15_000,
     });
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'true');
-    await expect(page.getByLabel('Landmarks')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Pins' })).toHaveCount(1);
   });
 });

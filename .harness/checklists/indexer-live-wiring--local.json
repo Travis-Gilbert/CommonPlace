@@ -1,0 +1,45 @@
+{
+  "plan_slug": "indexer-live-wiring",
+  "plan_id": "local-pending-substrate",
+  "title": "Indexer live backend wiring",
+  "projection_of": "docs/plans/console/indexer-live-wiring/implementation-plan.md",
+  "substrate_status": "local projection; Theorem branch Travis-Gilbert/indexer-live-projection",
+  "tasks": [
+    {
+      "alias": "IX-001",
+      "title": "Standing-topic harvest to graph objects",
+      "status": "done",
+      "evidence": "topicIndexerObjects GraphQL + matched_spans/excerpt in standing-topics; cargo test topic_indexer_objects"
+    },
+    {
+      "alias": "IX-002",
+      "title": "Held preview cold-store projection",
+      "status": "done",
+      "evidence": "Console proxy GET /api/theorem/topic-preview-assets/[assetId] via topicPreviewAsset"
+    },
+    {
+      "alias": "IX-003",
+      "title": "Indexer edge projection",
+      "status": "done",
+      "evidence": "project_survey_edges lexical Jaccard with worded reasons; GraphQL test"
+    },
+    {
+      "alias": "IX-004",
+      "title": "Swap host seed to live ObjectQuery",
+      "status": "done",
+      "evidence": "console-host querySurvey -> /api/indexer with seed fallback; vitest console-host"
+    },
+    {
+      "alias": "IX-005",
+      "title": "Indexer card action execution",
+      "status": "done",
+      "evidence": "SurveyView /do opens ActionSheet with capture chip"
+    },
+    {
+      "alias": "IX-006",
+      "title": "200-plus capture scale path",
+      "status": "done",
+      "evidence": "SURVEY_SPATIAL_CAPTURE_BUDGET=200; navigator keeps full list"
+    }
+  ]
+}

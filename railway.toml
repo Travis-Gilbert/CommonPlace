@@ -1,25 +1,25 @@
-# Railway deploy config for the CommonPlace Next.js web service when Railway
-# builds from the repository root. Keep this aligned with apps/web/railway.toml.
+# Railway deploy config for the canonical CommonPlace Console service when
+# Railway builds from the repository root.
 
 [build]
 builder = "RAILPACK"
 buildCommand = "npm run build:railway"
 watchPatterns = [
-  "apps/web/src/**",
-  "apps/web/public/**",
-  "apps/web/scripts/**",
-  "apps/web/next.config.ts",
-  "apps/web/package.json",
-  "apps/web/package-lock.json",
-  "apps/web/railway.toml",
+  "apps/console/src/**",
+  "apps/console/public/**",
+  "apps/console/scripts/**",
+  "apps/console/next.config.ts",
+  "apps/console/package.json",
   "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "packages/**",
   "railpack.json",
   "railway.toml"
 ]
 
 [deploy]
-startCommand = "node apps/web/scripts/start-railway.mjs"
+startCommand = "node apps/console/scripts/start-railway.mjs"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

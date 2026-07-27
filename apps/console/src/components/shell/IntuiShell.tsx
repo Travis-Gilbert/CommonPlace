@@ -15,24 +15,43 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { usePathname, useRouter } from 'next/navigation';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
-import type { ObjectRef } from '@commonplace/block-view/types';
+import type {
+  JsonValue,
+  ObjectQuery,
+  ObjectRef,
+  ObjectSet,
+} from '@commonplace/block-view/types';
 import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
-import { pathForSurfaceKind, surfaceIdForPath } from '@/lib/surface-routes';
+import { softNavigate } from '@/lib/soft-navigate';
+import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
+import { surfaceIdForPath } from '@/lib/surface-routes';
+import { writeLastConsoleViewPath } from '@/lib/chat/last-console-view';
 import { useShellStore } from '@/lib/shell-store';
 import { seconds, staggerDelay, useMotionDurations, EASE_OUT, DUR } from '@/motion/motion-tokens';
 import { ViewInstanceHost } from './ViewInstanceHost';
 import { EditorTabs } from './EditorTabs';
-import { IslandArrangementHost } from '@/components/blocks/IslandArrangementHost';
-import { MainToolbar } from './MainToolbar';
-import { StatusBar } from './StatusBar';
+import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
+import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
+import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
+import { HostPresenceSync } from '@/components/host/HostPresenceSync';
+import { HostFindLens } from '@/components/host/HostFindLens';
+import { placeBlockAction } from '@/lib/block-placement';
+import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
+import type { BlockPaletteItem } from '@/lib/rail/rail-model';
+import { FindOverlay } from '@/views/search/FindOverlay';
+import { highlightPageTarget } from '@/views/search/page-find';
 
+/** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
+const SIDEBAR_WIDTH_PX = 180;
+const SIDEBAR_COLLAPSED_PX = 48;
 const OVERLAY_BREAKPOINT = 1100;
+const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
 
 type RegionNode = SidebarRegion;
 
@@ -41,6 +60,20 @@ interface SurfaceRegions {
   readonly right: readonly RegionNode[];
   readonly editor: RegionNode | null;
 }
+
+interface FindScopeIds {
+  readonly pageNodeId: string | null;
+  readonly sessionNodeIds: readonly string[];
+}
+
+const FIND_SCOPE_EXCLUDED_TYPES = new Set([
+  'surface',
+  'region',
+  'view-instance',
+  'surface-tool',
+  'files-view',
+  'context-view',
+]);
 
 function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
   const left: RegionNode[] = [];
@@ -59,13 +92,101 @@ function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
   return { left, right, editor };
 }
 
+function queryOf(instance: ObjectRef): ObjectQuery | null {
+  const raw = instance.properties.query;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const types = (raw as { types?: unknown }).types;
+  if (!Array.isArray(types)) return null;
+  return raw as unknown as ObjectQuery;
+}
+
+function searchableIds(set: ObjectSet): readonly string[] {
+  return set.objects
+    .filter((object) => !FIND_SCOPE_EXCLUDED_TYPES.has(object.type))
+    .map((object) => object.id);
+}
+
+function sameIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length
+    && left.every((id, index) => id === right[index]);
+}
+
+function useFindScopeIds(
+  host: ConsoleBlockHost,
+  pageInstance: ObjectRef | null,
+  instances: readonly ObjectRef[],
+  selectedObjectId: string | null,
+): FindScopeIds {
+  const [scopeIds, setScopeIds] = useState<FindScopeIds>({
+    pageNodeId: selectedObjectId,
+    sessionNodeIds: selectedObjectId ? [selectedObjectId] : [],
+  });
+
+  useEffect(() => {
+    let active = true;
+    const idsByInstance = new Map<string, readonly string[]>();
+    const unsubscribers: Array<() => void> = [];
+    const publish = () => {
+      if (!active) return;
+      const sessionNodeIds = [...new Set([
+        ...(selectedObjectId ? [selectedObjectId] : []),
+        ...instances.flatMap((instance) => idsByInstance.get(instance.id) ?? []),
+      ])];
+      const activePageNodeId = pageInstance
+        ? idsByInstance.get(pageInstance.id)?.[0] ?? null
+        : null;
+      const nextScopeIds: FindScopeIds = {
+        pageNodeId:
+          selectedObjectId
+          ?? activePageNodeId
+          ?? sessionNodeIds[0]
+          ?? null,
+        sessionNodeIds,
+      };
+      setScopeIds((current) =>
+        current.pageNodeId === nextScopeIds.pageNodeId
+        && sameIds(current.sessionNodeIds, nextScopeIds.sessionNodeIds)
+          ? current
+          : nextScopeIds
+      );
+    };
+
+    publish();
+    for (const instance of instances) {
+      const query = queryOf(instance);
+      if (!query) continue;
+      void Promise.resolve(host.query(query))
+        .then((set) => {
+          if (!active) return;
+          idsByInstance.set(instance.id, searchableIds(set));
+          publish();
+          unsubscribers.push(set.subscribe((next) => {
+            idsByInstance.set(instance.id, searchableIds(next));
+            publish();
+          }));
+        })
+        .catch(() => {
+          idsByInstance.set(instance.id, []);
+          publish();
+        });
+    }
+
+    return () => {
+      active = false;
+      for (const unsubscribe of unsubscribers) unsubscribe();
+    };
+  }, [host, instances, pageInstance, selectedObjectId]);
+
+  return scopeIds;
+}
+
 function isOpen(region: RegionNode): boolean {
   return region.object.properties.open !== false;
 }
 
-/** The Int UI tool window slot. Island chrome lives on IslandShell inside
- *  ViewInstanceHost (HANDOFF-CONSOLE-ISLAND-SHELL remodel); this wrapper is
- *  layout only and must not paint or register as an island. */
+/** The Int UI tool window slot. Block chrome lives on BlockShell inside
+ *  ViewInstanceHost; this wrapper is layout only and must not paint or
+ *  register as a block. */
 function ToolWindow({
   region,
   host,
@@ -147,10 +268,11 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   );
   const primarySurfaces = useMemo(
     () => surfaces
-      .filter((surface) => pathForSurfaceKind(String(surface.properties.kind ?? '')) !== null)
-      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order)),
+      .filter((surface) => PLACE_ENTRIES.some((place) => place.surfaceId === surface.id))
+      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99)),
     [surfaces],
   );
+  void primarySurfaces;
 
   const pathname = usePathname();
   const router = useRouter();
@@ -167,22 +289,31 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return () => observer.disconnect();
   }, []);
 
-  // The active surface: the one carrying the active flag, the proof
-  // workspace otherwise. Switching layouts flips flags on surface objects;
+  // The active surface: the one carrying the active flag, the launch Chat
+  // view otherwise. Switching layouts flips flags on surface objects;
   // regions and their arrangement stay untouched per surface (R3.3).
   const activeSurfaceId = useMemo(() => {
-    return surfaces.find((object) => object.properties.active === true)?.id ?? SURFACE_ID;
+    return surfaces.find((object) => object.properties.active === true)?.id
+      ?? PLACE_ENTRIES[0]?.surfaceId
+      ?? SURFACE_ID;
   }, [surfaces]);
-  const activeSurfaceIdRef = useRef(activeSurfaceId);
-  useEffect(() => {
-    activeSurfaceIdRef.current = activeSurfaceId;
-  }, [activeSurfaceId]);
 
   // Deep links and back/forward: the route is the surface radio (B3).
+  // Re-assert once after remote layout adoption. Ordinary surface updates do
+  // not emit readiness, so Account and Appearance are not overwritten.
   useEffect(() => {
-    const routedId = surfaceIdForPath(pathname);
-    if (!routedId || routedId === activeSurfaceIdRef.current) return;
-    void host.activateSurface(routedId);
+    const activateRoutedSurface = () => {
+      const routedId = surfaceIdForPath(pathname);
+      if (routedId) void host.activateSurface(routedId);
+    };
+    activateRoutedSurface();
+    window.addEventListener(LAYOUT_READY_EVENT, activateRoutedSurface);
+    if (pathname && !pathname.startsWith('/chat')) {
+      writeLastConsoleViewPath(pathname);
+    }
+    return () => {
+      window.removeEventListener(LAYOUT_READY_EVENT, activateRoutedSurface);
+    };
   }, [host, pathname]);
 
   const root = useMemo(
@@ -191,6 +322,31 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   );
   const regions = useMemo(() => regionsOf(root), [root]);
   const editor = regions.editor;
+  const activeEditorInstance = useMemo(() => {
+    if (!editor) return null;
+    const activeId = String(
+      editor.object.properties.active_tab
+      ?? editor.instances[0]?.id
+      ?? '',
+    );
+    return editor.instances.find((instance) => instance.id === activeId)
+      ?? editor.instances[0]
+      ?? null;
+  }, [editor]);
+  const activeSurfaceInstances = useMemo(
+    () => [
+      ...regions.left.flatMap((region) => region.instances),
+      ...(regions.editor?.instances ?? []),
+      ...regions.right.flatMap((region) => region.instances),
+    ],
+    [regions],
+  );
+  const findScopeIds = useFindScopeIds(
+    host,
+    activeEditorInstance,
+    activeSurfaceInstances,
+    selectedRecordId,
+  );
   const companions = useMemo(() => {
     const order = new Map([['files', 0], ['context', 1], ['thread', 2]]);
     return [...regions.left, ...regions.right]
@@ -212,10 +368,26 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     [compact, host, regions.left, regions.right],
   );
 
-  // Alt+1..5 supplements Cmd/Ctrl surface switching on the five routed
-  // surfaces. Alt+Shift+1..3 toggles companions for the active surface.
+  useEffect(() => {
+    for (const place of PLACE_ENTRIES) {
+      router.prefetch(place.path);
+    }
+  }, [router]);
+
+  // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
+  // companions for the active surface (dock panels; not rail destinations).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+        const digit = Number(event.key);
+        if (digit >= 1 && digit <= PLACE_ENTRIES.length) {
+          event.preventDefault();
+          const place = PLACE_ENTRIES[digit - 1];
+          void host.activateSurface(place.surfaceId);
+          void softNavigate(router, place.path).catch(() => undefined);
+        }
+        return;
+      }
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.shiftKey) {
         companions.forEach((region, index) => {
@@ -226,19 +398,83 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
         });
         return;
       }
-      primarySurfaces.forEach((surface, index) => {
+      PLACE_ENTRIES.forEach((place, index) => {
         if (event.key === String(index + 1)) {
           event.preventDefault();
-          const kind = String(surface.properties.kind ?? '');
-          const path = pathForSurfaceKind(kind);
-          void host.activateSurface(surface.id);
-          if (path) router.push(path);
+          void host.activateSurface(place.surfaceId);
+          void softNavigate(router, place.path).catch(() => undefined);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, host, primarySurfaces, router, toggle]);
+  }, [companions, host, router, toggle]);
+
+  const handleAddBlock = useCallback((item: BlockPaletteItem) => {
+    if (!editor) return;
+    void (async () => {
+      const id = `palette.${item.id}.${Date.now()}`;
+      const created = await host.emit({
+        kind: 'create',
+        type: 'view-instance',
+        props: {
+          id,
+          descriptor_id: item.descriptorId,
+          title: item.label,
+          ...(item.query
+            ? { query: item.query as unknown as JsonValue }
+            : {}),
+        },
+      });
+      if (!created.ok) return;
+      let moves = 0;
+      for (const action of placeBlockAction(id, {
+        placement: 'ground',
+        regionId: editor.object.id,
+        order: editor.instances.length,
+      })) {
+        const result = await host.emit(action);
+        if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
+          moves += 1;
+        }
+      }
+      if (moves > 0) {
+        recordBlockMoveReceipts(moves);
+        if (editor.object.properties.kind !== 'grid') {
+          await host.emit({
+            kind: 'update',
+            id: editor.object.id,
+            patch: { active_tab: id },
+          });
+        }
+      }
+    })();
+  }, [editor, host]);
+
+  const activePageText = useCallback(
+    () => shellRef.current?.querySelector<HTMLElement>('#console-editor-well')?.innerText ?? null,
+    [],
+  );
+
+  const highlightPageHit = useCallback(async (
+    _result: Parameters<NonNullable<React.ComponentProps<typeof FindOverlay>['onHighlightPageHit']>>[0],
+    target: Parameters<NonNullable<React.ComponentProps<typeof FindOverlay>['onHighlightPageHit']>>[1],
+  ) => {
+    const well = shellRef.current?.querySelector<HTMLElement>('#console-editor-well');
+    if (!well || !highlightPageTarget(well, target)) {
+      throw new Error('The selected text is not present on the active console page.');
+    }
+  }, []);
+
+  const openFindItem = useCallback((
+    result: Parameters<NonNullable<React.ComponentProps<typeof FindOverlay>['onOpenItem']>>[0],
+  ) => {
+    if (result.hit.source) {
+      const opened = window.open(result.hit.source, '_blank', 'noopener,noreferrer');
+      if (opened) return;
+    }
+    useShellStore.getState().selectRecord(result.hit.doc, null);
+  }, []);
 
   useEffect(() => {
     const focusComposer = (event: KeyboardEvent) => {
@@ -293,9 +529,18 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     },
     [host, visiblePanels, visibleTotal],
   );
-  const chromeRegionIds = useMemo(
-    () => [...regions.left, ...regions.right].map((region) => region.object.id),
-    [regions.left, regions.right],
+  const stripeTrayId =
+    [...regions.left, ...regions.right].find(
+      (region) => region.object.properties.kind === 'stripe-tray',
+    )?.object.id ?? null;
+  // Stripe-tray is the rail target only; exclude it from dock zones so the
+  // same region is not dual-labeled as both "Move to rail" and "Dock as tool".
+  const dockRegionIds = useMemo(
+    () =>
+      [...regions.left, ...regions.right]
+        .filter((region) => region.object.id !== stripeTrayId)
+        .map((region) => region.object.id),
+    [regions.left, regions.right, stripeTrayId],
   );
   const landmarkRegion = useMemo(() => {
     const object = layoutObjects?.find(
@@ -309,14 +554,41 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return { object, instances };
   }, [layoutObjects]);
 
-  if (!root || !editor) {
-    return <div className="h-full w-full bg-ij-frame" aria-busy="true" />;
+  const landmarkCollapsed = landmarkRegion?.object.properties.collapsed === true;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(landmarkCollapsed);
+  const [seenLandmarkCollapsed, setSeenLandmarkCollapsed] = useState(landmarkCollapsed);
+  if (landmarkCollapsed !== seenLandmarkCollapsed) {
+    setSeenLandmarkCollapsed(landmarkCollapsed);
+    setSidebarCollapsed(landmarkCollapsed);
   }
 
-  const stripeTrayId =
-    [...regions.left, ...regions.right].find(
-      (region) => region.object.properties.kind === 'stripe-tray',
-    )?.object.id ?? null;
+  const persistSidebarCollapsed = useCallback((next: boolean) => {
+    setSidebarCollapsed(next);
+    if (!landmarkRegion) return;
+    if (landmarkRegion.object.properties.collapsed === next) return;
+    void host.emit({ kind: 'update', id: landmarkRegion.object.id, patch: { collapsed: next } });
+  }, [host, landmarkRegion]);
+
+  const applySidebarCollapsed = useCallback((next: boolean) => {
+    persistSidebarCollapsed(next);
+  }, [persistSidebarCollapsed]);
+
+  if (!root || !editor) {
+    // Keep data-shell mounted so activation / e2e oracles do not lose the
+    // landmark while the surface tree is still resolving (Appearance, Account,
+    // deep links racing ensureSeedLayout).
+    return (
+      <div
+        ref={shellRef}
+        data-shell
+        data-compact={compact}
+        data-active-surface={activeSurfaceId}
+        className="h-full w-full bg-ij-frame"
+        aria-busy="true"
+      />
+    );
+  }
+
   const editorPane = (
     <motion.div
       initial={durations.reduced ? false : { opacity: 0 }}
@@ -332,13 +604,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       className="h-full min-h-0"
     >
       {editor.object.properties.kind === 'grid' ? (
-        <IslandArrangementHost
+        <BlockArrangementHost
           region={editor.object}
           instances={editor.instances}
           host={host}
-          chromeRegionIds={chromeRegionIds}
-          stripeRegionId={stripeTrayId}
-          surfaceEditorRegionId={editor.object.id}
+          dockRegionIds={dockRegionIds}
+          railRegionId={stripeTrayId}
+          fullRegionId={editor.object.id}
         />
       ) : (
         <EditorTabs region={editor.object} instances={editor.instances} host={host} />
@@ -373,98 +645,135 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       data-shell
       data-compact={compact}
       data-active-surface={activeSurfaceId}
-      className="relative flex h-full min-h-0 flex-col bg-transparent"
+      className="relative flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
-      <MainToolbar host={host} surfaces={surfaces} activeSurfaceId={activeSurfaceId} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar
-          host={host}
-          surfaces={primarySurfaces}
-          companions={companions}
-          activeSurfaceId={activeSurfaceId}
-          landmarksRegion={landmarkRegion}
-          activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
-          onToggleCompanion={toggle}
+      <FindOverlay
+        pageNodeId={findScopeIds.pageNodeId}
+        sessionNodeIds={findScopeIds.sessionNodeIds}
+        getPageText={activePageText}
+        onHighlightPageHit={highlightPageHit}
+        onOpenItem={openFindItem}
+      />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <aside
+          data-shell-sidebar
+          className="min-h-0 shrink-0 overflow-hidden"
+          style={{
+            width: sidebarCollapsed || compact ? SIDEBAR_COLLAPSED_PX : SIDEBAR_WIDTH_PX,
+            transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)',
+          }}
+        >
+          <Sidebar
+            host={host}
+            surfaces={surfaces}
+            companions={companions}
+            activeSurfaceId={activeSurfaceId}
+            compact={compact}
+            landmarksRegion={landmarkRegion}
+            activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+            onToggleCompanion={toggle}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={applySidebarCollapsed}
+            onAddBlock={handleAddBlock}
+          />
+        </aside>
+        <div
+          data-shell-sidebar-seam
+          className="relative w-ij-island-gutter shrink-0 bg-transparent"
+          aria-hidden
         />
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-ij-island-gutter p-ij-island-gutter">
-          <div className="relative min-h-0 min-w-0 flex-1">
-            {compact ? (
-              <>
-                {editorPane}
-                {leftOpen[0] ? (
-                  <div className="absolute inset-y-0 left-0 z-30 w-80">
-                    <ToolWindow
-                      region={leftOpen[0]}
-                      host={host}
-                      entranceIndex={0}
-                      onHide={() => toggle(leftOpen[0])}
-                      gridRegionId={editor.object.id}
-                    />
-                  </div>
-                ) : null}
-                {rightOpen[0] ? (
-                  <div className="absolute inset-y-0 right-0 z-30 w-96">
-                    <ToolWindow
-                      region={rightOpen[0]}
-                      host={host}
-                      entranceIndex={1}
-                      onHide={() => toggle(rightOpen[0])}
-                      gridRegionId={editor.object.id}
-                    />
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
-                {visiblePanels.flatMap((panel, index) => {
-                  const isEditor = panel.region === editor;
-                  const nodes = [];
-                  if (index > 0) {
+        <div id="console-editor-well" className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div
+            data-shell-region="ground"
+            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
+          >
+            <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+              {compact ? (
+                <>
+                  {editorPane}
+                  {leftOpen[0] ? (
+                    <div data-shell-region="dock" data-dock-edge="left" className="absolute inset-y-0 left-0 z-30 w-80">
+                      <ToolWindow
+                        region={leftOpen[0]}
+                        host={host}
+                        entranceIndex={0}
+                        onHide={() => toggle(leftOpen[0])}
+                        gridRegionId={editor.object.id}
+                      />
+                    </div>
+                  ) : null}
+                  {rightOpen[0] ? (
+                    <div data-shell-region="dock" data-dock-edge="right" className="absolute inset-y-0 right-0 z-30 w-96">
+                      <ToolWindow
+                        region={rightOpen[0]}
+                        host={host}
+                        entranceIndex={1}
+                        onHide={() => toggle(rightOpen[0])}
+                        gridRegionId={editor.object.id}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
+                  {visiblePanels.flatMap((panel, index) => {
+                    const isEditor = panel.region === editor;
+                    const nodes = [];
+                    if (index > 0) {
+                      nodes.push(
+                        <PanelResizeHandle
+                          key={`handle-${panel.region.object.id}`}
+                          data-panel-seam
+                          className="relative w-ij-island-gutter bg-transparent"
+                        />,
+                      );
+                    }
                     nodes.push(
-                      <PanelResizeHandle
-                        key={`handle-${panel.region.object.id}`}
-                        data-panel-seam
-                        className="relative w-ij-island-gutter bg-transparent"
-                      />,
+                      <Panel
+                        key={panel.region.object.id}
+                        id={panel.region.object.id}
+                        order={orderOf(panel.region)}
+                        defaultSize={(panel.abs / visibleTotal) * 100}
+                        minSize={isEditor ? 30 : 12}
+                      >
+                        {isEditor ? (
+                          editorPane
+                        ) : (
+                          <div
+                            data-shell-region="dock"
+                            data-dock-edge={panel.region.object.properties.side === 'right' ? 'right' : 'left'}
+                            className="h-full min-h-0"
+                          >
+                            <ToolWindow
+                              region={panel.region}
+                              host={host}
+                              entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
+                              onHide={() => toggle(panel.region)}
+                              gridRegionId={editor.object.id}
+                            />
+                          </div>
+                        )}
+                      </Panel>,
                     );
-                  }
-                  nodes.push(
-                    <Panel
-                      key={panel.region.object.id}
-                      id={panel.region.object.id}
-                      order={orderOf(panel.region)}
-                      defaultSize={(panel.abs / visibleTotal) * 100}
-                      minSize={isEditor ? 30 : 12}
-                    >
-                      {isEditor ? (
-                        editorPane
-                      ) : (
-                        <ToolWindow
-                          region={panel.region}
-                          host={host}
-                          entranceIndex={panel.region.object.properties.side === 'right' ? 1 : 0}
-                          onHide={() => toggle(panel.region)}
-                          gridRegionId={editor.object.id}
-                        />
-                      )}
-                    </Panel>,
-                  );
-                  return nodes;
-                })}
-              </PanelGroup>
-            )}
-            {selectedRecordId ? (
-              <div className="absolute inset-y-0 right-0 z-40">
-                <RecordInspector host={host} />
-              </div>
-            ) : null}
+                    return nodes;
+                  })}
+                </PanelGroup>
+              )}
+              {selectedRecordId ? (
+                <div className="absolute inset-y-0 right-0 z-40">
+                  <RecordInspector host={host} />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
-      <StatusBar host={host} />
       <SearchPanel host={host} />
       <ActionSheet host={host} />
+      <StatusBar host={host} />
+      <HostPresenceSync workspaceId="default" surface="commonplace" />
+      <HostPresenceCursor workspaceId="default" surface="commonplace" />
+      <HostFindLens workspaceId="default" surface="commonplace" />
     </div>
   );
 }

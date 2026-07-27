@@ -6,12 +6,13 @@
 //! adapters must surface `unavailable` instead of falling back to store access.
 
 pub const CONSOLE_READS: &str = r#"
-query CommonPlaceConsoleSnapshot($root: ID!, $depth: Int!, $receiptLimit: Int!) {
+query CommonPlaceConsoleSnapshot($root: ID!, $depth: Int!, $receiptLimit: Int!, $receiptCursor: String) {
   consoleOverview { countsByType { nodeType count } generation readiness { capability state detail } }
   consoleEntities { record merges receipts candidates }
-  consoleReceipts(first: $receiptLimit) { receipts nextCursor total }
+  consoleReceipts(first: $receiptLimit, after: $receiptCursor) { receipts nextCursor total }
   consoleNeighborhood(root: $root, depth: $depth) { root depth nodes edges }
   standingQueries { id name shape enabled }
+  standingFirings(limit: 50) { queryId sequence occurredAtMs matchedIds receiptId }
 }
 "#;
 
@@ -46,4 +47,4 @@ subscription InspectStandingQuery($queryId: ID!) {
 }
 "#;
 
-pub const REQUIRED_AUTH_HEADERS: [&str; 2] = ["x-api-key", "x-commonplace-tenant"];
+pub const REQUIRED_AUTH_HEADERS: [&str; 2] = ["x-api-key", "x-theorem-tenant"];

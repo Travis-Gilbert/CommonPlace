@@ -20,7 +20,13 @@ import {
   SURFACE_ID,
   seedLayout,
   seedRecords,
+  MODEL_SURFACE_ID,
+  SURVEY_VIEW_INSTANCE_ID,
+  MODEL_VIEW_INSTANCE_ID,
+  SURVEY_SURFACE_ID,
 } from './workspace-seed';
+
+import { PLACE_ENTRIES } from './rail/rail-model';
 
 const NO_VIEWS = { matchingViews: () => [] };
 
@@ -57,22 +63,34 @@ describe('ConsoleBlockHost', () => {
     expect(surfaces.map((surface) => surface.id).sort()).toEqual([
       'console-account',
       'console-appearance',
+      'console-automation',
+      'console-canvas',
       'console-cards',
       'console-chat',
       'console-docs',
+      'console-files',
       'console-goals',
       'console-harness-status',
       'console-index',
+      'console-models',
       'console-proactivity',
+      'console-records',
       'console-review',
+      'console-survey',
+      'console-threads',
       'console-workspace',
+      'view-chat',
+      'view-data-model',
+      'view-editor',
+      'view-index',
+      'view-researcher',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
     expect(surfaces
-      .filter((surface) => typeof surface.properties.stripe_order === 'number')
-      .sort((a, b) => Number(a.properties.stripe_order) - Number(b.properties.stripe_order))
+      .filter((surface) => PLACE_ENTRIES.some((place) => place.surfaceId === surface.id))
+      .sort((a, b) => Number(a.properties.stripe_order ?? 99) - Number(b.properties.stripe_order ?? 99))
       .map((surface) => surface.properties.name)).toEqual([
-        'Chat', 'Workspace', 'Goal Stack', 'Index', 'Documents', 'Cards',
+        'Chat', 'Researcher', 'Index', 'Editor', 'Models',
       ]);
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
@@ -80,9 +98,8 @@ describe('ConsoleBlockHost', () => {
       'workspace.region-files',
       'workspace.region-context',
       'workspace.region-thread',
-      'workspace.region-automation',
     ]);
-    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(4);
+    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
     // The Index carries a third surface-role region, the urgent lane, whose
     // empty state is its designed norm (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0
     // F5). It is a region rather than a companion because it belongs to this
@@ -108,12 +125,12 @@ describe('ConsoleBlockHost', () => {
     expect(landmarks?.properties.kind).toBe('landmarks');
     expect(landmarks?.properties.collapsed).toBe(false);
     expect(landmarks?.relations?.[CONTAINS_EDGE]).toEqual([
-      'console.landmark-chat',
-      'console.landmark-records',
+      'console.landmark-brief',
+      'console.landmark-code',
     ]);
-    const chatLandmark = set.objects.find((object) => object.id === 'console.landmark-chat');
-    expect(chatLandmark?.properties.descriptor_id).toBe('chat.surface');
-    expect(chatLandmark?.properties.pinned).toBe(true);
+    const briefLandmark = set.objects.find((object) => object.id === 'console.landmark-brief');
+    expect(briefLandmark?.properties.descriptor_id).toBe('markdown.doc');
+    expect(briefLandmark?.properties.pinned).toBe(true);
   });
 
   it('migrates landmarks into a persisted arrangement that lacked them', () => {
@@ -124,7 +141,75 @@ describe('ConsoleBlockHost', () => {
     const host = new ConsoleBlockHost(NO_VIEWS);
     const set = host.queryLayout(surfaceQuery());
     expect(set.objects.some((object) => object.id === 'console.region-landmarks')).toBe(true);
-    expect(set.objects.some((object) => object.id === 'console.landmark-chat')).toBe(true);
+    expect(set.objects.some((object) => object.id === 'console.landmark-brief')).toBe(true);
+    const survey = buildSurfaceTree(SURVEY_SURFACE_ID, set.objects);
+    expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
+    const models = buildSurfaceTree(MODEL_SURFACE_ID, set.objects);
+    expect(models!.children[0]?.children[0]?.object.id).toBe(MODEL_VIEW_INSTANCE_ID);
+  });
+
+  it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const set = await Promise.resolve(host.query({
+      types: ['topic', 'capture', 'survey-edge'],
+      where: { kind: 'eq', field: 'topic_id', value: 'topic-evidence-research-surfaces' },
+    }));
+
+    expect(set.objects.filter((object) => object.type === 'topic')).toHaveLength(1);
+    expect(set.objects.filter((object) => object.type === 'capture')).toHaveLength(15);
+    expect(set.objects.filter((object) => object.type === 'survey-edge').length).toBeGreaterThan(0);
+  });
+
+  it('keeps declared model overlay metadata synchronized through host actions', async () => {
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    const query = {
+      types: ['field-metadata'],
+      where: { kind: 'eq' as const, field: 'topic_id', value: 'topic-models' },
+    };
+    await host.emit({
+      kind: 'create',
+      type: 'field-metadata',
+      props: {
+        id: 'field-title',
+        topic_id: 'topic-models',
+        key: 'title',
+        label: 'Title',
+      },
+    });
+    let set = await Promise.resolve(host.query(query));
+    expect(set.objects.map((object) => object.id)).toEqual(['field-title']);
+
+    await host.emit({ kind: 'update', id: 'field-title', patch: { label: 'Document title' } });
+    set = await Promise.resolve(host.query(query));
+    expect(set.objects[0]?.properties.label).toBe('Document title');
+
+    await host.emit({ kind: 'delete', id: 'field-title' });
+    set = await Promise.resolve(host.query(query));
+    expect(set.objects).toEqual([]);
+  });
+
+  it('keeps console-local object lifecycles off the live wire', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    const created = await host.emit({
+      kind: 'create',
+      type: 'thread',
+      props: { id: 'thread.local', title: 'Local thread' },
+    });
+    let set = await Promise.resolve(host.query({ types: ['thread'] }));
+    expect(created.value?.status).toBe('applied');
+    expect(set.objects.map((object) => object.id)).toEqual(['thread.local']);
+
+    await host.emit({ kind: 'update', id: 'thread.local', patch: { title: 'Updated' } });
+    set = await Promise.resolve(host.query({ types: ['thread'] }));
+    expect(set.objects[0]?.properties.title).toBe('Updated');
+
+    await host.emit({ kind: 'delete', id: 'thread.local' });
+    set = await Promise.resolve(host.query({ types: ['thread'] }));
+    expect(set.objects).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('applies moveSurfaceNodeAction semantics: re-parent with order', async () => {
@@ -305,5 +390,72 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
+  });
+
+  it('routes canvas ObjectRefs and mutations through the authenticated object seam', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        props?: Record<string, unknown>;
+        patch?: Record<string, unknown>;
+      };
+      if (!body.kind) {
+        return new Response(JSON.stringify({
+          objects: [],
+          shape: { types: ['canvas'], fields: [], relations: [], axes: {}, cardinality: 'empty' },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        action_kind: body.kind,
+        status: 'applied',
+        target_ids: ['canvas.default'],
+        op_range: {
+          first_op_id: 'op-1',
+          last_op_id: 'op-1',
+          range_hash: 'hash-1',
+        },
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    host.query({
+      types: ['canvas', 'canvas.card', 'canvas.group', 'canvas.connection'],
+      page: { limit: 500 },
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const receipt = await host.emit({
+      kind: 'create',
+      type: 'note',
+      props: {
+        id: 'note.object-seam',
+        title: 'Persisted note',
+        canvasId: 'canvas.default',
+        x: 12,
+        y: 24,
+      },
+    });
+    const set = host.query({
+      types: ['canvas', 'canvas.card', 'canvas.group', 'canvas.connection'],
+      page: { limit: 500 },
+    });
+
+    expect(receipt.ok).toBe(true);
+    expect(receipt.value?.op_range).toBeDefined();
+    expect(set).not.toBeInstanceOf(Promise);
+    if (set instanceof Promise) throw new Error('canvas query must stay synchronous');
+    expect(set.objects.find((object) => object.id === 'note.object-seam')).toMatchObject({
+      type: 'canvas.card',
+      properties: { x: 12, y: 24 },
+    });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/objects/query',
+      '/api/objects/action',
+      '/api/objects/action',
+    ]);
+    const update = JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body ?? '{}')) as {
+      patch?: Record<string, unknown>;
+    };
+    expect(update.patch?.persistence_kind).toBe('canvas-work-v1');
   });
 });

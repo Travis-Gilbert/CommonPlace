@@ -1,0 +1,96 @@
+/* SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS2: geometry scale.
+   Radii below roughly three device pixels of arc antialias into a chipped
+   square. Container radius floors at 1.5 times the gutter. At a 6px gutter
+   that is 9, so no container is below 10.
+   Concentric nesting: inner = max(outer - padding, 2).
+
+   CS3 materials + CS4 shader canvas: MaterialLayer owns the canvas field.
+   Material rules here set radius, seam, translucent fill, and shadow.
+   Opaque paper fills would paint a CSS layer over the paper shaders, which
+   is the regression PR #122 fixed. Fully transparent fills are the opposite
+   failure: sunken and lifted stop differing and the material typology stops
+   meaning anything. Translucent is the resolution. */
+
+[data-register="intui"] {
+  --gutter: 6px;
+
+  --radius-chip: 4px;      /* tags, counts, status pills */
+  --radius-control: 7px;   /* buttons, inputs, segmented controls */
+  --radius-sunken: 10px;   /* inset blocks */
+  --radius-lifted: 14px;   /* floating blocks */
+  --radius-docked: 14px;   /* free corners; docked edge is 0 */
+
+  /* CS3 depth budget. Blur never exceeds 8px, y-offset never exceeds 2px.
+     IDE chrome gets depth from tone difference; shadow only confirms a
+     boundary that tone already made. --ij-floating-shadow is the register's
+     popup shadow and is deliberately not used here. */
+  --shadow-lifted:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 2px 8px rgb(0 0 0 / 0.04);
+
+  /* Docked casts on its free side only. */
+  --shadow-docked-right: -1px 0 3px rgb(0 0 0 / 0.05);
+  --shadow-docked-left: 1px 0 3px rgb(0 0 0 / 0.05);
+  --shadow-docked-top: 0 1px 3px rgb(0 0 0 / 0.05);
+  --shadow-docked-bottom: 0 -1px 3px rgb(0 0 0 / 0.05);
+
+  /* Translucent material fills. Shader grain reads through; the tone delta
+     survives. Alpha is the tuning knob: raise for separation, lower for
+     grain. Falls back to transparent so a missing token reverts to the
+     shader-only behaviour rather than painting an opaque layer. */
+  --fill-sunken: color-mix(
+    in oklch,
+    var(--paper-sunken, transparent) 55%,
+    transparent
+  );
+  --fill-lifted: color-mix(
+    in oklch,
+    var(--paper-lifted, transparent) 62%,
+    transparent
+  );
+}
+
+/* Docked material: 14 on three corners, 0 on the docked edge. */
+[data-register="intui"] [data-material="docked"][data-dock="right"] {
+  border-radius: var(--radius-docked) 0 0 var(--radius-docked);
+  box-shadow: var(--shadow-docked-right);
+}
+
+[data-register="intui"] [data-material="docked"][data-dock="left"] {
+  border-radius: 0 var(--radius-docked) var(--radius-docked) 0;
+  box-shadow: var(--shadow-docked-left);
+}
+
+[data-register="intui"] [data-material="docked"][data-dock="top"] {
+  border-radius: 0 0 var(--radius-docked) var(--radius-docked);
+  box-shadow: var(--shadow-docked-top);
+}
+
+[data-register="intui"] [data-material="docked"][data-dock="bottom"] {
+  border-radius: var(--radius-docked) var(--radius-docked) 0 0;
+  box-shadow: var(--shadow-docked-bottom);
+}
+
+[data-register="intui"] [data-material="sunken"] {
+  border-radius: var(--radius-sunken);
+  background: var(--fill-sunken);
+  box-shadow: inset 0 0 0 1px var(--paper-seam, var(--ij-seam));
+}
+
+[data-register="intui"] [data-material="lifted"] {
+  border-radius: var(--radius-lifted);
+  background: var(--fill-lifted);
+  box-shadow: var(--shadow-lifted);
+  border: none;
+}
+
+[data-register="intui"] [data-material="docked"] {
+  background: var(--fill-lifted);
+}
+
+/* CS2 concentric nesting. A child never repeats its parent's radius: two
+   arcs a pixel apart antialias against each other and read as a chipped
+   corner, which no single radius value can fix. */
+[data-register="intui"] [data-material] [data-material] {
+  border-radius: var(--radius-control);
+}

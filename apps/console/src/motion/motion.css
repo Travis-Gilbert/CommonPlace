@@ -19,11 +19,11 @@
 }
 
 .goal-edge-running {
-  animation: goal-edge-march 0.9s linear infinite;
+  animation: goal-edge-march calc(var(--ij-motion) * 5) linear infinite;
 }
 
 .goal-edge-progress {
-  transition: stroke-dashoffset 0.22s var(--ij-ease);
+  transition: stroke-dashoffset var(--ij-motion) var(--ij-ease);
 }
 
 .ij-progress-indeterminate {
@@ -54,5 +54,37 @@
 
   .goal-edge-progress {
     transition: none;
+  }
+}
+
+.survey-source-card {
+  transition:
+    transform var(--ij-motion) var(--ij-ease),
+    opacity var(--ij-motion) var(--ij-ease),
+    var(--rec-clickable-transition);
+}
+
+/* Quiet corpus at rest; hover lights the neighborhood and dims the rest.
+   Spatial opacity is set inline on the card because Drei Html portals do not
+   reliably recompute attribute-selector opacity for these nodes. */
+
+.survey-source-card[data-spatial='true'][data-focus='focused'],
+.survey-source-card[data-spatial='true'][data-hovered='true'] {
+  transform: scale(var(--survey-source-hover-scale));
+}
+
+[data-survey][data-reduced-motion='true'] .survey-source-card:hover,
+[data-survey][data-reduced-motion='true'] .survey-source-card:focus-visible,
+[data-survey][data-reduced-motion='true'] .survey-source-card[data-spatial='true'][data-focus='focused'],
+[data-survey][data-reduced-motion='true'] .survey-source-card[data-spatial='true'][data-hovered='true'] {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-source-card:hover,
+  .survey-source-card:focus-visible,
+  .survey-source-card[data-spatial='true'][data-focus='focused'],
+  .survey-source-card[data-spatial='true'][data-hovered='true'] {
+    transform: none;
   }
 }

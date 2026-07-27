@@ -38,13 +38,25 @@ export const FIXTURE_NODE_POSITIONS: readonly NodePosition[] = [
   },
 ] as const;
 
+function deterministicPosition(
+  nodeId: string,
+  orderedNodeIds: readonly string[],
+): readonly [number, number] {
+  const index = orderedNodeIds.indexOf(nodeId);
+  const angle = index * Math.PI * (3 - Math.sqrt(5));
+  const radius = 48 * Math.sqrt(index + 1);
+  return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+}
+
 export function orderedPositionArray(nodeIds: readonly string[]): Float32Array {
   const positions = new Map(FIXTURE_NODE_POSITIONS.map((position) => [position.id, position]));
+  const orderedNodeIds = [...new Set(nodeIds)].sort();
   return new Float32Array(
     nodeIds.flatMap((nodeId) => {
       const position = positions.get(nodeId);
-      if (!position) throw new Error(`Missing shared position for ${nodeId}`);
-      return [position.x, position.y];
+      return position
+        ? [position.x, position.y]
+        : deterministicPosition(nodeId, orderedNodeIds);
     }),
   );
 }

@@ -1,71 +1,112 @@
 'use client';
 
 // SOURCING: hand-roll. The Int UI status bar is a named chrome signature.
-// Connection state binds to the real object-seam transport (R2.3): the named
-// identity-refusal state maps HTTP 403 (the principal_resolution=
-// unauthenticated analog) and Reconnect runs a real health probe. Presence
-// renders only when the harness transport reports it (R2.4); it can never
-// contradict the connection state because it hides unless connected.
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS13 + CS16: metadata size and faint ink,
+// one transport claim, progress only while a request is outstanding.
 
+import { signIn, useSession } from 'next-auth/react';
+import { githubTenantSlug } from '@/lib/account-identity';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
+import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
   connected: 'Connected',
-  connecting: 'Connecting',
-  disconnected: 'Disconnected',
-  'identity-refused': 'Identity refused',
+  connecting: 'Transport connecting',
+  disconnected: 'Transport unreachable',
+  'identity-refused': 'Authentication refused',
+  'credential-unavailable': 'Credential unavailable',
+  unauthenticated: 'Sign in required',
 };
 
 export function StatusBar({ host }: { host: ConsoleBlockHost }) {
+  const { data: session } = useSession();
   const connection = useShellStore((state) => state.connection);
   const setConnection = useShellStore((state) => state.setConnection);
-  const tenant = useShellStore((state) => state.tenant);
   const presenceCount = useShellStore((state) => state.presenceCount);
   const progressLabel = useShellStore((state) => state.progressLabel);
+  const tenant = githubTenantSlug(session?.user?.githubLogin) ?? 'Local tenant';
 
-  const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
   const showPresence = connection === 'connected' && presenceCount !== null;
+  // CS16: progress is an operation in flight, never a standing condition.
+  const showProgress = Boolean(progressLabel) && connection === 'connecting';
+  const action =
+    connection === 'unauthenticated'
+      ? { label: 'Sign in', run: () => void signIn('github', { redirectTo: '/' }) }
+      : connection === 'credential-unavailable'
+        ? {
+            label: 'Open Account',
+            run: () => {
+              void host.activateSurface(ACCOUNT_SURFACE_ID);
+            },
+          }
+        : connection === 'disconnected' || connection === 'identity-refused'
+          ? {
+              label: 'Reconnect',
+              run: () => {
+                setConnection('connecting');
+                void host.probe();
+              },
+            }
+          : null;
 
   return (
     <footer
       data-paint-region="status-bar"
       data-frame-resident="status-bar"
-      className="flex h-ij-statusbar shrink-0 items-center gap-3 bg-transparent px-ij-island-gutter font-ij-mono text-ij-ink-info"
+      data-connection-owner="status-bar"
+      className="flex h-ij-statusbar min-w-0 shrink-0 items-center gap-3 overflow-hidden bg-transparent px-ij-island-gutter text-ij-island-meta text-ij-ink-info"
     >
       <span
         data-connection={connection}
-        style={{ color: connection === 'identity-refused' ? 'var(--ij-error)' : undefined }}
+        data-connection-kind={
+          connection === 'unauthenticated' ||
+          connection === 'identity-refused' ||
+          connection === 'credential-unavailable'
+            ? 'authentication'
+            : 'transport'
+        }
+        className="min-w-0 truncate"
+        style={{
+          fontFamily: 'var(--cp-font-human)',
+          color:
+            connection === 'identity-refused' ||
+            connection === 'unauthenticated' ||
+            connection === 'credential-unavailable'
+              ? 'var(--ij-error)'
+              : 'var(--ij-ink-info)',
+        }}
       >
         {CONNECTION_LABEL[connection]}
       </span>
-      {needsReconnect ? (
+      {action ? (
         <button
           type="button"
-          onClick={() => {
-            setConnection('connecting');
-            void host.probe();
-          }}
-          className="rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
-          style={{ transition: 'var(--rec-clickable-transition)' }}
+          onClick={action.run}
+          className="min-w-0 shrink-0 rounded-ij-arc-underline px-2 text-ij-link hover:bg-ij-hover-surface"
+          style={{ fontFamily: 'var(--cp-font-human)' }}
         >
-          Reconnect
+          {action.label}
         </button>
       ) : null}
-      {progressLabel ? (
-        <span className="flex items-center gap-2">
-          <span className="ij-progress-indeterminate h-1 w-32 rounded-ij-arc-underline" />
-          {progressLabel}
+      {showProgress ? (
+        <span className="flex min-w-0 items-center gap-2 truncate" data-connection-kind="query">
+          <span className="ij-progress-indeterminate h-1 w-24 shrink-0 rounded-ij-arc-underline" />
+          <span className="min-w-0 truncate" style={{ fontFamily: 'var(--cp-font-human)' }}>
+            {progressLabel}
+          </span>
         </span>
       ) : null}
       {showPresence ? (
-        <span data-presence={presenceCount} className="ml-auto">
+        <span data-presence={presenceCount} className="ml-auto min-w-0 truncate" style={{ fontFamily: 'var(--cp-font-human)' }}>
           {presenceCount} present
         </span>
       ) : (
-        <span className="ml-auto" />
+        <span className="ml-auto min-w-0" />
       )}
-      <span className="font-ij-mono">{tenant}</span>
+      <span className="min-w-0 shrink truncate font-ij-mono" title={tenant}>
+        {tenant}
+      </span>
     </footer>
   );
 }

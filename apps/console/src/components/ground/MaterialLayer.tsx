@@ -25,6 +25,7 @@ uniform vec3 cFrame; uniform vec3 cTerra; uniform float glow;
 uniform vec3 cTool; uniform vec3 cEditor; uniform vec3 cHeaderTool; uniform vec3 cHeaderEditor; uniform vec3 cHiMix;
 uniform float grain; uniform float dark; uniform float islandTint;
 uniform float inactiveAlpha;
+uniform float gutterPx;
 
 float sdRound(vec2 p, vec2 b, float r){
   vec2 q = abs(p) - b + r;
@@ -44,11 +45,18 @@ void main(){
   vec3 col = mix(cFrame, cTerra, t);
   col += (hash(uv * 0.9) - .5) * grain * 0.72;
 
+  float gut = max(gutterPx, 4.);
+
   for(int i=0;i<${MAX_ISLANDS};i++){
     if(i>=n) break;
     vec2 c = isl[i].xy + isl[i].zw*0.5;
-    float d = sdRound(uv - c - vec2(0.,5.), isl[i].zw*0.5, rad[i]);
-    if(d > 0.) col *= 1. - exp(-d*0.11) * (0.30 + 0.08*(1.-dark));
+    float minSide = min(isl[i].z, isl[i].w);
+    /* Falloff keyed to gutter and island scale so full-bleed blocks keep a
+       readable rim instead of clipping a fixed ~20px shadow. */
+    float shadowReach = mix(gut * 1.35, gut * 2.4, clamp(minSide / 900., 0., 1.));
+    float shadowK = 2.2 / max(shadowReach, 1.);
+    float d = sdRound(uv - c - vec2(0., shadowReach * 0.35), isl[i].zw*0.5, rad[i]);
+    if(d > 0.) col *= 1. - exp(-d * shadowK) * (0.30 + 0.08*(1.-dark));
   }
 
   for(int i=0;i<${MAX_ISLANDS};i++){
@@ -60,19 +68,28 @@ void main(){
       vec3 base = mix(cTool, cEditor, cls[i]);
       vec3 headerBase = mix(cHeaderTool, cHeaderEditor, cls[i]);
       float by = uv.y - isl[i].y;
+      float ih = max(isl[i].w, 1.);
+      float minSide = min(isl[i].z, ih);
+      /* Coverage scale: short cards keep a soft full-height wash; tall blocks
+         concentrate gradient near the top so sheen stays visible. */
+      float cover = clamp(minSide / 720., 0., 1.);
+      float gradEnd = mix(0.85, 0.22, cover);
+      float hiBoost = mix(1., 2.4, cover);
       /* Header band vs body: header token over island base. */
       float headerMix = band[i] > 0.5
         ? (1. - smoothstep(band[i] - 1.0, band[i] + 1.0, by))
         : 0.;
       base = mix(base, headerBase, headerMix);
-      float ty = clamp(by / max(isl[i].w, 1.), 0., 1.);
-      vec3 surf = mix(base + cHiMix, base, smoothstep(0., 0.85, ty));
+      float ty = clamp(by / ih, 0., 1.);
+      vec3 surf = mix(base + cHiMix * hiBoost, base, smoothstep(0., gradEnd, ty));
       /* Body reads flatter / more planar; header keeps a soft lit edge. */
       surf = mix(surf, base, (1. - headerMix) * 0.22);
-      float sheen = (1. - smoothstep(0., 1.6, by)) * (dark>.5 ? .045 : .09);
+      float sheenH = mix(6., 18., cover);
+      float sheen = (1. - smoothstep(0., sheenH, by)) * (dark>.5 ? .045 : .09);
       surf += sheen * mix(0.45, 1.2, headerMix);
-      float inner = clamp(-d, 0., 22.);
-      surf *= mix(1. - (dark>.5 ? .04 : .025), 1., smoothstep(0., 17., inner));
+      float innerReach = mix(14., 36., cover);
+      float inner = clamp(-d, 0., innerReach);
+      surf *= mix(1. - (dark>.5 ? .04 : .025), 1., smoothstep(0., innerReach * 0.75, inner));
       /* Header takes a touch more terracotta; body stays quieter. */
       surf = mix(surf, cTerra, islandTint * (0.35 + 0.65 * t) * mix(0.7, 1.35, headerMix));
       surf += (hash(uv + float(i)*7.13) - .5) * grain * mix(0.35, 1.55, headerMix);
@@ -190,7 +207,8 @@ export function MaterialLayer() {
       const classes: number[] = [];
       const bands: number[] = [];
       const rootStyle = getComputedStyle(document.documentElement);
-      const radiusPx = cssNumber(rootStyle.getPropertyValue('--ij-island-radius'), 10) * dpr;
+      const fallbackRadius = cssNumber(rootStyle.getPropertyValue('--ij-island-radius'), 12);
+      const gutterCss = cssNumber(rootStyle.getPropertyValue('--ij-island-gutter'), 6) * dpr;
 
       for (const node of islands.slice(0, MAX_ISLANDS)) {
         const box = node.getBoundingClientRect();
@@ -210,8 +228,13 @@ export function MaterialLayer() {
         if ((!Number.isFinite(bandPx) || bandPx <= 0) && kind === 'tool') {
           bandPx = cssNumber(rootStyle.getPropertyValue('--ij-toolwindow-header-h'), 36);
         }
+        // Prefer the island's own size-linked radius (inherits from [data-block-size]).
+        const nodeRadius = cssNumber(
+          getComputedStyle(node).getPropertyValue('--ij-island-radius'),
+          fallbackRadius,
+        );
         rects.push(x, y, w, h);
-        radii.push(radiusPx);
+        radii.push(nodeRadius * dpr);
         classes.push(islandClass(kind));
         bands.push(bandPx > 0 ? bandPx * dpr : 0);
       }
@@ -257,6 +280,7 @@ export function MaterialLayer() {
       gl.uniform1f(U('dark'), dark);
       gl.uniform1f(U('islandTint'), tint);
       gl.uniform1f(U('inactiveAlpha'), inactive);
+      gl.uniform1f(U('gutterPx'), gutterCss);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
 

@@ -1,10 +1,13 @@
 import { defineConfig } from '@playwright/test';
 
+const stubPort = Number(process.env.STUB_DATA_API_PORT ?? 50591);
+const stubOrigin = `http://localhost:${stubPort}`;
+
 // The visual gate baseline (G8): captures at 1280 and 1440 on dark, plus the
 // reduced-motion pass. Snapshots block merge through console-ci.yml.
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60000,
+  timeout: 120000,
   retries: 0,
   // The deterministic upstream fixture is mutable and serves multi-megabyte
   // memory projections. Serial workers keep behavioral and visual gates from
@@ -29,31 +32,36 @@ export default defineConfig({
       // fixture in tests). The console proxy points at it via env below, so
       // e2e exercises the real browser -> proxy -> upstream wire.
       command: 'node e2e/stub-data-api.mjs',
-      port: 50591,
+      port: stubPort,
       reuseExistingServer: true,
       timeout: 30000,
     },
     {
       command: 'npm run dev',
-      port: 3010,
+      url: 'http://localhost:3010/workspace',
       reuseExistingServer: true,
       timeout: 120000,
       env: {
         AUTH_SECRET: 'console-e2e-secret-not-for-production',
-        CONSOLE_DATA_API_URL: 'http://localhost:50591',
+        CONSOLE_DATA_API_URL: stubOrigin,
         CONSOLE_DATA_API_KEY: 'dev-key',
+        CONSOLE_HARNESS_URL: stubOrigin,
+        CONSOLE_HARNESS_TOKEN: 'dev-key',
         CONSOLE_HARNESS_TENANT: 'Travis-Gilbert',
         // Explicit non-production identity fixture: same-origin proxy tests
         // exercise tenant headers without weakening the production session gate.
         CONSOLE_E2E_GITHUB_LOGIN: 'Travis-Gilbert',
         CONSOLE_E2E_HARNESS_IDENTITY: 'github:e2e-owner',
+        CONSOLE_PRINCIPAL_TOKENS_JSON: JSON.stringify({
+          'Travis-Gilbert': 'dev-key',
+        }),
         CONSOLE_E2E_PROACTIVITY_FIXTURE: '1',
         // The filing engine lives in the Theorem repo and is not running in
         // CI, so the Index reads its non-production fixture. The flag is
         // checked only outside a production build, so this cannot ship.
         CONSOLE_E2E_FILING_FIXTURE: '1',
-        THEOREM_GRAPHQL_URL: 'http://localhost:50591/graphql',
-        THEOREM_ITEM_CHANGEFEED_URL: 'http://localhost:50591/v1/items/stream',
+        THEOREM_GRAPHQL_URL: `${stubOrigin}/graphql`,
+        THEOREM_ITEM_CHANGEFEED_URL: `${stubOrigin}/v1/items/stream`,
         THEOREM_API_KEY: 'dev-key',
         // The composer must be live for the /do entry (K3); the sheet's
         // interception happens before any network send.

@@ -136,18 +136,18 @@ export function AppearanceView({ host }: ViewRenderProps) {
           </div>
         </section>
 
-        <section className="grid gap-4 rounded-ij-arc border border-ij-seam-raised bg-ij-chrome p-4" aria-labelledby="appearance-derived-heading">
+        <section className="grid gap-4" aria-labelledby="appearance-derived-heading">
           <div>
             <h2 id="appearance-derived-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Derived coloration</h2>
             <p className="text-ij-ink-info">Moving a control selects Navy and re-anchors the neutral ladder in OKLCH.</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-4 rounded-ij-arc bg-ij-editor p-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-4">
               <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Background tint</h3>
               <Slider label="Tint hue" value={preference.knobs.tintHue} min={0} max={360} step={1} onChange={(tintHue) => setAppearanceKnobs({ tintHue })} />
               <Slider label="Tint chroma" value={preference.knobs.tintChroma} min={0} max={0.04} step={0.001} onChange={(tintChroma) => setAppearanceKnobs({ tintChroma })} />
             </div>
-            <div className="grid gap-4 rounded-ij-arc bg-ij-editor p-4">
+            <div className="grid gap-4">
               <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Highlight</h3>
               <Slider label="Highlight hue" value={preference.knobs.highlightHue} min={0} max={360} step={1} onChange={(highlightHue) => setAppearanceKnobs({ highlightHue })} />
               <div className="rounded-ij-arc bg-ij-selection p-3 text-ij-ink">Selected text stays readable while the hue moves.</div>

@@ -25,6 +25,7 @@ import {
   type WorkspaceSurfaceSnapshot,
   type WorkspaceTreeNode,
 } from '@commonplace/theorem-acp/workspace-state';
+import { reducedFromMissing } from '@/lib/degradation';
 import { WorkspaceHistoryDiff } from './WorkspaceHistoryDiff';
 
 const POLL_MS = 1_500;
@@ -55,12 +56,16 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
   const readinessSignatureRef = useRef('');
 
   useEffect(() => {
+    // persistence-preference: key=commonplace.console.workspace-project.v1; preference=active project; reason=restores the person's last workspace selection
     const stored = window.localStorage.getItem(PROJECT_STORAGE_KEY);
     if (stored) setProjectId(stored);
   }, []);
 
   useEffect(() => {
-    if (projectId) window.localStorage.setItem(PROJECT_STORAGE_KEY, projectId);
+    if (projectId) {
+      // persistence-preference: key=commonplace.console.workspace-project.v1; preference=active project; reason=restores the person's last workspace selection
+      window.localStorage.setItem(PROJECT_STORAGE_KEY, projectId);
+    }
   }, [projectId]);
 
   useEffect(() => {
@@ -210,22 +215,37 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
   }, [executeFind, readinessSignature]);
 
   const building = readinessIsBuilding(readiness);
+  const readinessCodes = readiness
+    ? readiness.capabilities.flatMap((capability) => (
+        capability.missing.length > 0
+          ? capability.missing
+          : capability.state.toLowerCase() === 'ready'
+            ? []
+            : [capability.capability]
+      ))
+    : ['status_graphql'];
+  const readinessDegradation = reducedFromMissing(readinessCodes);
+  const readinessWord = readinessDegradation
+    ? building ? 'Building' : 'Reduced'
+    : 'Ready';
   return (
-    <section className="flex h-full min-h-0 flex-col bg-ij-editor text-ij-ink" data-workspace-substrate>
-      <header className="flex shrink-0 items-center gap-3 border-b border-ij-seam bg-ij-chrome px-4 py-2">
+    <section className="flex h-full min-h-0 flex-col bg-transparent text-ij-ink" data-workspace-substrate>
+      <section data-block-section="connect" className="shrink-0">
+      <header className="flex items-center gap-3 border-b border-ij-seam px-4 py-2">
         <div className="min-w-0">
           <div className="text-ij-ink-info">Workspace substrate</div>
           <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>
             {projectId || 'Import a project'}
           </h2>
         </div>
-        <span className="ml-auto font-ij-mono text-ij-ink-info" data-workspace-poll={status}>
+        <span className="ml-auto font-ij-mono text-ij-ink-info" data-workspace-poll={status} data-mono-ok>
           {status}
         </span>
         {projectId ? (
           <button
             type="button"
             onClick={() => {
+              // persistence-preference: key=commonplace.console.workspace-project.v1; preference=active project; reason=clears the person's last workspace selection
               window.localStorage.removeItem(PROJECT_STORAGE_KEY);
               setProjectId('');
               setSurface(null);
@@ -242,12 +262,11 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
           <Popover.Trigger asChild>
             <button
               type="button"
-              className={building
-                ? 'h-ij-control rounded-ij-arc-underline bg-ij-warn-bg px-2 text-ij-warn'
-                : 'h-ij-control rounded-ij-arc-underline bg-ij-ok-bg px-2 text-ij-ok'}
-              data-readiness={building ? 'building' : 'ready'}
+              className="h-ij-control rounded-ij-arc-underline border border-ij-control-border px-2 text-ij-ink-info hover:bg-ij-hover-surface"
+              data-readiness={readinessDegradation ? 'reduced' : 'ready'}
+              style={{ fontWeight: readinessDegradation ? 'var(--rec-weight-cap)' : undefined }}
             >
-              {building ? 'Building' : 'Ready'}
+              {readinessWord}
             </button>
           </Popover.Trigger>
           <Popover.Portal>
@@ -261,9 +280,9 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
               <ul className="mt-2 grid gap-1">
                 {readiness?.capabilities.map((capability) => (
                   <li key={capability.capability} className="flex gap-2 border-b border-ij-divider py-1">
-                    <span>{capability.capability}</span>
+                    <span className="font-ij-mono" data-mono-ok>{capability.capability}</span>
                     <span className="ml-auto text-ij-ink-info">
-                      {capability.missing.length ? capability.missing.join(', ') : capability.state}
+                      {reducedFromMissing(capability.missing)?.cause ?? capability.state}
                     </span>
                   </li>
                 ))}
@@ -274,66 +293,97 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
         </Popover.Root>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-ij-seam bg-ij-chrome px-3 py-2">
+      <div className="grid gap-3 border-b border-ij-seam px-3 py-3 lg:grid-cols-3">
         {!projectId ? (
-          <>
-            <input
-              value={projectInput}
-              onChange={(event) => setProjectInput(event.target.value)}
-              placeholder="Existing project id"
-              aria-label="Existing project id"
-              className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink focus:outline-2 focus:outline-ij-accent"
-            />
+          <section className="grid content-end gap-2" aria-labelledby="workspace-open-existing">
+            <h3 id="workspace-open-existing" className="text-xs uppercase tracking-wider text-ij-ink-info">
+              Open existing
+            </h3>
+            <div className="flex flex-wrap items-end gap-2">
+              <label htmlFor="workspace-existing-project" className="grid min-w-64 flex-1 gap-1 text-xs text-ij-ink-info">
+                Project id
+                <input
+                  id="workspace-existing-project"
+                  value={projectInput}
+                  onChange={(event) => setProjectInput(event.target.value)}
+                  placeholder="proj_01h8x2"
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink focus:outline-2 focus:outline-ij-accent"
+                  data-mono-ok
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!projectInput.trim()}
+                onClick={() => setProjectId(projectInput.trim())}
+                className="h-ij-control rounded-ij-arc border border-ij-control-border px-2 hover:bg-ij-hover-surface disabled:opacity-50"
+              >
+                Open project
+              </button>
+            </div>
+          </section>
+        ) : null}
+        <section className={`${projectId ? 'lg:col-span-3' : 'lg:col-span-2'} grid content-end gap-2`} aria-labelledby="workspace-create-new">
+          <h3 id="workspace-create-new" className="text-xs uppercase tracking-wider text-ij-ink-info">
+            Create new
+          </h3>
+          <div className="flex flex-wrap items-end gap-2">
+            {!projectId ? (
+              <label htmlFor="workspace-project-name" className="grid min-w-64 flex-1 gap-1 text-xs text-ij-ink-info">
+                Project name
+                <input
+                  id="workspace-project-name"
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  placeholder="Research inbox"
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink focus:outline-2 focus:outline-ij-accent"
+                />
+              </label>
+            ) : null}
+            <label htmlFor="workspace-root-path" className="grid min-w-80 grow basis-96 gap-1 text-xs text-ij-ink-info">
+              Directory path
+              <input
+                id="workspace-root-path"
+                value={rootPath}
+                onChange={(event) => setRootPath(event.target.value)}
+                placeholder="/workspace/project"
+                className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink focus:outline-2 focus:outline-ij-accent"
+                data-mono-ok
+              />
+            </label>
             <button
               type="button"
-              disabled={!projectInput.trim()}
-              onClick={() => setProjectId(projectInput.trim())}
-              className="h-ij-control rounded-ij-arc border border-ij-control-border px-2 hover:bg-ij-hover-surface disabled:opacity-50"
+              disabled={busy || !rootPath.trim() || (!projectId && !projectName.trim())}
+              onClick={() => void importRoot()}
+              className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover disabled:opacity-50"
             >
-              Open project
+              {projectId ? 'Add content root' : 'Create project'}
             </button>
-            <input
-              value={projectName}
-              onChange={(event) => setProjectName(event.target.value)}
-              placeholder="New project name"
-              aria-label="Project name"
-              className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink focus:outline-2 focus:outline-ij-accent"
-            />
-          </>
-        ) : null}
-        <input
-          value={rootPath}
-          onChange={(event) => setRootPath(event.target.value)}
-          placeholder="Absolute directory path"
-          aria-label="Directory path"
-          className="h-ij-control min-w-80 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink focus:outline-2 focus:outline-ij-accent"
-        />
-        <button
-          type="button"
-          disabled={busy || !rootPath.trim() || (!projectId && !projectName.trim())}
-          onClick={() => void importRoot()}
-          className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover disabled:opacity-50"
-        >
-          {projectId ? 'Add content root' : 'Create project'}
-        </button>
+          </div>
+        </section>
       </div>
+      </section>
 
+      <section data-block-section="browse" className="flex min-h-0 flex-1 flex-col">
       {projectId ? (
-        <Command className="shrink-0 border-b border-ij-seam bg-ij-chrome" shouldFilter={false}>
+        <Command className="shrink-0 border-b border-ij-seam" shouldFilter={false}>
           <form
-            className="flex items-center gap-2 px-3 py-2"
+            className="flex items-end gap-2 px-3 py-2"
             onSubmit={(event) => {
               event.preventDefault();
               void runFind();
             }}
           >
-            <Command.Input
-              value={findQuery}
-              onValueChange={setFindQuery}
-              aria-label="Find in project"
-              placeholder="Find in project"
-              className="h-ij-control min-w-80 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 focus:outline-2 focus:outline-ij-accent"
-            />
+            <label htmlFor="workspace-find-query" className="grid min-w-80 flex-1 gap-1 text-xs text-ij-ink-info">
+              Find in project
+              <Command.Input
+                id="workspace-find-query"
+                aria-label="Find in project"
+                value={findQuery}
+                onValueChange={setFindQuery}
+                placeholder="status receipt"
+                className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-sm text-ij-ink focus:outline-2 focus:outline-ij-accent"
+              />
+            </label>
             <button
               type="submit"
               disabled={findBusy || !findQuery.trim()}
@@ -351,12 +401,12 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
                   className="flex min-h-ij-row items-center gap-2 rounded-ij-arc-underline px-2 data-[selected=true]:bg-ij-selection"
                 >
                   <span className="truncate">{hit.item.title}</span>
-                  <span className="font-ij-mono text-ij-ink-info">{hit.item.kind}</span>
+                  <span className="font-ij-mono text-ij-ink-info" data-mono-ok>{hit.item.kind}</span>
                   {hit.insideProject === true ? <span className="text-ij-ok">inside project</span> : null}
-                  <span className="ml-auto font-ij-mono text-ij-ink-info">{hit.score.toFixed(3)}</span>
+                  <span className="ml-auto font-ij-mono text-ij-ink-info" data-mono-ok>{hit.score.toFixed(3)}</span>
                   {hit.degraded ? (
-                    <span className="rounded-ij-arc-underline bg-ij-warn-bg px-1 text-ij-warn" data-find-degraded>
-                      degraded: {hit.missingIndexes.join(', ')}
+                    <span className="rounded-ij-arc-underline border border-ij-seam px-1 text-ij-ink-info" data-find-degraded>
+                      {reducedFromMissing(hit.missingIndexes)?.cause ?? 'Reduced capability'}
                     </span>
                   ) : null}
                 </Command.Item>
@@ -369,7 +419,8 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
       {error ? <div role="alert" className="border-b border-ij-seam bg-ij-error-bg px-3 py-2 text-ij-error">{error}</div> : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-3">
-        <section className="flex min-h-0 flex-col border-r border-ij-seam bg-ij-chrome" aria-label="Project entity tree">
+        <div className="col-span-2 grid min-h-0 grid-cols-2 border-r border-ij-seam">
+        <div role="region" className="flex min-h-0 flex-col border-r border-ij-seam" aria-label="Project entity tree">
           <div className="border-b border-ij-seam px-3 py-2">
             <strong>Project model</strong>
             <div className="text-ij-ink-info">Generation {surface?.tree.generation ?? readiness?.generation ?? 0}</div>
@@ -435,23 +486,23 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
                       {row.expandable ? open ? '▾' : '▸' : '·'}
                     </span>
                     <span className="truncate">{row.node.name}</span>
-                    <span className="ml-auto font-ij-mono text-ij-ink-info">{row.node.kind}</span>
+                    <span className="ml-auto font-ij-mono text-ij-ink-info" data-mono-ok>{row.node.kind}</span>
                   </button>
                 );
               })}
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="min-h-0 overflow-auto border-r border-ij-seam p-3" aria-label="Workspace entity details">
+        <div role="region" className="min-h-0 overflow-auto border-r border-ij-seam p-3" aria-label="Workspace entity details">
           <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Entity contract</h3>
           {selected ? (
             <dl className="mt-3 grid gap-2">
               <Detail label="Name" value={selected.name} />
-              <Detail label="Kind" value={selected.kind} />
-              <Detail label="Path" value={selected.path ?? 'No filesystem path'} />
+              <Detail label="Kind" value={selected.kind} mono />
+              <Detail label="Path" value={selected.path ?? 'No filesystem path'} mono={Boolean(selected.path)} />
               <Detail label="Scope" value={selected.excluded ? 'Excluded from indexes' : 'Inside project membrane'} />
-              <Detail label="Entity id" value={selected.id} />
+              <Detail label="Entity id" value={selected.id} mono />
             </dl>
           ) : <p className="mt-3 text-ij-ink-info">Select a typed workspace entity.</p>}
           <div className="mt-4 rounded-ij-arc border border-ij-seam-raised bg-ij-raised p-3">
@@ -463,34 +514,41 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
             <ul className="mt-2 grid gap-1">
               {readiness?.capabilities.map((capability) => (
                 <li key={capability.capability} className="flex gap-2 border-b border-ij-divider py-1">
-                  <span>{capability.capability}</span>
+                  <span className="font-ij-mono" data-mono-ok>{capability.capability}</span>
                   <span className="ml-auto text-ij-ink-info">
-                    {capability.missing.length ? capability.missing.join(', ') : capability.state}
+                    {reducedFromMissing(capability.missing)?.cause ?? capability.state}
                   </span>
                 </li>
               ))}
             </ul>
           </div>
-        </section>
+        </div>
+        </div>
 
-        <section className="flex min-h-0 flex-col" aria-label="Local history">
-          <div className="border-b border-ij-seam bg-ij-chrome px-3 py-2">
+        <div role="region" data-block-section="revise" className="flex min-h-0 flex-col" aria-label="Local history">
+          <div className="border-b border-ij-seam px-3 py-2">
             <strong>Local history</strong>
-            <div className="truncate font-ij-mono text-ij-ink-info">{history?.path ?? 'Select a file'}</div>
+            <div className="truncate text-ij-ink-info">
+              {history?.path ? <span className="font-ij-mono" data-mono-ok>{history.path}</span> : 'Select a file'}
+            </div>
             <form
-              className="mt-2 flex gap-2"
+              className="mt-2 flex items-end gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (historyPath.trim()) void loadHistory(historyPath.trim());
               }}
             >
-              <input
-                value={historyPath}
-                onChange={(event) => setHistoryPath(event.target.value)}
-                aria-label="File history path"
-                placeholder="Absolute file path"
-                className="h-ij-control min-w-0 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono focus:outline-2 focus:outline-ij-accent"
-              />
+              <label htmlFor="workspace-history-path" className="grid min-w-0 flex-1 gap-1 text-xs text-ij-ink-info">
+                File history path
+                <input
+                  id="workspace-history-path"
+                  value={historyPath}
+                  onChange={(event) => setHistoryPath(event.target.value)}
+                  placeholder="/workspace/app/file.ts"
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink focus:outline-2 focus:outline-ij-accent"
+                  data-mono-ok
+                />
+              </label>
               <button
                 type="submit"
                 disabled={busy || !historyPath.trim()}
@@ -515,7 +573,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
                         return [...current, revision.generation].slice(-2);
                       })}
                     />
-                    <span className="font-ij-mono">g{revision.generation}</span>
+                    <span className="font-ij-mono" data-mono-ok>g{revision.generation}</span>
                     <span className="truncate text-ij-ink-info">{new Date(revision.timestampMs).toLocaleString()}</span>
                     {revision.label ? <span className="truncate text-ij-ink-info">{revision.label}</span> : null}
                   </label>
@@ -538,17 +596,18 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
               <p className="mt-3 text-ij-warn">Diff unavailable for a binary or oversized revision.</p>
             ) : null}
           </div>
-        </section>
+        </div>
       </div>
+      </section>
     </section>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="grid gap-1 border-b border-ij-divider pb-2">
       <dt className="text-ij-ink-info">{label}</dt>
-      <dd className="break-words font-ij-mono">{value}</dd>
+      <dd className={`break-words ${mono ? 'font-ij-mono' : ''}`} data-mono-ok={mono ? true : undefined}>{value}</dd>
     </div>
   );
 }

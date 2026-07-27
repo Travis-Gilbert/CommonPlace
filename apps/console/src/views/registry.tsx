@@ -7,6 +7,7 @@
 
 import type { ViewDescriptor, ViewRenderProps } from '@commonplace/block-view/types';
 import { createViewRegistry } from '@commonplace/block-view/registry';
+import type { ConsoleViewDescriptor } from '@/lib/rail/rail-model';
 import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
@@ -25,17 +26,22 @@ import { ContextView } from './ContextView';
 import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
+import { CanvasView } from './canvas/CanvasView';
 import { StatusPanel } from './harness-ux/StatusPanel';
 import { WhyTracePanel } from './harness-ux/WhyTracePanel';
-import {
-  BrowserPaneBlock,
-  CanvasBlock,
-  DocumentBlock,
-  KanbanBlock,
-  TerminalBlock,
-  VideoBlock,
-} from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
+import { KanbanBlock } from './blocks/KanbanBlock';
+import { SurveyView } from './SurveyView';
+import { ModelView } from './model/ModelView';
+import { SearchStackView } from './search/SearchStackView';
+import { PG_TYPES } from '@/lib/proactivity/object-bridge';
+import {
+  openSearchPageInWebEdition,
+  recordSearchSessionOrigin,
+} from './search/search-host';
+import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
+import { RecordsBlock } from '@/components/blocks/RecordsBlock';
+import { RecordPage } from '@/components/blocks/RecordPage';
 import { ConsoleDataView } from './ConsoleDataView';
 
 function ThreadRender(props: ViewRenderProps) {
@@ -54,9 +60,28 @@ function ContextRender(props: ViewRenderProps) {
   return <ContextView host={props.host} />;
 }
 
-const RECORD_TABLE: ViewDescriptor = {
+function SearchStackRender(props: ViewRenderProps) {
+  const sessionId = props.instance?.id ?? 'search.stack';
+  return (
+    <SearchStackView
+      sessionId={sessionId}
+      onOpenPage={openSearchPageInWebEdition}
+      onRecordSessionOrigin={(id, origin) =>
+        recordSearchSessionOrigin(props.host, id, origin).then(() => undefined)}
+    />
+  );
+}
+
+const RECORD_TABLE: ConsoleViewDescriptor = {
   id: 'record.table',
   name: 'Records',
+  paletteVisible: true,
+  palette: {
+    id: 'records',
+    kind: 'records',
+    material: 'sunken',
+    query: { types: ['record'], page: { limit: 100 }, live: true },
+  },
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'record.table',
@@ -68,8 +93,8 @@ const RECORD_TABLE: ViewDescriptor = {
   },
   block: {
     usage: 'browse records',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'records',
@@ -78,9 +103,17 @@ const RECORD_TABLE: ViewDescriptor = {
   render: RecordTableView,
 };
 
-const MARKDOWN_DOC: ViewDescriptor = {
+const MARKDOWN_DOC: ConsoleViewDescriptor = {
   id: 'markdown.doc',
   name: 'Document',
+  paletteVisible: true,
+  palette: {
+    id: 'documents',
+    label: 'Documents',
+    kind: 'documents',
+    material: 'lifted',
+    query: { types: ['doc'], page: { limit: 100 }, live: true },
+  },
   accepts: {},
   emits: ['update', 'open'],
   renderer: 'markdown.doc',
@@ -92,8 +125,8 @@ const MARKDOWN_DOC: ViewDescriptor = {
   },
   block: {
     usage: 'read a document',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'doc',
@@ -105,7 +138,7 @@ const CODE_FILE: ViewDescriptor = {
   id: 'code.file',
   name: 'Code',
   accepts: {},
-  emits: ['open'],
+  emits: ['open', 'invoke_tool'],
   renderer: 'code.file',
   source: {
     package: 'codemirror',
@@ -115,8 +148,8 @@ const CODE_FILE: ViewDescriptor = {
   },
   block: {
     usage: 'inspect code',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'terminal',
@@ -138,8 +171,8 @@ const CHAT_THREAD: ViewDescriptor = {
   },
   block: {
     usage: 'follow the thread',
-    mounts: ['companion', 'chrome', 'stripe'],
-    sizes: ['m', 'w'],
+    placements: ['dock', 'rail'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'thread',
@@ -161,8 +194,8 @@ const CHAT_SURFACE: ViewDescriptor = {
   },
   block: {
     usage: 'compose with the agent',
-    mounts: ['surface', 'island', 'stripe'],
-    sizes: ['w', 'full'],
+    placements: ['full', 'ground', 'rail'],
+    defaultSize: 'full',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'thread',
@@ -170,9 +203,16 @@ const CHAT_SURFACE: ViewDescriptor = {
   render: ChatSurfaceRender,
 };
 
-const FILES_TREE: ViewDescriptor = {
+const FILES_TREE: ConsoleViewDescriptor = {
   id: 'files.tree',
   name: 'Files',
+  paletteVisible: true,
+  palette: {
+    id: 'files',
+    kind: 'files',
+    material: 'sunken',
+    query: { types: ['files-view'] },
+  },
   accepts: {},
   emits: ['open'],
   renderer: 'files.tree',
@@ -184,8 +224,8 @@ const FILES_TREE: ViewDescriptor = {
   },
   block: {
     usage: 'browse files',
-    mounts: ['companion', 'chrome'],
-    sizes: ['m', 'w'],
+    placements: ['dock', 'ground', 'full'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'files',
@@ -207,8 +247,8 @@ const CONTEXT_GRAPH: ViewDescriptor = {
   },
   block: {
     usage: 'inspect context',
-    mounts: ['companion', 'chrome'],
-    sizes: ['m', 'w'],
+    placements: ['dock'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'context',
@@ -234,9 +274,11 @@ const DOC_LIST: ViewDescriptor = {
 // The Index descriptor family (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0). The
 // arrival state is sorted, so none of these renders a pending queue, and none
 // of them renders a count: the wire contract carries no number for one.
-const INDEX_RAIL: ViewDescriptor = {
+const INDEX_RAIL: ConsoleViewDescriptor = {
   id: 'index.rail',
   name: 'Destinations',
+  paletteVisible: true,
+  palette: { id: 'index', label: 'Index', kind: 'index', material: 'sunken' },
   accepts: {},
   emits: ['select'],
   renderer: 'index.rail',
@@ -247,6 +289,14 @@ const INDEX_RAIL: ViewDescriptor = {
     regime: 'css-vars',
     allowedBespokeReason:
       'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
+  },
+  block: {
+    usage: 'browse filing destinations',
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
   },
   render: IndexDestinationsView,
 };
@@ -316,8 +366,8 @@ const CARD_FULL: ViewDescriptor = {
   },
   block: {
     usage: 'inspect a record card',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['s', 'm', 'sq'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 's',
     density: 'cozy',
     surfaceClass: 'editor',
     kindGlyph: 'cards',
@@ -339,8 +389,8 @@ const CARDS_GRID: ViewDescriptor = {
   },
   block: {
     usage: 'browse record cards',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'cozy',
     surfaceClass: 'editor',
     kindGlyph: 'cards',
@@ -364,9 +414,17 @@ const HUNK_REVIEW: ViewDescriptor = {
   render: HunkReviewView,
 };
 
-const PROACTIVITY: ViewDescriptor = {
+const PROACTIVITY: ConsoleViewDescriptor = {
   id: 'proactivity.graph',
   name: 'Proactivity',
+  paletteVisible: true,
+  palette: {
+    id: 'automation',
+    label: 'Automation',
+    kind: 'automation',
+    material: 'sunken',
+    query: { types: [...PG_TYPES], live: true },
+  },
   accepts: { required_types: ['pg.stake'], cardinality: 'many' },
   emits: ['update', 'create', 'delete'],
   renderer: 'proactivity.graph',
@@ -378,7 +436,82 @@ const PROACTIVITY: ViewDescriptor = {
     allowedBespokeReason:
       'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
   },
+  block: {
+    usage: 'inspect standing automation',
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'automation',
+  },
   render: ProactivityView,
+};
+
+const SURVEY_BOARD: ViewDescriptor = {
+  id: 'survey.board',
+  name: 'Indexer',
+  accepts: { required_types: ['capture'], cardinality: 'many' },
+  emits: ['open'],
+  renderer: 'survey.board',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'The spherical topic corpus, semantic zoom ladder, and evidenced connection labels are the Indexer product contract.',
+  },
+  render: SurveyView,
+};
+
+const MODEL_STUDIO: ViewDescriptor = {
+  id: 'model.studio',
+  name: 'Models',
+  accepts: { required_types: ['model-scope'] },
+  emits: ['select', 'create', 'update', 'delete'],
+  renderer: 'model.studio',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect observed model',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'editor',
+    kindGlyph: 'model',
+    bodyBleed: 'flush',
+    acceptsDrop: { semantic: 'relate', edge: 'RELATED_TO' },
+  },
+  render: ModelView,
+};
+
+const SEARCH_STACK: ConsoleViewDescriptor = {
+  id: 'search.stack',
+  name: 'Search',
+  paletteVisible: true,
+  palette: { id: 'search', kind: 'search', material: 'sunken' },
+  accepts: {},
+  emits: ['open', 'select', 'create'],
+  renderer: 'search.stack',
+  source: {
+    package: 'cmdk',
+    component: 'Command',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'search across knowledge',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'context',
+    bodyBleed: 'flush',
+  },
+  render: SearchStackRender,
 };
 
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
@@ -396,9 +529,11 @@ const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   render: WorkspaceSubstrateView,
 };
 
-const GOAL_STACK: ViewDescriptor = {
+const GOAL_STACK: ConsoleViewDescriptor = {
   id: 'goal.stack',
   name: 'Goal Stack',
+  paletteVisible: true,
+  palette: { id: 'plan', label: 'Plan', kind: 'plan', material: 'sunken' },
   accepts: {},
   emits: ['select', 'invoke_tool', 'update'],
   renderer: 'goal.stack',
@@ -407,6 +542,14 @@ const GOAL_STACK: ViewDescriptor = {
     component: 'ReactFlow',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect agent plan',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'automation',
   },
   render: GoalStackView,
 };
@@ -475,61 +618,11 @@ const ACCOUNT: ViewDescriptor = {
   render: AccountView,
 };
 
-const TERMINAL: ViewDescriptor = {
-  id: 'terminal',
-  name: 'Terminal',
-  accepts: {},
-  emits: ['invoke_tool'],
-  renderer: 'terminal',
-  source: {
-    package: 'textmode.js',
-    component: 'Textmode',
-    mode: 'wrap',
-    regime: 'css-vars',
-  },
-  block: {
-    usage: 'operate a shell',
-    mounts: ['island', 'surface'],
-    sizes: ['w', 'full'],
-    density: 'compact',
-    surfaceClass: 'tool',
-    kindGlyph: 'terminal',
-    bodyBleed: 'flush',
-    dataNote:
-      'Web edition: textmode (or similar) inside the React canvas. Native shell edition: native terminal surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
-  },
-  render: TerminalBlock,
-};
-
-const BROWSER_PANE: ViewDescriptor = {
-  id: 'browser-pane',
-  name: 'Browser',
-  accepts: {},
-  emits: ['open'],
-  renderer: 'browser-pane',
-  source: {
-    package: 'servo-render-worker',
-    component: 'POST /render',
-    mode: 'wrap',
-    regime: 'css-vars',
-  },
-  block: {
-    usage: 'view a page',
-    mounts: ['island', 'surface'],
-    sizes: ['w', 'full'],
-    density: 'both',
-    surfaceClass: 'tool',
-    kindGlyph: 'browser',
-    bodyBleed: 'flush',
-    dataNote:
-      'Web edition: Servo render worker (POST /render) into the React canvas. Native shell edition: native Servo surface. Same capability via host-bridge openTarget; native supersedes the block renderer when the shell is present.',
-  },
-  render: BrowserPaneBlock,
-};
-
-const KANBAN: ViewDescriptor = {
+const KANBAN: ConsoleViewDescriptor = {
   id: 'kanban',
   name: 'Kanban',
+  paletteVisible: true,
+  palette: { id: 'kanban', kind: 'kanban', material: 'sunken' },
   accepts: {},
   emits: ['update', 'move', 'select'],
   renderer: 'kanban',
@@ -541,69 +634,23 @@ const KANBAN: ViewDescriptor = {
   },
   block: {
     usage: 'move work through states',
-    mounts: ['island', 'surface'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'kanban',
+    acceptsDrop: { semantic: 'contain', layout: 'columns', accepts: ['*'] },
   },
   render: KanbanBlock,
 };
 
-const DOCUMENT_OUTPUT: ViewDescriptor = {
-  id: 'document',
-  name: 'Document output',
-  accepts: {},
-  emits: ['open', 'dispatch'],
-  renderer: 'document',
-  source: {
-    package: 'akii09/pdfx',
-    component: 'PdfxDocument',
-    mode: 'wrap',
-    regime: 'css-vars',
-  },
-  block: {
-    usage: 'produce a document',
-    mounts: ['surface', 'island'],
-    sizes: ['m', 'w', 'full'],
-    density: 'cozy',
-    surfaceClass: 'editor',
-    kindGlyph: 'doc',
-  },
-  render: DocumentBlock,
-};
-
-const VIDEO: ViewDescriptor = {
-  id: 'video',
-  name: 'Video',
-  accepts: {},
-  emits: ['dispatch', 'open'],
-  renderer: 'video',
-  source: {
-    package: 'remotion-dev/remotion',
-    component: 'Composition',
-    mode: 'wrap',
-    regime: 'css-vars',
-  },
-  block: {
-    usage: 'compose video',
-    mounts: ['surface', 'island'],
-    sizes: ['w', 'full'],
-    density: 'both',
-    surfaceClass: 'editor',
-    kindGlyph: 'doc',
-    bodyBleed: 'flush',
-    dataNote:
-      'Sibling to the pdfx document block: artifact production with a server-side render pipeline (Remotion → headless browser → MP4). In-app mount is composition preview plus a dispatch render action; the rendered artifact returns with a receipt. Pipeline wiring is a follow-on; this registration reserves the mount with a designed empty state only.',
-  },
-  render: VideoBlock,
-};
-
-const CANVAS: ViewDescriptor = {
+const CANVAS: ConsoleViewDescriptor = {
   id: 'canvas',
   name: 'Canvas',
+  paletteVisible: true,
+  palette: { id: 'canvas', kind: 'canvas', material: 'sunken' },
   accepts: {},
-  emits: ['update', 'select', 'open'],
+  emits: ['create', 'update', 'move', 'link', 'unlink', 'delete', 'open', 'select'],
   renderer: 'canvas',
   source: {
     package: '@xyflow/react',
@@ -613,11 +660,14 @@ const CANVAS: ViewDescriptor = {
   },
   block: {
     usage: 'arrange spatially',
-    mounts: ['surface'],
-    sizes: ['full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
     density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'canvas',
+    bodyBleed: 'flush',
   },
-  render: CanvasBlock,
+  render: CanvasView,
 };
 
 const AUTOMATION_HISTORY: ViewDescriptor = {
@@ -634,8 +684,8 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   },
   block: {
     usage: 'review automation history',
-    mounts: ['island', 'surface'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
     kindGlyph: 'automation',
@@ -643,9 +693,62 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   render: AutomationHistoryView,
 };
 
-const COMMONPLACE_CONSOLE: ViewDescriptor = {
+const AGENT_RAIL: ViewDescriptor = {
+  id: 'agent.rail',
+  name: 'Agent',
+  accepts: {},
+  emits: ['run_agent', 'open'],
+  renderer: 'agent.rail',
+  source: {
+    package: '@assistant-ui/react',
+    component: 'ThreadPrimitive',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: AgentRailBlock,
+};
+
+const RECORDS_BLOCK: ViewDescriptor = {
+  id: 'records.block',
+  name: 'Records block',
+  accepts: {},
+  emits: ['select', 'open', 'update'],
+  renderer: 'records.block',
+  source: {
+    package: '@tanstack/react-table',
+    component: 'useReactTable',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  render: RecordsBlock,
+};
+
+const RECORD_PAGE: ViewDescriptor = {
+  id: 'record.page',
+  name: 'Record',
+  accepts: {},
+  emits: ['update', 'open'],
+  renderer: 'record.page',
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason: 'Twenty record page layout is the product contract; field editors bind from FieldSpec.',
+  },
+  render: RecordPage,
+};
+
+const COMMONPLACE_CONSOLE: ConsoleViewDescriptor = {
   id: 'commonplace.console',
   name: 'Your data',
+  paletteVisible: true,
+  palette: {
+    id: 'your-data',
+    label: 'Your data',
+    kind: 'records',
+    material: 'sunken',
+  },
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'commonplace.console',
@@ -657,19 +760,19 @@ const COMMONPLACE_CONSOLE: ViewDescriptor = {
   },
   block: {
     usage: 'inspect your CommonPlace data',
-    mounts: ['island', 'surface', 'stripe'],
-    sizes: ['m', 'w', 'full'],
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
     density: 'both',
     surfaceClass: 'tool',
     kindGlyph: 'records',
     bodyBleed: 'flush',
     dataNote:
-      'Read-only v1 console. Renderer code is registered statically, while the pane instance is mounted only after the server-owned plugin consent receipt activates its contribution.',
+      'Read-only v1 console. The renderer is static, while server-owned consent controls whether its pane instance is mounted.',
   },
   render: ConsoleDataView,
 };
 
-export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
+export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   RECORD_TABLE,
   MARKDOWN_DOC,
   CODE_FILE,
@@ -692,15 +795,19 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   HARNESS_STATUS,
   HARNESS_WHY,
   ACCOUNT,
-  TERMINAL,
-  BROWSER_PANE,
+  AGENT_RAIL,
+  RECORDS_BLOCK,
+  RECORD_PAGE,
   KANBAN,
-  DOCUMENT_OUTPUT,
-  VIDEO,
   CANVAS,
   AUTOMATION_HISTORY,
+  SURVEY_BOARD,
+  MODEL_STUDIO,
+  SEARCH_STACK,
   COMMONPLACE_CONSOLE,
-]);
+] as const;
+
+export const CONSOLE_VIEW_REGISTRY = createViewRegistry(CONSOLE_VIEW_DESCRIPTORS);
 
 /** The forward-compat invariant: an unknown descriptor renders the fallback
  *  card, never a crash, so shared or future arrangements stay safe. */

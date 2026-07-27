@@ -25,12 +25,18 @@ export function DocListView({ set, host }: ViewRenderProps) {
   const openDoc = async (doc: ObjectRef) => {
     const layout = await Promise.resolve(host.query(surfaceQuery()));
     const byId = new Map(layout.objects.map((object) => [object.id, object]));
+    // Prefer the Documents surface editor: after Cards/Workspace hops the
+    // active-surface read can race, and this list only ever retargets
+    // docs.vi-reader.
+    const docsEditor = byId.get('docs.region-editor');
     const activeSurface = layout.objects.find(
       (object) => object.type === 'surface' && object.properties.active === true,
     );
-    const editorRegion = (activeSurface?.relations?.CONTAINS ?? [])
-      .map((id) => byId.get(id))
-      .find((region) => region?.properties.kind === 'editor');
+    const editorRegion = docsEditor?.type === 'region'
+      ? docsEditor
+      : (activeSurface?.relations?.CONTAINS ?? [])
+          .map((id) => byId.get(id))
+          .find((region) => region?.properties.kind === 'editor');
     const readerId = (editorRegion?.relations?.CONTAINS ?? []).find(
       (id) => byId.get(id)?.properties.descriptor_id === 'markdown.doc',
     );

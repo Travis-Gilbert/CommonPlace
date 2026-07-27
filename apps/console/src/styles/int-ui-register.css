@@ -29,17 +29,32 @@
   --ij-purple-2: #3B3147; --ij-purple-7: #955AE0; --ij-purple-9: #B589EC;
   --ij-teal-2: #1D3D3B;   --ij-teal-7: #24A394;
 
-  /* The four structural surfaces. Islands reconciliation (HANDOFF-CONSOLE-BLOCK-SYSTEM
-     choice 8): the frame is lighter than islands in dark mode so gutter shadows
-     have a ground light enough to receive them. Islands stay at gray-1 / gray-2. */
-  --ij-frame: #393B40;              /* inverted frame: lighter than island chrome */
-  --ij-editor: var(--ij-gray-1);    /* editor well, tab strip background */
-  --ij-chrome: var(--ij-gray-2);    /* toolbars, tool windows, status bar */
-  --ij-raised: var(--ij-gray-3);    /* popups, tooltips, hover surfaces */
-  --ij-seam: var(--ij-gray-1);      /* structural borders between regions */
-  --ij-seam-raised: var(--ij-gray-4);   /* border on elevated surfaces */
-  --ij-divider: var(--ij-gray-3);   /* one pixel splitters */
-  --ij-control-border: var(--ij-gray-5);
+  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.
+     Prior expanded ladder put tool chrome above frame and editor below it
+     (two opposite spatial models). Both island classes now sit darker than
+     frame so gutters read as ground: sunken/editor, ground/chrome, frame,
+     raised, floating. Spread pulled toward middle (~14pp vs prior 20.7pp).
+     raised+ carry keylines; only floating and scrim carry shadow. */
+  --ij-tier-sunken: #121314;
+  --ij-tier-ground: #17191C;
+  --ij-tier-frame: #1C1E22;
+  --ij-tier-raised: #2A2D33;
+  --ij-tier-floating: #383B42;
+  --ij-tier-scrim: color-mix(in oklab, #000000 52%, transparent);
+
+  /* Structural surfaces mapped onto the tier axis (hex so gates can resolve).
+     Frame is lighter than both island fills (frame-inversion for dark). */
+  --ij-frame: #1C1E22;
+  --ij-editor: #121314;
+  --ij-chrome: #17191C;
+  --ij-raised: #383B42;
+  --ij-seam: var(--ij-tier-ground);
+  --ij-seam-raised: #565960;        /* keyline on raised+ */
+  --ij-divider: var(--ij-tier-raised);
+  --ij-control-border: #5C6068;
+  --ij-keyline: var(--ij-seam-raised);
+  --ij-keyline-focus: var(--ij-accent);
+  --ij-keyline-decorative: color-mix(in oklab, var(--ij-ink) 18%, transparent);
 
   /* Ink */
   --ij-ink: var(--ij-gray-12);
@@ -85,8 +100,15 @@
   /* Metrics (verbatim: Button.arc 8, Component.arc 8, minimumSize 72x28,
      List and Tree rowHeight 24, TabbedPane tabHeight 40, EditorTabs underline
      height 4 arc 4, Tree border 4 12 4 12, stripe drop area from ToolWindow) */
+  /* Metrics. --ij-arc remains the mid step; D2 scale expands around it. */
   --ij-arc: 8px;
   --ij-arc-underline: 4px;
+  --ij-radius-xs: 4px;   /* chips, shortcut badges (BlockSize s) */
+  --ij-radius-sm: 6px;   /* rail rows, small controls (BlockSize m) */
+  --ij-radius-md: 8px;   /* panels, cards (BlockSize v/sq) */
+  --ij-radius-lg: 12px;  /* panes, islands (BlockSize w) */
+  --ij-radius-xl: 16px;  /* full surfaces (BlockSize full) */
+  --ij-corner-raised: squircle;
   --ij-control-h: 28px;
   --ij-control-min-w: 72px;
   --ij-row-h: 24px;
@@ -118,7 +140,8 @@
   --ij-progress-track: var(--ij-gray-4);
 
   color-scheme: dark;
-  background: var(--ij-chrome);
+  /* Unpainted regions are frame/ground, never a tool-island fill. */
+  background: var(--ij-frame);
   color: var(--ij-ink);
   font-family: var(--ij-font-ui);
   font-size: var(--ij-text-ui);

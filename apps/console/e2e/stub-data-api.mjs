@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 
 const PORT = Number(process.env.STUB_DATA_API_PORT ?? 50591);
 const WEB_SEARCH_ENABLED = process.env.STUB_WEB_SEARCH_ENABLED !== 'false';
+const MCP_PROTOCOL_VERSION = '2025-06-18';
+const MCP_SESSION_ID = 'console-e2e-session';
 
 function loadConsoleFixture() {
   const bytes = readFileSync(
@@ -58,7 +60,14 @@ function installedPlugin() {
   };
 }
 
-function consoleGraphqlProjection() {
+function consoleGraphqlProjection(variables = {}) {
+  const receiptLimit = Number.isSafeInteger(variables.receiptLimit)
+    ? Math.max(1, Math.min(250, variables.receiptLimit))
+    : 250;
+  const receiptOffset = typeof variables.receiptCursor === 'string'
+    ? Number.parseInt(variables.receiptCursor, 10) || 0
+    : 0;
+  const receiptEnd = Math.min(receiptOffset + receiptLimit, CONSOLE_FIXTURE.receipts.length);
   return {
     consoleOverview: {
       countsByType: CONSOLE_FIXTURE.overview.counts_by_type.map(([nodeType, count]) => ({
@@ -70,8 +79,8 @@ function consoleGraphqlProjection() {
     },
     consoleEntities: CONSOLE_FIXTURE.entities,
     consoleReceipts: {
-      receipts: CONSOLE_FIXTURE.receipts,
-      nextCursor: null,
+      receipts: CONSOLE_FIXTURE.receipts.slice(receiptOffset, receiptEnd),
+      nextCursor: receiptEnd < CONSOLE_FIXTURE.receipts.length ? String(receiptEnd) : null,
       total: CONSOLE_FIXTURE.receipts.length,
     },
     consoleNeighborhood: CONSOLE_FIXTURE.graph,
@@ -206,7 +215,7 @@ const DOMAIN = [
   },
 ];
 
-const MENTION_CANDIDATES = [
+const MENTION_CANDIDATES_SEED = [
   {
     id: 'mention:person-ada:rec-1:ada-lovelace',
     type: 'mention-candidate',
@@ -241,9 +250,14 @@ const MENTION_CANDIDATES = [
   },
 ];
 
-// Documents and code files ride the live wire now (the file-editing fix), so
-// the stub serves them and applies edits in place, exercising the real
-// browser -> proxy -> upstream path for persisted document editing.
+function cloneMentionCandidates() {
+  return MENTION_CANDIDATES_SEED.map((entry) => ({
+    ...entry,
+    properties: { ...entry.properties },
+    relations: { ...entry.relations },
+  }));
+}
+
 const DOCS = [
   {
     id: 'doc-console-brief',
@@ -344,8 +358,90 @@ const HUNKS = [
   },
 ];
 
-const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
+const CANVAS_GRAPH_FIXTURE = {
+  id: 'canvas.default',
+  title: 'Evidence synthesis',
+  tenant: 'Travis-Gilbert',
+  placements: [
+    {
+      canvasId: 'canvas.default',
+      objectId: 'canvas.card-observe',
+      x: 80,
+      y: 80,
+      width: 240,
+      height: 120,
+    },
+    {
+      canvasId: 'canvas.default',
+      objectId: 'canvas.card-connect',
+      x: 420,
+      y: 250,
+      width: 240,
+      height: 120,
+    },
+    {
+      canvasId: 'canvas.default',
+      objectId: 'canvas.card-verify',
+      x: 760,
+      y: 80,
+      width: 240,
+      height: 120,
+    },
+  ],
+  groups: [],
+  objects: [
+    {
+      id: 'canvas.card-observe',
+      type: 'note',
+      title: 'Observe the source',
+      text: 'Read the repository state and preserve the evidence boundary.',
+    },
+    {
+      id: 'canvas.card-connect',
+      type: 'url',
+      title: 'Connect the claim',
+      text: 'Relate the grounded source to the working conclusion.',
+    },
+    {
+      id: 'canvas.card-verify',
+      type: 'file',
+      title: 'Verify the result',
+      text: 'Hold the final statement against deterministic proof.',
+    },
+  ],
+  connections: [
+    {
+      id: 'canvas.connection-observe-connect',
+      canvasId: 'canvas.default',
+      fromObjectId: 'canvas.card-observe',
+      toObjectId: 'canvas.card-connect',
+      label: 'grounds',
+    },
+    {
+      id: 'canvas.connection-connect-verify',
+      canvasId: 'canvas.default',
+      fromObjectId: 'canvas.card-connect',
+      toObjectId: 'canvas.card-verify',
+      label: 'supports',
+    },
+  ],
+};
 
+const CANVAS_FIXTURE = [
+  {
+    id: 'canvas.default',
+    type: 'canvas',
+    properties: {
+      title: CANVAS_GRAPH_FIXTURE.title,
+      tenant: CANVAS_GRAPH_FIXTURE.tenant,
+      persistence_kind: 'canvas-work-v1',
+      graph: CANVAS_GRAPH_FIXTURE,
+    },
+    relations: {},
+  },
+];
+const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
+const RESETTABLE_STATE_TYPES = new Set([...LAYOUT_TYPES, 'proactivity-structure']);
 const POOLS = new Map([
   ['record', RECORDS],
   ['person', DOMAIN.filter((o) => o.type === 'person')],
@@ -353,10 +449,16 @@ const POOLS = new Map([
   ['org', DOMAIN.filter((o) => o.type === 'org')],
   ['project', DOMAIN.filter((o) => o.type === 'project')],
   ['skill', DOMAIN.filter((o) => o.type === 'skill')],
-  ['mention-candidate', MENTION_CANDIDATES],
+  ['mention-candidate', cloneMentionCandidates()],
   ['doc', DOCS],
   ['code-file', CODE_FILES],
   ['hunk', HUNKS],
+  ['canvas', CANVAS_FIXTURE],
+  ['chat-project', []],
+  ['chat-catalog', []],
+  ['chat-thread', []],
+  ['search-session-origin', []],
+  ['proactivity-structure', []],
   // B6 / sidebar acceptance: layout write-through and cleared-cache restore.
   ['surface', []],
   ['region', []],
@@ -369,12 +471,16 @@ function allStored() {
 }
 
 function resetLayoutPools() {
-  for (const type of LAYOUT_TYPES) {
+  for (const type of RESETTABLE_STATE_TYPES) {
     const pool = POOLS.get(type);
     if (pool) pool.length = 0;
   }
 }
 
+/** Restore mutable domain fixtures (mention confirm/dismiss) to seed status. */
+function resetDomainPools() {
+  POOLS.set('mention-candidate', cloneMentionCandidates());
+}
 function upsertLayoutObject(type, id, properties) {
   const pool = POOLS.get(type);
   if (!pool) return null;
@@ -480,9 +586,68 @@ function runQuery(query) {
   };
 }
 
+function graphqlFixture(query, variables, tenant) {
+  if (query.includes('CommonPlaceConsolePluginState')) {
+    const installed = pluginState(tenant) === 'installed' ? [installedPlugin()] : [];
+    return { data: { installedApps: installed, pendingApps: [] } };
+  }
+  if (query.includes('ConsentCommonPlaceConsole')) {
+    CONSOLE_PLUGIN_STATES.set(tenant, 'installed');
+    return {
+      data: {
+        consentApp: {
+          appId: 'commonplace.console',
+          toolsAdded: [],
+          seedsCreated: [],
+          contributions: [pluginContribution()],
+          grants: ['corpus:read'],
+        },
+      },
+    };
+  }
+  if (query.includes('DenyCommonPlaceConsole')) {
+    CONSOLE_PLUGIN_STATES.set(tenant, 'denied');
+    return {
+      data: {
+        denyApp: {
+          appId: 'commonplace.console',
+          draftNodeId: 'fixture:commonplace.console',
+          draftRemoved: true,
+          contributionsRemoved: 1,
+          grantsDeclined: ['corpus:read'],
+        },
+      },
+    };
+  }
+  if (query.includes('UninstallCommonPlaceConsole')) {
+    CONSOLE_PLUGIN_STATES.set(tenant, 'available');
+    return {
+      data: {
+        uninstallApp: {
+          appId: 'commonplace.console',
+          toolsRemoved: [],
+          seedsTombstoned: [],
+          contributionsRemoved: 1,
+        },
+      },
+    };
+  }
+  if (query.includes('CommonPlaceConsoleSnapshot')) {
+    return pluginState(tenant) === 'installed'
+      ? { data: consoleGraphqlProjection(variables) }
+      : { errors: [{ message: 'corpus_read_grant_required' }] };
+  }
+  if (query.includes('itemsByKind')) {
+    return { data: { itemsByKind: MEMORIES } };
+  }
+  return { errors: [{ message: 'unsupported query' }] };
+}
+
 const server = createServer((request, response) => {
   const key = request.headers['x-api-key'];
-  if (key !== (process.env.STUB_DATA_API_KEY ?? 'dev-key')) {
+  const authorization = request.headers.authorization;
+  const fixtureCredential = process.env.STUB_DATA_API_KEY ?? 'dev-key';
+  if (key !== fixtureCredential && authorization !== `Bearer ${fixtureCredential}`) {
     response.writeHead(403, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ error: 'forbidden' }));
     return;
@@ -499,14 +664,106 @@ const server = createServer((request, response) => {
   }
   if (request.method === 'POST' && request.url === '/objects/test/reset-layout') {
     resetLayoutPools();
+    resetDomainPools();
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ ok: true, note: 'layout pools cleared' }));
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/objects/test/reset-domain') {
+    resetDomainPools();
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, note: 'domain fixtures restored' }));
     return;
   }
   if (request.method === 'POST' && request.url === '/objects/test/reset-console-plugin') {
     CONSOLE_PLUGIN_STATES.clear();
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ ok: true, note: 'console plugin state cleared' }));
+    return;
+  }
+  if (request.url === '/mcp') {
+    if (!request.headers['x-theorem-tenant']) {
+      response.writeHead(400, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: 'missing_mcp_tenant' }));
+      return;
+    }
+    if (request.method === 'DELETE') {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+    if (request.method !== 'POST') {
+      response.writeHead(405, { Allow: 'POST, DELETE' });
+      response.end();
+      return;
+    }
+    let body = '';
+    request.on('data', (chunk) => {
+      body += chunk;
+    });
+    request.on('end', () => {
+      try {
+        const rpc = JSON.parse(body);
+        if (rpc.method === 'initialize') {
+          const requestedVersion = rpc.params?.protocolVersion;
+          response.writeHead(200, {
+            'Content-Type': 'application/json',
+            'MCP-Session-Id': MCP_SESSION_ID,
+          });
+          response.end(JSON.stringify({
+            jsonrpc: '2.0',
+            id: rpc.id ?? null,
+            result: {
+              protocolVersion: typeof requestedVersion === 'string'
+                ? requestedVersion
+                : MCP_PROTOCOL_VERSION,
+              capabilities: {},
+              serverInfo: { name: 'commonplace-e2e-harness', version: '1' },
+            },
+          }));
+          return;
+        }
+        if (rpc.method === 'notifications/initialized') {
+          if (request.headers['mcp-session-id'] !== MCP_SESSION_ID) {
+            response.writeHead(404, { 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({ error: 'unknown_mcp_session' }));
+            return;
+          }
+          response.writeHead(202);
+          response.end();
+          return;
+        }
+        const name = rpc.params?.name;
+        const query = rpc.params?.arguments?.query;
+        if (
+          rpc.method !== 'tools/call'
+          || request.headers['mcp-session-id'] !== MCP_SESSION_ID
+          || (name !== 'graphql_query' && name !== 'graphql_mutate')
+          || typeof query !== 'string'
+        ) {
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({
+            jsonrpc: '2.0',
+            id: rpc.id ?? null,
+            error: { code: -32602, message: 'unsupported fixture tool call' },
+          }));
+          return;
+        }
+        const tenant = String(request.headers['x-theorem-tenant']);
+        const variables = rpc.params?.arguments?.variables ?? {};
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({
+          jsonrpc: '2.0',
+          id: rpc.id ?? null,
+          result: {
+            structuredContent: graphqlFixture(query, variables, tenant),
+          },
+        }));
+      } catch (error) {
+        response.writeHead(400, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ error: String(error) }));
+      }
+    });
     return;
   }
   if (request.method === 'POST' && request.url === '/graphql') {
@@ -520,77 +777,17 @@ const server = createServer((request, response) => {
       body += chunk;
     });
     request.on('end', () => {
-      const tenant = String(request.headers['x-theorem-tenant']);
-      if (body.includes('CommonPlaceConsolePluginState')) {
-        const installed = pluginState(tenant) === 'installed' ? [installedPlugin()] : [];
+      try {
+        const payload = JSON.parse(body);
+        const tenant = String(request.headers['x-theorem-tenant']);
         response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ data: { installedApps: installed, pendingApps: [] } }));
-        return;
+        response.end(JSON.stringify(
+          graphqlFixture(String(payload.query ?? ''), payload.variables ?? {}, tenant),
+        ));
+      } catch (error) {
+        response.writeHead(400, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ error: String(error) }));
       }
-      if (body.includes('ConsentCommonPlaceConsole')) {
-        CONSOLE_PLUGIN_STATES.set(tenant, 'installed');
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({
-          data: {
-            consentApp: {
-              appId: 'commonplace.console',
-              toolsAdded: [],
-              seedsCreated: [],
-              contributions: [pluginContribution()],
-              grants: ['corpus:read'],
-            },
-          },
-        }));
-        return;
-      }
-      if (body.includes('DenyCommonPlaceConsole')) {
-        CONSOLE_PLUGIN_STATES.set(tenant, 'denied');
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({
-          data: {
-            denyApp: {
-              appId: 'commonplace.console',
-              draftNodeId: 'fixture:commonplace.console',
-              draftRemoved: true,
-              contributionsRemoved: 1,
-              grantsDeclined: ['corpus:read'],
-            },
-          },
-        }));
-        return;
-      }
-      if (body.includes('UninstallCommonPlaceConsole')) {
-        CONSOLE_PLUGIN_STATES.set(tenant, 'available');
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({
-          data: {
-            uninstallApp: {
-              appId: 'commonplace.console',
-              toolsRemoved: [],
-              seedsTombstoned: [],
-              contributionsRemoved: 1,
-            },
-          },
-        }));
-        return;
-      }
-      if (body.includes('CommonPlaceConsoleSnapshot')) {
-        if (pluginState(tenant) !== 'installed') {
-          response.writeHead(403, { 'Content-Type': 'application/json' });
-          response.end(JSON.stringify({ errors: [{ message: 'corpus_read_grant_required' }] }));
-          return;
-        }
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ data: consoleGraphqlProjection() }));
-        return;
-      }
-      if (body.includes('itemsByKind')) {
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ data: { itemsByKind: MEMORIES } }));
-        return;
-      }
-      response.writeHead(400, { 'Content-Type': 'application/json' });
-      response.end(JSON.stringify({ errors: [{ message: 'unsupported query' }] }));
     });
     return;
   }

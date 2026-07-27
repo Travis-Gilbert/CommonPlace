@@ -38,39 +38,74 @@ describe('ViewRegistry presentation grammar', () => {
       axes: {},
       cardinality: 'many',
     }).map((view) => view.id)).toContain('surface-only');
-    expect(registry.blocksForMount('island')).toEqual([]);
+    expect(registry.blocksForPlacement('ground')).toEqual([]);
   });
 
-  it('filters blocksForMount by declared mounts', () => {
+  it('filters blocksForPlacement by declared placements', () => {
     const registry = createViewRegistry([
       descriptor('records', {
         usage: 'browse records',
-        mounts: ['island', 'surface'],
-        sizes: ['m', 'w', 'full'],
+        placements: ['ground', 'full'],
+        defaultSize: 'm',
         density: 'compact',
       }),
       descriptor('composer', {
         usage: 'compose with the agent',
-        mounts: ['surface', 'island'],
-        sizes: ['w', 'full'],
+        placements: ['full', 'ground'],
+        defaultSize: 'w',
         density: 'both',
       }),
-      descriptor('stripe-only', {
+      descriptor('rail-only', {
         usage: 'navigate surfaces',
-        mounts: ['stripe'],
-        sizes: ['s'],
+        placements: ['rail'],
+        defaultSize: 's',
         density: 'compact',
+      }),
+      descriptor('kanban', {
+        usage: 'arrange cards in columns',
+        placements: ['ground', 'full'],
+        defaultSize: 'w',
+        density: 'cozy',
+        acceptsDrop: {
+          semantic: 'contain',
+          layout: 'columns',
+          accepts: ['*'],
+        },
+      }),
+      descriptor('model', {
+        usage: 'relate observed kinds',
+        placements: ['ground', 'full'],
+        defaultSize: 'full',
+        density: 'compact',
+        acceptsDrop: {
+          semantic: 'relate',
+          edge: 'RELATED_TO',
+          accepts: ['model'],
+        },
       }),
       descriptor('no-block'),
     ]);
 
-    expect(registry.blocksForMount('island').map((view) => view.id)).toEqual([
+    expect(registry.blocksForPlacement('ground').map((view) => view.id)).toEqual([
       'records',
       'composer',
+      'kanban',
+      'model',
     ]);
-    expect(registry.blocksForMount('stripe').map((view) => view.id)).toEqual([
-      'stripe-only',
+    expect(registry.blocksForPlacement('rail').map((view) => view.id)).toEqual([
+      'rail-only',
     ]);
-    expect(registry.blocksForMount('companion')).toEqual([]);
+    expect(registry.blocksForPlacement('dock')).toEqual([]);
+    expect(registry.viewById('kanban')?.block?.acceptsDrop).toEqual({
+      semantic: 'contain',
+      layout: 'columns',
+      accepts: ['*'],
+    });
+    expect(registry.viewById('model')?.block?.acceptsDrop).toEqual({
+      semantic: 'relate',
+      edge: 'RELATED_TO',
+      accepts: ['model'],
+    });
+    expect(registry.viewById('records')?.block?.acceptsDrop).toBeUndefined();
   });
 });

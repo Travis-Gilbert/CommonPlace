@@ -83,6 +83,15 @@ describe('WASM fixture door', () => {
     expect(filtered.receipts.map((receipt) => receipt.id)).toEqual(['receipt:2']);
   });
 
+  it.each(['', ' ', '0x1', '1e2', '-1', '+1'])(
+    'rejects non-decimal receipt cursor %j',
+    async (cursor) => {
+      await expect(door().receipts({}, { limit: 1, cursor })).rejects.toMatchObject({
+        code: 'invalid_request',
+      });
+    },
+  );
+
   it('subscribes only to the caller-selected watch shape', async () => {
     const fixture = door();
     const sequences: number[] = [];
@@ -98,6 +107,19 @@ describe('WASM fixture door', () => {
 });
 
 describe('same-origin GraphQL door', () => {
+  it.each([
+    [401, 'unauthenticated'],
+    [403, 'forbidden'],
+    [503, 'unavailable'],
+  ] as const)('maps HTTP %i to %s', async (status, code) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })));
+
+    await expect(new SameOriginGraphqlDoor([CORPUS_READ_GRANT]).snapshot()).rejects.toMatchObject({
+      code,
+      retryable: status >= 500,
+    });
+  });
+
   it('rejects an invalid server projection as a typed protocol error', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ contract_version: 'unexpected' }), {

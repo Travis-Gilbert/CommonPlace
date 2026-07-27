@@ -1,4 +1,7 @@
-import { planToProgrammableGraph } from '@commonplace/theorem-acp/plan-program';
+import {
+  planToProgrammableGraph,
+  sideEffectingAffordanceRefs,
+} from '@commonplace/theorem-acp/plan-program';
 import {
   applyParamBindings,
   extractParamCandidates,
@@ -29,21 +32,22 @@ export async function GET(request: Request): Promise<Response> {
   const manifest = includeManifest
     ? await callHarnessMcp('plan', { action: 'capability_manifest', plan_id: planId })
     : null;
-  const runsRail = includeManifest
-    ? await callHarnessMcp('plan', { action: 'query', plan_id: planId, query: 'progress' })
-    : null;
+  const runsRail = await callHarnessMcp('plan', { action: 'query', plan_id: planId, query: 'progress' });
 
   return Response.json({
     schema: 'commonplace.plan-canvas-poll/1',
     snapshot: snapshot.data,
     events: events.ok ? events.data : { rows: [] },
     capabilities: manifest?.ok ? manifest.data : { capabilities: [] },
-    runsRail: runsRail?.ok ? normalizeRunsFromProgress(runsRail.data, planId, snapshot.data) : [],
-    cursor: Math.max(cursor, graphVersion(events.ok ? events.data : null)),
+    runsRail: runsRail.ok ? normalizeRunsFromProgress(runsRail.data, planId, snapshot.data) : [],
+    // The polling cursor is an event-log cursor. A fresh inspect snapshot may
+    // be newer while what_changed is degraded, but advancing to that version
+    // would permanently skip the unavailable event interval.
+    cursor: events.ok ? Math.max(cursor, graphVersion(events.data)) : cursor,
     degraded: {
       events: !events.ok,
       capabilities: includeManifest && !manifest?.ok,
-      runsRail: includeManifest && !runsRail?.ok,
+      runsRail: !runsRail.ok,
     },
   });
 }
@@ -228,10 +232,11 @@ async function saveAsProgram(planId: string, body: Record<string, unknown>): Pro
   if (!planIsComplete(snapshot)) {
     return Response.json({ error: 'plan_not_complete' }, { status: 409 });
   }
+  const sideEffectingRefs = sideEffectingAffordanceRefs(snapshot);
   // Re-extract candidates server-side so reviewed bindings rewrite titles /
   // descriptions before materialize; client candidates are advisory only.
   const candidates = extractParamCandidates(snapshot);
-  const bindings = record(body.bindings) ?? {};
+  const bindings = stringBindings(body.bindings);
   const bound = applyParamBindings(snapshot, candidates, bindings);
   const graph = planToProgrammableGraph(bound);
   const program = {
@@ -241,6 +246,7 @@ async function saveAsProgram(planId: string, body: Record<string, unknown>): Pro
       ...graph.metadata,
       param_bindings: bindings,
       param_candidates: candidates.map(serializeCandidate),
+      source_side_effecting_affordance_refs: sideEffectingRefs,
     },
   };
   const result = await callHarnessMcp('programmable_graph_apply', {
@@ -260,6 +266,13 @@ function serializeCandidate(candidate: ParamCandidate): Record<string, string> {
     value: candidate.value,
     label: candidate.label,
   };
+}
+
+function stringBindings(value: unknown): Record<string, string> {
+  const item = record(value);
+  if (!item) return {};
+  return Object.fromEntries(Object.entries(item).filter((entry): entry is [string, string] =>
+    typeof entry[1] === 'string'));
 }
 
 function normalizeRunsFromProgress(
@@ -288,13 +301,14 @@ function normalizeRunsFromProgress(
 }
 
 function refusalResponse(data: Record<string, unknown>): Response | null {
-  const refused = data.refused === true || data.status === 'refused';
+  const refusal = record(data.refusal);
+  const refused = data.refused === true || data.status === 'refused' || data.ok === false || refusal !== null;
   if (!refused) return null;
   return Response.json({
     error: 'plan_action_refused',
-    rule: validText(data.rule) ?? validText(data.code) ?? 'unspecified',
-    detail: validText(data.detail) ?? validText(data.reason) ?? 'The Plan substrate refused this transition.',
-    receiptId: validText(data.receipt_id ?? data.receiptId),
+    rule: validText(refusal?.code) ?? validText(data.rule) ?? validText(data.code) ?? 'unspecified',
+    detail: validText(refusal?.detail) ?? validText(data.detail) ?? validText(data.reason) ?? 'The Plan substrate refused this transition.',
+    receiptId: validText(refusal?.receipt_id ?? refusal?.receiptId ?? data.receipt_id ?? data.receiptId),
   }, { status: 409 });
 }
 

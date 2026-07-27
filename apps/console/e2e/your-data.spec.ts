@@ -6,11 +6,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 const LAYOUT_CACHE_KEY = 'commonplace.console.layout-cache.v1';
 const SURFACE_KEY = 'commonplace.console.surface.v1';
+const STUB_DATA_API_ORIGIN =
+  `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
 
 async function resetProfile(page: Page): Promise<void> {
   for (const endpoint of [
-    'http://localhost:50591/objects/test/reset-layout',
-    'http://localhost:50591/objects/test/reset-console-plugin',
+    `${STUB_DATA_API_ORIGIN}/objects/test/reset-layout`,
+    `${STUB_DATA_API_ORIGIN}/objects/test/reset-console-plugin`,
   ]) {
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -20,7 +22,7 @@ async function resetProfile(page: Page): Promise<void> {
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/v/index');
   await page.evaluate(([layout, surface]) => {
     localStorage.removeItem(layout);
     localStorage.removeItem(surface);
@@ -44,7 +46,7 @@ async function installFromAppearance(page: Page): Promise<void> {
   await expect(consent).toContainText('Read through the authenticated CommonPlace door.');
   await expect(consent).toContainText('Write your data or use arbitrary network endpoints.');
   await consent.locator('[data-your-data-consent-allow]').click();
-  await expect(page.locator('[data-console-data-view]')).toBeVisible();
+  await expect(page.locator('[data-console-data-view]')).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe('Your data plugin', () => {
@@ -80,7 +82,9 @@ test.describe('Your data plugin', () => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.getByRole('tab', { name: 'Graph' }).click();
     const graph = page.locator('[data-console-surface="graph"]');
-    await expect(graph.locator('[data-console-cosmos-graph]')).toBeVisible();
+    await expect(graph.locator('[data-console-cosmos-graph]')).toBeVisible({
+      timeout: 30_000,
+    });
     await graph.getByRole('button', { name: /Ada Lovelace/ }).click();
     await expect(graph).toContainText('golden:person:ada');
     await expect(graph).toContainText('10496215397300334112');
@@ -102,7 +106,7 @@ test.describe('Your data plugin', () => {
     await expect(installedEntry).toHaveAttribute('data-your-data-state', 'installed');
     await installedEntry.locator('[data-your-data-open]').click();
     await expect(page.locator('[data-your-data-consent]')).toHaveCount(0);
-    await expect(page.locator('[data-console-data-view]')).toBeVisible();
+    await expect(page.locator('[data-console-data-view]')).toBeVisible({ timeout: 30_000 });
 
     await openLayout(page, 'console-appearance');
     await page.locator('[data-appearance-view] [data-your-data-uninstall]').click();
@@ -111,6 +115,9 @@ test.describe('Your data plugin', () => {
       'data-your-data-state',
       'available',
     );
+    await expect(
+      page.locator('[data-appearance-view] [data-your-data-open]'),
+    ).toBeEnabled();
 
     await page.locator('[data-layout-switcher]').click();
     await expect(page.locator('[data-layout-option="console-your-data"]')).toHaveCount(0);

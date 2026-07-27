@@ -423,27 +423,85 @@ function normalizeConsoleProjection(data: Record<string, unknown>): ConsoleSnaps
 }
 
 export async function readConsoleSnapshot(): Promise<ConsoleSnapshotRead> {
-  const result = await callHarnessGraphql(CONSOLE_READS, {
-    root: 'node:ada',
-    depth: 2,
-    receiptLimit: 250,
-  });
-  if (!result.ok) {
-    return {
-      ok: false,
-      status: result.status,
-      error: result.error,
-    };
+  const receipts: Receipt[] = [];
+  const seenCursors = new Set<string>();
+  let receiptCursor: string | null = null;
+  let expectedTotal: number | null = null;
+  let snapshot: ConsoleSnapshot | null = null;
+
+  while (true) {
+    const result = await callHarnessGraphql(CONSOLE_READS, {
+      root: 'node:ada',
+      depth: 2,
+      receiptLimit: 250,
+      receiptCursor,
+    });
+    if (!result.ok) {
+      return {
+        ok: false,
+        status: result.status,
+        error: result.error,
+      };
+    }
+    const page = record(result.data.consoleReceipts);
+    const normalized = normalizeConsoleProjection(result.data);
+    const total = page?.total;
+    const nextCursor = page?.nextCursor;
+    if (
+      !normalized ||
+      typeof total !== 'number' ||
+      !Number.isSafeInteger(total) ||
+      total < 0 ||
+      (nextCursor !== null &&
+        nextCursor !== undefined &&
+        typeof nextCursor !== 'string')
+    ) {
+      return {
+        ok: false,
+        status: 502,
+        error: 'console_graphql_invalid_projection',
+      };
+    }
+    if (expectedTotal !== null && total !== expectedTotal) {
+      return {
+        ok: false,
+        status: 502,
+        error: 'console_graphql_receipt_total_changed',
+      };
+    }
+    expectedTotal = total;
+    snapshot ??= normalized;
+    receipts.push(...normalized.receipts);
+    if (receipts.length > total) {
+      return {
+        ok: false,
+        status: 502,
+        error: 'console_graphql_receipt_overflow',
+      };
+    }
+    if (!nextCursor) {
+      if (receipts.length !== total) {
+        return {
+          ok: false,
+          status: 502,
+          error: 'console_graphql_receipt_truncated',
+        };
+      }
+      return {
+        ok: true,
+        snapshot: { ...snapshot, receipts },
+      };
+    }
+    if (seenCursors.has(nextCursor)) {
+      return {
+        ok: false,
+        status: 502,
+        error: 'console_graphql_receipt_cursor_loop',
+      };
+    }
+    seenCursors.add(nextCursor);
+    receiptCursor = nextCursor;
   }
-  const snapshot = normalizeConsoleProjection(result.data);
-  if (!snapshot) {
-    return {
-      ok: false,
-      status: 502,
-      error: 'console_graphql_invalid_projection',
-    };
-  }
-  return { ok: true, snapshot };
 }
 
 function strings(value: unknown): string[] {
@@ -517,7 +575,11 @@ export async function mutateConsolePlugin(
       : action === 'deny'
         ? PLUGIN_DENY
         : PLUGIN_UNINSTALL;
-  const result = await callHarnessGraphql(operation, { appId: CONSOLE_APP_ID });
+  const result = await callHarnessGraphql(
+    operation,
+    { appId: CONSOLE_APP_ID },
+    'mutate',
+  );
   if (!result.ok) {
     return { ok: false, status: result.status, error: result.error };
   }

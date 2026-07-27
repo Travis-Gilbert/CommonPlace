@@ -21,6 +21,10 @@ rust-version = "1.85"
 [dependencies]
 commonplace = { path = "../../crates/commonplace" }
 rustyred-thg-core = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-core" }
+rustyred-thg-find = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-find" }
+# saveUrl fetches through `web_consume_to_graph` in-process, so the page graph
+# and the filed item land in one store under one lock (SPEC B7).
+rustyred-web = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-web" }
 theorem-harness-core = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-core" }
 theorem-harness-runtime = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-runtime" }
 async-graphql = "7"

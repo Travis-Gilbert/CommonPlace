@@ -24,4 +24,3 @@ const actual = fingerprint(0x00c0ffee, 0, 360);
 const expected = BigInt(expectedValue);
 assert.equal(actual, expected, "native and wasm layout fingerprints match");
 console.log(`layout parity passed: ${actual}`);
-

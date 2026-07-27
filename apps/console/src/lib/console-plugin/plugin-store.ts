@@ -84,6 +84,7 @@ export function hydrateConsolePlugin(
         contributions: [],
         reason: cause instanceof Error ? cause.message : 'plugin_state_unavailable',
       });
+      hydrations.delete(tenant);
     });
   hydrations.set(tenant, hydration);
   return hydration;

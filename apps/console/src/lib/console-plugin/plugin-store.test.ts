@@ -64,4 +64,24 @@ describe('console plugin store', () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('retries hydration after a transient failure', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ state: 'available', grants: [], contributions: [] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('fetch', fetchMock);
+
+    await hydrateConsolePlugin('tenant-retry');
+    expect(consolePluginStatus('tenant-retry').state).toBe('unavailable');
+    await hydrateConsolePlugin('tenant-retry');
+
+    expect(consolePluginStatus('tenant-retry').state).toBe('available');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

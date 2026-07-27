@@ -25,6 +25,7 @@ const layoutStore = getDefaultStore();
 function readLegacySurface(): ObjectRef[] | null {
   if (typeof window === 'undefined') return null;
   try {
+    // persistence-cache: reason=migrates the legacy layout into durable server truth
     const raw = window.localStorage.getItem(LEGACY_SURFACE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ObjectRef[];
@@ -39,11 +40,20 @@ function readLegacySurface(): ObjectRef[] | null {
 export function readLayoutCache(): readonly ObjectRef[] | null {
   const snapshot = layoutStore.get(layoutCacheAtom);
   if (snapshot?.objects?.length) return snapshot.objects;
+  // atomWithStorage may still be on its initial null before the first
+  // subscriber hydrates. Read localStorage directly so ConsoleBlockHost can
+  // restore the active surface on the first client paint.
+  const fromStorage = readLayoutCacheFromLocalStorage();
+  if (fromStorage?.objects?.length) {
+    layoutStore.set(layoutCacheAtom, fromStorage);
+    return fromStorage.objects;
+  }
   const legacy = readLegacySurface();
   if (legacy) {
     writeLayoutCache(legacy);
     if (typeof window !== 'undefined') {
       try {
+        // persistence-cache: reason=removes the legacy layout after server-backed migration
         window.localStorage.removeItem(LEGACY_SURFACE_KEY);
       } catch {
         // Ignore storage failures; the atom already holds the migration.
@@ -52,6 +62,20 @@ export function readLayoutCache(): readonly ObjectRef[] | null {
     return legacy;
   }
   return null;
+}
+
+function readLayoutCacheFromLocalStorage(): LayoutCacheSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    // persistence-cache: reason=accelerates hydration from durable server layout
+    const raw = window.localStorage.getItem(LAYOUT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LayoutCacheSnapshot;
+    if (!parsed || !Array.isArray(parsed.objects) || parsed.objects.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 /** Persist the arrangement as the fast path in front of server truth. */
@@ -73,6 +97,7 @@ export function clearLayoutCache(): void {
   layoutStore.set(layoutCacheAtom, null);
   if (typeof window === 'undefined') return;
   try {
+    // persistence-cache: reason=clears the hydration copy without deleting server truth
     window.localStorage.removeItem(LAYOUT_CACHE_KEY);
     window.localStorage.removeItem(LEGACY_SURFACE_KEY);
   } catch {
