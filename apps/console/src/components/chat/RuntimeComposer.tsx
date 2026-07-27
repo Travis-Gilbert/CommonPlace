@@ -5,7 +5,14 @@
 // the chat page owns components/chat/Composer.tsx; this RuntimeComposer serves
 // ThreadView only (assistant-ui ComposerPrimitive runtime).
 
-import { useCallback, useEffect, useMemo, useState, type ClipboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+} from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import {
   extractTheoremAddress,
@@ -31,6 +38,7 @@ import {
 } from '@/components/shell/icons';
 import { objectAddress } from '@/lib/object-address';
 import { useShellStore } from '@/lib/shell-store';
+import { actionInstructionFromThreadText } from '@/lib/thread-submit';
 import { useThreadStore } from '@/lib/thread-store';
 
 const MAX_CHARACTERS = 2000;
@@ -131,7 +139,7 @@ export function Composer({
     return () => {
       active = false;
     };
-  }, [host]);
+  }, [composerRuntime, host]);
 
   const mention = useObjectMentionAdapter(mentions, tenant);
 
@@ -296,6 +304,22 @@ export function Composer({
     setPasted(null);
   }, [composerRuntime, pasted]);
 
+  const handleSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
+    const text = composerRuntime?.getState().text ?? '';
+    const instruction = actionInstructionFromThreadText(text);
+    if (instruction === null) {
+      setCharacterCount(0);
+      return;
+    }
+    // assistant-ui composes the consumer handler before its transport send.
+    // Canceling the form event keeps runnable commands local to the shared
+    // action sheet instead of leaking them into the chat transport.
+    event.preventDefault();
+    openActionSheet({ instruction, chips: [] });
+    composerRuntime?.setText('');
+    setCharacterCount(0);
+  }, [composerRuntime, openActionSheet]);
+
   if (!composerRuntime) {
     return null;
   }
@@ -335,7 +359,7 @@ export function Composer({
           style={{
             borderRadius: 'var(--ij-composer-radius)',
           }}
-          onSubmit={() => setCharacterCount(0)}
+          onSubmit={handleSubmit}
           onFocusCapture={() => setFocused(true)}
           onBlurCapture={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {

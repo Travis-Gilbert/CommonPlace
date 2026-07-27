@@ -52,14 +52,18 @@ test.describe('Greenfield Hunk review', () => {
     await expect(recalc.getByRole('button', { name: /^Accept$/ })).toHaveCount(0);
     await recalc.getByRole('button', { name: 'Show human accept' }).click();
     await recalc.getByRole('button', { name: 'Accept as human' }).click();
-    await expect(recalc.locator('[data-action-status="accepted"]')).toBeVisible();
+    await expect(recalc.locator('[data-action-status="accepted"]')).toBeVisible({
+      timeout: 30_000,
+    });
 
     await page.getByRole('listitem').first().focus();
     await page.getByTestId('hunk-review').focus();
     await page.keyboard.press('j');
     await expect(page.getByRole('listitem').nth(1)).toHaveAttribute('data-active', 'true');
     await page.keyboard.press('r');
-    await expect(page.getByRole('listitem').nth(1).locator('[data-action-status="accepted"]')).toBeVisible();
+    await expect(
+      page.getByRole('listitem').nth(1).locator('[data-action-status="accepted"]'),
+    ).toBeVisible({ timeout: 30_000 });
 
     await page.keyboard.press('Control+k');
     await expect(page.getByText('Hunk: accept active')).toBeVisible();

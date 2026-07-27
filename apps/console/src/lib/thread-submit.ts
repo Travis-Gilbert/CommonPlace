@@ -3,12 +3,19 @@
 import { useShellStore } from '@/lib/shell-store';
 import { useThreadStore } from '@/lib/thread-store';
 
+export function actionInstructionFromThreadText(rawText: string): string | null {
+  const text = rawText.trim();
+  if (!/^\/do\b/i.test(text)) return null;
+  return text.replace(/^\/do\b/i, '').trim();
+}
+
 export async function submitThreadText(rawText: string): Promise<void> {
   const text = rawText.trim();
   if (!text) return;
-  if (/^\/do\b/i.test(text)) {
+  const instruction = actionInstructionFromThreadText(text);
+  if (instruction !== null) {
     useShellStore.getState().openActionSheet({
-      instruction: text.replace(/^\/do\b/i, '').trim(),
+      instruction,
       chips: [],
     });
     return;

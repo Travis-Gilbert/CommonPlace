@@ -149,7 +149,7 @@ function FloatingCard({
   const size = STELLAR_CARD_SIZE;
   const focus = resolveCardFocus(card.id, hoveredCardId, adjacency);
 
-  const handleFrameMount = useCallback((element: HTMLDivElement | null) => {
+  const handleFrameMount = useCallback((element: HTMLButtonElement | null) => {
     if (!element) return;
     invalidate();
     requestAnimationFrame(() => invalidate());
@@ -203,23 +203,30 @@ function FloatingCard({
         sprite
         distanceFactor={10}
         position={[0, 0, 0.01]}
-        pointerEvents="none"
-        style={{ pointerEvents: 'none' }}
+        pointerEvents="auto"
+        style={{ pointerEvents: 'auto' }}
       >
-        <div
+        <button
+          type="button"
           ref={handleFrameMount}
-          className="stellar-gallery-card-frame select-none"
+          aria-label={`Open captured source: ${card.title}`}
+          className="stellar-gallery-card-frame appearance-none border-0 bg-transparent p-0 text-left"
           data-world-x={position.x}
           data-world-y={position.y}
           data-world-z={position.z}
           data-card-focus={focus}
+          onPointerEnter={() => handleHovered(true)}
+          onPointerLeave={() => handleHovered(false)}
+          onFocus={() => handleHovered(true)}
+          onBlur={() => handleHovered(false)}
+          onClick={() => onSelect(card)}
           style={{
             width: `${size.width * 40}px`,
             height: `${size.height * 40}px`,
           }}
         >
           {renderCard(card, { hovered, focus })}
-        </div>
+        </button>
       </Html>
     </group>
   );
