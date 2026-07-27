@@ -28,6 +28,7 @@ let openReceiptSnapshot: string | null = null;
 function readLawSeen(): boolean {
   if (lawSeenSnapshot !== undefined) return lawSeenSnapshot;
   try {
+    // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
     lawSeenSnapshot = window.localStorage.getItem(LAW_SEEN_KEY) === 'seen';
   } catch {
     // A browser that refuses storage gets the line every time rather than
@@ -39,6 +40,7 @@ function readLawSeen(): boolean {
 
 function markLawSeen() {
   try {
+    // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
     window.localStorage.setItem(LAW_SEEN_KEY, 'seen');
   } catch {
     // Nothing to persist: the line simply reappears next session.

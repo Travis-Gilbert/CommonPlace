@@ -129,7 +129,16 @@ export function layoutConstellation(
   const fitted =
     placed && placed.size > 0
       ? points
-      : fitToViewport(points, width, height);
+      : fitToViewport(
+          points,
+          simNodes.map((node) =>
+            node.kind === 'memory'
+              ? CONSTELLATION_MEMORY_RADIUS
+              : CONSTELLATION_NODE_RADIUS,
+          ),
+          width,
+          height,
+        );
   const layout: ConstellationLayout = new Map();
   simNodes.forEach((node, index) => {
     const pin = placed?.get(node.id);
@@ -162,6 +171,7 @@ export function constellationSeedFraction(
 
 function fitToViewport(
   points: readonly ConstellationPoint[],
+  radii: readonly number[],
   width: number,
   height: number,
 ): ConstellationPoint[] {
@@ -178,10 +188,12 @@ function fitToViewport(
 
   const spanX = Math.max(maxX - minX, 1);
   const spanY = Math.max(maxY - minY, 1);
+  const nodeExtent = Math.max(...radii, 0);
+  const inset = FIT_PADDING + nodeExtent;
   const scale = Math.min(
     1,
-    Math.max(width - FIT_PADDING * 2, 1) / spanX,
-    Math.max(height - FIT_PADDING * 2, 1) / spanY,
+    Math.max(width - inset * 2, 1) / spanX,
+    Math.max(height - inset * 2, 1) / spanY,
   );
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;

@@ -7,7 +7,11 @@
 // Rail targets page-owned routes backed by durable multi-region surfaces.
 // Descriptor-backed blocks compose inside those surfaces and never route.
 
-import type { BlockKindGlyph, ViewDescriptor } from '@commonplace/block-view/types';
+import type {
+  BlockKindGlyph,
+  ObjectQuery,
+  ViewDescriptor,
+} from '@commonplace/block-view/types';
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
 
 export type RailTier = 'place' | 'collection' | 'pin';
@@ -20,6 +24,7 @@ export interface BlockPaletteItem {
   readonly kind: string;
   readonly descriptorId: string;
   readonly material: BlockPaletteMaterial;
+  readonly query?: ObjectQuery;
 }
 
 export interface ConsoleViewDescriptor extends ViewDescriptor {
@@ -33,6 +38,8 @@ export interface ConsoleViewDescriptor extends ViewDescriptor {
     readonly label?: string;
     readonly kind?: string;
     readonly material?: BlockPaletteMaterial;
+    /** Data contract for query-backed views. Omit when the renderer owns data. */
+    readonly query?: ObjectQuery;
   };
 }
 
@@ -51,6 +58,9 @@ export function deriveBlockPaletteItems(
       kind: descriptor.palette?.kind ?? descriptor.block?.kindGlyph ?? descriptor.id,
       descriptorId: descriptor.id,
       material: descriptor.palette?.material ?? 'sunken',
+      ...(descriptor.palette?.query
+        ? { query: descriptor.palette.query }
+        : {}),
     }));
 }
 

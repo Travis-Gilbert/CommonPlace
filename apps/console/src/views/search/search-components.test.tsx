@@ -218,6 +218,33 @@ describe('constellation renderer', () => {
     );
     expect(onExpand).toHaveBeenCalledWith(PAYLOAD.nodes[0]);
   });
+
+  it('distinguishes a double-click expansion from single-click navigation', async () => {
+    vi.useFakeTimers();
+    try {
+      const onOpen = vi.fn();
+      const onExpand = vi.fn();
+      const container = await render(
+        <ConstellationView
+          state={{ kind: 'success', payload: PAYLOAD }}
+          onOpenResult={onOpen}
+          onExpandNode={onExpand}
+        />,
+      );
+      const node = container.querySelector('[data-kind="result"]') as SVGGElement;
+
+      await act(async () => {
+        node.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        node.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onExpand).toHaveBeenCalledWith(PAYLOAD.nodes[0]);
+      expect(onOpen).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('docked session map', () => {

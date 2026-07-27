@@ -1,19 +1,21 @@
-# Railway deploy config for the CommonPlace console service (apps/console).
-# A SECOND service from the same repo: point the Railway service's config-file
-# setting at this file (the same two-services-one-repo pattern Index-API uses
-# with railway.worker.toml). The web service keeps railway.toml untouched.
-# pnpm resolves the workspace file: dependency (@commonplace/block-view);
-# npm ci cannot, which is why this service does not reuse install:railway.
+# Explicit Railway deploy config for the canonical CommonPlace Console service.
+# Keep its build inputs equivalent to the root railway.toml so either service
+# configuration redeploys for the same Console and workspace-package changes.
 
 [build]
 builder = "RAILPACK"
 buildCommand = "npm run console:build:railway"
 watchPatterns = [
-  "apps/console/**",
-  "packages/block-view/**",
-  "packages/theorem-acp/**",
+  "apps/console/src/**",
+  "apps/console/public/**",
+  "apps/console/scripts/**",
+  "apps/console/next.config.ts",
+  "apps/console/package.json",
   "package.json",
   "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "packages/**",
+  "railpack.json",
   "railway.console.toml"
 ]
 

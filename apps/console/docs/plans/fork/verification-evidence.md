@@ -231,7 +231,7 @@ Harness Plan routes and is not treated as local acceptance.
 ## Current verification receipts
 
 - Fork Express service: 121 of 121 tests passed.
-- Console: 90 Vitest files and 400 tests passed, plus 2 Railway tests.
+- Console: 91 Vitest files and 405 tests passed, plus 2 Railway tests.
 - CommonPlace API library: 64 of 64 tests passed.
 - Console architecture and visual gates: all passed.
 - Console production build: passed; 29 pages generated and no `/v` route.

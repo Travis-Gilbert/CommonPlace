@@ -3,7 +3,7 @@
 // SOURCING: @commonplace/search-stack controller and projections. This is a
 // greenfield console renderer with no legacy application imports or copied styles.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   constellationPayloadOf,
   constellationStateOf,
@@ -21,7 +21,10 @@ import { DockedMap } from './DockedMap';
 import { LambdaDial } from './LambdaDial';
 import { RelationMark, relationLabel } from './RelationMark';
 import { SaveUrlButton } from './SaveUrlButton';
-import { consoleSearchController } from './search-client';
+import {
+  consoleSearchController,
+  createConsoleSearchController,
+} from './search-client';
 import { openSearchPageInWebEdition } from './search-host';
 import { useSearchStack } from './use-search-stack';
 
@@ -39,11 +42,13 @@ export interface SearchStackViewProps {
 }
 
 export function SearchStackView({
-  controller = consoleSearchController,
+  controller: providedController,
   sessionId = null,
   onOpenPage = openSearchPageInWebEdition,
   onRecordSessionOrigin,
 }: SearchStackViewProps) {
+  const ownedController = useMemo(() => createConsoleSearchController(), []);
+  const controller = providedController ?? ownedController;
   const state = useSearchStack(controller);
   const [draft, setDraft] = useState('');
   const scatter = scatterOf(state);

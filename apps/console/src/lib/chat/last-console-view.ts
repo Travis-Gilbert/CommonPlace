@@ -27,9 +27,11 @@ export function normalizeConsolePagePath(path: string | null): string {
 export function readLastConsoleViewPath(): string {
   if (typeof window === 'undefined') return '/workspace';
   try {
+    // persistence-preference: key=commonplace.console.last-view.v1; preference=last console view; reason=returns from Chat to the person's prior view
     const raw = window.localStorage.getItem(LAST_CONSOLE_VIEW_KEY);
     const normalized = normalizeConsolePagePath(raw);
     if (raw && normalized !== raw) {
+      // persistence-preference: key=commonplace.console.last-view.v1; preference=last console view; reason=migrates retired view routes to page-owned routes
       window.localStorage.setItem(LAST_CONSOLE_VIEW_KEY, normalized);
     }
     return normalized;
@@ -44,6 +46,7 @@ export function writeLastConsoleViewPath(path: string): void {
   const normalized = normalizeConsolePagePath(path);
   if (normalized.startsWith('/chat')) return;
   try {
+    // persistence-preference: key=commonplace.console.last-view.v1; preference=last console view; reason=returns from Chat to the person's prior view
     window.localStorage.setItem(LAST_CONSOLE_VIEW_KEY, normalized);
   } catch {
     // Best-effort.

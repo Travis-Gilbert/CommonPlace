@@ -95,7 +95,7 @@ live service, outage, identity, or deployment receipts.
 Current local receipts:
 
 - Fork Express service: 121 tests passed.
-- Console: 90 Vitest files and 400 tests passed, plus 2 Railway tests.
+- Console: 91 Vitest files and 405 tests passed, plus 2 Railway tests.
 - CommonPlace API library: 64 tests passed.
 - Console architecture and design gates: all passed.
 - Console production build: passed with 29 generated pages and no `/v` route.

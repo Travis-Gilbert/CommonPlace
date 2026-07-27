@@ -25,6 +25,7 @@ const layoutStore = getDefaultStore();
 function readLegacySurface(): ObjectRef[] | null {
   if (typeof window === 'undefined') return null;
   try {
+    // persistence-cache: reason=migrates the legacy layout into durable server truth
     const raw = window.localStorage.getItem(LEGACY_SURFACE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ObjectRef[];
@@ -52,6 +53,7 @@ export function readLayoutCache(): readonly ObjectRef[] | null {
     writeLayoutCache(legacy);
     if (typeof window !== 'undefined') {
       try {
+        // persistence-cache: reason=removes the legacy layout after server-backed migration
         window.localStorage.removeItem(LEGACY_SURFACE_KEY);
       } catch {
         // Ignore storage failures; the atom already holds the migration.
@@ -65,6 +67,7 @@ export function readLayoutCache(): readonly ObjectRef[] | null {
 function readLayoutCacheFromLocalStorage(): LayoutCacheSnapshot | null {
   if (typeof window === 'undefined') return null;
   try {
+    // persistence-cache: reason=accelerates hydration from durable server layout
     const raw = window.localStorage.getItem(LAYOUT_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LayoutCacheSnapshot;
@@ -94,6 +97,7 @@ export function clearLayoutCache(): void {
   layoutStore.set(layoutCacheAtom, null);
   if (typeof window === 'undefined') return;
   try {
+    // persistence-cache: reason=clears the hydration copy without deleting server truth
     window.localStorage.removeItem(LAYOUT_CACHE_KEY);
     window.localStorage.removeItem(LEGACY_SURFACE_KEY);
   } catch {

@@ -14,9 +14,7 @@ export function useSearchStack(
   controller: SearchStackController = consoleSearchController,
 ): SearchStackSnapshot {
   useEffect(() => {
-    if (controller === consoleSearchController) {
-      hydrateConsoleSearchPreference();
-    }
+    hydrateConsoleSearchPreference(controller);
   }, [controller]);
 
   return useSyncExternalStore(

@@ -75,6 +75,52 @@ test.describe('Search panel', () => {
     await expect(page.locator('[data-composer-input]')).toBeFocused();
   });
 
+  test('Ctrl or Cmd F scopes PAGE find to an indexed content object', async ({ page }) => {
+    let findBody: {
+      scopes?: Array<{ kind?: string; nodeId?: string }>;
+    } | null = null;
+    await page.route('**/api/search/find', async (route) => {
+      findBody = route.request().postDataJSON() as typeof findBody;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'console',
+          results: [],
+          lanes: [],
+          scopesSearched: ['page'],
+          lambda: 0.8,
+          retrievalRef: 'find-e2e',
+        }),
+      });
+    });
+
+    await page.evaluate(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'f',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+    await page.getByRole('dialog', { name: 'Find' }).getByRole('combobox').fill('console');
+    await expect.poll(() => findBody).not.toBeNull();
+
+    const pageScope = findBody?.scopes?.find((scope) => scope.kind === 'PAGE');
+    expect(pageScope?.nodeId).toBeTruthy();
+    expect(pageScope?.nodeId).not.toMatch(/^console-/);
+  });
+
+  test('a palette-created Search block mounts its queryless renderer', async ({ page }) => {
+    await page.locator('[data-block-palette="search"]').click();
+
+    await expect(page.locator('[data-search-stack-view]')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Search' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
   test('holds the panel baseline under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload({ waitUntil: 'domcontentloaded' });
