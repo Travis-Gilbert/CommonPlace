@@ -353,6 +353,42 @@ pub struct SourceRefInputGql {
     pub external_id: String,
 }
 
+#[derive(InputObject)]
+pub struct CollectorUploadProvenanceInputGql {
+    pub filename: String,
+    pub media_type: String,
+    pub source: String,
+}
+
+#[derive(InputObject)]
+pub struct CollectorServiceFactsInputGql {
+    pub parser: Option<String>,
+    pub media_type: Option<String>,
+    pub byte_length: Option<i64>,
+    pub page_count: Option<i64>,
+}
+
+#[derive(InputObject)]
+pub struct CollectorDocumentProvenanceInputGql {
+    pub index: i32,
+    pub document_digest: String,
+    pub parser_document_id: Option<String>,
+    pub doc_author: Option<String>,
+    pub description: Option<String>,
+    pub published: Option<String>,
+    pub word_count: Option<i64>,
+    pub token_count_estimate: Option<i64>,
+}
+
+#[derive(InputObject)]
+pub struct CollectorProvenanceInputGql {
+    pub kind: String,
+    pub correlation_id: String,
+    pub upload: CollectorUploadProvenanceInputGql,
+    pub service_facts: CollectorServiceFactsInputGql,
+    pub document: CollectorDocumentProvenanceInputGql,
+}
+
 /// Input for the auto-structuring ingest mutation.
 #[derive(InputObject)]
 pub struct IngestInputGql {
@@ -371,6 +407,9 @@ pub struct IngestInputGql {
     pub remind_at_ms: Option<i64>,
     /// Explicit due instant (epoch ms).
     pub due_at_ms: Option<i64>,
+    /// Typed source/parser audit trail. The resolver binds it to the
+    /// authenticated API principal and stable source reference before storage.
+    pub provenance: Option<CollectorProvenanceInputGql>,
 }
 
 #[derive(InputObject)]
@@ -988,6 +1027,155 @@ fn principal(ctx: &Context<'_>) -> Result<Principal> {
         .resolve(&token.0)
         .cloned()
         .ok_or_else(|| Error::new("invalid API key"))
+}
+
+fn collector_provenance_value(
+    input: &CollectorProvenanceInputGql,
+    authenticated: &Principal,
+    source_ref: Option<&SourceRefInputGql>,
+) -> Result<Value> {
+    if input.kind != "collector" {
+        return Err(Error::new("collector provenance kind must be collector"));
+    }
+    if !valid_correlation_id(&input.correlation_id) {
+        return Err(Error::new("collector provenance correlation id is invalid"));
+    }
+    bounded_text("collector upload filename", &input.upload.filename, 255)?;
+    if input.upload.filename.contains(['/', '\\', '\0']) {
+        return Err(Error::new(
+            "collector upload filename must be a logical basename",
+        ));
+    }
+    bounded_text("collector upload media type", &input.upload.media_type, 255)?;
+    bounded_text("collector upload source", &input.upload.source, 2_048)?;
+    optional_bounded_text(
+        "collector parser",
+        input.service_facts.parser.as_deref(),
+        128,
+    )?;
+    optional_bounded_text(
+        "collector service media type",
+        input.service_facts.media_type.as_deref(),
+        255,
+    )?;
+    non_negative_count("collector byte length", input.service_facts.byte_length)?;
+    non_negative_count("collector page count", input.service_facts.page_count)?;
+
+    if !(0..32).contains(&input.document.index) {
+        return Err(Error::new("collector document index is out of range"));
+    }
+    if !valid_sha256_digest(&input.document.document_digest) {
+        return Err(Error::new("collector document digest is invalid"));
+    }
+    optional_bounded_text(
+        "collector parser document id",
+        input.document.parser_document_id.as_deref(),
+        255,
+    )?;
+    optional_bounded_text(
+        "collector document author",
+        input.document.doc_author.as_deref(),
+        512,
+    )?;
+    optional_bounded_text(
+        "collector document description",
+        input.document.description.as_deref(),
+        2_048,
+    )?;
+    optional_bounded_text(
+        "collector document published",
+        input.document.published.as_deref(),
+        128,
+    )?;
+    non_negative_count("collector word count", input.document.word_count)?;
+    non_negative_count(
+        "collector token count estimate",
+        input.document.token_count_estimate,
+    )?;
+
+    let source_ref = source_ref
+        .ok_or_else(|| Error::new("collector provenance requires a stable source reference"))?;
+    if input.upload.source != source_ref.source
+        || !source_ref
+            .external_id
+            .ends_with(&input.document.document_digest)
+    {
+        return Err(Error::new(
+            "collector provenance does not match the stable source reference",
+        ));
+    }
+
+    Ok(json!({
+        "kind": "collector",
+        "correlationId": input.correlation_id,
+        "assertedBy": {
+            "principalId": authenticated.id,
+            "label": authenticated.label,
+        },
+        "sourceRef": {
+            "source": source_ref.source,
+            "externalId": source_ref.external_id,
+        },
+        "upload": {
+            "filename": input.upload.filename,
+            "mediaType": input.upload.media_type,
+            "source": input.upload.source,
+        },
+        "serviceFacts": {
+            "parser": input.service_facts.parser,
+            "mediaType": input.service_facts.media_type,
+            "byteLength": input.service_facts.byte_length,
+            "pageCount": input.service_facts.page_count,
+        },
+        "document": {
+            "index": input.document.index,
+            "documentDigest": input.document.document_digest,
+            "parserDocumentId": input.document.parser_document_id,
+            "docAuthor": input.document.doc_author,
+            "description": input.document.description,
+            "published": input.document.published,
+            "wordCount": input.document.word_count,
+            "tokenCountEstimate": input.document.token_count_estimate,
+        },
+    }))
+}
+
+fn bounded_text(field: &str, value: &str, max_len: usize) -> Result<()> {
+    if value.trim().is_empty() || value.len() > max_len {
+        return Err(Error::new(format!(
+            "{field} must be non-empty and at most {max_len} bytes"
+        )));
+    }
+    Ok(())
+}
+
+fn optional_bounded_text(field: &str, value: Option<&str>, max_len: usize) -> Result<()> {
+    if let Some(value) = value {
+        bounded_text(field, value, max_len)?;
+    }
+    Ok(())
+}
+
+fn non_negative_count(field: &str, value: Option<i64>) -> Result<()> {
+    if value.is_some_and(|value| value < 0) {
+        return Err(Error::new(format!("{field} must be non-negative")));
+    }
+    Ok(())
+}
+
+fn valid_correlation_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    (8..=128).contains(&bytes.len())
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(byte))
+}
+
+fn valid_sha256_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
 }
 
 /// The retrieval projection cache. Present on every schema built through the
@@ -2175,7 +2363,14 @@ where
     }
 
     async fn ingest(&self, ctx: &Context<'_>, input: IngestInputGql) -> Result<ItemGql> {
-        principal(ctx)?;
+        let authenticated = principal(ctx)?;
+        let provenance = input
+            .provenance
+            .as_ref()
+            .map(|provenance| {
+                collector_provenance_value(provenance, &authenticated, input.source_ref.as_ref())
+            })
+            .transpose()?;
         let store = shared::<S, B>(ctx)?;
         let mut cp = store
             .lock()
@@ -2194,6 +2389,9 @@ where
         }
         if let Some(residency) = input.residency {
             request = request.with_residency(Residency::from(residency));
+        }
+        if let Some(provenance) = provenance {
+            request = request.with_provenance(provenance);
         }
         // Explicit scalar instants win over the server-side reminder parse.
         request.remind_at_ms = input.remind_at_ms;

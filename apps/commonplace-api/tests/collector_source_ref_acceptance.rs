@@ -59,12 +59,35 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
           title
           bodyText
           source
+          extra
         }
       }
     "#;
+    let document_digest = format!("sha256:{}", "a".repeat(64));
     let source_ref = json!({
         "source": "upload://workspace-42/research.txt",
-        "externalId": "workspace:workspace-42:sha256:document"
+        "externalId": format!(
+            "collector:sha256:batch:document:0:{document_digest}"
+        )
+    });
+    let first_provenance = json!({
+        "kind": "collector",
+        "correlationId": "express-request-first",
+        "upload": {
+            "filename": "research.txt",
+            "mediaType": "text/plain",
+            "source": "upload://workspace-42/research.txt"
+        },
+        "serviceFacts": {
+            "parser": "commonplace-text-v1",
+            "byteLength": 17,
+            "pageCount": 1
+        },
+        "document": {
+            "index": 0,
+            "documentDigest": document_digest,
+            "docAuthor": "First Author"
+        }
     });
 
     let first = graphql(
@@ -78,7 +101,8 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
                     "text": "first parsed body",
                     "kind": "doc",
                     "source": "collector://first-pass",
-                    "sourceRef": source_ref
+                    "sourceRef": source_ref,
+                    "provenance": first_provenance
                 }
             }
         }),
@@ -89,6 +113,14 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
         .expect("first item id")
         .to_string();
     assert_eq!(first["data"]["ingest"]["source"], "collector://first-pass");
+    assert_eq!(
+        first["data"]["ingest"]["extra"]["provenance"]["document"]["docAuthor"],
+        "First Author"
+    );
+    assert_eq!(
+        first["data"]["ingest"]["extra"]["provenance"]["assertedBy"]["principalId"],
+        "collector-test"
+    );
 
     let second = graphql(
         &client,
@@ -101,7 +133,27 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
                     "text": "second parsed body",
                     "kind": "doc",
                     "source": "collector://second-pass",
-                    "sourceRef": source_ref
+                    "sourceRef": source_ref,
+                    "provenance": {
+                        "kind": "collector",
+                        "correlationId": "express-request-second",
+                        "upload": {
+                            "filename": "research.txt",
+                            "mediaType": "text/plain",
+                            "source": "upload://workspace-42/research.txt"
+                        },
+                        "serviceFacts": {
+                            "parser": "commonplace-text-v2",
+                            "byteLength": 18,
+                            "pageCount": 1
+                        },
+                        "document": {
+                            "index": 0,
+                            "documentDigest": document_digest,
+                            "docAuthor": "Second Author",
+                            "description": "Revised parse"
+                        }
+                    }
                 }
             }
         }),
@@ -112,6 +164,14 @@ async fn repeated_collector_source_ref_updates_one_graph_item() {
     assert_eq!(
         second["data"]["ingest"]["source"],
         "collector://second-pass"
+    );
+    assert_eq!(
+        second["data"]["ingest"]["extra"]["provenance"]["correlationId"],
+        "express-request-second"
+    );
+    assert_eq!(
+        second["data"]["ingest"]["extra"]["provenance"]["document"]["description"],
+        "Revised parse"
     );
 
     let listed = graphql(

@@ -22,13 +22,13 @@ const IDENTITY_RECEIPT = Object.freeze({
   binding_id: "agent:commonplace",
   actor: "commonplace",
 });
+const MCP_SESSION_ID = "commonplace-mcp-test-session";
 
-test("MCP sends one stateless request and binds the admitted tenant", async () => {
+test("MCP initializes a scoped session and binds the admitted tenant", async () => {
   const requests = [];
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (url, init) => {
-      requests.push({ url, init });
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const body = JSON.parse(init.body);
       return jsonResponse({
         jsonrpc: "2.0",
@@ -40,7 +40,7 @@ test("MCP sends one stateless request and binds the admitted tenant", async () =
           },
         },
       });
-    },
+    }, requests),
   });
 
   const result = await client.callTool({
@@ -62,17 +62,31 @@ test("MCP sends one stateless request and binds the admitted tenant", async () =
     results: [{ affordance_id: "github.create_issue" }],
     identity_receipt: IDENTITY_RECEIPT,
   });
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].url, "https://harness.example.test/mcp");
-  assert.equal(requests[0].init.method, "POST");
+  assert.equal(requests.length, 4);
+  assert.deepEqual(
+    requests.map(({ init }) =>
+      init.method === "DELETE" ? "DELETE" : JSON.parse(init.body).method
+    ),
+    [
+      "initialize",
+      "notifications/initialized",
+      "tools/call",
+      "DELETE",
+    ]
+  );
+  const initializeExchange = requests[0];
+  const toolExchange = requests[2];
+  assert.equal(toolExchange.url, "https://harness.example.test/mcp");
+  assert.equal(toolExchange.init.method, "POST");
   assert.equal(
-    requests[0].init.headers.Authorization,
+    toolExchange.init.headers.Authorization,
     "Bearer test-harness-token"
   );
-  assert.equal(requests[0].init.headers["MCP-Session-Id"], undefined);
-  assert.equal(requests[0].init.headers["x-theorem-tenant"], undefined);
+  assert.equal(initializeExchange.init.headers["MCP-Session-Id"], undefined);
+  assert.equal(toolExchange.init.headers["MCP-Session-Id"], MCP_SESSION_ID);
+  assert.equal(toolExchange.init.headers["x-theorem-tenant"], undefined);
 
-  const toolRequest = JSON.parse(requests[0].init.body);
+  const toolRequest = JSON.parse(toolExchange.init.body);
   assert.equal(toolRequest.method, "tools/call");
   assert.equal(toolRequest.params.name, "tool_search");
   assert.equal(toolRequest.params.arguments.tenant, "Travis-Gilbert");
@@ -84,6 +98,52 @@ test("MCP sends one stateless request and binds the admitted tenant", async () =
     toolRequest.params.arguments.invocation_id,
     "invocation:mcp-1"
   );
+});
+
+test("MCP stops reading SSE after the matching response", async () => {
+  let streamCanceled = false;
+  const encoder = new TextEncoder();
+  const client = new HarnessMcpClient({
+    config: harnessConfig({ COMMONPLACE_HARNESS_TIMEOUT_MS: "100" }),
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
+      const request = JSON.parse(init.body);
+      const event = [
+        "event: message",
+        `data: ${JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: {
+            structuredContent: {
+              results: [{ affordance_id: "github.create_issue" }],
+              identity_receipt: IDENTITY_RECEIPT,
+            },
+          },
+        })}`,
+        "",
+        "",
+      ].join("\n");
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(event));
+          },
+          cancel() {
+            streamCanceled = true;
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } }
+      );
+    }),
+  });
+
+  const result = await client.callTool({
+    name: "tool_search",
+    arguments: { query: "github" },
+    scope: SCOPE,
+  });
+
+  assert.equal(result.results[0].affordance_id, "github.create_issue");
+  assert.equal(streamCanceled, true);
 });
 
 test("MCP refuses nested identity fields before invoking a capability", async () => {
@@ -117,7 +177,7 @@ test("MCP refuses nested identity fields before invoking a capability", async ()
 test("MCP preserves JSON-RPC completion metadata on a refusal", async () => {
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       return jsonResponse({
         jsonrpc: "2.0",
@@ -132,7 +192,7 @@ test("MCP preserves JSON-RPC completion metadata on a refusal", async () => {
           },
         },
       });
-    },
+    }),
   });
 
   await assert.rejects(
@@ -162,7 +222,7 @@ test("MCP reconstructs a truncated result through internal tool_result_fetch", a
   const splitAt = Math.floor(fullResult.length / 2);
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       calls.push(request.params);
       if (request.params.name !== "tool_result_fetch") {
@@ -195,7 +255,7 @@ test("MCP reconstructs a truncated result through internal tool_result_fetch", a
           },
         },
       });
-    },
+    }),
   });
 
   const result = await client.callTool({
@@ -220,7 +280,7 @@ test("MCP reconstructs a truncated result through internal tool_result_fetch", a
 test("MCP refuses a successful payload without a matching identity receipt", async () => {
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       return jsonResponse({
         jsonrpc: "2.0",
@@ -235,7 +295,7 @@ test("MCP refuses a successful payload without a matching identity receipt", asy
           },
         },
       });
-    },
+    }),
   });
 
   await assert.rejects(
@@ -251,7 +311,7 @@ test("MCP refuses a successful payload without a matching identity receipt", asy
 test("MCP preserves structured isError metadata", async () => {
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       return jsonResponse({
         jsonrpc: "2.0",
@@ -275,7 +335,7 @@ test("MCP preserves structured isError metadata", async () => {
           ],
         },
       });
-    },
+    }),
   });
 
   await assert.rejects(
@@ -305,7 +365,7 @@ test("MCP requires the exact bearer principal, binding, and actor", async () => 
   ]) {
     const client = new HarnessMcpClient({
       config: harnessConfig(),
-      fetchImpl: async (_url, init) => {
+      fetchImpl: mcpSessionFetch(async (_url, init) => {
         const request = JSON.parse(init.body);
         return jsonResponse({
           jsonrpc: "2.0",
@@ -320,7 +380,7 @@ test("MCP requires the exact bearer principal, binding, and actor", async () => 
             },
           },
         });
-      },
+      }),
     });
 
     await assert.rejects(
@@ -343,7 +403,7 @@ test("MCP continuation stays below the wire envelope and crosses 32 chunks", asy
   let fetchChunks = 0;
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       if (request.params.name !== "tool_result_fetch") {
         return jsonResponse({
@@ -382,7 +442,7 @@ test("MCP continuation stays below the wire envelope and crosses 32 chunks", asy
         id: request.id,
         result: { structuredContent },
       });
-    },
+    }),
   });
 
   const result = await client.callTool({
@@ -398,12 +458,12 @@ test("MCP continuation stays below the wire envelope and crosses 32 chunks", asy
 test("MCP timeout reports unknown completion as unsafe to retry", async () => {
   const client = new HarnessMcpClient({
     config: harnessConfig({ COMMONPLACE_HARNESS_TIMEOUT_MS: "1" }),
-    fetchImpl: async (_url, { signal }) =>
+    fetchImpl: mcpSessionFetch(async (_url, { signal }) =>
       new Promise((_resolve, reject) => {
         signal.addEventListener("abort", () => {
           reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
         });
-      }),
+      })),
   });
 
   await assert.rejects(
@@ -424,9 +484,9 @@ test("MCP timeout reports unknown completion as unsafe to retry", async () => {
 test("MCP network failures report unknown completion as unsafe to retry", async () => {
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async () => {
+    fetchImpl: mcpSessionFetch(async () => {
       throw new Error("connection reset");
-    },
+    }),
   });
 
   await assert.rejects(
@@ -450,14 +510,14 @@ test("MCP network failures report unknown completion as unsafe to retry", async 
 test("MCP malformed success reports unknown completion as unsafe to retry", async () => {
   const client = new HarnessMcpClient({
     config: harnessConfig(),
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       return jsonResponse({
         jsonrpc: "2.0",
         id: request.id,
         result: { structuredContent: {} },
       });
-    },
+    }),
   });
 
   await assert.rejects(
@@ -530,6 +590,42 @@ test("MCP client refuses allowlist and bearer-tenant mismatches", async () => {
   );
   assert.equal(fetched, false);
 });
+
+function mcpSessionFetch(handleTool, requests = []) {
+  return async (url, init) => {
+    requests.push({ url, init });
+    if (init.method === "DELETE") {
+      assert.equal(init.headers["MCP-Session-Id"], MCP_SESSION_ID);
+      return new Response(null, { status: 204 });
+    }
+
+    assert.equal(init.method, "POST");
+    const request = JSON.parse(init.body);
+    if (request.method === "initialize") {
+      assert.equal(init.headers["MCP-Session-Id"], undefined);
+      return jsonResponse(
+        {
+          jsonrpc: "2.0",
+          id: request.id,
+          result: {
+            protocolVersion: request.params.protocolVersion,
+            capabilities: {},
+            serverInfo: { name: "test-harness", version: "1" },
+          },
+        },
+        { "MCP-Session-Id": MCP_SESSION_ID }
+      );
+    }
+    if (request.method === "notifications/initialized") {
+      assert.equal(init.headers["MCP-Session-Id"], MCP_SESSION_ID);
+      return new Response(null, { status: 202 });
+    }
+
+    assert.equal(request.method, "tools/call");
+    assert.equal(init.headers["MCP-Session-Id"], MCP_SESSION_ID);
+    return handleTool(url, init);
+  };
+}
 
 function harnessConfig(overrides = {}) {
   return resolveHarnessConfig({

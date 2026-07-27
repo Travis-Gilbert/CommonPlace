@@ -13,8 +13,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustyred_thg_core::{
     read_vector_property, EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult,
-    GraphVectorPayloadAccess, InMemoryGraphStore, NodeQuery, NodeRecord, RedCoreGraphStore,
-    TensorBlockPayloadStore,
+    GraphVectorPayloadAccess, InMemoryGraphStore, NeighborQuery, NodeQuery, NodeRecord,
+    RedCoreGraphStore, TensorBlockPayloadStore,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -42,6 +42,8 @@ pub const COLLECTION_EMBEDDING_PROPERTY: &str = "label_embedding";
 pub const ENTITY_LABEL: &str = "Entity";
 /// Edge from an item to a resolved entity.
 pub const MENTIONS_ENTITY_EDGE: &str = "MENTIONS_ENTITY";
+/// Structured source/parser audit trail attached to an ingested item.
+pub const INGEST_PROVENANCE_PROPERTY: &str = "provenance";
 const ENTITY_EMBEDDING_PROPERTY: &str = "entity_embedding";
 
 /// A graph store that can expose the engine vector index for CommonPlace items.
@@ -153,6 +155,9 @@ pub struct IngestInput {
     /// over `task.due_at_ms`.
     #[serde(default)]
     pub due_at_ms: Option<i64>,
+    /// Structured audit trail supplied by the trusted ingest boundary.
+    #[serde(default)]
+    pub provenance: Option<Value>,
 }
 
 impl IngestInput {
@@ -178,6 +183,7 @@ impl IngestInput {
             task: None,
             remind_at_ms: None,
             due_at_ms: None,
+            provenance: None,
         }
     }
 
@@ -197,6 +203,7 @@ impl IngestInput {
             task: None,
             remind_at_ms: None,
             due_at_ms: None,
+            provenance: None,
         }
     }
 
@@ -215,6 +222,7 @@ impl IngestInput {
             task: None,
             remind_at_ms: None,
             due_at_ms: None,
+            provenance: None,
         }
     }
 
@@ -231,6 +239,11 @@ impl IngestInput {
             self.source = Some(source_ref.source.clone());
         }
         self.source_ref = Some(source_ref);
+        self
+    }
+
+    pub fn with_provenance(mut self, provenance: Value) -> Self {
+        self.provenance = Some(provenance);
         self
     }
 
@@ -605,7 +618,7 @@ where
         let searchable_text = input.searchable_text();
 
         // A3 idempotency: a re-fetched source record updates the same item in
-        // place (reusing its id upserts every outgoing edge), never a duplicate.
+        // place, then reconciles its content-derived edges, never a duplicate.
         let existing_item = match &input.source_ref {
             Some(source_ref) => {
                 commonplace.item_by_source_ref(&source_ref.source, &source_ref.external_id)?
@@ -616,10 +629,9 @@ where
         let collection = match (forced, &existing_item) {
             (Some(collection), _) => collection,
             // Sticky on update: keep the item's current collection. No durable
-            // edge-delete is available, so re-classifying to a different
-            // collection would leave the item a member of both; staying put
-            // keeps membership single and correct. (A genuine re-file is an
-            // explicit `ingest_routed`/move, not a side effect of re-sync.)
+            // re-file is inferred from a source refresh; collection membership
+            // is a user-visible organizational decision and changes only
+            // through an explicit `ingest_routed`/move.
             (None, Some(existing)) => match existing.collections.first() {
                 Some(collection_id) => match commonplace.get_collection(collection_id)? {
                     Some(collection) => collection,
@@ -672,6 +684,9 @@ where
         if let Some(extraction) = &extraction {
             item = item.with_extra("content_core_extraction", json!(extraction));
         }
+        if let Some(provenance) = input.provenance.clone() {
+            item = item.with_extra(INGEST_PROVENANCE_PROPERTY, provenance);
+        }
         item = match &input.body {
             IngestBody::Text { text, .. } => item.with_text(text.clone()),
             IngestBody::Link { text, .. } => item.with_text(text.clone()),
@@ -690,7 +705,16 @@ where
             }
         };
 
-        let stored_item = commonplace.put_item(item)?;
+        let written_item = commonplace.put_item(item)?;
+        let stored_item = commonplace.get_item(&written_item.id)?.ok_or_else(|| {
+            GraphStoreError::new(
+                "commonplace_ingest_item_missing",
+                "ingested item was not readable after its graph write",
+            )
+        })?;
+        if existing_item.is_some() {
+            self.reconcile_updated_derived_edges(commonplace, &stored_item.id)?;
+        }
         let similar_items = self.write_similarity_edges(
             commonplace,
             &stored_item.id,
@@ -702,7 +726,14 @@ where
         // the freshly ingested item is a new atom; evaluate it once, in the
         // same seam the entity resolver rides. Never a full rescan.
         commonplace.evaluate_mentions_for_atom(&stored_item.id)?;
-        prior_items.push(stored_item.clone());
+        if let Some(existing) = prior_items
+            .iter_mut()
+            .find(|prior| prior.id == stored_item.id)
+        {
+            *existing = stored_item.clone();
+        } else {
+            prior_items.push(stored_item.clone());
+        }
 
         Ok(IngestReceipt {
             item: stored_item,
@@ -713,6 +744,40 @@ where
             entities,
             extraction,
         })
+    }
+
+    fn reconcile_updated_derived_edges<S, B>(
+        &self,
+        commonplace: &mut Commonplace<S, B>,
+        item_id: &str,
+    ) -> GraphStoreResult<()>
+    where
+        S: EmbeddingGraphStore,
+        B: BlobStore,
+    {
+        let mut edge_ids = BTreeSet::new();
+        for query in [
+            NeighborQuery::out(item_id).with_edge_type(crate::store::SIMILAR_TO_EDGE),
+            NeighborQuery::in_(item_id).with_edge_type(crate::store::SIMILAR_TO_EDGE),
+            NeighborQuery::out(item_id).with_edge_type(MENTIONS_ENTITY_EDGE),
+        ] {
+            edge_ids.extend(
+                commonplace
+                    .store()
+                    .neighbors(query)
+                    .into_iter()
+                    .map(|hit| hit.edge_id),
+            );
+        }
+
+        for edge_id in edge_ids {
+            let Some(mut edge) = commonplace.store().get_edge(&edge_id).cloned() else {
+                continue;
+            };
+            edge.tombstone = true;
+            commonplace.store_mut().upsert_edge(edge)?;
+        }
+        Ok(())
     }
 
     fn prepare_content_core_input(
@@ -1692,6 +1757,7 @@ mod tests {
             task: None,
             remind_at_ms: None,
             due_at_ms: None,
+            provenance: None,
         };
         let (input, receipt) =
             prepare_content_core_input_with(input, &test_config(), |source, _| {
@@ -1737,6 +1803,7 @@ mod tests {
             task: None,
             remind_at_ms: None,
             due_at_ms: None,
+            provenance: None,
         };
         let (input, receipt) =
             prepare_content_core_input_with(input, &test_config(), |_source, _| {
@@ -1910,6 +1977,7 @@ mod tests {
             task: None,
             remind_at_ms: None,
             due_at_ms: None,
+            provenance: None,
         };
         let receipt = pipeline.ingest(&mut cp, input).expect("ingest image");
         let expected =

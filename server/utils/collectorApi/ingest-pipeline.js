@@ -4,6 +4,8 @@ const {
   createContentTransport,
 } = require("../vectorDbProviders/rustyred/content-transport");
 
+const MAX_DOCUMENTS = 32;
+
 class IngestPipelineClientError extends Error {
   constructor(message, code, details = null) {
     super(message);
@@ -30,17 +32,21 @@ function createIngestPipelineClient({
       idempotencyKey,
       inputs,
       documentBindings,
+      provenance,
     }) {
       if (
         !scope ||
         typeof scope !== "object" ||
         typeof scope.scopeRef !== "string" ||
         scope.scopeRef.trim().length === 0 ||
+        typeof correlationId !== "string" ||
+        correlationId.trim().length === 0 ||
         typeof idempotencyKey !== "string" ||
         idempotencyKey.trim().length === 0 ||
         !Array.isArray(inputs) ||
         !Array.isArray(documentBindings) ||
         inputs.length === 0 ||
+        inputs.length > MAX_DOCUMENTS ||
         inputs.length !== documentBindings.length ||
         documentBindings.some(
           (binding, index) =>
@@ -58,6 +64,9 @@ function createIngestPipelineClient({
           "INGEST_BATCH_INVALID"
         );
       }
+      const documentProvenances = documentBindings.map((binding) =>
+        provenanceForDocument({ provenance, correlationId, binding })
+      );
 
       // Resolve lazily so an unavailable graph tier never prevents the
       // identity service from starting or serving login.
@@ -72,6 +81,7 @@ function createIngestPipelineClient({
       const receipts = [];
       for (const [index, input] of inputs.entries()) {
         const binding = documentBindings[index];
+        const documentProvenance = documentProvenances[index];
         const documentIdempotencyKey = [
           idempotencyKey,
           "document",
@@ -85,6 +95,7 @@ function createIngestPipelineClient({
             source: input.source,
             externalId: documentIdempotencyKey,
           },
+          provenance: documentProvenance,
         });
         receipts.push({
           item,
@@ -97,6 +108,37 @@ function createIngestPipelineClient({
       return receipts;
     },
   });
+}
+
+function provenanceForDocument({ provenance, correlationId, binding }) {
+  const document = provenance?.documents?.[binding.index];
+  if (
+    provenance?.kind !== "collector" ||
+    provenance.correlationId !== correlationId ||
+    !isRecord(provenance.upload) ||
+    !isRecord(provenance.serviceFacts) ||
+    !Array.isArray(provenance.documents) ||
+    !isRecord(document) ||
+    document.index !== binding.index ||
+    document.documentDigest !== binding.digest
+  ) {
+    throw new IngestPipelineClientError(
+      "Collector provenance must match the admitted batch and document digest.",
+      "INGEST_PROVENANCE_INVALID"
+    );
+  }
+
+  return Object.freeze({
+    kind: "collector",
+    correlationId,
+    upload: Object.freeze({ ...provenance.upload }),
+    serviceFacts: Object.freeze({ ...provenance.serviceFacts }),
+    document: Object.freeze({ ...document }),
+  });
+}
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 module.exports = {

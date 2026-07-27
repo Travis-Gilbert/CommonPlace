@@ -19,8 +19,7 @@
 //! arrive in the same graph the find lanes read.
 
 use commonplace::{
-    BlobStore, Commonplace, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline,
-    Residency,
+    BlobStore, Commonplace, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Residency,
 };
 use rustyred_thg_core::{GraphSnapshotSource, GraphStoreResult, InMemoryGraphStore};
 use rustyred_web::browser_engine::{web_consume_to_graph, WebConsumeRequest};
@@ -230,6 +229,7 @@ where
         task: None,
         remind_at_ms: None,
         due_at_ms: None,
+        provenance: None,
     };
     let receipt = IngestPipeline::default()
         .ingest(cp, input)

@@ -7,15 +7,40 @@
 //! to the existing one."
 
 use commonplace::{
-    Commonplace, InMemoryBlobStore, IngestInput, IngestPipeline, ItemKind, Residency, ENTITY_LABEL,
-    ITEM_EMBEDDING_PROPERTY, MENTIONS_ENTITY_EDGE, SIMILAR_TO_EDGE,
+    Commonplace, Embedder, InMemoryBlobStore, IngestInput, IngestPipeline, ItemKind, Residency,
+    SourceRef, ENTITY_LABEL, ITEM_EMBEDDING_PROPERTY, MENTIONS_ENTITY_EDGE, SIMILAR_TO_EDGE,
 };
 use rustyred_thg_core::{
-    read_vector_property, GraphVectorPayloadAccess, InMemoryGraphStore, NeighborQuery, NodeQuery,
+    read_vector_property, GraphSnapshotSource, GraphStoreResult, GraphVectorPayloadAccess,
+    InMemoryGraphStore, NeighborQuery, NodeQuery,
 };
 
 fn fresh() -> Commonplace<InMemoryGraphStore, InMemoryBlobStore> {
     Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new())
+}
+
+#[derive(Clone, Copy)]
+struct TopicEmbedder;
+
+impl Embedder for TopicEmbedder {
+    fn dimension(&self) -> usize {
+        2
+    }
+
+    fn embed_text(&self, text: &str) -> GraphStoreResult<Vec<f32>> {
+        let text = text.to_ascii_lowercase();
+        if text.contains("old-topic") || text.contains("acme") {
+            Ok(vec![1.0, 0.0])
+        } else if text.contains("new-topic") || text.contains("globex") {
+            Ok(vec![0.0, 1.0])
+        } else {
+            Ok(vec![0.5, 0.5])
+        }
+    }
+
+    fn embed_image(&self, _bytes: &[u8], _mime: Option<&str>) -> GraphStoreResult<Vec<f32>> {
+        Ok(vec![0.5, 0.5])
+    }
 }
 
 #[test]
@@ -178,4 +203,107 @@ fn near_duplicate_entities_resolve_to_existing_entity_node() {
         .store()
         .neighbors(NeighborQuery::out(&second.item.id).with_edge_type(MENTIONS_ENTITY_EDGE));
     assert_eq!(mentions[0].node_id, first.entities[0].entity_id);
+}
+
+#[test]
+fn source_ref_update_reconciles_similarity_and_entity_edges() {
+    let mut cp = fresh();
+    let pipeline = IngestPipeline::new(TopicEmbedder)
+        .without_content_core()
+        .with_similarity_threshold(0.9);
+    let old_neighbor = pipeline
+        .ingest(
+            &mut cp,
+            IngestInput::document("Old neighbor", "old-topic reference"),
+        )
+        .unwrap();
+    let new_neighbor = pipeline
+        .ingest(
+            &mut cp,
+            IngestInput::document("New neighbor", "new-topic reference"),
+        )
+        .unwrap();
+    let source_ref = SourceRef::new("collector", "stable-document");
+    let initial = pipeline
+        .ingest(
+            &mut cp,
+            IngestInput::document("Tracked source", "old-topic material\nClient: Acme Corp.")
+                .with_source_ref(source_ref.clone()),
+        )
+        .unwrap();
+    let old_similarity_edge_id = format!("similar:{}:{}", initial.item.id, old_neighbor.item.id);
+    let old_entity_edge_id = format!("mentions:{}:entity:acme-corp", initial.item.id);
+
+    assert!(cp
+        .store()
+        .neighbors(NeighborQuery::out(&initial.item.id).with_edge_type(SIMILAR_TO_EDGE))
+        .iter()
+        .any(|hit| hit.node_id == old_neighbor.item.id));
+    assert!(cp
+        .store()
+        .neighbors(NeighborQuery::out(&initial.item.id).with_edge_type(MENTIONS_ENTITY_EDGE))
+        .iter()
+        .any(|hit| hit.node_id == "entity:acme-corp"));
+    let later_old_neighbor = pipeline
+        .ingest(
+            &mut cp,
+            IngestInput::document("Later old neighbor", "old-topic follow-up"),
+        )
+        .unwrap();
+    let incoming_old_similarity_edge_id =
+        format!("similar:{}:{}", later_old_neighbor.item.id, initial.item.id);
+    assert!(cp
+        .store()
+        .neighbors(NeighborQuery::in_(&initial.item.id).with_edge_type(SIMILAR_TO_EDGE))
+        .iter()
+        .any(|hit| hit.node_id == later_old_neighbor.item.id));
+
+    let updated = pipeline
+        .ingest(
+            &mut cp,
+            IngestInput::document(
+                "Tracked source revised",
+                "new-topic material\nClient: Globex LLC.",
+            )
+            .with_source_ref(source_ref),
+        )
+        .unwrap();
+    assert_eq!(updated.item.id, initial.item.id);
+
+    let similarity_neighbors = cp
+        .store()
+        .neighbors(NeighborQuery::out(&updated.item.id).with_edge_type(SIMILAR_TO_EDGE));
+    assert_eq!(similarity_neighbors.len(), 1);
+    assert_eq!(similarity_neighbors[0].node_id, new_neighbor.item.id);
+    assert!(cp
+        .store()
+        .neighbors(NeighborQuery::in_(&updated.item.id).with_edge_type(SIMILAR_TO_EDGE))
+        .is_empty());
+
+    let entity_neighbors = cp
+        .store()
+        .neighbors(NeighborQuery::out(&updated.item.id).with_edge_type(MENTIONS_ENTITY_EDGE));
+    assert_eq!(entity_neighbors.len(), 1);
+    assert_eq!(entity_neighbors[0].node_id, "entity:globex-llc");
+
+    let snapshot = cp.store().graph_snapshot().unwrap();
+    for edge_id in [
+        old_similarity_edge_id,
+        incoming_old_similarity_edge_id,
+        old_entity_edge_id,
+    ] {
+        let edge = snapshot
+            .edges
+            .iter()
+            .find(|edge| edge.id == edge_id)
+            .expect("reconciled edge remains in graph history");
+        assert!(edge.tombstone, "{edge_id} must be tombstoned");
+    }
+    let active_similarity_edge_id = format!("similar:{}:{}", updated.item.id, new_neighbor.item.id);
+    let active_similarity = snapshot
+        .edges
+        .iter()
+        .find(|edge| edge.id == active_similarity_edge_id)
+        .expect("replacement similarity edge");
+    assert!(!active_similarity.tombstone);
 }

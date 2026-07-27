@@ -156,6 +156,7 @@ class CommonplaceGraphqlTransport extends ContentTransport {
           tags: document.tags,
           source: document.source,
           sourceRef: document.sourceRef,
+          provenance: document.provenance,
         },
       },
       scope,

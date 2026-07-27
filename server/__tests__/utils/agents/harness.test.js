@@ -146,7 +146,7 @@ test("explicit unauthenticated local mode retains scope provenance", async () =>
   });
   const client = new HarnessMcpClient({
     config,
-    fetchImpl: async (_url, init) => {
+    fetchImpl: mcpSessionFetch(async (_url, init) => {
       const request = JSON.parse(init.body);
       const structuredContent =
         request.params.name === "describe"
@@ -172,7 +172,7 @@ test("explicit unauthenticated local mode retains scope provenance", async () =>
         }),
         { headers: { "Content-Type": "application/json" } }
       );
-    },
+    }),
   });
   const surface = new HarnessToolSurface({
     client,
@@ -1170,6 +1170,41 @@ test("audit persistence failures are surfaced with completion metadata", async (
     }
   );
 });
+
+function mcpSessionFetch(handleTool) {
+  const sessionId = "commonplace-harness-test-session";
+  return async (url, init) => {
+    if (init.method === "DELETE") {
+      assert.equal(init.headers["MCP-Session-Id"], sessionId);
+      return new Response(null, { status: 204 });
+    }
+    const request = JSON.parse(init.body);
+    if (request.method === "initialize") {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: {
+            protocolVersion: request.params.protocolVersion,
+            capabilities: {},
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "MCP-Session-Id": sessionId,
+          },
+        }
+      );
+    }
+    if (request.method === "notifications/initialized") {
+      assert.equal(init.headers["MCP-Session-Id"], sessionId);
+      return new Response(null, { status: 202 });
+    }
+    assert.equal(init.headers["MCP-Session-Id"], sessionId);
+    return handleTool(url, init);
+  };
+}
 
 function emptyContextSource() {
   return {

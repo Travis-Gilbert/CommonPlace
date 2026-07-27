@@ -281,12 +281,30 @@ test("GraphQL ingest forwards the stable source reference to IngestPipeline", as
       source: "upload://workspace-42/source.txt",
       externalId: "workspace:workspace-42:sha256:digest",
     },
+    provenance: {
+      kind: "collector",
+      correlationId: "express-request-ingest-0001",
+      document: {
+        index: 0,
+        documentDigest: "sha256:digest",
+        docAuthor: "Source Author",
+      },
+    },
   });
 
   const body = JSON.parse(requests[0].body);
   assert.deepEqual(body.variables.input.sourceRef, {
     source: "upload://workspace-42/source.txt",
     externalId: "workspace:workspace-42:sha256:digest",
+  });
+  assert.deepEqual(body.variables.input.provenance, {
+    kind: "collector",
+    correlationId: "express-request-ingest-0001",
+    document: {
+      index: 0,
+      documentDigest: "sha256:digest",
+      docAuthor: "Source Author",
+    },
   });
 });
 

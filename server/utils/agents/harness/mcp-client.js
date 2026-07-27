@@ -10,6 +10,7 @@ const ALLOWED_UPSTREAM_TOOLS = Object.freeze([
   "tool_result_fetch",
 ]);
 const MCP_SSE_MAX_BUFFER_BYTES = 1024 * 1024;
+const MCP_TEARDOWN_TIMEOUT_MS = 2_000;
 // Current Theorem defaults ordinary tool results, including continuation
 // envelopes, to 16 KiB. A quote-heavy string can double after JSON escaping,
 // so keep the decoded chunk at 4 KiB and leave room for envelope metadata.
@@ -111,15 +112,26 @@ class HarnessMcpClient {
 
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), this.#config.timeoutMs);
+    let session = null;
+    let toolStarted = false;
 
     try {
+      session = await this.#initializeSession(abortController.signal);
+      await this.#activateSession(session, abortController.signal);
+      toolStarted = true;
       const result = await this.#postTool({
         name,
         argumentsValue,
         scope,
+        session,
         signal: abortController.signal,
       });
-      return this.#resolveTruncatedResult(result, scope, abortController.signal);
+      return await this.#resolveTruncatedResult(
+        result,
+        scope,
+        session,
+        abortController.signal
+      );
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw harnessError(
@@ -128,8 +140,8 @@ class HarnessMcpClient {
           {
             cause: error,
             details: {
-              retrySafe: false,
-              completionState: "unknown",
+              retrySafe: !toolStarted,
+              completionState: toolStarted ? "unknown" : "not_started",
             },
           }
         );
@@ -148,14 +160,137 @@ class HarnessMcpClient {
       );
     } finally {
       clearTimeout(timeout);
+      if (session) await this.#closeSession(session);
     }
   }
 
-  async #postTool({ name, argumentsValue, scope, signal }) {
+  async #initializeSession(signal) {
+    const requestId = this.#requestId("initialize");
+    let response;
+    try {
+      response = await this.#fetch(this.#config.endpoint, {
+        method: "POST",
+        headers: this.#headers(),
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestId,
+          method: "initialize",
+          params: {
+            protocolVersion: this.#config.protocolVersion,
+            capabilities: {},
+            clientInfo: {
+              name: "commonplace-fork-server",
+              version: "1",
+            },
+          },
+        }),
+        cache: "no-store",
+        signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      throw harnessError(
+        "HARNESS_MCP_UNREACHABLE",
+        "Harness MCP initialization was unreachable.",
+        {
+          cause: error,
+          details: {
+            retrySafe: true,
+            completionState: "not_started",
+          },
+        }
+      );
+    }
+
+    const payload = await readMcpPayload(response, requestId);
+    const rpcError = record(payload?.error);
+    if (rpcError) {
+      throw harnessError(
+        "HARNESS_MCP_INITIALIZATION_FAILED",
+        typeof rpcError.message === "string"
+          ? rpcError.message
+          : "Harness MCP initialization was refused.",
+        {
+          details: {
+            ...rpcErrorDetails(rpcError, response.status),
+            retrySafe: true,
+            completionState: "not_started",
+          },
+        }
+      );
+    }
+    const result = record(payload?.result);
+    const sessionId = text(response.headers.get("mcp-session-id"));
+    const protocolVersion = text(result?.protocolVersion);
+    if (!response.ok || !result || !sessionId || !protocolVersion) {
+      throw harnessError(
+        "HARNESS_MCP_INITIALIZATION_FAILED",
+        "Harness MCP did not establish a valid session.",
+        {
+          details: {
+            httpStatus: response.status,
+            retrySafe: true,
+            completionState: "not_started",
+          },
+        }
+      );
+    }
+
+    const session = Object.freeze({
+      id: sessionId,
+      protocolVersion,
+    });
+    return session;
+  }
+
+  async #activateSession(session, signal) {
+    let ready;
+    try {
+      ready = await this.#fetch(this.#config.endpoint, {
+        method: "POST",
+        headers: this.#headers(session),
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "notifications/initialized",
+        }),
+        cache: "no-store",
+        signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      throw harnessError(
+        "HARNESS_MCP_UNREACHABLE",
+        "Harness MCP session activation was unreachable.",
+        {
+          cause: error,
+          details: {
+            retrySafe: true,
+            completionState: "not_started",
+          },
+        }
+      );
+    }
+    await readResponseText(ready);
+    if (!ready.ok) {
+      throw harnessError(
+        "HARNESS_MCP_INITIALIZATION_FAILED",
+        `Harness MCP session activation failed with status ${ready.status}.`,
+        {
+          details: {
+            httpStatus: ready.status,
+            retrySafe: true,
+            completionState: "not_started",
+          },
+        }
+      );
+    }
+  }
+
+  async #postTool({ name, argumentsValue, scope, session, signal }) {
     const requestId = this.#requestId(name);
     const response = await this.#fetch(this.#config.endpoint, {
       method: "POST",
-      headers: this.#headers(),
+      headers: this.#headers(session),
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: requestId,
@@ -254,7 +389,7 @@ class HarnessMcpClient {
     });
   }
 
-  async #resolveTruncatedResult(result, scope, signal) {
+  async #resolveTruncatedResult(result, scope, session, signal) {
     const handle =
       result?.truncated === true && typeof result.fetch_handle === "string"
         ? result.fetch_handle.trim()
@@ -272,6 +407,7 @@ class HarnessMcpClient {
           max_bytes: MCP_FETCH_CHUNK_BYTES,
         },
         scope,
+        session,
         signal,
       });
       if (
@@ -318,11 +454,27 @@ class HarnessMcpClient {
     );
   }
 
-  #headers() {
+  async #closeSession(session) {
+    try {
+      const response = await this.#fetch(this.#config.endpoint, {
+        method: "DELETE",
+        headers: this.#headers(session),
+        cache: "no-store",
+        signal: AbortSignal.timeout(MCP_TEARDOWN_TIMEOUT_MS),
+      });
+      await readResponseText(response);
+    } catch {
+      // Session teardown is best effort after the tool outcome is known.
+    }
+  }
+
+  #headers(session = null) {
     return {
       Accept: "application/json, text/event-stream",
       "Content-Type": "application/json",
-      "MCP-Protocol-Version": this.#config.protocolVersion,
+      "MCP-Protocol-Version":
+        session?.protocolVersion ?? this.#config.protocolVersion,
+      ...(session ? { "MCP-Session-Id": session.id } : {}),
       ...(this.#config.token
         ? { Authorization: `Bearer ${this.#config.token}` }
         : {}),
@@ -385,17 +537,40 @@ function assertNoNestedIdentity(value, path = "arguments") {
 
 async function readMcpPayload(response, expectedId) {
   const contentType = response.headers.get("content-type") ?? "";
-  const body = await readResponseText(response);
   if (contentType.includes("application/json")) {
+    const body = await readResponseText(response);
     const payload = parseRecord(body);
     return payload?.id === expectedId ? payload : null;
   }
 
-  for (const event of parseServerSentEvents(body)) {
-    const payload = parseRecord(event);
-    if (payload?.id === expectedId) return payload;
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let totalBytes = 0;
+  let pending = "";
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) {
+        pending += decoder.decode();
+        return matchingServerSentEvent(pending, expectedId);
+      }
+      totalBytes += chunk.value.byteLength;
+      if (totalBytes > MCP_SSE_MAX_BUFFER_BYTES) {
+        throw harnessError(
+          "HARNESS_MCP_RESPONSE_TOO_LARGE",
+          "Harness MCP response exceeded the bridge buffer limit."
+        );
+      }
+      pending += decoder.decode(chunk.value, { stream: true });
+      const split = splitCompleteServerSentEvents(pending);
+      pending = split.remainder;
+      const matched = matchingServerSentEvent(split.complete, expectedId);
+      if (matched) return matched;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
   }
-  return null;
 }
 
 async function readResponseText(response) {
@@ -436,6 +611,27 @@ function parseServerSentEvents(body) {
     if (data) events.push(data);
   }
   return events;
+}
+
+function splitCompleteServerSentEvents(body) {
+  const separator = /\r?\n\r?\n/gu;
+  let consumed = 0;
+  let match;
+  while ((match = separator.exec(body)) !== null) {
+    consumed = match.index + match[0].length;
+  }
+  return {
+    complete: body.slice(0, consumed),
+    remainder: body.slice(consumed),
+  };
+}
+
+function matchingServerSentEvent(body, expectedId) {
+  for (const event of parseServerSentEvents(body)) {
+    const payload = parseRecord(event);
+    if (payload?.id === expectedId) return payload;
+  }
+  return null;
 }
 
 function normalizeToolResult(value) {

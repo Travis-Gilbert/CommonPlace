@@ -15,6 +15,31 @@ const SCOPE = Object.freeze({
   scopeRef: "workspace:workspace-42",
 });
 
+function collectorProvenance(correlationId, documentBindings) {
+  return {
+    kind: "collector",
+    correlationId,
+    upload: {
+      filename: "research.txt",
+      mediaType: "text/plain",
+      source: "upload://workspace-42/research.txt",
+    },
+    serviceFacts: {
+      parser: "commonplace-text-v1",
+      mediaType: "text/plain",
+      byteLength: 42,
+      pageCount: 1,
+    },
+    documents: documentBindings.map((binding) => ({
+      index: binding.index,
+      documentDigest: binding.digest,
+      parserDocumentId: `parser-${binding.index}`,
+      docAuthor: "Source Author",
+      description: "Parsed source",
+    })),
+  };
+}
+
 test("server configuration documents the required workspace scope map", () => {
   const envExample = fs.readFileSync(
     path.resolve(__dirname, "../../../.env.example"),
@@ -50,9 +75,11 @@ test("collector batches call the content transport with stable source identity",
   });
   assert.equal(factoryCalls, 0);
 
+  const correlationId = "express-request-ingest-0001";
+  const documentBindings = [{ index: 0, digest: "sha256:document" }];
   const receipts = await client.ingestBatch({
     scope: SCOPE,
-    correlationId: "express-request-ingest-0001",
+    correlationId,
     idempotencyKey: "collector:sha256:batch",
     inputs: [
       {
@@ -63,7 +90,8 @@ test("collector batches call the content transport with stable source identity",
         source: "upload://workspace-42/research.txt",
       },
     ],
-    documentBindings: [{ index: 0, digest: "sha256:document" }],
+    documentBindings,
+    provenance: collectorProvenance(correlationId, documentBindings),
   });
 
   assert.equal(factoryCalls, 1);
@@ -81,6 +109,28 @@ test("collector batches call the content transport with stable source identity",
           source: "upload://workspace-42/research.txt",
           externalId:
             "collector:sha256:batch:document:0:sha256:document",
+        },
+        provenance: {
+          kind: "collector",
+          correlationId,
+          upload: {
+            filename: "research.txt",
+            mediaType: "text/plain",
+            source: "upload://workspace-42/research.txt",
+          },
+          serviceFacts: {
+            parser: "commonplace-text-v1",
+            mediaType: "text/plain",
+            byteLength: 42,
+            pageCount: 1,
+          },
+          document: {
+            index: 0,
+            documentDigest: "sha256:document",
+            parserDocumentId: "parser-0",
+            docAuthor: "Source Author",
+            description: "Parsed source",
+          },
         },
       },
     },
@@ -157,9 +207,14 @@ test("partial batch retries preserve per-document ingest identity", async () => 
       };
     },
   });
+  const correlationId = "express-request-ingest-retry";
+  const documentBindings = [
+    { index: 0, digest: "sha256:first" },
+    { index: 1, digest: "sha256:second" },
+  ];
   const batch = {
     scope: SCOPE,
-    correlationId: "express-request-ingest-retry",
+    correlationId,
     idempotencyKey: "collector:sha256:retry-batch",
     inputs: [
       {
@@ -171,10 +226,8 @@ test("partial batch retries preserve per-document ingest identity", async () => 
         source: "upload://workspace-42/retry.txt",
       },
     ],
-    documentBindings: [
-      { index: 0, digest: "sha256:first" },
-      { index: 1, digest: "sha256:second" },
-    ],
+    documentBindings,
+    provenance: collectorProvenance(correlationId, documentBindings),
   };
 
   await assert.rejects(client.ingestBatch(batch), /transient ingest failure/u);
@@ -194,6 +247,86 @@ test("partial batch retries preserve per-document ingest identity", async () => 
     calls[0].sourceRef.externalId,
     calls[1].sourceRef.externalId
   );
+  assert.equal(calls[0].provenance.document.documentDigest, "sha256:first");
+  assert.equal(calls[1].provenance.document.documentDigest, "sha256:second");
+});
+
+test("all collector provenance is validated before the first ingest", async () => {
+  let transportCalls = 0;
+  const client = createIngestPipelineClient({
+    transportFactory() {
+      return {
+        async ingest() {
+          transportCalls += 1;
+          return { id: "unexpected" };
+        },
+      };
+    },
+  });
+  const correlationId = "express-request-provenance-mismatch";
+  const documentBindings = [
+    { index: 0, digest: "sha256:first" },
+    { index: 1, digest: "sha256:expected" },
+  ];
+  const provenance = collectorProvenance(correlationId, [
+    documentBindings[0],
+    { index: 1, digest: "sha256:different" },
+  ]);
+
+  await assert.rejects(
+    client.ingestBatch({
+      scope: SCOPE,
+      correlationId,
+      idempotencyKey: "collector:sha256:provenance",
+      inputs: [
+        {
+          title: "First parsed passage",
+          text: "first body",
+          source: "upload://workspace-42/research.txt",
+        },
+        {
+          title: "Second parsed passage",
+          text: "second body",
+          source: "upload://workspace-42/research.txt",
+        },
+      ],
+      documentBindings,
+      provenance,
+    }),
+    { code: "INGEST_PROVENANCE_INVALID" }
+  );
+  assert.equal(transportCalls, 0);
+});
+
+test("batches above the collector document cap fail before transport creation", async () => {
+  let factoryCalls = 0;
+  const client = createIngestPipelineClient({
+    transportFactory() {
+      factoryCalls += 1;
+      return {};
+    },
+  });
+  const correlationId = "express-request-document-limit";
+  const documentBindings = Array.from({ length: 33 }, (_value, index) => ({
+    index,
+    digest: `sha256:document-${index}`,
+  }));
+
+  await assert.rejects(
+    client.ingestBatch({
+      scope: SCOPE,
+      correlationId,
+      idempotencyKey: "collector:sha256:too-many-documents",
+      inputs: documentBindings.map((binding) => ({
+        title: `Document ${binding.index}`,
+        source: "upload://workspace-42/research.txt",
+      })),
+      documentBindings,
+      provenance: collectorProvenance(correlationId, documentBindings),
+    }),
+    { code: "INGEST_BATCH_INVALID" }
+  );
+  assert.equal(factoryCalls, 0);
 });
 
 test("scope and document digests fail closed before transport creation", async () => {
