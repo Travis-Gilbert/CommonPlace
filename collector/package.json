@@ -1,0 +1,14 @@
+{
+  "name": "@commonplace/collector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Parse-only peer service for the CommonPlace ingest boundary",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
