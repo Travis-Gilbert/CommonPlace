@@ -17,6 +17,7 @@ import {
   type ThemeMode,
 } from '@/lib/appearance-store';
 import { IconMemory } from '@/components/shell/icons';
+import { YourDataEntry } from '@/components/console-plugin/YourDataEntry';
 
 const MODES: readonly { id: ThemeMode; label: string }[] = [
   { id: 'auto', label: 'Auto' },
@@ -64,7 +65,7 @@ function Slider({
   );
 }
 
-export function AppearanceView(_props: ViewRenderProps) {
+export function AppearanceView({ host }: ViewRenderProps) {
   const appearance = useAppearance();
   const { preference, generated } = appearance;
 
@@ -77,6 +78,8 @@ export function AppearanceView(_props: ViewRenderProps) {
           <h1 className="text-xl" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Appearance</h1>
           <p className="text-ij-ink-info">Color the whole register without changing the console&rsquo;s IntelliJ geometry.</p>
         </header>
+
+        <YourDataEntry host={host} returnSurfaceId="console-appearance" />
 
         <section className="grid gap-3" aria-labelledby="appearance-mode-heading">
           <h2 id="appearance-mode-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Mode</h2>

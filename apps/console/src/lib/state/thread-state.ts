@@ -8,6 +8,7 @@
 // fakes activity.
 
 import { atom, getDefaultStore } from 'jotai';
+import { atomWithStorage, createJSONStorage } from 'jotai/utils';
 import { createParser, type EventSourceMessage } from 'eventsource-parser';
 import {
   fetchWorkspaceReadiness,
@@ -169,7 +170,27 @@ export const threadAbortAtom = atom<AbortController | null>(null);
 export const threadEndpointAtom = atom<string | null>(chatEndpoint());
 export const threadModeAtom = atom<ComposerMode>('theorem');
 export const threadPlanAtom = atom<AgentPlanStep[]>([]);
-export const threadStagedAtom = atom<StagedThreadRef[]>([]);
+const serverSessionStorage: Storage = {
+  length: 0,
+  clear() {},
+  getItem() {
+    return null;
+  },
+  key() {
+    return null;
+  },
+  removeItem() {},
+  setItem() {},
+};
+const threadSessionStorage = createJSONStorage<StagedThreadRef[]>(() =>
+  typeof window !== 'undefined' ? window.sessionStorage : serverSessionStorage,
+);
+export const threadStagedAtom = atomWithStorage<StagedThreadRef[]>(
+  'commonplace.console.thread-staged.v1',
+  [],
+  threadSessionStorage,
+  { getOnInit: true },
+);
 
 const threadSliceAtoms = {
   messages: threadMessagesAtom,

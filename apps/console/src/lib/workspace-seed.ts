@@ -22,7 +22,7 @@ export const SURVEY_SURFACE_ID = 'console-survey';
 export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
 export const MODEL_SURFACE_ID = 'console-models';
 export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
-
+export const CONSOLE_DATA_SURFACE_ID = 'console-your-data';
 function layoutObject(
   id: string,
   type: string,
@@ -237,7 +237,8 @@ export function seedLayout(): ObjectRef[] {
     }),
     layoutObject('index.vi-rules', 'view-instance', {
       descriptor_id: 'index.rules', title: 'Rules',
-      query: { types: ['record'] } as unknown as JsonValue,
+      query: { types: ['surface'] } as unknown as JsonValue,
+      seed_revision: 2,
     }),
     ...companionSeeds('index'),
 

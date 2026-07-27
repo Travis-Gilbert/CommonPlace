@@ -122,6 +122,7 @@ asks for inspiration, reference, mood, or direction.
 | Chat context tree | fork of Build UI filesystem-item under `components/ui/filesystem-item.tsx` | graph-object folders with include/exclude and unavailable honesty |
 | Composer material | `ComposerMaterial` (`@paper-design/shaders-react` GrainGradient) | scoped ShaderMount behind the chat composer; idle speed 0; no backdrop-filter |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
+| Console neighborhood graph | `@cosmos.gl/graph` | WebGL paint, pan, zoom, and selection over fixed deterministic positions emitted by the shared Rust console core |
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |
 | Agent plan | `@assistant-ui/react` plus 21st.dev `isaiahbjork/agent-plan` structure extraction | in-thread plan rows, tool labels, and run status |
 | Graph canvas | `@xyflow/react` (React Flow) over `@dagrejs/dagre` (layered ranking) | the proactivity graph, per SPEC-PROACTIVITY-GRAPH-WIRING: dagre computes the layered join topology (roots rank first, sinks last), React Flow owns pan, zoom, selection, and edge routing; nodes and edges are register-styled (base CSS only, `--xy-*` mapped to the register in app.css), dynamic-imported so the sentence and card altitudes load no graph bundle |
@@ -162,6 +163,7 @@ static. Transform and opacity only.
 
 No em or en dashes anywhere: not in code comments, not in UI strings, not in
 markdown. Use colons, periods, commas, semicolons, or parentheses instead.
+
 
 ## Recent decisions
 

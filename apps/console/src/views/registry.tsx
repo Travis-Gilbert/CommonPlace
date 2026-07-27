@@ -44,6 +44,8 @@ import { AgentRailBlock } from '@/components/blocks/AgentRailBlock';
 import { RecordsBlock } from '@/components/blocks/RecordsBlock';
 import { RecordPage } from '@/components/blocks/RecordPage';
 
+import { ConsoleDataView } from './ConsoleDataView';
+
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
 }
@@ -812,6 +814,38 @@ const RECORD_PAGE: ViewDescriptor = {
   render: RecordPage,
 };
 
+const COMMONPLACE_CONSOLE: ConsoleViewDescriptor = {
+  id: 'commonplace.console',
+  name: 'Your data',
+  paletteVisible: true,
+  palette: {
+    id: 'your-data',
+    label: 'Your data',
+    kind: 'records',
+    material: 'sunken',
+  },
+  accepts: {},
+  emits: ['select', 'open'],
+  renderer: 'commonplace.console',
+  source: {
+    package: '@commonplace/console-block',
+    component: 'SameOriginGraphqlDoor',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect your CommonPlace data',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
+    bodyBleed: 'flush',
+    dataNote:
+      'Read-only v1 console. The renderer is static, while server-owned consent controls whether its pane instance is mounted.',
+  },
+  render: ConsoleDataView,
+};
 export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   RECORD_TABLE,
   MARKDOWN_DOC,
@@ -845,6 +879,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   SURVEY_BOARD,
   MODEL_STUDIO,
   SEARCH_STACK,
+  COMMONPLACE_CONSOLE,
 ] as const;
 
 export const CONSOLE_VIEW_REGISTRY = createViewRegistry(CONSOLE_VIEW_DESCRIPTORS);

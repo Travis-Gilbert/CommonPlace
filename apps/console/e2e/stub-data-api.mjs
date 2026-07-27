@@ -7,11 +7,87 @@
 // repo's deterministic PRNG convention) so captures stay stable.
 
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 
 const PORT = Number(process.env.STUB_DATA_API_PORT ?? 50591);
 const WEB_SEARCH_ENABLED = process.env.STUB_WEB_SEARCH_ENABLED !== 'false';
 const MCP_PROTOCOL_VERSION = '2025-06-18';
 const MCP_SESSION_ID = 'console-e2e-session';
+
+function loadConsoleFixture() {
+  const bytes = readFileSync(
+    new URL('../public/wasm/commonplace_console_core.wasm', import.meta.url),
+  );
+  const wasmModule = new WebAssembly.Module(bytes);
+  const imports = {};
+  for (const entry of WebAssembly.Module.imports(wasmModule)) {
+    if (entry.kind !== 'function') throw new Error(`unsupported wasm import: ${entry.kind}`);
+    imports[entry.module] ??= {};
+    imports[entry.module][entry.name] = () => 0;
+  }
+  const instance = new WebAssembly.Instance(wasmModule, imports);
+  const length = instance.exports.commonplace_console_fixture_json_prepare();
+  const offset = instance.exports.commonplace_console_fixture_json_ptr();
+  const json = new TextDecoder().decode(
+    new Uint8Array(instance.exports.memory.buffer, offset, length),
+  );
+  return JSON.parse(json);
+}
+
+const CONSOLE_FIXTURE = loadConsoleFixture();
+const CONSOLE_PLUGIN_STATES = new Map();
+
+function pluginState(tenant) {
+  return CONSOLE_PLUGIN_STATES.get(tenant) ?? 'available';
+}
+
+function pluginContribution() {
+  return {
+    point: 'pane.kind',
+    block: 'commonplace.console',
+    kind: 'view',
+    value: 'commonplace.console',
+  };
+}
+
+function installedPlugin() {
+  return {
+    appId: 'commonplace.console',
+    version: '1.0.0',
+    state: 'installed',
+    grants: ['corpus:read'],
+    contributions: [pluginContribution()],
+  };
+}
+
+function consoleGraphqlProjection(variables = {}) {
+  const receiptLimit = Number.isSafeInteger(variables.receiptLimit)
+    ? Math.max(1, Math.min(250, variables.receiptLimit))
+    : 250;
+  const receiptOffset = typeof variables.receiptCursor === 'string'
+    ? Number.parseInt(variables.receiptCursor, 10) || 0
+    : 0;
+  const receiptEnd = Math.min(receiptOffset + receiptLimit, CONSOLE_FIXTURE.receipts.length);
+  return {
+    consoleOverview: {
+      countsByType: CONSOLE_FIXTURE.overview.counts_by_type.map(([nodeType, count]) => ({
+        nodeType,
+        count,
+      })),
+      generation: CONSOLE_FIXTURE.overview.generation,
+      readiness: CONSOLE_FIXTURE.overview.readiness,
+    },
+    consoleEntities: CONSOLE_FIXTURE.entities,
+    consoleReceipts: {
+      receipts: CONSOLE_FIXTURE.receipts.slice(receiptOffset, receiptEnd),
+      nextCursor: receiptEnd < CONSOLE_FIXTURE.receipts.length ? String(receiptEnd) : null,
+      total: CONSOLE_FIXTURE.receipts.length,
+    },
+    consoleNeighborhood: CONSOLE_FIXTURE.graph,
+    standingQueries: CONSOLE_FIXTURE.standing_queries,
+    standingFirings: CONSOLE_FIXTURE.firings,
+  };
+}
 
 function djb2(text) {
   let hash = 5381;
@@ -182,9 +258,6 @@ function cloneMentionCandidates() {
   }));
 }
 
-// Documents and code files ride the live wire now (the file-editing fix), so
-// the stub serves them and applies edits in place, exercising the real
-// browser -> proxy -> upstream path for persisted document editing.
 const DOCS = [
   {
     id: 'doc-console-brief',
@@ -285,8 +358,6 @@ const HUNKS = [
   },
 ];
 
-// CN3/CN4 visual fixture: one durable CanvasStore aggregate, matching the
-// production canvas-work-v1 object shape restored from the object seam.
 const CANVAS_GRAPH_FIXTURE = {
   id: 'canvas.default',
   title: 'Evidence synthesis',
@@ -369,10 +440,8 @@ const CANVAS_FIXTURE = [
     relations: {},
   },
 ];
-
 const LAYOUT_TYPES = new Set(['surface', 'region', 'view-instance']);
 const RESETTABLE_STATE_TYPES = new Set([...LAYOUT_TYPES, 'proactivity-structure']);
-
 const POOLS = new Map([
   ['record', RECORDS],
   ['person', DOMAIN.filter((o) => o.type === 'person')],
@@ -412,7 +481,6 @@ function resetLayoutPools() {
 function resetDomainPools() {
   POOLS.set('mention-candidate', cloneMentionCandidates());
 }
-
 function upsertLayoutObject(type, id, properties) {
   const pool = POOLS.get(type);
   if (!pool) return null;
@@ -518,6 +586,63 @@ function runQuery(query) {
   };
 }
 
+function graphqlFixture(query, variables, tenant) {
+  if (query.includes('CommonPlaceConsolePluginState')) {
+    const installed = pluginState(tenant) === 'installed' ? [installedPlugin()] : [];
+    return { data: { installedApps: installed, pendingApps: [] } };
+  }
+  if (query.includes('ConsentCommonPlaceConsole')) {
+    CONSOLE_PLUGIN_STATES.set(tenant, 'installed');
+    return {
+      data: {
+        consentApp: {
+          appId: 'commonplace.console',
+          toolsAdded: [],
+          seedsCreated: [],
+          contributions: [pluginContribution()],
+          grants: ['corpus:read'],
+        },
+      },
+    };
+  }
+  if (query.includes('DenyCommonPlaceConsole')) {
+    CONSOLE_PLUGIN_STATES.set(tenant, 'denied');
+    return {
+      data: {
+        denyApp: {
+          appId: 'commonplace.console',
+          draftNodeId: 'fixture:commonplace.console',
+          draftRemoved: true,
+          contributionsRemoved: 1,
+          grantsDeclined: ['corpus:read'],
+        },
+      },
+    };
+  }
+  if (query.includes('UninstallCommonPlaceConsole')) {
+    CONSOLE_PLUGIN_STATES.set(tenant, 'available');
+    return {
+      data: {
+        uninstallApp: {
+          appId: 'commonplace.console',
+          toolsRemoved: [],
+          seedsTombstoned: [],
+          contributionsRemoved: 1,
+        },
+      },
+    };
+  }
+  if (query.includes('CommonPlaceConsoleSnapshot')) {
+    return pluginState(tenant) === 'installed'
+      ? { data: consoleGraphqlProjection(variables) }
+      : { errors: [{ message: 'corpus_read_grant_required' }] };
+  }
+  if (query.includes('itemsByKind')) {
+    return { data: { itemsByKind: MEMORIES } };
+  }
+  return { errors: [{ message: 'unsupported query' }] };
+}
+
 const server = createServer((request, response) => {
   const key = request.headers['x-api-key'];
   const authorization = request.headers.authorization;
@@ -548,6 +673,12 @@ const server = createServer((request, response) => {
     resetDomainPools();
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ ok: true, note: 'domain fixtures restored' }));
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/objects/test/reset-console-plugin') {
+    CONSOLE_PLUGIN_STATES.clear();
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, note: 'console plugin state cleared' }));
     return;
   }
   if (request.url === '/mcp') {
@@ -607,9 +738,8 @@ const server = createServer((request, response) => {
         if (
           rpc.method !== 'tools/call'
           || request.headers['mcp-session-id'] !== MCP_SESSION_ID
-          || name !== 'graphql_query'
+          || (name !== 'graphql_query' && name !== 'graphql_mutate')
           || typeof query !== 'string'
-          || !query.includes('itemsByKind')
         ) {
           response.writeHead(200, { 'Content-Type': 'application/json' });
           response.end(JSON.stringify({
@@ -619,14 +749,14 @@ const server = createServer((request, response) => {
           }));
           return;
         }
+        const tenant = String(request.headers['x-theorem-tenant']);
+        const variables = rpc.params?.arguments?.variables ?? {};
         response.writeHead(200, { 'Content-Type': 'application/json' });
         response.end(JSON.stringify({
           jsonrpc: '2.0',
           id: rpc.id ?? null,
           result: {
-            structuredContent: {
-              data: { itemsByKind: MEMORIES },
-            },
+            structuredContent: graphqlFixture(query, variables, tenant),
           },
         }));
       } catch (error) {
@@ -647,13 +777,17 @@ const server = createServer((request, response) => {
       body += chunk;
     });
     request.on('end', () => {
-      if (!body.includes('itemsByKind')) {
+      try {
+        const payload = JSON.parse(body);
+        const tenant = String(request.headers['x-theorem-tenant']);
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify(
+          graphqlFixture(String(payload.query ?? ''), payload.variables ?? {}, tenant),
+        ));
+      } catch (error) {
         response.writeHead(400, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ errors: [{ message: 'unsupported query' }] }));
-        return;
+        response.end(JSON.stringify({ error: String(error) }));
       }
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end(JSON.stringify({ data: { itemsByKind: MEMORIES } }));
     });
     return;
   }

@@ -368,6 +368,11 @@ body {
   width: var(--ij-dialog-width);
 }
 
+.your-data-consent-content {
+  top: var(--ij-dialog-inset-top);
+  width: var(--ij-dialog-width);
+}
+
 /* Island gutter: transparent ground, thin accent mid-line on hover/drag. */
 [data-panel-seam] {
   position: relative;
