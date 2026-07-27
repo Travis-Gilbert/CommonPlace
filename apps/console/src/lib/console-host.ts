@@ -22,7 +22,14 @@ import type {
 } from '@commonplace/block-view/types';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
-import { RECORD_FIELDS, seedCodeFiles, seedDocs, seedLayout, WORKSPACE_SURFACE_ID } from './workspace-seed';
+import {
+  CONSOLE_DATA_SURFACE_ID,
+  RECORD_FIELDS,
+  seedCodeFiles,
+  seedDocs,
+  seedLayout,
+  WORKSPACE_SURFACE_ID,
+} from './workspace-seed';
 import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
@@ -72,6 +79,12 @@ const LAYOUT_QUERY: ObjectQuery = {
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
   page: { limit: 500 },
 };
+
+const LEGACY_CONSOLE_LAYOUT_IDS = [
+  CONSOLE_DATA_SURFACE_ID,
+  'console-data.region-editor',
+  'console-data.vi-pane',
+] as const;
 
 const RETIRED_SEED_VIEW_ROOTS = [
   'view-chat',
@@ -199,7 +212,6 @@ function topicIdFromSurveyQuery(query: ObjectQuery): string | undefined {
   }
   return undefined;
 }
-
 function compareValues(a: JsonValue | undefined, b: JsonValue | undefined): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
   return String(a ?? '').localeCompare(String(b ?? ''));
@@ -223,22 +235,40 @@ export class ConsoleBlockHost implements BlockHost {
   readonly tokens: ThemeTokens = INTUI_TOKENS;
 
   private layout = new Map<string, MutableLayout>();
+
   private records: ObjectRef[] | null;
+
   private docs: ObjectRef[];
+
   private codeFiles: ObjectRef[];
+
   private cardTemplates: ObjectRef[];
+
   private consoleLocalObjects: ObjectRef[] = [];
+
   private surveyObjects: ObjectRef[];
+
   private modelMetadata: ObjectRef[] = [];
+
   private modelMetadataSeq = 0;
+
   private layoutSubs = new Set<() => void>();
+
   private domainSubs = new Set<() => void>();
+
   private registry: Registry;
+
   private http: HttpBlockHost;
+
   private observer: TransportObserver | undefined;
+
   private proactivity: ProactivityStore;
+
   private canvas: CanvasStore;
+
   private seedLayoutTask: Promise<void> | null = null;
+
+  private activationWriteQueue: Promise<void> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
     this.registry = registry;
@@ -298,7 +328,7 @@ export class ConsoleBlockHost implements BlockHost {
     const restored = readLayoutCache();
     const seed = seedLayout();
     const cleanedRestored = restored ? retireSeedViewObjects(restored) : null;
-    const retiredLegacySeeds = restored !== null && cleanedRestored?.length !== restored.length;
+    const retiredSeedViews = restored !== null && cleanedRestored?.length !== restored.length;
     const needsIaMigration =
       cleanedRestored !== null && !cleanedRestored.some((object) => object.id === 'console-chat');
     const objects = needsIaMigration ? seed : (cleanedRestored ?? seed);
@@ -311,7 +341,22 @@ export class ConsoleBlockHost implements BlockHost {
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
     if (restored && !needsIaMigration) {
-      let added = retiredLegacySeeds;
+      let added = retiredSeedViews;
+      // Console 1.0 originally seeded the plugin pane unconditionally. Remove
+      // that legacy revision so only an authenticated consent receipt can
+      // mount the plugin-managed revision 2 surface.
+      const legacyConsole = this.layout.get(CONSOLE_DATA_SURFACE_ID);
+      if (
+        legacyConsole?.properties.seed_revision === 1 &&
+        legacyConsole.properties.plugin_id !== 'commonplace.console'
+      ) {
+        const legacyIds = new Set<string>(LEGACY_CONSOLE_LAYOUT_IDS);
+        for (const id of legacyIds) this.layout.delete(id);
+        for (const candidate of this.layout.values()) {
+          candidate.children = candidate.children.filter((id) => !legacyIds.has(id));
+        }
+        added = true;
+      }
       for (const seeded of seed) {
         if (!this.layout.has(seeded.id)) {
           this.layout.set(seeded.id, toMutable(seeded));
@@ -363,6 +408,21 @@ export class ConsoleBlockHost implements BlockHost {
       const stripeTray = this.layout.get('cards.region-stripe-tray');
       if (stripeTray && stripeTray.properties.companion !== 'stripe-tray') {
         stripeTray.properties.companion = 'stripe-tray';
+        added = true;
+      }
+      // Console 1.0: Index settings is chrome-level configuration. Its Your
+      // data entry must not wait for, or disappear with, the record transport.
+      const indexRules = this.layout.get('index.vi-rules');
+      const indexRulesQuery = indexRules?.properties.query;
+      if (
+        indexRules &&
+        indexRulesQuery &&
+        typeof indexRulesQuery === 'object' &&
+        !Array.isArray(indexRulesQuery) &&
+        JSON.stringify(indexRulesQuery) !== JSON.stringify({ types: ['surface'] })
+      ) {
+        indexRules.properties.query = { types: ['surface'] };
+        indexRules.properties.seed_revision = 2;
         added = true;
       }
       // SB3: landmarks are global frame chrome, not a child of one surface.
@@ -418,15 +478,16 @@ export class ConsoleBlockHost implements BlockHost {
     }
     this.persistLayout();
     this.notifyLayout();
-    await this.writeThroughLayoutUpdates(
-      [...this.layout.values()]
-        .filter((node) => node.type === 'surface')
-        .map((node) => ({
-          kind: 'update' as const,
-          id: node.id,
-          patch: { active: node.id === surfaceId },
-        })),
-    );
+    const actions = [...this.layout.values()]
+      .filter((node) => node.type === 'surface')
+      .map((node) => ({
+        kind: 'update' as const,
+        id: node.id,
+        patch: { active: node.id === surfaceId },
+      }));
+    const write = this.activationWriteQueue.then(() => this.writeThroughLayoutUpdates(actions));
+    this.activationWriteQueue = write.catch(() => undefined);
+    await write;
     return true;
   }
 
@@ -478,12 +539,41 @@ export class ConsoleBlockHost implements BlockHost {
   private async ensureSeedLayoutOnce(): Promise<void> {
     try {
       const remote = await this.http.query(LAYOUT_QUERY);
-      const retired = remote.objects.filter((object) => isRetiredSeedViewObject(object.id));
-      const durable = retireSeedViewObjects(remote.objects);
+      const retiredViewIds = new Set(
+        remote.objects
+          .filter((object) => isRetiredSeedViewObject(object.id))
+          .map((object) => object.id),
+      );
+      const withoutSeedViews = retireSeedViewObjects(remote.objects);
+      const legacyConsole = withoutSeedViews.find(
+        (object) => object.id === CONSOLE_DATA_SURFACE_ID,
+      );
+      const removeLegacyConsole =
+        legacyConsole?.properties.seed_revision === 1 &&
+        legacyConsole.properties.plugin_id !== 'commonplace.console';
+      const retiredIds = new Set<string>([
+        ...retiredViewIds,
+        ...(removeLegacyConsole ? LEGACY_CONSOLE_LAYOUT_IDS : []),
+      ]);
+      const durable = withoutSeedViews
+        .filter((object) => !retiredIds.has(object.id))
+        .map((object) => ({
+          ...object,
+          relations: object.relations
+            ? Object.fromEntries(
+                Object.entries(object.relations).map(([edge, children]) => [
+                  edge,
+                  children.filter((id) => !retiredIds.has(id)),
+                ]),
+              )
+            : undefined,
+        }));
       const hasPrimarySurface = durable.some((object) => object.id === 'console-chat');
       const hasLandmarks = durable.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        await this.retireRemoteSeedViews(retired);
+        await this.retireRemoteLayoutObjects(
+          remote.objects.filter((object) => retiredIds.has(object.id)),
+        );
         this.replaceLayout(durable);
         return;
       }
@@ -493,7 +583,7 @@ export class ConsoleBlockHost implements BlockHost {
     }
   }
 
-  private async retireRemoteSeedViews(retired: readonly ObjectRef[]): Promise<void> {
+  private async retireRemoteLayoutObjects(retired: readonly ObjectRef[]): Promise<void> {
     const ordered = [...retired].sort(
       (left, right) => right.id.length - left.id.length,
     );

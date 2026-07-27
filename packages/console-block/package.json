@@ -1,0 +1,25 @@
+{
+  "name": "@commonplace/console-block",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./door": "./src/door.ts",
+    "./fixture-layout": "./src/fixture-layout.ts",
+    "./graphql": "./src/graphql.ts",
+    "./plugin": "./src/plugin.ts",
+    "./types": "./src/types.ts",
+    "./wasm-fixture": "./src/wasm-fixture.ts"
+  },
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.6"
+  }
+}
