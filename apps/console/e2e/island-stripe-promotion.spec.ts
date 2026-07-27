@@ -1,7 +1,16 @@
 // SOURCING: @playwright/test. Ground to rail round-trip with stable receipts.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { resetLocalStorageBeforeNavigation } from './storage-reset';
+
+const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
+
+async function resetStubLayout(request: APIRequestContext) {
+  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
+    headers: { 'x-api-key': 'dev-key' },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
@@ -62,7 +71,8 @@ async function dragBlockToPlacement(page: Page, viewInstanceId: string, kind: st
 }
 
 test.describe('block rail placement', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetStubLayout(request);
     await freshLoad(page);
   });
 

@@ -350,7 +350,11 @@ test.describe('cards, actions, mentions', () => {
         .getByLabel('Record inspector')
         .locator('[data-card="compact"]')
         .filter({ hasText: 'PorchFest 2026' }),
-    ).toHaveScreenshot('card-compact-inspector.png', { maxDiffPixelRatio: 0.02 });
+    ).toHaveScreenshot('card-compact-inspector.png', {
+      maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+      animations: 'disabled',
+    });
 
     await page.locator('[data-inspector-action]').click();
     const sheet = page.locator('[data-action-sheet]');

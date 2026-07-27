@@ -17,6 +17,7 @@ process.env.CONSOLE_E2E_PORT = String(consolePort);
 // reduced-motion pass. Snapshots block merge through console-ci.yml.
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   timeout: 120000,
   retries: 0,
   // The deterministic upstream fixture is mutable and serves multi-megabyte
