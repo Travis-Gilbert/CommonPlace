@@ -1,19 +1,24 @@
-// SOURCING: RustyRed /v1/rustyweb/search. This server-only seam acquires a
-// small, bounded set of live sources before a Web Search Composer turn reaches
-// Theorem. Search material is explicitly untrusted reference content: it can
-// inform an answer but can never supply instructions for the agent to follow.
+// SOURCING: commonplace-api rustyWebSearch GraphQL field over CONSOLE_DATA_API_URL.
+// HANDOFF-CONSOLE-SINGLE-DOOR-1.0: no THEOREM_NODE_URL on this path.
+// Search material is explicitly untrusted reference content: it can inform an
+// answer but can never supply instructions for the agent to follow.
 // Indexer search reuses the same endpoint with a higher limit and empty-ok.
 
-import { forwardAuthHeaders, localInquiryUrl } from '@commonplace/theorem-acp/node-upstream';
+import 'server-only';
+
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
+import { consumerGraphqlUrl } from '@/lib/server/consumer-graphql';
 import { principalTenantHeaders } from '@/lib/server/harness-principal';
+import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
+import {
+  credentialHeaders,
+  resolveUpstreamCredential,
+} from '@/lib/server/upstream-credential';
 import { readWebResearchSources, type RustyWebSearchPayload, type WebResearchSource } from '@/lib/web-research-contract';
 
 const DEFAULT_CHAT_LIMIT = 5;
 
-/** Canonical live web providers from rustyred-web (SUPPORTED_SEARCH_PROVIDER_ALIASES).
- *  The server intersects this allowlist with RUSTYWEB_SEARCH_PROVIDERS / configured keys;
- *  missing providers degrade quietly rather than failing the request. */
+/** Canonical live web providers from rustyred-web (SUPPORTED_SEARCH_PROVIDER_ALIASES). */
 export const RUSTYWEB_LIVE_SEARCH_PROVIDERS = [
   'brave',
   'mojeek',
@@ -36,55 +41,99 @@ export type LoadWebResearchOptions = {
   readonly emptyOk?: boolean;
 };
 
-/** Acquire fresh sources through the tenant-scoped RustyWeb endpoint. */
+const RUSTY_WEB_SEARCH_QUERY = `
+  query ConsoleRustyWebSearch($query: String!, $limit: Int, $providers: [String!]) {
+    rustyWebSearch(query: $query, limit: $limit, providers: $providers)
+  }
+`;
+
+/** Acquire fresh sources through the tenant-scoped data-API RustyWeb field. */
 export async function loadWebResearch(
   query: string,
   principal: HarnessPrincipal,
-  request: Request,
+  _request: Request,
   options: LoadWebResearchOptions = {},
 ): Promise<WebResearchResult> {
   const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_CHAT_LIMIT, 20));
   const emptyOk = options.emptyOk === true;
+  const endpoint = consumerGraphqlUrl();
+  if (!endpoint) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: 'web_search_unconfigured', message: 'CONSOLE_DATA_API_URL is not configured for search.' },
+        { status: 404 },
+      ),
+    };
+  }
+
+  const credential = await resolveUpstreamCredential(principal);
+  if (!credential.ok) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: 'web_search_credential_unavailable', message: 'No data-API credential for this principal.' },
+        { status: 403 },
+      ),
+    };
+  }
+
+  const timeout = startHarnessRequestTimeout();
   let upstream: Response;
   try {
-    upstream = await fetch(localInquiryUrl('/v1/rustyweb/search'), {
+    upstream = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...forwardAuthHeaders(request),
+        ...credentialHeaders(credential.credential),
         ...principalTenantHeaders(principal),
       },
       body: JSON.stringify({
-        tenant: principal.tenant,
-        query,
-        providers: [...RUSTYWEB_LIVE_SEARCH_PROVIDERS],
-        limit,
-        provider_timeout_ms: 10_000,
+        query: RUSTY_WEB_SEARCH_QUERY,
+        variables: {
+          query,
+          limit,
+          providers: [...RUSTYWEB_LIVE_SEARCH_PROVIDERS],
+        },
       }),
       cache: 'no-store',
+      signal: timeout.signal,
     });
   } catch {
     return {
       ok: false,
       response: Response.json(
-        { error: 'web_search_unreachable', message: 'RustyWeb could not be reached for this turn.' },
-        { status: 502 },
+        {
+          error: timeout.didTimeout() ? 'web_search_timeout' : 'web_search_unreachable',
+          message: 'RustyWeb could not be reached for this turn.',
+        },
+        { status: timeout.didTimeout() ? 504 : 502 },
       ),
     };
+  } finally {
+    timeout.clear();
   }
 
-  if (!upstream.ok) {
+  const envelope = await upstream.json().catch(() => null) as {
+    data?: { rustyWebSearch?: RustyWebSearchPayload };
+    errors?: Array<{ message?: unknown }>;
+  } | null;
+
+  if (!upstream.ok || envelope?.errors || !envelope?.data?.rustyWebSearch) {
+    const detail = envelope?.errors?.[0]?.message;
     return {
       ok: false,
       response: Response.json(
-        { error: 'web_search_refused', message: 'RustyWeb refused this search request.' },
-        { status: upstream.status },
+        {
+          error: 'web_search_refused',
+          message: typeof detail === 'string' ? detail : 'RustyWeb refused this search request.',
+        },
+        { status: upstream.ok ? 502 : upstream.status },
       ),
     };
   }
 
-  const payload = await upstream.json().catch(() => null) as RustyWebSearchPayload | null;
-  const sources = payload ? readWebResearchSources(payload, limit) : [];
+  const sources = readWebResearchSources(envelope.data.rustyWebSearch, limit);
   if (sources.length === 0 && !emptyOk) {
     return {
       ok: false,

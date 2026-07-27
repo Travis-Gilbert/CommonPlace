@@ -1,15 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { callHarnessGraphqlMock } = vi.hoisted(() => ({
-  callHarnessGraphqlMock: vi.fn(),
+const {
+  resolveHarnessPrincipalMock,
+  resolveUpstreamCredentialMock,
+  fetchMock,
+} = vi.hoisted(() => ({
+  resolveHarnessPrincipalMock: vi.fn(),
+  resolveUpstreamCredentialMock: vi.fn(),
+  fetchMock: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
-vi.mock('@/lib/server/harness-graphql', () => ({
-  callHarnessGraphql: callHarnessGraphqlMock,
+vi.mock('@/lib/server/harness-principal', () => ({
+  resolveHarnessPrincipal: resolveHarnessPrincipalMock,
+  principalTenantHeaders: () => ({ 'x-theorem-tenant': 'Travis-Gilbert' }),
+}));
+vi.mock('@/lib/server/upstream-credential', () => ({
+  resolveUpstreamCredential: resolveUpstreamCredentialMock,
+  credentialHeaders: () => ({ 'x-api-key': 'test-key' }),
+}));
+vi.mock('@/lib/server/consumer-graphql', () => ({
+  consumerGraphqlUrl: () => 'https://data.example/graphql',
+}));
+vi.mock('@/lib/server/harness-timeout', () => ({
+  startHarnessRequestTimeout: () => ({
+    signal: undefined,
+    didTimeout: () => false,
+    clear: () => undefined,
+  }),
 }));
 
-import { readIndexerObjects, readIndexerPreviewAsset } from './indexer-harness';
+import { readIndexerObjects } from './indexer-harness';
 
 const principal = {
   tenant: 'Travis-Gilbert',
@@ -18,30 +39,43 @@ const principal = {
 };
 
 beforeEach(() => {
-  callHarnessGraphqlMock.mockReset();
+  resolveHarnessPrincipalMock.mockReset();
+  resolveUpstreamCredentialMock.mockReset();
+  fetchMock.mockReset();
+  vi.stubGlobal('fetch', fetchMock);
+  resolveHarnessPrincipalMock.mockResolvedValue({ ok: true, principal });
+  resolveUpstreamCredentialMock.mockResolvedValue({
+    ok: true,
+    credential: { kind: 'service', key: 'test-key' },
+  });
 });
 
-describe('Indexer Harness GraphQL transport', () => {
-  it('reads Indexer objects through the shared MCP GraphQL door', async () => {
-    callHarnessGraphqlMock.mockResolvedValue({
+describe('Indexer consumer GraphQL transport', () => {
+  it('reads Indexer objects through CONSOLE_DATA_API GraphQL', async () => {
+    fetchMock.mockResolvedValue({
       ok: true,
-      principal,
-      data: {
-        topicIndexerObjects: {
-          objects: [{
-            id: 'topic:one',
-            type: 'topic',
-            properties: { title: 'One' },
-          }],
+      status: 200,
+      json: async () => ({
+        data: {
+          topicIndexerObjects: {
+            objects: [{
+              id: 'topic:one',
+              type: 'topic',
+              properties: { title: 'One' },
+            }],
+          },
         },
-      },
+      }),
     });
 
     const result = await readIndexerObjects({ topicId: 'one' });
 
-    expect(callHarnessGraphqlMock).toHaveBeenCalledWith(
-      expect.stringContaining('topicIndexerObjects'),
-      { topicId: 'one', includeCaptures: true },
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://data.example/graphql',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('topicIndexerObjects'),
+      }),
     );
     expect(result).toEqual({
       ok: true,
@@ -54,38 +88,17 @@ describe('Indexer Harness GraphQL transport', () => {
     });
   });
 
-  it('decodes an allowlisted preview returned through MCP GraphQL', async () => {
-    callHarnessGraphqlMock.mockResolvedValue({
-      ok: true,
-      principal,
-      data: {
-        topicPreviewAsset: {
-          content_type: 'image/png',
-          bytes_base64: 'aGk=',
-        },
-      },
-    });
-
-    const result = await readIndexerPreviewAsset('0a');
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.contentType).toBe('image/png');
-      expect([...result.bytes]).toEqual([104, 105]);
-    }
-  });
-
-  it('maps shared transport failures to the Indexer vocabulary', async () => {
-    callHarnessGraphqlMock.mockResolvedValue({
+  it('maps transport failures to the Indexer vocabulary', async () => {
+    fetchMock.mockResolvedValue({
       ok: false,
       status: 504,
-      error: 'harness_graphql_timeout',
+      json: async () => ({ errors: [{ message: 'timeout' }] }),
     });
 
     await expect(readIndexerObjects({})).resolves.toEqual({
       ok: false,
       status: 504,
-      error: 'indexer_graphql_timeout',
+      error: 'timeout',
     });
   });
 });
