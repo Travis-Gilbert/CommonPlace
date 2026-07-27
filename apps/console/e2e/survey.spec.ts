@@ -244,7 +244,7 @@ test.describe('Indexer research surface', () => {
         marker.getAttribute('data-edge-to'),
       ]).filter((id): id is string => Boolean(id))
     ))));
-    let sourceBounds: { x: number; y: number; width: number; height: number } | null = null;
+    let sourceTarget: { captureId: string; x: number; y: number } | null = null;
     for (let index = 0; index < await spatialSources.count(); index += 1) {
       const captureId = await spatialSources.nth(index).getAttribute('data-capture-id');
       if (!captureId || !connectedCaptureIds.has(captureId)) continue;
@@ -253,16 +253,31 @@ test.describe('Indexer research surface', () => {
       const centerX = bounds.x + bounds.width / 2;
       const centerY = bounds.y + bounds.height / 2;
       if (centerX > 80 && centerX < 1000 && centerY > 150 && centerY < 800) {
-        sourceBounds = bounds;
-        break;
+        await page.mouse.move(centerX, centerY);
+        const focused = await page.waitForFunction(
+          (expectedId) => Array.from(
+            document.querySelectorAll('[data-capture-id][data-spatial="true"]'),
+          ).some((node) => (
+            node.getAttribute('data-capture-id') === expectedId
+            && node.getAttribute('data-focus') === 'focused'
+          )),
+          captureId,
+          { timeout: 1_000 },
+        ).then(() => true, () => false);
+        if (focused) {
+          sourceTarget = { captureId, x: centerX, y: centerY };
+          break;
+        }
       }
     }
-    expect(sourceBounds).not.toBeNull();
-    if (sourceBounds) {
-      await page.mouse.move(
-        sourceBounds.x + sourceBounds.width / 2,
-        sourceBounds.y + sourceBounds.height / 2,
-      );
+    expect(sourceTarget).not.toBeNull();
+    if (sourceTarget) {
+      await page.mouse.move(sourceTarget.x, sourceTarget.y);
+      await expect(
+        page.locator(
+          `[data-capture-id="${sourceTarget.captureId}"][data-spatial="true"]`,
+        ),
+      ).toHaveAttribute('data-focus', 'focused');
       await expect(page.locator('[data-capture-id][data-spatial="true"][data-focus="focused"]')).toHaveCount(1);
       await expect(page.locator('[data-capture-id][data-spatial="true"][data-focus="dimmed"]').first()).toBeVisible();
       const activeEdge = page.locator('[data-edge-active="true"]').first();
@@ -280,10 +295,7 @@ test.describe('Indexer research surface', () => {
         await page.mouse.move(60, 800);
         await expect(pinnedEdge).toHaveCount(1);
       }
-      await page.mouse.click(
-        sourceBounds.x + sourceBounds.width / 2,
-        sourceBounds.y + sourceBounds.height / 2,
-      );
+      await page.mouse.click(sourceTarget.x, sourceTarget.y);
     }
     await expect(page.locator('[data-survey-layout="open"]')).toBeVisible();
     await page.getByRole('button', { name: 'Back to Indexer' }).click();

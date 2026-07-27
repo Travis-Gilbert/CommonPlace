@@ -12,6 +12,7 @@ import {
   principalTenantHeaders,
   resolveHarnessPrincipal,
 } from '@/lib/server/harness-principal';
+import { principalRequiresScopedObjectConsumer } from '@/lib/harness-principal-core';
 import {
   credentialHeaders,
   credentialRefusalResponse,
@@ -40,6 +41,17 @@ export function upstreamKey(): string {
 export async function forward(path: string, init: RequestInit): Promise<Response> {
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) return resolution.response;
+
+  if (principalRequiresScopedObjectConsumer(resolution.principal)) {
+    return Response.json(
+      {
+        error: 'workspace_object_scope_unenforced',
+        message:
+          'Workspace objects remain unavailable until the data API enforces the selected workspace and scope reference.',
+      },
+      { status: 503 },
+    );
+  }
 
   const credential = await resolveUpstreamCredential(resolution.principal);
   if (!credential.ok) {

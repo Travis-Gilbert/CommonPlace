@@ -15,7 +15,6 @@ import type { BlockHost } from '@commonplace/block-view/types';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { HostProvider } from '@/lib/commonplace-host/HostProvider';
 import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
-import { FIXTURE_TENANT } from '@/lib/proactivity/fixtures';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useShellStore } from '@/lib/shell-store';
 import type { ConnectionState } from '@/lib/state/shell-state';
@@ -223,7 +222,13 @@ function RuntimeTree({
   );
 }
 
-export function ChatPage({ threadId }: { threadId?: string }) {
+export function ChatPage({
+  threadId,
+  tenant,
+}: {
+  readonly threadId?: string;
+  readonly tenant?: string | null;
+}) {
   const router = useRouter();
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const connection = useShellStore((state) => state.connection);
@@ -239,12 +244,12 @@ export function ChatPage({ threadId }: { threadId?: string }) {
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
-            proactivityTenant: FIXTURE_TENANT,
+            proactivityTenant: tenant ?? null,
             onTransport: (status, error) =>
               useShellStore.getState().setConnection(connectionFor(status, error)),
           })
         : null,
-    [mounted],
+    [mounted, tenant],
   );
 
   const queryObjects = useMemo(() => {

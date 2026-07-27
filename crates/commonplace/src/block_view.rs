@@ -7,7 +7,10 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use rustyred_thg_core::{EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult, NeighborQuery};
+use rustyred_thg_core::{
+    EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult, GraphVectorPayloadAccess,
+    NeighborQuery,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
@@ -467,6 +470,9 @@ pub struct ObjectPointer {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+// Keep protocol constructors aligned with their unboxed JSON shapes. These
+// values cross action boundaries and are not stored in dense hot-path arrays.
+#[allow(clippy::large_enum_variant)]
 pub enum ObjectActionTarget {
     Object(ObjectPointer),
     Query(ObjectQuery),
@@ -483,6 +489,9 @@ pub struct JobSpec {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+// Keep the public Rust action API aligned with the tagged wire contract.
+// Boxing only RunAgent would add caller churn without changing serialization.
+#[allow(clippy::large_enum_variant)]
 pub enum ObjectAction {
     Create {
         #[serde(rename = "type")]
@@ -850,7 +859,7 @@ where
 
 impl<S, B> BlockHost for CommonplaceBlockHost<'_, S, B>
 where
-    S: GraphStore,
+    S: GraphStore + GraphVectorPayloadAccess,
     B: BlobStore,
 {
     fn query(&self, query: ObjectQuery) -> GraphStoreResult<ObjectSet> {
@@ -876,12 +885,15 @@ where
     S: GraphStore,
     B: BlobStore,
 {
-    pub fn query_object_set(&self, query: ObjectQuery) -> GraphStoreResult<ObjectSet> {
+    pub fn query_object_set(&self, query: ObjectQuery) -> GraphStoreResult<ObjectSet>
+    where
+        S: GraphVectorPayloadAccess,
+    {
         let mut items = self.items_for_query_types(&query.types)?;
         if let Some(predicate) = &query.where_clause {
             items.retain(|item| predicate_matches_item(self, item, predicate));
         }
-        let note = self.rank_items(&mut items, &query.rank);
+        let note = self.rank_items(&mut items, &query.rank)?;
 
         let total = items.len();
         let start = query
@@ -1056,12 +1068,13 @@ where
                 // edge. The edge id is deterministic from (edge, from, to),
                 // so no traversal is needed to find it.
                 let edge_id = object_edge_id(&edge, &from, &to);
-                let mut edge_record = self.store().get_edge(&edge_id).cloned().ok_or_else(|| {
-                    GraphStoreError::new(
-                        "commonplace_edge_missing",
-                        format!("edge not found: {edge_id}"),
-                    )
-                })?;
+                let mut edge_record =
+                    self.store().get_edge(&edge_id).cloned().ok_or_else(|| {
+                        GraphStoreError::new(
+                            "commonplace_edge_missing",
+                            format!("edge not found: {edge_id}"),
+                        )
+                    })?;
                 let already_detached = is_detached(&edge_record.properties);
                 let inverse = if already_detached {
                     None
@@ -1238,7 +1251,10 @@ where
     /// exact; the previously-dead VectorKnn / Fulltext / Graph rankers now score
     /// in-memory. Returns an optional note for the ObjectSet note channel when a
     /// hybrid ranker used the fallback path.
-    fn rank_items(&self, items: &mut [Item], rankers: &[Ranker]) -> Option<String> {
+    fn rank_items(&self, items: &mut [Item], rankers: &[Ranker]) -> GraphStoreResult<Option<String>>
+    where
+        S: GraphVectorPayloadAccess,
+    {
         let mut note = None;
         for ranker in rankers.iter().rev() {
             match ranker {
@@ -1260,7 +1276,7 @@ where
                     note = Some(planner_fallback_note("fulltext"));
                 }
                 Ranker::VectorKnn { vector, .. } => {
-                    let scores = vector_scores(items, vector);
+                    let scores = self.vector_scores(items, vector)?;
                     sort_by_score(items, &scores);
                     note = Some(planner_fallback_note("vector_knn"));
                 }
@@ -1275,7 +1291,27 @@ where
                 }
             }
         }
-        note
+        Ok(note)
+    }
+
+    fn vector_scores(
+        &self,
+        items: &[Item],
+        vector: &[f32],
+    ) -> GraphStoreResult<BTreeMap<String, f64>>
+    where
+        S: GraphVectorPayloadAccess,
+    {
+        let mut scores = BTreeMap::new();
+        for item in items {
+            let score = self
+                .resolve_item_embedding(item)?
+                .as_deref()
+                .map(|embedding| cosine_similarity(embedding, vector))
+                .unwrap_or(f64::MIN);
+            scores.insert(item.id.clone(), score);
+        }
+        Ok(scores)
     }
 
     /// Score items by proximity to `seeds` via a bounded BFS over the graph:
@@ -1611,19 +1647,6 @@ fn fulltext_scores(items: &[Item], query: &str, fields: &[String]) -> BTreeMap<S
             .iter()
             .map(|token| haystack.matches(token.as_str()).count() as f64)
             .sum();
-        scores.insert(item.id.clone(), score);
-    }
-    scores
-}
-
-fn vector_scores(items: &[Item], vector: &[f32]) -> BTreeMap<String, f64> {
-    let mut scores = BTreeMap::new();
-    for item in items {
-        let score = item
-            .embedding
-            .as_ref()
-            .map(|embedding| cosine_similarity(embedding, vector))
-            .unwrap_or(f64::MIN);
         scores.insert(item.id.clone(), score);
     }
     scores
@@ -2426,7 +2449,10 @@ mod tests {
         let vi_chip = create(
             &mut cp,
             "view-instance",
-            &[("descriptor_id", json!("chip")), ("title", json!("Attention"))],
+            &[
+                ("descriptor_id", json!("chip")),
+                ("title", json!("Attention")),
+            ],
         );
         let vi_queue = create(
             &mut cp,
@@ -2446,7 +2472,9 @@ mod tests {
         contains(&mut cp, &region_b, &vi_board, 1.0);
 
         let set = cp
-            .query_object_set(ObjectQuery::new(["surface"]).with_traverse(EdgeWalk::out(CONTAINS_EDGE)))
+            .query_object_set(
+                ObjectQuery::new(["surface"]).with_traverse(EdgeWalk::out(CONTAINS_EDGE)),
+            )
             .unwrap();
         assert_eq!(set.objects.len(), 1);
         let root = &set.objects[0];
@@ -2465,14 +2493,19 @@ mod tests {
         );
 
         // A view-instance's descriptor_id survives the round-trip.
-        let instances = cp.query_object_set(ObjectQuery::new(["view-instance"])).unwrap();
+        let instances = cp
+            .query_object_set(ObjectQuery::new(["view-instance"]))
+            .unwrap();
         let board = instances
             .objects
             .iter()
             .find(|object| object.id == vi_board)
             .unwrap();
         assert_eq!(
-            board.properties.get("descriptor_id").and_then(Value::as_str),
+            board
+                .properties
+                .get("descriptor_id")
+                .and_then(Value::as_str),
             Some("board")
         );
     }
@@ -2482,8 +2515,16 @@ mod tests {
         // OC1 acceptance: Move reorders with a single action.
         let mut cp = fresh();
         let region = create(&mut cp, "region", &[("layout", json!("stack"))]);
-        let a = create(&mut cp, "view-instance", &[("descriptor_id", json!("list"))]);
-        let b = create(&mut cp, "view-instance", &[("descriptor_id", json!("board"))]);
+        let a = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("list"))],
+        );
+        let b = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("board"))],
+        );
         contains(&mut cp, &region, &a, 1.0);
         contains(&mut cp, &region, &b, 2.0);
         assert_eq!(cp.ordered_children(&region), vec![a.clone(), b.clone()]);
@@ -2510,7 +2551,11 @@ mod tests {
         let mut cp = fresh();
         let left = create(&mut cp, "region", &[("layout", json!("stack"))]);
         let right = create(&mut cp, "region", &[("layout", json!("stack"))]);
-        let card = create(&mut cp, "view-instance", &[("descriptor_id", json!("card"))]);
+        let card = create(
+            &mut cp,
+            "view-instance",
+            &[("descriptor_id", json!("card"))],
+        );
         contains(&mut cp, &left, &card, 1.0);
         assert_eq!(cp.ordered_children(&left), vec![card.clone()]);
 
@@ -2581,11 +2626,13 @@ mod tests {
         // OC4 acceptance: a Fulltext-ranked query returns scored results and the
         // ObjectSet note channel reports the planner fallback.
         let mut cp = fresh();
-        cp.put_item(Item::note("Alpha", "the quick brown fox")).unwrap();
+        cp.put_item(Item::note("Alpha", "the quick brown fox"))
+            .unwrap();
         let target = cp
             .put_item(Item::note("Beta", "graph graph graph substrate"))
             .unwrap();
-        cp.put_item(Item::note("Gamma", "unrelated content")).unwrap();
+        cp.put_item(Item::note("Gamma", "unrelated content"))
+            .unwrap();
 
         let set = cp
             .query_object_set(ObjectQuery::new(["note"]).with_rank(Ranker::Fulltext {
@@ -2603,6 +2650,40 @@ mod tests {
             )
             .unwrap();
         assert!(plain.note.is_none());
+    }
+
+    #[test]
+    fn vector_ranker_resolves_strict_vector_payloads() {
+        let mut cp = fresh();
+        let target = cp
+            .put_item(
+                Item::note("Target", "nearest")
+                    .with_id("item:vector-target")
+                    .with_embedding(vec![1.0, 0.0]),
+            )
+            .unwrap();
+        cp.put_item(
+            Item::note("Other", "farther")
+                .with_id("item:vector-other")
+                .with_embedding(vec![0.0, 1.0]),
+        )
+        .unwrap();
+
+        let hydrated = cp.get_item(&target.id).unwrap().expect("target item");
+        assert!(
+            hydrated.embedding.is_none(),
+            "strict vector references do not hydrate into Item.embedding"
+        );
+
+        let set = cp
+            .query_object_set(ObjectQuery::new(["note"]).with_rank(Ranker::VectorKnn {
+                vector: vec![1.0, 0.0],
+                field: "embedding".to_string(),
+                k: 2,
+            }))
+            .unwrap();
+        assert_eq!(set.objects[0].id, target.id);
+        assert!(set.note.as_deref().unwrap_or("").contains("fallback"));
     }
 
     #[test]

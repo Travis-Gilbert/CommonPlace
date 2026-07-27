@@ -34,4 +34,3 @@ checkout cannot be cloned here. The executable logic lives in
 4. Call `NavigationRegistry::on_schema_declare` / `on_schema_retire` from schema registry verbs (CP3).
 5. Retrofit programs, object types, and views onto `Revisable` (CP4); leave plans alone this pass.
 6. Wire `compute_step_output_schema` and `validate_plan` into MCP verbs; fold `plan_validate` into the existing `plan_substrate.rs` validator rather than adding a second one (CP5/CP6).
-

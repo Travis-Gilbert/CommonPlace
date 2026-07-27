@@ -9,23 +9,22 @@ import { afterEach, vi } from 'vitest';
 import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { buildSurfaceTree, surfaceQuery } from '@commonplace/block-view/surface-tree';
 import { ConsoleBlockHost } from './console-host';
-import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
 import {
   activateConsoleDataSurface,
   unmountConsoleDataSurface,
 } from './console-plugin/open-console';
+import { clearLayoutCache, writeLayoutCache } from './state/layout-cache';
 import {
   CONSOLE_DATA_SURFACE_ID,
   RECORD_COUNT,
   SURFACE_ID,
+  SURVEY_SURFACE_ID,
+  SURVEY_VIEW_INSTANCE_ID,
   seedLayout,
   seedRecords,
   MODEL_SURFACE_ID,
-  SURVEY_VIEW_INSTANCE_ID,
   MODEL_VIEW_INSTANCE_ID,
-  SURVEY_SURFACE_ID,
 } from './workspace-seed';
-
 import { PLACE_ENTRIES } from './rail/rail-model';
 
 const NO_VIEWS = { matchingViews: () => [] };
@@ -79,11 +78,6 @@ describe('ConsoleBlockHost', () => {
       'console-survey',
       'console-threads',
       'console-workspace',
-      'view-chat',
-      'view-data-model',
-      'view-editor',
-      'view-index',
-      'view-researcher',
     ]);
     expect(surfaces.find((surface) => surface.properties.active === true)?.id).toBe(SURFACE_ID);
     expect(surfaces
@@ -114,6 +108,14 @@ describe('ConsoleBlockHost', () => {
       'index.region-thread',
     ]);
     expect(index!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+    const files = buildSurfaceTree('console-files', set.objects);
+    expect(files!.children.map((child) => child.object.id)).toEqual([
+      'files.region-editor',
+      'files.region-context',
+      'files.region-thread',
+    ]);
+    const threads = buildSurfaceTree('console-threads', set.objects);
+    expect(threads!.children[0]?.children[0]?.object.properties.descriptor_id).toBe('thread.list');
     expect(set.objects.some((object) => object.id === CONSOLE_DATA_SURFACE_ID)).toBe(false);
   });
 
@@ -146,6 +148,53 @@ describe('ConsoleBlockHost', () => {
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
     const models = buildSurfaceTree(MODEL_SURFACE_ID, set.objects);
     expect(models!.children[0]?.children[0]?.object.id).toBe(MODEL_VIEW_INSTANCE_ID);
+  });
+
+  it('adds missing seed surfaces to an existing server layout before adopting it', async () => {
+    const remote = seedLayout().filter(
+      (object) => object.id !== SURVEY_SURFACE_ID && !object.id.startsWith('survey.'),
+    );
+    const actionBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      if (!('kind' in body)) {
+        return Response.json({
+          objects: remote,
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [CONTAINS_EDGE],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      actionBodies.push(body);
+      return Response.json({
+        action_kind: body.kind,
+        status: 'applied',
+        target_ids: [],
+        legacy_without_op_range: true,
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    await host.ensureSeedLayout();
+
+    const migrated = host.queryLayout(surfaceQuery()).objects;
+    expect(migrated.some((object) => object.id === SURVEY_SURFACE_ID)).toBe(true);
+    expect(migrated.some((object) => object.id === SURVEY_VIEW_INSTANCE_ID)).toBe(true);
+    expect(actionBodies).toContainEqual(expect.objectContaining({
+      kind: 'create',
+      type: 'surface',
+      props: expect.objectContaining({ id: SURVEY_SURFACE_ID }),
+    }));
+    expect(actionBodies).toContainEqual(expect.objectContaining({
+      kind: 'move',
+      id: SURVEY_VIEW_INSTANCE_ID,
+      new_parent: 'survey.region-editor',
+    }));
   });
 
   it('serves a topic-scoped Survey corpus through one ObjectQuery', async () => {
@@ -390,6 +439,140 @@ describe('ConsoleBlockHost', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('/api/objects/query');
     expect(fetchMock.mock.calls[1][0]).toBe('/api/objects/action');
+  });
+
+  it('retries refused remote deletes before adopting a retired layout', async () => {
+    let deleteAttempts = 0;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        id?: string;
+      };
+      if (!body.kind) {
+        return Response.json({
+          objects: [
+            { id: 'console-chat', type: 'surface', properties: { name: 'Chat' } },
+            {
+              id: 'console.region-landmarks',
+              type: 'region',
+              properties: { kind: 'landmarks' },
+            },
+            { id: 'view-chat', type: 'view-instance', properties: {} },
+          ],
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      deleteAttempts += 1;
+      if (deleteAttempts === 1) {
+        return Response.json({ error: 'temporary refusal' }, { status: 503 });
+      }
+      return Response.json({
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: [body.id],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    await host.ensureSeedLayout();
+
+    expect(deleteAttempts).toBe(2);
+    expect(
+      host.queryLayout(surfaceQuery()).objects.some((object) => object.id === 'view-chat'),
+    ).toBe(false);
+    const deleteBodies = fetchMock.mock.calls
+      .slice(1)
+      .map(([, init]) => JSON.parse(String(init?.body ?? '{}')));
+    expect(deleteBodies).toEqual([
+      { kind: 'delete', id: 'view-chat' },
+      { kind: 'delete', id: 'view-chat' },
+    ]);
+  });
+
+  it('retires the legacy unconsented Console pane without dangling layout edges', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        kind?: string;
+        id?: string;
+      };
+      if (!body.kind) {
+        return Response.json({
+          objects: [
+            {
+              id: 'console-chat',
+              type: 'surface',
+              properties: { name: 'Chat' },
+              relations: {
+                [CONTAINS_EDGE]: [CONSOLE_DATA_SURFACE_ID, 'view-chat'],
+              },
+            },
+            {
+              id: 'console.region-landmarks',
+              type: 'region',
+              properties: { kind: 'landmarks' },
+            },
+            {
+              id: CONSOLE_DATA_SURFACE_ID,
+              type: 'surface',
+              properties: { seed_revision: 1 },
+              relations: { [CONTAINS_EDGE]: ['console-data.region-editor'] },
+            },
+            {
+              id: 'console-data.region-editor',
+              type: 'region',
+              properties: {},
+              relations: { [CONTAINS_EDGE]: ['console-data.vi-pane'] },
+            },
+            {
+              id: 'console-data.vi-pane',
+              type: 'view-instance',
+              properties: {},
+            },
+            { id: 'view-chat', type: 'view-instance', properties: {} },
+          ],
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      return Response.json({
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: body.id ? [body.id] : [],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const host = new ConsoleBlockHost(NO_VIEWS);
+
+    await host.ensureSeedLayout();
+
+    const objects = host.queryLayout(surfaceQuery()).objects;
+    const retiredIds = new Set([
+      CONSOLE_DATA_SURFACE_ID,
+      'console-data.region-editor',
+      'console-data.vi-pane',
+      'view-chat',
+    ]);
+    expect(objects.some((object) => retiredIds.has(object.id))).toBe(false);
+    expect(
+      objects.find((object) => object.id === 'console-chat')?.relations?.[CONTAINS_EDGE],
+    ).toEqual([]);
+    const deletedIds = fetchMock.mock.calls
+      .slice(1)
+      .map(([, request]) => JSON.parse(String(request?.body ?? '{}')) as { id?: string })
+      .map((body) => body.id);
+    expect(new Set(deletedIds)).toEqual(retiredIds);
   });
 
   it('routes canvas ObjectRefs and mutations through the authenticated object seam', async () => {

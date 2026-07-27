@@ -208,6 +208,14 @@ export function MaterialLayer() {
       const bands: number[] = [];
       const rootStyle = getComputedStyle(document.documentElement);
       const fallbackRadius = cssNumber(rootStyle.getPropertyValue('--ij-island-radius'), 12);
+      const radiusBySize: Readonly<Record<string, number>> = {
+        s: cssNumber(rootStyle.getPropertyValue('--ij-radius-xs'), fallbackRadius),
+        m: cssNumber(rootStyle.getPropertyValue('--ij-radius-sm'), fallbackRadius),
+        v: cssNumber(rootStyle.getPropertyValue('--ij-radius-md'), fallbackRadius),
+        sq: cssNumber(rootStyle.getPropertyValue('--ij-radius-md'), fallbackRadius),
+        w: cssNumber(rootStyle.getPropertyValue('--ij-radius-lg'), fallbackRadius),
+        full: cssNumber(rootStyle.getPropertyValue('--ij-radius-xl'), fallbackRadius),
+      };
       const gutterCss = cssNumber(rootStyle.getPropertyValue('--ij-island-gutter'), 6) * dpr;
 
       for (const node of islands.slice(0, MAX_ISLANDS)) {
@@ -228,11 +236,7 @@ export function MaterialLayer() {
         if ((!Number.isFinite(bandPx) || bandPx <= 0) && kind === 'tool') {
           bandPx = cssNumber(rootStyle.getPropertyValue('--ij-toolwindow-header-h'), 36);
         }
-        // Prefer the island's own size-linked radius (inherits from [data-block-size]).
-        const nodeRadius = cssNumber(
-          getComputedStyle(node).getPropertyValue('--ij-island-radius'),
-          fallbackRadius,
-        );
+        const nodeRadius = radiusBySize[node.dataset.blockSize ?? ''] ?? fallbackRadius;
         rects.push(x, y, w, h);
         radii.push(nodeRadius * dpr);
         classes.push(islandClass(kind));

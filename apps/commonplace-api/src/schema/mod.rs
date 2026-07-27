@@ -24,9 +24,10 @@ use commonplace::{
     annotation_from_item, Anchor, Annotation, AuthorKind, BlobStore, Collection, CollectionKind,
     Commonplace, EmbeddingGraphStore, InMemoryBlobStore, IngestInput, IngestPipeline, Item,
     ItemBody, ItemKind, Residency, Resolution, SourceRef, COLLECTION_LABEL,
-    ITEM_EMBEDDING_PROPERTY,
 };
-use rustyred_thg_core::{DiskObjectStore, InMemoryGraphStore, NodeQuery, RedCoreGraphStore};
+use rustyred_thg_core::{
+    DiskObjectStore, GraphSnapshotSource, InMemoryGraphStore, NodeQuery, RedCoreGraphStore,
+};
 use serde_json::{json, Value};
 use theorem_harness_core::GroundedClaim;
 use theorem_harness_runtime::{
@@ -39,20 +40,10 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 pub mod find;
 pub mod scatter;
 
-use crate::find::{FindConfig, FindIndexCache};
-use rustyred_thg_find::{expand as run_expand, scatter as run_scatter};
-use crate::save_url::{save_url as run_save_url, PageSource};
-use find::{
-    build_request as build_find_request, FindLaneGql, FindResponseGql, FindScopeInput,
-    SaveUrlReceiptGql,
-};
-use scatter::{build_request as build_scatter_request, parse_aspect_id, ScatterResponseGql};
 use crate::auth::{ApiKeyRegistry, ApiKeyToken, Principal};
 use crate::briefing::{briefing as run_briefing, Briefing, BriefingConfig, ConnectedItem};
 use crate::discover::{discover as run_discover, CandidateLink, DiscoverConfig};
-use crate::salience::{
-    salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier,
-};
+use crate::find::{FindConfig, FindIndexCache};
 use crate::growth::{load_growth_snapshot_from_env, GrowthSnapshotResultGql};
 use crate::organize::{
     organize as run_organize, DailyProgress, OrganizeConfig, OrganizeFiled, OrganizeGroup,
@@ -60,10 +51,19 @@ use crate::organize::{
 };
 use crate::portability::{self, ExportDocument};
 use crate::publish;
+use crate::reconstruction;
 use crate::retrieve::{
-    answer_from_provenance, retrieve_grounding, AnswerKind, AnswerModel, AskConfig, AskResult,
-    NoModel, RetrievedItem,
+    answer_from_provenance, retrieve_grounding_measured, AnswerKind, AnswerModel, AskConfig,
+    AskResult, NoModel, PprExpansionMeasurement, RetrievedItem,
 };
+use crate::salience::{salience as run_salience, SalienceCandidate, SalienceConfig, SalienceTier};
+use crate::save_url::{save_url as run_save_url, PageSource};
+use find::{
+    build_request as build_find_request, FindLaneGql, FindResponseGql, FindScopeInput,
+    SaveUrlReceiptGql,
+};
+use rustyred_thg_find::{expand as run_expand, scatter as run_scatter};
+use scatter::{build_request as build_scatter_request, parse_aspect_id, ScatterResponseGql};
 
 /// The default in-memory store backing (tests + the no-data-dir binary path).
 pub type ApiStore = Commonplace<InMemoryGraphStore, InMemoryBlobStore>;
@@ -170,6 +170,49 @@ pub struct CollectionGql {
     pub sort_order: Option<i64>,
     pub feature_flags: GqlJson<Value>,
     pub created_at_ms: i64,
+}
+
+/// A durable reconstruction stage receipt, owned by Theorem's reconstruction
+/// graph and exposed through the CommonPlace GraphQL facade.
+#[derive(SimpleObject)]
+pub struct ReconstructionStageReceiptGql {
+    pub id: String,
+    pub stage: String,
+    pub generation_stamp: String,
+    pub payload: GqlJson<Value>,
+}
+
+/// A provenance-bearing atom emitted by a durable reconstruction run.
+#[derive(SimpleObject)]
+pub struct ReconstructionAtomGql {
+    pub id: String,
+    pub atom_id: String,
+    pub provenance: GqlJson<Value>,
+    pub payload: GqlJson<Value>,
+}
+
+/// The typed run shape consumed by the CommonPlace reconstruction viewer.
+#[derive(SimpleObject)]
+pub struct ReconstructionRunGql {
+    pub id: String,
+    pub domain: String,
+    pub subject_id: String,
+    pub stage_receipts: Vec<ReconstructionStageReceiptGql>,
+    pub atoms: Vec<ReconstructionAtomGql>,
+}
+
+#[derive(InputObject)]
+pub struct GenerateReconstructionInputGql {
+    pub domain: String,
+    pub target: String,
+    pub budget: Option<i32>,
+}
+
+#[derive(SimpleObject)]
+pub struct GenerateReconstructionResultGql {
+    pub run_id: String,
+    pub scene_package_ref: String,
+    pub result: GqlJson<Value>,
 }
 
 impl From<Collection> for CollectionGql {
@@ -351,6 +394,49 @@ pub struct VectorNeighborGql {
 
 /// Input for the auto-structuring ingest mutation.
 #[derive(InputObject)]
+pub struct SourceRefInputGql {
+    pub source: String,
+    pub external_id: String,
+}
+
+#[derive(InputObject)]
+pub struct CollectorUploadProvenanceInputGql {
+    pub filename: String,
+    pub media_type: String,
+    pub source: String,
+}
+
+#[derive(InputObject)]
+pub struct CollectorServiceFactsInputGql {
+    pub parser: Option<String>,
+    pub media_type: Option<String>,
+    pub byte_length: Option<i64>,
+    pub page_count: Option<i64>,
+}
+
+#[derive(InputObject)]
+pub struct CollectorDocumentProvenanceInputGql {
+    pub index: i32,
+    pub document_digest: String,
+    pub parser_document_id: Option<String>,
+    pub doc_author: Option<String>,
+    pub description: Option<String>,
+    pub published: Option<String>,
+    pub word_count: Option<i64>,
+    pub token_count_estimate: Option<i64>,
+}
+
+#[derive(InputObject)]
+pub struct CollectorProvenanceInputGql {
+    pub kind: String,
+    pub correlation_id: String,
+    pub upload: CollectorUploadProvenanceInputGql,
+    pub service_facts: CollectorServiceFactsInputGql,
+    pub document: CollectorDocumentProvenanceInputGql,
+}
+
+/// Input for the auto-structuring ingest mutation.
+#[derive(InputObject)]
 pub struct IngestInputGql {
     pub title: String,
     pub text: String,
@@ -358,12 +444,18 @@ pub struct IngestInputGql {
     pub kind: Option<String>,
     pub tags: Option<Vec<String>>,
     pub source: Option<String>,
+    /// Stable collector/source identity. Repeating the same pair updates the
+    /// existing graph item instead of creating a duplicate.
+    pub source_ref: Option<SourceRefInputGql>,
     pub residency: Option<String>,
     /// Explicit reminder instant (epoch ms). Wins over the server-side
     /// natural-language reminder parse (PT-008).
     pub remind_at_ms: Option<i64>,
     /// Explicit due instant (epoch ms).
     pub due_at_ms: Option<i64>,
+    /// Typed source/parser audit trail. The resolver binds it to the
+    /// authenticated API principal and stable source reference before storage.
+    pub provenance: Option<CollectorProvenanceInputGql>,
 }
 
 #[derive(InputObject)]
@@ -499,17 +591,51 @@ impl From<RetrievedItem> for ProvenanceGql {
     }
 }
 
+/// Measured contribution of graph expansion beyond flat retrieval.
+#[derive(SimpleObject)]
+pub struct PprExpansionMeasurementGql {
+    pub seed_count: i32,
+    pub flat_candidate_count: i32,
+    pub ppr_candidate_count: i32,
+    pub ppr_only_candidate_count: i32,
+}
+
+impl TryFrom<PprExpansionMeasurement> for PprExpansionMeasurementGql {
+    type Error = Error;
+
+    fn try_from(measurement: PprExpansionMeasurement) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            seed_count: graphql_int_from_usize(measurement.seed_count, "seed_count")?,
+            flat_candidate_count: graphql_int_from_usize(
+                measurement.flat_candidate_count,
+                "flat_candidate_count",
+            )?,
+            ppr_candidate_count: graphql_int_from_usize(
+                measurement.ppr_candidate_count,
+                "ppr_candidate_count",
+            )?,
+            ppr_only_candidate_count: graphql_int_from_usize(
+                measurement.ppr_only_candidate_count,
+                "ppr_only_candidate_count",
+            )?,
+        })
+    }
+}
+
 /// An answer grounded in the user's items, each traceable to its source.
 #[derive(SimpleObject)]
 pub struct AskResultGql {
     pub answer: String,
     pub answer_kind: AnswerKindGql,
     pub provenance: Vec<ProvenanceGql>,
+    pub ppr_expansion: PprExpansionMeasurementGql,
 }
 
-impl From<AskResult> for AskResultGql {
-    fn from(result: AskResult) -> Self {
-        Self {
+impl TryFrom<AskResult> for AskResultGql {
+    type Error = Error;
+
+    fn try_from(result: AskResult) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
             answer: result.answer,
             answer_kind: AnswerKindGql::from(result.answer_kind),
             provenance: result
@@ -517,7 +643,8 @@ impl From<AskResult> for AskResultGql {
                 .into_iter()
                 .map(ProvenanceGql::from)
                 .collect(),
-        }
+            ppr_expansion: PprExpansionMeasurementGql::try_from(result.ppr_expansion)?,
+        })
     }
 }
 
@@ -948,6 +1075,155 @@ fn principal(ctx: &Context<'_>) -> Result<Principal> {
         .ok_or_else(|| Error::new("invalid API key"))
 }
 
+fn collector_provenance_value(
+    input: &CollectorProvenanceInputGql,
+    authenticated: &Principal,
+    source_ref: Option<&SourceRefInputGql>,
+) -> Result<Value> {
+    if input.kind != "collector" {
+        return Err(Error::new("collector provenance kind must be collector"));
+    }
+    if !valid_correlation_id(&input.correlation_id) {
+        return Err(Error::new("collector provenance correlation id is invalid"));
+    }
+    bounded_text("collector upload filename", &input.upload.filename, 255)?;
+    if input.upload.filename.contains(['/', '\\', '\0']) {
+        return Err(Error::new(
+            "collector upload filename must be a logical basename",
+        ));
+    }
+    bounded_text("collector upload media type", &input.upload.media_type, 255)?;
+    bounded_text("collector upload source", &input.upload.source, 2_048)?;
+    optional_bounded_text(
+        "collector parser",
+        input.service_facts.parser.as_deref(),
+        128,
+    )?;
+    optional_bounded_text(
+        "collector service media type",
+        input.service_facts.media_type.as_deref(),
+        255,
+    )?;
+    non_negative_count("collector byte length", input.service_facts.byte_length)?;
+    non_negative_count("collector page count", input.service_facts.page_count)?;
+
+    if !(0..32).contains(&input.document.index) {
+        return Err(Error::new("collector document index is out of range"));
+    }
+    if !valid_sha256_digest(&input.document.document_digest) {
+        return Err(Error::new("collector document digest is invalid"));
+    }
+    optional_bounded_text(
+        "collector parser document id",
+        input.document.parser_document_id.as_deref(),
+        255,
+    )?;
+    optional_bounded_text(
+        "collector document author",
+        input.document.doc_author.as_deref(),
+        512,
+    )?;
+    optional_bounded_text(
+        "collector document description",
+        input.document.description.as_deref(),
+        2_048,
+    )?;
+    optional_bounded_text(
+        "collector document published",
+        input.document.published.as_deref(),
+        128,
+    )?;
+    non_negative_count("collector word count", input.document.word_count)?;
+    non_negative_count(
+        "collector token count estimate",
+        input.document.token_count_estimate,
+    )?;
+
+    let source_ref = source_ref
+        .ok_or_else(|| Error::new("collector provenance requires a stable source reference"))?;
+    if input.upload.source != source_ref.source
+        || !source_ref
+            .external_id
+            .ends_with(&input.document.document_digest)
+    {
+        return Err(Error::new(
+            "collector provenance does not match the stable source reference",
+        ));
+    }
+
+    Ok(json!({
+        "kind": "collector",
+        "correlationId": input.correlation_id,
+        "assertedBy": {
+            "principalId": authenticated.id,
+            "label": authenticated.label,
+        },
+        "sourceRef": {
+            "source": source_ref.source,
+            "externalId": source_ref.external_id,
+        },
+        "upload": {
+            "filename": input.upload.filename,
+            "mediaType": input.upload.media_type,
+            "source": input.upload.source,
+        },
+        "serviceFacts": {
+            "parser": input.service_facts.parser,
+            "mediaType": input.service_facts.media_type,
+            "byteLength": input.service_facts.byte_length,
+            "pageCount": input.service_facts.page_count,
+        },
+        "document": {
+            "index": input.document.index,
+            "documentDigest": input.document.document_digest,
+            "parserDocumentId": input.document.parser_document_id,
+            "docAuthor": input.document.doc_author,
+            "description": input.document.description,
+            "published": input.document.published,
+            "wordCount": input.document.word_count,
+            "tokenCountEstimate": input.document.token_count_estimate,
+        },
+    }))
+}
+
+fn bounded_text(field: &str, value: &str, max_len: usize) -> Result<()> {
+    if value.trim().is_empty() || value.len() > max_len {
+        return Err(Error::new(format!(
+            "{field} must be non-empty and at most {max_len} bytes"
+        )));
+    }
+    Ok(())
+}
+
+fn optional_bounded_text(field: &str, value: Option<&str>, max_len: usize) -> Result<()> {
+    if let Some(value) = value {
+        bounded_text(field, value, max_len)?;
+    }
+    Ok(())
+}
+
+fn non_negative_count(field: &str, value: Option<i64>) -> Result<()> {
+    if value.is_some_and(|value| value < 0) {
+        return Err(Error::new(format!("{field} must be non-negative")));
+    }
+    Ok(())
+}
+
+fn valid_correlation_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    (8..=128).contains(&bytes.len())
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(byte))
+}
+
+fn valid_sha256_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
+}
+
 /// The retrieval projection cache. Present on every schema built through the
 /// builders below; a schema assembled by hand without one gets a fresh cache
 /// per request rather than a refusal, because a cold cache is correct, just
@@ -958,7 +1234,6 @@ fn find_index(ctx: &Context<'_>) -> Result<Arc<FindIndexCache>> {
         .cloned()
         .unwrap_or_else(|| Arc::new(FindIndexCache::new())))
 }
-
 fn shared<S, B>(ctx: &Context<'_>) -> Result<SharedStore<S, B>>
 where
     S: Send + Sync + 'static,
@@ -969,6 +1244,80 @@ where
 
 fn store_err(error: rustyred_thg_core::GraphStoreError) -> Error {
     Error::new(format!("{error:?}"))
+}
+
+fn remote_graphql_data(response: &Value, field: &str) -> Result<Option<Value>> {
+    if let Some(errors) = response.get("errors").and_then(Value::as_array) {
+        if let Some(error) = errors.first() {
+            return Err(Error::new(format!("Theorem reconstruction error: {error}")));
+        }
+    }
+    response
+        .get("data")
+        .and_then(|data| data.get(field))
+        .cloned()
+        .map(|value| if value.is_null() { None } else { Some(value) })
+        .ok_or_else(|| Error::new(format!("Theorem reconstruction response omitted {field}")))
+}
+
+fn reconstruction_run_from_value(value: Option<Value>) -> Result<Option<ReconstructionRunGql>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let id = remote_string(&value, "id")?;
+    let domain = remote_string(&value, "domain")?;
+    let subject_id = remote_string(&value, "subjectId")?;
+    let stage_receipts = value
+        .get("stageReceipts")
+        .and_then(Value::as_array)
+        .ok_or_else(|| Error::new("Theorem reconstruction run omitted stageReceipts"))?
+        .iter()
+        .map(|receipt| {
+            Ok(ReconstructionStageReceiptGql {
+                id: remote_string(receipt, "id")?,
+                stage: remote_string(receipt, "stage")?,
+                generation_stamp: remote_string(receipt, "generationStamp")?,
+                payload: GqlJson(receipt.get("payload").cloned().unwrap_or(Value::Null)),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let atoms = value
+        .get("atoms")
+        .and_then(Value::as_array)
+        .ok_or_else(|| Error::new("Theorem reconstruction run omitted atoms"))?
+        .iter()
+        .map(|atom| {
+            Ok(ReconstructionAtomGql {
+                id: remote_string(atom, "id")?,
+                atom_id: remote_string(atom, "atomId")?,
+                provenance: GqlJson(atom.get("provenance").cloned().unwrap_or(Value::Null)),
+                payload: GqlJson(atom.get("payload").cloned().unwrap_or(Value::Null)),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(Some(ReconstructionRunGql {
+        id,
+        domain,
+        subject_id,
+        stage_receipts,
+        atoms,
+    }))
+}
+
+fn reconstruction_result_from_value(value: Value) -> Result<GenerateReconstructionResultGql> {
+    Ok(GenerateReconstructionResultGql {
+        run_id: remote_string(&value, "runId")?,
+        scene_package_ref: remote_string(&value, "scenePackageRef")?,
+        result: GqlJson(value.get("result").cloned().unwrap_or(Value::Null)),
+    })
+}
+
+fn remote_string(value: &Value, field: &str) -> Result<String> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| Error::new(format!("Theorem reconstruction response omitted {field}")))
 }
 
 fn extra_str(item: &Item, key: &str) -> Option<String> {
@@ -986,22 +1335,8 @@ fn extra_i32(item: &Item, key: &str) -> Option<i32> {
     extra_i64(item, key).map(|value| value as i32)
 }
 
-fn item_embedding(item: &Item) -> Option<Vec<f32>> {
-    if let Some(embedding) = &item.embedding {
-        if !embedding.is_empty() {
-            return Some(embedding.clone());
-        }
-    }
-    let embedding = item.extra.get(ITEM_EMBEDDING_PROPERTY)?.as_array()?;
-    let mut out = Vec::with_capacity(embedding.len());
-    for value in embedding {
-        out.push(value.as_f64()? as f32);
-    }
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
+fn graphql_int_from_usize(value: usize, field: &str) -> Result<i32> {
+    i32::try_from(value).map_err(|_| Error::new(format!("{field} exceeds GraphQL Int range")))
 }
 
 fn embedding_text(item: &Item) -> String {
@@ -1065,7 +1400,7 @@ where
                 continue;
             }
         }
-        let Some(embedding) = item_embedding(&item) else {
+        let Some(embedding) = cp.resolve_item_embedding(&item)? else {
             continue;
         };
         let (x, y) = raw_embedding_projection(&embedding);
@@ -1473,7 +1808,7 @@ pub struct Query<S, B>(PhantomData<fn() -> (S, B)>);
 #[Object(name = "Query")]
 impl<S, B> Query<S, B>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     /// One item by id.
@@ -1512,6 +1847,29 @@ where
         Ok(load_growth_snapshot_from_env().await)
     }
 
+    /// Read a Theorem-owned durable reconstruction run. The public facade never
+    /// reconstructs locally: it forwards to the same GraphQL executor used by
+    /// the Theorem MCP tool.
+    async fn reconstruction_run(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+    ) -> Result<Option<ReconstructionRunGql>> {
+        let principal = principal(ctx)?;
+        if id.trim().is_empty() {
+            return Err(Error::new("reconstructionRun requires a non-empty id"));
+        }
+        let response = reconstruction::execute(
+            &principal.id,
+            "graphql_query",
+            "query($id:String!){ reconstructionRun(id:$id){ id domain subjectId stageReceipts { id stage generationStamp payload } atoms { id atomId provenance payload } } }",
+            json!({ "id": id }),
+        )
+        .await
+        .map_err(Error::new)?;
+        remote_graphql_data(&response, "reconstructionRun").and_then(reconstruction_run_from_value)
+    }
+
     /// All items, optionally filtered to a kind.
     async fn items(&self, ctx: &Context<'_>, kind: Option<String>) -> Result<Vec<ItemGql>> {
         principal(ctx)?;
@@ -1524,6 +1882,23 @@ where
             None => cp.all_items().map_err(store_err)?,
         };
         Ok(items.into_iter().map(ItemGql::from).collect())
+    }
+
+    /// Count items without materializing them into the GraphQL response body.
+    async fn item_count(&self, ctx: &Context<'_>, kind: Option<String>) -> Result<i32> {
+        principal(ctx)?;
+        let store = shared::<S, B>(ctx)?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        let count = match kind {
+            Some(kind) => cp
+                .items_by_kind(&ItemKind::from(kind))
+                .map_err(store_err)?
+                .len(),
+            None => cp.all_items().map_err(store_err)?.len(),
+        };
+        graphql_int_from_usize(count, "item_count")
     }
 
     /// One collection by id.
@@ -1727,7 +2102,7 @@ where
         let Some(seed) = cp.get_item(&item_id).map_err(store_err)? else {
             return Ok(Vec::new());
         };
-        let Some(embedding) = item_embedding(&seed) else {
+        let Some(embedding) = cp.resolve_item_embedding(&seed).map_err(store_err)? else {
             return Ok(Vec::new());
         };
         let k = k.unwrap_or(12).clamp(1, 100) as usize;
@@ -1774,14 +2149,20 @@ where
             k: k.unwrap_or(5).max(1) as usize,
             ..AskConfig::default()
         };
-        let provenance = {
+        let retrieval_question = question.clone();
+        let grounding = tokio::task::spawn_blocking(move || -> std::result::Result<_, String> {
             let cp = store
                 .lock()
-                .map_err(|_| Error::new("store lock poisoned"))?;
-            retrieve_grounding(&*cp, &question, &config).map_err(store_err)?
-        };
-        let result = answer_from_provenance(model.as_ref(), &question, provenance);
-        Ok(AskResultGql::from(result))
+                .map_err(|_| "store lock poisoned".to_string())?;
+            retrieve_grounding_measured(&*cp, &retrieval_question, &config)
+                .map_err(|error| format!("{error:?}"))
+        })
+        .await
+        .map_err(|error| Error::new(format!("ask worker join failed: {error}")))?
+        .map_err(Error::new)?;
+        let mut result = answer_from_provenance(model.as_ref(), &question, grounding.provenance);
+        result.ppr_expansion = grounding.ppr_expansion;
+        AskResultGql::try_from(result)
     }
 
     /// Run the composed Theorem API agent through the CommonPlace GraphQL edge.
@@ -1854,7 +2235,9 @@ where
         principal(ctx)?;
         let request = build_find_request(query, scopes, lanes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         let response = find_index(ctx)?
             .with(&cp, &FindConfig::default(), |index| {
                 rustyred_thg_find::find(&index.context(), &request)
@@ -1876,7 +2259,9 @@ where
         principal(ctx)?;
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         let response = find_index(ctx)?
             .with(&cp, &FindConfig::default(), |index| {
                 run_scatter(&index.context(), &request)
@@ -1900,7 +2285,9 @@ where
         let aspect = parse_aspect_id(aspect_id).map_err(Error::new)?;
         let request = build_scatter_request(query, scopes, k, lambda).map_err(Error::new)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         let response = find_index(ctx)?
             .with(&cp, &FindConfig::default(), |index| {
                 run_expand(&index.context(), &request, &aspect)
@@ -2050,7 +2437,9 @@ where
     ) -> Result<publish::PublishResolution> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::resolve_alias_status(
             &mut cp,
             &alias,
@@ -2068,7 +2457,9 @@ where
     ) -> Result<Option<publish::PublishedBlock>> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::resolve_version(&cp, &version_hash).ok())
     }
 
@@ -2077,7 +2468,9 @@ where
     async fn public_aliases(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
         principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::public_aliases(&cp))
     }
 }
@@ -2088,9 +2481,41 @@ pub struct Mutation<S, B>(PhantomData<fn() -> (S, B)>);
 #[Object(name = "Mutation")]
 impl<S, B> Mutation<S, B>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
+    /// Generate through Theorem's reconstruction executor and return its
+    /// durable run reference for subsequent `reconstructionRun` reads.
+    async fn reconstruct(
+        &self,
+        ctx: &Context<'_>,
+        input: GenerateReconstructionInputGql,
+    ) -> Result<GenerateReconstructionResultGql> {
+        let principal = principal(ctx)?;
+        if input.domain.trim().is_empty() || input.target.trim().is_empty() {
+            return Err(Error::new(
+                "reconstruct requires non-empty domain and target",
+            ));
+        }
+        let response = reconstruction::execute(
+            &principal.id,
+            "graphql_mutate",
+            "mutation($input: GenerateReconstructionInput!){ reconstruct(input:$input){ runId scenePackageRef result } }",
+            json!({
+                "input": {
+                    "domain": input.domain,
+                    "target": input.target,
+                    "budget": input.budget,
+                }
+            }),
+        )
+        .await
+        .map_err(Error::new)?;
+        let value = remote_graphql_data(&response, "reconstruct")?
+            .ok_or_else(|| Error::new("Theorem reconstruction response omitted reconstruct"))?;
+        reconstruction_result_from_value(value)
+    }
+
     /// Auto-structuring ingest: embed, classify, file, link, resolve entities.
     /// Save the page at `url`: fetch it through RustyWeb, then file it through
     /// the ingest pipeline. Returns the filed item and the real collection it
@@ -2112,7 +2537,14 @@ where
     }
 
     async fn ingest(&self, ctx: &Context<'_>, input: IngestInputGql) -> Result<ItemGql> {
-        principal(ctx)?;
+        let authenticated = principal(ctx)?;
+        let provenance = input
+            .provenance
+            .as_ref()
+            .map(|provenance| {
+                collector_provenance_value(provenance, &authenticated, input.source_ref.as_ref())
+            })
+            .transpose()?;
         let store = shared::<S, B>(ctx)?;
         let mut cp = store
             .lock()
@@ -2125,8 +2557,15 @@ where
         if let Some(source) = input.source {
             request = request.with_source(source);
         }
+        if let Some(source_ref) = input.source_ref {
+            request =
+                request.with_source_ref(SourceRef::new(source_ref.source, source_ref.external_id));
+        }
         if let Some(residency) = input.residency {
             request = request.with_residency(Residency::from(residency));
+        }
+        if let Some(provenance) = provenance {
+            request = request.with_provenance(provenance);
         }
         // Explicit scalar instants win over the server-side reminder parse.
         request.remind_at_ms = input.remind_at_ms;
@@ -2752,7 +3191,9 @@ where
     ) -> Result<publish::PublishOutcome> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         Ok(publish::publish_block_outcome(
             &mut cp,
             &origin_id,
@@ -2766,7 +3207,9 @@ where
     async fn unpublish(&self, ctx: &Context<'_>, alias: String) -> Result<bool> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         publish::unpublish_block(&mut cp, &alias, &principal.id).map_err(|e| match e {
             publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
             _ => Error::new("published block not found"),
@@ -2784,11 +3227,17 @@ where
     ) -> Result<bool> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
-        publish::set_visibility(&mut cp, &alias, &principal.id, visibility).map_err(|e| match e {
-            publish::PublishError::Forbidden => Error::new("not authorized to modify this block"),
-            _ => Error::new("published block not found"),
-        })?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
+        publish::set_visibility(&mut cp, &alias, &principal.id, visibility).map_err(
+            |e| match e {
+                publish::PublishError::Forbidden => {
+                    Error::new("not authorized to modify this block")
+                }
+                _ => Error::new("published block not found"),
+            },
+        )?;
         Ok(true)
     }
 
@@ -2804,7 +3253,9 @@ where
     ) -> Result<String> {
         let principal = principal(ctx)?;
         let store = shared::<S, B>(ctx)?;
-        let mut cp = store.lock().map_err(|_| Error::new("store lock poisoned"))?;
+        let mut cp = store
+            .lock()
+            .map_err(|_| Error::new("store lock poisoned"))?;
         publish::reference_block(&mut cp, &alias, &principal.id, fork.unwrap_or(false))
             .map_err(|_| Error::new("published block not found"))
     }
@@ -2817,7 +3268,7 @@ pub fn build_schema<S, B>(
     registry: Arc<ApiKeyRegistry>,
 ) -> Schema<Query<S, B>, Mutation<S, B>, EmptySubscription>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     build_schema_with_model(store, registry, Arc::new(NoModel))
@@ -2837,7 +3288,7 @@ pub fn build_schema_with_page_source<S, B>(
     page_source: Arc<PageSource>,
 ) -> Schema<Query<S, B>, Mutation<S, B>, EmptySubscription>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     Schema::build(Query(PhantomData), Mutation(PhantomData), EmptySubscription)
@@ -2848,14 +3299,13 @@ where
         .data(Arc::new(FindIndexCache::new()))
         .finish()
 }
-
 pub fn build_schema_with_model<S, B>(
     store: SharedStore<S, B>,
     registry: Arc<ApiKeyRegistry>,
     model: Arc<dyn AnswerModel>,
 ) -> Schema<Query<S, B>, Mutation<S, B>, EmptySubscription>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     Schema::build(Query(PhantomData), Mutation(PhantomData), EmptySubscription)
@@ -2864,4 +3314,40 @@ where
         .data(model)
         .data(Arc::new(FindIndexCache::new()))
         .finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn graphql_int_from_usize_rejects_overflow() {
+        let error = graphql_int_from_usize(i32::MAX as usize + 1, "item_count")
+            .expect_err("overflow should be rejected");
+        assert!(error
+            .message
+            .contains("item_count exceeds GraphQL Int range"));
+    }
+
+    #[test]
+    fn ask_result_gql_rejects_overflowing_ppr_counts() {
+        let result = AskResultGql::try_from(AskResult {
+            answer: "ok".to_string(),
+            answer_kind: AnswerKind::Empty,
+            provenance: Vec::new(),
+            ppr_expansion: PprExpansionMeasurement {
+                seed_count: usize::MAX,
+                flat_candidate_count: 0,
+                ppr_candidate_count: 0,
+                ppr_only_candidate_count: 0,
+            },
+        });
+        let error = match result {
+            Ok(_) => panic!("overflow should be rejected"),
+            Err(error) => error,
+        };
+        assert!(error
+            .message
+            .contains("seed_count exceeds GraphQL Int range"));
+    }
 }

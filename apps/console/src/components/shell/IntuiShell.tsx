@@ -383,39 +383,47 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     });
   }, [host, router]);
 
-  // Alt+1..5 supplements Cmd/Ctrl place switching. Alt+Shift+1..3 toggles
-  // companions for the active surface (dock panels; not rail destinations).
+  // Place switching is independent of the active surface arrangement. Keeping
+  // this listener separate means a layout update cannot create a brief gap in
+  // the global shortcut while companion regions are being reconciled.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
-        const digit = Number(event.key);
-        if (digit >= 1 && digit <= PLACE_ENTRIES.length) {
+      if (event.shiftKey) return;
+      const commandChord = (event.ctrlKey || event.metaKey) && !event.altKey;
+      const altChord = event.altKey && !event.ctrlKey && !event.metaKey;
+      if (!commandChord && !altChord) return;
+      const digit = event.code.startsWith('Digit')
+        ? Number(event.code.slice('Digit'.length))
+        : Number(event.key);
+      if (!Number.isInteger(digit) || digit < 1 || digit > PLACE_ENTRIES.length) return;
+      event.preventDefault();
+      const place = PLACE_ENTRIES[digit - 1];
+      navigateToPlace(place.surfaceId, place.path);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    document.documentElement.setAttribute('data-place-shortcuts-ready', '1');
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.documentElement.removeAttribute('data-place-shortcuts-ready');
+    };
+  }, [navigateToPlace]);
+
+  // Alt+Shift+1..3 toggles companions for the active surface (dock panels;
+  // not rail destinations). This listener follows arrangement changes without
+  // affecting the stable place-switching listener above.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return;
+      companions.forEach((region, index) => {
+        if (event.code === `Digit${index + 1}`) {
           event.preventDefault();
-          const place = PLACE_ENTRIES[digit - 1];
-          navigateToPlace(place.surfaceId, place.path);
-        }
-        return;
-      }
-      if (!event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.shiftKey) {
-        companions.forEach((region, index) => {
-          if (event.key === String(index + 1)) {
-            event.preventDefault();
-            toggle(region);
-          }
-        });
-        return;
-      }
-      PLACE_ENTRIES.forEach((place, index) => {
-        if (event.key === String(index + 1)) {
-          event.preventDefault();
-          navigateToPlace(place.surfaceId, place.path);
+          toggle(region);
         }
       });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [companions, navigateToPlace, toggle]);
+  }, [companions, toggle]);
 
   const handleAddBlock = useCallback((item: BlockPaletteItem) => {
     if (!editor) return;

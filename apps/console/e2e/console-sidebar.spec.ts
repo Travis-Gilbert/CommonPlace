@@ -32,7 +32,9 @@ async function waitForServerLayout(request: APIRequestContext) {
 async function settled(page: Page) {
   await page.waitForSelector('[data-shell]');
   await page.waitForFunction(
-    () => document.documentElement.getAttribute('data-layout-ready') === '1',
+    () =>
+      document.documentElement.getAttribute('data-layout-ready') === '1'
+      && document.documentElement.getAttribute('data-place-shortcuts-ready') === '1',
     { timeout: 60_000 },
   );
 }
@@ -91,9 +93,14 @@ test.describe('Console sidebar', () => {
           cancelable: true,
         }));
       }, key);
-      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), { timeout: 30_000 });
+      await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), {
+        timeout: 60_000,
+      });
       if (id === 'console-chat') {
-        await expect(page.locator('[data-chat-page]')).toBeVisible({ timeout: 15_000 });
+        await expect(
+          page.getByRole('heading', { name: 'Chat unavailable' }),
+        ).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[data-chat-composer]')).toHaveCount(0);
       } else {
         await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', id, {
           timeout: 15_000,

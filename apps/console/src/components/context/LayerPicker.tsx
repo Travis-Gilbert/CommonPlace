@@ -80,6 +80,14 @@ export function LayerPicker({ onLayerSetChange, initialActive }: LayerPickerProp
               }}
             />
             <span>{layer.id}</span>
+            {!layer.pinnable ? (
+              <span
+                className="border-b border-dotted border-ij-control-border text-ij-ink-info"
+                aria-label={`${layer.id} is not pinnable`}
+              >
+                Not pinnable
+              </span>
+            ) : null}
           </label>
         );
       })}

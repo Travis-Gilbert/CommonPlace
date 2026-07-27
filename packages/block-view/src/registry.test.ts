@@ -15,11 +15,8 @@ function descriptor(
     accepts: { cardinality: 'any' },
     emits: ['open'],
     renderer: id,
-    source: {
-      package: '@commonplace/block-view',
-      component: id,
+    sourcing: {
       mode: 'bespoke',
-      regime: 'css-vars',
       allowedBespokeReason: 'unit fixture',
     },
     render: noopRender,

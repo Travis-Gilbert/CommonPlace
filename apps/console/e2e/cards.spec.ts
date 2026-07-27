@@ -83,15 +83,22 @@ async function seedLayoutFixture(
 }
 
 async function openSurface(page: Page, surfaceId: string) {
-  const collectionRoutes: Record<string, string> = {
+  const surfaceRoutes: Record<string, string> = {
     'console-cards': '/cards',
     'console-docs': '/documents',
+    'console-workspace': '/workspace',
   };
-  const route = collectionRoutes[surfaceId];
-  if (route) {
+  const route = surfaceRoutes[surfaceId];
+  // Workspace stays an SPA transition so staged thread context survives.
+  if (route && surfaceId !== 'console-workspace') {
     await page.goto(route);
   } else {
     await page.locator(`[data-surface-nav="${surfaceId}"]`).click();
+  }
+  if (route) {
+    await expect(page).toHaveURL(new RegExp(`${route.replace('/', '\\/')}$`), {
+      timeout: 60_000,
+    });
   }
   await expect(page.locator('[data-shell]')).toHaveAttribute('data-active-surface', surfaceId, {
     timeout: 15_000,
@@ -247,6 +254,11 @@ test.describe('cards, actions, mentions', () => {
     // Close the inspector: it overlays the right edge of every surface and
     // would intercept the docs entry's todo affordance below.
     await page.getByLabel('Close inspector').click();
+    // A cold route compile can reload the document between surfaces. Pending
+    // With-me context is an unsent user draft, so make reload durability an
+    // explicit contract instead of relying on an always-warm SPA transition.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await settled(page);
 
     // Entry 2: /do in the composer opens the same sheet, pre-filled.
     await openSurface(page, 'console-workspace');
@@ -347,6 +359,8 @@ test.describe('cards, actions, mentions', () => {
     await expect(relatedCard).toBeVisible({ timeout: 30_000 });
     await expect(relatedCard).toHaveScreenshot('card-compact-inspector.png', {
       maxDiffPixelRatio: 0.02,
+      timeout: 15_000,
+      animations: 'disabled',
     });
 
     await page.locator('[data-inspector-action]').click();

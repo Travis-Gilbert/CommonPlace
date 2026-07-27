@@ -65,7 +65,8 @@ pub use ingest::{
     classify_item_ranking, Classification, ClassificationRank, DeterministicEmbedder, Embedder,
     EmbeddingGraphStore, IngestBody, IngestExtractionReceipt, IngestInput, IngestPipeline,
     IngestReceipt, ResolvedEntity, SimilarityLink, TaskFields, COLLECTION_EMBEDDING_PROPERTY,
-    DEFAULT_SOURCE_PRIOR_BOOST, ENTITY_LABEL, ITEM_EMBEDDING_PROPERTY, MENTIONS_ENTITY_EDGE,
+    DEFAULT_SOURCE_PRIOR_BOOST, ENTITY_LABEL, INGEST_PROVENANCE_PROPERTY, ITEM_EMBEDDING_PROPERTY,
+    MENTIONS_ENTITY_EDGE,
 };
 pub use item::{Item, ItemBody, ItemKind, Residency, SourceRef};
 pub use organize::{decide, route, NeedsYouReason, OrganizeDecision, OrganizePolicy, RoutingRule};

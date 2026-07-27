@@ -43,8 +43,6 @@ import {
   projectAutomationHistory,
 } from './automation-history-projection';
 import { fetchStatus } from './harness-ux';
-
-import { mergeSeedViews } from './seed-views';
 import { seedSurveyObjects } from './surveySeed';
 import {
   filterIndexerObjects,
@@ -59,7 +57,6 @@ const CANVAS_TYPE_SET = new Set<string>(CANVAS_TYPES);
 const PG_TYPE_SET = new Set(PG_TYPES);
 const AUTOMATION_TYPE_SET = new Set<string>(AUTOMATION_HISTORY_TYPES);
 const SURVEY_TYPES = new Set(['topic', 'capture', 'survey-edge']);
-
 const CONSOLE_LOCAL_TYPES = new Set([
   'thread',
   'files-view',
@@ -67,7 +64,6 @@ const CONSOLE_LOCAL_TYPES = new Set([
   'surface-tool',
   CARD_TEMPLATE_TYPE,
 ]);
-
 const MODEL_METADATA_TYPES = new Set([
   'model-scope',
   'object-type-metadata',
@@ -83,11 +79,43 @@ const LAYOUT_QUERY: ObjectQuery = {
   traverse: [{ edge: CONTAINS_EDGE, dir: 'out' }],
   page: { limit: 500 },
 };
+
 const LEGACY_CONSOLE_LAYOUT_IDS = [
   CONSOLE_DATA_SURFACE_ID,
   'console-data.region-editor',
   'console-data.vi-pane',
 ] as const;
+
+
+const RETIRED_SEED_VIEW_ROOTS = [
+  'view-chat',
+  'view-researcher',
+  'view-index',
+  'view-editor',
+  'view-data-model',
+] as const;
+
+export function isRetiredSeedViewObject(id: string): boolean {
+  return RETIRED_SEED_VIEW_ROOTS.some((root) => id === root || id.startsWith(`${root}.`));
+}
+
+export function retireSeedViewObjects(objects: readonly ObjectRef[]): ObjectRef[] {
+  return objects
+    .filter((object) => !isRetiredSeedViewObject(object.id))
+    .map((object) => {
+      const children = object.relations?.[CONTAINS_EDGE];
+      if (!children?.some(isRetiredSeedViewObject)) return object;
+      return {
+        ...object,
+        relations: {
+          ...(object.relations ?? {}),
+          [CONTAINS_EDGE]: children.filter(
+            (childId) => !isRetiredSeedViewObject(childId),
+          ),
+        },
+      };
+    });
+}
 
 /** Transport health as the host observes it (R2.3 / D5): status plus the
  *  named error body when the upstream refused with a JSON reason. */
@@ -208,22 +236,40 @@ export class ConsoleBlockHost implements BlockHost {
   readonly tokens: ThemeTokens = INTUI_TOKENS;
 
   private layout = new Map<string, MutableLayout>();
+
   private records: ObjectRef[] | null;
+
   private docs: ObjectRef[];
+
   private codeFiles: ObjectRef[];
+
   private cardTemplates: ObjectRef[];
+
   private consoleLocalObjects: ObjectRef[] = [];
+
   private surveyObjects: ObjectRef[];
+
   private modelMetadata: ObjectRef[] = [];
+
   private modelMetadataSeq = 0;
+
   private layoutSubs = new Set<() => void>();
+
   private domainSubs = new Set<() => void>();
+
   private registry: Registry;
+
   private http: HttpBlockHost;
+
   private observer: TransportObserver | undefined;
+
   private proactivity: ProactivityStore;
+
   private canvas: CanvasStore;
+
   private seedLayoutTask: Promise<void> | null = null;
+
+
   private activationWriteQueue: Promise<void> = Promise.resolve();
 
   constructor(registry: Registry, options: ConsoleBlockHostOptions = {}) {
@@ -282,25 +328,22 @@ export class ConsoleBlockHost implements BlockHost {
 
   private hydrateLayout(): void {
     const restored = readLayoutCache();
-    const seed = mergeSeedViews(seedLayout());
-    const needsIaMigration = restored !== null && !restored.some((object) => object.id === 'console-chat');
-    const objects = needsIaMigration ? seed : (restored ?? seed);
+    const seed = seedLayout();
+    const cleanedRestored = restored ? retireSeedViewObjects(restored) : null;
+    const retiredSeedViews = restored !== null && cleanedRestored?.length !== restored.length;
+    const needsIaMigration =
+      cleanedRestored !== null && !cleanedRestored.some((object) => object.id === 'console-chat');
+    const objects = needsIaMigration ? seed : (cleanedRestored ?? seed);
     this.layout = new Map(objects.map((ref) => [ref.id, toMutable(ref)]));
-    // Prefer the launch Chat place as the active surface. Sparse CS8 seed
-    // views (view-*) must not steal activation from the rich console places.
     const launchChat = this.layout.get('console-chat');
-    const seedChat = this.layout.get('view-chat');
     if (launchChat) {
       launchChat.properties.active = true;
-      if (seedChat) seedChat.properties.active = false;
-    } else if (seedChat) {
-      seedChat.properties.active = true;
     }
     // Seed migration: a persisted arrangement from an earlier build keeps the
     // user's surfaces untouched while newly seeded surfaces (and their
     // regions and view instances) appear beside them.
     if (restored && !needsIaMigration) {
-      let added = false;
+      let added = retiredSeedViews;
       // Console 1.0 originally seeded the plugin pane unconditionally. Remove
       // that legacy revision so only an authenticated consent receipt can
       // mount the plugin-managed revision 2 surface.
@@ -414,15 +457,11 @@ export class ConsoleBlockHost implements BlockHost {
   /** Drop the persisted arrangement and return to the seed. */
   resetLayout(): void {
     clearLayoutCache();
-    const seed = mergeSeedViews(seedLayout());
+    const seed = seedLayout();
     this.layout = new Map(seed.map((ref) => [ref.id, toMutable(ref)]));
     const launchChat = this.layout.get('console-chat');
-    const seedChat = this.layout.get('view-chat');
     if (launchChat) {
       launchChat.properties.active = true;
-      if (seedChat) seedChat.properties.active = false;
-    } else if (seedChat) {
-      seedChat.properties.active = true;
     }
     this.persistLayout();
     this.notifyLayout();
@@ -502,43 +541,68 @@ export class ConsoleBlockHost implements BlockHost {
   private async ensureSeedLayoutOnce(): Promise<void> {
     try {
       const remote = await this.http.query(LAYOUT_QUERY);
-      const hasPrimarySurface = remote.objects.some((object) => object.id === 'console-chat');
-      const hasLandmarks = remote.objects.some((object) => object.id === 'console.region-landmarks');
+      const retiredViewIds = new Set(
+        remote.objects
+          .filter((object) => isRetiredSeedViewObject(object.id))
+          .map((object) => object.id),
+      );
+      const withoutSeedViews = retireSeedViewObjects(remote.objects);
+      const legacyConsole = withoutSeedViews.find(
+        (object) => object.id === CONSOLE_DATA_SURFACE_ID,
+      );
+      const removeLegacyConsole =
+        legacyConsole?.properties.seed_revision === 1 &&
+        legacyConsole.properties.plugin_id !== 'commonplace.console';
+      const retiredIds = new Set<string>([
+        ...retiredViewIds,
+        ...(removeLegacyConsole ? LEGACY_CONSOLE_LAYOUT_IDS : []),
+      ]);
+      const durable = withoutSeedViews
+        .filter((object) => !retiredIds.has(object.id))
+        .map((object) => ({
+          ...object,
+          relations: object.relations
+            ? Object.fromEntries(
+                Object.entries(object.relations).map(([edge, children]) => [
+                  edge,
+                  children.filter((id) => !retiredIds.has(id)),
+                ]),
+              )
+            : undefined,
+        }));
+      const hasPrimarySurface = durable.some((object) => object.id === 'console-chat');
+      const hasLandmarks = durable.some((object) => object.id === 'console.region-landmarks');
       if (hasPrimarySurface && hasLandmarks) {
-        const legacyConsole = remote.objects.find(
-          (object) => object.id === CONSOLE_DATA_SURFACE_ID,
+        await this.retireRemoteLayoutObjects(
+          remote.objects.filter((object) => retiredIds.has(object.id)),
         );
-        const removeLegacyConsole =
-          legacyConsole?.properties.seed_revision === 1 &&
-          legacyConsole.properties.plugin_id !== 'commonplace.console';
-        if (removeLegacyConsole) {
-          await Promise.all(
-            LEGACY_CONSOLE_LAYOUT_IDS.map((id) => this.http.emit({ kind: 'delete', id })),
-          );
-        }
-        const ids = removeLegacyConsole
-          ? new Set<string>(LEGACY_CONSOLE_LAYOUT_IDS)
-          : new Set<string>();
-        this.replaceLayout(
-          remote.objects
-            .filter((object) => !ids.has(object.id))
-            .map((object) => ({
-              ...object,
-              relations: object.relations
-                ? Object.fromEntries(
-                    Object.entries(object.relations).map(([edge, children]) => [
-                      edge,
-                      children.filter((id) => !ids.has(id)),
-                    ]),
-                  )
-                : undefined,
-            })),
-        );
+        this.replaceLayout(durable);
         return;
       }
       await this.pushLayoutToServer();
     } catch {
       // Backend unreachable: the atomWithStorage cache remains the fast path.
+    }
+  }
+
+  private async retireRemoteLayoutObjects(retired: readonly ObjectRef[]): Promise<void> {
+    const ordered = [...retired].sort(
+      (left, right) => right.id.length - left.id.length,
+    );
+    const firstPass = await Promise.all(
+      ordered.map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+    );
+    const retry = ordered.filter((_object, index) => !firstPass[index]?.ok);
+    if (retry.length === 0) return;
+
+    const secondPass = await Promise.all(
+      retry.map((object) => this.http.emit({ kind: 'delete', id: object.id })),
+    );
+    const refused = retry.filter((_object, index) => !secondPass[index]?.ok);
+    if (refused.length > 0) {
+      throw new Error(
+        `Retired layout deletion refused for ${refused.map((object) => object.id).join(', ')}`,
+      );
     }
   }
 
@@ -1015,11 +1079,20 @@ export class ConsoleBlockHost implements BlockHost {
   emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
     const applied = (targetIds: readonly string[]): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'applied', target_ids: targetIds },
+      value: {
+        action_kind: action.kind,
+        status: 'applied',
+        target_ids: targetIds,
+        legacy_without_op_range: true,
+      },
     });
     const accepted = (): Result<ObjectActionReceipt> => ({
       ok: true,
-      value: { action_kind: action.kind, status: 'accepted' },
+      value: {
+        action_kind: action.kind,
+        status: 'accepted',
+        legacy_without_op_range: true,
+      },
     });
 
     // Proactivity edits (disable, parameter edits, prune, intent commit) are

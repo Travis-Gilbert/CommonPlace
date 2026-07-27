@@ -54,6 +54,15 @@ export async function DELETE(request: Request) {
   if (!body?.alias) {
     return NextResponse.json({ error: 'alias_required' }, { status: 400 });
   }
+  const resolution = await resolveHarnessPrincipal();
+  if (!resolution.ok) return resolution.response;
+  const aliases = await listAgentAliases(resolution.principal.tenant);
+  if (!aliases.ok) {
+    return NextResponse.json({ error: aliases.error }, { status: aliases.status });
+  }
+  if (!aliases.aliases.some((row) => row.alias === body.alias)) {
+    return NextResponse.json({ error: 'alias_not_owned_by_principal' }, { status: 403 });
+  }
   const result = await revokeAgentAlias(body.alias);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });

@@ -42,12 +42,12 @@
   --ij-tier-floating: #383B42;
   --ij-tier-scrim: color-mix(in oklab, #000000 52%, transparent);
 
-  /* Structural surfaces mapped onto the tier axis (hex so gates can resolve).
-     Frame is lighter than both island fills (frame-inversion for dark). */
+  /* Structural surfaces mapped onto the tier axis. Raised component surfaces
+     intentionally use the floating tier above the frame and island fills. */
   --ij-frame: #1C1E22;
   --ij-editor: #121314;
   --ij-chrome: #17191C;
-  --ij-raised: #383B42;
+  --ij-raised: var(--ij-tier-floating);
   --ij-seam: var(--ij-tier-ground);
   --ij-seam-raised: #565960;        /* keyline on raised+ */
   --ij-divider: var(--ij-tier-raised);

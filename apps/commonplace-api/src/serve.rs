@@ -27,6 +27,7 @@ use commonplace::{
     BlobStore, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Item, ItemBody,
     ItemKind, ObjectAction, ObjectActionReceipt, ObjectQuery, ObjectSet, Residency, ViewDescriptor,
 };
+use rustyred_thg_core::GraphSnapshotSource;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
@@ -41,7 +42,7 @@ const BLOB_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 
 struct AppState<S, B>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     schema: Schema<Query<S, B>, Mutation<S, B>, EmptySubscription>,
@@ -51,7 +52,7 @@ where
 
 impl<S, B> Clone for AppState<S, B>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
@@ -65,7 +66,7 @@ where
 
 pub fn build_router<S, B>(store: SharedStore<S, B>, registry: Arc<ApiKeyRegistry>) -> Router
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     let schema = build_schema(Arc::clone(&store), Arc::clone(&registry));
@@ -78,7 +79,7 @@ pub fn build_router_with_model<S, B>(
     model: Arc<dyn AnswerModel>,
 ) -> Router
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     let schema = build_schema_with_model(Arc::clone(&store), Arc::clone(&registry), model);
@@ -91,7 +92,7 @@ fn build_public_router_from_schema<S, B>(
     store: SharedStore<S, B>,
 ) -> Router
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     let state = AppState {
@@ -114,7 +115,7 @@ fn build_loopback_router_from_schema<S, B>(
     store: SharedStore<S, B>,
 ) -> Router
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     let state = AppState {
@@ -133,7 +134,7 @@ where
 /// The PT-017 blob capture routes, shared by the public and loopback routers.
 fn blob_routes<S, B>() -> Router<AppState<S, B>>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     Router::new()
@@ -182,7 +183,7 @@ async fn capabilities_handler<S, B>(
     headers: HeaderMap,
 ) -> Result<Json<NativeCapabilities>, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers)?;
@@ -208,7 +209,7 @@ async fn mobile_catalog_handler<S, B>(
     headers: HeaderMap,
 ) -> Result<Json<NativeCapabilityCatalog>, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers)?;
@@ -301,7 +302,7 @@ fn env_flag(name: &str) -> bool {
 /// the substrate with nothing above the `BlockHost` seam changing.
 fn object_routes<S, B>() -> Router<AppState<S, B>>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     Router::new()
@@ -316,7 +317,7 @@ async fn objects_query_handler<S, B>(
     Json(query): Json<ObjectQuery>,
 ) -> Result<Json<ObjectSet>, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers)?;
@@ -336,7 +337,7 @@ async fn objects_action_handler<S, B>(
     Json(action): Json<ObjectAction>,
 ) -> Result<Json<ObjectActionReceipt>, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers)?;
@@ -359,7 +360,7 @@ async fn objects_views_handler<S, B>(
     headers: HeaderMap,
 ) -> Result<Json<Vec<ViewDescriptor>>, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers)?;
@@ -384,7 +385,7 @@ async fn graphiql() -> impl IntoResponse {
 /// The same `x-api-key` gate `/graphql` applies, reused by the blob routes.
 fn authorize<S, B>(state: &AppState<S, B>, headers: &HeaderMap) -> Result<(), StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     headers
@@ -401,7 +402,7 @@ async fn graphql_handler<S, B>(
     req: GraphQLRequest,
 ) -> Result<GraphQLResponse, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     let key = headers
@@ -477,7 +478,7 @@ async fn ingest_blob_handler<S, B>(
     mut multipart: Multipart,
 ) -> Result<Json<BlobIngestResponse>, (StatusCode, String)>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers).map_err(|status| (status, "invalid API key".to_string()))?;
@@ -579,6 +580,7 @@ where
         task: None,
         remind_at_ms: None,
         due_at_ms: None,
+        provenance: None,
     };
 
     // Blob captures keep the blob body: content-core extraction (which
@@ -638,7 +640,7 @@ async fn tts_handler<S, B>(
     Json(request): Json<TtsRequest>,
 ) -> Result<Response, (StatusCode, String)>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers).map_err(|status| (status, "invalid API key".to_string()))?;
@@ -667,7 +669,7 @@ async fn blob_get_handler<S, B>(
     AxumPath(hash): AxumPath<String>,
 ) -> Result<Response, StatusCode>
 where
-    S: EmbeddingGraphStore + Send + Sync + 'static,
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
     authorize(&state, &headers)?;

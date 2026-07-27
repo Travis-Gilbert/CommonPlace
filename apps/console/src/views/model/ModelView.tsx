@@ -6,7 +6,9 @@
 import { useEffect, useReducer, useState, type FormEvent } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
+  emptyDeclaredModel,
   emptyObservedModel,
+  formatFieldType,
   type DeclaredModel,
   type ObservedEdge,
   type ObservedField,
@@ -35,17 +37,6 @@ import {
   type ModelLens,
   type ModelSelection,
 } from './modelQuery';
-
-function emptyDeclaredModel(scope: ScopeRef): DeclaredModel {
-  return {
-    scope,
-    objectTypes: [],
-    fields: [],
-    relations: [],
-    views: [],
-    versions: [],
-  };
-}
 
 function selectedObservedEvidence(
   selection: ModelSelection | null,
@@ -189,7 +180,7 @@ function ModelInspector({
             <h3 className="mt-1 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
               {declaredField.label}
             </h3>
-            <p className="mt-2 font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{declaredField.fieldType}</p>
+            <p className="mt-2 font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{formatFieldType(declaredField.fieldType)}</p>
           </div>
           {whyNodeId ? (
             <div className="min-h-96 flex-1 border-t border-ij-seam">

@@ -9,7 +9,7 @@
 import { Command } from 'cmdk';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { KbdCombo } from '@/components/jalco/kbd';
+import { KbdCombo } from '@/components/jalco';
 
 export type CommandMenuItem = {
   readonly id: string;

@@ -7,30 +7,35 @@ const APP_ROOT = path.resolve(SCRIPT_DIR, '..');
 const SOURCE_ROOT = path.join(APP_ROOT, 'src');
 const FIXTURE_ROOT = path.join(SCRIPT_DIR, 'fixtures', 'persistence-lint');
 const SOURCE_EXTENSION = /\.(?:[cm]?[jt]sx?)$/;
-const STORAGE_CALL = /(?:window\.)?(?:localStorage|sessionStorage)\s*\./g;
+const STORAGE_OPERATION = /(?:window\.)?(?:localStorage|sessionStorage)\s*\./;
+const STORAGE_CALL = new RegExp(STORAGE_OPERATION.source, 'g');
 const PREFERENCE_COMMENT =
-  /persistence-preference:\s*key=([^;]+);\s*preference=([^;]+);\s*reason=(\S.*)$/;
-const CACHE_COMMENT = /persistence-cache:\s*reason=(\S.*)$/;
+  /^\s*\/\/\s*persistence-preference:\s*key=([^;]+);\s*preference=([^;]+);\s*reason=(\S.*)$/;
+const CACHE_COMMENT = /^\s*\/\/\s*persistence-cache:\s*reason=(\S.*)$/;
 
-function preferenceComment(lines, lineIndex) {
-  for (let index = lineIndex; index >= Math.max(0, lineIndex - 2); index -= 1) {
-    const match = lines[index]?.match(PREFERENCE_COMMENT);
-    if (!match) continue;
-    const key = match[1].trim();
-    const preference = match[2].trim();
-    const reason = match[3].trim();
-    if (key && preference && reason) return { key, preference, reason };
+function nearbyComment(lines, lineIndex, pattern) {
+  for (let index = lineIndex - 1; index >= Math.max(0, lineIndex - 2); index -= 1) {
+    const line = lines[index] ?? '';
+    if (!line.trim() || STORAGE_OPERATION.test(line)) break;
+    const match = line.match(pattern);
+    if (match) return match;
   }
   return null;
 }
 
-function cacheComment(lines, lineIndex) {
-  for (let index = lineIndex; index >= Math.max(0, lineIndex - 2); index -= 1) {
-    const match = lines[index]?.match(CACHE_COMMENT);
-    const reason = match?.[1]?.trim();
-    if (reason) return reason;
-  }
+function preferenceComment(lines, lineIndex) {
+  const match = nearbyComment(lines, lineIndex, PREFERENCE_COMMENT);
+  if (!match) return null;
+  const key = match[1].trim();
+  const preference = match[2].trim();
+  const reason = match[3].trim();
+  if (key && preference && reason) return { key, preference, reason };
   return null;
+}
+
+function cacheComment(lines, lineIndex) {
+  const match = nearbyComment(lines, lineIndex, CACHE_COMMENT);
+  return match?.[1]?.trim() || null;
 }
 
 function inspectSource(filePath, source) {
@@ -87,17 +92,17 @@ async function runPlantedFixtureTest() {
     planted.violations.length !== 1
     || allowed.violations.length !== 0
     || allowed.preferences.length !== 1
-    || hydrationCache.violations.length !== 0
+    || hydrationCache.violations.length !== 1
     || hydrationCache.caches.length !== 1
   ) {
-    throw new Error('persistence lint planted fixture did not exercise reject, preference, and cache lanes');
+    throw new Error('persistence lint planted fixture did not exercise reject, preference, cache, and annotation-boundary lanes');
   }
 }
 
 async function main() {
   await runPlantedFixtureTest();
   if (process.argv.includes('--self-test')) {
-    console.log('persistence lint planted fixture: PASS (3 cases)');
+    console.log('persistence lint planted fixture: PASS (4 cases)');
     return;
   }
   const files = await sourceFiles(SOURCE_ROOT);
@@ -118,7 +123,7 @@ async function main() {
   }
   const allowlist = new Map(preferences.map((entry) => [entry.key, entry]));
   console.log(
-    `persistence lint: PASS (${files.length} files, ${allowlist.size} preference key, ${caches.length} cache calls, 3 planted cases)`,
+    `persistence lint: PASS (${files.length} files, ${allowlist.size} preference key, ${caches.length} cache calls, 4 planted cases)`,
   );
 }
 

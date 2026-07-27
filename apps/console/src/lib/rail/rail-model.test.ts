@@ -62,14 +62,19 @@ describe('rail-model', () => {
     expect(deriveLayoutCollections().some((entry) => entry.kindGlyph === 'canvas')).toBe(false);
   });
 
-  it('adding a temporary collection policy surfaces a new entry', () => {
+  it('keeps the hidden Kanban policy out of layout collections', () => {
     const baseline = deriveLayoutCollections(KIND_GLYPH_ORDER).length;
     expect(baseline).toBe(5);
     expect(KIND_RAIL_POLICY.kanban.rail).toBe('hidden');
   });
 
   it('rejects duplicate labels across places and layout collections', () => {
-    expect(() => assertUniqueRailLabels()).not.toThrow();
+    const place = PLACE_ENTRIES[0]!;
+    const collection = {
+      ...deriveLayoutCollections()[0]!,
+      label: place.label,
+    };
+    expect(() => assertUniqueRailLabels([place], [collection])).toThrow('Rail label collides');
   });
 
   it('never invents a collection for an unregistered glyph', () => {

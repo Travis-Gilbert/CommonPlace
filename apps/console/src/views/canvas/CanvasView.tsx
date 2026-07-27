@@ -29,7 +29,6 @@ const CANVAS_QUERY = {
 
 const NODE_TYPES = { canvasCard: CanvasCardNode } as unknown as NodeTypes;
 type CanvasFlowNode = Node<CanvasCardData>;
-
 function emptyCanvasSet(): ObjectSet {
   return {
     objects: [],
@@ -77,13 +76,30 @@ export function CanvasView({ host }: ViewRenderProps) {
 
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
+    if (connection.source === connection.target) {
+      setMessage('Refused: a card cannot relate to itself.');
+      return;
+    }
     void host.emit({
       kind: 'link',
       from: connection.source,
       edge: CANVAS_CONNECT_EDGE,
       to: connection.target,
     });
+    setMessage(null);
   }, [host]);
+
+  const isValidConnection = useCallback((connection: Connection | { source: string | null; target: string | null }) => {
+    if (!connection.source || !connection.target) {
+      setMessage('Refused: connection needs a source and a target.');
+      return false;
+    }
+    if (connection.source === connection.target) {
+      setMessage('Refused: a card cannot relate to itself.');
+      return false;
+    }
+    return true;
+  }, []);
 
   const onImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -148,6 +164,7 @@ export function CanvasView({ host }: ViewRenderProps) {
               nodesConnectable
               onNodeDragStop={onNodeDragStop}
               onConnect={onConnect}
+              isValidConnection={isValidConnection}
               proOptions={{ hideAttribution: true }}
               style={{ background: 'transparent' }}
             >

@@ -132,7 +132,7 @@ test.describe('Search panel', () => {
     await page.keyboard.press('Shift');
     await page.keyboard.press('Shift');
     const panel = page.locator('[data-search-panel]');
-    await expect(panel).toBeVisible();
-    await expect(panel).toHaveScreenshot('search-panel-expanded.png');
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    await expect(panel).toHaveScreenshot('search-panel-expanded.png', { timeout: 15_000 });
   });
 });

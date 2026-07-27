@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptyDeclaredModel,
   emptyObservedModel,
   formatCoverage,
+  formatFieldType,
   isPinned,
+  parseFieldType,
   type DeclaredModel,
   type ScopeRef,
 } from './index';
@@ -21,19 +24,16 @@ describe('data model contract helpers', () => {
 
   it('finds observed keys in declared provenance', () => {
     const declared: DeclaredModel = {
-      scope,
-      objectTypes: [],
+      ...emptyDeclaredModel(scope),
       fields: [{
         id: 'field-title',
         objectTypeId: 'type-document',
         key: 'title',
         label: 'Title',
-        fieldType: 'string',
+        fieldType: { kind: 'text' },
+        required: false,
         provenance: { observedKey: 'document.title' },
       }],
-      relations: [],
-      views: [],
-      versions: [],
     };
 
     expect(isPinned('document.title', declared)).toBe(true);
@@ -44,5 +44,12 @@ describe('data model contract helpers', () => {
     expect(formatCoverage(0.734, 1)).toBe('73.4%');
     expect(formatCoverage(2)).toBe('100%');
     expect(formatCoverage(Number.NaN)).toBe('0%');
+  });
+
+  it('parses closed FieldType from string or tagged object', () => {
+    expect(parseFieldType('lc_text')).toEqual({ kind: 'lc_text' });
+    expect(parseFieldType({ kind: 'vector', dim: 384 })).toEqual({ kind: 'vector', dim: 384 });
+    expect(formatFieldType({ kind: 'relation', targetObjectTypeId: 't', cardinality: 'many' }))
+      .toBe('relation(many:t)');
   });
 });

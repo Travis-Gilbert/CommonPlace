@@ -26,9 +26,9 @@ async function openIndex(page: Page) {
     { timeout: 60_000 },
   );
   await page.locator('[data-surface-nav="console-index"]').click();
-  // Generous, because the first test after the dev server starts pays for the
-  // route's cold compile. Later assertions keep the default timeout.
-  await expect(page.locator('[data-filing-index]')).toBeVisible({ timeout: 30_000 });
+  // The Index resolves against the 5000-record fixture, so cold hosted runners
+  // need the same bounded readiness budget as layout seeding.
+  await expect(page.locator('[data-filing-index]')).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('[data-filing-ribbon-item]').first()).toBeVisible({ timeout: 30_000 });
 }
 

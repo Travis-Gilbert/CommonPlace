@@ -18,6 +18,13 @@ watchPatterns = [
   "railway.toml"
 ]
 
+# FK3/FK5 identity page contract:
+#   COMMONPLACE_FORK_SERVER_URL points to the separate Express service.
+#   COMMONPLACE_FORK_SERVER_INTERNAL_KEY matches that service exactly.
+#   COMMONPLACE_ACTIVE_WORKSPACE_SECRET signs the short-lived HttpOnly active
+#     membership cookie and is distinct from both service credentials.
+# None of these values is exposed through NEXT_PUBLIC_*.
+
 [deploy]
 startCommand = "node apps/console/scripts/start-railway.mjs"
 healthcheckPath = "/api/healthz"

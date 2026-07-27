@@ -22,6 +22,9 @@ Workspace: `Creative/Website/CommonPlace` (island MaterialLayer lives here).
 - `npm run gate:blocks`
 - `vitest` BlockShell + theme-engine
 
+Reverified on 2026-07-27 during the PR #110 merge repair: all 12 Console gates,
+the full Console unit suite, and the clean Playwright suite pass.
+
 ## Follow-up
 
 - Visual e2e / screenshot pass against islands-material proof.

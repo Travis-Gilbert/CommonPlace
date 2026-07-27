@@ -23,7 +23,6 @@ export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
 export const MODEL_SURFACE_ID = 'console-models';
 export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
 export const CONSOLE_DATA_SURFACE_ID = 'console-your-data';
-
 function layoutObject(
   id: string,
   type: string,
@@ -90,8 +89,14 @@ export function registerToolWindow(seed: ToolWindowSeed): ObjectRef[] {
   ];
 }
 
-function companionSeeds(prefix: string, threadOpen = false): ObjectRef[] {
-  return [
+type CompanionKind = NonNullable<ToolWindowSeed['companion']>;
+
+function companionSeeds(
+  prefix: string,
+  threadOpen = false,
+  excluded: readonly CompanionKind[] = [],
+): ObjectRef[] {
+  const seeds = [
     ...registerToolWindow({
       id: `${prefix}.region-files`,
       title: 'Files',
@@ -126,10 +131,15 @@ function companionSeeds(prefix: string, threadOpen = false): ObjectRef[] {
       descriptorId: 'chat.thread',
     }),
   ];
+  return seeds.filter((object) =>
+    !excluded.some((kind) =>
+      object.id === `${prefix}.region-${kind}` || object.id === `${prefix}.region-${kind}.view`));
 }
 
-function companionIds(prefix: string): string[] {
-  return [`${prefix}.region-files`, `${prefix}.region-context`, `${prefix}.region-thread`];
+function companionIds(prefix: string, excluded: readonly CompanionKind[] = []): string[] {
+  return (['files', 'context', 'thread'] as const)
+    .filter((kind) => !excluded.includes(kind))
+    .map((kind) => `${prefix}.region-${kind}`);
 }
 
 /** The durable IA seed: Places + Collections from the rail model, plus
@@ -344,7 +354,7 @@ export function seedLayout(): ObjectRef[] {
 
     layoutObject('console-files', 'surface', {
       name: 'Files', kind: 'files', role: 'collection', active: false, seed_revision: 1,
-    }, ['files.region-editor', ...companionIds('files')]),
+    }, ['files.region-editor', ...companionIds('files', ['files'])]),
     layoutObject('files.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'files.vi-tree', seed_revision: 1,
     }, ['files.vi-tree']),
@@ -352,7 +362,7 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'files.tree', title: 'Files',
       query: { types: ['files-view'] } as unknown as JsonValue,
     }),
-    ...companionSeeds('files'),
+    ...companionSeeds('files', false, ['files']),
 
     layoutObject('console-records', 'surface', {
       name: 'Records', kind: 'records', role: 'collection', active: false, seed_revision: 1,
@@ -373,7 +383,7 @@ export function seedLayout(): ObjectRef[] {
       kind: 'editor', size: 100, active_tab: 'threads.vi-list', seed_revision: 1,
     }, ['threads.vi-list']),
     layoutObject('threads.vi-list', 'view-instance', {
-      descriptor_id: 'chat.surface', title: 'Threads',
+      descriptor_id: 'thread.list', title: 'Threads',
       query: { types: ['thread'] } as unknown as JsonValue,
     }),
     ...companionSeeds('threads'),

@@ -10,7 +10,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { Command } from 'cmdk';
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { Kbd } from '@/components/jalco/kbd';
+import { Kbd } from '@/components/jalco';
 
 export type LinearPriorityValue = 'no-priority' | 'urgent' | 'high' | 'medium' | 'low';
 

@@ -18,8 +18,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rustyred_thg_core::{
-    now_ms, EdgeRecord, GraphStore, GraphStoreError, GraphStoreResult, NeighborQuery, NodeQuery,
-    NodeRecord,
+    decode_legacy_vector_array, now_ms, read_vector_property, EdgeRecord, GraphStore,
+    GraphStoreError, GraphStoreResult, GraphVectorPayloadAccess, NeighborQuery, NodeQuery,
+    NodeRecord, VectorPropertyRef,
 };
 use serde_json::{json, Value};
 
@@ -215,6 +216,32 @@ where
             ItemBody::Blob { content_hash, .. } => self.blobs.get(content_hash),
             _ => Ok(None),
         }
+    }
+
+    /// Resolve an item's dense embedding from either the legacy inline field or
+    /// RustyRed's canonical content-addressed vector payload.
+    pub fn resolve_item_embedding(&self, item: &Item) -> GraphStoreResult<Option<Vec<f32>>>
+    where
+        S: GraphVectorPayloadAccess,
+    {
+        if let Some(embedding) = item.embedding.as_ref().filter(|value| !value.is_empty()) {
+            return Ok(Some(embedding.clone()));
+        }
+        let Some(node) = self.store.get_node(&item.id) else {
+            return Ok(None);
+        };
+        let Some(value) = node.properties.get(crate::ingest::ITEM_EMBEDDING_PROPERTY) else {
+            return Ok(None);
+        };
+        if value.is_array() {
+            return decode_legacy_vector_array(value);
+        }
+        let payloads = self.store.vector_payload_store()?;
+        read_vector_property(
+            node,
+            crate::ingest::ITEM_EMBEDDING_PROPERTY,
+            payloads.as_ref(),
+        )
     }
 
     /// All items of a given kind.
@@ -1336,6 +1363,40 @@ where
             object.insert("id".to_string(), json!(node.id));
             // collections are edge-canonical; never trust a stored copy.
             object.remove("collections");
+            // Designated vectors are normalized by RustyRed into strict
+            // VectorPropertyRef objects. Keep that reference in Item.extra for
+            // payload-aware consumers, derive embedding_ref from it, and hide
+            // it from the legacy Option<Vec<f32>> field during hydration.
+            if let Some(vector_value) = object
+                .get(crate::ingest::ITEM_EMBEDDING_PROPERTY)
+                .filter(|value| value.is_object() || value.is_array())
+                .cloned()
+            {
+                if vector_value.is_object() {
+                    if let Ok(reference) = VectorPropertyRef::from_value(&vector_value) {
+                        object.insert("embedding_ref".to_string(), json!(reference.content_id));
+                    }
+                }
+                let extra = object
+                    .entry("extra".to_string())
+                    .or_insert_with(|| json!({}));
+                if let Some(extra) = extra.as_object_mut() {
+                    extra.insert(
+                        crate::ingest::ITEM_EMBEDDING_PROPERTY.to_string(),
+                        vector_value,
+                    );
+                }
+                // Strict refs cannot deserialize into Item.embedding and live in
+                // Item.extra instead. Legacy arrays remain in both locations
+                // during the read-compatibility window: Item.embedding keeps
+                // the old public shape while vector-aware readers use extra.
+                if object
+                    .get(crate::ingest::ITEM_EMBEDDING_PROPERTY)
+                    .is_some_and(Value::is_object)
+                {
+                    object.remove(crate::ingest::ITEM_EMBEDDING_PROPERTY);
+                }
+            }
         }
         let mut item: Item = serde_json::from_value(props).map_err(serde_err)?;
         item.id = node.id.clone();
@@ -1359,11 +1420,27 @@ fn item_props(item: &Item) -> GraphStoreResult<Value> {
     if let Some(object) = value.as_object_mut() {
         object.remove("id"); // node.id is the single source of truth
         object.remove("collections"); // edge-canonical (IN_COLLECTION)
-        if let Some(embedding) = item.extra.get(crate::ingest::ITEM_EMBEDDING_PROPERTY) {
+        object.remove("embedding_ref"); // derived from the canonical vector ref
+        if let Some(embedding) = item
+            .extra
+            .get(crate::ingest::ITEM_EMBEDDING_PROPERTY)
+            .cloned()
+        {
             object.insert(
                 crate::ingest::ITEM_EMBEDDING_PROPERTY.to_string(),
-                embedding.clone(),
+                embedding,
             );
+            let extra_is_empty = object
+                .get_mut("extra")
+                .and_then(Value::as_object_mut)
+                .map(|extra| {
+                    extra.remove(crate::ingest::ITEM_EMBEDDING_PROPERTY);
+                    extra.is_empty()
+                })
+                .unwrap_or(false);
+            if extra_is_empty {
+                object.remove("extra");
+            }
         }
         // Derived single-string key for an O(1) exact-match source-ref lookup (A3).
         if let Some(key) = item.source_ref_key() {
@@ -1424,4 +1501,61 @@ pub(crate) fn new_id(prefix: &str) -> String {
 
 fn serde_err(error: serde_json::Error) -> GraphStoreError {
     GraphStoreError::new("commonplace_serde", error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{InMemoryBlobStore, ItemKind};
+    use rustyred_thg_core::InMemoryGraphStore;
+
+    #[test]
+    fn hydrate_item_keeps_legacy_inline_vector_in_compatibility_lane() {
+        let cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        let vector = vec![0.25, 0.5, 0.75];
+        let legacy = Item::new(ItemKind::Doc, "Legacy vector")
+            .with_id("item:legacy-inline")
+            .with_text("Stored before strict vector references.")
+            .with_embedding(vector.clone());
+        let mut properties = serde_json::to_value(legacy).unwrap();
+        properties.as_object_mut().unwrap().remove("id");
+        let node = NodeRecord::new("item:legacy-inline", [ITEM_LABEL], properties);
+
+        let hydrated = cp.hydrate_item(&node).unwrap();
+
+        assert_eq!(hydrated.embedding.as_deref(), Some(vector.as_slice()));
+        assert_eq!(
+            hydrated
+                .extra
+                .get(crate::ingest::ITEM_EMBEDDING_PROPERTY),
+            Some(&json!(vector))
+        );
+    }
+
+    #[test]
+    fn resolves_hydrated_strict_vector_reference_from_payload_store() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        let vector = vec![0.125, 0.25, 0.5, 1.0];
+        let stored = cp
+            .put_item(
+                Item::new(ItemKind::Doc, "Strict vector")
+                    .with_id("item:strict-vector")
+                    .with_text("Stored through the canonical payload lane.")
+                    .with_embedding(vector.clone()),
+            )
+            .unwrap();
+        assert!(cp
+            .store()
+            .get_node(&stored.id)
+            .and_then(|node| node.properties.get(crate::ingest::ITEM_EMBEDDING_PROPERTY))
+            .is_some_and(Value::is_object));
+
+        let hydrated = cp.get_item(&stored.id).unwrap().expect("stored item");
+
+        assert!(hydrated.embedding.is_none());
+        assert_eq!(
+            cp.resolve_item_embedding(&hydrated).unwrap().as_deref(),
+            Some(vector.as_slice())
+        );
+    }
 }

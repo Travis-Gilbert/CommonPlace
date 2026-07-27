@@ -1898,6 +1898,7 @@ version = "0.5.0"
 dependencies = [
  "blake3",
  "bm25",
+ "crc32fast",
  "ed25519-dalek",
  "egg",
  "egglog",

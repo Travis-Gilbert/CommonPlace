@@ -98,6 +98,11 @@ export type PlanTaskEscalation = {
   occurredAtMs: number | null;
 };
 
+export type PlanDataTypeBadge =
+  | { kind: 'none' }
+  | { kind: 'undetermined' }
+  | { kind: 'determined'; columnCount: number; types: string[] };
+
 export type PlanTask = {
   id: string;
   alias: string;
@@ -126,6 +131,8 @@ export type PlanTask = {
   proofStatus: string | null;
   assignedHead: string | null;
   escalation: PlanTaskEscalation | null;
+  /** BlockContext boundary badge for Plan Canvas (HANDOFF-BLOCK-CONTEXT D8). */
+  dataTypeBadge: PlanDataTypeBadge;
 };
 
 export type PlanCanvasSnapshot = {
@@ -555,7 +562,30 @@ function normalizeTask(value: unknown): PlanTask | null {
     proofStatus: text(item.proof_status) ?? text(item.proofStatus) ?? null,
     assignedHead,
     escalation,
+    dataTypeBadge: normalizeDataTypeBadge(
+      item.data_type_badge ?? item.dataTypeBadge ?? item.block_context_badge ?? item.blockContextBadge,
+    ),
   };
+}
+
+function normalizeDataTypeBadge(value: unknown): PlanDataTypeBadge {
+  if (value == null) return { kind: 'none' };
+  if (typeof value === 'string') {
+    const kind = snake(value);
+    if (kind === 'undetermined') return { kind: 'undetermined' };
+    if (kind === 'none' || kind === '') return { kind: 'none' };
+  }
+  const item = record(value);
+  if (!item) return { kind: 'none' };
+  const kind = snake(text(item.kind) ?? '');
+  if (kind === 'undetermined') return { kind: 'undetermined' };
+  if (kind === 'determined') {
+    const types = strings(item.types);
+    const columnCount = number(item.column_count ?? item.columnCount) ?? types.length;
+    if (columnCount <= 0 && types.length === 0) return { kind: 'none' };
+    return { kind: 'determined', columnCount, types };
+  }
+  return { kind: 'none' };
 }
 
 function normalizeEscalation(value: unknown, fallbackTarget: string | null = null): PlanTaskEscalation | null {

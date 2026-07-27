@@ -320,13 +320,15 @@ export class ProactivityStore {
       this.notify();
       return durable;
     }
+    if (!durable.value) {
+      this.structure = previous;
+      this.notify();
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
+    }
     return {
       ok: true,
       value: {
-        ...(durable.value ?? {
-          action_kind: action.kind,
-          status: 'applied' as const,
-        }),
+        ...durable.value,
         action_kind: action.kind,
         status: local.value?.status ?? 'applied',
         target_ids: local.value?.target_ids ?? durable.value?.target_ids ?? [],
@@ -349,7 +351,15 @@ export class ProactivityStore {
 
   private applied(id: string): Result<ObjectActionReceipt> {
     this.notify();
-    return { ok: true, value: { action_kind: 'update', status: 'applied', target_ids: [id] } };
+    return {
+      ok: true,
+      value: {
+        action_kind: 'update',
+        status: 'applied',
+        target_ids: [id],
+        legacy_without_op_range: true,
+      },
+    };
   }
 
   private applyUpdate(id: string, patch: Record<string, JsonValue>): Result<ObjectActionReceipt> {
@@ -399,16 +409,39 @@ export class ProactivityStore {
     const node = { ...props, id, kind } as unknown as StandingNode;
     this.structure = { ...this.structure, nodes: [...this.structure.nodes, node] };
     this.notify();
-    return { ok: true, value: { action_kind: 'create', status: 'applied', target_ids: [id] } };
+    return {
+      ok: true,
+      value: {
+        action_kind: 'create',
+        status: 'applied',
+        target_ids: [id],
+        legacy_without_op_range: true,
+      },
+    };
   }
 
   private applyDelete(id: string): Result<ObjectActionReceipt> {
     if (!this.structure.nodes.some((node) => node.id === id)) {
-      return { ok: true, value: { action_kind: 'delete', status: 'accepted' } };
+      return {
+        ok: true,
+        value: {
+          action_kind: 'delete',
+          status: 'accepted',
+          legacy_without_op_range: true,
+        },
+      };
     }
     const nodes = this.structure.nodes.filter((node) => node.id !== id);
     this.structure = { ...this.structure, nodes };
     this.notify();
-    return { ok: true, value: { action_kind: 'delete', status: 'applied', target_ids: [id] } };
+    return {
+      ok: true,
+      value: {
+        action_kind: 'delete',
+        status: 'applied',
+        target_ids: [id],
+        legacy_without_op_range: true,
+      },
+    };
   }
 }

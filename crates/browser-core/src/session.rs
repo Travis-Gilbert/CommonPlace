@@ -83,7 +83,7 @@ impl SessionGraph {
     pub fn back(&mut self, tab: TabId) -> Option<&Visit> {
         let node = self.tabs.get_mut(&tab.0)?;
         if node.cursor == 0 {
-            return node.visits.get(0);
+            return node.visits.first();
         }
         node.cursor -= 1;
         node.visits.get(node.cursor)
