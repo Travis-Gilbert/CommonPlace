@@ -24,6 +24,7 @@ const lawSubscribers = new Set<() => void>();
 
 function readLawSeen(): boolean {
   try {
+    // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
     return window.localStorage.getItem(LAW_SEEN_KEY) === 'seen';
   } catch {
     // A browser that refuses storage gets the line every time rather than
@@ -34,6 +35,7 @@ function readLawSeen(): boolean {
 
 function markLawSeen() {
   try {
+    // persistence-preference: key=commonplace.console.filing.law.v1; preference=filing explanation dismissed; reason=shows the one-line filing law only once
     window.localStorage.setItem(LAW_SEEN_KEY, 'seen');
   } catch {
     // Nothing to persist: the line simply reappears next session.

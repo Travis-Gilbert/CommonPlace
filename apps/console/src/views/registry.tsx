@@ -34,6 +34,7 @@ import { KanbanBlock } from './blocks/KanbanBlock';
 import { SurveyView } from './SurveyView';
 import { ModelView } from './model/ModelView';
 import { SearchStackView } from './search/SearchStackView';
+import { PG_TYPES } from '@/lib/proactivity/object-bridge';
 import {
   openSearchPageInWebEdition,
   recordSearchSessionOrigin,
@@ -74,7 +75,12 @@ const RECORD_TABLE: ConsoleViewDescriptor = {
   id: 'record.table',
   name: 'Records',
   paletteVisible: true,
-  palette: { id: 'records', kind: 'records', material: 'sunken' },
+  palette: {
+    id: 'records',
+    kind: 'records',
+    material: 'sunken',
+    query: { types: ['record'], page: { limit: 100 }, live: true },
+  },
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'record.table',
@@ -100,7 +106,13 @@ const MARKDOWN_DOC: ConsoleViewDescriptor = {
   id: 'markdown.doc',
   name: 'Document',
   paletteVisible: true,
-  palette: { id: 'documents', label: 'Documents', kind: 'documents', material: 'lifted' },
+  palette: {
+    id: 'documents',
+    label: 'Documents',
+    kind: 'documents',
+    material: 'lifted',
+    query: { types: ['doc'], page: { limit: 100 }, live: true },
+  },
   accepts: {},
   emits: ['update', 'open'],
   renderer: 'markdown.doc',
@@ -194,7 +206,12 @@ const FILES_TREE: ConsoleViewDescriptor = {
   id: 'files.tree',
   name: 'Files',
   paletteVisible: true,
-  palette: { id: 'files', kind: 'files', material: 'sunken' },
+  palette: {
+    id: 'files',
+    kind: 'files',
+    material: 'sunken',
+    query: { types: ['files-view'] },
+  },
   accepts: {},
   emits: ['open'],
   renderer: 'files.tree',
@@ -206,7 +223,7 @@ const FILES_TREE: ConsoleViewDescriptor = {
   },
   block: {
     usage: 'browse files',
-    placements: ['dock'],
+    placements: ['dock', 'ground', 'full'],
     defaultSize: 'm',
     density: 'compact',
     surfaceClass: 'tool',
@@ -271,6 +288,14 @@ const INDEX_RAIL: ConsoleViewDescriptor = {
     regime: 'css-vars',
     allowedBespokeReason:
       'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
+  },
+  block: {
+    usage: 'browse filing destinations',
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'records',
   },
   render: IndexDestinationsView,
 };
@@ -392,7 +417,13 @@ const PROACTIVITY: ConsoleViewDescriptor = {
   id: 'proactivity.graph',
   name: 'Proactivity',
   paletteVisible: true,
-  palette: { id: 'automation', label: 'Automation', kind: 'automation', material: 'sunken' },
+  palette: {
+    id: 'automation',
+    label: 'Automation',
+    kind: 'automation',
+    material: 'sunken',
+    query: { types: [...PG_TYPES], live: true },
+  },
   accepts: { required_types: ['pg.stake'], cardinality: 'many' },
   emits: ['update', 'create', 'delete'],
   renderer: 'proactivity.graph',
@@ -403,6 +434,14 @@ const PROACTIVITY: ConsoleViewDescriptor = {
     regime: 'css-vars',
     allowedBespokeReason:
       'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+  },
+  block: {
+    usage: 'inspect standing automation',
+    placements: ['ground', 'full'],
+    defaultSize: 'm',
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'automation',
   },
   render: ProactivityView,
 };
@@ -443,7 +482,7 @@ const MODEL_STUDIO: ViewDescriptor = {
     surfaceClass: 'editor',
     kindGlyph: 'model',
     bodyBleed: 'flush',
-    acceptsDrop: { semantic: 'relate' },
+    acceptsDrop: { semantic: 'relate', edge: 'RELATED_TO' },
   },
   render: ModelView,
 };
@@ -502,6 +541,14 @@ const GOAL_STACK: ConsoleViewDescriptor = {
     component: 'ReactFlow',
     mode: 'wrap',
     regime: 'css-vars',
+  },
+  block: {
+    usage: 'inspect agent plan',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'automation',
   },
   render: GoalStackView,
 };

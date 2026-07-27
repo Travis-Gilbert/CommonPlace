@@ -55,6 +55,7 @@ export function findViewByIdOrSlug(host: ConsoleBlockHost, viewId: string): Obje
 export function readDirtyViewId(): string | null {
   if (typeof window === 'undefined') return null;
   try {
+    // persistence-cache: reason=tracks an unsaved view only for the current browser session
     return window.sessionStorage.getItem(VIEW_STORAGE_DIRTY_KEY);
   } catch {
     return null;
@@ -64,6 +65,7 @@ export function readDirtyViewId(): string | null {
 export function markViewDirty(viewId: string): void {
   if (typeof window === 'undefined') return;
   try {
+    // persistence-cache: reason=tracks an unsaved view only for the current browser session
     window.sessionStorage.setItem(VIEW_STORAGE_DIRTY_KEY, viewId);
   } catch {
     // Session storage can be unavailable; dirty is best-effort.
@@ -73,6 +75,7 @@ export function markViewDirty(viewId: string): void {
 export function clearViewDirty(): void {
   if (typeof window === 'undefined') return;
   try {
+    // persistence-cache: reason=clears the current session's unsaved-view marker
     window.sessionStorage.removeItem(VIEW_STORAGE_DIRTY_KEY);
   } catch {
     // ignore
@@ -82,6 +85,7 @@ export function clearViewDirty(): void {
 export function readDeletedSeedSlugs(): ReadonlySet<string> {
   if (typeof window === 'undefined') return new Set();
   try {
+    // persistence-preference: key=commonplace.console.deleted-seed-views.v1; preference=hidden sample views; reason=keeps dismissed seed views out of navigation
     const raw = window.localStorage.getItem(DELETED_SEED_VIEWS_KEY);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
@@ -97,6 +101,7 @@ export function rememberDeletedSeedSlug(slug: string): void {
   const next = new Set(readDeletedSeedSlugs());
   next.add(slug);
   try {
+    // persistence-preference: key=commonplace.console.deleted-seed-views.v1; preference=hidden sample views; reason=keeps dismissed seed views out of navigation
     window.localStorage.setItem(DELETED_SEED_VIEWS_KEY, JSON.stringify([...next]));
   } catch {
     // ignore

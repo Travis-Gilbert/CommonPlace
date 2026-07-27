@@ -15,6 +15,7 @@ const appearanceBootstrap = `(() => {
   const legacy = 'commonplace.console.appearance.v1';
   const root = document.documentElement;
   let saved = null;
+  // persistence-preference: key=commonplace.console.appearance.v2; preference=theme; reason=paints the chosen theme before hydration
   try { saved = JSON.parse(localStorage.getItem(key) || localStorage.getItem(legacy) || 'null'); } catch {}
   const candidate = saved?.preference;
   const validMode = ['auto', 'dark', 'light'].includes(candidate?.mode);

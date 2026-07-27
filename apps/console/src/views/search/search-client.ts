@@ -7,30 +7,44 @@ import {
   LAMBDA_PREFERENCE_KEY,
   createSearchStackClient,
   createSearchStackController,
+  type SearchStackController,
 } from '@commonplace/search-stack';
 
 export const consoleSearchClient = createSearchStackClient({
   basePath: '/api/search',
 });
 
-export const consoleSearchController = createSearchStackController({
-  client: consoleSearchClient,
-  preferences: {
-    // PERSISTENCE-ALLOW: UI preference only. This stores the SERP lambda dial,
-    // never a query, result, saved page, session, or other user work.
-    read: () => null,
-    write: (key, value) => {
-      if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
+const consoleControllers = new WeakSet<SearchStackController>();
+const hydratedControllers = new WeakSet<SearchStackController>();
+
+export function createConsoleSearchController(): SearchStackController {
+  const controller = createSearchStackController({
+    client: consoleSearchClient,
+    preferences: {
+      read: () => null,
+      write: (key, value) => {
+        if (typeof window === 'undefined') return;
+        // persistence-preference: key=commonplace.search.lambda; preference=search breadth; reason=restores the person's lambda dial
+        window.localStorage.setItem(key, value);
+      },
     },
-  },
-});
+  });
+  consoleControllers.add(controller);
+  return controller;
+}
 
-let hydrated = false;
+export const consoleSearchController = createConsoleSearchController();
 
-export function hydrateConsoleSearchPreference(): void {
-  if (hydrated || typeof window === 'undefined') return;
-  hydrated = true;
-  // PERSISTENCE-ALLOW: UI preference only. Search state stays memory-only.
+export function hydrateConsoleSearchPreference(
+  controller: SearchStackController = consoleSearchController,
+): void {
+  if (
+    hydratedControllers.has(controller)
+    || !consoleControllers.has(controller)
+    || typeof window === 'undefined'
+  ) return;
+  hydratedControllers.add(controller);
+  // persistence-preference: key=commonplace.search.lambda; preference=search breadth; reason=restores the person's lambda dial
   const value = window.localStorage.getItem(LAMBDA_PREFERENCE_KEY);
-  if (value != null) consoleSearchController.setLambda(Number(value));
+  if (value != null) controller.setLambda(Number(value));
 }

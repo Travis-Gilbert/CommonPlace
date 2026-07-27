@@ -96,6 +96,7 @@ export function createSearchStackController(
   const preferenceKey = options.preferenceKey ?? LAMBDA_PREFERENCE_KEY;
   const listeners = new Set<() => void>();
   let submitGeneration = 0;
+  let expansionGeneration = 0;
   let snapshot: SearchStackSnapshot = initialSnapshot(
     readLambda(preferences, preferenceKey),
   );
@@ -120,6 +121,7 @@ export function createSearchStackController(
       const trimmed = query.trim();
       if (!trimmed) return;
       const generation = ++submitGeneration;
+      expansionGeneration += 1;
       publish({
         query: trimmed,
         scatter: asyncState.loading(),
@@ -203,6 +205,7 @@ export function createSearchStackController(
       const current = scatterOf(snapshot);
       if (!current) return;
       const rootQuery = snapshot.query;
+      const generation = ++expansionGeneration;
       publish({ expanding: aspect, error: null });
       try {
         const expansion = await client.expand({
@@ -213,7 +216,11 @@ export function createSearchStackController(
           lambda: snapshot.lambda,
         });
         const live = scatterOf(snapshot);
-        if (!live || snapshot.query !== rootQuery) return;
+        if (
+          generation !== expansionGeneration
+          || !live
+          || snapshot.query !== rootQuery
+        ) return;
         const selectedWasExpanded = snapshot.selectedAspect === aspect;
         publish({
           scatter: asyncState.success(
@@ -225,6 +232,10 @@ export function createSearchStackController(
           layer: selectedWasExpanded ? 'scatter' : snapshot.layer,
         });
       } catch (error) {
+        if (
+          generation !== expansionGeneration
+          || snapshot.query !== rootQuery
+        ) return;
         const message = errorMessage(error);
         publish({ expanding: null, error: message });
       }
@@ -240,24 +251,36 @@ export function createSearchStackController(
         stage: { nodeId: node.id, url: node.url, title: node.title },
         error: null,
       });
-      let originError: string | null = null;
+      let openPromise: Promise<void>;
+      try {
+        // Invoke the opener while the browser still owns the click activation.
+        // Durable origin persistence may perform network I/O in parallel.
+        openPromise = context.open(node.url, node);
+      } catch (error) {
+        publish({ error: errorMessage(error) });
+        return;
+      }
+      let originPromise: Promise<void> | null = null;
       if (context.sessionId && context.recordOrigin && origin) {
-        try {
-          await context.recordOrigin(context.sessionId, {
+        originPromise = context.recordOrigin(context.sessionId, {
             kind: 'constellation',
             subgraphRef: origin,
             query: snapshot.query,
             nodeId: node.id,
           });
-        } catch (error) {
-          originError = `Page opened without a durable search origin: ${errorMessage(error)}`;
-        }
       }
-      try {
-        await context.open(node.url, node);
-        if (originError) publish({ error: originError });
-      } catch (error) {
-        publish({ error: errorMessage(error) });
+      const [openResult, originResult] = await Promise.allSettled([
+        openPromise,
+        originPromise ?? Promise.resolve(),
+      ]);
+      if (openResult.status === 'rejected') {
+        publish({ error: errorMessage(openResult.reason) });
+        return;
+      }
+      if (originResult.status === 'rejected') {
+        publish({
+          error: `Page opened without a durable search origin: ${errorMessage(originResult.reason)}`,
+        });
       }
     },
     reopenMap() {
@@ -268,6 +291,7 @@ export function createSearchStackController(
     },
     reset() {
       submitGeneration += 1;
+      expansionGeneration += 1;
       snapshot = initialSnapshot(snapshot.lambda);
       for (const listener of listeners) listener();
     },

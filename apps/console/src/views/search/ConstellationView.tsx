@@ -4,8 +4,10 @@
 // owns the SVG marks. All paint resolves through the Int UI register.
 
 import {
+  useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -27,6 +29,7 @@ const RESULT_HALF_WIDTH = 84;
 const RESULT_HALF_HEIGHT = 34;
 const MEMORY_HALF_WIDTH = 58;
 const MEMORY_HALF_HEIGHT = 34;
+const RESULT_DOUBLE_CLICK_WINDOW_MS = 220;
 
 export interface ConstellationViewProps {
   readonly state: ConstellationState;
@@ -176,6 +179,12 @@ function ConstellationGraph({
   const domId = useId().replaceAll(':', '');
   const reducedMotion = useReducedMotion();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const resultOpenTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (resultOpenTimer.current !== null) {
+      window.clearTimeout(resultOpenTimer.current);
+    }
+  }, []);
   const layout = useMemo(
     () => layoutConstellation({
       query: payload.meta.query,
@@ -262,11 +271,27 @@ function ConstellationGraph({
                 onBlur={() => setActiveId(null)}
                 onMouseEnter={() => setActiveId(node.id)}
                 onMouseLeave={() => setActiveId(null)}
-                onClick={() => onOpenResult?.(node.url, node)}
+                onClick={() => {
+                  if (!onExpandNode) {
+                    onOpenResult?.(node.url, node);
+                    return;
+                  }
+                  if (resultOpenTimer.current !== null) {
+                    window.clearTimeout(resultOpenTimer.current);
+                  }
+                  resultOpenTimer.current = window.setTimeout(() => {
+                    resultOpenTimer.current = null;
+                    onOpenResult?.(node.url, node);
+                  }, RESULT_DOUBLE_CLICK_WINDOW_MS);
+                }}
                 onDoubleClick={(event) => {
                   if (!onExpandNode) return;
                   event.preventDefault();
                   event.stopPropagation();
+                  if (resultOpenTimer.current !== null) {
+                    window.clearTimeout(resultOpenTimer.current);
+                    resultOpenTimer.current = null;
+                  }
                   onExpandNode(node);
                 }}
                 onKeyDown={(event) => {

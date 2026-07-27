@@ -3,6 +3,8 @@ import {
   CONSTELLATION_FULL_FIXTURE,
 } from '@commonplace/block-view-contracts/search-stack-fixture';
 import {
+  CONSTELLATION_MEMORY_RADIUS,
+  CONSTELLATION_NODE_RADIUS,
   constellationSeed,
   layoutConstellation,
   type ConstellationLayoutNode,
@@ -55,12 +57,18 @@ describe('deterministic constellation layout', () => {
     );
   });
 
-  it('settles every node inside the viewport', () => {
-    for (const point of run().values()) {
-      expect(point.x).toBeGreaterThanOrEqual(0);
-      expect(point.x).toBeLessThanOrEqual(880);
-      expect(point.y).toBeGreaterThanOrEqual(0);
-      expect(point.y).toBeLessThanOrEqual(520);
+  it('settles every complete node extent inside the viewport', () => {
+    const layout = run();
+    for (const node of NODES) {
+      const point = layout.get(node.id);
+      if (!point) throw new Error(`missing layout point for ${node.id}`);
+      const radius = node.kind === 'memory'
+        ? CONSTELLATION_MEMORY_RADIUS
+        : CONSTELLATION_NODE_RADIUS;
+      expect(point.x - radius).toBeGreaterThanOrEqual(0);
+      expect(point.x + radius).toBeLessThanOrEqual(880);
+      expect(point.y - radius).toBeGreaterThanOrEqual(0);
+      expect(point.y + radius).toBeLessThanOrEqual(520);
     }
   });
 

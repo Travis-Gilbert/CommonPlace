@@ -42,6 +42,25 @@ describe('Sidebar Blocks group', () => {
     });
   });
 
+  it('keeps every palette entry reachable on the ground', () => {
+    const visible = CONSOLE_VIEW_DESCRIPTORS.filter(
+      (descriptor) => descriptor.paletteVisible === true,
+    );
+
+    for (const descriptor of visible) {
+      expect(descriptor.block?.placements).toContain('ground');
+    }
+  });
+
+  it('uses explicit data queries only for query-backed palette views', () => {
+    const items = deriveBlockPaletteItems(CONSOLE_VIEW_REGISTRY.descriptors);
+    const byId = new Map(items.map((item) => [item.id, item]));
+
+    expect(byId.get('records')?.query).toMatchObject({ types: ['record'] });
+    expect(byId.get('search')).not.toHaveProperty('query');
+    expect(byId.get('kanban')).not.toHaveProperty('query');
+  });
+
   it('renders an added descriptor without a Sidebar membership edit', () => {
     const added: ConsoleViewDescriptor = {
       ...CONSOLE_VIEW_DESCRIPTORS[0],
@@ -78,6 +97,7 @@ describe('Sidebar Blocks group', () => {
     });
     expect(CONSOLE_VIEW_REGISTRY.viewById('model.studio')?.block?.acceptsDrop).toEqual({
       semantic: 'relate',
+      edge: 'RELATED_TO',
     });
     expect(CONSOLE_VIEW_REGISTRY.viewById('canvas')?.block?.acceptsDrop).toBeUndefined();
   });

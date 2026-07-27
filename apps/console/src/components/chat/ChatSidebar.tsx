@@ -57,6 +57,7 @@ const PINNED_KEY = 'commonplace.chat.pinned-threads.v1';
 function readPinned(): string[] {
   if (typeof window === 'undefined') return [];
   try {
+    // persistence-preference: key=commonplace.chat.pinned-threads.v1; preference=pinned threads; reason=restores the person's chat navigation
     const raw = window.localStorage.getItem(PINNED_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
@@ -69,6 +70,7 @@ function readPinned(): string[] {
 function writePinned(ids: string[]): void {
   if (typeof window === 'undefined') return;
   try {
+    // persistence-preference: key=commonplace.chat.pinned-threads.v1; preference=pinned threads; reason=restores the person's chat navigation
     window.localStorage.setItem(PINNED_KEY, JSON.stringify(ids));
   } catch {
     // Best-effort.

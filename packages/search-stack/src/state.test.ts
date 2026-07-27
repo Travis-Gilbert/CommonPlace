@@ -119,6 +119,27 @@ describe('search stack controller', () => {
     );
   });
 
+  it('opens before starting durable origin persistence', async () => {
+    const store = createSearchStackController({ client });
+    await store.submit('membrane');
+    await store.selectAspect('aspect-budget');
+    const scene = constellationStateOf(store.getSnapshot());
+    if (scene.kind !== 'success') throw new Error('expected scene');
+    const calls: string[] = [];
+
+    await store.openNode(scene.payload.nodes[0], {
+      sessionId: 'session-1',
+      open: async () => {
+        calls.push('open');
+      },
+      recordOrigin: async () => {
+        calls.push('origin');
+      },
+    });
+
+    expect(calls).toEqual(['open', 'origin']);
+  });
+
   it('opens the page but surfaces a refused origin write', async () => {
     const store = createSearchStackController({ client });
     await store.submit('membrane');
@@ -152,6 +173,28 @@ describe('search stack controller', () => {
     expect(store.getSnapshot().docked).toBe(false);
     expect(store.getSnapshot().visited).toHaveLength(1);
     expect(selectedFindOf(store.getSnapshot())).toBeDefined();
+  });
+
+  it('ignores a rejected expansion superseded by a new query', async () => {
+    let rejectExpansion: ((reason: Error) => void) | undefined;
+    const staleClient: SearchStackClient = {
+      ...client,
+      expand: vi.fn(() =>
+        new Promise<Awaited<ReturnType<SearchStackClient['expand']>>>((_, reject) => {
+          rejectExpansion = reject;
+        })
+      ),
+    };
+    const store = createSearchStackController({ client: staleClient });
+    await store.submit('membrane');
+    const pending = store.expandAspect('aspect-budget');
+    await store.submit('replacement query');
+    rejectExpansion?.(new Error('stale expansion failed'));
+    await pending;
+
+    expect(store.getSnapshot().query).toBe('replacement query');
+    expect(store.getSnapshot().expanding).toBeNull();
+    expect(store.getSnapshot().error).toBeNull();
   });
 });
 

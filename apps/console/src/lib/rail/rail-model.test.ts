@@ -105,6 +105,23 @@ describe('rail-model', () => {
     ]);
     expect(deriveBlockPaletteItems([added]).map((item) => item.id)).toEqual(['canvas']);
   });
+
+  it('carries an explicit object query without deriving one from the glyph', () => {
+    const visible = {
+      ...descriptor('visible', true),
+      palette: {
+        kind: 'records',
+        query: { types: ['record'] },
+      },
+    } satisfies ConsoleViewDescriptor;
+
+    expect(deriveBlockPaletteItems([visible])[0]).toMatchObject({
+      kind: 'records',
+      query: { types: ['record'] },
+    });
+    expect(deriveBlockPaletteItems([descriptor('queryless', true)])[0])
+      .not.toHaveProperty('query');
+  });
 });
 
 function descriptor(id: string, paletteVisible: boolean): ConsoleViewDescriptor {

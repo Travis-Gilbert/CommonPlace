@@ -56,12 +56,16 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
   const readinessSignatureRef = useRef('');
 
   useEffect(() => {
+    // persistence-preference: key=commonplace.console.workspace-project.v1; preference=active project; reason=restores the person's last workspace selection
     const stored = window.localStorage.getItem(PROJECT_STORAGE_KEY);
     if (stored) setProjectId(stored);
   }, []);
 
   useEffect(() => {
-    if (projectId) window.localStorage.setItem(PROJECT_STORAGE_KEY, projectId);
+    if (projectId) {
+      // persistence-preference: key=commonplace.console.workspace-project.v1; preference=active project; reason=restores the person's last workspace selection
+      window.localStorage.setItem(PROJECT_STORAGE_KEY, projectId);
+    }
   }, [projectId]);
 
   useEffect(() => {
@@ -241,6 +245,7 @@ export function WorkspaceSubstrateView(_props: ViewRenderProps) {
           <button
             type="button"
             onClick={() => {
+              // persistence-preference: key=commonplace.console.workspace-project.v1; preference=active project; reason=clears the person's last workspace selection
               window.localStorage.removeItem(PROJECT_STORAGE_KEY);
               setProjectId('');
               setSurface(null);

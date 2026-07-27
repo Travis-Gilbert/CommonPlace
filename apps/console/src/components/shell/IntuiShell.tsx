@@ -15,7 +15,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { usePathname, useRouter } from 'next/navigation';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
-import type { ObjectRef } from '@commonplace/block-view/types';
+import type {
+  JsonValue,
+  ObjectQuery,
+  ObjectRef,
+  ObjectSet,
+} from '@commonplace/block-view/types';
 import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
@@ -56,6 +61,20 @@ interface SurfaceRegions {
   readonly editor: RegionNode | null;
 }
 
+interface FindScopeIds {
+  readonly pageNodeId: string | null;
+  readonly sessionNodeIds: readonly string[];
+}
+
+const FIND_SCOPE_EXCLUDED_TYPES = new Set([
+  'surface',
+  'region',
+  'view-instance',
+  'surface-tool',
+  'files-view',
+  'context-view',
+]);
+
 function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
   const left: RegionNode[] = [];
   const right: RegionNode[] = [];
@@ -71,6 +90,94 @@ function regionsOf(root: SurfaceTreeNode | null): SurfaceRegions {
     else left.push(node);
   }
   return { left, right, editor };
+}
+
+function queryOf(instance: ObjectRef): ObjectQuery | null {
+  const raw = instance.properties.query;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const types = (raw as { types?: unknown }).types;
+  if (!Array.isArray(types)) return null;
+  return raw as unknown as ObjectQuery;
+}
+
+function searchableIds(set: ObjectSet): readonly string[] {
+  return set.objects
+    .filter((object) => !FIND_SCOPE_EXCLUDED_TYPES.has(object.type))
+    .map((object) => object.id);
+}
+
+function sameIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length
+    && left.every((id, index) => id === right[index]);
+}
+
+function useFindScopeIds(
+  host: ConsoleBlockHost,
+  pageInstance: ObjectRef | null,
+  instances: readonly ObjectRef[],
+  selectedObjectId: string | null,
+): FindScopeIds {
+  const [scopeIds, setScopeIds] = useState<FindScopeIds>({
+    pageNodeId: selectedObjectId,
+    sessionNodeIds: selectedObjectId ? [selectedObjectId] : [],
+  });
+
+  useEffect(() => {
+    let active = true;
+    const idsByInstance = new Map<string, readonly string[]>();
+    const unsubscribers: Array<() => void> = [];
+    const publish = () => {
+      if (!active) return;
+      const sessionNodeIds = [...new Set([
+        ...(selectedObjectId ? [selectedObjectId] : []),
+        ...instances.flatMap((instance) => idsByInstance.get(instance.id) ?? []),
+      ])];
+      const activePageNodeId = pageInstance
+        ? idsByInstance.get(pageInstance.id)?.[0] ?? null
+        : null;
+      const nextScopeIds: FindScopeIds = {
+        pageNodeId:
+          selectedObjectId
+          ?? activePageNodeId
+          ?? sessionNodeIds[0]
+          ?? null,
+        sessionNodeIds,
+      };
+      setScopeIds((current) =>
+        current.pageNodeId === nextScopeIds.pageNodeId
+        && sameIds(current.sessionNodeIds, nextScopeIds.sessionNodeIds)
+          ? current
+          : nextScopeIds
+      );
+    };
+
+    publish();
+    for (const instance of instances) {
+      const query = queryOf(instance);
+      if (!query) continue;
+      void Promise.resolve(host.query(query))
+        .then((set) => {
+          if (!active) return;
+          idsByInstance.set(instance.id, searchableIds(set));
+          publish();
+          unsubscribers.push(set.subscribe((next) => {
+            idsByInstance.set(instance.id, searchableIds(next));
+            publish();
+          }));
+        })
+        .catch(() => {
+          idsByInstance.set(instance.id, []);
+          publish();
+        });
+    }
+
+    return () => {
+      active = false;
+      for (const unsubscribe of unsubscribers) unsubscribe();
+    };
+  }, [host, instances, pageInstance, selectedObjectId]);
+
+  return scopeIds;
 }
 
 function isOpen(region: RegionNode): boolean {
@@ -215,6 +322,31 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   );
   const regions = useMemo(() => regionsOf(root), [root]);
   const editor = regions.editor;
+  const activeEditorInstance = useMemo(() => {
+    if (!editor) return null;
+    const activeId = String(
+      editor.object.properties.active_tab
+      ?? editor.instances[0]?.id
+      ?? '',
+    );
+    return editor.instances.find((instance) => instance.id === activeId)
+      ?? editor.instances[0]
+      ?? null;
+  }, [editor]);
+  const activeSurfaceInstances = useMemo(
+    () => [
+      ...regions.left.flatMap((region) => region.instances),
+      ...(regions.editor?.instances ?? []),
+      ...regions.right.flatMap((region) => region.instances),
+    ],
+    [regions],
+  );
+  const findScopeIds = useFindScopeIds(
+    host,
+    activeEditorInstance,
+    activeSurfaceInstances,
+    selectedRecordId,
+  );
   const companions = useMemo(() => {
     const order = new Map([['files', 0], ['context', 1], ['thread', 2]]);
     return [...regions.left, ...regions.right]
@@ -289,7 +421,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
           id,
           descriptor_id: item.descriptorId,
           title: item.label,
-          query: { types: [item.kind] },
+          ...(item.query
+            ? { query: item.query as unknown as JsonValue }
+            : {}),
         },
       });
       if (!created.ok) return;
@@ -304,7 +438,16 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
           moves += 1;
         }
       }
-      if (moves > 0) recordBlockMoveReceipts(moves);
+      if (moves > 0) {
+        recordBlockMoveReceipts(moves);
+        if (editor.object.properties.kind !== 'grid') {
+          await host.emit({
+            kind: 'update',
+            id: editor.object.id,
+            patch: { active_tab: id },
+          });
+        }
+      }
     })();
   }, [editor, host]);
 
@@ -505,8 +648,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       className="relative flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
       <FindOverlay
-        pageNodeId={activeSurfaceId}
-        sessionNodeIds={[activeSurfaceId]}
+        pageNodeId={findScopeIds.pageNodeId}
+        sessionNodeIds={findScopeIds.sessionNodeIds}
         getPageText={activePageText}
         onHighlightPageHit={highlightPageHit}
         onOpenItem={openFindItem}

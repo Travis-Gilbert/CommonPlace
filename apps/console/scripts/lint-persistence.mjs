@@ -10,22 +10,7 @@ const SOURCE_EXTENSION = /\.(?:[cm]?[jt]sx?)$/;
 const STORAGE_CALL = /(?:window\.)?(?:localStorage|sessionStorage)\s*\./g;
 const PREFERENCE_COMMENT =
   /persistence-preference:\s*key=([^;]+);\s*preference=([^;]+);\s*reason=(\S.*)$/;
-
-function isHydrationCache(filePath) {
-  const stem = path.basename(filePath).replace(SOURCE_EXTENSION, '');
-  return stem === 'cache' || stem.endsWith('-cache');
-}
-
-function isPersistenceModule(filePath) {
-  if (!SOURCE_EXTENSION.test(filePath) || isHydrationCache(filePath)) return false;
-  const relative = path.relative(SOURCE_ROOT, filePath);
-  const segments = relative.split(path.sep);
-  if (segments.some((segment) => ['persistence', 'store', 'stores', 'state'].includes(segment))) {
-    return true;
-  }
-  const stem = path.basename(filePath).replace(SOURCE_EXTENSION, '');
-  return /(?:^|[-.])(?:persistence|store|state)(?:$|[-.])/.test(stem);
-}
+const CACHE_COMMENT = /persistence-cache:\s*reason=(\S.*)$/;
 
 function preferenceComment(lines, lineIndex) {
   for (let index = lineIndex; index >= Math.max(0, lineIndex - 2); index -= 1) {
@@ -39,16 +24,33 @@ function preferenceComment(lines, lineIndex) {
   return null;
 }
 
+function cacheComment(lines, lineIndex) {
+  for (let index = lineIndex; index >= Math.max(0, lineIndex - 2); index -= 1) {
+    const match = lines[index]?.match(CACHE_COMMENT);
+    const reason = match?.[1]?.trim();
+    if (reason) return reason;
+  }
+  return null;
+}
+
 function inspectSource(filePath, source) {
-  if (!isPersistenceModule(filePath)) return { violations: [], preferences: [] };
+  if (!SOURCE_EXTENSION.test(filePath)) {
+    return { violations: [], preferences: [], caches: [] };
+  }
   const lines = source.split(/\r?\n/);
   const violations = [];
   const preferences = [];
+  const caches = [];
   for (const [lineIndex, line] of lines.entries()) {
     for (const match of line.matchAll(STORAGE_CALL)) {
       const preference = preferenceComment(lines, lineIndex);
       if (preference) {
         preferences.push(preference);
+        continue;
+      }
+      const cache = cacheComment(lines, lineIndex);
+      if (cache) {
+        caches.push(cache);
         continue;
       }
       violations.push({
@@ -58,7 +60,7 @@ function inspectSource(filePath, source) {
       });
     }
   }
-  return { violations, preferences };
+  return { violations, preferences, caches };
 }
 
 async function sourceFiles(directory) {
@@ -78,14 +80,15 @@ async function runPlantedFixtureTest() {
     'utf8',
   );
   const cache = await readFile(path.join(FIXTURE_ROOT, 'layout-cache.ts.fixture'), 'utf8');
-  const planted = inspectSource(path.join(SOURCE_ROOT, 'planted-store.ts'), bad);
+  const planted = inspectSource(path.join(SOURCE_ROOT, 'ordinary-view.ts'), bad);
   const allowed = inspectSource(path.join(SOURCE_ROOT, 'preference-store.ts'), preference);
-  const hydrationCache = inspectSource(path.join(SOURCE_ROOT, 'state', 'layout-cache.ts'), cache);
+  const hydrationCache = inspectSource(path.join(SOURCE_ROOT, 'ordinary-cache.ts'), cache);
   if (
     planted.violations.length !== 1
     || allowed.violations.length !== 0
     || allowed.preferences.length !== 1
     || hydrationCache.violations.length !== 0
+    || hydrationCache.caches.length !== 1
   ) {
     throw new Error('persistence lint planted fixture did not exercise reject, preference, and cache lanes');
   }
@@ -103,6 +106,7 @@ async function main() {
   )));
   const violations = reports.flatMap((report) => report.violations);
   const preferences = reports.flatMap((report) => report.preferences);
+  const caches = reports.flatMap((report) => report.caches);
   if (violations.length > 0) {
     for (const violation of violations) {
       console.error(
@@ -114,7 +118,7 @@ async function main() {
   }
   const allowlist = new Map(preferences.map((entry) => [entry.key, entry]));
   console.log(
-    `persistence lint: PASS (${files.length} files, ${allowlist.size} preference key, 3 planted cases)`,
+    `persistence lint: PASS (${files.length} files, ${allowlist.size} preference key, ${caches.length} cache calls, 3 planted cases)`,
   );
 }
 
