@@ -1,6 +1,11 @@
 // SOURCING: @playwright/test. Prewarms routed Console modules before acceptance.
 
-import { chromium, type FullConfig, type Page } from '@playwright/test';
+import {
+  chromium,
+  type FullConfig,
+  type Page,
+  type Request,
+} from '@playwright/test';
 
 const STUB_BASE = `http://localhost:${process.env.STUB_DATA_API_PORT ?? '50591'}`;
 
@@ -25,32 +30,84 @@ const ROUTES = [
   '/workspace/research/chat',
 ] as const;
 
-async function waitForLoadQuietPeriod(page: Page, quietPeriodMs = 750): Promise<void> {
-  let lastLoadAt = Date.now();
-  const recordLoad = () => {
-    lastLoadAt = Date.now();
-  };
-  page.on('load', recordLoad);
-  try {
-    while (Date.now() - lastLoadAt < quietPeriodMs) {
-      await page.waitForTimeout(100);
+const CONSOLE_SHELL_ROUTES = new Set<string>([
+  '/workspace',
+  '/indexer',
+  '/filing',
+  '/canvas',
+  '/automation',
+  '/documents',
+  '/cards',
+  '/files',
+  '/records',
+  '/threads',
+  '/models',
+]);
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+async function waitForMutationQuietPeriod(
+  page: Page,
+  pending: ReadonlySet<Request>,
+  lastMutationAt: () => number,
+  quietPeriodMs = 750,
+): Promise<void> {
+  const deadline = Date.now() + 120_000;
+  while (pending.size > 0 || Date.now() - lastMutationAt() < quietPeriodMs) {
+    if (Date.now() >= deadline) {
+      const pendingRequests = [...pending]
+        .map((request) => `${request.method()} ${request.url()}`)
+        .join(', ');
+      throw new Error(
+        `Playwright route warmup timed out waiting for mutations: ${pendingRequests || 'none'}.`,
+      );
     }
-  } finally {
-    page.off('load', recordLoad);
+    await page.waitForTimeout(100);
   }
 }
 
 async function warmRoute(page: Page, baseURL: string, route: string): Promise<void> {
-  const response = await page.goto(new URL(route, baseURL).toString(), {
-    waitUntil: 'load',
-    timeout: 120_000,
-  });
-  if (!response?.ok()) {
-    throw new Error(
-      `Playwright route warmup failed for ${route}: ${response?.status() ?? 'no response'}.`,
+  const pendingMutations = new Set<Request>();
+  let lastMutationAt = Date.now();
+  const trackMutation = (request: Request) => {
+    if (!MUTATION_METHODS.has(request.method())) return;
+    pendingMutations.add(request);
+    lastMutationAt = Date.now();
+  };
+  const settleMutation = (request: Request) => {
+    if (!pendingMutations.delete(request)) return;
+    lastMutationAt = Date.now();
+  };
+
+  page.on('request', trackMutation);
+  page.on('requestfinished', settleMutation);
+  page.on('requestfailed', settleMutation);
+  try {
+    const response = await page.goto(new URL(route, baseURL).toString(), {
+      waitUntil: 'load',
+      timeout: 120_000,
+    });
+    if (!response?.ok()) {
+      throw new Error(
+        `Playwright route warmup failed for ${route}: ${response?.status() ?? 'no response'}.`,
+      );
+    }
+    if (CONSOLE_SHELL_ROUTES.has(route)) {
+      await page.locator('html[data-layout-ready="1"]').waitFor({
+        state: 'attached',
+        timeout: 120_000,
+      });
+    }
+    await waitForMutationQuietPeriod(
+      page,
+      pendingMutations,
+      () => lastMutationAt,
     );
+  } finally {
+    page.off('request', trackMutation);
+    page.off('requestfinished', settleMutation);
+    page.off('requestfailed', settleMutation);
   }
-  await waitForLoadQuietPeriod(page);
 }
 
 async function resetStubState(page: Page): Promise<void> {
