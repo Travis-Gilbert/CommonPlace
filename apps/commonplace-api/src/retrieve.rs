@@ -5,7 +5,7 @@
 //! reciprocal-rank fusion (RRF):
 //! - vector: the substrate's embedding index (via the F2 ingest pipeline's search);
 //! - lexical: an in-crate idf-weighted token-overlap scorer over item text;
-//! - graph: relevance propagation over the F2 `SIMILAR_TO` edges from the
+//! - graph: personalized PageRank over the F2 `SIMILAR_TO` graph from the
 //!   strongest vector/lexical seeds.
 //!
 //! The answer itself comes from an [`AnswerModel`] seam; with no model configured
@@ -15,9 +15,9 @@
 //! seam.
 //!
 //! Scope notes (surfaced): the lexical arm is an in-crate scorer, not the core
-//! `FullTextIndex`/tantivy backend (the native-FTS upgrade path); the graph arm
-//! is `SIMILAR_TO` propagation, not full personalized PageRank (the PPR upgrade
-//! path). Both are named follow-ups; the seam and fusion are real.
+//! `FullTextIndex`/tantivy backend (the native-FTS upgrade path). The graph arm
+//! uses core personalized PageRank today and reports how many candidates it
+//! adds beyond the flat vector-plus-lexical candidate set.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use std::time::Duration;
 use commonplace::{
     BlobStore, Commonplace, EmbeddingGraphStore, IngestPipeline, Item, ItemBody, SIMILAR_TO_EDGE,
 };
-use rustyred_thg_core::{GraphStoreResult, NeighborQuery};
+use rustyred_thg_core::{personalized_pagerank, GraphStoreResult};
 use serde_json::{json, Value};
 
 const DEFAULT_LOCAL_OPENAI_CHAT_URL: &str = "http://127.0.0.1:8080/v1/chat/completions";
@@ -43,6 +43,26 @@ pub struct RetrievedItem {
     pub arms: Vec<String>,
 }
 
+/// A measurable comparison between flat retrieval and graph expansion.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PprExpansionMeasurement {
+    /// Unique vector and lexical seeds supplied to personalized PageRank.
+    pub seed_count: usize,
+    /// Unique candidates found by vector and lexical retrieval before graph expansion.
+    pub flat_candidate_count: usize,
+    /// Ranked non-seed candidates returned by personalized PageRank.
+    pub ppr_candidate_count: usize,
+    /// PPR candidates absent from the flat vector-plus-lexical candidate set.
+    pub ppr_only_candidate_count: usize,
+}
+
+/// Grounding provenance together with its graph-expansion measurement.
+#[derive(Clone, Debug)]
+pub struct GroundingResult {
+    pub provenance: Vec<RetrievedItem>,
+    pub ppr_expansion: PprExpansionMeasurement,
+}
+
 /// How the answer was produced.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnswerKind {
@@ -57,6 +77,7 @@ pub struct AskResult {
     pub answer: String,
     pub answer_kind: AnswerKind,
     pub provenance: Vec<RetrievedItem>,
+    pub ppr_expansion: PprExpansionMeasurement,
 }
 
 /// The answer-synthesis seam. A generative model implements this; the default
@@ -230,8 +251,10 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let provenance = retrieve_grounding(cp, question, config)?;
-    Ok(answer_from_provenance(model, question, provenance))
+    let grounding = retrieve_grounding_measured(cp, question, config)?;
+    let mut result = answer_from_provenance(model, question, grounding.provenance);
+    result.ppr_expansion = grounding.ppr_expansion;
+    Ok(result)
 }
 
 /// Retrieve the grounding set for a question without running answer synthesis.
@@ -240,6 +263,19 @@ pub fn retrieve_grounding<S, B>(
     question: &str,
     config: &AskConfig,
 ) -> GraphStoreResult<Vec<RetrievedItem>>
+where
+    S: EmbeddingGraphStore,
+    B: BlobStore,
+{
+    Ok(retrieve_grounding_measured(cp, question, config)?.provenance)
+}
+
+/// Retrieve grounding plus an explicit flat-versus-PPR comparison.
+pub fn retrieve_grounding_measured<S, B>(
+    cp: &Commonplace<S, B>,
+    question: &str,
+    config: &AskConfig,
+) -> GraphStoreResult<GroundingResult>
 where
     S: EmbeddingGraphStore,
     B: BlobStore,
@@ -260,6 +296,12 @@ where
     seeds.extend(vector.iter().take(config.graph_seeds).cloned());
     seeds.extend(lexical.iter().take(config.graph_seeds).cloned());
     let graph = graph_rank(cp, &seeds, config.pool);
+    let flat_candidates: Vec<&str> = vector
+        .iter()
+        .chain(lexical.iter())
+        .map(String::as_str)
+        .collect();
+    let ppr_expansion = measure_ppr_expansion(&seeds, &flat_candidates, &graph);
 
     // Reciprocal-rank fusion of the three ranked lists.
     let mut fused: HashMap<String, (f64, Vec<String>)> = HashMap::new();
@@ -294,7 +336,10 @@ where
         }
     }
 
-    Ok(provenance)
+    Ok(GroundingResult {
+        provenance,
+        ppr_expansion,
+    })
 }
 
 /// Synthesize an ask result from already-retrieved provenance.
@@ -316,6 +361,7 @@ pub fn answer_from_provenance(
         answer,
         answer_kind,
         provenance,
+        ppr_expansion: PprExpansionMeasurement::default(),
     }
 }
 
@@ -393,24 +439,52 @@ where
     S: EmbeddingGraphStore,
     B: BlobStore,
 {
-    let mut accumulated: HashMap<String, f64> = HashMap::new();
-    for (rank, seed) in seeds.iter().enumerate() {
-        let weight = 1.0 / (rank as f64 + 1.0);
-        for direction in [
-            NeighborQuery::out(seed).with_edge_type(SIMILAR_TO_EDGE),
-            NeighborQuery::in_(seed).with_edge_type(SIMILAR_TO_EDGE),
-        ] {
-            for hit in cp.store().neighbors(direction) {
-                *accumulated.entry(hit.node_id).or_insert(0.0) += weight;
-            }
+    if seeds.is_empty() || pool == 0 {
+        return Vec::new();
+    }
+
+    let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+    for edge in cp
+        .store()
+        .live_edge_records()
+        .into_iter()
+        .filter(|edge| edge.edge_type == SIMILAR_TO_EDGE)
+    {
+        let weight = edge
+            .confidence
+            .or_else(|| edge.properties.get("score").and_then(Value::as_f64))
+            .unwrap_or(1.0);
+        if !weight.is_finite() || weight <= 0.0 {
+            continue;
         }
+        adjacency
+            .entry(edge.from_id.clone())
+            .or_default()
+            .push((edge.to_id.clone(), weight));
+        adjacency
+            .entry(edge.to_id)
+            .or_default()
+            .push((edge.from_id, weight));
     }
-    // The graph arm contributes structural signal: drop the seeds themselves so
-    // it surfaces connected-but-not-already-seeded items.
-    for seed in seeds {
-        accumulated.remove(seed);
+
+    let mut seed_weights: HashMap<String, f64> = HashMap::new();
+    for (rank, seed) in seeds.iter().enumerate() {
+        *seed_weights.entry(seed.clone()).or_insert(0.0) += 1.0 / (rank as f64 + 1.0);
     }
-    let mut ranked: Vec<(String, f64)> = accumulated.into_iter().collect();
+    let total_seed_weight: f64 = seed_weights.values().sum();
+    if total_seed_weight <= 0.0 {
+        return Vec::new();
+    }
+    for weight in seed_weights.values_mut() {
+        *weight /= total_seed_weight;
+    }
+
+    let seed_ids: HashSet<&str> = seed_weights.keys().map(String::as_str).collect();
+    let mut ranked: Vec<(String, f64)> =
+        personalized_pagerank(&adjacency, &seed_weights, 0.15, 1e-6, 100_000)
+            .into_iter()
+            .filter(|(id, score)| !seed_ids.contains(id.as_str()) && *score > 0.0)
+            .collect();
     ranked.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
             .unwrap_or(std::cmp::Ordering::Equal)
@@ -418,6 +492,23 @@ where
     });
     ranked.truncate(pool);
     ranked.into_iter().map(|(id, _)| id).collect()
+}
+
+fn measure_ppr_expansion(
+    seeds: &[String],
+    flat_candidates: &[&str],
+    ppr_candidates: &[String],
+) -> PprExpansionMeasurement {
+    let unique_seeds: HashSet<&str> = seeds.iter().map(String::as_str).collect();
+    let unique_flat: HashSet<&str> = flat_candidates.iter().copied().collect();
+    let unique_ppr: HashSet<&str> = ppr_candidates.iter().map(String::as_str).collect();
+
+    PprExpansionMeasurement {
+        seed_count: unique_seeds.len(),
+        flat_candidate_count: unique_flat.len(),
+        ppr_candidate_count: unique_ppr.len(),
+        ppr_only_candidate_count: unique_ppr.difference(&unique_flat).count(),
+    }
 }
 
 fn extractive_answer(provenance: &[RetrievedItem]) -> String {
@@ -572,6 +663,8 @@ fn env_f32(name: &str, default: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use commonplace::InMemoryBlobStore;
+    use rustyred_thg_core::InMemoryGraphStore;
     use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
     use std::thread;
@@ -664,5 +757,46 @@ mod tests {
             body.contains("what should answer?"),
             "body should include the question: {body}"
         );
+    }
+
+    #[test]
+    fn ppr_expansion_surfaces_a_two_hop_item_missing_from_flat_top_n() {
+        let mut cp = Commonplace::new(InMemoryGraphStore::new(), InMemoryBlobStore::new());
+        let seed = cp
+            .put_item(Item::note(
+                "Seed",
+                "A directly retrieved note about the target question.",
+            ))
+            .unwrap();
+        let bridge = cp
+            .put_item(Item::note(
+                "Bridge",
+                "A structurally related note connecting the seed to hidden evidence.",
+            ))
+            .unwrap();
+        let hidden = cp
+            .put_item(Item::note(
+                "Hidden evidence",
+                "A second-hop passage that flat top-N retrieval did not return.",
+            ))
+            .unwrap();
+        cp.add_similarity(&seed.id, &bridge.id, 0.95).unwrap();
+        cp.add_similarity(&bridge.id, &hidden.id, 0.9).unwrap();
+
+        let seeds = vec![seed.id.clone()];
+        let ppr_candidates = graph_rank(&cp, &seeds, 10);
+        let flat_top_n = vec![seed.id.as_str(), bridge.id.as_str()];
+        let measurement = measure_ppr_expansion(&seeds, &flat_top_n, &ppr_candidates);
+
+        assert!(ppr_candidates.contains(&bridge.id));
+        assert!(
+            ppr_candidates.contains(&hidden.id),
+            "PPR should traverse the similarity chain beyond one hop"
+        );
+        assert!(!flat_top_n.contains(&hidden.id.as_str()));
+        assert_eq!(measurement.seed_count, 1);
+        assert_eq!(measurement.flat_candidate_count, 2);
+        assert_eq!(measurement.ppr_candidate_count, 2);
+        assert_eq!(measurement.ppr_only_candidate_count, 1);
     }
 }

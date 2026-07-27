@@ -1,0 +1,14 @@
+{
+  "name": "@commonplace/fork-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AnythingLLM-derived Express service boundary for CommonPlace",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test:rustyred": "node --test __tests__/utils/vectorDbProviders/rustyred.test.js"
+  }
+}

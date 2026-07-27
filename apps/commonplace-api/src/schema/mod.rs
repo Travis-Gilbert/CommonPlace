@@ -61,8 +61,8 @@ use crate::organize::{
 use crate::portability::{self, ExportDocument};
 use crate::publish;
 use crate::retrieve::{
-    answer_from_provenance, retrieve_grounding, AnswerKind, AnswerModel, AskConfig, AskResult,
-    NoModel, RetrievedItem,
+    answer_from_provenance, retrieve_grounding_measured, AnswerKind, AnswerModel, AskConfig,
+    AskResult, NoModel, PprExpansionMeasurement, RetrievedItem,
 };
 
 /// The default in-memory store backing (tests + the no-data-dir binary path).
@@ -499,12 +499,33 @@ impl From<RetrievedItem> for ProvenanceGql {
     }
 }
 
+/// Measured contribution of graph expansion beyond flat retrieval.
+#[derive(SimpleObject)]
+pub struct PprExpansionMeasurementGql {
+    pub seed_count: i32,
+    pub flat_candidate_count: i32,
+    pub ppr_candidate_count: i32,
+    pub ppr_only_candidate_count: i32,
+}
+
+impl From<PprExpansionMeasurement> for PprExpansionMeasurementGql {
+    fn from(measurement: PprExpansionMeasurement) -> Self {
+        Self {
+            seed_count: measurement.seed_count as i32,
+            flat_candidate_count: measurement.flat_candidate_count as i32,
+            ppr_candidate_count: measurement.ppr_candidate_count as i32,
+            ppr_only_candidate_count: measurement.ppr_only_candidate_count as i32,
+        }
+    }
+}
+
 /// An answer grounded in the user's items, each traceable to its source.
 #[derive(SimpleObject)]
 pub struct AskResultGql {
     pub answer: String,
     pub answer_kind: AnswerKindGql,
     pub provenance: Vec<ProvenanceGql>,
+    pub ppr_expansion: PprExpansionMeasurementGql,
 }
 
 impl From<AskResult> for AskResultGql {
@@ -517,6 +538,7 @@ impl From<AskResult> for AskResultGql {
                 .into_iter()
                 .map(ProvenanceGql::from)
                 .collect(),
+            ppr_expansion: PprExpansionMeasurementGql::from(result.ppr_expansion),
         }
     }
 }
@@ -1774,13 +1796,15 @@ where
             k: k.unwrap_or(5).max(1) as usize,
             ..AskConfig::default()
         };
-        let provenance = {
+        let grounding = {
             let cp = store
                 .lock()
                 .map_err(|_| Error::new("store lock poisoned"))?;
-            retrieve_grounding(&*cp, &question, &config).map_err(store_err)?
+            retrieve_grounding_measured(&*cp, &question, &config).map_err(store_err)?
         };
-        let result = answer_from_provenance(model.as_ref(), &question, provenance);
+        let mut result =
+            answer_from_provenance(model.as_ref(), &question, grounding.provenance);
+        result.ppr_expansion = grounding.ppr_expansion;
         Ok(AskResultGql::from(result))
     }
 
