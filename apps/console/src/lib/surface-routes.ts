@@ -21,6 +21,7 @@ const COLLECTION_ROUTES = deriveLayoutCollections().map((collection) => ({
 const AUXILIARY_ROUTES = [
   { kind: 'canvas', path: '/canvas', surfaceId: 'console-canvas', tier: 'place' as const },
   { kind: 'automation', path: '/automation', surfaceId: 'console-automation', tier: 'place' as const },
+  { kind: 'appearance', path: '/appearance', surfaceId: 'console-appearance', tier: 'place' as const },
 ] as const;
 
 /** Surfaces composed by an App Router page. Blocks never own these routes. */

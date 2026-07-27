@@ -12,16 +12,6 @@ vi.mock('@/lib/server/harness-principal', () => ({
   resolveHarnessPrincipal: mocks.resolveHarnessPrincipal,
 }));
 
-vi.mock('@/components/chat/ChatPage', () => ({
-  ChatPage: ({
-    threadId,
-    tenant,
-  }: {
-    readonly threadId?: string;
-    readonly tenant?: string | null;
-  }) => <div data-chat-page data-thread-id={threadId} data-tenant={tenant} />,
-}));
-
 import ChatThreadPage from './page';
 
 describe('thread chat route', () => {
@@ -35,9 +25,7 @@ describe('thread chat route', () => {
       response: new Response(null, { status: 403 }),
     });
 
-    const markup = renderToStaticMarkup(await ChatThreadPage({
-      params: Promise.resolve({ threadId: 'thread-1' }),
-    }));
+    const markup = renderToStaticMarkup(await ChatThreadPage());
 
     expect(markup).toContain('Chat unavailable');
     expect(markup).toContain('legacy unscoped ACP fallback');
@@ -57,15 +45,13 @@ describe('thread chat route', () => {
       },
     });
 
-    const markup = renderToStaticMarkup(await ChatThreadPage({
-      params: Promise.resolve({ threadId: 'thread-1' }),
-    }));
+    const markup = renderToStaticMarkup(await ChatThreadPage());
 
     expect(markup).toContain('Chat unavailable');
     expect(markup).not.toContain('data-chat-page');
   });
 
-  it('mounts the requested thread only for a workspace-scoped principal', async () => {
+  it('refuses the legacy runtime even for a workspace-scoped principal', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -78,13 +64,10 @@ describe('thread chat route', () => {
       },
     });
 
-    const markup = renderToStaticMarkup(await ChatThreadPage({
-      params: Promise.resolve({ threadId: 'thread%2F1' }),
-    }));
+    const markup = renderToStaticMarkup(await ChatThreadPage());
 
-    expect(markup).toContain('data-chat-page');
-    expect(markup).toContain('data-thread-id="thread/1"');
-    expect(markup).toContain('data-tenant="Travis-Gilbert"');
-    expect(markup).not.toContain('Chat unavailable');
+    expect(markup).toContain('Chat unavailable');
+    expect(markup).toContain('/workspace/workspace-1/settings');
+    expect(markup).not.toContain('data-chat-page');
   });
 });

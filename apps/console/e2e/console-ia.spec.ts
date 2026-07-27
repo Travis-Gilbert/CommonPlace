@@ -184,8 +184,14 @@ test.describe('Console information architecture', () => {
     });
   });
 
-  test('refuses unscoped Chat before a composer can mount', async ({ page }) => {
+  test('refuses unscoped Chat routes before a composer can mount', async ({ page }) => {
     await page.goto('/chat');
+    await expect(page.getByRole('heading', { name: 'Chat unavailable' })).toBeVisible();
+    await expect(page.getByText('legacy unscoped ACP fallback')).toBeVisible();
+    await expect(page.locator('[data-chat-page]')).toHaveCount(0);
+    await expect(page.locator('[data-chat-composer]')).toHaveCount(0);
+
+    await page.goto('/chat/thread-1');
     await expect(page.getByRole('heading', { name: 'Chat unavailable' })).toBeVisible();
     await expect(page.getByText('legacy unscoped ACP fallback')).toBeVisible();
     await expect(page.locator('[data-chat-page]')).toHaveCount(0);

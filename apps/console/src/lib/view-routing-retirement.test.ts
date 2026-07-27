@@ -20,7 +20,9 @@ describe('page-owned routing', () => {
   it('maps durable surfaces directly to App Router pages', () => {
     expect(pathForSurfaceId('console-chat')).toBe('/chat');
     expect(pathForSurfaceId('console-workspace')).toBe('/workspace');
+    expect(pathForSurfaceId('console-appearance')).toBe('/appearance');
     expect(surfaceIdForPath('/models')).toBe('console-models');
+    expect(surfaceIdForPath('/appearance')).toBe('console-appearance');
   });
 
   it('migrates known persisted view routes and refuses unknown ones', () => {

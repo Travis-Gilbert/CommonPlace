@@ -2,6 +2,7 @@
 
 import {
   chromium,
+  type APIRequestContext,
   type FullConfig,
   type Page,
   type Request,
@@ -23,6 +24,7 @@ const ROUTES = [
   '/records',
   '/threads',
   '/models',
+  '/appearance',
   '/login',
   '/onboarding',
   '/settings',
@@ -42,6 +44,7 @@ const CONSOLE_SHELL_ROUTES = new Set<string>([
   '/records',
   '/threads',
   '/models',
+  '/appearance',
 ]);
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -110,9 +113,9 @@ async function warmRoute(page: Page, baseURL: string, route: string): Promise<vo
   }
 }
 
-async function resetStubState(page: Page): Promise<void> {
+async function resetStubState(request: APIRequestContext): Promise<void> {
   for (const endpoint of ['reset-layout', 'reset-domain'] as const) {
-    const response = await page.request.post(`${STUB_BASE}/objects/test/${endpoint}`, {
+    const response = await request.post(`${STUB_BASE}/objects/test/${endpoint}`, {
       headers: { 'x-api-key': 'dev-key' },
     });
     if (!response.ok()) {
@@ -128,14 +131,17 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   }
 
   const browser = await chromium.launch();
+  const context = await browser.newContext();
   try {
-    const page = await browser.newPage();
+    const page = await context.newPage();
     for (const route of ROUTES) {
       await warmRoute(page, baseURL, route);
     }
     await warmRoute(page, baseURL, '/workspace');
-    await resetStubState(page);
+    await page.close();
+    await resetStubState(context.request);
   } finally {
+    await context.close();
     await browser.close();
   }
 }

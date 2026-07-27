@@ -29,7 +29,7 @@ export function GeneralSettingsPage({
     {
       title: 'Appearance',
       description: 'Register-backed theme family and light or dark preference.',
-      href: '/chat',
+      href: '/appearance',
     },
     {
       title: 'Instance administration',
