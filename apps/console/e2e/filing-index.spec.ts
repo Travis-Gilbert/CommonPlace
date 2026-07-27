@@ -117,7 +117,9 @@ test.describe('The Index surface', () => {
   test('the urgent lane empty state is the designed norm, and carries no counter', async ({ page }) => {
     await openIndex(page);
     const empty = page.locator('[data-filing-urgent-empty]');
-    await expect(empty).toBeVisible();
+    // This independent endpoint can pay a cold compile after the Index ribbon
+    // is already ready, so it gets the same acceptance budget as the ribbon.
+    await expect(empty).toBeVisible({ timeout: 30_000 });
     await expect(empty).toContainText('Nothing needs you today');
     await expect(page.locator('[data-filing-urgent] [data-filing-urgent-event]')).toHaveCount(0);
   });

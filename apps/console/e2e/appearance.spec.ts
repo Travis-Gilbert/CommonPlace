@@ -19,11 +19,23 @@ async function settled(page: import('@playwright/test').Page) {
   );
 }
 
-async function resetStubLayout(request: import('@playwright/test').APIRequestContext) {
-  const response = await request.post(`${STUB_BASE}/objects/test/reset-layout`, {
-    headers: { 'x-api-key': 'dev-key' },
-  });
-  expect(response.ok()).toBeTruthy();
+async function resetStub(request: import('@playwright/test').APIRequestContext) {
+  for (const endpoint of ['reset-layout', 'reset-domain']) {
+    const response = await request.post(`${STUB_BASE}/objects/test/${endpoint}`, {
+      headers: { 'x-api-key': 'dev-key' },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+}
+
+async function waitForThreadChrome(page: import('@playwright/test').Page) {
+  await expect.poll(async () => {
+    const empty = await page.locator('[data-chat-empty-state]').boundingBox();
+    const composer = await page.locator('[data-composer-zone]').boundingBox();
+    if (!empty || !composer) return false;
+    const gap = Math.round(composer.y - (empty.y + empty.height));
+    return gap >= 0 && gap < 80;
+  }, { timeout: 30_000 }).toBe(true);
 }
 
 async function openAppearance(page: import('@playwright/test').Page) {
@@ -50,7 +62,7 @@ async function removeFrameworkDevChrome(page: import('@playwright/test').Page) {
 
 test.describe('appearance surface', () => {
   test.beforeEach(async ({ page, request }) => {
-    await resetStubLayout(request);
+    await resetStub(request);
     await resetLocalStorageBeforeNavigation(page, {
       keys: [APPEARANCE_KEY, LAYOUT_CACHE_KEY, SURFACE_KEY],
     });
@@ -173,6 +185,7 @@ test.describe('appearance surface', () => {
       await page.locator('[data-layout-switcher]').click();
       await page.locator('[data-layout-option="console-workspace"]').click();
       await settled(page);
+      await waitForThreadChrome(page);
       await removeFrameworkDevChrome(page);
       await expect(page).toHaveScreenshot(viewport.name, { fullPage: true });
     });

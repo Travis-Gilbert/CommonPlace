@@ -374,6 +374,15 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     }
   }, [router]);
 
+  const navigateToPlace = useCallback((surfaceId: string, path: string) => {
+    // The pathname is the source of truth for routed Places. Activating the
+    // surface first can remount the shell while router.push is still pending,
+    // leaving the new surface rendered under the previous URL.
+    void softNavigate(router, path).catch(() => {
+      void host.activateSurface(surfaceId);
+    });
+  }, [host, router]);
+
   // Place switching is independent of the active surface arrangement. Keeping
   // this listener separate means a layout update cannot create a brief gap in
   // the global shortcut while companion regions are being reconciled.
@@ -389,11 +398,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       if (!Number.isInteger(digit) || digit < 1 || digit > PLACE_ENTRIES.length) return;
       event.preventDefault();
       const place = PLACE_ENTRIES[digit - 1];
-      void host.activateSurface(place.surfaceId);
-      void softNavigate(router, place.path, {
-        timeoutMs: 4_000,
-        hardFallback: true,
-      }).catch(() => undefined);
+      navigateToPlace(place.surfaceId, place.path);
     };
     window.addEventListener('keydown', onKeyDown);
     document.documentElement.setAttribute('data-place-shortcuts-ready', '1');
@@ -401,7 +406,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       window.removeEventListener('keydown', onKeyDown);
       document.documentElement.removeAttribute('data-place-shortcuts-ready');
     };
-  }, [host, router]);
+  }, [navigateToPlace]);
 
   // Alt+Shift+1..3 toggles companions for the active surface (dock panels;
   // not rail destinations). This listener follows arrangement changes without

@@ -153,7 +153,7 @@ test.describe('Console information architecture', () => {
     await expect(page.locator('[data-connection-owner="status-bar"]')).toHaveCount(1);
 
     const blocks = page.locator('[data-rail-tier="blocks"] button');
-    await expect(blocks).toHaveCount(9);
+    await expect(blocks).toHaveCount(10);
     expect(await blocks.evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()))).toEqual([
       'Records',
       'Documents',
@@ -164,6 +164,7 @@ test.describe('Console information architecture', () => {
       'Kanban',
       'Canvas',
       'Search',
+      'Your data',
     ]);
 
     for (const surfaceId of [

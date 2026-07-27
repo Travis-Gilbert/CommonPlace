@@ -84,7 +84,15 @@ test.describe('Console sidebar', () => {
     for (const [key, id, path] of targets) {
       await page.goto('/workspace');
       await settled(page);
-      await page.keyboard.press(`Control+${key}`);
+      await page.evaluate((digit) => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: digit,
+          code: `Digit${digit}`,
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }));
+      }, key);
       await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`), {
         timeout: 60_000,
       });

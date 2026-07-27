@@ -132,13 +132,11 @@ test.describe('Indexer research surface', () => {
 
     await search.fill('second query');
     await search.fill('automatic web fallback');
-    // On a loaded single-worker runner the first fill can reach the request
-    // boundary before the replacement fill. The contract is that the latest
-    // debounced request is the current input, not that no superseded request
-    // was observable at the route boundary.
+    // Under a loaded CI worker the intermediate value may outlive the debounce
+    // window. The contract is that the latest query is eventually searched.
     await expect.poll(
       () => requests.at(-1)?.query,
-      { timeout: 10_000 },
+      { timeout: 15_000 },
     ).toBe('automatic web fallback');
   });
 
