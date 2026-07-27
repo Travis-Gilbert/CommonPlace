@@ -13,6 +13,7 @@ import {
   BackgroundVariant,
   Controls,
   ReactFlow,
+  type Connection,
   type EdgeTypes,
   type NodeTypes,
   type OnNodeDrag,
@@ -43,7 +44,7 @@ const NODE_TYPES: NodeTypes = { goalTask: PlanTaskNode };
 const EDGE_TYPES: EdgeTypes = { goalProgress: ProgressEdge };
 const PIN_STORAGE_PREFIX = 'commonplace.console.plan-pins.v1:';
 
-export function GoalStackView(_props: ViewRenderProps) {
+export function GoalStackView({ host }: ViewRenderProps) {
   const [planInput, setPlanInput] = useState('');
   const [planId, setPlanId] = useState('');
   const [snapshot, setSnapshot] = useState<PlanCanvasSnapshot | null>(null);
@@ -154,7 +155,11 @@ export function GoalStackView(_props: ViewRenderProps) {
     const capability = event.active.data.current?.capability as PlanCapability | undefined;
     const taskId = event.over?.data.current?.taskId as string | undefined;
     setDragged(null);
-    if (!capability || !taskId) return;
+    if (!capability) return;
+    if (!taskId) {
+      setError('Refused: drop a capability onto a pending task node.');
+      return;
+    }
     setSelectedTaskId(taskId);
     void mutate('queue_affordance', {
       taskId,
@@ -164,6 +169,33 @@ export function GoalStackView(_props: ViewRenderProps) {
       missingCapability: capability.missingCapability,
     });
   };
+
+  const isValidConnection = useCallback((connection: Connection | { source: string | null; target: string | null }) => {
+    if (!connection.source || !connection.target) {
+      setError('Refused: connection needs a source and a target.');
+      return false;
+    }
+    if (connection.source === connection.target) {
+      setError('Refused: a task cannot relate to itself.');
+      return false;
+    }
+    if (edges.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
+      setError('Refused: that dependency already exists.');
+      return false;
+    }
+    return true;
+  }, [edges]);
+
+  const onConnect = useCallback((connection: Connection) => {
+    if (!isValidConnection(connection)) return;
+    void host.emit({
+      kind: 'link',
+      from: connection.source!,
+      edge: 'DEPENDS_ON',
+      to: connection.target!,
+    });
+    setError(null);
+  }, [host, isValidConnection]);
 
   const onNodeDragStop: OnNodeDrag = (_event, node) => {
     if (!planId) return;
@@ -290,7 +322,9 @@ export function GoalStackView(_props: ViewRenderProps) {
                     minZoom={0.2}
                     maxZoom={1.6}
                     nodesDraggable
-                    nodesConnectable={false}
+                    nodesConnectable
+                    onConnect={onConnect}
+                    isValidConnection={isValidConnection}
                     onNodeClick={(_event, node) => setSelectedTaskId(node.id)}
                     onNodeDragStop={onNodeDragStop}
                     onPaneClick={() => setSelectedTaskId(null)}

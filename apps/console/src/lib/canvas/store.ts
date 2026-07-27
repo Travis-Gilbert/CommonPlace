@@ -24,9 +24,11 @@ import {
 } from '@commonplace/json-canvas';
 import { CANVAS_TYPES, graphToObjectRefs, isCanvasManagedType } from './object-bridge';
 
-const STORAGE_PREFIX = 'commonplace.console.canvas.v1';
 export const REFUSAL_NOTE = 'refused:missing_tenant';
 export const DEFAULT_CANVAS_ID = 'canvas.default';
+
+/** Optional harness write-through. CanvasStore keeps session memory only; no localStorage. */
+export type CanvasPersistHook = (canvas: GraphCanvas) => void;
 
 function stringValue(value: JsonValue | undefined): string | undefined {
   return typeof value === 'string' ? value : undefined;
@@ -51,31 +53,20 @@ export class CanvasStore {
   private readonly canvases = new Map<string, GraphCanvas>();
   private readonly detached = new Map<string, CanvasObjectProjection>();
   private readonly subs = new Set<() => void>();
+  private readonly onPersist: CanvasPersistHook | null;
 
-  constructor(private readonly tenant: string | null) {
+  constructor(
+    private readonly tenant: string | null,
+    onPersist: CanvasPersistHook | null = null,
+  ) {
+    this.onPersist = onPersist;
     if (tenant) this.ensureCanvas(DEFAULT_CANVAS_ID);
-  }
-
-  private storageKey(canvasId: string): string | null {
-    return this.tenant ? `${STORAGE_PREFIX}:${this.tenant}:${canvasId}` : null;
   }
 
   private ensureCanvas(canvasId: string): GraphCanvas | null {
     if (!this.tenant) return null;
     const current = this.canvases.get(canvasId);
     if (current) return current;
-    const key = this.storageKey(canvasId);
-    if (key && typeof window !== 'undefined') {
-      try {
-        const stored = JSON.parse(window.localStorage.getItem(key) ?? 'null') as GraphCanvas | null;
-        if (stored?.id === canvasId && stored.tenant === this.tenant) {
-          this.canvases.set(canvasId, stored);
-          return stored;
-        }
-      } catch {
-        // Invalid browser data is replaced with a blank canvas.
-      }
-    }
     const canvas = emptyGraphCanvas(canvasId, this.tenant);
     this.commit(canvas);
     return canvas;
@@ -83,14 +74,7 @@ export class CanvasStore {
 
   private commit(canvas: GraphCanvas): void {
     this.canvases.set(canvas.id, canvas);
-    const key = this.storageKey(canvas.id);
-    if (key && typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(key, JSON.stringify(canvas));
-      } catch {
-        // Browser storage can be unavailable without invalidating this session.
-      }
-    }
+    this.onPersist?.(canvas);
     for (const callback of this.subs) callback();
   }
 

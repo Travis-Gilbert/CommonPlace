@@ -7,7 +7,9 @@
 // renders only when the harness transport reports it (R2.4); it can never
 // contradict the connection state because it hides unless connected.
 
+import { PresenceMark } from '@/components/mark/PresenceMark';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
+import { useThreadStore } from '@/lib/thread-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
@@ -23,6 +25,7 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
   const tenant = useShellStore((state) => state.tenant);
   const presenceCount = useShellStore((state) => state.presenceCount);
   const progressLabel = useShellStore((state) => state.progressLabel);
+  const isRunning = useThreadStore((state) => state.isRunning);
 
   const needsReconnect = connection === 'identity-refused' || connection === 'disconnected';
   const showPresence = connection === 'connected' && presenceCount !== null;
@@ -34,6 +37,9 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
       data-connection-owner="status-bar"
       className="flex h-ij-statusbar shrink-0 items-center gap-3 bg-transparent px-ij-island-gutter font-ij-mono text-ij-ink-info"
     >
+      <span data-presence-mark-placement="rail-header" className="flex items-center" title="Agent presence">
+        <PresenceMark state={isRunning ? 'composing' : 'idle'} size={18} staticOnly={!isRunning} />
+      </span>
       <span
         data-connection={connection}
         data-connection-kind={

@@ -27,6 +27,8 @@ import { ProactivityView } from './ProactivityView';
 import { WorkspaceSubstrateView } from './workspace/WorkspaceSubstrateView';
 import { GoalStackView } from './goal-stack/GoalStackView';
 import { CanvasView } from './canvas/CanvasView';
+import { ModelView } from './model/ModelView';
+import { ProgramView } from './program/ProgramView';
 import { StatusPanel } from './harness-ux/StatusPanel';
 import { WhyTracePanel } from './harness-ux/WhyTracePanel';
 import {
@@ -37,6 +39,7 @@ import {
   VideoBlock,
 } from './blocks/DeclaredBlocks';
 import { AutomationHistoryView } from './blocks/AutomationHistoryView';
+import { FindIndexView } from './FindIndexView';
 
 function ThreadRender(props: ViewRenderProps) {
   return <ThreadView host={props.host} density="compact" />;
@@ -60,11 +63,9 @@ const RECORD_TABLE: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'record.table',
-  source: {
-    package: 'jacksonkasi1/tnks-data-table',
-    component: 'TnksDataTable',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'jacksonkasi1/tnks-data-table/TnksDataTable',
   },
   block: {
     usage: 'browse records',
@@ -84,11 +85,9 @@ const MARKDOWN_DOC: ViewDescriptor = {
   accepts: {},
   emits: ['update', 'open'],
   renderer: 'markdown.doc',
-  source: {
-    package: '@travis-gilbert/markdown-theory',
-    component: 'Galley',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@travis-gilbert/markdown-theory/Galley',
   },
   block: {
     usage: 'read a document',
@@ -107,11 +106,9 @@ const CODE_FILE: ViewDescriptor = {
   accepts: {},
   emits: ['open'],
   renderer: 'code.file',
-  source: {
-    package: 'codemirror',
-    component: 'EditorView',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'codemirror/EditorView',
   },
   block: {
     usage: 'inspect code',
@@ -130,11 +127,9 @@ const CHAT_THREAD: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.thread',
-  source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@assistant-ui/react/ThreadPrimitive',
   },
   block: {
     usage: 'follow the thread',
@@ -153,11 +148,9 @@ const CHAT_SURFACE: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.surface',
-  source: {
-    package: '@assistant-ui/react',
-    component: 'Composer',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@assistant-ui/react/Composer',
   },
   block: {
     usage: 'compose with the agent',
@@ -176,11 +169,9 @@ const FILES_TREE: ViewDescriptor = {
   accepts: {},
   emits: ['open'],
   renderer: 'files.tree',
-  source: {
-    package: '@tanstack/react-virtual',
-    component: 'useVirtualizer',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@tanstack/react-virtual/useVirtualizer',
   },
   block: {
     usage: 'browse files',
@@ -199,11 +190,9 @@ const CONTEXT_GRAPH: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'context.graph',
-  source: {
-    package: 'd3',
-    component: 'scalePoint',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'd3/scalePoint',
   },
   block: {
     usage: 'inspect context',
@@ -222,11 +211,10 @@ const DOC_LIST: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'update'],
   renderer: 'doc.list',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
+    allowedBespokeReason:
+      'Documents list is a host-query retarget of markdown.doc arrangement; no list library owns surface-instance patching.',
   },
   render: DocListView,
 };
@@ -240,13 +228,9 @@ const INDEX_RAIL: ViewDescriptor = {
   accepts: {},
   emits: ['select'],
   renderer: 'index.rail',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
+    allowedBespokeReason: 'A destination rail is a list of shelves at register density; no library models the filing contract behind it.',
   },
   render: IndexDestinationsView,
 };
@@ -257,13 +241,33 @@ const INDEX_STREAM: ViewDescriptor = {
   accepts: {},
   emits: ['update', 'select'],
   renderer: 'index.stream',
-  source: {
-    package: '@dnd-kit/core',
-    component: 'DndContext',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@dnd-kit/core/DndContext',
   },
   render: IndexStreamView,
+};
+
+const FIND_INDEX: ViewDescriptor = {
+  id: 'find.index',
+  name: 'Find',
+  accepts: {},
+  emits: ['select', 'open'],
+  renderer: 'find.index',
+  sourcing: {
+    mode: 'wrap',
+    upstream: 'jacksonkasi1/tnks-data-table/TnksDataTable',
+  },
+  block: {
+    usage: 'search the index',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
+    density: 'compact',
+    surfaceClass: 'tool',
+    kindGlyph: 'memory',
+    bodyBleed: 'flush',
+  },
+  render: FindIndexView,
 };
 
 const INDEX_RULES: ViewDescriptor = {
@@ -272,11 +276,9 @@ const INDEX_RULES: ViewDescriptor = {
   accepts: {},
   emits: ['create', 'update', 'delete'],
   renderer: 'index.rules',
-  source: {
-    package: 'cmdk',
-    component: 'Command',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'cmdk/Command',
   },
   render: IndexRulesView,
 };
@@ -287,13 +289,9 @@ const INDEX_URGENT: ViewDescriptor = {
   accepts: {},
   emits: ['select'],
   renderer: 'index.urgent',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'A lane whose empty state is its designed norm is a product claim, not a generic list: no library models "reassure, do not gamify".',
+    allowedBespokeReason: 'A lane whose empty state is its designed norm is a product claim, not a generic list: no library models "reassure, do not gamify".',
   },
   render: UrgentLaneView,
 };
@@ -304,13 +302,9 @@ const MAIL_CONNECT: ViewDescriptor = {
   accepts: {},
   emits: ['update'],
   renderer: 'mail.connect',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'JMAP connect, mapping, consent, and sync status are a product contract with no ledger library for the multi-step flow.',
+    allowedBespokeReason: 'JMAP connect, mapping, consent, and sync status are a product contract with no ledger library for the multi-step flow.',
   },
   render: MailConnectView,
 };
@@ -321,13 +315,9 @@ const MAIL_READER: ViewDescriptor = {
   accepts: {},
   emits: ['select'],
   renderer: 'mail.reader',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'Minimal mail reader with entity chips, thread rail, and sanitizer policy is bespoke to the JMAP spoke handoff.',
+    allowedBespokeReason: 'Minimal mail reader with entity chips, thread rail, and sanitizer policy is bespoke to the JMAP spoke handoff.',
   },
   render: MailReaderView,
 };
@@ -341,11 +331,8 @@ const CARD_FULL: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'card.full',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
     allowedBespokeReason: 'kind-templated card layouts are a domain concept no library models',
   },
   block: {
@@ -365,11 +352,9 @@ const CARDS_GRID: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'cards.grid',
-  source: {
-    package: '@tanstack/react-virtual',
-    component: 'useVirtualizer',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@tanstack/react-virtual/useVirtualizer',
   },
   block: {
     usage: 'browse record cards',
@@ -388,11 +373,8 @@ const HUNK_REVIEW: ViewDescriptor = {
   accepts: { required_types: ['hunk'], cardinality: 'many' },
   emits: ['invoke_tool'],
   renderer: 'hunk.review',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
     allowedBespokeReason: 'The typed Hunk review mechanics are the product contract; nested structured values still resolve through registered descriptors.',
   },
   render: HunkReviewView,
@@ -404,13 +386,9 @@ const PROACTIVITY: ViewDescriptor = {
   accepts: { required_types: ['pg.stake'], cardinality: 'many' },
   emits: ['update', 'create', 'delete'],
   renderer: 'proactivity.graph',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
+    allowedBespokeReason: 'The editable proactivity graph is the product contract: the standing structure renders and edits as one object at three altitudes, and the dagre layered layout is the join-visible surface. Node kinds and edges resolve through the block-view seam.',
   },
   render: ProactivityView,
 };
@@ -421,11 +399,9 @@ const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open', 'update'],
   renderer: 'workspace.substrate',
-  source: {
-    package: '@tanstack/react-virtual',
-    component: 'useVirtualizer',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@tanstack/react-virtual/useVirtualizer',
   },
   render: WorkspaceSubstrateView,
 };
@@ -434,13 +410,21 @@ const GOAL_STACK: ViewDescriptor = {
   id: 'goal.stack',
   name: 'Goal Stack',
   accepts: {},
-  emits: ['select', 'invoke_tool', 'update'],
+  emits: ['select', 'invoke_tool', 'update', 'link'],
   renderer: 'goal.stack',
-  source: {
-    package: '@xyflow/react',
-    component: 'ReactFlow',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@xyflow/react/ReactFlow',
+  },
+  block: {
+    usage: 'program a goal graph',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'automation',
+    bodyBleed: 'flush',
+    acceptsDrop: { semantic: 'relate', accepts: ['*'] },
   },
   render: GoalStackView,
 };
@@ -451,13 +435,9 @@ const HARNESS_STATUS: ViewDescriptor = {
   accepts: {},
   emits: ['open', 'select', 'update'],
   renderer: 'harness.status',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'The status report is a Harness contract surface with actionable waiting items and backend degradation.',
+    allowedBespokeReason: 'The status report is a Harness contract surface with actionable waiting items and backend degradation.',
   },
   render: StatusPanel,
 };
@@ -468,13 +448,9 @@ const HARNESS_WHY: ViewDescriptor = {
   accepts: {},
   emits: ['open', 'select'],
   renderer: 'harness.why',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
-    allowedBespokeReason:
-      'The why trace renders an untransformed Harness explainer payload and optional remedy.',
+    allowedBespokeReason: 'The why trace renders an untransformed Harness explainer payload and optional remedy.',
   },
   render: WhyTracePanel,
 };
@@ -485,11 +461,10 @@ const APPEARANCE: ViewDescriptor = {
   accepts: {},
   emits: ['update'],
   renderer: 'settings.appearance',
-  source: {
-    package: '@commonplace/block-view',
-    component: 'BlockHost',
+  sourcing: {
     mode: 'bespoke',
-    regime: 'css-vars',
+    allowedBespokeReason:
+      'Appearance knobs drive the console register seed; no upstream settings panel owns --ij token mutation.',
   },
   render: AppearanceView,
 };
@@ -500,11 +475,9 @@ const ACCOUNT: ViewDescriptor = {
   accepts: {},
   emits: ['update'],
   renderer: 'settings.account',
-  source: {
-    package: 'next-auth/react',
-    component: 'SessionProvider',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'next-auth/react/SessionProvider',
   },
   render: AccountView,
 };
@@ -515,11 +488,9 @@ const TERMINAL: ViewDescriptor = {
   accepts: {},
   emits: ['invoke_tool'],
   renderer: 'terminal',
-  source: {
-    package: 'textmode.js',
-    component: 'Textmode',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'textmode.js/Textmode',
   },
   block: {
     usage: 'operate a shell',
@@ -541,11 +512,9 @@ const BROWSER_PANE: ViewDescriptor = {
   accepts: {},
   emits: ['open'],
   renderer: 'browser-pane',
-  source: {
-    package: 'servo-render-worker',
-    component: 'POST /render',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'servo-render-worker/POST /render',
   },
   block: {
     usage: 'view a page',
@@ -567,11 +536,9 @@ const KANBAN: ViewDescriptor = {
   accepts: {},
   emits: ['update', 'move', 'select'],
   renderer: 'kanban',
-  source: {
-    package: '@dnd-kit/core',
-    component: 'DndContext',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@dnd-kit/core/DndContext',
   },
   block: {
     usage: 'move work through states',
@@ -591,11 +558,9 @@ const DOCUMENT_OUTPUT: ViewDescriptor = {
   accepts: {},
   emits: ['open', 'dispatch'],
   renderer: 'document',
-  source: {
-    package: 'akii09/pdfx',
-    component: 'PdfxDocument',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'akii09/pdfx/PdfxDocument',
   },
   block: {
     usage: 'produce a document',
@@ -614,11 +579,9 @@ const VIDEO: ViewDescriptor = {
   accepts: {},
   emits: ['dispatch', 'open'],
   renderer: 'video',
-  source: {
-    package: 'remotion-dev/remotion',
-    component: 'Composition',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: 'remotion-dev/remotion/Composition',
   },
   block: {
     usage: 'compose video',
@@ -640,22 +603,68 @@ const CANVAS: ViewDescriptor = {
   accepts: {},
   emits: ['create', 'update', 'move', 'link', 'unlink', 'delete', 'open', 'select'],
   renderer: 'canvas',
-  source: {
-    package: '@xyflow/react',
-    component: 'ReactFlow',
+  sourcing: {
     mode: 'wrap',
-    regime: 'css-vars',
+    upstream: '@xyflow/react/ReactFlow',
   },
   block: {
     usage: 'arrange spatially',
-    placements: ['ground', 'full'],
+    placements: ['ground', 'full', 'rail'],
     defaultSize: 'full',
     density: 'both',
     surfaceClass: 'editor',
     kindGlyph: 'canvas',
     bodyBleed: 'flush',
+    acceptsDrop: { semantic: 'relate', accepts: ['*'] },
   },
   render: CanvasView,
+};
+
+const MODEL_STUDIO: ViewDescriptor = {
+  id: 'model.studio',
+  name: 'Models',
+  accepts: { required_types: ['model-scope'] },
+  emits: ['select', 'create', 'update', 'delete'],
+  renderer: 'model.studio',
+  sourcing: {
+    mode: 'wrap',
+    upstream: '@xyflow/react/ReactFlow',
+  },
+  block: {
+    usage: 'inspect observed model',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
+    density: 'compact',
+    surfaceClass: 'editor',
+    kindGlyph: 'model',
+    bodyBleed: 'flush',
+  },
+  render: ModelView,
+};
+
+const PROGRAM_GRAPH: ViewDescriptor = {
+  id: 'program.graph',
+  name: 'Program',
+  accepts: { required_types: ['program'] },
+  emits: ['select', 'create', 'update', 'link', 'unlink', 'delete'],
+  renderer: 'program.graph',
+  sourcing: {
+    mode: 'wrap',
+    upstream: '@xyflow/react/ReactFlow',
+  },
+  block: {
+    usage: 'compose typed dataflow',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'automation',
+    bodyBleed: 'flush',
+    acceptsDrop: { semantic: 'relate', accepts: ['program.node'] },
+    dataNote:
+      'Programmable graph is typed dataflow (ProgramDefinition), not JSON Canvas spatial arrangement. Connection validation is structural at v1.',
+  },
+  render: ProgramView,
 };
 
 const AUTOMATION_HISTORY: ViewDescriptor = {
@@ -664,11 +673,9 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   accepts: {},
   emits: ['select', 'open'],
   renderer: 'automation.history',
-  source: {
-    package: 'jal-co/ui',
-    component: 'commit-graph',
+  sourcing: {
     mode: 'reskin',
-    regime: 'css-vars',
+    upstream: 'jal-co/ui/commit-graph',
   },
   block: {
     usage: 'review automation history',
@@ -692,6 +699,7 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   DOC_LIST,
   INDEX_RAIL,
   INDEX_STREAM,
+  FIND_INDEX,
   INDEX_RULES,
   INDEX_URGENT,
   MAIL_CONNECT,
@@ -712,6 +720,8 @@ export const CONSOLE_VIEW_REGISTRY = createViewRegistry([
   DOCUMENT_OUTPUT,
   VIDEO,
   CANVAS,
+  MODEL_STUDIO,
+  PROGRAM_GRAPH,
   AUTOMATION_HISTORY,
 ]);
 

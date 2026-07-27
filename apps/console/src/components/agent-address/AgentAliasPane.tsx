@@ -143,7 +143,7 @@ export function AgentAliasPane({ userSlug = 'travis' }: { readonly userSlug?: st
             />
             <input
               data-agent-counterparty-input
-              className="h-ij-control min-w-[12rem] flex-1 rounded-ij-arc border border-ij-seam bg-ij-chrome px-2"
+              className="h-ij-control min-w-48 flex-1 rounded-ij-arc border border-ij-seam bg-ij-chrome px-2"
               placeholder="counterparty email"
               value={counterparty}
               onChange={(event) => setCounterparty(event.target.value)}

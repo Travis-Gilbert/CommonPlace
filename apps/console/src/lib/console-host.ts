@@ -27,7 +27,7 @@ import { ProactivityStore } from './proactivity/store';
 import { seedStandingStructure } from './proactivity/fixtures';
 import { PG_TYPES } from './proactivity/object-bridge';
 import { CanvasStore } from './canvas/store';
-import { CANVAS_TYPES } from './canvas/object-bridge';
+import { CANVAS_TYPES, graphToObjectRefs } from './canvas/object-bridge';
 import { CARD_TEMPLATE_TYPE, seedCardTemplates } from './card-templates';
 import { memoryObjects, useMemoryProjectionStore } from './memory-projection-store';
 import { useShellStore } from './shell-store';
@@ -177,7 +177,30 @@ export class ConsoleBlockHost implements BlockHost {
     this.observer = options.onTransport;
     const tenant = options.proactivityTenant === undefined ? null : options.proactivityTenant;
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure);
-    this.canvas = new CanvasStore(options.canvasTenant === undefined ? tenant : options.canvasTenant);
+    this.canvas = new CanvasStore(
+      options.canvasTenant === undefined ? tenant : options.canvasTenant,
+      (canvas) => {
+        // Live mode write-through: placements are ObjectActions, not localStorage.
+        if (this.records !== null) return;
+        const refs = graphToObjectRefs(canvas);
+        for (const ref of refs) {
+          void this.http.emit({
+            kind: 'update',
+            id: ref.id,
+            patch: {
+              type: ref.type,
+              ...ref.properties,
+            },
+          }).catch(() => {
+            void this.http.emit({
+              kind: 'create',
+              type: ref.type,
+              props: { id: ref.id, ...ref.properties },
+            });
+          });
+        }
+      },
+    );
     // HttpBlockHost appends /objects/query and /objects/action itself, so
     // the console's same-origin base is /api (routes live at /api/objects/*).
     this.http = new HttpBlockHost({

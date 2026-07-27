@@ -48,6 +48,7 @@ use crate::organize::{
     OrganizeItem, OrganizeSnapshot, OrganizedToday, Subtask, Timeframe,
 };
 use crate::portability::{self, ExportDocument};
+use crate::reconstruction;
 use crate::publish;
 use crate::retrieve::{
     answer_from_provenance, retrieve_grounding, AnswerKind, AnswerModel, AskConfig, AskResult,
@@ -159,6 +160,49 @@ pub struct CollectionGql {
     pub sort_order: Option<i64>,
     pub feature_flags: GqlJson<Value>,
     pub created_at_ms: i64,
+}
+
+/// A durable reconstruction stage receipt, owned by Theorem's reconstruction
+/// graph and exposed through the CommonPlace GraphQL facade.
+#[derive(SimpleObject)]
+pub struct ReconstructionStageReceiptGql {
+    pub id: String,
+    pub stage: String,
+    pub generation_stamp: String,
+    pub payload: GqlJson<Value>,
+}
+
+/// A provenance-bearing atom emitted by a durable reconstruction run.
+#[derive(SimpleObject)]
+pub struct ReconstructionAtomGql {
+    pub id: String,
+    pub atom_id: String,
+    pub provenance: GqlJson<Value>,
+    pub payload: GqlJson<Value>,
+}
+
+/// The typed run shape consumed by the CommonPlace reconstruction viewer.
+#[derive(SimpleObject)]
+pub struct ReconstructionRunGql {
+    pub id: String,
+    pub domain: String,
+    pub subject_id: String,
+    pub stage_receipts: Vec<ReconstructionStageReceiptGql>,
+    pub atoms: Vec<ReconstructionAtomGql>,
+}
+
+#[derive(InputObject)]
+pub struct GenerateReconstructionInputGql {
+    pub domain: String,
+    pub target: String,
+    pub budget: Option<i32>,
+}
+
+#[derive(SimpleObject)]
+pub struct GenerateReconstructionResultGql {
+    pub run_id: String,
+    pub scene_package_ref: String,
+    pub result: GqlJson<Value>,
 }
 
 impl From<Collection> for CollectionGql {
@@ -949,6 +993,80 @@ fn store_err(error: rustyred_thg_core::GraphStoreError) -> Error {
     Error::new(format!("{error:?}"))
 }
 
+fn remote_graphql_data(response: &Value, field: &str) -> Result<Option<Value>> {
+    if let Some(errors) = response.get("errors").and_then(Value::as_array) {
+        if let Some(error) = errors.first() {
+            return Err(Error::new(format!("Theorem reconstruction error: {error}")));
+        }
+    }
+    response
+        .get("data")
+        .and_then(|data| data.get(field))
+        .cloned()
+        .map(|value| if value.is_null() { None } else { Some(value) })
+        .ok_or_else(|| Error::new(format!("Theorem reconstruction response omitted {field}")))
+}
+
+fn reconstruction_run_from_value(value: Option<Value>) -> Result<Option<ReconstructionRunGql>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let id = remote_string(&value, "id")?;
+    let domain = remote_string(&value, "domain")?;
+    let subject_id = remote_string(&value, "subjectId")?;
+    let stage_receipts = value
+        .get("stageReceipts")
+        .and_then(Value::as_array)
+        .ok_or_else(|| Error::new("Theorem reconstruction run omitted stageReceipts"))?
+        .iter()
+        .map(|receipt| {
+            Ok(ReconstructionStageReceiptGql {
+                id: remote_string(receipt, "id")?,
+                stage: remote_string(receipt, "stage")?,
+                generation_stamp: remote_string(receipt, "generationStamp")?,
+                payload: GqlJson(receipt.get("payload").cloned().unwrap_or(Value::Null)),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let atoms = value
+        .get("atoms")
+        .and_then(Value::as_array)
+        .ok_or_else(|| Error::new("Theorem reconstruction run omitted atoms"))?
+        .iter()
+        .map(|atom| {
+            Ok(ReconstructionAtomGql {
+                id: remote_string(atom, "id")?,
+                atom_id: remote_string(atom, "atomId")?,
+                provenance: GqlJson(atom.get("provenance").cloned().unwrap_or(Value::Null)),
+                payload: GqlJson(atom.get("payload").cloned().unwrap_or(Value::Null)),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(Some(ReconstructionRunGql {
+        id,
+        domain,
+        subject_id,
+        stage_receipts,
+        atoms,
+    }))
+}
+
+fn reconstruction_result_from_value(value: Value) -> Result<GenerateReconstructionResultGql> {
+    Ok(GenerateReconstructionResultGql {
+        run_id: remote_string(&value, "runId")?,
+        scene_package_ref: remote_string(&value, "scenePackageRef")?,
+        result: GqlJson(value.get("result").cloned().unwrap_or(Value::Null)),
+    })
+}
+
+fn remote_string(value: &Value, field: &str) -> Result<String> {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| Error::new(format!("Theorem reconstruction response omitted {field}")))
+}
+
 fn extra_str(item: &Item, key: &str) -> Option<String> {
     item.extra
         .get(key)
@@ -1490,6 +1608,30 @@ where
         Ok(load_growth_snapshot_from_env().await)
     }
 
+    /// Read a Theorem-owned durable reconstruction run. The public facade never
+    /// reconstructs locally: it forwards to the same GraphQL executor used by
+    /// the Theorem MCP tool.
+    async fn reconstruction_run(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+    ) -> Result<Option<ReconstructionRunGql>> {
+        let principal = principal(ctx)?;
+        if id.trim().is_empty() {
+            return Err(Error::new("reconstructionRun requires a non-empty id"));
+        }
+        let response = reconstruction::execute(
+            &principal.id,
+            "graphql_query",
+            "query($id:String!){ reconstructionRun(id:$id){ id domain subjectId stageReceipts { id stage generationStamp payload } atoms { id atomId provenance payload } } }",
+            json!({ "id": id }),
+        )
+        .await
+        .map_err(Error::new)?;
+        remote_graphql_data(&response, "reconstructionRun")
+            .and_then(reconstruction_run_from_value)
+    }
+
     /// All items, optionally filtered to a kind.
     async fn items(&self, ctx: &Context<'_>, kind: Option<String>) -> Result<Vec<ItemGql>> {
         principal(ctx)?;
@@ -1997,6 +2139,36 @@ where
     S: EmbeddingGraphStore + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
+    /// Generate through Theorem's reconstruction executor and return its
+    /// durable run reference for subsequent `reconstructionRun` reads.
+    async fn reconstruct(
+        &self,
+        ctx: &Context<'_>,
+        input: GenerateReconstructionInputGql,
+    ) -> Result<GenerateReconstructionResultGql> {
+        let principal = principal(ctx)?;
+        if input.domain.trim().is_empty() || input.target.trim().is_empty() {
+            return Err(Error::new("reconstruct requires non-empty domain and target"));
+        }
+        let response = reconstruction::execute(
+            &principal.id,
+            "graphql_mutate",
+            "mutation($input: GenerateReconstructionInput!){ reconstruct(input:$input){ runId scenePackageRef result } }",
+            json!({
+                "input": {
+                    "domain": input.domain,
+                    "target": input.target,
+                    "budget": input.budget,
+                }
+            }),
+        )
+        .await
+        .map_err(Error::new)?;
+        let value = remote_graphql_data(&response, "reconstruct")?
+            .ok_or_else(|| Error::new("Theorem reconstruction response omitted reconstruct"))?;
+        reconstruction_result_from_value(value)
+    }
+
     /// Auto-structuring ingest: embed, classify, file, link, resolve entities.
     async fn ingest(&self, ctx: &Context<'_>, input: IngestInputGql) -> Result<ItemGql> {
         principal(ctx)?;

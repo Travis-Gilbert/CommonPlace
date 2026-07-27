@@ -1,12 +1,11 @@
 'use client';
 
-// SOURCING: jal-co/ui CommitGraph (ui.justinlevine.me/r/commit-graph.json).
-// Structure extraction + Int UI reskin for the generic vertical commit rail.
-// The proactivity graph at components/commit-graph.tsx remains the agent-
-// programming adaptation of the same jalco pattern. ViewSource: package
-// jal-co/ui, component CommitGraph, mode reskin, regime css-vars.
+// SOURCING: @jalco/commit-graph reskin. Registry install adapted to the
+// console register (SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC1/SC4). Upstream:
+// https://ui.justinlevine.me/r/commit-graph.json. Do not re-run shadcn add
+// onto this path without re-applying the register reskin.
 
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 export type CommitGraphCommit = {
   readonly id: string;

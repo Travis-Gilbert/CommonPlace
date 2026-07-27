@@ -11044,6 +11044,131 @@ select.cp-input {
   overflow: auto;
 }
 
+/* Reconstruction viewer: a durable run projected through the shared SceneHost. */
+.commonplace-theme .cp-reconstruction-viewer {
+  display: grid;
+  gap: 12px;
+}
+
+.commonplace-theme .cp-reconstruction-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 2px 0;
+}
+
+.commonplace-theme .cp-reconstruction-viewer-kicker {
+  display: block;
+  color: var(--cp-text-faint);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.commonplace-theme .cp-reconstruction-viewer h2 {
+  margin: 3px 0;
+  color: var(--cp-text);
+  font-family: var(--cp-font-title);
+  font-size: 17px;
+}
+
+.commonplace-theme .cp-reconstruction-viewer-header p,
+.commonplace-theme .cp-reconstruction-viewer-error {
+  margin: 0;
+  color: var(--cp-text-muted);
+  font-size: 12px;
+}
+
+.commonplace-theme .cp-reconstruction-viewer-error,
+.commonplace-theme .cp-reconstruction-viewer-state.is-error {
+  color: var(--cp-red, #A65324);
+}
+
+.commonplace-theme .cp-reconstruction-viewer-state {
+  min-height: 96px;
+  display: grid;
+  place-items: center;
+  color: var(--cp-text-muted);
+  font-size: 13px;
+}
+
+.commonplace-theme .cp-reconstruction-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.commonplace-theme .cp-reconstruction-provenance button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 999px;
+  background: var(--cp-card);
+  color: var(--cp-text-muted);
+  padding: 5px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.commonplace-theme .cp-reconstruction-provenance button.is-active {
+  border-color: var(--cp-border);
+  color: var(--cp-text);
+}
+
+.commonplace-theme .cp-reconstruction-provenance-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cp-text-faint);
+}
+
+.commonplace-theme .cp-reconstruction-provenance-swatch.is-captured { background: #5d7f9e; }
+.commonplace-theme .cp-reconstruction-provenance-swatch.is-generated { background: #8a6542; }
+.commonplace-theme .cp-reconstruction-provenance-swatch.is-asserted { background: #7c5e83; }
+
+.commonplace-theme .cp-reconstruction-receipts {
+  border: 1px solid var(--cp-border-faint);
+  border-radius: 8px;
+  background: var(--cp-card);
+  color: var(--cp-text);
+  font-size: 12px;
+}
+
+.commonplace-theme .cp-reconstruction-receipts summary {
+  cursor: pointer;
+  padding: 10px 12px;
+}
+
+.commonplace-theme .cp-reconstruction-receipts ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0 12px 12px 30px;
+}
+
+.commonplace-theme .cp-reconstruction-receipts li {
+  display: grid;
+  gap: 4px;
+}
+
+.commonplace-theme .cp-reconstruction-receipts li > span {
+  color: var(--cp-text-faint);
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+}
+
+.commonplace-theme .cp-reconstruction-receipts pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  border-radius: 5px;
+  background: var(--cp-surface);
+  color: var(--cp-text-muted);
+  font-size: 11px;
+}
+
 .commonplace-theme .cp-scene-evidence-board {
   display: flex;
   flex-direction: column;

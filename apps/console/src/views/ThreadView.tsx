@@ -15,13 +15,18 @@ import {
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
+import { getToolMeta } from '@/components/chat/toolMeta';
+import { JsonViewer, type JsonViewerProps } from '@/components/jalco';
 import { Composer, NEW_LINE_HINT } from '@/components/composer/Composer';
+import { PresenceMark } from '@/components/mark/PresenceMark';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
 import { submitThreadText } from '@/lib/thread-submit';
 import { EASE_OUT, seconds, useMotionDurations } from '@/motion/motion-tokens';
 import { ObjectExcerpt } from './thread/ObjectExcerpt';
 import { ThreadExcerpt } from './thread/ThreadExcerpt';
+
+type JsonViewerData = JsonViewerProps['data'];
 
 export const ThreadRuntimeAvailable = createContext(false);
 
@@ -38,26 +43,65 @@ function MarkdownText() {
 
 function ToolCallExcerpt(props: ToolCallMessagePartProps) {
   const toolName = props.toolName ?? 'tool';
-  const summary = props.argsText?.slice(0, 120) || toolName;
-  const result =
+  const meta = getToolMeta(toolName);
+  if (meta.presentation === 'hidden') return null;
+
+  const summary = props.argsText?.slice(0, 120) || meta.label;
+  const resultObject =
+    props.result != null && typeof props.result === 'object' ? props.result : null;
+  const resultText =
     typeof props.result === 'string'
       ? props.result
-      : props.result != null
-        ? JSON.stringify(props.result, null, 2)
+      : resultObject == null && props.result != null
+        ? String(props.result)
         : null;
+
+  let argsObject: unknown = null;
+  if (props.argsText) {
+    try {
+      argsObject = JSON.parse(props.argsText) as unknown;
+    } catch {
+      argsObject = null;
+    }
+  }
+
+  const useJson =
+    meta.presentation === 'json' && (resultObject != null || (argsObject != null && typeof argsObject === 'object'));
 
   return (
     <ThreadExcerpt
       kind="tool"
       excerptId={`tool-${props.toolCallId ?? toolName}`}
-      speaker={`tool · ${toolName}`}
+      speaker={`tool · ${meta.label}`}
       summary={summary}
       defaultCollapsed
     >
-      <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">
-        {props.argsText ?? ''}
-        {result ? `\n\n${result}` : ''}
-      </pre>
+      {useJson ? (
+        <div className="flex flex-col gap-2">
+          {argsObject != null && typeof argsObject === 'object' ? (
+            <JsonViewer
+              data={argsObject as JsonViewerData}
+              defaultExpanded={1}
+              className="border-0 bg-transparent shadow-none"
+            />
+          ) : props.argsText ? (
+            <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">{props.argsText}</pre>
+          ) : null}
+          {resultObject != null ? (
+            <JsonViewer
+              data={resultObject as JsonViewerData}
+              defaultExpanded={1}
+              className="border-0 bg-transparent shadow-none"
+            />
+          ) : resultText ? (
+            <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">{resultText}</pre>
+          ) : null}
+        </div>
+      ) : (
+        <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">
+          {[props.argsText, resultText].filter(Boolean).join('\n\n') || meta.label}
+        </pre>
+      )}
     </ThreadExcerpt>
   );
 }
@@ -369,7 +413,10 @@ export function ThreadView({ host, density = 'compact' }: { host: BlockHost; den
           style={full ? { maxWidth: 'var(--ij-thread-column-max)' } : undefined}
         >
           <ThreadPrimitive.Empty>
-            <StarterSuggestions host={host} disabled={!endpoint} />
+            <div className="flex flex-col items-center gap-3 px-4 py-8" data-presence-mark-placement="thread-idle">
+              <PresenceMark state="idle" size={48} />
+              <StarterSuggestions host={host} disabled={!endpoint} />
+            </div>
           </ThreadPrimitive.Empty>
           <ThreadPrimitive.Messages
             components={{

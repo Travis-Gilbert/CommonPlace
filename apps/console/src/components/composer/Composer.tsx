@@ -489,7 +489,7 @@ export function Composer({
                 </span>
               ) : null}
               <span className="composer-presence" data-presence-mark-placement="composer">
-                <PresenceMark state={markState} size={22} staticOnly />
+                <PresenceMark state={markState} size={22} staticOnly={!isRunning} />
               </span>
               {isRunning ? (
                 <ComposerPrimitive.Cancel

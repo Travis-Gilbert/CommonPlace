@@ -20,6 +20,7 @@ pub mod mcp;
 pub mod organize;
 pub mod portability;
 pub mod publish;
+pub mod reconstruction;
 pub mod retrieve;
 pub mod salience;
 pub mod schema;

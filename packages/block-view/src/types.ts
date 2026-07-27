@@ -275,15 +275,49 @@ export interface ViewRenderProps {
   readonly instance?: ObjectRef;
 }
 
-export type ViewSourceMode = "vendor" | "reskin" | "wrap" | "fork" | "bespoke";
+export type SourcingMode = "vendor" | "reskin" | "wrap" | "fork" | "bespoke";
+
+/** @deprecated Prefer SourcingMode. Kept for transitional imports. */
+export type ViewSourceMode = SourcingMode;
+
+/** @deprecated Ant Design regime cut by SPEC-CONSOLE-COMPONENT-SOURCING-1.0. */
 export type ViewSourceRegime = "css-vars" | "ant-tokens" | "scene";
 
+/**
+ * Typed upstream binding for a ViewDescriptor
+ * (SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC2).
+ * `upstream` is required unless mode is bespoke.
+ * `allowedBespokeReason` is required when mode is bespoke.
+ */
+export interface ViewSourcing {
+  readonly mode: SourcingMode;
+  readonly upstream?: string;
+  readonly allowedBespokeReason?: string;
+}
+
+/**
+ * @deprecated Prefer ViewSourcing. Legacy package/component/regime shape.
+ */
 export interface ViewSource {
   readonly package: string;
   readonly component: string;
   readonly mode: ViewSourceMode;
   readonly regime: ViewSourceRegime;
   readonly allowedBespokeReason?: string;
+}
+
+/** Map a legacy ViewSource onto the gated ViewSourcing shape. */
+export function sourcingFromViewSource(source: ViewSource): ViewSourcing {
+  if (source.mode === "bespoke") {
+    return {
+      mode: "bespoke",
+      allowedBespokeReason: source.allowedBespokeReason,
+    };
+  }
+  return {
+    mode: source.mode,
+    upstream: `${source.package}/${source.component}`,
+  };
 }
 
 /**
@@ -322,6 +356,17 @@ export interface BlockLimits {
 export interface BlockAcceptsChildren {
   readonly layout: "grid" | "stack" | "split" | "columns";
   /** Descriptor ids or `"*"`. Omitted means any block. */
+  readonly accepts?: readonly string[];
+}
+
+/**
+ * Drop semantics for a block target (AMENDMENT-02 A2-1 /
+ * SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC5).
+ * `relate` emits `link` rather than `move` when a node is dropped on a node.
+ */
+export interface BlockAcceptsDrop {
+  readonly semantic: "move" | "relate" | "insert";
+  /** Descriptor ids or `"*"`. Omitted means any dragged block. */
   readonly accepts?: readonly string[];
 }
 
@@ -367,6 +412,8 @@ export interface BlockPresentation {
   readonly limits?: BlockLimits;
   /** When set, this block may contain other blocks. */
   readonly acceptsChildren?: BlockAcceptsChildren;
+  /** When set, this block accepts drops with explicit semantics. */
+  readonly acceptsDrop?: BlockAcceptsDrop;
   /**
    * Paint base class. Defaults to `tool` when omitted.
    * Homogeneous ground (three or more of one class) is a defect.
@@ -389,7 +436,8 @@ export interface ViewDescriptor {
   readonly accepts: ObjectShapeMatch;
   readonly emits: readonly ActionKind[];
   readonly renderer: string;
-  readonly source: ViewSource;
+  /** SPEC-CONSOLE-COMPONENT-SOURCING-1.0 SC2: required typed sourcing. */
+  readonly sourcing: ViewSourcing;
   readonly render: React.ComponentType<ViewRenderProps>;
   /** Additive. Descriptors without `block` still register and render inside surfaces. */
   readonly block?: BlockPresentation;

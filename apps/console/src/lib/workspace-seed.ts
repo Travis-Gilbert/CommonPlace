@@ -237,8 +237,43 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('canvas'),
 
+    layoutObject('console-models', 'surface', {
+      name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 1,
+    }, ['models.region-editor', ...companionIds('models')]),
+    layoutObject('models.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'models.vi-studio', seed_revision: 1,
+    }, ['models.vi-studio']),
+    layoutObject('models.vi-studio', 'view-instance', {
+      descriptor_id: 'model.studio',
+      title: 'Models',
+      query: {
+        types: [
+          'model-scope',
+          'object-type-metadata',
+          'field-metadata',
+          'relation-metadata',
+          'view-metadata',
+          'schema-version',
+        ],
+      } as unknown as JsonValue,
+    }),
+    ...companionSeeds('models'),
+
+    layoutObject('console-program', 'surface', {
+      name: 'Program', kind: 'program', role: 'place', stripe_order: 5, active: false, seed_revision: 1,
+    }, ['program.region-editor', ...companionIds('program')]),
+    layoutObject('program.region-editor', 'region', {
+      kind: 'editor', size: 100, active_tab: 'program.vi-graph', seed_revision: 1,
+    }, ['program.vi-graph']),
+    layoutObject('program.vi-graph', 'view-instance', {
+      descriptor_id: 'program.graph',
+      title: 'Program',
+      query: { types: ['program', 'program.node', 'program.edge'] } as unknown as JsonValue,
+    }),
+    ...companionSeeds('program'),
+
     layoutObject('console-automation', 'surface', {
-      name: 'Automation', kind: 'automation', role: 'place', stripe_order: 4, active: false, seed_revision: 1,
+      name: 'Automation', kind: 'automation', role: 'place', stripe_order: 6, active: false, seed_revision: 1,
     }, ['automation.region-editor', ...companionIds('automation')]),
     layoutObject('automation.region-editor', 'region', {
       kind: 'editor', size: 100, active_tab: 'automation.vi-history', seed_revision: 1,

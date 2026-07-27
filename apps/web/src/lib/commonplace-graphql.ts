@@ -115,6 +115,28 @@ export interface EdgeGql {
   properties: Record<string, unknown>;
 }
 
+export interface ReconstructionStageReceiptGql {
+  id: string;
+  stage: string;
+  generationStamp: string;
+  payload: unknown;
+}
+
+export interface ReconstructionAtomGql {
+  id: string;
+  atomId: string;
+  provenance: unknown;
+  payload: unknown;
+}
+
+export interface ReconstructionRunGql {
+  id: string;
+  domain: string;
+  subjectId: string;
+  stageReceipts: ReconstructionStageReceiptGql[];
+  atoms: ReconstructionAtomGql[];
+}
+
 export interface CollectionGql {
   id: string;
   name: string;
@@ -215,6 +237,24 @@ export async function gql<T>(
   };
   if (json.errors?.length) throw new GraphqlError(json.errors[0].message);
   return json.data as T;
+}
+
+export async function gqlReconstructionRun(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ReconstructionRunGql | null> {
+  const data = await gql<{ reconstructionRun: ReconstructionRunGql | null }>(
+    `query ReconstructionRun($id: String!) {
+      reconstructionRun(id: $id) {
+        id domain subjectId
+        stageReceipts { id stage generationStamp payload }
+        atoms { id atomId provenance payload }
+      }
+    }`,
+    { id },
+    { signal },
+  );
+  return data.reconstructionRun;
 }
 
 /** Read variant: resolves to `fallback` on any error so a down backend shows an

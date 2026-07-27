@@ -47,7 +47,10 @@ export const DATABASE_DESCRIPTOR: ViewDescriptor = {
   renderer: "database",
   accepts: { cardinality: "any" },
   emits: ["update", "create", "delete", "move", "open", "select"],
-  source: { package: "commonplace", component: "DatabaseSurfaceView", mode: "bespoke", regime: "css-vars", allowedBespokeReason: "Anytype-grade Set view over the resolved object graph" },
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason: 'Anytype-grade Set view over the resolved object graph',
+  },
   render: (() => null) as unknown as ViewDescriptor["render"],
 };
 
