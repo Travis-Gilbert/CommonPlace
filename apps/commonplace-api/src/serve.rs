@@ -4,10 +4,11 @@
 //! contract. The binary uses environment-driven configuration; the desktop uses
 //! [`serve_loopback`] with a durable local data directory and graceful shutdown.
 //!
-//! Alongside `/graphql`, both routers expose the PT-017 blob capture seam:
-//! multipart `POST /ingest/blob` (BlobStore + ingest pipeline) and
-//! `GET /blob/{hash}` (raw bytes with the item's mime), gated by the same
-//! `x-api-key` registry.
+//! Alongside `/graphql`, both routers expose the canonical capture seam:
+//! `POST /ingest/capture` accepts JSON or multipart [`CaptureEnvelope`] values,
+//! while legacy multipart `POST /ingest/blob` adapts into that same path.
+//! `GET /blob/{hash}` returns captured bytes. All routes share one API-key
+//! registry and accept either `x-api-key` or its Bearer equivalent.
 
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -18,27 +19,31 @@ use std::sync::{mpsc::SyncSender, Arc};
 use async_graphql::http::GraphiQLSource;
 use async_graphql::{EmptySubscription, Request, Schema};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
-use axum::extract::{DefaultBodyLimit, Multipart, Path as AxumPath, State};
+use axum::extract::{
+    DefaultBodyLimit, FromRequest, Multipart, Path as AxumPath, Request as AxumRequest, State,
+};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use commonplace::{
-    BlobStore, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Item, ItemBody,
-    ItemKind, ObjectAction, ObjectActionReceipt, ObjectQuery, ObjectSet, Residency, ViewDescriptor,
+    content_hash, BlobStore, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Item,
+    ItemBody, ItemKind, ObjectAction, ObjectActionReceipt, ObjectQuery, ObjectSet, Residency,
+    SourceRef, ViewDescriptor,
 };
-use rustyred_thg_core::GraphSnapshotSource;
+use rustyred_thg_core::{GraphSnapshotSource, NodeRecord};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 
 use crate::voice::{Transcriber, Voice};
 use crate::{
     answer_model_from_env, build_schema, build_schema_with_model, in_memory_store, redcore_store,
-    AnswerModel, ApiKeyRegistry, ApiKeyToken, Mutation, Query, SharedStore,
+    AnswerModel, ApiKeyRegistry, ApiKeyToken, Mutation, Principal, Query, SharedStore,
 };
 
 /// PT-017: cap multipart capture bodies (photo/file/voice) at 32MB.
 const BLOB_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+const MAX_CAPTURE_ATTACHMENTS: usize = 32;
 
 struct AppState<S, B>
 where
@@ -138,6 +143,11 @@ where
     B: BlobStore + Send + Sync + 'static,
 {
     Router::new()
+        .route(
+            "/ingest/capture",
+            post(ingest_capture_handler::<S, B>)
+                .layer(DefaultBodyLimit::max(BLOB_BODY_LIMIT_BYTES)),
+        )
         .route(
             "/ingest/blob",
             post(ingest_blob_handler::<S, B>).layer(DefaultBodyLimit::max(BLOB_BODY_LIMIT_BYTES)),
@@ -382,17 +392,44 @@ async fn graphiql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/graphql").finish())
 }
 
-/// The same `x-api-key` gate `/graphql` applies, reused by the blob routes.
-fn authorize<S, B>(state: &AppState<S, B>, headers: &HeaderMap) -> Result<(), StatusCode>
+/// Resolve either supported spelling of the same API key.
+///
+/// When callers send both forms they must agree. Refusing an ambiguous request
+/// avoids authenticating one credential while a proxy or log records another.
+fn presented_api_key(headers: &HeaderMap) -> Option<&str> {
+    let direct = headers
+        .get("x-api-key")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let bearer = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            let (scheme, token) = value.trim().split_once(' ')?;
+            scheme
+                .eq_ignore_ascii_case("bearer")
+                .then_some(token.trim())
+        })
+        .filter(|value| !value.is_empty());
+
+    match (direct, bearer) {
+        (Some(left), Some(right)) if left == right => Some(left),
+        (Some(_), Some(_)) => None,
+        (Some(key), None) | (None, Some(key)) => Some(key),
+        (None, None) => None,
+    }
+}
+
+/// The API-key gate shared by GraphQL, capture, blob, and object routes.
+fn authorize<S, B>(state: &AppState<S, B>, headers: &HeaderMap) -> Result<Principal, StatusCode>
 where
     S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
-    headers
-        .get("x-api-key")
-        .and_then(|value| value.to_str().ok())
-        .filter(|key| state.registry.resolve(key).is_some())
-        .map(|_| ())
+    presented_api_key(headers)
+        .and_then(|key| state.registry.resolve(key))
+        .cloned()
         .ok_or(StatusCode::FORBIDDEN)
 }
 
@@ -405,54 +442,751 @@ where
     S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
-    let key = headers
-        .get("x-api-key")
-        .and_then(|value| value.to_str().ok())
-        .filter(|key| state.registry.resolve(key).is_some())
-        .ok_or(StatusCode::FORBIDDEN)?;
+    authorize(&state, &headers)?;
+    let key = presented_api_key(&headers).ok_or(StatusCode::FORBIDDEN)?;
 
     let request: Request = req.into_inner().data(ApiKeyToken(key.to_string()));
     Ok(state.schema.execute(request).await.into())
 }
 
-/// PT-017 response: the ItemGql shape a client needs to render a capture
-/// receipt, serialized camelCase like the GraphQL surface.
+macro_rules! flexible_string_enum {
+    (
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+            $($variant:ident => $value:literal),+ $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[derive(Clone, Debug, PartialEq, Eq)]
+        pub enum $name {
+            $($variant,)+
+            Other(String),
+        }
+
+        impl $name {
+            fn as_str(&self) -> &str {
+                match self {
+                    $(Self::$variant => $value,)+
+                    Self::Other(value) => value,
+                }
+            }
+        }
+
+        impl Serialize for $name {
+            fn serialize<Serializer>(
+                &self,
+                serializer: Serializer,
+            ) -> Result<Serializer::Ok, Serializer::Error>
+            where
+                Serializer: serde::Serializer,
+            {
+                serializer.serialize_str(self.as_str())
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<Deserializer>(
+                deserializer: Deserializer,
+            ) -> Result<Self, Deserializer::Error>
+            where
+                Deserializer: serde::Deserializer<'de>,
+            {
+                let value = String::deserialize(deserializer)?;
+                let normalized = value.trim().to_ascii_lowercase();
+                Ok(match normalized.as_str() {
+                    $($value => Self::$variant,)+
+                    _ => Self::Other(normalized),
+                })
+            }
+        }
+    };
+}
+
+flexible_string_enum! {
+    /// How a person or agent produced a capture.
+    pub enum CaptureMethod {
+        Clipped => "clipped",
+        Composed => "composed",
+        Dropped => "dropped",
+        Agent => "agent",
+        Screen => "screen",
+        Voice => "voice",
+    }
+}
+
+flexible_string_enum! {
+    /// The client-facing object category requested for a capture.
+    pub enum ObjectType {
+        Source => "source",
+        Note => "note",
+        Clip => "clip",
+        Screen => "screen",
+        File => "file",
+    }
+}
+
+flexible_string_enum! {
+    /// The surface that submitted a capture.
+    pub enum CaptureSource {
+        Clipper => "clipper",
+        Pet => "pet",
+        Mobile => "mobile",
+        Console => "console",
+        Agent => "agent",
+        Api => "api",
+    }
+}
+
+/// An attachment already present in the content-addressed blob store.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AttachmentRef {
+    #[serde(alias = "blobHash", alias = "content_hash", alias = "contentHash")]
+    pub blob_hash: String,
+    #[serde(default, alias = "fileName")]
+    pub file_name: Option<String>,
+    #[serde(default)]
+    pub mime: Option<String>,
+}
+
+/// The single capture contract shared by every capture surface.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CaptureEnvelope {
+    #[serde(alias = "clientId")]
+    pub client_id: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub body: String,
+    #[serde(alias = "objectType")]
+    pub object_type: ObjectType,
+    #[serde(alias = "captureMethod")]
+    pub capture_method: CaptureMethod,
+    pub source: CaptureSource,
+    #[serde(alias = "capturedAt")]
+    pub captured_at: String,
+    #[serde(default, alias = "sourceUrl")]
+    pub source_url: Option<String>,
+    #[serde(default, alias = "kindHint")]
+    pub kind_hint: Option<String>,
+    #[serde(default)]
+    pub properties: BTreeMap<String, String>,
+    #[serde(default)]
+    pub attachments: Vec<AttachmentRef>,
+    #[serde(default, alias = "idempotencyKey")]
+    pub idempotency_key: Option<String>,
+}
+
+/// ItemGql-compatible capture receipt plus capture-specific retry metadata.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct BlobIngestResponse {
+struct CaptureIngestResponse {
     id: String,
     kind: String,
     title: String,
-    classification: Option<String>,
-    collections: Vec<String>,
-    tags: Vec<String>,
-    remind_at_ms: Option<i64>,
-    created_at_ms: i64,
+    body_text: Option<String>,
     blob_hash: Option<String>,
     mime: Option<String>,
+    source: Option<String>,
+    residency: String,
+    tags: Vec<String>,
+    collections: Vec<String>,
+    classification: Option<String>,
+    status: Option<String>,
+    priority: Option<String>,
+    due_at_ms: Option<i64>,
+    remind_at_ms: Option<i64>,
+    path: Option<String>,
+    extra: serde_json::Value,
+    created_at_ms: i64,
+    updated_at_ms: i64,
+    created: bool,
+    client_id: String,
 }
 
-impl From<Item> for BlobIngestResponse {
-    fn from(item: Item) -> Self {
-        let (blob_hash, mime) = match &item.body {
+impl CaptureIngestResponse {
+    fn from_item(item: Item, created: bool, client_id: String) -> Self {
+        let (body_text, blob_hash, mime) = match &item.body {
+            ItemBody::Inline { text } => (Some(text.clone()), None, None),
             ItemBody::Blob {
                 content_hash, mime, ..
-            } => (Some(content_hash.clone()), mime.clone()),
-            _ => (None, None),
+            } => (None, Some(content_hash.clone()), mime.clone()),
+            ItemBody::Empty => (None, None, None),
         };
+        let path = item
+            .extra
+            .get("path")
+            .or_else(|| item.extra.get("folder_path"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string);
         Self {
             id: item.id,
             kind: item.kind.as_str().to_string(),
             title: item.title,
-            classification: item.classification,
-            collections: item.collections,
-            tags: item.tags,
-            remind_at_ms: item.remind_at_ms,
-            created_at_ms: item.created_at_ms,
+            body_text,
             blob_hash,
             mime,
+            source: item.source,
+            residency: item.residency.as_str().to_string(),
+            tags: item.tags,
+            collections: item.collections,
+            classification: item.classification,
+            status: item.status,
+            priority: item.priority,
+            due_at_ms: item.due_at_ms,
+            remind_at_ms: item.remind_at_ms,
+            path,
+            extra: serde_json::Value::Object(item.extra),
+            created_at_ms: item.created_at_ms,
+            updated_at_ms: item.updated_at_ms,
+            created,
+            client_id,
         }
     }
+}
+
+#[derive(Clone, Debug)]
+struct UploadedAttachment {
+    bytes: Vec<u8>,
+    file_name: Option<String>,
+    mime: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct ResolvedAttachment {
+    reference: AttachmentRef,
+    bytes: Vec<u8>,
+}
+
+fn capture_item_kind(envelope: &CaptureEnvelope, mime: Option<&str>) -> ItemKind {
+    if let Some(hint) = envelope
+        .kind_hint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return blob_item_kind(Some(hint), mime);
+    }
+    ItemKind::from(envelope.object_type.as_str().to_string())
+}
+
+fn append_hash_component(buffer: &mut Vec<u8>, value: &[u8]) {
+    buffer.extend_from_slice(&(value.len() as u64).to_be_bytes());
+    buffer.extend_from_slice(value);
+}
+
+fn capture_marker_id(
+    tenant: &str,
+    envelope: &CaptureEnvelope,
+    uploads: &[UploadedAttachment],
+    upload_hashes: &[String],
+) -> String {
+    let requested_key = envelope
+        .idempotency_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let mut identity = b"capture-envelope-v1".to_vec();
+            append_hash_component(&mut identity, envelope.body.as_bytes());
+            append_hash_component(
+                &mut identity,
+                envelope.title.as_deref().unwrap_or_default().as_bytes(),
+            );
+            append_hash_component(&mut identity, envelope.object_type.as_str().as_bytes());
+            append_hash_component(&mut identity, envelope.capture_method.as_str().as_bytes());
+            append_hash_component(&mut identity, envelope.source.as_str().as_bytes());
+            append_hash_component(&mut identity, envelope.captured_at.as_bytes());
+            append_hash_component(
+                &mut identity,
+                envelope
+                    .source_url
+                    .as_deref()
+                    .unwrap_or_default()
+                    .as_bytes(),
+            );
+            append_hash_component(
+                &mut identity,
+                envelope.kind_hint.as_deref().unwrap_or_default().as_bytes(),
+            );
+            for (key, value) in &envelope.properties {
+                append_hash_component(&mut identity, key.as_bytes());
+                append_hash_component(&mut identity, value.as_bytes());
+            }
+            for attachment in &envelope.attachments {
+                append_hash_component(&mut identity, attachment.blob_hash.as_bytes());
+                append_hash_component(
+                    &mut identity,
+                    attachment
+                        .file_name
+                        .as_deref()
+                        .unwrap_or_default()
+                        .as_bytes(),
+                );
+                append_hash_component(
+                    &mut identity,
+                    attachment.mime.as_deref().unwrap_or_default().as_bytes(),
+                );
+            }
+            for (upload, upload_hash) in uploads.iter().zip(upload_hashes) {
+                append_hash_component(&mut identity, upload_hash.as_bytes());
+                append_hash_component(
+                    &mut identity,
+                    upload.file_name.as_deref().unwrap_or_default().as_bytes(),
+                );
+                append_hash_component(
+                    &mut identity,
+                    upload.mime.as_deref().unwrap_or_default().as_bytes(),
+                );
+            }
+            content_hash(&identity)
+        });
+    let effective_key =
+        content_hash(format!("{tenant}\0{}\0{requested_key}", envelope.client_id).as_bytes());
+    format!(
+        "capture-idempotency:{}",
+        effective_key.trim_start_matches("sha256:")
+    )
+}
+
+fn existing_capture<S, B>(
+    state: &AppState<S, B>,
+    marker_id: &str,
+    client_id: &str,
+) -> Result<Option<CaptureIngestResponse>, (StatusCode, String)>
+where
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    let cp = state.store.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "store lock poisoned".to_string(),
+        )
+    })?;
+    let Some(marker) = cp.store().get_node(marker_id) else {
+        let recovered = cp
+            .item_by_source_ref("commonplace:capture-idempotency", marker_id)
+            .map_err(internal_store_error)?;
+        return Ok(recovered
+            .map(|item| CaptureIngestResponse::from_item(item, false, client_id.to_string())));
+    };
+    let target_id = marker
+        .properties
+        .get("target_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "capture idempotency marker has no target".to_string(),
+            )
+        })?;
+    let item = cp
+        .get_item(target_id)
+        .map_err(internal_store_error)?
+        .ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "capture idempotency target is missing".to_string(),
+            )
+        })?;
+    Ok(Some(CaptureIngestResponse::from_item(
+        item,
+        false,
+        client_id.to_string(),
+    )))
+}
+
+fn internal_store_error(error: impl std::fmt::Debug) -> (StatusCode, String) {
+    eprintln!("capture store failed: {error:?}");
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "capture store failed".to_string(),
+    )
+}
+
+async fn ingest_capture_handler<S, B>(
+    State(state): State<AppState<S, B>>,
+    request: AxumRequest,
+) -> Result<Json<CaptureIngestResponse>, (StatusCode, String)>
+where
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    let headers = request.headers().clone();
+    let principal =
+        authorize(&state, &headers).map_err(|status| (status, "invalid API key".to_string()))?;
+    let content_type = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    let (envelope, uploads) = if content_type.starts_with("application/json") {
+        let Json(envelope) = Json::<CaptureEnvelope>::from_request(request, &state)
+            .await
+            .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+        (envelope, Vec::new())
+    } else if content_type.starts_with("multipart/form-data") {
+        let mut multipart = Multipart::from_request(request, &state)
+            .await
+            .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+        parse_capture_multipart(&mut multipart).await?
+    } else {
+        return Err((
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "Content-Type must be application/json or multipart/form-data".to_string(),
+        ));
+    };
+
+    ingest_capture_inner(&state, &principal.id, envelope, uploads)
+        .await
+        .map(Json)
+}
+
+async fn parse_capture_multipart(
+    multipart: &mut Multipart,
+) -> Result<(CaptureEnvelope, Vec<UploadedAttachment>), (StatusCode, String)> {
+    let mut envelope = None;
+    let mut uploads = Vec::new();
+    while let Some(field) = multipart.next_field().await.map_err(|error| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("invalid multipart body: {error}"),
+        )
+    })? {
+        match field.name().unwrap_or_default() {
+            "capture" => {
+                let bytes = field.bytes().await.map_err(bad_field)?;
+                envelope = Some(serde_json::from_slice(&bytes).map_err(|error| {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        format!("invalid capture envelope: {error}"),
+                    )
+                })?);
+            }
+            "file" => {
+                let file_name = field.file_name().map(str::to_string);
+                let mime = field.content_type().map(str::to_string);
+                let bytes = field.bytes().await.map_err(bad_field)?.to_vec();
+                if !bytes.is_empty() {
+                    uploads.push(UploadedAttachment {
+                        bytes,
+                        file_name,
+                        mime,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    let envelope = envelope.ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            "multipart field 'capture' is required".to_string(),
+        )
+    })?;
+    Ok((envelope, uploads))
+}
+
+async fn ingest_capture_inner<S, B>(
+    state: &AppState<S, B>,
+    tenant: &str,
+    mut envelope: CaptureEnvelope,
+    uploads: Vec<UploadedAttachment>,
+) -> Result<CaptureIngestResponse, (StatusCode, String)>
+where
+    S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
+    B: BlobStore + Send + Sync + 'static,
+{
+    if envelope.body.trim().is_empty() && !uploads.is_empty() {
+        envelope.body.clear();
+    }
+    validate_capture_with_uploads(&envelope, &uploads)?;
+    let upload_hashes = uploads
+        .iter()
+        .map(|upload| content_hash(&upload.bytes))
+        .collect::<Vec<_>>();
+    let marker_id = capture_marker_id(tenant, &envelope, &uploads, &upload_hashes);
+    if let Some(existing) = existing_capture(state, &marker_id, &envelope.client_id)? {
+        return Ok(existing);
+    }
+
+    let mut attachments = {
+        let cp = state.store.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "store lock poisoned".to_string(),
+            )
+        })?;
+        let mut resolved = Vec::with_capacity(envelope.attachments.len() + uploads.len());
+        for reference in &envelope.attachments {
+            let bytes = cp
+                .blobs()
+                .get(&reference.blob_hash)
+                .map_err(internal_store_error)?
+                .ok_or_else(|| {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        format!("attachment blob not found: {}", reference.blob_hash),
+                    )
+                })?;
+            resolved.push(ResolvedAttachment {
+                reference: reference.clone(),
+                bytes: if resolved.is_empty() {
+                    bytes
+                } else {
+                    Vec::new()
+                },
+            });
+        }
+        for (upload, expected_hash) in uploads.into_iter().zip(upload_hashes) {
+            let blob_hash = cp
+                .blobs()
+                .put(&upload.bytes)
+                .map_err(internal_store_error)?;
+            if blob_hash != expected_hash {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "blob store returned a non-canonical content hash".to_string(),
+                ));
+            }
+            resolved.push(ResolvedAttachment {
+                reference: AttachmentRef {
+                    blob_hash,
+                    file_name: upload.file_name,
+                    mime: upload.mime,
+                },
+                bytes: if resolved.is_empty() {
+                    upload.bytes
+                } else {
+                    Vec::new()
+                },
+            });
+        }
+        resolved
+    };
+
+    let primary = attachments.first();
+    let primary_mime = primary.and_then(|attachment| attachment.reference.mime.as_deref());
+    let kind = capture_item_kind(&envelope, primary_mime);
+    let is_audio = primary_mime.is_some_and(|mime| mime.starts_with("audio/"))
+        || matches!(&kind, ItemKind::Other(name) if name == "audio");
+    if is_audio {
+        if let Some(primary) = primary {
+            let transcriber = Transcriber::from_env();
+            if transcriber.is_enabled() {
+                match transcriber
+                    .transcribe(&primary.bytes, primary.reference.mime.as_deref())
+                    .await
+                {
+                    Ok(Some(transcript)) => {
+                        envelope.body = merge_caption(
+                            (!envelope.body.trim().is_empty()).then(|| envelope.body.clone()),
+                            &transcript,
+                        );
+                    }
+                    Ok(None) => {}
+                    Err(error) => eprintln!("voice transcription failed: {error}"),
+                }
+            }
+        }
+    }
+
+    let title = envelope
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            attachments
+                .first()
+                .and_then(|attachment| attachment.reference.file_name.clone())
+        })
+        .unwrap_or_else(|| "Capture".to_string());
+    let body = match attachments.first() {
+        Some(attachment) => IngestBody::Binary {
+            bytes: attachment.bytes.clone(),
+            mime: attachment.reference.mime.clone(),
+            kind,
+            text: (!envelope.body.trim().is_empty()).then(|| envelope.body.clone()),
+        },
+        None => IngestBody::Text {
+            text: envelope.body.clone(),
+            kind,
+        },
+    };
+    let input = IngestInput {
+        title,
+        body,
+        source: envelope.source_url.clone(),
+        source_ref: Some(SourceRef::new(
+            "commonplace:capture-idempotency",
+            marker_id.clone(),
+        )),
+        residency: Residency::Local,
+        tags: envelope
+            .properties
+            .get("tags")
+            .map(|tags| {
+                tags.split(',')
+                    .map(str::trim)
+                    .filter(|tag| !tag.is_empty())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        task: None,
+        remind_at_ms: None,
+        due_at_ms: None,
+        provenance: None,
+    };
+
+    let mut cp = state.store.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "store lock poisoned".to_string(),
+        )
+    })?;
+    if let Some(marker) = cp.store().get_node(&marker_id) {
+        let target_id = marker
+            .properties
+            .get("target_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "capture idempotency marker has no target".to_string(),
+                )
+            })?;
+        let item = cp
+            .get_item(target_id)
+            .map_err(internal_store_error)?
+            .ok_or_else(|| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "capture idempotency target is missing".to_string(),
+                )
+            })?;
+        return Ok(CaptureIngestResponse::from_item(
+            item,
+            false,
+            envelope.client_id,
+        ));
+    }
+
+    let mut item = IngestPipeline::default()
+        .without_content_core()
+        .ingest(&mut cp, input)
+        .map_err(internal_store_error)?
+        .item;
+    item.extra.insert(
+        "capture_client_id".to_string(),
+        serde_json::json!(envelope.client_id),
+    );
+    item.extra.insert(
+        "capture_method".to_string(),
+        serde_json::json!(envelope.capture_method.as_str()),
+    );
+    item.extra.insert(
+        "capture_source".to_string(),
+        serde_json::json!(envelope.source.as_str()),
+    );
+    item.extra.insert(
+        "capture_object_type".to_string(),
+        serde_json::json!(envelope.object_type.as_str()),
+    );
+    item.extra.insert(
+        "captured_at".to_string(),
+        serde_json::json!(envelope.captured_at),
+    );
+    item.extra.insert(
+        "capture_properties".to_string(),
+        serde_json::to_value(&envelope.properties).map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("capture properties failed: {error}"),
+            )
+        })?,
+    );
+    let attachment_refs = attachments
+        .drain(..)
+        .map(|attachment| attachment.reference)
+        .collect::<Vec<_>>();
+    item.extra.insert(
+        "capture_attachments".to_string(),
+        serde_json::to_value(attachment_refs).map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("capture attachments failed: {error}"),
+            )
+        })?,
+    );
+    let item = cp.put_item(item).map_err(internal_store_error)?;
+    cp.store_mut()
+        .upsert_node(NodeRecord::new(
+            marker_id,
+            ["CaptureIdempotency"],
+            serde_json::json!({
+                "tenant": tenant,
+                "target_id": item.id,
+            }),
+        ))
+        .map_err(internal_store_error)?;
+
+    Ok(CaptureIngestResponse::from_item(
+        item,
+        true,
+        envelope.client_id,
+    ))
+}
+
+fn validate_capture_with_uploads(
+    envelope: &CaptureEnvelope,
+    uploads: &[UploadedAttachment],
+) -> Result<(), (StatusCode, String)> {
+    if envelope.body.trim().is_empty() && envelope.attachments.is_empty() && uploads.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "body or an attachment is required".to_string(),
+        ));
+    }
+    if envelope.client_id.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "client_id is required".to_string()));
+    }
+    if envelope
+        .attachments
+        .len()
+        .checked_add(uploads.len())
+        .is_none_or(|count| count > MAX_CAPTURE_ATTACHMENTS)
+    {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!("capture supports at most {MAX_CAPTURE_ATTACHMENTS} attachments"),
+        ));
+    }
+    for attachment in &envelope.attachments {
+        let digest = attachment
+            .blob_hash
+            .strip_prefix("sha256:")
+            .filter(|value| {
+                value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            });
+        if digest.is_none() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "attachment blob_hash must be sha256:<64 hex characters>".to_string(),
+            ));
+        }
+    }
+    chrono::DateTime::parse_from_rfc3339(&envelope.captured_at).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            "captured_at must be RFC3339".to_string(),
+        )
+    })?;
+    Ok(())
 }
 
 /// The item kind for a blob capture: an explicit `kind` hint wins
@@ -476,12 +1210,13 @@ async fn ingest_blob_handler<S, B>(
     State(state): State<AppState<S, B>>,
     headers: HeaderMap,
     mut multipart: Multipart,
-) -> Result<Json<BlobIngestResponse>, (StatusCode, String)>
+) -> Result<Json<CaptureIngestResponse>, (StatusCode, String)>
 where
     S: EmbeddingGraphStore + GraphSnapshotSource + Send + Sync + 'static,
     B: BlobStore + Send + Sync + 'static,
 {
-    authorize(&state, &headers).map_err(|status| (status, "invalid API key".to_string()))?;
+    let principal =
+        authorize(&state, &headers).map_err(|status| (status, "invalid API key".to_string()))?;
 
     let mut title: Option<String> = None;
     let mut kind_hint: Option<String> = None;
@@ -540,72 +1275,43 @@ where
     let title = title
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .or(file_name)
+        .or(file_name.clone())
         .unwrap_or_else(|| "Capture".to_string());
-    let kind = blob_item_kind(kind_hint.as_deref(), mime.as_deref());
-
-    // Voice captures: transcribe server-side when a provider is configured, then
-    // fold the transcript into the body so it embeds/searches like any capture.
-    // Fail-open: a transcription error keeps the audio blob, just untranscribed.
-    let is_audio = mime
-        .as_deref()
-        .is_some_and(|mime| mime.starts_with("audio/"))
-        || matches!(&kind, ItemKind::Other(name) if name.as_str() == "audio");
-    let transcriber = Transcriber::from_env();
-    let caption = if is_audio && transcriber.is_enabled() {
-        match transcriber.transcribe(&bytes, mime.as_deref()).await {
-            Ok(Some(transcript)) => Some(merge_caption(caption, &transcript)),
-            Ok(None) => caption,
-            Err(error) => {
-                eprintln!("voice transcription failed: {error}");
-                caption
-            }
-        }
-    } else {
-        caption
+    let mut legacy_key_bytes = Vec::new();
+    legacy_key_bytes.extend_from_slice(title.as_bytes());
+    legacy_key_bytes.push(0);
+    legacy_key_bytes.extend_from_slice(caption.as_deref().unwrap_or_default().as_bytes());
+    legacy_key_bytes.push(0);
+    legacy_key_bytes.extend_from_slice(&bytes);
+    if kind_hint.is_none() {
+        kind_hint = match mime.as_deref() {
+            Some(value) if value.starts_with("image/") => Some("image".to_string()),
+            Some(value) if value.starts_with("audio/") => Some("audio".to_string()),
+            _ => None,
+        };
+    }
+    let envelope = CaptureEnvelope {
+        client_id: "mobile-legacy".to_string(),
+        title: Some(title),
+        body: caption.unwrap_or_default(),
+        object_type: ObjectType::File,
+        capture_method: CaptureMethod::Composed,
+        source: CaptureSource::Mobile,
+        captured_at: chrono::Utc::now().to_rfc3339(),
+        source_url: None,
+        kind_hint,
+        properties: BTreeMap::from([("tags".to_string(), tags.join(","))]),
+        attachments: Vec::new(),
+        idempotency_key: Some(content_hash(&legacy_key_bytes)),
     };
-
-    let input = IngestInput {
-        title,
-        body: IngestBody::Binary {
-            bytes,
-            mime,
-            kind,
-            text: caption,
-        },
-        source: None,
-        source_ref: None,
-        residency: Residency::Local,
-        tags,
-        task: None,
-        remind_at_ms: None,
-        due_at_ms: None,
-        provenance: None,
+    let upload = UploadedAttachment {
+        bytes,
+        file_name,
+        mime,
     };
-
-    // Blob captures keep the blob body: content-core extraction (which
-    // rewrites supported binaries into text bodies) stays off this route so
-    // blob_hash and mime always land on the item.
-    let item = {
-        let mut cp = state.store.lock().map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "store lock poisoned".to_string(),
-            )
-        })?;
-        IngestPipeline::default()
-            .without_content_core()
-            .ingest(&mut cp, input)
-            .map_err(|error| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("ingest failed: {error:?}"),
-                )
-            })?
-            .item
-    };
-
-    Ok(Json(BlobIngestResponse::from(item)))
+    ingest_capture_inner(&state, &principal.id, envelope, vec![upload])
+        .await
+        .map(Json)
 }
 
 fn bad_field(error: axum::extract::multipart::MultipartError) -> (StatusCode, String) {
@@ -687,11 +1393,33 @@ where
         .all_items()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .into_iter()
-        .find_map(|item| match item.body {
-            ItemBody::Blob {
+        .find_map(|item| {
+            if let ItemBody::Blob {
                 content_hash, mime, ..
-            } if content_hash == hash => mime,
-            _ => None,
+            } = &item.body
+            {
+                if content_hash == &hash {
+                    return mime.clone();
+                }
+            }
+            item.extra
+                .get("capture_attachments")
+                .and_then(serde_json::Value::as_array)
+                .and_then(|attachments| {
+                    attachments.iter().find_map(|attachment| {
+                        (attachment
+                            .get("blob_hash")
+                            .and_then(serde_json::Value::as_str)
+                            == Some(hash.as_str()))
+                        .then(|| {
+                            attachment
+                                .get("mime")
+                                .and_then(serde_json::Value::as_str)
+                                .map(str::to_string)
+                        })
+                        .flatten()
+                    })
+                })
         })
         .unwrap_or_else(|| "application/octet-stream".to_string());
     drop(cp);
