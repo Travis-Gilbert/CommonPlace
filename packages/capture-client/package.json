@@ -1,0 +1,20 @@
+{
+  "name": "@commonplace/capture-client",
+  "version": "1.0.0",
+  "description": "Versioned CommonPlace Capture 2.0 envelope and durable queue.",
+  "type": "module",
+  "files": [
+    "capture-queue.d.mts",
+    "capture-queue.mjs",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./capture-queue.d.mts",
+      "import": "./capture-queue.mjs"
+    }
+  },
+  "scripts": {
+    "test": "node --test capture-queue.test.mjs"
+  }
+}

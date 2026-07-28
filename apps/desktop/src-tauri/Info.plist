@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>CommonPlace uses the microphone only while you explicitly dictate. Audio remains on this Mac.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>CommonPlace transcribes speech only while you explicitly dictate, using the selected on-device speech engine.</string>
+  <key>NSServices</key>
+  <array>
+    <dict>
+      <key>NSMenuItem</key>
+      <dict>
+        <key>default</key>
+        <string>Dictate Here</string>
+      </dict>
+      <key>NSMessage</key>
+      <string>dictateHere</string>
+      <key>NSPortName</key>
+      <string>CommonPlace</string>
+    </dict>
+    <dict>
+      <key>NSMenuItem</key>
+      <dict>
+        <key>default</key>
+        <string>Read Aloud</string>
+      </dict>
+      <key>NSMessage</key>
+      <string>readAloud</string>
+      <key>NSPortName</key>
+      <string>CommonPlace</string>
+      <key>NSSendTypes</key>
+      <array>
+        <string>public.utf8-plain-text</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSMenuItem</key>
+      <dict>
+        <key>default</key>
+        <string>Capture Selection</string>
+      </dict>
+      <key>NSMessage</key>
+      <string>captureSelection</string>
+      <key>NSPortName</key>
+      <string>CommonPlace</string>
+      <key>NSSendTypes</key>
+      <array>
+        <string>public.utf8-plain-text</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

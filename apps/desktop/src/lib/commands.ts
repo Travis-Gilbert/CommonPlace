@@ -13,6 +13,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { CaptureEnvelope } from "@commonplace/capture-client";
 import type {
   HarnessTarget,
   AgentIngestionReceipt,
@@ -35,6 +36,323 @@ import type {
 /** True when running inside the Tauri runtime (vs. a plain browser dev server). */
 export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+// --- PET extension ---------------------------------------------------------
+//
+// Theorem owns these native engines and command implementations. CommonPlace
+// owns their only product UI and invokes them from a second frameless window in
+// this same Tauri process. Keeping the wrappers here makes that ownership seam
+// explicit and prevents a second app-level bridge from emerging.
+
+export type PetVoiceEngine = "apple" | "parakeet" | "whisper";
+export type PetVoiceState =
+  | "idle"
+  | "listening"
+  | "processing"
+  | "speaking"
+  | "error";
+
+export interface PetNativePreferences {
+  pinned: boolean;
+  clickThrough: boolean;
+  quietHours: boolean;
+  shortcut: string;
+  model: string;
+  proxyBaseUrl: string;
+  commonplaceApiBase: string;
+  threadRetention: number;
+  voiceEnabled: boolean;
+  voiceEngine: PetVoiceEngine;
+  voiceLocale: string;
+  captureDictation: boolean;
+  captureReadAloud: boolean;
+  signatureVoice: "theorem-hearth" | "theorem-lantern";
+}
+
+export interface PetSourceDescriptor {
+  mode: "live" | "fixture";
+  retryable: boolean;
+  reason?: string;
+}
+
+export interface PetComposeResponse {
+  threadId: string;
+  reply: string;
+  source: PetSourceDescriptor;
+}
+
+export interface PetCaptureResult {
+  id?: string;
+  slug?: string;
+  created: boolean;
+  clientId: string;
+  source: PetSourceDescriptor;
+}
+
+export interface PetTranscriptEvent {
+  type: "event";
+  event: "partial" | "final" | "error";
+  payload: {
+    text: string;
+    engine: PetVoiceEngine;
+    final: boolean;
+    message?: string;
+  };
+}
+
+export interface PetInsertionResult {
+  inserted: boolean;
+  strategy: "accessibility" | "clipboard" | "keystroke" | "refused";
+  reason?: string;
+  clipboardRestored: boolean;
+}
+
+export interface PetCaptureCredentialStatus {
+  configured: boolean;
+}
+
+export interface PetVoiceModelStatus {
+  entry: {
+    id: string;
+    displayName: string;
+    tier: "ears" | "instant" | "rich";
+    sizeBytes: number;
+    contentHash: string;
+    license: string;
+    installMode: string;
+  };
+  installed: boolean;
+  installedBytes: number;
+  reason?: string;
+}
+
+const PET_BROWSER_PREFERENCES: PetNativePreferences = {
+  pinned: false,
+  clickThrough: false,
+  quietHours: false,
+  shortcut: "CommandOrControl+Shift+Space",
+  model: "",
+  proxyBaseUrl: "http://127.0.0.1:8484",
+  commonplaceApiBase: "http://127.0.0.1:50090",
+  threadRetention: 50,
+  voiceEnabled: false,
+  voiceEngine: "apple",
+  voiceLocale: "en-US",
+  captureDictation: false,
+  captureReadAloud: false,
+  signatureVoice: "theorem-hearth",
+};
+
+const PET_BROWSER_PREFERENCES_KEY = "commonplace:pet-preferences:v1";
+const PET_BROWSER_DRAFT_KEY = "commonplace:pet-draft:v1";
+const PET_PLUGIN_COMMAND = "plugin:theorem-pet|";
+
+function petInvoke<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  return invoke<T>(`${PET_PLUGIN_COMMAND}${command}`, args);
+}
+
+export async function petNativePreferences(): Promise<PetNativePreferences> {
+  if (isTauri()) {
+    return petInvoke<PetNativePreferences>("native_preferences");
+  }
+  const value = window.localStorage.getItem(PET_BROWSER_PREFERENCES_KEY);
+  if (!value) return { ...PET_BROWSER_PREFERENCES };
+  try {
+    return {
+      ...PET_BROWSER_PREFERENCES,
+      ...(JSON.parse(value) as Partial<PetNativePreferences>),
+    };
+  } catch {
+    return { ...PET_BROWSER_PREFERENCES };
+  }
+}
+
+export async function petUpdatePreferences(
+  preferences: PetNativePreferences,
+): Promise<PetNativePreferences> {
+  if (isTauri()) {
+    return petInvoke<PetNativePreferences>("update_pet_preferences", {
+      preferences,
+    });
+  }
+  window.localStorage.setItem(
+    PET_BROWSER_PREFERENCES_KEY,
+    JSON.stringify(preferences),
+  );
+  return preferences;
+}
+
+export async function petDraft(): Promise<string> {
+  if (isTauri()) return petInvoke<string>("pet_draft");
+  return window.localStorage.getItem(PET_BROWSER_DRAFT_KEY) ?? "";
+}
+
+export async function petSaveDraft(text: string): Promise<void> {
+  if (isTauri()) return petInvoke<void>("save_pet_draft", { text });
+  window.localStorage.setItem(PET_BROWSER_DRAFT_KEY, text);
+}
+
+export async function petCompose(
+  text: string,
+  threadId: string | null,
+): Promise<PetComposeResponse> {
+  if (isTauri()) {
+    return petInvoke<PetComposeResponse>("pet_compose", { text, threadId });
+  }
+  return {
+    threadId: threadId ?? "browser-preview",
+    reply: `I heard you: ${text}`,
+    source: {
+      mode: "fixture",
+      retryable: false,
+      reason: "browser preview",
+    },
+  };
+}
+
+export async function petSetComposerFocused(focused: boolean): Promise<void> {
+  if (isTauri()) return petInvoke<void>("set_composer_focused", { focused });
+}
+
+export async function petStartDragging(): Promise<void> {
+  if (isTauri()) return petInvoke<void>("start_dragging");
+}
+
+export async function petShow(): Promise<PetNativePreferences> {
+  if (isTauri()) return petInvoke<PetNativePreferences>("pet_show");
+  return petNativePreferences();
+}
+
+export async function petVoiceStart(
+  engine: PetVoiceEngine,
+  locale: string,
+  mode: "push" | "latch",
+): Promise<void> {
+  if (isTauri()) return petInvoke<void>("voice_start", { engine, locale, mode });
+}
+
+export async function petVoiceStop(): Promise<void> {
+  if (isTauri()) return petInvoke<void>("voice_stop");
+}
+
+export async function petInsertAtCursor(
+  text: string,
+  mode: "batch" | "live",
+): Promise<PetInsertionResult> {
+  if (isTauri()) {
+    return petInvoke<PetInsertionResult>("insert_at_cursor", { text, mode });
+  }
+  return {
+    inserted: false,
+    strategy: "refused",
+    reason: "native_pet_required",
+    clipboardRestored: true,
+  };
+}
+
+export async function petSpeak(
+  text: string,
+  voice: PetNativePreferences["signatureVoice"],
+  tier: "instant" | "rich",
+  speed = 1,
+): Promise<void> {
+  if (isTauri()) {
+    return petInvoke<void>("pet_speak", { text, voice, tier, speed });
+  }
+}
+
+export async function petCapture(
+  envelope: CaptureEnvelope,
+): Promise<PetCaptureResult> {
+  if (isTauri()) {
+    return petInvoke<PetCaptureResult>("pet_capture", { envelope });
+  }
+  return {
+    id: `preview-${envelope.client_id}`,
+    slug: `preview-${envelope.client_id}`,
+    created: true,
+    clientId: envelope.client_id,
+    source: {
+      mode: "fixture",
+      retryable: false,
+      reason: "browser preview",
+    },
+  };
+}
+
+export async function petCaptureFiles(
+  paths: readonly string[],
+  envelope: CaptureEnvelope,
+): Promise<PetCaptureResult> {
+  if (isTauri()) {
+    return petInvoke<PetCaptureResult>("pet_capture_files", {
+      paths,
+      envelope,
+    });
+  }
+  return petCapture(envelope);
+}
+
+export async function petStageCaptureFiles(
+  paths: readonly string[],
+  clientId: string,
+): Promise<string[]> {
+  if (isTauri()) {
+    return petInvoke<string[]>("pet_stage_capture_files", { paths, clientId });
+  }
+  return [...paths];
+}
+
+export async function petCaptureCredentialStatus(): Promise<PetCaptureCredentialStatus> {
+  if (isTauri()) {
+    return petInvoke<PetCaptureCredentialStatus>("capture_credential_status");
+  }
+  return { configured: false };
+}
+
+export async function petSetCaptureCredential(
+  apiKey: string,
+): Promise<PetCaptureCredentialStatus> {
+  if (!isTauri()) {
+    throw new Error("Capture credentials require CommonPlace.app");
+  }
+  return petInvoke<PetCaptureCredentialStatus>("set_capture_credential", {
+    apiKey,
+  });
+}
+
+export async function petClearCaptureCredential(): Promise<PetCaptureCredentialStatus> {
+  if (isTauri()) {
+    return petInvoke<PetCaptureCredentialStatus>("clear_capture_credential");
+  }
+  return { configured: false };
+}
+
+export async function petVoiceModels(): Promise<readonly PetVoiceModelStatus[]> {
+  if (isTauri()) return petInvoke<PetVoiceModelStatus[]>("voice_model_status");
+  return [];
+}
+
+export async function petInstallVoiceModel(
+  id: string,
+): Promise<PetVoiceModelStatus> {
+  if (!isTauri()) {
+    throw new Error("Voice models require CommonPlace.app");
+  }
+  return petInvoke<PetVoiceModelStatus>("voice_model_install", { id });
+}
+
+export async function petDeleteVoiceModel(
+  id: string,
+): Promise<PetVoiceModelStatus> {
+  if (!isTauri()) {
+    throw new Error("Voice models require CommonPlace.app");
+  }
+  return petInvoke<PetVoiceModelStatus>("voice_model_delete", { id });
 }
 
 // --- Tab / webview lifecycle (D3) -- Rust: src-tauri, one wry webview per tab.

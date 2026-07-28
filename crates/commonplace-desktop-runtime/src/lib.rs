@@ -618,7 +618,7 @@ fn tab_close(
     }
     let mut backend = state.lock().map_err(|error| error.to_string())?;
     backend.tabs.remove(&tab_id);
-    if backend.active_tab.as_deref() == Some(&tab_id) {
+    if backend.active_tab.as_deref() == Some(tab_id.as_str()) {
         backend.active_tab = None;
     }
     Ok(())
@@ -2508,7 +2508,15 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
         .manage(Mutex::new(DesktopBackendState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(theorem_pet_lib::plugin(
+            theorem_pet_lib::PetHostConfig::commonplace("pet"),
+        ))
         .setup(|app| {
+            // Plugins initialize before configured windows exist. CommonPlace
+            // owns the PET webview lifecycle, so attach the native behavior
+            // here after Tauri has created the host's `pet` window.
+            theorem_pet_lib::attach_hosted_window(app.handle())?;
             // DESIGN-THEOREM-URI section 3: the desktop registers `theorem://`
             // so a link anywhere on the machine opens the object in the shell.
             // macOS reads the scheme from the bundle's Info.plist, which the
