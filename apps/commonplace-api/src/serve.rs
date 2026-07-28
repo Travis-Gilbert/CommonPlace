@@ -29,7 +29,7 @@ use axum::{Json, Router};
 use commonplace::{
     content_hash, BlobStore, EmbeddingGraphStore, IngestBody, IngestInput, IngestPipeline, Item,
     ItemBody, ItemKind, ObjectAction, ObjectActionReceipt, ObjectQuery, ObjectSet, Residency,
-    ViewDescriptor,
+    SourceRef, ViewDescriptor,
 };
 use rustyred_thg_core::{GraphSnapshotSource, NodeRecord};
 use serde::{Deserialize, Serialize};
@@ -494,7 +494,7 @@ macro_rules! flexible_string_enum {
                 let normalized = value.trim().to_ascii_lowercase();
                 Ok(match normalized.as_str() {
                     $($value => Self::$variant,)+
-                    _ => Self::Other(value),
+                    _ => Self::Other(normalized),
                 })
             }
         }
@@ -554,6 +554,7 @@ pub struct CaptureEnvelope {
     pub client_id: String,
     #[serde(default)]
     pub title: Option<String>,
+    #[serde(default)]
     pub body: String,
     #[serde(alias = "objectType")]
     pub object_type: ObjectType,
@@ -684,6 +685,13 @@ fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope, upload_hashes: &[
             append_hash_component(&mut identity, envelope.body.as_bytes());
             append_hash_component(
                 &mut identity,
+                envelope.title.as_deref().unwrap_or_default().as_bytes(),
+            );
+            append_hash_component(&mut identity, envelope.object_type.as_str().as_bytes());
+            append_hash_component(&mut identity, envelope.capture_method.as_str().as_bytes());
+            append_hash_component(&mut identity, envelope.source.as_str().as_bytes());
+            append_hash_component(
+                &mut identity,
                 envelope
                     .source_url
                     .as_deref()
@@ -751,9 +759,10 @@ where
 }
 
 fn internal_store_error(error: impl std::fmt::Debug) -> (StatusCode, String) {
+    eprintln!("capture store failed: {error:?}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
-        format!("capture store failed: {error:?}"),
+        "capture store failed".to_string(),
     )
 }
 
@@ -771,7 +780,8 @@ where
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .to_ascii_lowercase();
 
     let (envelope, uploads) = if content_type.starts_with("application/json") {
         let Json(envelope) = Json::<CaptureEnvelope>::from_request(request, &state)
@@ -884,7 +894,11 @@ where
                 })?;
             resolved.push(ResolvedAttachment {
                 reference: reference.clone(),
-                bytes,
+                bytes: if resolved.is_empty() {
+                    bytes
+                } else {
+                    Vec::new()
+                },
             });
         }
         for (upload, expected_hash) in uploads.into_iter().zip(upload_hashes) {
@@ -904,7 +918,11 @@ where
                     file_name: upload.file_name,
                     mime: upload.mime,
                 },
-                bytes: upload.bytes,
+                bytes: if resolved.is_empty() {
+                    upload.bytes
+                } else {
+                    Vec::new()
+                },
             });
         }
         resolved
@@ -964,7 +982,10 @@ where
         title,
         body,
         source: envelope.source_url.clone(),
-        source_ref: None,
+        source_ref: Some(SourceRef::new(
+            "commonplace:capture-idempotency",
+            marker_id.clone(),
+        )),
         residency: Residency::Local,
         tags: envelope
             .properties
@@ -1212,6 +1233,13 @@ where
     legacy_key_bytes.extend_from_slice(caption.as_deref().unwrap_or_default().as_bytes());
     legacy_key_bytes.push(0);
     legacy_key_bytes.extend_from_slice(&bytes);
+    if kind_hint.is_none() {
+        kind_hint = match mime.as_deref() {
+            Some(value) if value.starts_with("image/") => Some("image".to_string()),
+            Some(value) if value.starts_with("audio/") => Some("audio".to_string()),
+            _ => None,
+        };
+    }
     let envelope = CaptureEnvelope {
         client_id: "mobile-legacy".to_string(),
         title: Some(title),

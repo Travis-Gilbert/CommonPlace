@@ -42,6 +42,31 @@ async fn running_capture_surface_round_trips_item_and_blob() {
         .expect("GET /healthz");
     assert_eq!(health.status(), reqwest::StatusCode::OK);
 
+    let auth_probe = json!({
+        "client_id": "auth-probe",
+        "body": "authorization must run before ingestion",
+        "object_type": "note",
+        "capture_method": "agent",
+        "source": "api",
+        "captured_at": "2026-07-28T00:00:00Z"
+    });
+    let missing_key = client
+        .post(format!("{base}/ingest/capture"))
+        .json(&auth_probe)
+        .send()
+        .await
+        .expect("POST capture without API key");
+    assert_eq!(missing_key.status(), reqwest::StatusCode::FORBIDDEN);
+    let ambiguous_key = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .bearer_auth("different-key")
+        .json(&auth_probe)
+        .send()
+        .await
+        .expect("POST capture with conflicting API keys");
+    assert_eq!(ambiguous_key.status(), reqwest::StatusCode::FORBIDDEN);
+
     let capture = client
         .post(format!("{base}/ingest/blob"))
         .header("x-api-key", KEY)
@@ -98,7 +123,7 @@ async fn running_capture_surface_round_trips_item_and_blob() {
     assert_eq!(blob.bytes().await.expect("capture blob bytes"), bytes);
 
     let _ = shutdown.send(());
-    let _ = server.await;
+    server.await.expect("capture server task");
 }
 
 #[tokio::test]
@@ -110,7 +135,7 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
         "title": "Canonical capture",
         "body": "The same markdown must survive a retry.",
         "object_type": "note",
-        "capture_method": "wormhole",
+        "capture_method": " Wormhole ",
         "source": "api",
         "captured_at": "2026-07-27T16:30:00-04:00",
         "source_url": "https://example.com/capture-contract",
@@ -123,7 +148,8 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
     let first = client
         .post(format!("{base}/ingest/capture"))
         .bearer_auth(KEY)
-        .json(&capture)
+        .header(reqwest::header::CONTENT_TYPE, "Application/JSON")
+        .body(capture.to_string())
         .send()
         .await
         .expect("POST JSON capture with Bearer auth");
@@ -208,7 +234,7 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
     );
 
     let _ = shutdown.send(());
-    let _ = server.await;
+    server.await.expect("capture server task");
 }
 
 #[tokio::test]
@@ -263,6 +289,28 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
         .expect("read dropped blob");
     assert_eq!(bytes.status(), reqwest::StatusCode::OK);
     assert_eq!(bytes.bytes().await.expect("dropped blob bytes"), pdf);
+
+    let referenced = json!({
+        "client_id": "local-reference-only",
+        "title": "Referenced fixture",
+        "object_type": "file",
+        "capture_method": "agent",
+        "source": "api",
+        "captured_at": "2026-07-27T20:32:00Z",
+        "attachments": [{
+            "blob_hash": hash,
+            "file_name": "fixture.pdf",
+            "mime": "application/pdf"
+        }]
+    });
+    let referenced = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .json(&referenced)
+        .send()
+        .await
+        .expect("POST attachment-only reference without body");
+    assert_eq!(referenced.status(), reqwest::StatusCode::OK);
 
     let repeat_drop = client
         .post(format!("{base}/ingest/capture"))
@@ -360,6 +408,26 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
     assert_eq!(replay["id"], first["id"]);
     assert_eq!(replay["created"], false);
 
+    let inferred_image = client
+        .post(format!("{base}/ingest/blob"))
+        .header("x-api-key", KEY)
+        .multipart(
+            Form::new().text("title", "Legacy image").part(
+                "file",
+                Part::bytes(vec![0x89, b'P', b'N', b'G'])
+                    .file_name("legacy.png")
+                    .mime_str("image/png")
+                    .expect("image/png mime"),
+            ),
+        )
+        .send()
+        .await
+        .expect("POST legacy image without kind hint");
+    assert_eq!(inferred_image.status(), reqwest::StatusCode::OK);
+    let inferred_image: serde_json::Value =
+        inferred_image.json().await.expect("legacy image receipt");
+    assert_eq!(inferred_image["kind"], "image");
+
     let _ = shutdown.send(());
-    let _ = server.await;
+    server.await.expect("capture server task");
 }

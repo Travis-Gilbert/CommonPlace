@@ -17,7 +17,8 @@ for dependency in curl jq; do
     fi
 done
 
-readonly TEMP_DIR="$(mktemp -d)"
+TEMP_DIR="$(mktemp -d)"
+readonly TEMP_DIR
 cleanup() {
     rm -rf "$TEMP_DIR"
 }
@@ -58,6 +59,35 @@ if [[ "$retry_item_id" != "$item_id" || "$retry_blob_hash" != "$blob_hash" ]]; t
 fi
 if [[ "$retry_created" != "false" ]]; then
     echo "legacy capture retry did not report created=false" >&2
+    exit 1
+fi
+
+canonical_payload="$(jq -cn \
+    --arg captured_at '2026-07-28T00:00:00Z' \
+    '{
+        client_id:"capture-smoke-canonical",
+        title:"Capture 2.0 canonical smoke",
+        body:"canonical capture smoke",
+        object_type:"note",
+        capture_method:"agent",
+        source:"api",
+        captured_at:$captured_at
+    }')"
+canonical_json="$(curl "${CURL_TIMEOUT_ARGS[@]}" --fail --silent --show-error \
+    --header "authorization: Bearer $API_KEY" \
+    --header 'content-type: application/json' \
+    --data "$canonical_payload" \
+    "$API_BASE_URL/ingest/capture")"
+canonical_id="$(jq -er '.id | select(length > 0)' <<<"$canonical_json")"
+canonical_retry_json="$(curl "${CURL_TIMEOUT_ARGS[@]}" --fail --silent --show-error \
+    --header "authorization: Bearer $API_KEY" \
+    --header 'content-type: application/json' \
+    --data "$canonical_payload" \
+    "$API_BASE_URL/ingest/capture")"
+canonical_retry_id="$(jq -er '.id | select(length > 0)' <<<"$canonical_retry_json")"
+canonical_retry_created="$(jq -er '.created' <<<"$canonical_retry_json")"
+if [[ "$canonical_retry_id" != "$canonical_id" || "$canonical_retry_created" != "false" ]]; then
+    echo "canonical capture retry was not idempotent" >&2
     exit 1
 fi
 
