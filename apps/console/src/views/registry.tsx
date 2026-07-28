@@ -35,6 +35,7 @@ import { KanbanBlock } from './blocks/KanbanBlock';
 import { SurveyView } from './SurveyView';
 import { ModelView } from './model/ModelView';
 import { SearchStackView } from './search/SearchStackView';
+import { CommandsGalleryView } from './CommandsGalleryView';
 import { PG_TYPES } from '@/lib/proactivity/object-bridge';
 import {
   openSearchPageInWebEdition,
@@ -762,6 +763,37 @@ const AUTOMATION_HISTORY: ViewDescriptor = {
   render: AutomationHistoryView,
 };
 
+const COMMANDS_GALLERY: ConsoleViewDescriptor = {
+  id: 'commands.gallery',
+  name: 'Commands',
+  paletteVisible: true,
+  palette: {
+    id: 'commands',
+    label: 'Commands',
+    kind: 'automation',
+    material: 'sunken',
+  },
+  accepts: {},
+  emits: ['invoke_tool', 'select', 'open'],
+  renderer: 'commands.gallery',
+  sourcing: { mode: 'wrap', upstream: 'cmdk/Command' },
+  source: {
+    package: 'cmdk',
+    component: 'Command',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'browse and fork published commands and monitors',
+    placements: ['ground', 'full', 'rail'],
+    defaultSize: 'm',
+    density: 'both',
+    surfaceClass: 'tool',
+    kindGlyph: 'automation',
+  },
+  render: CommandsGalleryView,
+};
+
 const AGENT_RAIL: ViewDescriptor = {
   id: 'agent.rail',
   name: 'Agent',
@@ -876,6 +908,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   KANBAN,
   CANVAS,
   AUTOMATION_HISTORY,
+  COMMANDS_GALLERY,
   SURVEY_BOARD,
   MODEL_STUDIO,
   SEARCH_STACK,

@@ -576,7 +576,20 @@ export class ConsoleBlockHost implements BlockHost {
         await this.retireRemoteLayoutObjects(
           remote.objects.filter((object) => retiredIds.has(object.id)),
         );
-        this.replaceLayout(durable);
+        // Mirror hydrateLayout for near-complete remotes that predate a later
+        // seed place (Survey, Models, …). Sparse remotes stay adopted as-is
+        // after retirement; filling them would rewrite the whole seed over HTTP.
+        const seed = seedLayout();
+        const durableIds = new Set(durable.map((object) => object.id));
+        const missing = seed.filter((object) => !durableIds.has(object.id));
+        const shouldFillMissing =
+          missing.length > 0 && durable.length >= Math.ceil(seed.length / 2);
+        this.replaceLayout(
+          shouldFillMissing ? [...durable, ...missing] : durable,
+        );
+        if (shouldFillMissing) {
+          await this.pushMissingSeedObjects(missing);
+        }
         return;
       }
       await this.pushLayoutToServer();
@@ -607,7 +620,10 @@ export class ConsoleBlockHost implements BlockHost {
   }
 
   private async pushLayoutToServer(): Promise<void> {
-    const objects = [...this.layout.values()].map(toRef);
+    await this.pushMissingSeedObjects([...this.layout.values()].map(toRef));
+  }
+
+  private async pushMissingSeedObjects(objects: readonly ObjectRef[]): Promise<void> {
     await Promise.all(
       objects.map((ref) => {
         const title = String(ref.properties.name ?? ref.properties.title ?? ref.id);
