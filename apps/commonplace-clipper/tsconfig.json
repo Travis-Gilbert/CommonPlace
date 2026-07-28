@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"baseUrl": "src",
+		"paths": {
+			"*": ["*"],
+			"managers/*": ["managers/*"],
+			"utils/*": ["utils/*"],
+			"icons": ["icons"]
+		},
+		"target": "es2020",
+		"module": "es2020",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"sourceMap": true,
+		"moduleResolution": "bundler",
+		"types": ["chrome", "webextension-polyfill", "node", "webpack-env", "vitest/globals"],
+		"lib": ["es2017", "dom"]
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": ["node_modules", "dist"]
+}
