@@ -19,6 +19,7 @@ import {
   petSetComposerFocused,
   petSpeak,
   petStartDragging,
+  petStopSpeaking,
   petVoiceStart,
   petVoiceStop,
   type PetNativePreferences,
@@ -99,6 +100,7 @@ export function PetSurface() {
   const draftHydratedRef = useRef(false);
   const preferencesRef = useRef(preferences);
   const voiceModeRef = useRef<"push" | "latch">("latch");
+  const speechRequestRef = useRef(0);
 
   useEffect(() => {
     preferencesRef.current = preferences;
@@ -286,16 +288,24 @@ export function PetSurface() {
           return;
         }
         if (payload.action === "read_aloud") {
+          const speechRequest = ++speechRequestRef.current;
           setVoiceState("speaking");
           setStatus("Reading your selection aloud.");
           void petSpeak(
             payload.text,
             preferencesRef.current.signatureVoice,
             "instant",
-          ).catch((error) => {
-            setVoiceState("error");
-            setStatus(`Read-aloud unavailable: ${errorMessage(error)}`);
-          });
+          )
+            .then(() => {
+              if (speechRequest !== speechRequestRef.current) return;
+              setVoiceState("idle");
+              setStatus("Selection sent to the local voice.");
+            })
+            .catch((error) => {
+              if (speechRequest !== speechRequestRef.current) return;
+              setVoiceState("error");
+              setStatus(`Read-aloud unavailable: ${errorMessage(error)}`);
+            });
           return;
         }
         void enqueuePetCapture(
@@ -312,6 +322,7 @@ export function PetSurface() {
           );
       }),
       listen("pet:stood-down", () => {
+        speechRequestRef.current += 1;
         setBusy(false);
         setVoiceState("idle");
       }),
@@ -357,10 +368,12 @@ export function PetSurface() {
       }
       return;
     }
+    speechRequestRef.current += 1;
     voiceModeRef.current = "latch";
     setVoiceState("listening");
     setStatus("Listening…");
     try {
+      await petStopSpeaking();
       await petVoiceStart(
         preferences.voiceEngine,
         preferences.voiceLocale,

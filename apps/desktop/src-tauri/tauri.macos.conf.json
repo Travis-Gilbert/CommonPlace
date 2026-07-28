@@ -1,0 +1,11 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run prepare:pet-native && npm run frontend:dev",
+    "beforeBuildCommand": "npm run frontend:build && npm run prepare:pet-native"
+  },
+  "bundle": {
+    "externalBin": [
+      "binaries/theorem-voice-helper"
+    ]
+  }
+}

@@ -12,6 +12,7 @@ import {
 
 const PET_CAPTURE_QUEUE_KEY = "commonplace:pet-capture-queue:v1";
 let sharedQueue: ReturnType<typeof createCaptureQueue> | undefined;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
 function captureStorage() {
   return {
@@ -43,8 +44,30 @@ export function newPetCaptureEnvelope(
     client_id: `local-${crypto.randomUUID()}`,
     captured_at: new Date().toISOString(),
     properties: values.properties ?? {},
-    source: "commonplace-pet",
+    source: "pet",
   };
+}
+
+function scheduleNextDrain(entries: readonly CaptureQueueEntry[]): void {
+  if (retryTimer !== undefined) {
+    clearTimeout(retryTimer);
+    retryTimer = undefined;
+  }
+  const nextAttemptAt = entries.reduce(
+    (earliest, entry) =>
+      entry.state === "kept" && Number.isFinite(entry.nextAttemptAt)
+        ? Math.min(earliest, entry.nextAttemptAt)
+        : earliest,
+    Number.POSITIVE_INFINITY,
+  );
+  if (!Number.isFinite(nextAttemptAt)) return;
+
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined;
+    void drainPetCaptureQueue().catch(() => {
+      // Queue entries remain durable; connectivity changes also trigger a drain.
+    });
+  }, Math.max(0, nextAttemptAt - Date.now()));
 }
 
 function petCaptureQueue() {
@@ -102,6 +125,7 @@ export async function enqueuePetCapture(
       : envelope;
   await queue.enqueue(queuedEnvelope);
   const entries = await queue.drain();
+  scheduleNextDrain(entries);
   const entry = entries.find((candidate) => candidate.id === envelope.client_id);
   if (!entry) {
     throw new Error("The durable capture queue lost its persisted entry");
@@ -110,5 +134,7 @@ export async function enqueuePetCapture(
 }
 
 export async function drainPetCaptureQueue(): Promise<CaptureQueueEntry[]> {
-  return petCaptureQueue().drain();
+  const entries = await petCaptureQueue().drain();
+  scheduleNextDrain(entries);
+  return entries;
 }
