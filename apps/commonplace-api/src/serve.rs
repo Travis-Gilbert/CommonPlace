@@ -667,7 +667,12 @@ fn capture_item_kind(envelope: &CaptureEnvelope, mime: Option<&str>) -> ItemKind
     ItemKind::from(envelope.object_type.as_str().to_string())
 }
 
-fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope) -> String {
+fn append_hash_component(buffer: &mut Vec<u8>, value: &[u8]) {
+    buffer.extend_from_slice(&(value.len() as u64).to_be_bytes());
+    buffer.extend_from_slice(value);
+}
+
+fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope, upload_hashes: &[String]) -> String {
     let requested_key = envelope
         .idempotency_key
         .as_deref()
@@ -675,14 +680,23 @@ fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope) -> String {
         .filter(|value| !value.is_empty())
         .map(str::to_string)
         .unwrap_or_else(|| {
-            content_hash(
-                format!(
-                    "{}\n{}",
-                    envelope.body,
-                    envelope.source_url.as_deref().unwrap_or_default()
-                )
-                .as_bytes(),
-            )
+            let mut identity = b"capture-envelope-v1".to_vec();
+            append_hash_component(&mut identity, envelope.body.as_bytes());
+            append_hash_component(
+                &mut identity,
+                envelope
+                    .source_url
+                    .as_deref()
+                    .unwrap_or_default()
+                    .as_bytes(),
+            );
+            for attachment in &envelope.attachments {
+                append_hash_component(&mut identity, attachment.blob_hash.as_bytes());
+            }
+            for upload_hash in upload_hashes {
+                append_hash_component(&mut identity, upload_hash.as_bytes());
+            }
+            content_hash(&identity)
         });
     let effective_key =
         content_hash(format!("{tenant}\0{}\0{requested_key}", envelope.client_id).as_bytes());
@@ -840,7 +854,11 @@ where
         envelope.body.clear();
     }
     validate_capture_with_uploads(&envelope, &uploads)?;
-    let marker_id = capture_marker_id(tenant, &envelope);
+    let upload_hashes = uploads
+        .iter()
+        .map(|upload| content_hash(&upload.bytes))
+        .collect::<Vec<_>>();
+    let marker_id = capture_marker_id(tenant, &envelope, &upload_hashes);
     if let Some(existing) = existing_capture(state, &marker_id, &envelope.client_id)? {
         return Ok(existing);
     }
@@ -869,11 +887,17 @@ where
                 bytes,
             });
         }
-        for upload in uploads {
+        for (upload, expected_hash) in uploads.into_iter().zip(upload_hashes) {
             let blob_hash = cp
                 .blobs()
                 .put(&upload.bytes)
                 .map_err(internal_store_error)?;
+            if blob_hash != expected_hash {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "blob store returned a non-canonical content hash".to_string(),
+                ));
+            }
             resolved.push(ResolvedAttachment {
                 reference: AttachmentRef {
                     blob_hash,
@@ -1070,6 +1094,20 @@ fn validate_capture_with_uploads(
     }
     if envelope.client_id.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "client_id is required".to_string()));
+    }
+    for attachment in &envelope.attachments {
+        let digest = attachment
+            .blob_hash
+            .strip_prefix("sha256:")
+            .filter(|value| {
+                value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            });
+        if digest.is_none() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "attachment blob_hash must be sha256:<64 hex characters>".to_string(),
+            ));
+        }
     }
     chrono::DateTime::parse_from_rfc3339(&envelope.captured_at).map_err(|_| {
         (

@@ -183,6 +183,30 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
     assert_ne!(distinct["id"], id);
     assert_eq!(distinct["created"], true);
 
+    let invalid_reference = json!({
+        "client_id": "invalid-blob-reference",
+        "body": "Reject malformed content-addressed references.",
+        "object_type": "note",
+        "capture_method": "agent",
+        "source": "api",
+        "captured_at": "2026-07-27T16:30:00-04:00",
+        "attachments": [{
+            "blob_hash": "../../not-a-content-hash"
+        }]
+    });
+    let invalid = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .json(&invalid_reference)
+        .send()
+        .await
+        .expect("POST capture with malformed blob hash");
+    assert_eq!(invalid.status(), reqwest::StatusCode::BAD_REQUEST);
+    assert_eq!(
+        invalid.text().await.expect("invalid blob response"),
+        "attachment blob_hash must be sha256:<64 hex characters>"
+    );
+
     let _ = shutdown.send(());
     let _ = server.await;
 }
@@ -229,6 +253,7 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
     let dropped: serde_json::Value = dropped.json().await.expect("drop receipt");
     assert_eq!(dropped["extra"]["capture_method"], "dropped");
     assert_eq!(dropped["extra"]["capture_source"], "pet");
+    let dropped_id = dropped["id"].as_str().expect("drop id");
     let hash = dropped["blobHash"].as_str().expect("drop blob hash");
     let bytes = client
         .get(format!("{base}/blob/{hash}"))
@@ -236,7 +261,63 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
         .send()
         .await
         .expect("read dropped blob");
+    assert_eq!(bytes.status(), reqwest::StatusCode::OK);
     assert_eq!(bytes.bytes().await.expect("dropped blob bytes"), pdf);
+
+    let repeat_drop = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .multipart(
+            Form::new()
+                .part(
+                    "capture",
+                    Part::text(envelope.to_string())
+                        .mime_str("application/json")
+                        .expect("application/json mime"),
+                )
+                .part(
+                    "file",
+                    Part::bytes(pdf.clone())
+                        .file_name("fixture.pdf")
+                        .mime_str("application/pdf")
+                        .expect("application/pdf mime"),
+                ),
+        )
+        .send()
+        .await
+        .expect("repeat canonical multipart capture");
+    assert_eq!(repeat_drop.status(), reqwest::StatusCode::OK);
+    let repeat_drop: serde_json::Value = repeat_drop.json().await.expect("repeat drop receipt");
+    assert_eq!(repeat_drop["id"], dropped_id);
+    assert_eq!(repeat_drop["created"], false);
+
+    let distinct_drop = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .multipart(
+            Form::new()
+                .part(
+                    "capture",
+                    Part::text(envelope.to_string())
+                        .mime_str("application/json")
+                        .expect("application/json mime"),
+                )
+                .part(
+                    "file",
+                    Part::bytes(b"%PDF-1.7\ndifferent fixture\n%%EOF".to_vec())
+                        .file_name("fixture.pdf")
+                        .mime_str("application/pdf")
+                        .expect("application/pdf mime"),
+                ),
+        )
+        .send()
+        .await
+        .expect("distinct canonical multipart capture");
+    assert_eq!(distinct_drop.status(), reqwest::StatusCode::OK);
+    let distinct_drop: serde_json::Value =
+        distinct_drop.json().await.expect("distinct drop receipt");
+    assert_ne!(distinct_drop["id"], dropped_id);
+    assert_eq!(distinct_drop["created"], true);
 
     let boundary = "capture-live-fixed-boundary";
     let legacy_bytes = format!(
