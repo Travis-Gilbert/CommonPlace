@@ -576,13 +576,18 @@ export class ConsoleBlockHost implements BlockHost {
         await this.retireRemoteLayoutObjects(
           remote.objects.filter((object) => retiredIds.has(object.id)),
         );
-        // Mirror hydrateLayout: keep the server arrangement, but create any
-        // seed surfaces/regions/view-instances the remote never learned.
+        // Mirror hydrateLayout for near-complete remotes that predate a later
+        // seed place (Survey, Models, …). Sparse remotes stay adopted as-is
+        // after retirement; filling them would rewrite the whole seed over HTTP.
         const seed = seedLayout();
         const durableIds = new Set(durable.map((object) => object.id));
         const missing = seed.filter((object) => !durableIds.has(object.id));
-        this.replaceLayout(missing.length === 0 ? durable : [...durable, ...missing]);
-        if (missing.length > 0) {
+        const shouldFillMissing =
+          missing.length > 0 && durable.length >= Math.ceil(seed.length / 2);
+        this.replaceLayout(
+          shouldFillMissing ? [...durable, ...missing] : durable,
+        );
+        if (shouldFillMissing) {
           await this.pushMissingSeedObjects(missing);
         }
         return;
