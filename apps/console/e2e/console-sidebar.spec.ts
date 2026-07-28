@@ -98,7 +98,7 @@ test.describe('Console sidebar', () => {
       });
       if (id === 'console-chat') {
         await expect(
-          page.getByRole('heading', { name: 'Chat unavailable' }),
+          page.getByRole('heading', { name: 'Select a workspace' }),
         ).toBeVisible({ timeout: 15_000 });
         await expect(page.locator('[data-chat-composer]')).toHaveCount(0);
       } else {

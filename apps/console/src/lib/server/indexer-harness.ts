@@ -59,10 +59,15 @@ async function executeConsumerGraphql(
 > {
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) {
+    const payload = await resolution.response.clone().json().catch(() => null) as {
+      error?: unknown;
+    } | null;
     return {
       ok: false,
       status: resolution.response.status,
-      error: 'principal_resolution=unauthenticated',
+      error: typeof payload?.error === 'string'
+        ? payload.error
+        : 'principal_resolution=unauthenticated',
     };
   }
   const endpoint = consumerGraphqlUrl();

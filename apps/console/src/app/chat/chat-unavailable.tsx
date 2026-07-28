@@ -1,4 +1,4 @@
-// SOURCING: none. Shared fail-closed state for unscoped chat routes.
+// SOURCING: none. Shared fail-closed state when chat cannot yet run scoped.
 
 import Link from 'next/link';
 import { ForkNotice, ForkPageFrame } from '@/components/fork/ForkPageFrame';
@@ -11,11 +11,11 @@ export function ChatUnavailable({
   return (
     <ForkPageFrame
       eyebrow="Chat"
-      title="Chat unavailable"
-      description="A scoped Harness runtime is required before a chat turn can run."
+      title="Select a workspace"
+      description="Chat needs an active workspace before a turn can run."
     >
-      <ForkNotice tone="error">
-        Chat is refusing the legacy unscoped ACP fallback.
+      <ForkNotice>
+        Sign in and select a workspace so chat can use your admitted graph scope.
       </ForkNotice>
       <p className="text-ij-ink-info">
         {settingsHref ? (
@@ -24,7 +24,8 @@ export function ChatUnavailable({
           </>
         ) : (
           <>
-            Select a workspace from <Link className="text-ij-link" href="/onboarding">onboarding</Link> before scoped chat is enabled.
+            Continue from <Link className="text-ij-link" href="/login">login</Link>
+            {' '}or <Link className="text-ij-link" href="/onboarding">onboarding</Link>.
           </>
         )}
       </p>

@@ -42,7 +42,7 @@ export function GeneralSettingsPage({
     <ForkPageFrame
       eyebrow="General settings"
       title="CommonPlace settings"
-      description="Theorem is the model and execution provider. RustyRed is the content substrate. These surviving settings configure identity and presentation only."
+      description="These settings configure identity and presentation. Model routing stays with the Harness."
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {settings.map((setting) => (

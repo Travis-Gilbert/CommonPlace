@@ -349,6 +349,45 @@ export function forkIdentityResponse(result: ForkIdentityResponse): Response {
   return Response.json(result.body, { status: result.status });
 }
 
+function normalizeOriginValue(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Railway (and other TLS terminators) present an internal `request.url` that
+ * does not match the browser Origin. Prefer the forwarded public host, then
+ * the pinned AUTH_URL origin used by NextAuth.
+ */
+export function resolveConsoleRequestOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const host = forwardedHost
+    || request.headers.get('host')?.split(',')[0]?.trim()
+    || url.host;
+  const forwardedProto = request.headers
+    .get('x-forwarded-proto')
+    ?.split(',')[0]
+    ?.trim()
+    .toLowerCase();
+  const proto =
+    forwardedProto === 'https' || forwardedProto === 'http'
+      ? forwardedProto
+      : (url.protocol.replace(':', '') || 'https');
+  return new URL(`${proto}://${host}`).origin;
+}
+
+function configuredConsoleOrigin(
+  environment: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const raw = environment.AUTH_URL?.trim();
+  if (!raw) return null;
+  return normalizeOriginValue(raw);
+}
+
 /**
  * Identity mutations are a browser-only same-origin surface. A sibling
  * subdomain is same-site for cookies but not same-origin, so SameSite alone
@@ -357,13 +396,13 @@ export function forkIdentityResponse(result: ForkIdentityResponse): Response {
 export function assertSameOriginIdentityMutation(request: Request): void {
   const suppliedOrigin = request.headers.get('origin');
   if (suppliedOrigin !== null) {
-    let normalizedOrigin: string | null = null;
-    try {
-      normalizedOrigin = new URL(suppliedOrigin).origin;
-    } catch {
-      // Invalid and opaque origins are refused below.
+    const normalizedOrigin = normalizeOriginValue(suppliedOrigin);
+    if (normalizedOrigin !== null) {
+      if (normalizedOrigin === resolveConsoleRequestOrigin(request)) return;
+      if (normalizedOrigin === new URL(request.url).origin) return;
+      const configured = configuredConsoleOrigin();
+      if (configured !== null && normalizedOrigin === configured) return;
     }
-    if (normalizedOrigin === new URL(request.url).origin) return;
   } else if (request.headers.get('sec-fetch-site')?.toLowerCase() === 'same-origin') {
     return;
   }

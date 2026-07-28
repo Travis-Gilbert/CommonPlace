@@ -63,9 +63,11 @@ export function principalScopeHeaders(principal: HarnessPrincipal): Record<strin
 }
 
 /**
- * A workspace-bearing principal may use the object seam only after its
- * consumer verifies both workspaceId and ScopeRef against the selected store.
- * Headers alone are not an authorization boundary.
+ * True when the principal carries an admitted workspace/ScopeRef claim.
+ * Object-seam auth still keys off the credential tenant; these claims travel
+ * as headers for consumers that enforce them. Do not use this as a Console
+ * hard-refuse — that blocked every onboarded workspace behind a false
+ * "data API unreachable" state.
  */
 export function principalRequiresScopedObjectConsumer(
   principal: HarnessPrincipal,

@@ -147,7 +147,7 @@ function OnboardingContent() {
     <ForkPageFrame
       eyebrow="Onboarding"
       title="Create your first workspace"
-      description="A workspace binds your verified tenant to one admitted RustyRed scope. Model, embedding, vector, and audio provider choices are intentionally absent."
+      description="A workspace binds your verified tenant to one admitted graph scope. Model, embedding, vector, and audio provider choices are intentionally absent."
       aside={aside}
     >
       {identity.state.status === 'signed-out' ? (
@@ -203,10 +203,10 @@ function OnboardingContent() {
               onChange={(event) => setSlug(event.target.value.toLowerCase())}
             />
           </ForkPanel>
-          <ForkPanel title="Data boundary">
+          <ForkPanel title="What this creates">
             <p className="text-ij-ink-info">
-              PostgreSQL stores this workspace&apos;s identity record and membership. Documents, chat,
-              memory, graph, plans, and receipts stay in RustyRed.
+              Your workspace owns membership, chat, documents, memory, and graph scope for this
+              identity. Provider selection stays with the Harness.
             </p>
           </ForkPanel>
           {error ? <ForkNotice tone="error">{error}</ForkNotice> : null}

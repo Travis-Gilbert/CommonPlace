@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   resolveHarnessPrincipal: vi.fn(),
   resolveUpstreamCredential: vi.fn(),
+  principalTenantHeaders: vi.fn(() => ({
+    'x-theorem-tenant': 'Travis-Gilbert',
+    'x-commonplace-workspace-id': 'workspace-42',
+    'x-commonplace-scope-ref': 'workspace:workspace-42',
+  })),
   fetch: vi.fn(),
 }));
 
 vi.mock('@/lib/server/harness-principal', () => ({
-  principalTenantHeaders: vi.fn(() => ({})),
+  principalTenantHeaders: mocks.principalTenantHeaders,
   resolveHarnessPrincipal: mocks.resolveHarnessPrincipal,
 }));
 vi.mock('@/lib/server/upstream-credential', () => ({
@@ -23,10 +28,20 @@ import { forward } from './_upstream';
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', mocks.fetch);
+  mocks.resolveUpstreamCredential.mockResolvedValue({
+    ok: true,
+    credential: { kind: 'service', key: 'test-key' },
+  });
+  mocks.fetch.mockResolvedValue(
+    new Response(JSON.stringify([{ id: 'table' }]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
 });
 
 describe('object seam workspace bulkhead', () => {
-  it('refuses a workspace principal before credential resolution or fetch', async () => {
+  it('forwards a workspace principal with scope headers instead of refusing the live door', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -40,11 +55,17 @@ describe('object seam workspace bulkhead', () => {
 
     const response = await forward('/objects/views', { method: 'GET' });
 
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toMatchObject({
-      error: 'workspace_object_scope_unenforced',
-    });
-    expect(mocks.resolveUpstreamCredential).not.toHaveBeenCalled();
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.resolveUpstreamCredential).toHaveBeenCalledOnce();
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/objects\/views$/),
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'x-api-key': 'test-key',
+          'x-commonplace-scope-ref': 'workspace:workspace-42',
+        }),
+      }),
+    );
   });
 });

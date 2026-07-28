@@ -56,6 +56,7 @@ function connectionFor(status: number | null, error?: string | null): Connection
     return 'credential-unavailable';
   }
   if (status === 502 || error === 'console_data_api_unreachable') return 'disconnected';
+  if (error === 'workspace_object_scope_unenforced') return 'disconnected';
   if (status === 403) return 'identity-refused';
   if (status !== null && status >= 200 && status < 300) return 'connected';
   return 'disconnected';
@@ -393,7 +394,11 @@ export function ChatPage({
   }
 
   const degradation = loadError
-    ? degradationFor('console_data_api_unreachable')
+    ? degradationFor(
+        loadError === 'workspace_object_scope_unenforced'
+          ? 'workspace_object_scope_unenforced'
+          : 'console_data_api_unreachable',
+      )
     : connection === 'disconnected'
       ? degradationFor('console_data_api_unreachable')
       : null;

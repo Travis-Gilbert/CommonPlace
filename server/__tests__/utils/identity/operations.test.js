@@ -370,6 +370,24 @@ test("atomically claims one user for concurrent principal reconciliation", async
   assert.equal(first.user.id, second.user.id);
 });
 
+test("reclaims a username when a verified GitHub subject replaces a stale subject", async () => {
+  const { access, operations } = operationsFixture();
+  const stale = await operations.reconcilePrincipal(
+    principal("1", "Travis-Gilbert", "stale@example.test")
+  );
+  assert.equal(access.rows.user[0].providerSubject, "github:1");
+
+  const reclaimed = await operations.reconcilePrincipal(
+    principal("99887766", "Travis-Gilbert", "live@example.test")
+  );
+
+  assert.equal(access.rows.user.length, 1);
+  assert.equal(reclaimed.user.id, stale.user.id);
+  assert.equal(reclaimed.user.username, "Travis-Gilbert");
+  assert.equal(reclaimed.user.email, "live@example.test");
+  assert.equal(access.rows.user[0].providerSubject, "github:99887766");
+});
+
 test("isolates workspaces by membership and completes a single-use invitation", async () => {
   const { access, operations } = operationsFixture();
   const owner = principal("1", "Travis-Gilbert", "owner@example.test");

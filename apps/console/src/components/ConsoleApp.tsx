@@ -102,6 +102,9 @@ function connectionFor(
   if (status === 502 || error === 'console_data_api_unreachable') {
     return 'disconnected';
   }
+  if (error === 'workspace_object_scope_unenforced') {
+    return 'disconnected';
+  }
   if (status === 403) return 'identity-refused';
   if (status !== null && status >= 200 && status < 300) return 'connected';
   return 'disconnected';

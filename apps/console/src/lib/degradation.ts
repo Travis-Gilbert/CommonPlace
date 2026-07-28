@@ -17,6 +17,11 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     cause: 'The data API is unreachable.',
     actionLabel: 'Reconnect',
   },
+  workspace_object_scope_unenforced: {
+    level: 'unavailable',
+    cause: 'This workspace cannot load objects until its scope is enforced.',
+    actionLabel: 'Retry',
+  },
   harness_graphql_failed: {
     level: 'unavailable',
     cause: 'The Harness query could not complete.',

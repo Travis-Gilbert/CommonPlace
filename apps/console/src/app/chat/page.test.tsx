@@ -1,15 +1,21 @@
-// SOURCING: none. Ordinary chat must fail closed until its scoped Harness
-// bridge owns the runtime route.
+// SOURCING: none. Ordinary chat redirects into scoped workspace chat once an
+// active membership exists.
 
-import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   resolveHarnessPrincipal: vi.fn(),
+  redirect: vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
 }));
 
 vi.mock('@/lib/server/harness-principal', () => ({
   resolveHarnessPrincipal: mocks.resolveHarnessPrincipal,
+}));
+
+vi.mock('next/navigation', () => ({
+  redirect: mocks.redirect,
 }));
 
 import ChatIndexPage from './page';
@@ -17,9 +23,10 @@ import ChatIndexPage from './page';
 describe('ordinary chat route', () => {
   beforeEach(() => {
     mocks.resolveHarnessPrincipal.mockReset();
+    mocks.redirect.mockClear();
   });
 
-  it('refuses the unscoped runtime for an admitted workspace principal', async () => {
+  it('redirects an admitted workspace principal into scoped chat', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -32,23 +39,17 @@ describe('ordinary chat route', () => {
       },
     });
 
-    const markup = renderToStaticMarkup(await ChatIndexPage());
-
-    expect(markup).toContain('Chat unavailable');
-    expect(markup).toContain('legacy unscoped ACP fallback');
-    expect(markup).toContain('/workspace/workspace-1/settings');
+    await expect(ChatIndexPage()).rejects.toThrow('NEXT_REDIRECT:/workspace/workspace-1/chat');
+    expect(mocks.redirect).toHaveBeenCalledWith('/workspace/workspace-1/chat');
   });
 
-  it('refuses the unscoped runtime when principal resolution fails', async () => {
+  it('sends unresolved principals to login', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: false,
       response: new Response(null, { status: 401 }),
     });
 
-    const markup = renderToStaticMarkup(await ChatIndexPage());
-
-    expect(markup).toContain('Chat unavailable');
-    expect(markup).toContain('legacy unscoped ACP fallback');
-    expect(markup).toContain('href="/onboarding"');
+    await expect(ChatIndexPage()).rejects.toThrow('NEXT_REDIRECT:/login?callbackUrl=/chat');
+    expect(mocks.redirect).toHaveBeenCalledWith('/login?callbackUrl=/chat');
   });
 });

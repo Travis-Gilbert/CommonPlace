@@ -86,7 +86,7 @@ function WorkspaceSettingsContent({ workspaceRef }: { readonly workspaceRef: str
     <ForkPageFrame
       eyebrow="Workspace"
       title={workspace?.name ?? 'Workspace settings'}
-      description="Identity settings live in PostgreSQL. Content settings and provider selectors do not appear on this page."
+      description="Identity and membership settings for this workspace. Provider selectors do not appear on this page."
     >
       {identity.state.status === 'error' ? (
         <ForkNotice tone="error">{identity.state.message}</ForkNotice>

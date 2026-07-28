@@ -1,14 +1,27 @@
-// SOURCING: none. Workspace chat must fail closed until its scoped Harness
-// bridge is connected to the runtime route.
+// SOURCING: none. Workspace chat mounts ChatPage after membership verification.
 
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   resolveHarnessPrincipal: vi.fn(),
+  redirect: vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
 }));
 
 vi.mock('@/lib/server/harness-principal', () => ({
   resolveHarnessPrincipal: mocks.resolveHarnessPrincipal,
+}));
+
+vi.mock('next/navigation', () => ({
+  redirect: mocks.redirect,
+}));
+
+vi.mock('@/components/chat/ChatPage', () => ({
+  ChatPage: (props: { tenant?: string | null }) => (
+    <div data-chat-page data-tenant={props.tenant ?? ''} />
+  ),
 }));
 
 import WorkspaceChatRoute from './page';
@@ -16,9 +29,10 @@ import WorkspaceChatRoute from './page';
 describe('workspace chat route', () => {
   beforeEach(() => {
     mocks.resolveHarnessPrincipal.mockReset();
+    mocks.redirect.mockClear();
   });
 
-  it('does not fall back to the unscoped ACP chat after membership verification', async () => {
+  it('mounts ChatPage after membership verification', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -31,16 +45,15 @@ describe('workspace chat route', () => {
       },
     });
 
-    const page = await WorkspaceChatRoute({
-      params: Promise.resolve({ workspaceSlug: 'workspace-1' }),
-    });
-
-    expect(page.props.title).toBe('Workspace chat unavailable');
-    expect(mocks.resolveHarnessPrincipal).toHaveBeenCalledOnce();
-    expect(mocks.resolveHarnessPrincipal).toHaveBeenCalledWith();
-    expect(page.props.children.props.children).toContain(
-      'legacy unscoped ACP fallback',
+    const markup = renderToStaticMarkup(
+      await WorkspaceChatRoute({
+        params: Promise.resolve({ workspaceSlug: 'workspace-1' }),
+      }),
     );
+
+    expect(markup).toContain('data-chat-page');
+    expect(markup).toContain('data-tenant="Travis-Gilbert"');
+    expect(mocks.resolveHarnessPrincipal).toHaveBeenCalledOnce();
   });
 
   it('refuses a legacy slug even when the active workspace uses it', async () => {
@@ -63,7 +76,7 @@ describe('workspace chat route', () => {
     expect(page.props.title).toBe('Select this workspace');
   });
 
-  it('remains unavailable when active membership resolution fails', async () => {
+  it('sends unresolved principals to login', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: false,
       status: 401,
@@ -71,15 +84,13 @@ describe('workspace chat route', () => {
       message: 'Sign in to continue.',
     });
 
-    const page = await WorkspaceChatRoute({
-      params: Promise.resolve({ workspaceSlug: 'research' }),
-    });
-
-    expect(page.props.title).toBe('Workspace unavailable');
-    expect(page.props.description).toBe(
-      'The active membership could not be verified.',
+    await expect(
+      WorkspaceChatRoute({
+        params: Promise.resolve({ workspaceSlug: 'research' }),
+      }),
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=/workspace/research/chat',
     );
     expect(mocks.resolveHarnessPrincipal).toHaveBeenCalledOnce();
-    expect(mocks.resolveHarnessPrincipal).toHaveBeenCalledWith();
   });
 });

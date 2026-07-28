@@ -1,6 +1,6 @@
 // SOURCING: none. Configuration and transport tests for the identity proxy.
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth: vi.fn() }));
@@ -82,7 +82,15 @@ describe('fork identity server configuration', () => {
 });
 
 describe('fork identity transport', () => {
+  const previousAuthUrl = process.env.AUTH_URL;
+
+  afterEach(() => {
+    if (previousAuthUrl === undefined) delete process.env.AUTH_URL;
+    else process.env.AUTH_URL = previousAuthUrl;
+  });
+
   it('admits exact-origin mutations and refuses sibling or opaque origins', () => {
+    delete process.env.AUTH_URL;
     expect(() =>
       assertSameOriginIdentityMutation(
         new Request('https://console.theoremharness.com/api/identity/workspaces', {
@@ -115,7 +123,38 @@ describe('fork identity transport', () => {
     }
   });
 
+  it('admits browser Origin against the forwarded public host behind TLS termination', () => {
+    delete process.env.AUTH_URL;
+    expect(() =>
+      assertSameOriginIdentityMutation(
+        new Request('http://commonplace-console.railway.internal:8080/api/identity/workspaces', {
+          method: 'POST',
+          headers: {
+            origin: 'https://v2.theoremharness.com',
+            host: 'commonplace-console.railway.internal:8080',
+            'x-forwarded-host': 'v2.theoremharness.com',
+            'x-forwarded-proto': 'https',
+          },
+        }),
+      )).not.toThrow();
+  });
+
+  it('admits browser Origin against the pinned AUTH_URL console origin', () => {
+    process.env.AUTH_URL = 'https://v2.theoremharness.com';
+    expect(() =>
+      assertSameOriginIdentityMutation(
+        new Request('http://commonplace-console.railway.internal:8080/api/identity/workspaces', {
+          method: 'POST',
+          headers: {
+            origin: 'https://v2.theoremharness.com',
+            host: 'commonplace-console.railway.internal:8080',
+          },
+        }),
+      )).not.toThrow();
+  });
+
   it('fails closed when a mutation carries no browser provenance', () => {
+    delete process.env.AUTH_URL;
     expect(() =>
       assertSameOriginIdentityMutation(
         new Request('https://console.example.test/api/identity/workspaces', {

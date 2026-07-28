@@ -18,7 +18,7 @@ test.describe('fork page architecture', () => {
     await page.goto('/settings');
     await expect(page.getByRole('heading', { name: 'CommonPlace settings' })).toBeVisible();
     await expect(
-      page.getByText('These surviving settings configure identity and presentation only.'),
+      page.getByText('These settings configure identity and presentation.'),
     ).toBeVisible();
 
     await page.goto('/admin');

@@ -25,15 +25,19 @@ export function ForkPageFrame({
       <MaterialLayer />
       <div className="relative z-10 mx-auto grid min-h-dvh max-w-6xl content-center gap-6 p-6">
         <header className="flex items-center justify-between gap-4">
-          <Link href="/chat" className="text-lg text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+          <Link href="/login" className="text-lg text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
             CommonPlace
           </Link>
           <Link href="/settings" className="text-ij-link hover:underline">
             Settings
           </Link>
         </header>
-        <div className="grid overflow-hidden rounded-ij-arc border border-ij-seam-raised bg-ij-chrome shadow-ij-popover lg:grid-cols-3">
-          <section className="grid content-start gap-5 p-6 lg:col-span-2">
+        <div
+          className={`grid overflow-hidden rounded-ij-arc border border-ij-seam-raised bg-ij-chrome shadow-ij-popover ${
+            aside ? 'lg:grid-cols-3' : ''
+          }`}
+        >
+          <section className={`grid content-start gap-5 p-6 ${aside ? 'lg:col-span-2' : ''}`}>
             <header className="grid gap-2">
               <p className="text-xs uppercase tracking-wide text-ij-ink-info">{eyebrow}</p>
               <h1 className="text-2xl" style={{ fontWeight: 'var(--rec-weight-cap)' }}>{title}</h1>
@@ -41,17 +45,11 @@ export function ForkPageFrame({
             </header>
             {children}
           </section>
-          <aside className="border-t border-ij-seam bg-ij-editor p-6 lg:border-l lg:border-t-0">
-            {aside ?? (
-              <div className="grid gap-3 text-ij-ink-info">
-                <p style={{ fontWeight: 'var(--rec-weight-cap)' }} className="text-ij-ink">
-                  Two storage tiers
-                </p>
-                <p>PostgreSQL holds identity, membership, API keys, and billing.</p>
-                <p>RustyRed holds documents, chat, memory, graph, plans, and receipts.</p>
-              </div>
-            )}
-          </aside>
+          {aside ? (
+            <aside className="border-t border-ij-seam bg-ij-editor p-6 lg:border-l lg:border-t-0">
+              {aside}
+            </aside>
+          ) : null}
         </div>
       </div>
     </main>

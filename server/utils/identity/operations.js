@@ -275,17 +275,50 @@ function createIdentityOperations(
     const principal = normalizePrincipal(input);
     try {
       return await access.withTransaction(async (transaction) => {
-        let user = await transaction.user.upsert({
+        let user = await transaction.user.findUnique({
           where: { providerSubject: principal.subject },
-          create: {
-            authProvider: "github",
-            providerSubject: principal.subject,
-            username: principal.username,
-            displayName: principal.displayName,
-            email: principal.email,
-          },
-          update: {},
         });
+
+        if (!user) {
+          // Verified GitHub login owns the username. Reclaim a stale subject
+          // left by probes or prior provider-account drift instead of 409ing.
+          const byUsername = await transaction.user.findUnique({
+            where: { username: principal.username },
+          });
+          if (byUsername) {
+            user = await transaction.user.update({
+              where: { id: byUsername.id },
+              data: { providerSubject: principal.subject },
+            });
+          } else {
+            try {
+              user = await transaction.user.create({
+                data: {
+                  authProvider: "github",
+                  providerSubject: principal.subject,
+                  username: principal.username,
+                  displayName: principal.displayName,
+                  email: principal.email,
+                },
+              });
+            } catch (error) {
+              if (error?.code !== "P2002") throw error;
+              user = await transaction.user.findUnique({
+                where: { providerSubject: principal.subject },
+              });
+              if (!user) {
+                const racedUsername = await transaction.user.findUnique({
+                  where: { username: principal.username },
+                });
+                if (!racedUsername) throw error;
+                user = await transaction.user.update({
+                  where: { id: racedUsername.id },
+                  data: { providerSubject: principal.subject },
+                });
+              }
+            }
+          }
+        }
 
         if (user.username !== principal.username) {
           throw new IdentityOperationError(
