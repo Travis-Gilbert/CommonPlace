@@ -66,6 +66,16 @@ export function createCaptureQueue({
   if (typeof send !== "function") {
     throw new TypeError("capture queue send must be a function");
   }
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+    throw new RangeError(
+      "capture queue maxAttempts must be a positive integer",
+    );
+  }
+  if (!Number.isFinite(retryBaseMs) || retryBaseMs < 0) {
+    throw new RangeError(
+      "capture queue retryBaseMs must be a non-negative finite number",
+    );
+  }
 
   let mutationTail = Promise.resolve();
 
@@ -127,6 +137,13 @@ export function createCaptureQueue({
       let result;
       try {
         result = await send(structuredClone(entry.envelope));
+        if (
+          !result ||
+          typeof result !== "object" ||
+          typeof result.ok !== "boolean"
+        ) {
+          throw new TypeError("capture sender returned an invalid result");
+        }
       } catch (error) {
         result = {
           ok: false,

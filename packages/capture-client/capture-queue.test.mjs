@@ -58,6 +58,34 @@ test("normalizes old full-route settings to the API base", () => {
   );
 });
 
+test("rejects invalid retry configuration", () => {
+  const storage = memoryStorage();
+  const send = async () => ({ ok: true });
+  assert.throws(
+    () => createCaptureQueue({ storage, send, maxAttempts: 0 }),
+    /maxAttempts must be a positive integer/,
+  );
+  assert.throws(
+    () => createCaptureQueue({ storage, send, retryBaseMs: Number.NaN }),
+    /retryBaseMs must be a non-negative finite number/,
+  );
+});
+
+test("treats a malformed sender result as retryable", async () => {
+  const storage = memoryStorage();
+  const queue = createCaptureQueue({
+    storage,
+    retryBaseMs: 0,
+    send: async () => undefined,
+  });
+
+  await queue.enqueue(envelope());
+  const [entry] = await queue.drain();
+  assert.equal(entry.state, "kept");
+  assert.equal(entry.attempts, 1);
+  assert.match(entry.lastError, /sender returned an invalid result/);
+});
+
 test("serializes concurrent queue mutations", async () => {
   const storage = memoryStorage();
   const calls = [];

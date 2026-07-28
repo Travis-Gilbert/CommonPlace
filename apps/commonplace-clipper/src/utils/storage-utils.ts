@@ -3,6 +3,14 @@ import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating, Sa
 import { debugLog } from './debug';
 import { copyToClipboard } from 'core/popup';
 import { normalizeCaptureApiBase } from '@commonplace/capture-client';
+import {
+	COMMONPLACE_CAPTURE_CREDENTIAL_KEY,
+	type CaptureCredential,
+	type CaptureCredentialState,
+	captureCredentialFor,
+	parseCaptureCredentialState,
+	reconcileCaptureCredentialState,
+} from './commonplace-credentials';
 
 export type { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating };
 
@@ -54,6 +62,8 @@ export let generalSettings: Settings = {
 	commonplaceApiToken: ''
 };
 
+let settingsSaveTail: Promise<void> = Promise.resolve();
+
 export function setLocalStorage(key: string, value: any): Promise<void> {
 	return browser.storage.local.set({ [key]: value });
 }
@@ -72,6 +82,7 @@ interface StorageData {
 		saveBehavior?: SaveBehavior;
 		commonplaceEndpointUrl?: string;
 		commonplaceApiToken?: string;
+		commonplaceCredentialRevision?: string;
 	};
 	vaults?: string[];
 	highlighter_settings?: {
@@ -117,10 +128,17 @@ interface StorageData {
 	migrationVersion?: number;
 }
 
-const CURRENT_MIGRATION_VERSION = 2;
+const CURRENT_MIGRATION_VERSION = 3;
 
 export async function loadSettings(): Promise<Settings> {
-	const data = await browser.storage.sync.get(null) as StorageData;
+	const [data, localCredentials] = await Promise.all([
+		browser.storage.sync.get(null) as Promise<StorageData>,
+		browser.storage.local.get(COMMONPLACE_CAPTURE_CREDENTIAL_KEY),
+	]);
+	let credentialState = parseCaptureCredentialState(
+		localCredentials[COMMONPLACE_CAPTURE_CREDENTIAL_KEY],
+	);
+	let localApiToken = '';
 	
 	// Load default settings first
 	const defaultSettings: Settings = {
@@ -171,8 +189,9 @@ export async function loadSettings(): Promise<Settings> {
 		ratings: [],
 	};
 
-	// Capture 2.0 stores an API base rather than a complete route. Preserve an
-	// invalid historical value so the settings UI can surface it to the user.
+	// Capture 2.0 stores an API base rather than a complete route and keeps its
+	// credential in local-only storage. Preserve invalid endpoint text so the
+	// settings UI can surface it to the user.
 	if (!data.migrationVersion || data.migrationVersion < CURRENT_MIGRATION_VERSION) {
 		const previousApiBase = data.general_settings?.commonplaceEndpointUrl ?? '';
 		let migratedApiBase = previousApiBase;
@@ -181,9 +200,35 @@ export async function loadSettings(): Promise<Settings> {
 		} catch {
 			// Keep the original text for correction in Settings.
 		}
+		const legacySyncedToken = data.general_settings?.commonplaceApiToken;
+		const migrationToken = typeof legacySyncedToken === 'string'
+			? legacySyncedToken
+			: credentialState.pending?.token ?? credentialState.current?.token ?? '';
+		const credentialRevision = credentialState.pending?.revision
+			?? credentialState.current?.revision
+			?? crypto.randomUUID();
+		if (migrationToken) {
+			const migratedCredential: CaptureCredential = {
+				token: migrationToken,
+				apiBase: migratedApiBase,
+				revision: credentialRevision,
+			};
+			credentialState = { current: migratedCredential };
+			localApiToken = migrationToken;
+			await browser.storage.local.set({
+				[COMMONPLACE_CAPTURE_CREDENTIAL_KEY]: credentialState,
+			});
+		}
+		const {
+			commonplaceApiToken: _legacySyncedToken,
+			...syncSafeGeneralSettings
+		} = data.general_settings ?? {};
 		data.general_settings = {
-			...data.general_settings,
+			...syncSafeGeneralSettings,
 			commonplaceEndpointUrl: migratedApiBase,
+			...(migrationToken
+				? { commonplaceCredentialRevision: credentialRevision }
+				: {}),
 		};
 		data.migrationVersion = CURRENT_MIGRATION_VERSION;
 		await browser.storage.sync.set({
@@ -191,6 +236,26 @@ export async function loadSettings(): Promise<Settings> {
 			migrationVersion: CURRENT_MIGRATION_VERSION,
 		});
 		debugLog('Settings', `Updated migration version to ${CURRENT_MIGRATION_VERSION}`);
+	} else {
+		const apiBase = data.general_settings?.commonplaceEndpointUrl ?? '';
+		const revision = data.general_settings?.commonplaceCredentialRevision ?? '';
+		const committedCredential = captureCredentialFor(
+			credentialState,
+			revision,
+			apiBase,
+		);
+		localApiToken = committedCredential?.token ?? '';
+		const reconciled = reconcileCaptureCredentialState(
+			credentialState,
+			revision,
+			apiBase,
+		);
+		if (credentialState.pending) {
+			credentialState = reconciled;
+			await browser.storage.local.set({
+				[COMMONPLACE_CAPTURE_CREDENTIAL_KEY]: credentialState,
+			});
+		}
 	}
 
 	// Validate and sanitize data to prevent corruption
@@ -244,64 +309,106 @@ export async function loadSettings(): Promise<Settings> {
 		ratings: data.ratings || defaultSettings.ratings,
 		saveBehavior: data.general_settings?.saveBehavior ?? defaultSettings.saveBehavior,
 		commonplaceEndpointUrl: data.general_settings?.commonplaceEndpointUrl ?? defaultSettings.commonplaceEndpointUrl,
-		commonplaceApiToken: data.general_settings?.commonplaceApiToken ?? defaultSettings.commonplaceApiToken
+		commonplaceApiToken: localApiToken
 	};
 
 	generalSettings = loadedSettings;
-	debugLog('Settings', 'Loaded settings:', generalSettings);
+	debugLog('Settings', 'Loaded settings:', {
+		...generalSettings,
+		commonplaceApiToken: generalSettings.commonplaceApiToken ? '[configured]' : '',
+	});
 	return generalSettings;
 }
 
-export async function saveSettings(settings?: Partial<Settings>): Promise<void> {
+async function persistSettings(settings?: Partial<Settings>): Promise<void> {
 	if (settings) {
 		generalSettings = { ...generalSettings, ...settings };
 	}
 
+	const storedCredential = await browser.storage.local.get(
+		COMMONPLACE_CAPTURE_CREDENTIAL_KEY,
+	);
+	const credentialState = parseCaptureCredentialState(
+		storedCredential[COMMONPLACE_CAPTURE_CREDENTIAL_KEY],
+	);
+	const currentCredential = credentialState.current;
+	const credentialChanged =
+		currentCredential?.token !== generalSettings.commonplaceApiToken
+		|| currentCredential.apiBase !== generalSettings.commonplaceEndpointUrl;
+	const committedCredential: CaptureCredential = credentialChanged
+		? {
+			token: generalSettings.commonplaceApiToken,
+			apiBase: generalSettings.commonplaceEndpointUrl,
+			revision: crypto.randomUUID(),
+		}
+		: currentCredential;
+	if (credentialChanged) {
+		const pendingState: CaptureCredentialState = {
+			...(currentCredential ? { current: currentCredential } : {}),
+			pending: committedCredential,
+		};
+		await browser.storage.local.set({
+			[COMMONPLACE_CAPTURE_CREDENTIAL_KEY]: pendingState,
+		});
+	}
 	await browser.storage.sync.set({
-		vaults: generalSettings.vaults,
-		general_settings: {
-			showMoreActionsButton: generalSettings.showMoreActionsButton,
-			betaFeatures: generalSettings.betaFeatures,
-			legacyMode: generalSettings.legacyMode,
-			silentOpen: generalSettings.silentOpen,
-			openBehavior: generalSettings.openBehavior,
-			saveBehavior: generalSettings.saveBehavior,
-			commonplaceEndpointUrl: generalSettings.commonplaceEndpointUrl,
-			commonplaceApiToken: generalSettings.commonplaceApiToken,
-		},
-		highlighter_settings: {
-			highlighterEnabled: generalSettings.highlighterEnabled,
-			alwaysShowHighlights: generalSettings.alwaysShowHighlights,
-			highlightBehavior: generalSettings.highlightBehavior
-		},
-		interpreter_settings: {
-			interpreterModel: generalSettings.interpreterModel,
-			models: generalSettings.models,
-			providers: generalSettings.providers,
-			interpreterEnabled: generalSettings.interpreterEnabled,
-			interpreterAutoRun: generalSettings.interpreterAutoRun,
-			defaultPromptContext: generalSettings.defaultPromptContext
-		},
-		property_types: generalSettings.propertyTypes,
-		reader_settings: {
-			fontSize: generalSettings.readerSettings.fontSize,
-			lineHeight: generalSettings.readerSettings.lineHeight,
-			maxWidth: generalSettings.readerSettings.maxWidth,
-			lightTheme: generalSettings.readerSettings.lightTheme,
-			darkTheme: generalSettings.readerSettings.darkTheme,
-			appearance: generalSettings.readerSettings.appearance,
-			fonts: generalSettings.readerSettings.fonts,
-			defaultFont: generalSettings.readerSettings.defaultFont,
-			blendImages: generalSettings.readerSettings.blendImages,
-			colorLinks: generalSettings.readerSettings.colorLinks,
-			followLinks: generalSettings.readerSettings.followLinks,
-			pinPlayer: generalSettings.readerSettings.pinPlayer,
-			autoScroll: generalSettings.readerSettings.autoScroll,
-			highlightActiveLine: generalSettings.readerSettings.highlightActiveLine,
-			customCss: generalSettings.readerSettings.customCss
-		},
-		stats: generalSettings.stats
+			vaults: generalSettings.vaults,
+			general_settings: {
+				showMoreActionsButton: generalSettings.showMoreActionsButton,
+				betaFeatures: generalSettings.betaFeatures,
+				legacyMode: generalSettings.legacyMode,
+				silentOpen: generalSettings.silentOpen,
+				openBehavior: generalSettings.openBehavior,
+				saveBehavior: generalSettings.saveBehavior,
+				commonplaceEndpointUrl: generalSettings.commonplaceEndpointUrl,
+				commonplaceCredentialRevision: committedCredential.revision,
+			},
+			highlighter_settings: {
+				highlighterEnabled: generalSettings.highlighterEnabled,
+				alwaysShowHighlights: generalSettings.alwaysShowHighlights,
+				highlightBehavior: generalSettings.highlightBehavior
+			},
+			interpreter_settings: {
+				interpreterModel: generalSettings.interpreterModel,
+				models: generalSettings.models,
+				providers: generalSettings.providers,
+				interpreterEnabled: generalSettings.interpreterEnabled,
+				interpreterAutoRun: generalSettings.interpreterAutoRun,
+				defaultPromptContext: generalSettings.defaultPromptContext
+			},
+			property_types: generalSettings.propertyTypes,
+			reader_settings: {
+				fontSize: generalSettings.readerSettings.fontSize,
+				lineHeight: generalSettings.readerSettings.lineHeight,
+				maxWidth: generalSettings.readerSettings.maxWidth,
+				lightTheme: generalSettings.readerSettings.lightTheme,
+				darkTheme: generalSettings.readerSettings.darkTheme,
+				appearance: generalSettings.readerSettings.appearance,
+				fonts: generalSettings.readerSettings.fonts,
+				defaultFont: generalSettings.readerSettings.defaultFont,
+				blendImages: generalSettings.readerSettings.blendImages,
+				colorLinks: generalSettings.readerSettings.colorLinks,
+				followLinks: generalSettings.readerSettings.followLinks,
+				pinPlayer: generalSettings.readerSettings.pinPlayer,
+				autoScroll: generalSettings.readerSettings.autoScroll,
+				highlightActiveLine: generalSettings.readerSettings.highlightActiveLine,
+				customCss: generalSettings.readerSettings.customCss
+			},
+			stats: generalSettings.stats
 	});
+	if (credentialChanged) {
+		await browser.storage.local.set({
+			[COMMONPLACE_CAPTURE_CREDENTIAL_KEY]: {
+				current: committedCredential,
+			},
+		});
+	}
+}
+
+export function saveSettings(settings?: Partial<Settings>): Promise<void> {
+	const operation = settingsSaveTail.then(() => persistSettings(settings));
+	settingsSaveTail = operation.catch(() => {});
+	return operation;
 }
 
 export async function setLegacyMode(enabled: boolean): Promise<void> {

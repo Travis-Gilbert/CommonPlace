@@ -1377,7 +1377,6 @@ async function handleClipCommonplace(includeObsidian: boolean): Promise<void> {
 			tabInfo.url,
 			{
 				endpointUrl: loadedSettings.commonplaceEndpointUrl,
-				apiToken: loadedSettings.commonplaceApiToken,
 			},
 		);
 		await incrementStat('saveToCommonplace', selectedVault, path, tabInfo.url, tabInfo.title);

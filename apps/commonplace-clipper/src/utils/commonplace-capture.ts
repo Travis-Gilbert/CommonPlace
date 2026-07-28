@@ -8,10 +8,16 @@ import {
 	type CaptureSendResult,
 } from '@commonplace/capture-client';
 import browser from './browser-polyfill';
+import {
+	COMMONPLACE_CAPTURE_CREDENTIAL_KEY,
+	captureCredentialFor,
+	parseCaptureCredentialState,
+} from './commonplace-credentials';
 
 export const COMMONPLACE_CAPTURE_ALARM = 'commonplace-capture-drain-v1';
 export const COMMONPLACE_CAPTURE_QUEUE_KEY = 'commonplaceCaptureQueueV1';
 export { COMMONPLACE_CAPTURE_CONTRACT_VERSION };
+export { COMMONPLACE_CAPTURE_CREDENTIAL_KEY };
 export type { CaptureEnvelope };
 
 interface StorageArea {
@@ -51,19 +57,34 @@ function queueStorage(area: StorageArea) {
 	};
 }
 
-async function captureSettings(area: StorageArea): Promise<CaptureSettings> {
-	const stored = await area.get('general_settings');
+async function captureSettings(
+	syncArea: StorageArea,
+	localArea: StorageArea,
+): Promise<CaptureSettings> {
+	const [stored, credentials] = await Promise.all([
+		syncArea.get('general_settings'),
+		localArea.get(COMMONPLACE_CAPTURE_CREDENTIAL_KEY),
+	]);
 	const settings = stored.general_settings as {
 		commonplaceEndpointUrl?: unknown;
-		commonplaceApiToken?: unknown;
+		commonplaceCredentialRevision?: unknown;
 	} | undefined;
+	const apiBase = typeof settings?.commonplaceEndpointUrl === 'string'
+		? settings.commonplaceEndpointUrl
+		: '';
+	const revision = typeof settings?.commonplaceCredentialRevision === 'string'
+		? settings.commonplaceCredentialRevision
+		: '';
+	const credential = captureCredentialFor(
+		parseCaptureCredentialState(
+			credentials[COMMONPLACE_CAPTURE_CREDENTIAL_KEY],
+		),
+		revision,
+		apiBase,
+	);
 	return {
-		apiBase: typeof settings?.commonplaceEndpointUrl === 'string'
-			? settings.commonplaceEndpointUrl
-			: '',
-		apiToken: typeof settings?.commonplaceApiToken === 'string'
-			? settings.commonplaceApiToken
-			: '',
+		apiBase,
+		apiToken: credential?.token ?? '',
 	};
 }
 
@@ -93,7 +114,7 @@ export function createBrowserCaptureService(
 		storage: queueStorage(localStorage),
 		retryBaseMs: options.retryBaseMs,
 		send: async (envelope): Promise<CaptureSendResult> => {
-			const settings = await captureSettings(syncStorage);
+			const settings = await captureSettings(syncStorage, localStorage);
 			const endpoint = captureEndpoint(settings.apiBase);
 			if (!endpoint) {
 				return {

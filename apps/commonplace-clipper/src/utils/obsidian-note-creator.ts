@@ -13,7 +13,6 @@ import {
 
 export interface CommonplaceSaveSettings {
 	endpointUrl: string;
-	apiToken?: string;
 }
 
 export async function generateFrontmatter(properties: Property[]): Promise<string> {
