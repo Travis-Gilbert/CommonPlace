@@ -311,6 +311,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@commonplace/capture-client':
+        specifier: file:../../packages/capture-client
+        version: link:../../packages/capture-client
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.1
@@ -533,6 +536,8 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.8.3
+
+  packages/capture-client: {}
 
   packages/coannotate:
     devDependencies:
