@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
-import { ViewState } from '../ViewStates';
+import { ViewState } from './ViewStates';
 
 export type GalleryKind = 'command' | 'monitor_template';
 
@@ -98,17 +98,17 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
   return (
     <div data-commands-gallery className="flex h-full min-h-0 flex-col gap-2 p-3">
       <header className="flex flex-col gap-1">
-        <h2 className="text-sm font-semibold text-[color:var(--ij-foreground)]">
+        <h2 className="text-sm font-semibold text-ij-ink">
           Commands and monitors
         </h2>
-        <p className="text-xs text-[color:var(--ij-foreground-secondary)]">
+        <p className="text-xs text-ij-ink-info">
           Published commands and forkable monitor templates. Validation receipts stay visible.
         </p>
       </header>
-      <Command label="Command gallery" className="min-h-0 flex-1 overflow-auto border border-[color:var(--ij-divider)]">
+      <Command label="Command gallery" className="min-h-0 flex-1 overflow-auto border border-ij-seam">
         <Command.Input
           placeholder="Filter published commands and templates"
-          className="w-full border-b border-[color:var(--ij-divider)] bg-transparent px-3 py-2 text-sm outline-none"
+          className="w-full border-b border-ij-seam bg-transparent px-3 py-2 text-sm outline-none"
         />
         <Command.List>
           <Command.Empty>No published entries</Command.Empty>
@@ -116,7 +116,7 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
             <Command.Item
               key={`${entry.kind}:${entry.slugOrName}`}
               value={`${entry.title} ${entry.summary} ${entry.slugOrName}`}
-              className="flex cursor-pointer flex-col gap-1 px-3 py-2 data-[selected=true]:bg-[color:var(--ij-selection)]"
+              className="flex cursor-pointer flex-col gap-1 px-3 py-2 data-[selected=true]:bg-ij-selection"
               onSelect={() => {
                 if (entry.kind !== 'monitor_template') {
                   return;
@@ -135,12 +135,12 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
             >
               <div className="flex items-center justify-between gap-2">
                 <strong className="text-sm">{entry.title}</strong>
-                <span className="text-[10px] uppercase tracking-wide text-[color:var(--ij-foreground-secondary)]">
+                <span className="text-xs uppercase tracking-wide text-ij-ink-info">
                   {entry.kind === 'monitor_template' ? 'template' : 'command'}
                 </span>
               </div>
-              <p className="text-xs text-[color:var(--ij-foreground-secondary)]">{entry.summary}</p>
-              <div className="flex flex-wrap gap-2 text-[10px] text-[color:var(--ij-foreground-secondary)]">
+              <p className="text-xs text-ij-ink-info">{entry.summary}</p>
+              <div className="flex flex-wrap gap-2 text-xs text-ij-ink-info">
                 <span>
                   validation: {entry.validationPassed === false ? 'failed' : 'passed'}
                 </span>
@@ -153,7 +153,7 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
         </Command.List>
       </Command>
       {forked.length > 0 ? (
-        <p className="text-xs text-[color:var(--ij-foreground-secondary)]">
+        <p className="text-xs text-ij-ink-info">
           Forked: {forked.join(', ')}
         </p>
       ) : null}
