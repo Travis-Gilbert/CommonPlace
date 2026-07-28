@@ -43,6 +43,7 @@ use crate::{
 
 /// PT-017: cap multipart capture bodies (photo/file/voice) at 32MB.
 const BLOB_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+const MAX_CAPTURE_ATTACHMENTS: usize = 32;
 
 struct AppState<S, B>
 where
@@ -673,7 +674,12 @@ fn append_hash_component(buffer: &mut Vec<u8>, value: &[u8]) {
     buffer.extend_from_slice(value);
 }
 
-fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope, upload_hashes: &[String]) -> String {
+fn capture_marker_id(
+    tenant: &str,
+    envelope: &CaptureEnvelope,
+    uploads: &[UploadedAttachment],
+    upload_hashes: &[String],
+) -> String {
     let requested_key = envelope
         .idempotency_key
         .as_deref()
@@ -690,6 +696,7 @@ fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope, upload_hashes: &[
             append_hash_component(&mut identity, envelope.object_type.as_str().as_bytes());
             append_hash_component(&mut identity, envelope.capture_method.as_str().as_bytes());
             append_hash_component(&mut identity, envelope.source.as_str().as_bytes());
+            append_hash_component(&mut identity, envelope.captured_at.as_bytes());
             append_hash_component(
                 &mut identity,
                 envelope
@@ -698,11 +705,39 @@ fn capture_marker_id(tenant: &str, envelope: &CaptureEnvelope, upload_hashes: &[
                     .unwrap_or_default()
                     .as_bytes(),
             );
+            append_hash_component(
+                &mut identity,
+                envelope.kind_hint.as_deref().unwrap_or_default().as_bytes(),
+            );
+            for (key, value) in &envelope.properties {
+                append_hash_component(&mut identity, key.as_bytes());
+                append_hash_component(&mut identity, value.as_bytes());
+            }
             for attachment in &envelope.attachments {
                 append_hash_component(&mut identity, attachment.blob_hash.as_bytes());
+                append_hash_component(
+                    &mut identity,
+                    attachment
+                        .file_name
+                        .as_deref()
+                        .unwrap_or_default()
+                        .as_bytes(),
+                );
+                append_hash_component(
+                    &mut identity,
+                    attachment.mime.as_deref().unwrap_or_default().as_bytes(),
+                );
             }
-            for upload_hash in upload_hashes {
+            for (upload, upload_hash) in uploads.iter().zip(upload_hashes) {
                 append_hash_component(&mut identity, upload_hash.as_bytes());
+                append_hash_component(
+                    &mut identity,
+                    upload.file_name.as_deref().unwrap_or_default().as_bytes(),
+                );
+                append_hash_component(
+                    &mut identity,
+                    upload.mime.as_deref().unwrap_or_default().as_bytes(),
+                );
             }
             content_hash(&identity)
         });
@@ -730,7 +765,11 @@ where
         )
     })?;
     let Some(marker) = cp.store().get_node(marker_id) else {
-        return Ok(None);
+        let recovered = cp
+            .item_by_source_ref("commonplace:capture-idempotency", marker_id)
+            .map_err(internal_store_error)?;
+        return Ok(recovered
+            .map(|item| CaptureIngestResponse::from_item(item, false, client_id.to_string())));
     };
     let target_id = marker
         .properties
@@ -868,7 +907,7 @@ where
         .iter()
         .map(|upload| content_hash(&upload.bytes))
         .collect::<Vec<_>>();
-    let marker_id = capture_marker_id(tenant, &envelope, &upload_hashes);
+    let marker_id = capture_marker_id(tenant, &envelope, &uploads, &upload_hashes);
     if let Some(existing) = existing_capture(state, &marker_id, &envelope.client_id)? {
         return Ok(existing);
     }
@@ -1116,6 +1155,17 @@ fn validate_capture_with_uploads(
     if envelope.client_id.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "client_id is required".to_string()));
     }
+    if envelope
+        .attachments
+        .len()
+        .checked_add(uploads.len())
+        .is_none_or(|count| count > MAX_CAPTURE_ATTACHMENTS)
+    {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!("capture supports at most {MAX_CAPTURE_ATTACHMENTS} attachments"),
+        ));
+    }
     for attachment in &envelope.attachments {
         let digest = attachment
             .blob_hash
@@ -1343,11 +1393,33 @@ where
         .all_items()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .into_iter()
-        .find_map(|item| match item.body {
-            ItemBody::Blob {
+        .find_map(|item| {
+            if let ItemBody::Blob {
                 content_hash, mime, ..
-            } if content_hash == hash => mime,
-            _ => None,
+            } = &item.body
+            {
+                if content_hash == &hash {
+                    return mime.clone();
+                }
+            }
+            item.extra
+                .get("capture_attachments")
+                .and_then(serde_json::Value::as_array)
+                .and_then(|attachments| {
+                    attachments.iter().find_map(|attachment| {
+                        (attachment
+                            .get("blob_hash")
+                            .and_then(serde_json::Value::as_str)
+                            == Some(hash.as_str()))
+                        .then(|| {
+                            attachment
+                                .get("mime")
+                                .and_then(serde_json::Value::as_str)
+                                .map(str::to_string)
+                        })
+                        .flatten()
+                    })
+                })
         })
         .unwrap_or_else(|| "application/octet-stream".to_string());
     drop(cp);

@@ -3,16 +3,22 @@
 
 use std::sync::Arc;
 
-use commonplace_api::{in_memory_store, serve::build_router, ApiKeyRegistry};
+use commonplace_api::{in_memory_store, serve::build_router, ApiKeyRegistry, InMemoryShared};
 use reqwest::multipart::{Form, Part};
 use serde_json::json;
 use tokio::sync::oneshot;
 
 const KEY: &str = "capture-live-key";
 
-async fn spawn_router() -> (String, oneshot::Sender<()>, tokio::task::JoinHandle<()>) {
+async fn spawn_router() -> (
+    String,
+    InMemoryShared,
+    oneshot::Sender<()>,
+    tokio::task::JoinHandle<()>,
+) {
     let registry = Arc::new(ApiKeyRegistry::new().with_key(KEY, "capture-live"));
-    let app = build_router(in_memory_store(), registry);
+    let store = in_memory_store();
+    let app = build_router(Arc::clone(&store), registry);
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
         .await
         .expect("bind ephemeral capture-live port");
@@ -26,12 +32,17 @@ async fn spawn_router() -> (String, oneshot::Sender<()>, tokio::task::JoinHandle
             .await
             .expect("serve capture-live router");
     });
-    (format!("http://127.0.0.1:{port}"), shutdown_tx, server)
+    (
+        format!("http://127.0.0.1:{port}"),
+        store,
+        shutdown_tx,
+        server,
+    )
 }
 
 #[tokio::test]
 async fn running_capture_surface_round_trips_item_and_blob() {
-    let (base, shutdown, server) = spawn_router().await;
+    let (base, _store, shutdown, server) = spawn_router().await;
     let client = reqwest::Client::new();
     let bytes = b"capture 2.0 live smoke bytes".to_vec();
 
@@ -128,7 +139,7 @@ async fn running_capture_surface_round_trips_item_and_blob() {
 
 #[tokio::test]
 async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
-    let (base, shutdown, server) = spawn_router().await;
+    let (base, store, shutdown, server) = spawn_router().await;
     let client = reqwest::Client::new();
     let capture = json!({
         "client_id": "local-json-contract",
@@ -159,6 +170,25 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
     assert_eq!(first["clientId"], "local-json-contract");
     assert_eq!(first["extra"]["capture_method"], "wormhole");
     let id = first["id"].as_str().expect("first capture id");
+    {
+        let mut cp = store.lock().expect("capture test store");
+        let marker_id = cp
+            .get_item(id)
+            .expect("read captured item")
+            .expect("captured item exists")
+            .source_ref
+            .expect("capture source reference")
+            .external_id;
+        let mut marker = cp
+            .store()
+            .get_node(&marker_id)
+            .expect("idempotency marker")
+            .clone();
+        marker.tombstone = true;
+        cp.store_mut()
+            .upsert_node(marker)
+            .expect("tombstone idempotency marker");
+    }
 
     let retry = client
         .post(format!("{base}/ingest/capture"))
@@ -171,6 +201,20 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
     let retry: serde_json::Value = retry.json().await.expect("retry capture receipt");
     assert_eq!(retry["id"], id);
     assert_eq!(retry["created"], false);
+
+    let mut retitled = capture.clone();
+    retitled["title"] = json!("Canonical capture, retitled");
+    let retitled = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .json(&retitled)
+        .send()
+        .await
+        .expect("same body with distinct semantic metadata");
+    assert_eq!(retitled.status(), reqwest::StatusCode::OK);
+    let retitled: serde_json::Value = retitled.json().await.expect("retitled capture receipt");
+    assert_ne!(retitled["id"], id);
+    assert_eq!(retitled["created"], true);
 
     let query = client
         .post(format!("{base}/objects/query"))
@@ -239,9 +283,10 @@ async fn canonical_json_capture_is_flexible_authenticated_and_idempotent() {
 
 #[tokio::test]
 async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
-    let (base, shutdown, server) = spawn_router().await;
+    let (base, _store, shutdown, server) = spawn_router().await;
     let client = reqwest::Client::new();
     let pdf = b"%PDF-1.7\ncapture contract fixture\n%%EOF".to_vec();
+    let secondary = b"secondary plain-text attachment".to_vec();
     let envelope = json!({
         "client_id": "local-pet-drop",
         "title": "Dropped fixture.pdf",
@@ -270,6 +315,13 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
                         .file_name("fixture.pdf")
                         .mime_str("application/pdf")
                         .expect("application/pdf mime"),
+                )
+                .part(
+                    "file",
+                    Part::bytes(secondary.clone())
+                        .file_name("secondary.txt")
+                        .mime_str("text/plain")
+                        .expect("text/plain mime"),
                 ),
         )
         .send()
@@ -281,6 +333,9 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
     assert_eq!(dropped["extra"]["capture_source"], "pet");
     let dropped_id = dropped["id"].as_str().expect("drop id");
     let hash = dropped["blobHash"].as_str().expect("drop blob hash");
+    let secondary_hash = dropped["extra"]["capture_attachments"][1]["blob_hash"]
+        .as_str()
+        .expect("secondary blob hash");
     let bytes = client
         .get(format!("{base}/blob/{hash}"))
         .header("x-api-key", KEY)
@@ -289,6 +344,24 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
         .expect("read dropped blob");
     assert_eq!(bytes.status(), reqwest::StatusCode::OK);
     assert_eq!(bytes.bytes().await.expect("dropped blob bytes"), pdf);
+    let secondary_blob = client
+        .get(format!("{base}/blob/{secondary_hash}"))
+        .header("x-api-key", KEY)
+        .send()
+        .await
+        .expect("read secondary blob");
+    assert_eq!(secondary_blob.status(), reqwest::StatusCode::OK);
+    assert_eq!(
+        secondary_blob.headers()[reqwest::header::CONTENT_TYPE],
+        "text/plain"
+    );
+    assert_eq!(
+        secondary_blob
+            .bytes()
+            .await
+            .expect("secondary attachment bytes"),
+        secondary
+    );
 
     let referenced = json!({
         "client_id": "local-reference-only",
@@ -312,6 +385,25 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
         .expect("POST attachment-only reference without body");
     assert_eq!(referenced.status(), reqwest::StatusCode::OK);
 
+    let too_many_attachments = json!({
+        "client_id": "too-many-references",
+        "object_type": "file",
+        "capture_method": "agent",
+        "source": "api",
+        "captured_at": "2026-07-27T20:32:00Z",
+        "attachments": (0..33)
+            .map(|_| json!({ "blob_hash": hash }))
+            .collect::<Vec<_>>()
+    });
+    let too_many = client
+        .post(format!("{base}/ingest/capture"))
+        .header("x-api-key", KEY)
+        .json(&too_many_attachments)
+        .send()
+        .await
+        .expect("POST capture above attachment-count bound");
+    assert_eq!(too_many.status(), reqwest::StatusCode::PAYLOAD_TOO_LARGE);
+
     let repeat_drop = client
         .post(format!("{base}/ingest/capture"))
         .header("x-api-key", KEY)
@@ -329,6 +421,13 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
                         .file_name("fixture.pdf")
                         .mime_str("application/pdf")
                         .expect("application/pdf mime"),
+                )
+                .part(
+                    "file",
+                    Part::bytes(secondary.clone())
+                        .file_name("secondary.txt")
+                        .mime_str("text/plain")
+                        .expect("text/plain mime"),
                 ),
         )
         .send()
@@ -356,6 +455,13 @@ async fn canonical_multipart_and_legacy_replay_share_the_capture_core() {
                         .file_name("fixture.pdf")
                         .mime_str("application/pdf")
                         .expect("application/pdf mime"),
+                )
+                .part(
+                    "file",
+                    Part::bytes(secondary)
+                        .file_name("secondary.txt")
+                        .mime_str("text/plain")
+                        .expect("text/plain mime"),
                 ),
         )
         .send()
