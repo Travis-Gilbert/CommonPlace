@@ -113,6 +113,52 @@ test("serializes concurrent queue mutations", async () => {
   ]);
 });
 
+test("preserves enqueue order when capture timestamps collide", async () => {
+  const storage = memoryStorage();
+  const calls = [];
+  const queue = createCaptureQueue({
+    storage,
+    now: () => 100,
+    send: async (capture) => {
+      calls.push(capture.client_id);
+      return { ok: true, receipt: { id: capture.client_id } };
+    },
+  });
+
+  await queue.enqueue(envelope("local-z-first"));
+  await queue.enqueue(envelope("local-a-second"));
+  assert.deepEqual(
+    (await queue.list()).map((entry) => entry.id),
+    ["local-z-first", "local-a-second"],
+  );
+
+  await queue.drain();
+  assert.deepEqual(calls, ["local-z-first", "local-a-second"]);
+});
+
+test("normalizes retry metadata from older durable entries", async () => {
+  const legacyEnvelope = envelope("local-legacy");
+  const storage = memoryStorage([
+    {
+      id: legacyEnvelope.client_id,
+      envelope: legacyEnvelope,
+      state: "sending",
+      createdAt: 100,
+    },
+  ]);
+  const queue = createCaptureQueue({
+    storage,
+    now: () => 200,
+    send: async () => ({ ok: false, retryable: true, error: "offline" }),
+  });
+
+  const [entry] = await queue.drain();
+  assert.equal(entry.state, "kept");
+  assert.equal(entry.attempts, 1);
+  assert.equal(entry.updatedAt, 200);
+  assert.equal(entry.nextAttemptAt, 1_200);
+});
+
 test("persists before send and keeps a retryable failure", async () => {
   const storage = memoryStorage();
   const observed = [];

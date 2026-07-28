@@ -46,6 +46,9 @@ function normalizedEntries(value) {
         local_file_paths: legacyLocalFilePaths,
         ...wireEnvelope
       } = entry.envelope;
+      const createdAt = Number.isFinite(entry.createdAt)
+        ? entry.createdAt
+        : 0;
       const localFilePaths =
         entry.localFilePaths ??
         (Array.isArray(legacyLocalFilePaths)
@@ -54,13 +57,24 @@ function normalizedEntries(value) {
       return {
         ...entry,
         envelope: wireEnvelope,
+        state: ["kept", "sending", "sent", "error"].includes(entry.state)
+          ? entry.state
+          : "kept",
+        attempts:
+          Number.isInteger(entry.attempts) && entry.attempts >= 0
+            ? entry.attempts
+            : 0,
+        createdAt,
+        updatedAt: Number.isFinite(entry.updatedAt)
+          ? entry.updatedAt
+          : createdAt,
+        nextAttemptAt: Number.isFinite(entry.nextAttemptAt)
+          ? entry.nextAttemptAt
+          : createdAt,
         ...(localFilePaths ? { localFilePaths } : {}),
       };
     })
-    .sort(
-      (left, right) =>
-        left.createdAt - right.createdAt || left.id.localeCompare(right.id),
-    );
+    .sort((left, right) => left.createdAt - right.createdAt);
 }
 
 function errorMessage(result) {

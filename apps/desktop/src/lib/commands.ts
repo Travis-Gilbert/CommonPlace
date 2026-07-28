@@ -265,6 +265,12 @@ export async function petSpeak(
   }
 }
 
+export async function petStopSpeaking(): Promise<void> {
+  if (isTauri()) {
+    return petInvoke<void>("pet_stop_speaking");
+  }
+}
+
 export async function petCapture(
   envelope: CaptureEnvelope,
 ): Promise<PetCaptureResult> {

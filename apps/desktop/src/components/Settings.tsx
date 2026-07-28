@@ -1,10 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as cmd from "../lib/commands";
 import { PROVIDERS, type HarnessTarget, type ReceiverSettings } from "../state/types";
 import { useApp } from "../state/store";
 
+type PetPreferences = cmd.PetNativePreferences;
+
 function targetLabel(target: HarnessTarget): string {
   return target === "local" ? "Local node" : "Hosted";
+}
+
+function petPatchMatches(
+  preferences: PetPreferences,
+  patch: Partial<PetPreferences>,
+  fields: readonly (keyof PetPreferences)[],
+): boolean {
+  return fields.every((field) => preferences[field] === patch[field]);
+}
+
+function mergePetFields(
+  base: PetPreferences,
+  source: PetPreferences,
+  fields: readonly (keyof PetPreferences)[],
+): PetPreferences {
+  const merged = { ...base };
+  for (const field of fields) {
+    Object.assign(merged, { [field]: source[field] });
+  }
+  return merged;
 }
 
 export function Settings() {
@@ -22,6 +44,10 @@ export function Settings() {
     useState<readonly cmd.PetVoiceModelStatus[]>([]);
   const [petApiKey, setPetApiKey] = useState("");
   const [petMessage, setPetMessage] = useState("Loading PET settings…");
+  const petPreferencesRef = useRef<PetPreferences | null>(null);
+  const persistedPetPreferencesRef = useRef<PetPreferences | null>(null);
+  const petSaveTailRef = useRef<Promise<void>>(Promise.resolve());
+  const petSaveSequenceRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +80,8 @@ export function Settings() {
     ])
       .then(([preferences, credential, models]) => {
         if (cancelled) return;
+        petPreferencesRef.current = preferences;
+        persistedPetPreferencesRef.current = preferences;
         setPetPreferences(preferences);
         setPetCredential(credential);
         setPetModels(models);
@@ -95,24 +123,55 @@ export function Settings() {
     actions.setOllama(patch);
   };
 
-  const persistPet = (patch: Partial<cmd.PetNativePreferences>) => {
-    if (!petPreferences) return;
-    const previous = petPreferences;
-    const next = { ...petPreferences, ...patch };
+  const updatePetDraft = (patch: Partial<PetPreferences>) => {
+    const current = petPreferencesRef.current;
+    if (!current) return;
+    const next = { ...current, ...patch };
+    petPreferencesRef.current = next;
     setPetPreferences(next);
+  };
+
+  const persistPet = (patch: Partial<cmd.PetNativePreferences>) => {
+    const current = petPreferencesRef.current;
+    if (!current) return;
+    const optimistic = { ...current, ...patch };
+    const fields = Object.keys(patch) as (keyof PetPreferences)[];
+    const sequence = ++petSaveSequenceRef.current;
+    petPreferencesRef.current = optimistic;
+    setPetPreferences(optimistic);
     setPetMessage("Saving PET settings…");
-    void cmd
-      .petUpdatePreferences(next)
-      .then((saved) => {
-        setPetPreferences(saved);
-        setPetMessage("PET settings saved.");
-      })
-      .catch((error) => {
-        setPetPreferences(previous);
-        setPetMessage(
-          `PET settings failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      });
+    petSaveTailRef.current = petSaveTailRef.current.then(async () => {
+      const savedBefore = persistedPetPreferencesRef.current;
+      if (!savedBefore) return;
+      try {
+        const saved = await cmd.petUpdatePreferences({
+          ...savedBefore,
+          ...patch,
+        });
+        persistedPetPreferencesRef.current = saved;
+        const latest = petPreferencesRef.current;
+        if (latest && petPatchMatches(latest, patch, fields)) {
+          const reconciled = mergePetFields(latest, saved, fields);
+          petPreferencesRef.current = reconciled;
+          setPetPreferences(reconciled);
+        }
+        if (sequence === petSaveSequenceRef.current) {
+          setPetMessage("PET settings saved.");
+        }
+      } catch (error) {
+        const latest = petPreferencesRef.current;
+        if (latest && petPatchMatches(latest, patch, fields)) {
+          const restored = mergePetFields(latest, savedBefore, fields);
+          petPreferencesRef.current = restored;
+          setPetPreferences(restored);
+        }
+        if (sequence === petSaveSequenceRef.current) {
+          setPetMessage(
+            `PET settings failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    });
   };
 
   const theoremWorktree = settings.receiver.worktrees["Travis-Gilbert/theorem"] ?? "";
@@ -142,6 +201,8 @@ export function Settings() {
                 void cmd
                   .petShow()
                   .then((preferences) => {
+                    petPreferencesRef.current = preferences;
+                    persistedPetPreferencesRef.current = preferences;
                     setPetPreferences(preferences);
                     setPetMessage("PET is ready for input.");
                   })
@@ -198,8 +259,7 @@ export function Settings() {
                 <input
                   value={petPreferences.shortcut}
                   onChange={(event) =>
-                    setPetPreferences({
-                      ...petPreferences,
+                    updatePetDraft({
                       shortcut: event.currentTarget.value,
                     })
                   }
@@ -214,8 +274,7 @@ export function Settings() {
                   value={petPreferences.model}
                   placeholder="Use THEOREM_PET_MODEL when blank"
                   onChange={(event) =>
-                    setPetPreferences({
-                      ...petPreferences,
+                    updatePetDraft({
                       model: event.currentTarget.value,
                     })
                   }
@@ -253,8 +312,7 @@ export function Settings() {
                 <input
                   value={petPreferences.voiceLocale}
                   onChange={(event) =>
-                    setPetPreferences({
-                      ...petPreferences,
+                    updatePetDraft({
                       voiceLocale: event.currentTarget.value,
                     })
                   }
@@ -280,8 +338,7 @@ export function Settings() {
                 <input
                   value={petPreferences.commonplaceApiBase}
                   onChange={(event) =>
-                    setPetPreferences({
-                      ...petPreferences,
+                    updatePetDraft({
                       commonplaceApiBase: event.currentTarget.value,
                     })
                   }
