@@ -108,7 +108,14 @@
   --ij-radius-md: 8px;   /* panels, cards (BlockSize v/sq) */
   --ij-radius-lg: 12px;  /* panes, islands (BlockSize w) */
   --ij-radius-xl: 16px;  /* full surfaces (BlockSize full) */
-  --ij-corner-raised: squircle;
+  /* Round, not squircle: MaterialLayer's SDF draws circular rounded rects
+     behind each island; a squircle DOM clip over a circular shader corner is
+     the doubled-corner halo. One curvature family everywhere. */
+  --ij-corner-raised: round;
+  /* Paper grain tile opacity (app.css body::after). Zed dark runs its noise
+     near-invisible (0.012); the console dark tile sits slightly above that
+     because the tile carries alpha of its own. */
+  --paper-grain-opacity: 0.10;
   --ij-control-h: 28px;
   --ij-control-min-w: 72px;
   --ij-row-h: 24px;
