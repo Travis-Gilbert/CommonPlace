@@ -62,8 +62,10 @@ Default features run the mock shell acceptance tests without pulling GPUI.
 
 ## Run the real CommonPlace surface
 
-Build and serve the console on its configured port, then launch the native
-shell from a second terminal:
+The native shell loads the canonical CommonPlace product surface at
+`https://v2.theoremharness.com/` by default. For local Console development,
+build and serve the console on its configured port, then launch the native
+shell from a second terminal with an explicit loopback override:
 
 ```bash
 corepack pnpm --filter @commonplace/console run build
@@ -83,7 +85,8 @@ COMMONPLACE_CONSOLE_URL=http://127.0.0.1:3010/ \
 
 The bridge handshake rejects any page origin other than the exact origin of
 `COMMONPLACE_CONSOLE_URL`, and every request must also present the injected
-per-process token.
+per-process token. Production URLs must use HTTPS; plain HTTP is accepted only
+for a loopback development host.
 
 ## Pins
 

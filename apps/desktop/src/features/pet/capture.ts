@@ -1,5 +1,6 @@
 import {
   createCaptureQueue,
+  isRetryableCaptureStatus,
   type CaptureQueueEntry,
   type QueuedCaptureEnvelope,
 } from "@commonplace/capture-client";
@@ -8,9 +9,13 @@ import {
   petCapture,
   petCaptureFiles,
   petStageCaptureFiles,
+  type PetCaptureResult,
 } from "../../lib/commands";
 
 const PET_CAPTURE_QUEUE_KEY = "commonplace:pet-capture-queue:v1";
+type RuntimePetCaptureResult = Partial<PetCaptureResult> & {
+  status?: unknown;
+};
 let sharedQueue: ReturnType<typeof createCaptureQueue> | undefined;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -53,6 +58,8 @@ function scheduleNextDrain(entries: readonly CaptureQueueEntry[]): void {
     clearTimeout(retryTimer);
     retryTimer = undefined;
   }
+  if (!navigator.onLine) return;
+
   const nextAttemptAt = entries.reduce(
     (earliest, entry) =>
       entry.state === "kept" && Number.isFinite(entry.nextAttemptAt)
@@ -76,24 +83,50 @@ function petCaptureQueue() {
     send: async (envelope, metadata) => {
       try {
         const paths = metadata.localFilePaths;
-        const result =
+        const result: unknown =
           paths && paths.length > 0
             ? await petCaptureFiles(paths, envelope)
             : await petCapture(envelope);
-        if (!result.id) {
+        const captureResult =
+          result && typeof result === "object"
+            ? (result as RuntimePetCaptureResult)
+            : undefined;
+        if (
+          !captureResult ||
+          typeof captureResult.id !== "string" ||
+          !captureResult.id
+        ) {
+          const source =
+            captureResult?.source &&
+            typeof captureResult.source === "object"
+              ? captureResult.source
+              : undefined;
+          const status =
+            typeof captureResult?.status === "number"
+              ? captureResult.status
+              : undefined;
           return {
             ok: false,
-            retryable: result.source.retryable,
-            error: result.source.reason ?? "CommonPlace capture failed",
+            retryable:
+              typeof source?.retryable === "boolean"
+                ? source.retryable
+                : status === undefined
+                  ? true
+                  : isRetryableCaptureStatus(status),
+            status,
+            error:
+              typeof source?.reason === "string"
+                ? source.reason
+                : "CommonPlace capture failed",
           };
         }
         return {
           ok: true,
           receipt: {
-            id: result.id,
-            slug: result.slug,
-            created: result.created,
-            clientId: result.clientId,
+            id: captureResult.id,
+            slug: captureResult.slug,
+            created: captureResult.created,
+            clientId: captureResult.clientId,
           },
         };
       } catch (error) {
@@ -124,7 +157,7 @@ export async function enqueuePetCapture(
         }
       : envelope;
   await queue.enqueue(queuedEnvelope);
-  const entries = await queue.drain();
+  const entries = navigator.onLine ? await queue.drain() : await queue.list();
   scheduleNextDrain(entries);
   const entry = entries.find((candidate) => candidate.id === envelope.client_id);
   if (!entry) {
@@ -134,7 +167,8 @@ export async function enqueuePetCapture(
 }
 
 export async function drainPetCaptureQueue(): Promise<CaptureQueueEntry[]> {
-  const entries = await petCaptureQueue().drain();
+  const queue = petCaptureQueue();
+  const entries = navigator.onLine ? await queue.drain() : await queue.list();
   scheduleNextDrain(entries);
   return entries;
 }

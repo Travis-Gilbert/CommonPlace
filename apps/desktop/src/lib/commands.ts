@@ -127,7 +127,7 @@ export interface PetVoiceModelStatus {
   reason?: string;
 }
 
-const PET_BROWSER_PREFERENCES: PetNativePreferences = {
+export const PET_DEFAULT_PREFERENCES: PetNativePreferences = {
   pinned: false,
   clickThrough: false,
   quietHours: false,
@@ -160,14 +160,14 @@ export async function petNativePreferences(): Promise<PetNativePreferences> {
     return petInvoke<PetNativePreferences>("native_preferences");
   }
   const value = window.localStorage.getItem(PET_BROWSER_PREFERENCES_KEY);
-  if (!value) return { ...PET_BROWSER_PREFERENCES };
+  if (!value) return { ...PET_DEFAULT_PREFERENCES };
   try {
     return {
-      ...PET_BROWSER_PREFERENCES,
+      ...PET_DEFAULT_PREFERENCES,
       ...(JSON.parse(value) as Partial<PetNativePreferences>),
     };
   } catch {
-    return { ...PET_BROWSER_PREFERENCES };
+    return { ...PET_DEFAULT_PREFERENCES };
   }
 }
 

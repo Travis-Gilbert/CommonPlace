@@ -11,6 +11,7 @@ import {
 import runeSprite from "../../assets/pet/rune.png";
 import {
   isTauri,
+  PET_DEFAULT_PREFERENCES,
   petCompose,
   petDraft,
   petInsertAtCursor,
@@ -32,23 +33,6 @@ import {
   newPetCaptureEnvelope,
 } from "./capture";
 import "./pet.css";
-
-const DEFAULT_PREFERENCES: PetNativePreferences = {
-  pinned: false,
-  clickThrough: false,
-  quietHours: false,
-  shortcut: "CommandOrControl+Shift+Space",
-  model: "",
-  proxyBaseUrl: "http://127.0.0.1:8484",
-  commonplaceApiBase: "http://127.0.0.1:50090",
-  threadRetention: 50,
-  voiceEnabled: false,
-  voiceEngine: "apple",
-  voiceLocale: "en-US",
-  captureDictation: false,
-  captureReadAloud: false,
-  signatureVoice: "theorem-hearth",
-};
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -91,7 +75,7 @@ export function PetSurface() {
   const [draft, setDraft] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [preferences, setPreferences] =
-    useState<PetNativePreferences>(DEFAULT_PREFERENCES);
+    useState(PET_DEFAULT_PREFERENCES);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Ready when you are.");
   const [voiceState, setVoiceState] = useState<PetVoiceState>("idle");
@@ -229,15 +213,21 @@ export function PetSurface() {
           void petInsertAtCursor(
             transcript,
             voiceModeRef.current === "latch" ? "live" : "batch",
-          ).then((result) => {
-            if (!result.inserted) {
+          )
+            .then((result) => {
+              if (!result.inserted) {
+                setStatus(
+                  result.reason === "accessibility_permission_required"
+                    ? "Transcript ready. Cross-app insertion needs Accessibility permission."
+                    : "Transcript ready in CommonPlace.",
+                );
+              }
+            })
+            .catch((error) => {
               setStatus(
-                result.reason === "accessibility_permission_required"
-                  ? "Transcript ready. Cross-app insertion needs Accessibility permission."
-                  : "Transcript ready in CommonPlace.",
+                `Transcript insertion failed: ${errorMessage(error)}`,
               );
-            }
-          });
+            });
         }
         if (preferencesRef.current.captureDictation) {
           void enqueuePetCapture(
@@ -401,11 +391,11 @@ export function PetSurface() {
   };
 
   const onTextDrop = (event: DragEvent<HTMLElement>): void => {
+    event.preventDefault();
     const text =
       event.dataTransfer.getData("text/plain") ||
       event.dataTransfer.getData("text/uri-list");
     if (!text.trim()) return;
-    event.preventDefault();
     setDropActive(false);
     void enqueuePetCapture(
       newPetCaptureEnvelope({

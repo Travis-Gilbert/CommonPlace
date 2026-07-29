@@ -2504,7 +2504,7 @@ fn now_string() -> String {
 }
 
 pub fn run(context: tauri::Context<tauri::Wry>) {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(Mutex::new(DesktopBackendState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -2534,10 +2534,6 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if matches!(event, tauri::WindowEvent::Destroyed) {
-                let state = window.state::<Mutex<DesktopBackendState>>();
-                stop_local_node(&state);
-            }
             // A tab window gaining OS focus is the user-input-into-the-stage
             // signal (HANDOFF-COBROWSE-PRESENCE D4): external-URL webviews
             // cannot report in-page pointer or key events, but the first click
@@ -2612,6 +2608,12 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             agent_tab_ingest,
             connector_proof_run
         ])
-        .run(context)
-        .expect("error while running CommonPlace desktop");
+        .build(context)
+        .expect("error while building CommonPlace desktop");
+    app.run(|app_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            let state = app_handle.state::<Mutex<DesktopBackendState>>();
+            stop_local_node(&state);
+        }
+    });
 }

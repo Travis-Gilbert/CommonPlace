@@ -8,7 +8,7 @@ content and retry metadata, but never API credentials. The queue:
 
 - persists an envelope before attempting delivery;
 - keeps retryable failures across process and browser restarts;
-- drains in insertion order with bounded exponential backoff;
+- drains in insertion order with exponential backoff whose growth is bounded;
 - uses the envelope `client_id` as the stable idempotency key; and
 - normalizes legacy full-route settings to the CommonPlace API base.
 

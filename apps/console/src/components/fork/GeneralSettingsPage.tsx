@@ -3,6 +3,7 @@
 // path=frontend/src/pages/GeneralSettings. Provider categories are cut.
 
 import Link from 'next/link';
+import { PetSettingsPanel } from '@/components/pet/PetSettingsPanel';
 import { Button } from '@/components/ui/button';
 import { ForkPageFrame, ForkPanel } from './ForkPageFrame';
 
@@ -42,7 +43,7 @@ export function GeneralSettingsPage({
     <ForkPageFrame
       eyebrow="General settings"
       title="CommonPlace settings"
-      description="These settings configure identity and presentation. Model routing stays with the Harness."
+      description="These settings configure identity, presentation, and desktop extensions. Model routing stays with the Harness."
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {settings.map((setting) => (
@@ -51,6 +52,7 @@ export function GeneralSettingsPage({
           </ForkPanel>
         ))}
       </div>
+      <PetSettingsPanel />
     </ForkPageFrame>
   );
 }

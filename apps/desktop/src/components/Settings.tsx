@@ -73,26 +73,40 @@ export function Settings() {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([
+    void Promise.allSettled([
       cmd.petNativePreferences(),
       cmd.petCaptureCredentialStatus(),
       cmd.petVoiceModels(),
     ])
       .then(([preferences, credential, models]) => {
         if (cancelled) return;
-        petPreferencesRef.current = preferences;
-        persistedPetPreferencesRef.current = preferences;
-        setPetPreferences(preferences);
-        setPetCredential(credential);
-        setPetModels(models);
-        setPetMessage("PET settings are stored by CommonPlace.");
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setPetMessage(
-            `PET settings unavailable: ${error instanceof Error ? error.message : String(error)}`,
-          );
+        const failures: unknown[] = [];
+        if (preferences.status === "fulfilled") {
+          petPreferencesRef.current = preferences.value;
+          persistedPetPreferencesRef.current = preferences.value;
+          setPetPreferences(preferences.value);
+        } else {
+          failures.push(preferences.reason);
         }
+        if (credential.status === "fulfilled") {
+          setPetCredential(credential.value);
+        } else {
+          failures.push(credential.reason);
+        }
+        if (models.status === "fulfilled") {
+          setPetModels(models.value);
+        } else {
+          failures.push(models.reason);
+        }
+        setPetMessage(
+          failures.length === 0
+            ? "PET settings are stored by CommonPlace."
+            : `Some PET settings are unavailable: ${failures
+                .map((error) =>
+                  error instanceof Error ? error.message : String(error),
+                )
+                .join("; ")}`,
+        );
       });
     return () => {
       cancelled = true;

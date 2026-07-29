@@ -17,7 +17,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 theorem-receiver = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-receiver" }
 rustyred-thg-server = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-server" }
-theorem-pet = { path = "../../../Theorem/apps/theorem-pet/src-tauri" }
+theorem-pet = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
 commonplace-api = { path = "../../apps/commonplace-api" }
 commonplace = { path = "../commonplace" }
 tokio = { version = "1", features = ["sync"] }

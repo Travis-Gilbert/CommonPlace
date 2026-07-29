@@ -13,7 +13,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@commonplace/capture-client": "file:../../packages/capture-client",
+    "@commonplace/capture-client": "workspace:*",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "@tauri-apps/api": "^2",

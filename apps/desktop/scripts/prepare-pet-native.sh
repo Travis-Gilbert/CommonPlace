@@ -4,7 +4,8 @@ set -euo pipefail
 
 desktop_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 commonplace_root="$(cd "$desktop_dir/../.." && pwd)"
-theorem_root="$(cd "$commonplace_root/../Theorem" && pwd)"
+theorem_root="${THEOREM_SOURCE_ROOT:-$commonplace_root/../Theorem}"
+theorem_pet_rev="b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 helper_dir="$theorem_root/apps/theorem-voice-helper"
 destination_dir="$desktop_dir/src-tauri/binaries"
 
@@ -14,6 +15,15 @@ command -v rustc >/dev/null 2>&1 || {
 }
 command -v swift >/dev/null 2>&1 || {
   echo "Swift is required to build the local CommonPlace voice helper" >&2
+  exit 1
+}
+git -C "$theorem_root" cat-file -e "$theorem_pet_rev^{commit}" 2>/dev/null || {
+  echo "Theorem source at $theorem_root does not contain PET revision $theorem_pet_rev" >&2
+  exit 1
+}
+git -C "$theorem_root" diff --quiet "$theorem_pet_rev" -- apps/theorem-voice-helper || {
+  echo "Theorem voice helper differs from pinned PET revision $theorem_pet_rev" >&2
+  echo "Set THEOREM_SOURCE_ROOT to a checkout of that revision before packaging." >&2
   exit 1
 }
 test -f "$helper_dir/Package.swift" || {

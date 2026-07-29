@@ -70,6 +70,7 @@ export interface CaptureQueueOptions {
     envelope: CaptureEnvelope,
     metadata: CaptureQueueLocalMetadata,
   ): Promise<CaptureSendResult>;
+  /** Caps retry-count metadata and exponential-backoff growth. */
   maxAttempts?: number;
   retryBaseMs?: number;
   now?: () => number;

@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context as _, Result};
 use gpui::{
-    div, px, prelude::FluentBuilder as _, AppContext as _, Context, Entity,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, Styled as _,
-    Window, WindowOptions,
+    div, prelude::FluentBuilder as _, px, AppContext as _, Context, Entity,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render, Styled as _, Window,
+    WindowOptions,
 };
 use gpui_component::{
     button::{Button, ButtonVariants as _},
@@ -35,7 +35,7 @@ use crate::traits::PromptHost;
 use browser_core::PermissionKind;
 use interaction_arbiter::{InteractionArbiter, SurfaceId};
 
-const DEFAULT_CONSOLE_URL: &str = "http://127.0.0.1:3010/";
+const DEFAULT_CONSOLE_URL: &str = "https://v2.theoremharness.com/";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum OmniboxVerb {
@@ -48,6 +48,7 @@ struct CommonPlaceRoot {
     webview: Entity<WebView>,
     address_input: Entity<InputState>,
     verb: OmniboxVerb,
+    console_base_url: String,
     _bridge: Arc<LoopbackBridge>,
     prompts: NativePromptQueue,
     rail: CapabilityRail,
@@ -87,7 +88,7 @@ impl CommonPlaceRoot {
                 };
                 let target = format!(
                     "{base}#{kind}={query}",
-                    base = DEFAULT_CONSOLE_URL.trim_end_matches('/'),
+                    base = self.console_base_url.trim_end_matches('/'),
                     query = urlencoding_lite(&trimmed)
                 );
                 if !self.wry_crashed {
@@ -208,9 +209,7 @@ impl CommonPlaceRoot {
                 Button::new("omnibox-submit")
                     .primary()
                     .label("Submit")
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.submit_omnibox(window, cx)
-                    })),
+                    .on_click(cx.listener(|this, _, window, cx| this.submit_omnibox(window, cx))),
             )
     }
 
@@ -241,16 +240,14 @@ impl CommonPlaceRoot {
                         }
                     })),
             )
-            .child(
-                Button::new("perm-deny")
-                    .label("Deny")
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if let Some(id) = id {
-                            let _ = this.prompts.resolve(id, false);
-                            cx.notify();
-                        }
-                    })),
-            )
+            .child(Button::new("perm-deny").label("Deny").on_click(cx.listener(
+                move |this, _, _, cx| {
+                    if let Some(id) = id {
+                        let _ = this.prompts.resolve(id, false);
+                        cx.notify();
+                    }
+                },
+            )))
     }
 
     fn render_rail(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -367,17 +364,14 @@ pub fn run() -> Result<()> {
                     (child, pane_host)
                 };
                 let webview = cx.new(|cx| WebView::new(child, window, cx));
-                let address_input = cx.new(|cx| {
-                    InputState::new(window, cx).default_value(console_url.as_str())
-                });
+                let address_input =
+                    cx.new(|cx| InputState::new(window, cx).default_value(console_url.as_str()));
 
                 let mut prompts = NativePromptQueue::new();
                 // Demo strip so chrome is visible without a live grant path.
                 if std::env::var_os("COMMONPLACE_DEMO_PERMISSION").is_some() {
-                    let _ = prompts.enqueue_permission(
-                        "https://example.com",
-                        PermissionKind::Geolocation,
-                    );
+                    let _ = prompts
+                        .enqueue_permission("https://example.com", PermissionKind::Geolocation);
                 }
 
                 let mut rail = CapabilityRail::new();
@@ -416,12 +410,12 @@ pub fn run() -> Result<()> {
                                         OmniboxVerb::Go => canonicalize_go_url(&trimmed),
                                         OmniboxVerb::Ask => format!(
                                             "{}#ask={}",
-                                            DEFAULT_CONSOLE_URL.trim_end_matches('/'),
+                                            this.console_base_url.trim_end_matches('/'),
                                             urlencoding_lite(&trimmed)
                                         ),
                                         OmniboxVerb::Find => format!(
                                             "{}#find={}",
-                                            DEFAULT_CONSOLE_URL.trim_end_matches('/'),
+                                            this.console_base_url.trim_end_matches('/'),
                                             urlencoding_lite(&trimmed)
                                         ),
                                     };
@@ -438,6 +432,7 @@ pub fn run() -> Result<()> {
                         webview,
                         address_input: address_input.clone(),
                         verb: OmniboxVerb::Go,
+                        console_base_url: console_url.clone(),
                         _bridge: Arc::clone(&bridge),
                         prompts,
                         rail,
@@ -493,6 +488,11 @@ fn trusted_origin(console_url: &str) -> Result<String> {
     if !matches!(parsed.scheme(), "http" | "https") {
         bail!("COMMONPLACE_CONSOLE_URL must use http or https");
     }
+    if parsed.scheme() == "http"
+        && !matches!(parsed.host_str(), Some("localhost" | "127.0.0.1" | "::1"))
+    {
+        bail!("COMMONPLACE_CONSOLE_URL may use http only for a loopback development host");
+    }
     let origin = parsed.origin().ascii_serialization();
     if origin == "null" {
         bail!("COMMONPLACE_CONSOLE_URL must have a concrete origin");
@@ -531,10 +531,20 @@ mod tests {
     #[test]
     fn console_origin_is_exact_and_drops_path() {
         assert_eq!(
+            trusted_origin("https://v2.theoremharness.com/workspace?x=1").unwrap(),
+            "https://v2.theoremharness.com"
+        );
+        assert!(trusted_origin("http://example.com/").is_err());
+        assert_eq!(
             trusted_origin("http://127.0.0.1:3010/workspace?x=1").unwrap(),
             "http://127.0.0.1:3010"
         );
         assert!(trusted_origin("file:///tmp/console/index.html").is_err());
+    }
+
+    #[test]
+    fn production_console_default_is_the_canonical_commonplace_origin() {
+        assert_eq!(DEFAULT_CONSOLE_URL, "https://v2.theoremharness.com/");
     }
 
     #[test]

@@ -1,26 +1,28 @@
 # CommonPlace Desktop
 
-The packaged CommonPlace desktop app combines the Vite/React shell in `src/`
-with the Tauri backend in `src-tauri/`. `tauri.conf.json` points the main window
-at the local Vite server in development and packages the generated `dist`
-directory for release builds.
+The packaged CommonPlace desktop app combines the Tauri backend in `src-tauri/`
+with two deliberately separate webview realms. The main window loads the
+canonical hosted CommonPlace Console at `https://v2.theoremharness.com`; the
+local Vite build contains only `pet.html`, the chrome-free PET and composer
+extension owned by the same `CommonPlace.app` process.
 
-The canonical hosted product is `apps/console` at
-`https://v2.theoremharness.com`. The desktop shell remains a separate native
-host for local browsing and Tauri commands; it does not compile, import, or
-package the retired web application.
+The deprecated local desktop renderer remains available only as a source-level
+development harness. It is not a configured Tauri launch target and is not
+included in the packaged Vite entry graph.
 
 The native command layer is implemented in
 `../../crates/commonplace-desktop-runtime`. It starts the local RustyRed node,
 starts the durable `commonplace-api` loopback server, and owns the Theorem
 receiver loop while the underlying Theorem/RustyRed crates are still sourced
-from the sibling Theorem checkout.
+from the sibling Theorem checkout. The PET Rust plugin is pinned to the merged
+Theorem revision in Cargo; the Swift helper preparation script verifies the
+same revision and accepts an alternate checkout through `THEOREM_SOURCE_ROOT`.
 
 ## Commands
 
 - `npm run dev` starts the Tauri app and its Vite frontend.
-- `npm run frontend:dev` starts the browser-only frontend harness.
-- `npm run frontend:build` compiles the packaged frontend assets.
+- `npm run frontend:dev` starts the local PET/development harness.
+- `npm run frontend:build` compiles the PET-only packaged frontend assets.
 - `npm run tauri -- build` builds the native package.
 
 ## Recommended IDE Setup

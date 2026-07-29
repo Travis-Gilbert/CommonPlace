@@ -1,14 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import { AppProvider } from "./state/store";
-import "./styles/global.css";
-import "./styles/app.css";
+
+import { PetSurface } from "./features/pet/PetSurface";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <AppProvider>
-      <App />
-    </AppProvider>
+    <PetSurface />
   </React.StrictMode>,
 );

@@ -165,7 +165,7 @@ export function createCaptureQueue({
       if (entry.nextAttemptAt > now()) break;
 
       entry.state = "sending";
-      entry.attempts += 1;
+      entry.attempts = Math.min(entry.attempts + 1, maxAttempts);
       entry.updatedAt = now();
       await persist(entries);
 
@@ -201,10 +201,12 @@ export function createCaptureQueue({
       entry.lastError = errorMessage(result);
       const retryable =
         result.retryable ?? isRetryableCaptureStatus(result.status ?? 0);
-      if (retryable && entry.attempts < maxAttempts) {
+      if (retryable) {
         entry.state = "kept";
         entry.nextAttemptAt =
-          now() + retryBaseMs * 2 ** Math.max(0, entry.attempts - 1);
+          now() +
+          retryBaseMs *
+            2 ** Math.min(maxAttempts - 1, Math.max(0, entry.attempts - 1));
       } else {
         entry.state = "error";
       }

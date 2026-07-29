@@ -25,9 +25,13 @@ root; retire it with `scripts/retire-techdev-clone.sh` (see
 - `apps/Console/` is the real Next.js CommonPlace frontend migrated from
   `travisgilbert.me`, including the `/commonplace` route and the existing
   desktop static export script.
-- `apps/desktop/` is the only Tauri product shell. It owns the main CommonPlace
-  window plus a frameless PET extension window that contains only the current
-  CommonPlace pixel pet and composer; there is no separate PET app or bundle.
+- `apps/browser-native/` is the canonical GPUI/Wry mixed-realm browser shell:
+  native chrome around the hosted CommonPlace React surface and parented Servo
+  panes.
+- `apps/desktop/` is the existing Tauri edition. Its main window loads
+  `https://v2.theoremharness.com`, and the same `CommonPlace.app` process owns a
+  frameless PET extension window containing only the current CommonPlace pixel
+  pet and composer; there is no separate PET app or bundle.
 - `apps/commonplace-api/` is the backend GraphQL/MCP block contract moved into
   the product repo. It currently bridges to the sibling Theorem checkout for
   RustyRed and harness crates.

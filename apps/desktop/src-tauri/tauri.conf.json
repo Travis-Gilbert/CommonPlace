@@ -14,13 +14,14 @@
       {
         "label": "main",
         "title": "CommonPlace",
+        "url": "https://v2.theoremharness.com/",
         "width": 1280,
         "height": 820
       },
       {
         "label": "pet",
         "title": "CommonPlace Pet",
-        "url": "index.html?surface=pet",
+        "url": "pet.html",
         "width": 380,
         "height": 292,
         "minWidth": 320,

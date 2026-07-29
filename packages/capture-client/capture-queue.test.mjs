@@ -179,6 +179,25 @@ test("persists before send and keeps a retryable failure", async () => {
   assert.equal(entry.lastError, "offline");
 });
 
+test("marks a non-retryable failure as error", async () => {
+  const storage = memoryStorage();
+  const queue = createCaptureQueue({
+    storage,
+    send: async () => ({
+      ok: false,
+      retryable: false,
+      status: 400,
+      error: "invalid capture",
+    }),
+  });
+
+  await queue.enqueue(envelope());
+  const [entry] = await queue.drain();
+  assert.equal(entry.state, "error");
+  assert.equal(entry.attempts, 1);
+  assert.equal(entry.lastError, "invalid capture");
+});
+
 test("keeps staged file paths out of the wire envelope", async () => {
   const storage = memoryStorage();
   let observedEnvelope;
@@ -266,19 +285,22 @@ test("does not overtake an older capture during backoff", async () => {
   assert.deepEqual(calls, ["local-first", "local-first"]);
 });
 
-test("drains in order and bounds retries", async () => {
+test("keeps retryable failures ordered with bounded backoff", async () => {
   const storage = memoryStorage();
   const calls = [];
+  let currentTime = 100;
+  let firstAvailable = false;
   const queue = createCaptureQueue({
     storage,
     maxAttempts: 2,
-    retryBaseMs: 0,
+    retryBaseMs: 10,
+    now: () => currentTime,
     send: async (capture) => {
       calls.push(capture.client_id);
-      if (capture.client_id === "local-first") {
+      if (capture.client_id === "local-first" && !firstAvailable) {
         return { ok: false, retryable: true, status: 503 };
       }
-      return { ok: true, receipt: { id: "item-second" } };
+      return { ok: true, receipt: { id: `item-${capture.client_id}` } };
     },
   });
 
@@ -286,10 +308,25 @@ test("drains in order and bounds retries", async () => {
   await queue.enqueue(envelope("local-second"));
   await queue.drain();
   assert.deepEqual(calls, ["local-first"]);
+  currentTime += 10;
+  await queue.drain();
+  let entries = await queue.list();
+  assert.deepEqual(calls, ["local-first", "local-first"]);
+  assert.equal(entries[0].state, "kept");
+  assert.equal(entries[0].attempts, 2);
+  assert.equal(entries[0].nextAttemptAt, 130);
+
+  currentTime = 130;
+  firstAvailable = true;
   const completed = await queue.drain();
-  const entries = await queue.list();
-  assert.deepEqual(calls, ["local-first", "local-first", "local-second"]);
-  assert.equal(entries[0].state, "error");
-  assert.equal(entries.length, 1);
+  entries = await queue.list();
+  assert.deepEqual(calls, [
+    "local-first",
+    "local-first",
+    "local-first",
+    "local-second",
+  ]);
+  assert.equal(completed[0].state, "sent");
   assert.equal(completed[1].state, "sent");
+  assert.deepEqual(entries, []);
 });

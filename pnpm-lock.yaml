@@ -312,7 +312,7 @@ importers:
   apps/desktop:
     dependencies:
       '@commonplace/capture-client':
-        specifier: file:../../packages/capture-client
+        specifier: workspace:*
         version: link:../../packages/capture-client
       '@tauri-apps/api':
         specifier: ^2
