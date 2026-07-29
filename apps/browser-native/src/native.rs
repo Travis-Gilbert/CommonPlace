@@ -22,7 +22,7 @@ use gpui_component::{
 };
 use gpui_wry::WebView;
 use raw_window_handle::HasWindowHandle as _;
-use url::Url;
+use url::{Host, Url};
 
 use crate::chrome::{
     content_bottom_inset, BOTTOM_DOCK_HEIGHT, OMNIBOX_ROW_HEIGHT, PERMISSION_STRIP_HEIGHT,
@@ -503,11 +503,24 @@ fn trusted_origin(console_url: &str) -> Result<String> {
 fn canonicalize_go_url(input: &str) -> String {
     if input.contains("://") {
         input.to_string()
-    } else if input.starts_with("localhost") || input.starts_with("127.0.0.1") {
+    } else if bare_input_is_loopback(input) {
         format!("http://{input}")
     } else {
         format!("https://{input}")
     }
+}
+
+fn bare_input_is_loopback(input: &str) -> bool {
+    Url::parse(&format!("http://{input}"))
+        .ok()
+        .and_then(|url| {
+            url.host().map(|host| match host {
+                Host::Domain(domain) => domain.eq_ignore_ascii_case("localhost"),
+                Host::Ipv4(address) => address.is_loopback(),
+                Host::Ipv6(address) => address.is_loopback(),
+            })
+        })
+        .unwrap_or(false)
 }
 
 fn urlencoding_lite(value: &str) -> String {
@@ -550,6 +563,26 @@ mod tests {
     #[test]
     fn go_url_canonicalizes_bare_hosts() {
         assert_eq!(canonicalize_go_url("example.com"), "https://example.com");
+        assert_eq!(
+            canonicalize_go_url("localhost:3010/workspace"),
+            "http://localhost:3010/workspace"
+        );
+        assert_eq!(
+            canonicalize_go_url("127.0.0.1:3010/workspace"),
+            "http://127.0.0.1:3010/workspace"
+        );
+        assert_eq!(
+            canonicalize_go_url("[::1]:3010/workspace"),
+            "http://[::1]:3010/workspace"
+        );
+        assert_eq!(
+            canonicalize_go_url("localhost.com"),
+            "https://localhost.com"
+        );
+        assert_eq!(
+            canonicalize_go_url("127.0.0.1.example"),
+            "https://127.0.0.1.example"
+        );
         assert_eq!(
             canonicalize_go_url("http://127.0.0.1:3010/"),
             "http://127.0.0.1:3010/"

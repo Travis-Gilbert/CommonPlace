@@ -34,6 +34,7 @@ readonly REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly PIN_FILE="${PANE_HOST_PIN_FILE:-${THEOREM_BROWSER_PIN_FILE:-$REPO_ROOT/apps/browser-native/browser-sidecar.pin}}"
 readonly BINARIES_DIR="${PANE_HOST_BINARIES_DIR:-${THEOREM_BROWSER_BINARIES_DIR:-$REPO_ROOT/apps/browser-native/binaries}}"
 readonly GITHUB_REPO="${PANE_HOST_REPO:-${THEOREM_BROWSER_REPO:-Travis-Gilbert/Theorem}}"
+readonly RELEASE_DIR="${PANE_HOST_RELEASE_DIR:-${THEOREM_BROWSER_RELEASE_DIR:-}}"
 readonly UNSET_SHA_HINT="run 'scripts/fetch-pane-host.sh --update' after the release is published, then commit the pin"
 
 work_dir=""
@@ -95,33 +96,56 @@ read_pinned_targets() {
 # Download one release asset into $work_dir. Prefers `gh` so the script works
 # against a private repository; falls back to curl for public releases.
 #
-# THEOREM_BROWSER_RELEASE_DIR points the fetch at a local directory of release
-# assets instead of the network. It exists so the checksum-verification paths
-# are testable offline (and so an air-gapped install can stage assets by hand);
-# verification is identical either way.
+# PANE_HOST_RELEASE_DIR (or the legacy THEOREM_BROWSER_RELEASE_DIR alias) points
+# the fetch at a local directory of release assets instead of the network. It
+# exists so the checksum-verification paths are testable offline and an
+# air-gapped install can stage assets by hand; verification is identical.
 download_asset() {
-    local tag=$1 asset=$2 dest_dir=$3
-    if [[ -n "${THEOREM_BROWSER_RELEASE_DIR:-}" ]]; then
-        local staged="${THEOREM_BROWSER_RELEASE_DIR}/${asset}"
-        [[ -f "$staged" ]] || die "staged asset not found: $staged"
+    local tag=$1 asset=$2 dest_dir=$3 required=${4:-true}
+    if [[ -n "$RELEASE_DIR" ]]; then
+        local staged="${RELEASE_DIR}/${asset}"
+        if [[ ! -f "$staged" ]]; then
+            if [[ "$required" == true ]]; then
+                die "staged asset not found: $staged"
+            fi
+            return 1
+        fi
         cp "$staged" "$dest_dir/$asset"
-        [[ -s "$dest_dir/$asset" ]] || die "staged asset is empty: $asset"
+        if [[ ! -s "$dest_dir/$asset" ]]; then
+            if [[ "$required" == true ]]; then
+                die "staged asset is empty: $asset"
+            fi
+            return 1
+        fi
         return 0
     fi
     if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-        gh release download "$tag" \
+        if ! gh release download "$tag" \
             --repo "$GITHUB_REPO" \
             --pattern "$asset" \
             --dir "$dest_dir" \
-            --clobber \
-            || die "gh could not download '$asset' from release '$tag' of $GITHUB_REPO"
+            --clobber; then
+            if [[ "$required" == true ]]; then
+                die "gh could not download '$asset' from release '$tag' of $GITHUB_REPO"
+            fi
+            return 1
+        fi
     else
         require_command curl
         local url="https://github.com/$GITHUB_REPO/releases/download/$tag/$asset"
-        curl --fail --silent --show-error --location "$url" --output "$dest_dir/$asset" \
-            || die "could not download $url (private repo? authenticate with 'gh auth login')"
+        if ! curl --fail --silent --show-error --location "$url" --output "$dest_dir/$asset"; then
+            if [[ "$required" == true ]]; then
+                die "could not download $url (private repo? authenticate with 'gh auth login')"
+            fi
+            return 1
+        fi
     fi
-    [[ -s "$dest_dir/$asset" ]] || die "downloaded asset is empty: $asset"
+    if [[ ! -s "$dest_dir/$asset" ]]; then
+        if [[ "$required" == true ]]; then
+            die "downloaded asset is empty: $asset"
+        fi
+        return 1
+    fi
 }
 
 # Verify the tarball against both the pin and the release's own .sha256 sidecar.
@@ -166,7 +190,7 @@ install_target() {
     mkdir -p "$dest_dir"
 
     log "downloading $asset from $tag"
-    if ! download_asset "$tag" "$asset" "$dest_dir" 2>/dev/null; then
+    if ! download_asset "$tag" "$asset" "$dest_dir" false 2>/dev/null; then
         # Compatibility with Theorem's current release asset name.
         prefix="theorem-browser"
         asset="${prefix}-${triple}.tar.gz"
@@ -244,7 +268,7 @@ main() {
     require_command awk
     [[ -f "$PIN_FILE" ]] || die "pin file not found: $PIN_FILE"
 
-    work_dir="$(mktemp -d)"
+    work_dir="$(mktemp -d "${TMPDIR:-/tmp}/commonplace-pane-host.XXXXXX")"
 
     local tag
     if [[ -n "$tag_override" ]]; then

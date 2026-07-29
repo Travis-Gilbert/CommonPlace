@@ -4,7 +4,10 @@
 //! SPEC-THEOREM-BUILD-GRAPH-1.0, focus/IME/overlay API seams are no longer
 //! designed Blocked points; live capture files remain optional Product evidence.
 
-use crate::chrome::{content_top_inset, RAIL_WIDTH_COLLAPSED};
+use crate::chrome::{
+    content_top_inset, OMNIBOX_ROW_HEIGHT, PERMISSION_STRIP_HEIGHT, RAIL_WIDTH_COLLAPSED,
+    TITLE_BAR_HEIGHT,
+};
 use crate::loopback::{LoopbackBridge, NativeBlock};
 use crate::surfaces::{
     zorder_violations, CommonPlaceSurfaceHost, ContentRect, MockCommonPlaceHost, MockServoHost,
@@ -50,7 +53,8 @@ pub fn run_proof_window() -> Vec<ProofPoint> {
 
 fn proof_native_top_bar() -> ProofPoint {
     let top = content_top_inset(true);
-    if top > RAIL_WIDTH_COLLAPSED {
+    let expected = TITLE_BAR_HEIGHT + OMNIBOX_ROW_HEIGHT + PERMISSION_STRIP_HEIGHT;
+    if (top - expected).abs() <= f32::EPSILON {
         ProofPoint {
             id: "native_top_bar",
             status: ProofStatus::Passed,

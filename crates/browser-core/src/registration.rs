@@ -85,7 +85,8 @@ pub fn bundle_declares_url_scheme(probe: &RegistrationProbe, scheme: &str) -> bo
     let Ok(text) = String::from_utf8(bytes) else {
         return false;
     };
-    text.contains(scheme)
+    let declaration = format!("<string>{scheme}</string>");
+    text.contains(&declaration)
         && (text.contains("CFBundleURLSchemes") || text.contains("CFBundleURLTypes"))
 }
 
@@ -213,5 +214,25 @@ mod tests {
             info_plist_path: Some(PathBuf::from("/no/such/Info.plist")),
         };
         assert!(!bundle_declares_url_scheme(&probe, "commonplace"));
+    }
+
+    #[test]
+    fn scheme_substrings_do_not_count_as_declarations() {
+        let plist = write_temp(
+            r#"<?xml version="1.0"?>
+            <plist><dict>
+              <key>CFBundleURLTypes</key>
+              <array><dict>
+                <key>CFBundleURLSchemes</key>
+                <array><string>commonplace-preview</string></array>
+              </dict></array>
+            </dict></plist>"#,
+        );
+        let probe = RegistrationProbe {
+            capture_path: None,
+            info_plist_path: Some(plist.clone()),
+        };
+        assert!(!bundle_declares_url_scheme(&probe, "commonplace"));
+        let _ = fs::remove_file(plist);
     }
 }
