@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// SOURCING: vitest + react-dom — F2 rail click-to-add (SPEC F2).
+// SOURCING: vitest + react-dom: F2 rail click-to-add (SPEC F2).
 
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';

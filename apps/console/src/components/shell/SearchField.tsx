@@ -83,13 +83,14 @@ export function SearchPanel({ host }: { host: ConsoleBlockHost }) {
   const mode = useShellStore((state) => state.searchFieldMode);
   const openSearchPanel = useShellStore((state) => state.openSearchPanel);
   const closeSearchPanel = useShellStore((state) => state.closeSearchPanel);
+  const text = useShellStore((state) => state.searchFieldQuery);
+  const setText = useShellStore((state) => state.setSearchFieldQuery);
   const selectRecord = useShellStore((state) => state.selectRecord);
   const toggleReducedMotionPreview = useShellStore((state) => state.toggleReducedMotionPreview);
   const tenant = useShellStore((state) => state.tenant);
   const { placeBlock } = usePlaceBlock('default');
   const commonplaceHost = useHost();
   const durations = useMotionDurations();
-  const [text, setText] = useState('');
   const [layout, setLayout] = useState<readonly ObjectRef[]>([]);
   const [objects, setObjects] = useState<readonly ObjectRef[]>([]);
   /** The object an addressed id resolved to, when this console holds it. Null

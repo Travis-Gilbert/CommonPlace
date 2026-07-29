@@ -47,6 +47,7 @@ export type WorkspaceEvent =
   | { type: "block_placed"; block: BlockInstance }
   | { type: "presence"; presence: HostPresence }
   | { type: "lens"; lens: HostLens }
+  | { type: "open_target"; target: OpenTarget }
   | { type: "extension_points"; contributions: ExtensionContribution[] }
   | { type: "workspace_reset"; workspaceId: WorkspaceId };
 

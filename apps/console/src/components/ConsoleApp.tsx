@@ -19,6 +19,7 @@ import {
 import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { HostProvider } from '@/lib/commonplace-host/HostProvider';
+import { HostOpenTargetBridge } from '@/components/host/HostOpenTargetBridge';
 import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
@@ -150,11 +151,11 @@ export function ConsoleApp({
         return;
       }
       if (target.kind === 'find') {
-        useShellStore.getState().openSearchPanel('search');
+        useShellStore.getState().openSearchPanel('search', target.query);
         return;
       }
       if (target.kind === 'ask') {
-        useShellStore.getState().openSearchPanel('command');
+        useShellStore.getState().openSearchPanel('command', target.query);
         return;
       }
       if (target.kind === 'block') {
@@ -220,6 +221,7 @@ export function ConsoleApp({
       <MaterialLayer />
       <div className="relative z-10 h-full">
         <HostProvider queryObjects={queryObjects} onOpenTarget={onOpenTarget}>
+          <HostOpenTargetBridge onOpenTarget={onOpenTarget} />
           <SessionProvider>
             <RuntimeBoundary>
               <IntuiShell host={host} />

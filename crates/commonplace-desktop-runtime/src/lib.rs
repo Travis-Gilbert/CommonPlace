@@ -13,7 +13,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{path::BaseDirectory, Emitter, Manager, WebviewUrl};
+use tauri::{path::BaseDirectory, Emitter, Listener, Manager, WebviewUrl};
 use tokio::sync::oneshot;
 
 const HOSTED_ENDPOINT: &str = "https://rustyredcore-theorem-production.up.railway.app/mcp";
@@ -2517,6 +2517,19 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             // owns the PET webview lifecycle, so attach the native behavior
             // here after Tauri has created the host's `pet` window.
             theorem_pet_lib::attach_hosted_window(app.handle())?;
+            let app_handle = app.handle().clone();
+            app.listen("pet:open-settings", move |_| {
+                let Some(main_window) = app_handle.get_webview_window("main") else {
+                    return;
+                };
+                if let Ok(settings_url) =
+                    tauri::Url::parse("https://v2.theoremharness.com/settings")
+                {
+                    let _ = main_window.navigate(settings_url);
+                }
+                let _ = main_window.show();
+                let _ = main_window.set_focus();
+            });
             // DESIGN-THEOREM-URI section 3: the desktop registers `theorem://`
             // so a link anywhere on the machine opens the object in the shell.
             // macOS reads the scheme from the bundle's Info.plist, which the

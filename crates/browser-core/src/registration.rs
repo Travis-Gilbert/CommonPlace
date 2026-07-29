@@ -65,7 +65,8 @@ pub fn default_browser_registration_status() -> RegistrationStatus {
 }
 
 pub fn default_browser_registration_status_with(probe: &RegistrationProbe) -> RegistrationStatus {
-    protocol_registration_status_with(probe)
+    let _ = probe;
+    RegistrationStatus::NotVerified
 }
 
 /// True when a capture receipt path exists (evidence of the OS dialog flow).
@@ -175,10 +176,12 @@ mod tests {
         };
         assert!(bundle_declares_url_scheme(&probe, "commonplace"));
         assert!(registration_capture_present(&probe));
-        assert_eq!(
-            protocol_registration_status_with(&probe),
+        let expected = if cfg!(target_os = "macos") {
             RegistrationStatus::VerifiedOnMacos
-        );
+        } else {
+            RegistrationStatus::NotVerified
+        };
+        assert_eq!(protocol_registration_status_with(&probe), expected);
         let _ = fs::remove_file(plist);
         let _ = fs::remove_file(capture);
     }
@@ -214,6 +217,15 @@ mod tests {
             info_plist_path: Some(PathBuf::from("/no/such/Info.plist")),
         };
         assert!(!bundle_declares_url_scheme(&probe, "commonplace"));
+    }
+
+    #[test]
+    fn protocol_evidence_never_verifies_default_browser_ownership() {
+        let probe = RegistrationProbe::default();
+        assert_eq!(
+            default_browser_registration_status_with(&probe),
+            RegistrationStatus::NotVerified
+        );
     }
 
     #[test]

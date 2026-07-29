@@ -22,6 +22,7 @@ use gpui_component::{
 };
 use gpui_wry::WebView;
 use raw_window_handle::HasWindowHandle as _;
+use serde_json::json;
 use url::{Host, Url};
 
 use crate::chrome::{
@@ -49,7 +50,7 @@ struct CommonPlaceRoot {
     address_input: Entity<InputState>,
     verb: OmniboxVerb,
     console_base_url: String,
-    _bridge: Arc<LoopbackBridge>,
+    bridge: Arc<LoopbackBridge>,
     prompts: NativePromptQueue,
     rail: CapabilityRail,
     arbiter: InteractionArbiter,
@@ -66,37 +67,58 @@ impl CommonPlaceRoot {
         if trimmed.is_empty() {
             return;
         }
+        let canonical_url = match self.verb {
+            OmniboxVerb::Go => {
+                let url = canonicalize_go_url(&trimmed);
+                self.bridge.place_block_from_native(
+                    "default",
+                    "browser",
+                    json!({ "url": url, "fromOmnibox": "go" }),
+                );
+                Some(url)
+            }
+            OmniboxVerb::Ask => {
+                self.bridge
+                    .open_target_from_native("default", json!({ "kind": "ask", "query": trimmed }));
+                None
+            }
+            OmniboxVerb::Find => {
+                self.bridge.open_target_from_native(
+                    "default",
+                    json!({ "kind": "find", "query": trimmed }),
+                );
+                None
+            }
+        };
+        if let Some(url) = canonical_url {
+            self.address_input.update(cx, |input, cx| {
+                input.set_value(url, window, cx);
+            });
+        }
+        cx.notify();
+    }
+
+    fn submit_omnibox_without_window(&mut self, cx: &mut Context<Self>) {
+        let raw = self.address_input.read(cx).value().to_string();
+        let trimmed = raw.trim().to_string();
+        if trimmed.is_empty() {
+            return;
+        }
         match self.verb {
             OmniboxVerb::Go => {
                 let url = canonicalize_go_url(&trimmed);
-                self.address_input.update(cx, |input, cx| {
-                    input.set_value(url.clone(), window, cx);
-                });
-                if !self.wry_crashed {
-                    self.webview.update(cx, |view, _| {
-                        view.load_url(&url);
-                    });
-                }
-            }
-            OmniboxVerb::Ask | OmniboxVerb::Find => {
-                // React realm handles ask/find via openTarget after the page
-                // loads; push a query hash the console SearchPanel can observe.
-                let kind = if self.verb == OmniboxVerb::Ask {
-                    "ask"
-                } else {
-                    "find"
-                };
-                let target = format!(
-                    "{base}#{kind}={query}",
-                    base = self.console_base_url.trim_end_matches('/'),
-                    query = urlencoding_lite(&trimmed)
+                self.bridge.place_block_from_native(
+                    "default",
+                    "browser",
+                    json!({ "url": url, "fromOmnibox": "go" }),
                 );
-                if !self.wry_crashed {
-                    self.webview.update(cx, |view, _| {
-                        view.load_url(&target);
-                    });
-                }
             }
+            OmniboxVerb::Ask => self
+                .bridge
+                .open_target_from_native("default", json!({ "kind": "ask", "query": trimmed })),
+            OmniboxVerb::Find => self
+                .bridge
+                .open_target_from_native("default", json!({ "kind": "find", "query": trimmed })),
         }
         cx.notify();
     }
@@ -114,7 +136,7 @@ impl CommonPlaceRoot {
             return;
         }
         self.wry_crashed = false;
-        let url = self.address_input.read(cx).value().to_string();
+        let url = self.console_base_url.clone();
         self.webview.update(cx, |view, _| {
             view.show();
             view.load_url(&url);
@@ -267,9 +289,20 @@ impl CommonPlaceRoot {
                 Button::new(format!("rail-{id}"))
                     .label(label)
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        let _ = this.rail.click_add(&id);
-                        // Placement is completed in the React realm via the
-                        // HostCapabilityRailBridge; native rail records intent.
+                        if let Some(item) = this.rail.click_add(&id) {
+                            let kind = item
+                                .pane_kind
+                                .as_deref()
+                                .or(item.composer_verb.as_deref())
+                                .unwrap_or("note")
+                                .to_string();
+                            let contribution_id = item.id.clone();
+                            this.bridge.place_block_from_native(
+                                "default",
+                                &kind,
+                                json!({ "fromRail": contribution_id }),
+                            );
+                        }
                         cx.notify();
                     })),
             );
@@ -403,25 +436,8 @@ pub fn run() -> Result<()> {
                         &address_input,
                         |this: &mut CommonPlaceRoot, _, event: &InputEvent, cx| {
                             if matches!(event, InputEvent::PressEnter { .. }) {
-                                let raw = this.address_input.read(cx).value().to_string();
-                                let trimmed = raw.trim().to_string();
-                                if !trimmed.is_empty() && !this.wry_crashed {
-                                    let url = match this.verb {
-                                        OmniboxVerb::Go => canonicalize_go_url(&trimmed),
-                                        OmniboxVerb::Ask => format!(
-                                            "{}#ask={}",
-                                            this.console_base_url.trim_end_matches('/'),
-                                            urlencoding_lite(&trimmed)
-                                        ),
-                                        OmniboxVerb::Find => format!(
-                                            "{}#find={}",
-                                            this.console_base_url.trim_end_matches('/'),
-                                            urlencoding_lite(&trimmed)
-                                        ),
-                                    };
-                                    this.webview.update(cx, |view, _| {
-                                        view.load_url(&url);
-                                    });
+                                if !this.wry_crashed {
+                                    this.submit_omnibox_without_window(cx);
                                 }
                             }
                         },
@@ -433,7 +449,7 @@ pub fn run() -> Result<()> {
                         address_input: address_input.clone(),
                         verb: OmniboxVerb::Go,
                         console_base_url: console_url.clone(),
-                        _bridge: Arc::clone(&bridge),
+                        bridge: Arc::clone(&bridge),
                         prompts,
                         rail,
                         arbiter,
@@ -521,20 +537,6 @@ fn bare_input_is_loopback(input: &str) -> bool {
             })
         })
         .unwrap_or(false)
-}
-
-fn urlencoding_lite(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(byte as char);
-            }
-            b' ' => out.push('+'),
-            _ => out.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    out
 }
 
 #[cfg(test)]

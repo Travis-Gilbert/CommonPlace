@@ -26,6 +26,18 @@ git -C "$theorem_root" diff --quiet "$theorem_pet_rev" -- apps/theorem-voice-hel
   echo "Set THEOREM_SOURCE_ROOT to a checkout of that revision before packaging." >&2
   exit 1
 }
+untracked_helper_files="$(
+  git -C "$theorem_root" ls-files \
+    --others \
+    --exclude-standard \
+    -- apps/theorem-voice-helper
+)"
+if [[ -n "$untracked_helper_files" ]]; then
+  echo "Theorem voice helper contains files outside pinned PET revision $theorem_pet_rev:" >&2
+  printf '%s\n' "$untracked_helper_files" >&2
+  echo "Set THEOREM_SOURCE_ROOT to a clean checkout of that revision before packaging." >&2
+  exit 1
+fi
 test -f "$helper_dir/Package.swift" || {
   echo "Theorem voice helper source was not found at $helper_dir" >&2
   exit 1
