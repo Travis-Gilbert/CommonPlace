@@ -3,7 +3,7 @@
 You have too many tools. They need a CommonPlace.
 
 This repository is the product home for CommonPlace: the deployed workspace at
-`travisgilbert.me/commonplace`, its desktop shell, shared UI packages, and the
+
 contracts it consumes from RustyRed and Theorem.
 
 ## Canonical checkout
