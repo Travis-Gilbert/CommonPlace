@@ -14,6 +14,7 @@ description = "CommonPlace native browser shell: GPUI behind Shell/DockHost/Surf
 license = "MIT"
 rust-version = "1.85"
 publish = false
+default-run = "browser-native"
 
 [features]
 default = ["mock"]
@@ -49,6 +50,16 @@ tungstenite = "0.28"
 url = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 wry = { version = "0.53.3", package = "lb-wry", optional = true }
+
+[[bin]]
+name = "browser-native"
+path = "src/main.rs"
+# Prefer this over fake-pane-host when `cargo run` is ambiguous.
+
+[[bin]]
+name = "fake-pane-host"
+path = "src/bin/fake-pane-host.rs"
+required-features = ["servo-pane"]
 
 [dev-dependencies]
 tempfile = "3"

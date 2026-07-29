@@ -12,39 +12,48 @@ gpui-component, and gpui-wry locked to the SHAs in `PINS.md` and `Cargo.lock`.
 | `dock` | DockArea layout persist / restore (center, left rail, right evidence, bottom) |
 | `prompts` | Native permission / takeover prompts from BrowserCore grant requests |
 | `rail` | Capability rail fed by extension-point contributions |
-| `surfaces` | **B5** mock Servo host + **B6** mock CommonPlace wry host + z-order law |
-| `loopback` | Authenticated typed WebSocket IPC on `127.0.0.1`; native block/layout state and subscription replay |
-| `native` | Real GPUI window, gpui-wry child surface, console bootstrap, exact-origin bridge policy |
-| `surfaces/native_parent` | `RawWindowHandle` to pane-protocol parent translation behind `servo-pane` |
+| `surfaces` | **B5** mock Servo + sidecar supervision + **B6** mock CommonPlace wry + z-order |
+| `surfaces/sidecar` | GPUI-edition pane-host supervisor (spawn / restart / reseed) |
+| `loopback` | Authenticated typed WebSocket IPC on `127.0.0.1` |
+| `native` | Real GPUI window, gpui-wry child, optional `PANE_HOST_BIN` sidecar |
+| `proof` | Scripted F3 ten-point proof window + B2 registration report |
 | `pins` | Documented commit SHAs for gpui / gpui-component / gpui-wry |
 | `lib` | `NativeShell` composing `browser-core` + `interaction-arbiter` |
 
 ## B5 / B6 status
 
-**B6 is wired through the native process boundary.** The gpui-wry child is
-configured to load `COMMONPLACE_CONSOLE_URL` (default `http://127.0.0.1:3010/`).
-Before page code runs, Wry injects a process-random bridge token and loopback
-endpoint. The token never appears in the console URL or WebSocket URL. The Rust
-integration test proves that a canonical block survives a socket-surface
-reconnect, and the `gpui` feature graph compiles under `cargo check`.
+**B4 chrome** — `native.rs` now composes TitleBar, omnibox (go/ask/find),
+permission strip, left rail, wry content hole, bottom dock, and a presence chip.
+Full DockArea multi-tab Servo layout is follow-on; flex chrome is the first
+honest control plane (z-order law: strips are siblings, not overlays).
 
-**B5 remains partial.** The native handle translation compiles under
-`servo-pane`, and `pane-host-servo` now resolves `browser-embed` from the
-canonical Theorem repo instead of a machine-local sibling path. Three upstream
-seams still prevent an honest runtime acceptance:
+**B5 — supervision + build-graph seams.**
+`PaneHostSupervisor` mirrors the Tauri plugin contract: spawn the out-of-process
+host, notice death, restart, and reseed open panes. Proven by
+`tests/sidecar_supervision.rs` against `fake-pane-host`. The GPUI process starts
+the sidecar when `PANE_HOST_BIN` is set (or after `scripts/fetch-pane-host.sh`
+installs the pinned binary from `browser-sidecar.pin`).
 
-1. The GPUI edition does not yet supervise and reseed the pane-host process.
-2. The pinned `browser-embed::set_bounds` consumes width and height but ignores
-   the panel x/y origin, so side-by-side DockArea placement is not expressible.
-3. `browser-embed` exposes no focus/keyboard/IME injection, and the named
-   SceneOS display-list producer patches are not present. No alternate Servo
-   patch was added.
+Theorem `browser-embed` seams (SPEC-THEOREM-BUILD-GRAPH-1.0 / SR-008):
+
+1. Parent panel x/y via child NSView (`position.rs`).
+2. Focus / keyboard / IME injection (`input.rs` + pane-protocol 0.2).
+3. SceneOS-shaped overlay producer (`overlay.rs` + `SetOverlay`).
+
+Default builds do not compile libservo; `pane-host-servo --features servo-from-source`
+is the escape hatch. Hash-verified fetch still needs published `browser-v*` sha256.
+
+**B6 — substrate + live kill UI; screenshot capture deferred.**
+Kill/restart state, loopback reconnect, and z-order law are covered by unit
+tests. The gpui build exposes Kill surface / Restart in the bottom dock.
+Screenshot proof uses `COMMONPLACE_F3_CAPTURE_*` env slots (see `--proof`).
 
 ## Build / test
 
 ```bash
 cargo test --manifest-path apps/browser-native/Cargo.toml
 cargo test --manifest-path apps/browser-native/Cargo.toml --features servo-pane
+cargo run --manifest-path apps/browser-native/Cargo.toml -- --proof
 cargo check --manifest-path apps/browser-native/Cargo.toml \
   --locked --no-default-features --features gpui,servo-pane
 ```
@@ -53,8 +62,10 @@ Default features run the mock shell acceptance tests without pulling GPUI.
 
 ## Run the real CommonPlace surface
 
-Build and serve the console on its configured port, then launch the native
-shell from a second terminal:
+The native shell loads the canonical CommonPlace product surface at
+`https://v2.theoremharness.com/` by default. For local Console development,
+build and serve the console on its configured port, then launch the native
+shell from a second terminal with an explicit loopback override:
 
 ```bash
 corepack pnpm --filter @commonplace/console run build
@@ -67,13 +78,15 @@ commit the secret.
 
 ```bash
 COMMONPLACE_CONSOLE_URL=http://127.0.0.1:3010/ \
+  PANE_HOST_BIN=/path/to/pane-host \
   cargo run --manifest-path apps/browser-native/Cargo.toml \
   --locked --no-default-features --features gpui,servo-pane
 ```
 
 The bridge handshake rejects any page origin other than the exact origin of
 `COMMONPLACE_CONSOLE_URL`, and every request must also present the injected
-per-process token.
+per-process token. Production URLs must use HTTPS; plain HTTP is accepted only
+for a loopback development host.
 
 ## Pins
 

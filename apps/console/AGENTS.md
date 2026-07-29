@@ -122,6 +122,7 @@ asks for inspiration, reference, mood, or direction.
 | Chat sidebar dock | fork of ibelick/motion-primitives `dock` under `components/ui/dock.tsx` (`motion/react`, magnification 44) | sole surface switcher in the chat sidebar |
 | Chat context tree | fork of Build UI filesystem-item under `components/ui/filesystem-item.tsx` | graph-object folders with include/exclude and unavailable honesty |
 | Composer material | `ComposerMaterial` (`@paper-design/shaders-react` GrainGradient) | scoped ShaderMount behind the chat composer; idle speed 0; no backdrop-filter |
+| Form selection controls | Radix UI Select and Checkbox through `components/ui/select.tsx` and `components/ui/checkbox.tsx` | keyboard and pointer selection, checked state, focus, and disabled behavior |
 | Context graph | D3 | deterministic ego graph layout and relation geometry |
 | Console neighborhood graph | `@cosmos.gl/graph` | WebGL paint, pan, zoom, and selection over fixed deterministic positions emitted by the shared Rust console core |
 | Proactivity graph | `@xyflow/react`, `@dagrejs/dagre`, and the existing `@commonplace/theorem-acp` state/session path | controlled denormalized dependency graph, deterministic topological layout, same-origin firing overlay, and pending compile-review gate |

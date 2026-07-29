@@ -1,0 +1,5 @@
+[toolchain]
+# Rust 1.97.1 currently ICEs while monomorphizing DBSP's dynamic star-join
+# aliases. Keep the desktop workspace on the latest known-good stable release.
+channel = "1.96.1"
+profile = "minimal"

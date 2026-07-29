@@ -13,7 +13,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{path::BaseDirectory, Emitter, Manager, WebviewUrl};
+use tauri::{path::BaseDirectory, Emitter, Listener, Manager, WebviewUrl};
 use tokio::sync::oneshot;
 
 const HOSTED_ENDPOINT: &str = "https://rustyredcore-theorem-production.up.railway.app/mcp";
@@ -618,7 +618,7 @@ fn tab_close(
     }
     let mut backend = state.lock().map_err(|error| error.to_string())?;
     backend.tabs.remove(&tab_id);
-    if backend.active_tab.as_deref() == Some(&tab_id) {
+    if backend.active_tab.as_deref() == Some(tab_id.as_str()) {
         backend.active_tab = None;
     }
     Ok(())
@@ -2504,11 +2504,32 @@ fn now_string() -> String {
 }
 
 pub fn run(context: tauri::Context<tauri::Wry>) {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(Mutex::new(DesktopBackendState::default()))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(theorem_pet_lib::plugin(
+            theorem_pet_lib::PetHostConfig::commonplace("pet"),
+        ))
         .setup(|app| {
+            // Plugins initialize before configured windows exist. CommonPlace
+            // owns the PET webview lifecycle, so attach the native behavior
+            // here after Tauri has created the host's `pet` window.
+            theorem_pet_lib::attach_hosted_window(app.handle())?;
+            let app_handle = app.handle().clone();
+            app.listen("pet:open-settings", move |_| {
+                let Some(main_window) = app_handle.get_webview_window("main") else {
+                    return;
+                };
+                if let Ok(settings_url) =
+                    tauri::Url::parse("https://v2.theoremharness.com/settings")
+                {
+                    let _ = main_window.navigate(settings_url);
+                }
+                let _ = main_window.show();
+                let _ = main_window.set_focus();
+            });
             // DESIGN-THEOREM-URI section 3: the desktop registers `theorem://`
             // so a link anywhere on the machine opens the object in the shell.
             // macOS reads the scheme from the bundle's Info.plist, which the
@@ -2526,10 +2547,6 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if matches!(event, tauri::WindowEvent::Destroyed) {
-                let state = window.state::<Mutex<DesktopBackendState>>();
-                stop_local_node(&state);
-            }
             // A tab window gaining OS focus is the user-input-into-the-stage
             // signal (HANDOFF-COBROWSE-PRESENCE D4): external-URL webviews
             // cannot report in-page pointer or key events, but the first click
@@ -2604,6 +2621,12 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             agent_tab_ingest,
             connector_proof_run
         ])
-        .run(context)
-        .expect("error while running CommonPlace desktop");
+        .build(context)
+        .expect("error while building CommonPlace desktop");
+    app.run(|app_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            let state = app_handle.state::<Mutex<DesktopBackendState>>();
+            stop_local_node(&state);
+        }
+    });
 }

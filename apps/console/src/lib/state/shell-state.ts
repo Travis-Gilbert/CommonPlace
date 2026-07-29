@@ -51,7 +51,9 @@ export type SearchFieldMode = 'command' | 'search' | 'objects';
 export interface ShellState {
   searchPanelOpen: boolean;
   searchFieldMode: SearchFieldMode;
-  openSearchPanel(mode: SearchFieldMode): void;
+  searchFieldQuery: string;
+  openSearchPanel(mode: SearchFieldMode, query?: string): void;
+  setSearchFieldQuery(query: string): void;
   closeSearchPanel(): void;
   /** Command-mode reduced motion preview: overrides the media query when on. */
   reducedMotionPreview: boolean;
@@ -88,6 +90,7 @@ export interface ShellState {
 
 export const searchPanelOpenAtom = atom(false);
 export const searchFieldModeAtom = atom<SearchFieldMode>('search');
+export const searchFieldQueryAtom = atom('');
 export const reducedMotionPreviewAtom = atom(false);
 export const selectedRecordIdAtom = atom<string | null>(null);
 export const selectedRecordObjectAtom = atom<ObjectRef | null>(null);
@@ -102,6 +105,7 @@ export const actionSheetOriginAtom = atom<ActionSheetOrigin | null>(null);
 const shellSliceAtoms = {
   searchPanelOpen: searchPanelOpenAtom,
   searchFieldMode: searchFieldModeAtom,
+  searchFieldQuery: searchFieldQueryAtom,
   reducedMotionPreview: reducedMotionPreviewAtom,
   selectedRecordId: selectedRecordIdAtom,
   selectedRecordObject: selectedRecordObjectAtom,
@@ -117,6 +121,7 @@ const shellSliceAtoms = {
 type ShellActions = Pick<
   ShellState,
   | 'openSearchPanel'
+  | 'setSearchFieldQuery'
   | 'closeSearchPanel'
   | 'toggleReducedMotionPreview'
   | 'selectRecord'
@@ -130,10 +135,12 @@ type ShellActions = Pick<
 const shellStore = getDefaultStore();
 
 const shellActions: ShellActions = {
-  openSearchPanel: (mode) => {
+  openSearchPanel: (mode, query) => {
     shellStore.set(searchPanelOpenAtom, true);
     shellStore.set(searchFieldModeAtom, mode);
+    if (query !== undefined) shellStore.set(searchFieldQueryAtom, query);
   },
+  setSearchFieldQuery: (query) => shellStore.set(searchFieldQueryAtom, query),
   closeSearchPanel: () => shellStore.set(searchPanelOpenAtom, false),
   toggleReducedMotionPreview: () =>
     shellStore.set(reducedMotionPreviewAtom, (value) => !value),

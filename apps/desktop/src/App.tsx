@@ -7,6 +7,7 @@ import { Settings } from "./components/Settings";
 
 export default function App() {
   const { state } = useApp();
+
   return (
     <div className="app">
       <div className={"shell" + (state.railVisible ? " shell--rail" : "")}>

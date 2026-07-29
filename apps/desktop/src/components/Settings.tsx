@@ -1,10 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as cmd from "../lib/commands";
 import { PROVIDERS, type HarnessTarget, type ReceiverSettings } from "../state/types";
 import { useApp } from "../state/store";
 
+type PetPreferences = cmd.PetNativePreferences;
+
 function targetLabel(target: HarnessTarget): string {
   return target === "local" ? "Local node" : "Hosted";
+}
+
+function petPatchMatches(
+  preferences: PetPreferences,
+  patch: Partial<PetPreferences>,
+  fields: readonly (keyof PetPreferences)[],
+): boolean {
+  return fields.every((field) => preferences[field] === patch[field]);
+}
+
+function mergePetFields(
+  base: PetPreferences,
+  source: PetPreferences,
+  fields: readonly (keyof PetPreferences)[],
+): PetPreferences {
+  const merged = { ...base };
+  for (const field of fields) {
+    Object.assign(merged, { [field]: source[field] });
+  }
+  return merged;
 }
 
 export function Settings() {
@@ -14,6 +36,18 @@ export function Settings() {
   const [receiverStatus, setReceiverStatus] = useState<cmd.ReceiverStatus | null>(null);
   const [connectorProof, setConnectorProof] =
     useState<cmd.ConnectorProofResult | null>(null);
+  const [petPreferences, setPetPreferences] =
+    useState<cmd.PetNativePreferences | null>(null);
+  const [petCredential, setPetCredential] =
+    useState<cmd.PetCaptureCredentialStatus | null>(null);
+  const [petModels, setPetModels] =
+    useState<readonly cmd.PetVoiceModelStatus[]>([]);
+  const [petApiKey, setPetApiKey] = useState("");
+  const [petMessage, setPetMessage] = useState("Loading PET settings…");
+  const petPreferencesRef = useRef<PetPreferences | null>(null);
+  const persistedPetPreferencesRef = useRef<PetPreferences | null>(null);
+  const petSaveTailRef = useRef<Promise<void>>(Promise.resolve());
+  const petSaveSequenceRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +70,48 @@ export function Settings() {
       window.clearInterval(timer);
     };
   }, [actions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.allSettled([
+      cmd.petNativePreferences(),
+      cmd.petCaptureCredentialStatus(),
+      cmd.petVoiceModels(),
+    ])
+      .then(([preferences, credential, models]) => {
+        if (cancelled) return;
+        const failures: unknown[] = [];
+        if (preferences.status === "fulfilled") {
+          petPreferencesRef.current = preferences.value;
+          persistedPetPreferencesRef.current = preferences.value;
+          setPetPreferences(preferences.value);
+        } else {
+          failures.push(preferences.reason);
+        }
+        if (credential.status === "fulfilled") {
+          setPetCredential(credential.value);
+        } else {
+          failures.push(credential.reason);
+        }
+        if (models.status === "fulfilled") {
+          setPetModels(models.value);
+        } else {
+          failures.push(models.reason);
+        }
+        setPetMessage(
+          failures.length === 0
+            ? "PET settings are stored by CommonPlace."
+            : `Some PET settings are unavailable: ${failures
+                .map((error) =>
+                  error instanceof Error ? error.message : String(error),
+                )
+                .join("; ")}`,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const persistHarness = (patch: Partial<typeof settings.harness>) => {
     const next = { ...settings.harness, ...patch };
@@ -61,6 +137,57 @@ export function Settings() {
     actions.setOllama(patch);
   };
 
+  const updatePetDraft = (patch: Partial<PetPreferences>) => {
+    const current = petPreferencesRef.current;
+    if (!current) return;
+    const next = { ...current, ...patch };
+    petPreferencesRef.current = next;
+    setPetPreferences(next);
+  };
+
+  const persistPet = (patch: Partial<cmd.PetNativePreferences>) => {
+    const current = petPreferencesRef.current;
+    if (!current) return;
+    const optimistic = { ...current, ...patch };
+    const fields = Object.keys(patch) as (keyof PetPreferences)[];
+    const sequence = ++petSaveSequenceRef.current;
+    petPreferencesRef.current = optimistic;
+    setPetPreferences(optimistic);
+    setPetMessage("Saving PET settings…");
+    petSaveTailRef.current = petSaveTailRef.current.then(async () => {
+      const savedBefore = persistedPetPreferencesRef.current;
+      if (!savedBefore) return;
+      try {
+        const saved = await cmd.petUpdatePreferences({
+          ...savedBefore,
+          ...patch,
+        });
+        persistedPetPreferencesRef.current = saved;
+        const latest = petPreferencesRef.current;
+        if (latest && petPatchMatches(latest, patch, fields)) {
+          const reconciled = mergePetFields(latest, saved, fields);
+          petPreferencesRef.current = reconciled;
+          setPetPreferences(reconciled);
+        }
+        if (sequence === petSaveSequenceRef.current) {
+          setPetMessage("PET settings saved.");
+        }
+      } catch (error) {
+        const latest = petPreferencesRef.current;
+        if (latest && petPatchMatches(latest, patch, fields)) {
+          const restored = mergePetFields(latest, savedBefore, fields);
+          petPreferencesRef.current = restored;
+          setPetPreferences(restored);
+        }
+        if (sequence === petSaveSequenceRef.current) {
+          setPetMessage(
+            `PET settings failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    });
+  };
+
   const theoremWorktree = settings.receiver.worktrees["Travis-Gilbert/theorem"] ?? "";
 
   return (
@@ -72,6 +199,272 @@ export function Settings() {
             Close
           </button>
         </header>
+
+        <section className="settings__group">
+          <h3>PET extension</h3>
+          <p className="settings__muted">
+            The PET is a frameless extension of this CommonPlace app. Its window
+            contains only the creature and composer.
+          </p>
+          <div className="settings__actions">
+            <button
+              className="btn"
+              type="button"
+              onClick={() => {
+                setPetMessage("Opening PET…");
+                void cmd
+                  .petShow()
+                  .then((preferences) => {
+                    petPreferencesRef.current = preferences;
+                    persistedPetPreferencesRef.current = preferences;
+                    setPetPreferences(preferences);
+                    setPetMessage("PET is ready for input.");
+                  })
+                  .catch((error) => {
+                    setPetMessage(
+                      `PET could not be opened: ${
+                        error instanceof Error ? error.message : String(error)
+                      }`,
+                    );
+                  });
+              }}
+            >
+              Show PET
+            </button>
+          </div>
+          {petPreferences && (
+            <>
+              <label className="settings__check">
+                <input
+                  type="checkbox"
+                  checked={petPreferences.pinned}
+                  onChange={(event) =>
+                    persistPet({ pinned: event.currentTarget.checked })
+                  }
+                />
+                <span>Keep PET above other windows</span>
+              </label>
+              <label className="settings__check">
+                <input
+                  type="checkbox"
+                  checked={petPreferences.clickThrough}
+                  onChange={(event) =>
+                    persistPet({ clickThrough: event.currentTarget.checked })
+                  }
+                />
+                <span>Let clicks pass through the PET window</span>
+              </label>
+              <p className="settings__help">
+                The composer shortcut restores pointer interaction before it
+                focuses the PET, so click-through cannot strand the window.
+              </p>
+              <label className="settings__check">
+                <input
+                  type="checkbox"
+                  checked={petPreferences.quietHours}
+                  onChange={(event) =>
+                    persistPet({ quietHours: event.currentTarget.checked })
+                  }
+                />
+                <span>Quiet hours</span>
+              </label>
+              <label className="field">
+                <span>Composer shortcut</span>
+                <input
+                  value={petPreferences.shortcut}
+                  onChange={(event) =>
+                    updatePetDraft({
+                      shortcut: event.currentTarget.value,
+                    })
+                  }
+                  onBlur={() =>
+                    persistPet({ shortcut: petPreferences.shortcut })
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>Composer model</span>
+                <input
+                  value={petPreferences.model}
+                  placeholder="Use THEOREM_PET_MODEL when blank"
+                  onChange={(event) =>
+                    updatePetDraft({
+                      model: event.currentTarget.value,
+                    })
+                  }
+                  onBlur={() => persistPet({ model: petPreferences.model })}
+                />
+              </label>
+              <label className="settings__check">
+                <input
+                  type="checkbox"
+                  checked={petPreferences.voiceEnabled}
+                  onChange={(event) =>
+                    persistPet({ voiceEnabled: event.currentTarget.checked })
+                  }
+                />
+                <span>Local voice</span>
+              </label>
+              <label className="field">
+                <span>Speech engine</span>
+                <select
+                  value={petPreferences.voiceEngine}
+                  onChange={(event) =>
+                    persistPet({
+                      voiceEngine: event.currentTarget
+                        .value as cmd.PetVoiceEngine,
+                    })
+                  }
+                >
+                  <option value="apple">Apple on-device</option>
+                  <option value="parakeet">Parakeet local model</option>
+                  <option value="whisper">Whisper local model</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Speech locale</span>
+                <input
+                  value={petPreferences.voiceLocale}
+                  onChange={(event) =>
+                    updatePetDraft({
+                      voiceLocale: event.currentTarget.value,
+                    })
+                  }
+                  onBlur={() =>
+                    persistPet({ voiceLocale: petPreferences.voiceLocale })
+                  }
+                />
+              </label>
+              <label className="settings__check">
+                <input
+                  type="checkbox"
+                  checked={petPreferences.captureDictation}
+                  onChange={(event) =>
+                    persistPet({
+                      captureDictation: event.currentTarget.checked,
+                    })
+                  }
+                />
+                <span>File kept dictation in CommonPlace</span>
+              </label>
+              <label className="field">
+                <span>Capture API base</span>
+                <input
+                  value={petPreferences.commonplaceApiBase}
+                  onChange={(event) =>
+                    updatePetDraft({
+                      commonplaceApiBase: event.currentTarget.value,
+                    })
+                  }
+                  onBlur={() =>
+                    persistPet({
+                      commonplaceApiBase: petPreferences.commonplaceApiBase,
+                    })
+                  }
+                />
+              </label>
+            </>
+          )}
+          <div className="settings__credential">
+            <label className="field">
+              <span>Capture API credential</span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={petApiKey}
+                placeholder={
+                  petCredential?.configured
+                    ? "Stored in Keychain"
+                    : "Not configured"
+                }
+                onChange={(event) => setPetApiKey(event.currentTarget.value)}
+              />
+            </label>
+            <div className="settings__actions">
+              <button
+                type="button"
+                disabled={!petApiKey.trim()}
+                onClick={() => {
+                  setPetMessage("Saving credential to Keychain…");
+                  void cmd
+                    .petSetCaptureCredential(petApiKey)
+                    .then((credential) => {
+                      setPetCredential(credential);
+                      setPetApiKey("");
+                      setPetMessage("Capture credential stored in Keychain.");
+                    })
+                    .catch((error) =>
+                      setPetMessage(
+                        `Credential failed: ${error instanceof Error ? error.message : String(error)}`,
+                      ),
+                    );
+                }}
+              >
+                Save credential
+              </button>
+              {petCredential?.configured && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void cmd
+                      .petClearCaptureCredential()
+                      .then((credential) => {
+                        setPetCredential(credential);
+                        setPetMessage("Capture credential removed.");
+                      })
+                      .catch((error) =>
+                        setPetMessage(
+                          `Credential removal failed: ${error instanceof Error ? error.message : String(error)}`,
+                        ),
+                      );
+                  }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="settings__models">
+            {petModels.map((model) => (
+              <div className="settings__model" key={model.entry.id}>
+                <span>
+                  <strong>{model.entry.displayName}</strong>
+                  <small>
+                    {model.entry.tier} ·{" "}
+                    {(model.entry.sizeBytes / 1_000_000).toFixed(0)} MB
+                  </small>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPetMessage(
+                      `${model.installed ? "Removing" : "Installing"} ${model.entry.displayName}…`,
+                    );
+                    const operation = model.installed
+                      ? cmd.petDeleteVoiceModel(model.entry.id)
+                      : cmd.petInstallVoiceModel(model.entry.id);
+                    void operation
+                      .then(() => cmd.petVoiceModels())
+                      .then((models) => {
+                        setPetModels(models);
+                        setPetMessage("Voice models updated.");
+                      })
+                      .catch((error) =>
+                        setPetMessage(
+                          `Voice model failed: ${error instanceof Error ? error.message : String(error)}`,
+                        ),
+                      );
+                  }}
+                >
+                  {model.installed ? "Remove" : "Install"}
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="settings__muted" aria-live="polite">
+            {petMessage}
+          </p>
+        </section>
 
         <section className="settings__group">
           <h3>Harness</h3>

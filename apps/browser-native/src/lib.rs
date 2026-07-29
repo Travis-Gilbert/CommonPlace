@@ -12,6 +12,7 @@ pub mod loopback;
 #[cfg(feature = "gpui")]
 pub mod native;
 pub mod pins;
+pub mod proof;
 pub mod prompts;
 pub mod rail;
 pub mod surfaces;

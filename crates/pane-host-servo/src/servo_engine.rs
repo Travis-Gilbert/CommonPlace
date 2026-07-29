@@ -15,9 +15,8 @@ use browser_embed as embed;
 use pane_host::engine::{Engine, EngineError, EngineEvent, EngineResult};
 use pane_protocol::{Bounds, ErrorKind, PaneId, ParentSurface};
 use raw_window_handle::{
-    AppKitDisplayHandle, AppKitWindowHandle, RawDisplayHandle, RawWindowHandle,
-    WaylandDisplayHandle, WaylandWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
-    XlibDisplayHandle, XlibWindowHandle,
+    RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle,
+    Win32WindowHandle, WindowsDisplayHandle, XlibDisplayHandle, XlibWindowHandle,
 };
 
 pub struct ServoEngine {
@@ -94,6 +93,60 @@ impl Engine for ServoEngine {
     fn spin(&mut self) {
         self.inner.spin();
     }
+
+    fn set_focused(&mut self, pane: PaneId, focused: bool) -> EngineResult {
+        self.inner.set_focused(id(pane), focused).map_err(translate)
+    }
+
+    fn inject_key(&mut self, pane: PaneId, key: &str, code: &str, down: bool) -> EngineResult {
+        self.inner
+            .inject_input(
+                id(pane),
+                embed::EmbedInput::Key {
+                    key: key.to_string(),
+                    code: code.to_string(),
+                    down,
+                },
+            )
+            .map(|_| ())
+            .map_err(translate)
+    }
+
+    fn inject_ime(
+        &mut self,
+        pane: PaneId,
+        composition: Option<&str>,
+        commit: Option<&str>,
+    ) -> EngineResult {
+        self.inner
+            .inject_input(
+                id(pane),
+                embed::EmbedInput::Ime {
+                    composition: composition.map(str::to_string),
+                    commit: commit.map(str::to_string),
+                },
+            )
+            .map(|_| ())
+            .map_err(translate)
+    }
+
+    fn set_overlay(&mut self, pane: PaneId, atoms: &[pane_protocol::OverlayAtom]) -> EngineResult {
+        let mapped: Vec<embed::OverlayAtom> = atoms
+            .iter()
+            .map(|atom| embed::OverlayAtom {
+                kind: atom.kind.clone(),
+                x: atom.x,
+                y: atom.y,
+                width: atom.width,
+                height: atom.height,
+                label: atom.label.clone(),
+            })
+            .collect();
+        self.inner
+            .set_overlay(id(pane), &mapped)
+            .map(|_| ())
+            .map_err(translate)
+    }
 }
 
 fn id(pane: PaneId) -> embed::PaneId {
@@ -158,12 +211,11 @@ fn translate(error: embed::EmbedError) -> EngineError {
 /// rendered on it.
 fn parent_surface(parent: ParentSurface) -> Result<embed::ParentSurface, EngineError> {
     let (display, window) = match parent {
-        ParentSurface::AppKit { ns_view } => {
-            let view = pointer(ns_view, "NSView")?;
-            (
-                RawDisplayHandle::AppKit(AppKitDisplayHandle::new()),
-                RawWindowHandle::AppKit(AppKitWindowHandle::new(view)),
-            )
+        ParentSurface::AppKit { .. } => {
+            return Err(EngineError::new(
+                ErrorKind::Unavailable,
+                "out-of-process AppKit panes require IOSurface/CALayerHost transport; NSView pointers are process-local",
+            ));
         }
         ParentSurface::Win32 { hwnd } => {
             let handle = NonZeroIsize::new(hwnd as isize).ok_or_else(|| {

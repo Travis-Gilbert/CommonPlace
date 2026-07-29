@@ -1,8 +1,8 @@
 [package]
 name = "pane-protocol"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Wire contract between the CommonPlace chrome process and the Servo pane-host sidecar: requests, responses, events, and the length-prefixed bincode framing."
+description = "Wire contract between the CommonPlace chrome process and the Servo pane-host sidecar: requests, responses, events, and the length-prefixed bincode framing. SPEC-THEOREM-BUILD-GRAPH-1.0 BG2: versioned without the Theorem workspace."
 license = "MIT"
 rust-version = "1.85"
 

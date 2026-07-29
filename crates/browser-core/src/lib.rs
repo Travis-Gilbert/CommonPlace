@@ -9,6 +9,7 @@
 #![deny(unsafe_code)]
 
 mod permissions;
+mod registration;
 mod session;
 mod single_instance;
 mod update;
@@ -16,32 +17,12 @@ mod update;
 pub use permissions::{
     DownloadReceipt, PermissionDecision, PermissionKind, PermissionReceipt, PermissionStore,
 };
+pub use registration::{
+    RegistrationProbe, RegistrationStatus, bundle_declares_url_scheme,
+    default_browser_registration_status, default_browser_registration_status_with,
+    protocol_registration_status, protocol_registration_status_with,
+    registration_capture_present, request_protocol_registration,
+};
 pub use session::{SessionGraph, TabId, Visit};
 pub use single_instance::{SingleInstanceError, SingleInstanceServer};
 pub use update::{UpdateCheckResult, UpdateFeed, check_update_feed};
-
-/// OS registration status for protocol / default-browser claims.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RegistrationStatus {
-    VerifiedOnMacos,
-    NotVerified,
-    Unsupported,
-}
-
-/// Honest per-OS registration report (never assumed working).
-pub fn protocol_registration_status() -> RegistrationStatus {
-    #[cfg(target_os = "macos")]
-    {
-        // Exercised path is implemented as a no-op stub until BrowserCore owns
-        // LS handlers; report not-verified rather than claiming success.
-        RegistrationStatus::NotVerified
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        RegistrationStatus::NotVerified
-    }
-}
-
-pub fn default_browser_registration_status() -> RegistrationStatus {
-    protocol_registration_status()
-}

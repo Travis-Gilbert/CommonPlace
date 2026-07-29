@@ -217,6 +217,7 @@ pub struct LoopbackBridge {
     bootstrap: BridgeBootstrap,
     address: SocketAddr,
     state: Arc<Mutex<NativeHostState>>,
+    hub: Arc<EventHub>,
     stopping: Arc<AtomicBool>,
     accept_thread: Option<JoinHandle<()>>,
 }
@@ -243,6 +244,7 @@ impl LoopbackBridge {
         let next_connection = Arc::new(AtomicU64::new(1));
 
         let server_state = Arc::clone(&state);
+        let server_hub = Arc::clone(&hub);
         let server_stopping = Arc::clone(&stopping);
         let accept_thread = thread::spawn(move || {
             while !server_stopping.load(Ordering::SeqCst) {
@@ -250,7 +252,7 @@ impl LoopbackBridge {
                     Ok((stream, _)) => {
                         let id = next_connection.fetch_add(1, Ordering::SeqCst);
                         let client_state = Arc::clone(&server_state);
-                        let client_hub = Arc::clone(&hub);
+                        let client_hub = Arc::clone(&server_hub);
                         let client_stopping = Arc::clone(&server_stopping);
                         let client_token = token.clone();
                         let client_origin = allowed_origin.clone();
@@ -278,6 +280,7 @@ impl LoopbackBridge {
             bootstrap,
             address,
             state,
+            hub,
             stopping,
             accept_thread: Some(accept_thread),
         })
@@ -289,6 +292,39 @@ impl LoopbackBridge {
 
     pub fn state(&self) -> Arc<Mutex<NativeHostState>> {
         Arc::clone(&self.state)
+    }
+
+    pub fn place_block_from_native(
+        &self,
+        workspace_id: &str,
+        kind: &str,
+        attrs: Value,
+    ) -> NativeBlock {
+        let block = NativeBlock {
+            id: format!("block_{}", Uuid::new_v4().simple()),
+            workspace_id: workspace_id.to_string(),
+            kind: kind.to_string(),
+            attrs,
+            grants: Vec::new(),
+        };
+        self.state
+            .lock()
+            .unwrap()
+            .blocks
+            .insert(block.id.clone(), block.clone());
+        self.hub.publish(
+            workspace_id,
+            json!({ "type": "block_placed", "block": block }),
+        );
+        block
+    }
+
+    pub fn open_target_from_native(&self, workspace_id: &str, target: Value) {
+        self.state.lock().unwrap().open_targets.push(target.clone());
+        self.hub.publish(
+            workspace_id,
+            json!({ "type": "open_target", "target": target }),
+        );
     }
 }
 
@@ -920,5 +956,24 @@ mod tests {
             .insert("origin", HeaderValue::from_static("http://127.0.0.1:3010"));
         let (mut accepted, _) = connect(request).unwrap();
         accepted.close(None).unwrap();
+    }
+
+    #[test]
+    fn native_chrome_intents_enter_the_host_substrate() {
+        let bridge = LoopbackBridge::start(None).unwrap();
+        let block = bridge.place_block_from_native(
+            "default",
+            "browser",
+            json!({ "url": "https://example.com/" }),
+        );
+        bridge.open_target_from_native("default", json!({ "kind": "find", "query": "fixture" }));
+
+        let state = bridge.state();
+        let state = state.lock().unwrap();
+        assert_eq!(state.blocks[&block.id].kind, "browser");
+        assert_eq!(
+            state.open_targets.last().unwrap(),
+            &json!({ "kind": "find", "query": "fixture" })
+        );
     }
 }

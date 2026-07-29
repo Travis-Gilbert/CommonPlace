@@ -12,5 +12,9 @@ describe('GeneralSettingsPage', () => {
 
     expect(markup).toContain('href="/appearance"');
     expect(markup.match(/href="\/appearance"/g)).toHaveLength(1);
+    expect(markup).toContain('Desktop PET');
+    expect(markup).toContain(
+      'PET controls appear here when this exact v2 page runs inside CommonPlace desktop.',
+    );
   });
 });

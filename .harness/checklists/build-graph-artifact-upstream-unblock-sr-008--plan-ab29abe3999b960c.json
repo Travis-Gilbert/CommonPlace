@@ -1,0 +1,11 @@
+{
+  "schema": "plan-contract/1",
+  "harness_plan_id": "plan:ab29abe3999b960c",
+  "title": "Build-graph artifact upstream + unblock SR-008",
+  "progress": {
+    "done": 7,
+    "total": 7,
+    "percent_complete": 100
+  },
+  "note": "Projection; substrate is source of truth. BG1 hash-verify and BG4-7 infra remain acceptance-gated on published artifacts/credentials."
+}

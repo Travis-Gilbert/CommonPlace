@@ -158,6 +158,12 @@ export class LoopbackHost implements CommonplaceHost {
     this.store.openTargets.push(t);
   }
 
+  /** Test/native harness helper for host-originated openTarget intents. */
+  publishOpenTarget(workspaceId: WorkspaceId, target: OpenTarget): void {
+    this.store.openTargets.push(target);
+    this.emit(workspaceId, { type: "open_target", target });
+  }
+
   /** Test helper: install plugin contributions and notify subscribers. */
   setContributions(contributions: ExtensionContribution[]): void {
     this.store.contributions = contributions;

@@ -1,4 +1,20 @@
 //! SPEC-COMMONPLACE-BROWSER-SHELL B2 — the pane-host wire contract.
+//! SPEC-THEOREM-BUILD-GRAPH-1.0 BG2 — versioned wire crate.
+//!
+//! # Semver
+//!
+//! - **Patch**: docs, non-serialized helpers, test-only changes.
+//! - **Breaking while pre-1.0**: every serialized enum or field change requires
+//!   a minor crate bump and a matching `WIRE_VERSION` bump. Bincode enum
+//!   discriminants are positional, so even adding a variant is wire-breaking.
+//! - **Breaking after 1.0**: the same changes require a major crate bump.
+//!
+//! Every frame carries a magic and exact wire version before its bincode
+//! payload. Mixed peers are refused at the framing boundary; they are never
+//! expected to ignore unknown variants.
+//!
+//! Conformance: `cargo test --manifest-path crates/pane-protocol/Cargo.toml`
+//! is the two-sided suite; both repos run it against this crate.
 //!
 //! The architecture this serves (Option B in the spec): the trusted chrome is
 //! the Next.js app in the Tauri system webview; untrusted content renders in
@@ -31,6 +47,9 @@ use serde::{Deserialize, Serialize};
 /// Maximum frame size. A `Screenshot` response is the only large payload, and a
 /// bound keeps a corrupt length prefix from becoming an allocation bomb.
 pub const MAX_FRAME_BYTES: u32 = 64 * 1024 * 1024;
+pub const WIRE_MAGIC: [u8; 4] = *b"CPPN";
+pub const WIRE_VERSION: u16 = 2;
+const WIRE_HEADER_BYTES: usize = WIRE_MAGIC.len() + std::mem::size_of::<u16>();
 
 /// Stable identifier for a pane. Assigned by the CHROME, not the host: when the
 /// host crashes and the supervisor rebuilds panes from the session graph, the
@@ -76,10 +95,11 @@ impl Bounds {
 
 /// The parent window a pane's native surface is reparented into.
 ///
-/// Raw handles are per-OS integers/pointers, which is exactly why they are
-/// transported as `u64` here rather than as `raw_window_handle` types: this
-/// crate is linked by the chrome, and pulling a windowing stack into it would
-/// defeat the isolation. The host reconstitutes the platform handle.
+/// Platform identifiers are kept dependency-free here so the protocol does
+/// not pull a windowing stack into either peer. Only identifiers that are valid
+/// across processes may be used by an engine. The AppKit, X11, and Wayland
+/// pointer-shaped variants are retained for wire compatibility but current
+/// out-of-process hosts refuse them until an exported-surface transport exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ParentSurface {
     /// macOS: the `NSView` pointer of the host window's content view.
@@ -185,8 +205,42 @@ pub enum Request {
     Screenshot {
         pane: PaneId,
     },
+    /// Focus or blur the Servo pane (SR-008 / BG input seam).
+    SetFocus {
+        pane: PaneId,
+        focused: bool,
+    },
+    /// Keyboard key transition injected into the focused pane.
+    InjectKey {
+        pane: PaneId,
+        key: String,
+        code: String,
+        down: bool,
+    },
+    /// IME composition update and/or commit text.
+    InjectIme {
+        pane: PaneId,
+        composition: Option<String>,
+        commit: Option<String>,
+    },
+    /// SceneOS-shaped overlay atoms (presence / takeover / find).
+    SetOverlay {
+        pane: PaneId,
+        atoms: Vec<OverlayAtom>,
+    },
     /// Liveness probe used by the supervisor.
     Ping,
+}
+
+/// Overlay atom drawn through the SceneOS producer seam.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OverlayAtom {
+    pub kind: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub label: String,
 }
 
 impl Request {
@@ -205,7 +259,11 @@ impl Request {
             | Request::SetAttention { pane, .. }
             | Request::Highlight { pane, .. }
             | Request::ClearHighlight { pane }
-            | Request::Screenshot { pane } => Some(*pane),
+            | Request::Screenshot { pane }
+            | Request::SetFocus { pane, .. }
+            | Request::InjectKey { pane, .. }
+            | Request::InjectIme { pane, .. }
+            | Request::SetOverlay { pane, .. } => Some(*pane),
             Request::Ping => None,
         }
     }
@@ -381,6 +439,10 @@ pub enum CodecError {
     Eof,
     /// The length prefix exceeded `MAX_FRAME_BYTES`.
     FrameTooLarge(u32),
+    /// The frame did not carry the CommonPlace pane-protocol marker.
+    InvalidMagic([u8; 4]),
+    /// The peer was built against a different breaking wire shape.
+    VersionMismatch { expected: u16, actual: u16 },
     Decode(bincode::Error),
 }
 
@@ -392,6 +454,14 @@ impl std::fmt::Display for CodecError {
             CodecError::FrameTooLarge(len) => write!(
                 formatter,
                 "pane protocol frame of {len} bytes exceeds the {MAX_FRAME_BYTES} byte limit"
+            ),
+            CodecError::InvalidMagic(actual) => write!(
+                formatter,
+                "pane protocol frame has invalid magic {actual:?}; expected {WIRE_MAGIC:?}"
+            ),
+            CodecError::VersionMismatch { expected, actual } => write!(
+                formatter,
+                "pane protocol wire version mismatch: expected {expected}, received {actual}"
             ),
             CodecError::Decode(error) => write!(formatter, "pane protocol decode failed: {error}"),
         }
@@ -412,18 +482,23 @@ impl From<bincode::Error> for CodecError {
     }
 }
 
-/// Write one length-prefixed bincode frame.
+/// Write one length-prefixed, versioned bincode frame.
 ///
 /// The prefix is a big-endian `u32`. Big-endian because a wire format that a
 /// human may one day have to read in a hexdump should not depend on the
 /// architecture that wrote it.
 pub fn write_frame<W: Write, T: Serialize>(writer: &mut W, value: &T) -> Result<(), CodecError> {
     let bytes = bincode::serialize(value)?;
-    let len = u32::try_from(bytes.len()).map_err(|_| CodecError::FrameTooLarge(u32::MAX))?;
+    let frame_len = WIRE_HEADER_BYTES
+        .checked_add(bytes.len())
+        .ok_or(CodecError::FrameTooLarge(u32::MAX))?;
+    let len = u32::try_from(frame_len).map_err(|_| CodecError::FrameTooLarge(u32::MAX))?;
     if len > MAX_FRAME_BYTES {
         return Err(CodecError::FrameTooLarge(len));
     }
     writer.write_all(&len.to_be_bytes())?;
+    writer.write_all(&WIRE_MAGIC)?;
+    writer.write_all(&WIRE_VERSION.to_be_bytes())?;
     writer.write_all(&bytes)?;
     // stdio pipes buffer; a request that never flushes is a request that never
     // arrives, and the caller would block forever waiting for its response.
@@ -448,9 +523,28 @@ pub fn read_frame<R: Read, T: serde::de::DeserializeOwned>(
     if len > MAX_FRAME_BYTES {
         return Err(CodecError::FrameTooLarge(len));
     }
+    if len < WIRE_HEADER_BYTES as u32 {
+        return Err(CodecError::InvalidMagic([0; 4]));
+    }
     let mut payload = vec![0u8; len as usize];
     reader.read_exact(&mut payload)?;
-    Ok(bincode::deserialize(&payload)?)
+    let mut magic = [0u8; 4];
+    magic.copy_from_slice(&payload[..WIRE_MAGIC.len()]);
+    if magic != WIRE_MAGIC {
+        return Err(CodecError::InvalidMagic(magic));
+    }
+    let version_offset = WIRE_MAGIC.len();
+    let actual = u16::from_be_bytes([
+        payload[version_offset],
+        payload[version_offset + 1],
+    ]);
+    if actual != WIRE_VERSION {
+        return Err(CodecError::VersionMismatch {
+            expected: WIRE_VERSION,
+            actual,
+        });
+    }
+    Ok(bincode::deserialize(&payload[WIRE_HEADER_BYTES..])?)
 }
 
 /// Scheme allowlist for content panes (B7).
@@ -486,6 +580,45 @@ mod tests {
         write_frame(&mut buffer, &envelope).expect("frame writes");
         let decoded: Envelope = read_frame(&mut buffer.as_slice()).expect("frame reads");
         assert_eq!(decoded, envelope);
+    }
+
+    #[test]
+    fn focus_ime_and_overlay_requests_round_trip() {
+        let frames = [
+            Request::SetFocus {
+                pane: PaneId(1),
+                focused: true,
+            },
+            Request::InjectKey {
+                pane: PaneId(1),
+                key: "a".into(),
+                code: "KeyA".into(),
+                down: true,
+            },
+            Request::InjectIme {
+                pane: PaneId(1),
+                composition: Some("ん".into()),
+                commit: Some("ん".into()),
+            },
+            Request::SetOverlay {
+                pane: PaneId(1),
+                atoms: vec![OverlayAtom {
+                    kind: "presence".into(),
+                    x: 1.0,
+                    y: 2.0,
+                    width: 3.0,
+                    height: 4.0,
+                    label: "agent".into(),
+                }],
+            },
+        ];
+        for request in frames {
+            let envelope = Envelope { id: 1, request };
+            let mut buffer = Vec::new();
+            write_frame(&mut buffer, &envelope).expect("write");
+            let decoded: Envelope = read_frame(&mut buffer.as_slice()).expect("read");
+            assert_eq!(decoded, envelope);
+        }
     }
 
     #[test]
@@ -539,6 +672,26 @@ mod tests {
             Err(CodecError::FrameTooLarge(len)) => assert_eq!(len, MAX_FRAME_BYTES + 1),
             other => panic!("expected FrameTooLarge, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn mismatched_wire_version_is_refused_before_bincode_decode() {
+        let envelope = Envelope {
+            id: 1,
+            request: Request::Ping,
+        };
+        let mut buffer = Vec::new();
+        write_frame(&mut buffer, &envelope).expect("frame writes");
+        let version_offset = 4 + WIRE_MAGIC.len();
+        buffer[version_offset..version_offset + 2]
+            .copy_from_slice(&(WIRE_VERSION + 1).to_be_bytes());
+        assert!(matches!(
+            read_frame::<_, Envelope>(&mut buffer.as_slice()),
+            Err(CodecError::VersionMismatch {
+                expected: WIRE_VERSION,
+                actual
+            }) if actual == WIRE_VERSION + 1
+        ));
     }
 
     #[test]

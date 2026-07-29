@@ -12,9 +12,27 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "CommonPlace",
+        "url": "https://v2.theoremharness.com/",
         "width": 1280,
         "height": 820
+      },
+      {
+        "label": "pet",
+        "title": "CommonPlace Pet",
+        "url": "pet.html",
+        "width": 380,
+        "height": 292,
+        "minWidth": 320,
+        "minHeight": 244,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": true,
+        "dragDropEnabled": true
       }
     ],
     "security": {

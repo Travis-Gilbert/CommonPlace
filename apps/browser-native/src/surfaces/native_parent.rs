@@ -17,37 +17,53 @@ pub fn capture_parent_surface(
     parent_surface_from_raw(display, window)
 }
 
+/// Window-handle-only capture for platforms where the display is implicit.
+///
+/// Win32 HWND values are valid across processes. AppKit NSView pointers are
+/// process-local and require a future IOSurface/CALayerHost transport.
+pub fn parent_surface_from_window_handle(
+    window: &impl HasWindowHandle,
+) -> Result<ParentSurface, String> {
+    let window = window
+        .window_handle()
+        .map_err(|error| format!("native window handle is unavailable: {error}"))?
+        .as_raw();
+    match window {
+        RawWindowHandle::AppKit(_) => Err(
+            "out-of-process AppKit panes require an IOSurface/CALayerHost transport; NSView pointers cannot cross the pane-host boundary"
+                .into(),
+        ),
+        RawWindowHandle::Win32(handle) => Ok(ParentSurface::Win32 {
+            hwnd: handle.hwnd.get() as u64,
+        }),
+        other => Err(format!(
+            "pane-host needs a display handle for this GPUI parent: {other:?}"
+        )),
+    }
+}
+
 pub fn parent_surface_from_raw(
     display: RawDisplayHandle,
     window: RawWindowHandle,
 ) -> Result<ParentSurface, String> {
     match (display, window) {
-        (RawDisplayHandle::AppKit(_), RawWindowHandle::AppKit(handle)) => {
-            Ok(ParentSurface::AppKit {
-                ns_view: handle.ns_view.as_ptr() as usize as u64,
-            })
-        }
+        (RawDisplayHandle::AppKit(_), RawWindowHandle::AppKit(_)) => Err(
+            "out-of-process AppKit panes require an IOSurface/CALayerHost transport; NSView pointers cannot cross the pane-host boundary"
+                .into(),
+        ),
         (RawDisplayHandle::Windows(_), RawWindowHandle::Win32(handle)) => {
             Ok(ParentSurface::Win32 {
                 hwnd: handle.hwnd.get() as u64,
             })
         }
-        (RawDisplayHandle::Xlib(display), RawWindowHandle::Xlib(window)) => {
-            let display = display
-                .display
-                .ok_or("Xlib display handle is null")?
-                .as_ptr() as usize as u64;
-            Ok(ParentSurface::X11 {
-                window: window.window,
-                display,
-            })
-        }
-        (RawDisplayHandle::Wayland(display), RawWindowHandle::Wayland(window)) => {
-            Ok(ParentSurface::Wayland {
-                surface: window.surface.as_ptr() as usize as u64,
-                display: display.display.as_ptr() as usize as u64,
-            })
-        }
+        (RawDisplayHandle::Xlib(_), RawWindowHandle::Xlib(_)) => Err(
+            "out-of-process X11 panes require a reopened display connection; Display pointers cannot cross the pane-host boundary"
+                .into(),
+        ),
+        (RawDisplayHandle::Wayland(_), RawWindowHandle::Wayland(_)) => Err(
+            "out-of-process Wayland panes require exported compositor buffers; wl_surface pointers cannot cross the pane-host boundary"
+                .into(),
+        ),
         (_, window) => Err(format!(
             "pane-host does not support this GPUI parent handle: {window:?}"
         )),
@@ -64,13 +80,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn appkit_view_pointer_crosses_the_protocol_without_truncation() {
+    fn appkit_view_pointer_is_rejected_at_the_process_boundary() {
         let pointer = NonNull::new(0x1234usize as *mut c_void).unwrap();
-        let parent = parent_surface_from_raw(
+        let error = parent_surface_from_raw(
             RawDisplayHandle::AppKit(AppKitDisplayHandle::new()),
             RawWindowHandle::AppKit(AppKitWindowHandle::new(pointer)),
         )
-        .unwrap();
-        assert_eq!(parent, ParentSurface::AppKit { ns_view: 0x1234 });
+        .unwrap_err();
+        assert!(error.contains("NSView pointers cannot cross"));
     }
 }

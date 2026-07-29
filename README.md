@@ -25,7 +25,13 @@ root; retire it with `scripts/retire-techdev-clone.sh` (see
 - `apps/Console/` is the real Next.js CommonPlace frontend migrated from
   `travisgilbert.me`, including the `/commonplace` route and the existing
   desktop static export script.
-- `apps/desktop/` is the Tauri shell for packaging CommonPlace from this repo.
+- `apps/browser-native/` is the canonical GPUI/Wry mixed-realm browser shell:
+  native chrome around the hosted CommonPlace React surface and parented Servo
+  panes.
+- `apps/desktop/` is the existing Tauri edition. Its main window loads
+  `https://v2.theoremharness.com`, and the same `CommonPlace.app` process owns a
+  frameless PET extension window containing only the current CommonPlace pixel
+  pet and composer; there is no separate PET app or bundle.
 - `apps/commonplace-api/` is the backend GraphQL/MCP block contract moved into
   the product repo. It currently bridges to the sibling Theorem checkout for
   RustyRed and harness crates.
@@ -33,7 +39,10 @@ root; retire it with `scripts/retire-techdev-clone.sh` (see
   ingest, organize, renderable object, and block/view contract crate.
 - `crates/commonplace-desktop-runtime/` is the native desktop runtime that
   starts the local RustyRed node, durable `commonplace-api`, and Theorem
-  receiver loop behind the Tauri shell.
+  receiver loop behind the Tauri shell. It also registers Theorem's native PET
+  plugin for capture, local voice, read-aloud, macOS Services, and Stand Down.
+- `packages/capture-client/` is the versioned Capture 2.0 envelope and durable
+  ordered queue shared by CommonPlace-owned capture surfaces.
 - `packages/block-view-contracts/` contains the frontend-safe block/view and
   RustyRed data contracts consumed by the web app and future adapters.
 - `packages/rustyred-contracts/` records the pinned RustyRed source revision.

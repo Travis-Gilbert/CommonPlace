@@ -1,0 +1,23 @@
+# SPEC-THEOREM-BUILD-GRAPH-1.0 BG1 — pane-host sidecar pin.
+#
+# The GPUI native shell NEVER compiles libservo on the default path. It consumes
+# a signed `pane-host` binary from the GitHub Release named by `tag` below.
+# `scripts/fetch-pane-host.sh` reads this file, downloads the pinned assets,
+# verifies each sha256, and installs into `apps/browser-native/binaries/`.
+#
+# Empty sha256 is a hard refusal: fetch exits nonzero until a release publishes
+# checksums and `--update` rewrites this file.
+#
+# From-source escape hatch (engine-hacking days):
+#   cargo build --manifest-path crates/pane-host-servo/Cargo.toml --features servo-from-source
+# with a Cargo `[patch]` pointing browser-embed at a local Theorem checkout.
+
+tag = "browser-v0.1.0"
+
+[[target]]
+triple = "aarch64-apple-darwin"
+sha256 = ""
+
+[[target]]
+triple = "x86_64-apple-darwin"
+sha256 = ""

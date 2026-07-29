@@ -23,8 +23,23 @@ path = "src/main.rs"
 # be run without a Servo build.
 pane-host = { path = "../pane-host" }
 pane-protocol = { path = "../pane-protocol" }
-# B1's reusable embedding. Pin the canonical Theorem repository instead of
-# assuming CommonPlace and Theorem happen to be sibling folders on one laptop.
+# SPEC-THEOREM-BUILD-GRAPH-1.0 BG1: this crate is the from-source escape hatch.
+# Default CommonPlace GPUI builds do NOT compile it — they fetch a pinned
+# `pane-host` binary via `scripts/fetch-pane-host.sh`.
+#
+# Build from source (engine-hacking days):
+#   cargo build --manifest-path crates/pane-host-servo/Cargo.toml --features servo-from-source
+# Optionally patch browser-embed to a local Theorem checkout:
+#   [patch."https://github.com/Travis-Gilbert/Theorem.git"]
+#   browser-embed = { path = "../Theorem/apps/browser/crates/browser-embed" }
+#
 # Cargo discovers the package in Theorem's nested apps/browser workspace.
-browser-embed = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "fd26be765d28b1223eabf784299ec5aa2927c6e7" }
+browser-embed = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b634e3fc71acbf04e749ca38534c68a441c97aa7" }
 raw-window-handle = "0.6"
+
+[features]
+default = ["servo-from-source"]
+# Named so CI and docs can require the hatch explicitly. Always on when this
+# crate is built; the cut edge is that browser-native never builds this crate
+# on the default path.
+servo-from-source = []

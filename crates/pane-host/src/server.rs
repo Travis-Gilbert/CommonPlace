@@ -183,6 +183,43 @@ impl<E: Engine, G: GraphTransport> Host<E, G> {
                 .screenshot(pane)
                 .map(|png| ResponseValue::Screenshot { png })
                 .map_err(Into::into),
+            Request::SetFocus { pane, focused } => {
+                self.require(pane)?;
+                self.engine
+                    .set_focused(pane, focused)
+                    .map(|_| ResponseValue::Ack)
+                    .map_err(Into::into)
+            }
+            Request::InjectKey {
+                pane,
+                key,
+                code,
+                down,
+            } => {
+                self.require(pane)?;
+                self.engine
+                    .inject_key(pane, &key, &code, down)
+                    .map(|_| ResponseValue::Ack)
+                    .map_err(Into::into)
+            }
+            Request::InjectIme {
+                pane,
+                composition,
+                commit,
+            } => {
+                self.require(pane)?;
+                self.engine
+                    .inject_ime(pane, composition.as_deref(), commit.as_deref())
+                    .map(|_| ResponseValue::Ack)
+                    .map_err(Into::into)
+            }
+            Request::SetOverlay { pane, atoms } => {
+                self.require(pane)?;
+                self.engine
+                    .set_overlay(pane, &atoms)
+                    .map(|_| ResponseValue::Ack)
+                    .map_err(Into::into)
+            }
         }
     }
 

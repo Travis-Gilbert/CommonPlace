@@ -7,6 +7,14 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  build: {
+    // The packaged Tauri surface is PET-only. The main product window loads
+    // the canonical hosted Console and must never fall back to this legacy
+    // renderer.
+    rollupOptions: {
+      input: "pet.html",
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

@@ -8,13 +8,13 @@ description = "CommonPlace consumer object model (Item/Collection/Tag) and auto-
 license = "MIT"
 rust-version = "1.85"
 
-# Own Cargo root while this product crate still bridges to sibling Theorem
-# substrate crates through local paths.
+# Own Cargo root so this product crate keeps its pinned substrate graph isolated
+# from the root workspace.
 [workspace]
 
 [dependencies]
-rustyred-thg-core = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-core" }
-rustyred-thg-reconstruct-fact = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-reconstruct-fact" }
+rustyred-thg-core = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
+rustyred-thg-reconstruct-fact = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
 chrono = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

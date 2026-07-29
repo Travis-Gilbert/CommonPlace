@@ -19,6 +19,7 @@ import {
 import { SessionProvider } from 'next-auth/react';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { HostProvider } from '@/lib/commonplace-host/HostProvider';
+import { HostOpenTargetBridge } from '@/components/host/HostOpenTargetBridge';
 import { queryViaBlockHost } from '@/lib/commonplace-host/queryViaBlockHost';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
@@ -84,6 +85,28 @@ function RuntimeBoundary({ children }: { children: React.ReactNode }) {
 
 const emptySubscribe = () => () => {};
 
+export async function openConsoleTarget(
+  target: OpenTarget,
+  submit: (text: string) => Promise<void> = submitThreadText,
+): Promise<void> {
+  if (target.kind === 'url' && typeof window !== 'undefined') {
+    window.open(target.url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  if (target.kind === 'find') {
+    useShellStore.getState().openSearchPanel('search', target.query);
+    return;
+  }
+  if (target.kind === 'ask') {
+    useShellStore.getState().closeSearchPanel();
+    await submit(target.query);
+    return;
+  }
+  if (target.kind === 'block') {
+    useShellStore.getState().selectRecord(target.blockId, null, 'note');
+  }
+}
+
 /** HTTP outcomes from the record wire map onto the named connection states
  *  (R2.3 / HANDOFF-PRINCIPAL-CREDENTIALS D5): four causes, one indicator. */
 function connectionFor(
@@ -144,23 +167,7 @@ export function ConsoleApp({
   );
 
   const onOpenTarget = useMemo(
-    () => async (target: OpenTarget) => {
-      if (target.kind === 'url' && typeof window !== 'undefined') {
-        window.open(target.url, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      if (target.kind === 'find') {
-        useShellStore.getState().openSearchPanel('search');
-        return;
-      }
-      if (target.kind === 'ask') {
-        useShellStore.getState().openSearchPanel('command');
-        return;
-      }
-      if (target.kind === 'block') {
-        useShellStore.getState().selectRecord(target.blockId, null, 'note');
-      }
-    },
+    () => (target: OpenTarget) => openConsoleTarget(target),
     [],
   );
 
@@ -220,6 +227,7 @@ export function ConsoleApp({
       <MaterialLayer />
       <div className="relative z-10 h-full">
         <HostProvider queryObjects={queryObjects} onOpenTarget={onOpenTarget}>
+          <HostOpenTargetBridge onOpenTarget={onOpenTarget} />
           <SessionProvider>
             <RuntimeBoundary>
               <IntuiShell host={host} />

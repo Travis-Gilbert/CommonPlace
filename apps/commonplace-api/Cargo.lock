@@ -1551,6 +1551,7 @@ dependencies = [
 [[package]]
 name = "commonplace"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "rustyred-thg-reconstruct-fact",
@@ -2188,6 +2189,7 @@ dependencies = [
 [[package]]
 name = "design-check"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-reconstruct-fact",
  "serde",
@@ -2542,6 +2544,7 @@ dependencies = [
 [[package]]
 name = "ensemble"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -4864,6 +4867,7 @@ dependencies = [
 [[package]]
 name = "pilot-core"
 version = "0.0.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -5008,6 +5012,7 @@ dependencies = [
 [[package]]
 name = "prose-check"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -5780,6 +5785,7 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 [[package]]
 name = "rustyred-code-embedding"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde_json",
 ]
@@ -5787,6 +5793,7 @@ dependencies = [
 [[package]]
 name = "rustyred-hipporag"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "futures-util",
@@ -5799,6 +5806,7 @@ dependencies = [
 [[package]]
 name = "rustyred-membrane"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "rustyred-thg-core",
@@ -5810,6 +5818,7 @@ dependencies = [
 [[package]]
 name = "rustyred-plugin"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "extism",
  "rustyred-thg-core",
@@ -5823,6 +5832,7 @@ dependencies = [
 [[package]]
 name = "rustyred-rerank"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "reqwest 0.12.28",
  "rustyred-membrane",
@@ -5833,6 +5843,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-affordances"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-code-embedding",
  "rustyred-plugin",
@@ -5846,6 +5857,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-agentfs"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "crossbeam-channel",
  "notify",
@@ -5857,6 +5869,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-checkpoint"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "ed25519-dalek",
@@ -5873,6 +5886,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-core"
 version = "0.5.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "bm25",
@@ -5887,6 +5901,7 @@ dependencies = [
  "memmap2",
  "rkyv",
  "roaring",
+ "rustyred-thg-derivation",
  "serde",
  "serde_json",
  "sha2",
@@ -5898,6 +5913,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-datawave"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "bigdecimal",
  "fuzzyhash",
@@ -5915,8 +5931,9 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-derivation"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
- "rustyred-thg-core",
+ "egglog",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -5925,6 +5942,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-episode-supply-chain"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "arrow-array",
  "arrow-json",
@@ -5944,6 +5962,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-find"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "aho-corasick",
  "blake3",
@@ -5961,6 +5980,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-graph-lisp"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -5971,6 +5991,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-memory"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "regex",
  "rustyred-thg-core",
@@ -5984,6 +6005,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-ml"
 version = "0.5.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "serde",
@@ -5992,6 +6014,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-nlp"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "phf 0.11.3",
@@ -6005,6 +6028,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-offload"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "egg",
  "rustyred-thg-core",
@@ -6017,6 +6041,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-programmable-graph"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "rustyred-thg-derivation",
@@ -6032,6 +6057,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-reconstruct-fact"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "serde",
@@ -6042,6 +6068,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-resolve"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "rustyred-thg-core",
@@ -6054,6 +6081,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-schema"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "regex",
@@ -6067,6 +6095,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-standing-brief"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "rustyred-thg-derivation",
@@ -6079,6 +6108,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-standing-topics"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "rustyred-thg-programmable-graph",
@@ -6095,6 +6125,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-vfs"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "bytes",
@@ -6110,6 +6141,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-watermark"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "serde",
@@ -6121,6 +6153,7 @@ dependencies = [
 [[package]]
 name = "rustyred-thg-work-unit"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -6131,6 +6164,7 @@ dependencies = [
 [[package]]
 name = "rustyred-web"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "async-trait",
  "blake3",
@@ -6188,6 +6222,7 @@ checksum = "ece8e78b2f38ec51c51f5d475df0a7187ba5111b2a28bdc761ee05b075d40a71"
 [[package]]
 name = "scene-os-core"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -6878,6 +6913,7 @@ dependencies = [
 [[package]]
 name = "theorem-bayes"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -6887,6 +6923,7 @@ dependencies = [
 [[package]]
 name = "theorem-blocks"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -6905,6 +6942,7 @@ dependencies = [
 [[package]]
 name = "theorem-capability-registry"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",
@@ -6914,6 +6952,7 @@ dependencies = [
 [[package]]
 name = "theorem-env-core"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "axum",
  "rustyred-thg-core",
@@ -6928,6 +6967,7 @@ dependencies = [
 [[package]]
 name = "theorem-evolve"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "serde",
@@ -6941,6 +6981,7 @@ dependencies = [
 [[package]]
 name = "theorem-harness-core"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -6959,6 +7000,7 @@ dependencies = [
 [[package]]
 name = "theorem-harness-runtime"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "commonplace 0.1.0",
@@ -6994,6 +7036,7 @@ dependencies = [
 [[package]]
 name = "theorem-oplog"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "rustyred-thg-core",
@@ -7006,6 +7049,7 @@ dependencies = [
 [[package]]
 name = "theorem-prompt"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-standing-brief",
  "serde",
@@ -7016,6 +7060,7 @@ dependencies = [
 [[package]]
 name = "theorem-worlds"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "bevy",
  "rustyred-thg-core",

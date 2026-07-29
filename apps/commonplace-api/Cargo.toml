@@ -6,27 +6,19 @@ description = "CommonPlace interoperability API seam (plan unit F3): a typed con
 license = "MIT"
 rust-version = "1.85"
 
-# Own Cargo root (bare [workspace]) so this can live inside the CommonPlace
-# product repo while still bridging to current Theorem/RustyRed substrate crates.
-# These paths expect the local product layout:
-#
-#   Website/
-#     CommonPlace/
-#     Theorem/
-#
-# The deployable follow-up is to replace remaining sibling substrate paths with
-# published or pinned git crates once the Theorem-internal crates are promoted.
+# Own Cargo root (bare [workspace]) so the pinned Theorem/RustyRed substrate
+# graph stays isolated from the CommonPlace root workspace.
 [workspace]
 
 [dependencies]
 commonplace = { path = "../../crates/commonplace" }
-rustyred-thg-core = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-core" }
-rustyred-thg-find = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-thg-find" }
+rustyred-thg-core = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
+rustyred-thg-find = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
 # saveUrl fetches through `web_consume_to_graph` in-process, so the page graph
 # and the filed item land in one store under one lock (SPEC B7).
-rustyred-web = { path = "../../../Theorem/rustyredcore_THG/crates/rustyred-web" }
-theorem-harness-core = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-core" }
-theorem-harness-runtime = { path = "../../../Theorem/rustyredcore_THG/crates/theorem-harness-runtime" }
+rustyred-web = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
+theorem-harness-core = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
+theorem-harness-runtime = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b02a09efc9a03622f57cb515dd7ffd621f7bc426" }
 async-graphql = "7"
 async-graphql-axum = "7"
 axum = { version = "0.8", features = ["multipart"] }
