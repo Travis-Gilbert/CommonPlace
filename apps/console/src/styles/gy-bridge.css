@@ -1,7 +1,8 @@
 /* The --gy bridge (HANDOFF-GREENFIELD-CONSOLE G5): Galley documents render
    inside the shell with the host owning page geometry, and Galley's ground
-   and surface resolve to the chrome. Prose faces stay Galley's own so
-   documents read like documents inside an IDE that reads like an IDE.
+   and surface resolve to the chrome. Prose faces bridge to the console's
+   sans system (serif wipe, 2026-07-29): documents read like documents inside
+   an IDE that reads like an IDE, in the human authorship face.
    This file bridges tokens only; galley.css itself ships from
    @travis-gilbert/markdown-theory untouched. */
 
@@ -13,9 +14,11 @@
   --gy-link: var(--ij-link);
   --gy-hairline: var(--ij-divider);
   /* The verify row: no porcelain font tokens leak through markdown-theory
-     defaults. Galley's own prose serif (Vollkorn) self-hosts through
-     next/font; document apparatus UI runs on the chrome face. */
-  --gy-font-prose: var(--font-console-vollkorn), Georgia, 'Times New Roman', serif;
+     defaults. The serif wipe re-points prose at Manrope (human authorship
+     face) through next/font; document apparatus UI runs on the chrome face.
+     The generated galley-register.css still names Vollkorn; this bridge
+     loads after it and overrides, so no serif reaches the screen. */
+  --gy-font-prose: var(--font-console-manrope), "Manrope", system-ui, sans-serif;
   --gy-font-ui: var(--ij-font-ui);
   /* The Galley register declares a 15px reading base, while the Int UI root is
      intentionally 13px for chrome. Bind prose to the declared document base
