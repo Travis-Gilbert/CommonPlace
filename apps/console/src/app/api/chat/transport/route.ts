@@ -15,6 +15,11 @@ import {
   getThread,
   updateThread,
 } from '@/lib/chat/server-catalog';
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+import {
+  credentialRefusalResponse,
+  resolveUpstreamCredential,
+} from '@/lib/server/upstream-credential';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,6 +27,17 @@ export const runtime = 'nodejs';
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = await readBody(request);
+    const resolution = await resolveHarnessPrincipal();
+    if (!resolution.ok) return resolution.response;
+    const resolvedCredential = await resolveUpstreamCredential(resolution.principal);
+    if (!resolvedCredential.ok) {
+      return credentialRefusalResponse(resolvedCredential.refusal);
+    }
+    body.tenant = resolution.principal.tenant;
+    body.authToken =
+      resolvedCredential.credential.kind === 'service_key'
+        ? resolvedCredential.credential.key
+        : resolvedCredential.credential.token;
     const threadId = typeof body.threadId === 'string' ? body.threadId : null;
     if (threadId) {
       const thread = await getThread(threadId);

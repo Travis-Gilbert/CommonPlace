@@ -1,14 +1,15 @@
 import { auth } from '@/lib/auth';
+import type { Session } from 'next-auth';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { githubTenantSlug } from '@/lib/account-identity';
 import { githubAuthCredentials } from '@/lib/auth-config';
 import { IdentitySessionSchema } from '@/lib/identity/contracts';
 import {
-  configuredServiceTenantMatches as configuredServiceTenantMatchesCore,
   legacyServicePrincipal,
   principalFromSession,
   principalScopeHeaders,
+  type ControlResolvedIdentity,
   type HarnessPrincipal,
 } from '@/lib/harness-principal-core';
 import {
@@ -53,6 +54,99 @@ async function clearRejectedActiveWorkspaceCookie(): Promise<void> {
   }
 }
 
+function controlPlaneBaseUrl(): string {
+  return (
+    process.env.CONSOLE_DATA_API_URL
+    ?? process.env.THEOREM_OBJECTS_URL
+    ?? 'http://localhost:50090'
+  ).replace(/\/$/, '');
+}
+
+function controlPlaneServiceKey(): string {
+  return process.env.CONSOLE_DATA_API_KEY ?? process.env.THEOREM_API_KEY ?? 'dev-key';
+}
+
+function isControlIdentity(value: unknown): value is ControlResolvedIdentity {
+  if (!value || typeof value !== 'object') return false;
+  const identity = value as Partial<ControlResolvedIdentity>;
+  return Boolean(
+    identity.kind === 'github'
+    && identity.principal
+    && typeof identity.principal.id === 'string'
+    && typeof identity.principal.display_name === 'string'
+    && ['human', 'agent', 'service'].includes(identity.principal.kind ?? '')
+    && identity.tenant
+    && typeof identity.tenant.id === 'string'
+    && typeof identity.tenant.slug === 'string'
+    && Array.isArray(identity.scopes)
+    && identity.scopes.every((scope) => typeof scope === 'string'),
+  );
+}
+
+async function resolveControlIdentity(
+  session: Session | null,
+  requestedTenant: string,
+): Promise<ControlResolvedIdentity | Response> {
+  const harnessIdentity = session?.user?.harnessIdentity;
+  const tenant = githubTenantSlug(requestedTenant);
+  const providerSubject =
+    typeof harnessIdentity === 'string' && harnessIdentity.startsWith('github:')
+      ? harnessIdentity.slice('github:'.length).trim()
+      : '';
+  if (!tenant || !providerSubject) {
+    return Response.json(
+      {
+        error: 'principal_resolution=unauthenticated',
+        message: 'The GitHub session is missing its verified provider subject.',
+      },
+      { status: 401 },
+    );
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${controlPlaneBaseUrl()}/identity/resolve/github`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': controlPlaneServiceKey(),
+      },
+      body: JSON.stringify({ provider_subject: providerSubject, tenant }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch {
+    return Response.json(
+      {
+        error: 'control_plane_unavailable',
+        message: 'The identity control plane could not be reached.',
+      },
+      { status: 503 },
+    );
+  }
+  if (!response.ok) {
+    return Response.json(
+      {
+        error: response.status === 403
+          ? 'principal_cross_tenant_refused'
+          : 'control_plane_identity_refused',
+        message: 'The signed-in GitHub identity was not admitted for this tenant.',
+      },
+      { status: response.status },
+    );
+  }
+  const body: unknown = await response.json().catch(() => null);
+  if (!isControlIdentity(body)) {
+    return Response.json(
+      {
+        error: 'control_plane_identity_contract_mismatch',
+        message: 'The identity control plane returned an invalid identity.',
+      },
+      { status: 502 },
+    );
+  }
+  return body;
+}
+
 async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolution> {
   const fixture = fixturePrincipal();
   if (fixture) return { ok: true, principal: fixture };
@@ -63,63 +157,66 @@ async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolu
   const legacy = legacyServicePrincipal(process.env.CONSOLE_HARNESS_TENANT, github !== null);
   if (legacy) return { ok: true, principal: legacy };
   const session = await auth();
-  const principal = principalFromSession(session);
+  const secret = resolveActiveWorkspaceSecret();
+  if (!secret) {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          error: 'active_workspace_configuration_missing',
+          message: 'Active workspace verification is not configured.',
+        },
+        { status: 503 },
+      ),
+    };
+  }
+  let encoded: string | undefined;
+  try {
+    encoded = (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value;
+  } catch {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          error: 'active_workspace_claim_unavailable',
+          message: 'The active workspace claim could not be read.',
+        },
+        { status: 503 },
+      ),
+    };
+  }
+  if (!encoded) {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          error: 'active_workspace_claim_required',
+          message: 'Select an active workspace before accessing scoped data.',
+        },
+        { status: 403 },
+      ),
+    };
+  }
+  const claims = decodeActiveWorkspaceClaims(encoded, secret);
+  if (!claims || claims.subject !== session?.user?.harnessIdentity) {
+    await clearRejectedActiveWorkspaceCookie();
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          error: 'active_workspace_claim_refused',
+          message: 'The active workspace claim is invalid or expired.',
+        },
+        { status: 401 },
+      ),
+    };
+  }
+  const controlIdentity = await resolveControlIdentity(session, claims.tenant);
+  if (controlIdentity instanceof Response) {
+    return { ok: false, response: controlIdentity };
+  }
+  const principal = principalFromSession(session, controlIdentity);
   if (principal) {
-    const secret = resolveActiveWorkspaceSecret();
-    if (!secret) {
-      return {
-        ok: false,
-        response: Response.json(
-          {
-            error: 'active_workspace_configuration_missing',
-            message: 'Active workspace verification is not configured.',
-          },
-          { status: 503 },
-        ),
-      };
-    }
-    let encoded: string | undefined;
-    try {
-      encoded = (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value;
-    } catch {
-      return {
-        ok: false,
-        response: Response.json(
-          {
-            error: 'active_workspace_claim_unavailable',
-            message: 'The active workspace claim could not be read.',
-          },
-          { status: 503 },
-        ),
-      };
-    }
-    if (!encoded) {
-      return {
-        ok: false,
-        response: Response.json(
-          {
-            error: 'active_workspace_claim_required',
-            message: 'Select an active workspace before accessing scoped data.',
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    const claims = decodeActiveWorkspaceClaims(encoded, secret);
-    if (!claims || claims.subject !== principal.harnessIdentity) {
-      await clearRejectedActiveWorkspaceCookie();
-      return {
-        ok: false,
-        response: Response.json(
-          {
-            error: 'active_workspace_claim_refused',
-            message: 'The active workspace claim is invalid or expired.',
-          },
-          { status: 401 },
-        ),
-      };
-    }
-
     try {
       const identityPrincipal = {
         subject: principal.harnessIdentity,
@@ -152,6 +249,7 @@ async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolu
       if (
         !workspace
         || workspace.tenant !== claims.tenant
+        || workspace.tenant !== principal.tenant
         || workspace.scopeRef !== claims.scopeRef
         || workspace.slug !== claims.workspaceSlug
       ) {
@@ -171,7 +269,6 @@ async function resolveHarnessPrincipalUncached(): Promise<HarnessPrincipalResolu
         ok: true,
         principal: {
           ...principal,
-          tenant: workspace.tenant,
           workspaceId: workspace.id,
           workspaceSlug: workspace.slug,
           scopeRef: workspace.scopeRef,
@@ -197,8 +294,4 @@ export const resolveHarnessPrincipal = cache(resolveHarnessPrincipalUncached);
 
 export function principalTenantHeaders(principal: HarnessPrincipal): Record<string, string> {
   return principalScopeHeaders(principal);
-}
-
-export function configuredServiceTenantMatches(principal: HarnessPrincipal): boolean {
-  return configuredServiceTenantMatchesCore(principal, process.env.CONSOLE_HARNESS_TENANT);
 }

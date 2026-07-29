@@ -3,12 +3,13 @@
 
 import { redirect } from 'next/navigation';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+import { redirectForFailedPrincipal } from '@/lib/server/principal-redirect';
 import { ChatUnavailable } from './chat-unavailable';
 
 export default async function ChatIndexPage() {
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) {
-    redirect('/login?callbackUrl=/chat');
+    return redirectForFailedPrincipal(resolution, '/chat');
   }
   if (resolution.principal.workspaceId && resolution.principal.scopeRef) {
     redirect(

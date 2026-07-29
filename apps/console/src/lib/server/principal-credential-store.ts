@@ -1,7 +1,6 @@
 // SOURCING: none. Server-only principal credential cache and issuance client.
 // HANDOFF-PRINCIPAL-CREDENTIALS D4: mint, hold, and never re-render the secret.
 
-import { randomBytes } from 'node:crypto';
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
 
 function issueUpstreamBase(): string {
@@ -27,7 +26,7 @@ export type IssuedPrincipalCredential = {
 const cache = new Map<string, IssuedPrincipalCredential>();
 
 function cacheKey(principal: HarnessPrincipal): string {
-  return `${principal.tenant}::${principal.harnessIdentity}`;
+  return `${principal.tenant}::${principal.controlIdentity?.principal.id ?? principal.harnessIdentity}`;
 }
 
 export function rememberIssuedCredential(
@@ -60,7 +59,8 @@ export const PRINCIPAL_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export async function issuePrincipalCredential(
   principal: HarnessPrincipal,
 ): Promise<IssuedPrincipalCredential | null> {
-  const token = `pct_${randomBytes(24).toString('hex')}`;
+  const principalId = principal.controlIdentity?.principal.id;
+  if (!principalId) return null;
   let response: Response;
   try {
     response = await fetch(`${issueUpstreamBase()}/credentials/issue`, {
@@ -70,10 +70,9 @@ export async function issuePrincipalCredential(
         'x-api-key': serviceKeyForIssuance(),
       },
       body: JSON.stringify({
-        principal_id: principal.harnessIdentity,
+        principal_id: principalId,
         tenant: principal.tenant,
         ttl_ms: PRINCIPAL_TOKEN_TTL_MS,
-        token,
       }),
       cache: 'no-store',
       signal: AbortSignal.timeout(8_000),
@@ -106,7 +105,7 @@ export async function issuePrincipalCredential(
     keyId: body.key_id,
     tenant: typeof body.tenant === 'string' ? body.tenant : principal.tenant,
     principalId:
-      typeof body.principal_id === 'string' ? body.principal_id : principal.harnessIdentity,
+      typeof body.principal_id === 'string' ? body.principal_id : principalId,
     expiresAtMs: typeof body.expires_at_ms === 'number' ? body.expires_at_ms : null,
   };
   rememberIssuedCredential(principal, issued);

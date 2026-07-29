@@ -38,6 +38,19 @@ const workspace = {
     permissions: ['workspace.read', 'content.read', 'content.write', 'chat.write'],
   },
 };
+const controlIdentity = {
+  principal: {
+    id: '00000000-0000-0000-0000-000000000001',
+    kind: 'human',
+    display_name: 'Second User',
+  },
+  kind: 'github',
+  tenant: {
+    id: '00000000-0000-0000-0000-000000000002',
+    slug: 'Travis-Gilbert',
+  },
+  scopes: ['graph:read', 'graph:write'],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -77,6 +90,22 @@ beforeEach(() => {
       onboardingComplete: true,
     },
   });
+  vi.stubGlobal('fetch', vi.fn(async (
+    _input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    const request = JSON.parse(String(init?.body)) as {
+      provider_subject: string;
+      tenant: string;
+    };
+    if (
+      request.provider_subject !== 'second'
+      || request.tenant !== 'Travis-Gilbert'
+    ) {
+      return Response.json({ error: 'cross_tenant_refused' }, { status: 403 });
+    }
+    return Response.json(controlIdentity);
+  }));
 });
 
 describe('active Harness workspace resolution', () => {
@@ -87,6 +116,7 @@ describe('active Harness workspace resolution', () => {
         tenant: 'Travis-Gilbert',
         githubLogin: 'second-user',
         harnessIdentity: 'github:second',
+        controlIdentity,
         workspaceId: 'workspace-42',
         workspaceSlug: 'research',
         scopeRef: 'workspace:workspace-42',
@@ -102,6 +132,25 @@ describe('active Harness workspace resolution', () => {
         },
       },
     });
+  });
+
+  it('refuses when the control-plane tenant differs from the signed workspace', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      ...controlIdentity,
+      tenant: {
+        ...controlIdentity.tenant,
+        slug: 'Another-Tenant',
+      },
+    })));
+
+    const resolution = await resolveHarnessPrincipal();
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(403);
+      await expect(resolution.response.json()).resolves.toMatchObject({
+        error: 'active_workspace_membership_refused',
+      });
+    }
   });
 
   it('refuses a claim after membership is revoked', async () => {

@@ -6,7 +6,7 @@
 // Card shell adapted from the blocks.so SignIn composition (email/password
 // fields omitted — CommonPlace admits only verified GitHub identity).
 
-import { type JSX, type SVGProps, useEffect, useState } from 'react';
+import { type JSX, type SVGProps, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Key } from 'lucide-react';
 import { SessionProvider, signIn, useSession } from 'next-auth/react';
@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/card';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { ForkNotice } from './ForkPageFrame';
+import { selectIdentityWorkspace } from '@/lib/identity/client';
+import { advanceAuthenticatedLogin } from '@/lib/identity/login-advance';
 import { useIdentitySession } from '@/lib/identity/use-identity-session';
 
 type ProviderState = 'loading' | 'ready' | 'unconfigured';
@@ -61,6 +63,8 @@ function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {
   const authSession = useSession();
   const identity = useIdentitySession();
   const [provider, setProvider] = useState<ProviderState>('loading');
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
+  const advancingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -77,19 +81,37 @@ function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {
     };
   }, []);
 
-  const destination =
-    identity.state.status === 'ready' && !identity.state.session.onboardingComplete
-      ? '/onboarding'
-      : safeCallback(callbackUrl);
+  const identityStatus = identity.state.status;
+  const readySession =
+    identityStatus === 'ready' ? identity.state.session : null;
+  const readyWorkspaceKey = readySession
+    ? `${readySession.onboardingComplete}:${readySession.workspaces.map((workspace) => workspace.id).join(',')}`
+    : null;
 
   useEffect(() => {
-    if (identity.state.status !== 'ready') return;
-    window.location.assign(
-      identity.state.session.onboardingComplete
-        ? safeCallback(callbackUrl)
-        : '/onboarding',
-    );
-  }, [callbackUrl, identity.state]);
+    if (!readySession || advancingRef.current) return;
+    advancingRef.current = true;
+    setAdvanceError(null);
+    void advanceAuthenticatedLogin({
+      onboardingComplete: readySession.onboardingComplete,
+      workspaces: readySession.workspaces,
+      callbackUrl: safeCallback(callbackUrl),
+      select: selectIdentityWorkspace,
+      assign: (url) => {
+        window.location.assign(url);
+      },
+    }).catch((error: unknown) => {
+      // Prefer the workspace picker over retrying /chat without a claim.
+      setAdvanceError(
+        error instanceof Error
+          ? error.message
+          : 'Could not open an admitted workspace',
+      );
+      window.location.assign('/onboarding');
+    });
+  }, [callbackUrl, identityStatus, readyWorkspaceKey, readySession]);
+
+  const manualHref = '/onboarding';
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden text-ij-ink">
@@ -130,13 +152,17 @@ function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {
                   </p>
                 ) : identity.state.status === 'error' ? (
                   <ForkNotice tone="error">{identity.state.message}</ForkNotice>
+                ) : advanceError ? (
+                  <ForkNotice tone="error">{advanceError}</ForkNotice>
                 ) : identity.state.status === 'ready' ? (
                   <p className="text-center text-sm text-ij-ink-info">Opening CommonPlace...</p>
                 ) : null}
                 {identity.state.status === 'ready' ? (
                   <Button asChild className="w-full" size="lg">
-                    <Link href={destination}>
-                      {destination === '/onboarding' ? 'Continue onboarding' : 'Open CommonPlace'}
+                    <Link href={manualHref}>
+                      {readySession?.onboardingComplete
+                        ? 'Choose workspace'
+                        : 'Continue onboarding'}
                     </Link>
                   </Button>
                 ) : identity.state.status === 'error' ? null : (

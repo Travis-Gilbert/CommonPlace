@@ -19,6 +19,19 @@ const sessionPrincipal: HarnessPrincipal = {
   tenant: 'Travis-Gilbert',
   githubLogin: 'Travis-Gilbert',
   harnessIdentity: 'github:123',
+  controlIdentity: {
+    principal: {
+      id: '00000000-0000-0000-0000-000000000001',
+      kind: 'human',
+      display_name: 'Travis Gilbert',
+    },
+    kind: 'github',
+    tenant: {
+      id: '00000000-0000-0000-0000-000000000002',
+      slug: 'Travis-Gilbert',
+    },
+    scopes: ['graph:read'],
+  },
 };
 
 afterEach(() => {
@@ -76,7 +89,7 @@ describe('upstream credential resolution', () => {
     }
   });
 
-  it('falls back to the service key for the matching deployment tenant', async () => {
+  it('does not borrow the deployment service key when durable issuance fails', async () => {
     const previousTokens = process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
     const previousTenant = process.env.CONSOLE_HARNESS_TENANT;
     const previousKey = process.env.CONSOLE_DATA_API_KEY;
@@ -89,10 +102,10 @@ describe('upstream credential resolution', () => {
     vi.stubGlobal('fetch', fetchMock);
     try {
       const resolution = await resolveUpstreamCredential(sessionPrincipal);
-      expect(resolution).toEqual({
-        ok: true,
-        credential: { kind: 'service_key', key: 'owner-service-key' },
-      });
+      expect(resolution.ok).toBe(false);
+      if (!resolution.ok) {
+        expect(resolution.refusal.reason).toBe('principal_credential_unavailable');
+      }
     } finally {
       if (previousTokens === undefined) delete process.env.CONSOLE_PRINCIPAL_TOKENS_JSON;
       else process.env.CONSOLE_PRINCIPAL_TOKENS_JSON = previousTokens;

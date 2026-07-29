@@ -22,7 +22,10 @@ import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { ChatSidebar, type CapabilityItem } from '@/components/chat/ChatSidebar';
 import { Transcript } from '@/components/chat/Transcript';
 import { Composer, useChatAttachments } from '@/components/chat/Composer';
-import { ChatRail } from '@/components/chat/ChatRail';
+import {
+  CHAT_INSPECTOR_SECTIONS,
+  InspectorRail,
+} from '@/components/shell/InspectorRail';
 import { ChatDropProvider } from '@/components/chat/ChatDropOverlay';
 import { useChatPageRuntime } from '@/components/chat/runtime';
 import type { ChatArtifactPayload, ChatCatalog, ChatThreadRecord } from '@/lib/chat/project-types';
@@ -45,7 +48,6 @@ import { cn } from '@/lib/cn';
 
 const emptySubscribe = () => () => {};
 const MESSAGE_PERSIST_DEBOUNCE_MS = 500;
-const EMPTY_CAPABILITIES: readonly CapabilityItem[] = [];
 
 function connectionFor(status: number | null, error?: string | null): ConnectionState {
   if (status === 401 || error === 'principal_resolution=unauthenticated') return 'unauthenticated';
@@ -76,6 +78,7 @@ function foldersFromProject(
   thread: ChatThreadRecord,
   catalog: ChatCatalog,
   overrides: ReadonlyMap<string, boolean>,
+  docLabels: ReadonlyMap<string, string> = new Map(),
 ): ContextFolder[] {
   const project = catalog.projects.find((item) => item.id === thread.projectId);
   if (!project) return [];
@@ -94,7 +97,12 @@ function foldersFromProject(
   });
 
   const documents: ContextEntry[] = project.documentIds.map((id) =>
-    makeEntry(`doc:${id}`, id, 'user'),
+    makeEntry(
+      `doc:${id}`,
+      docLabels.get(id) ?? id,
+      'user',
+      Boolean(docLabels.size > 0 && !docLabels.has(id)),
+    ),
   );
   const types: ContextEntry[] = project.objectTypes.map((type) =>
     makeEntry(`type:${type}`, type, 'retrieved'),
@@ -236,9 +244,12 @@ export function ChatPage({
   const [catalog, setCatalog] = useState<ChatCatalog | null>(null);
   const [thread, setThread] = useState<ChatThreadRecord | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [railCollapsed, setRailCollapsed] = useState(false);
+  /** Inspector rail collapsed by default (discoverable via layers edge control). */
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [wide, setWide] = useState(true);
   const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
+  const [capabilities, setCapabilities] = useState<readonly CapabilityItem[]>([]);
+  const [docLabels, setDocLabels] = useState<ReadonlyMap<string, string>>(() => new Map());
   const attachments = useChatAttachments();
 
   const host = useMemo(
@@ -274,6 +285,57 @@ export function ChatPage({
 
   useEffect(() => {
     let active = true;
+    void fetch('/api/capabilities', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return [] as CapabilityItem[];
+        const body = (await response.json()) as { web_search?: unknown };
+        return body.web_search === true
+          ? [{ kind: 'skill' as const, id: 'web_search', name: 'Web search' }]
+          : [];
+      })
+      .then((next) => {
+        if (active) setCapabilities(next);
+      })
+      .catch(() => {
+        if (active) setCapabilities([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!host || !catalog) return;
+    const documentIds = new Set(
+      catalog.projects.flatMap((project) => project.documentIds),
+    );
+    if (documentIds.size === 0) {
+      setDocLabels(new Map());
+      return;
+    }
+    let active = true;
+    void Promise.resolve(host.query({
+      types: ['doc'],
+      page: { limit: 200 },
+    })).then((set) => {
+      if (!active) return;
+      const labels = new Map<string, string>();
+      for (const object of set.objects) {
+        if (!documentIds.has(object.id)) continue;
+        const title = object.properties.title ?? object.properties.name ?? object.properties.path;
+        labels.set(object.id, typeof title === 'string' && title.length > 0 ? title : object.id);
+      }
+      setDocLabels(labels);
+    }).catch(() => {
+      if (active) setDocLabels(new Map());
+    });
+    return () => {
+      active = false;
+    };
+  }, [host, catalog]);
+
+  useEffect(() => {
+    let active = true;
     void fetchChatCatalog()
       .then((next) => {
         if (active) setCatalog(next);
@@ -299,7 +361,8 @@ export function ChatPage({
             if (!active) return;
             setLoadError(null);
             setThread(loaded);
-            setRailCollapsed(loaded.railCollapsed);
+            // Collapsed by default for discoverability via the layers edge control.
+            setInspectorOpen(false);
             return;
           } catch (error) {
             // In-memory catalog is per-instance: a stale URL must not be reported
@@ -343,15 +406,15 @@ export function ChatPage({
 
   const needsSignIn = connection === 'unauthenticated';
 
-  const toggleRail = useCallback(() => {
-    setRailCollapsed((current) => {
-      const next = !current;
+  const setInspectorOpenPersisted = useCallback(
+    (open: boolean) => {
+      setInspectorOpen(open);
       if (thread) {
-        void persistChatThread(thread.id, { railCollapsed: next }).catch(() => {});
+        void persistChatThread(thread.id, { railCollapsed: !open }).catch(() => {});
       }
-      return next;
-    });
-  }, [thread]);
+    },
+    [thread],
+  );
 
   const onOpenThread = useCallback(
     (id: string) => {
@@ -362,8 +425,8 @@ export function ChatPage({
 
   const contextFolders = useMemo(() => {
     if (!thread || !catalog) return [];
-    return foldersFromProject(thread, catalog, includeOverrides);
-  }, [thread, catalog, includeOverrides]);
+    return foldersFromProject(thread, catalog, includeOverrides, docLabels);
+  }, [thread, catalog, includeOverrides, docLabels]);
 
   const contextEntries = useMemo(
     () => contextFolders.flatMap((folder) => folder.entries),
@@ -373,11 +436,6 @@ export function ChatPage({
   const artifactsByMessage = useMemo(
     () => (thread ? artifactsFromThread(thread) : {}),
     [thread],
-  );
-
-  const railArtifacts = useMemo(
-    () => Object.values(artifactsByMessage).flat(),
-    [artifactsByMessage],
   );
 
   const onToggleContextInclude = useCallback((entryId: string) => {
@@ -418,7 +476,7 @@ export function ChatPage({
                   <ChatSidebar
                     catalog={catalog}
                     activeThreadId={thread?.id ?? null}
-                    capabilities={EMPTY_CAPABILITIES}
+                    capabilities={capabilities}
                     unreachable={unreachable}
                     onCatalogChange={setCatalog}
                     onOpenThread={onOpenThread}
@@ -428,7 +486,8 @@ export function ChatPage({
                   />
                 ) : (
                   <aside
-                    className="border-r border-ij-seam p-3 text-ij-ink-info"
+                    data-chat-sidebar
+                    className="shrink-0 border-r border-[color:var(--paper-seam,var(--ij-seam))] bg-[color:var(--paper-sunken,var(--ij-frame))] p-3 text-ij-ink-info"
                     style={{ width: 'var(--ij-chat-sidebar-w)' }}
                   >
                     {needsSignIn
@@ -440,9 +499,14 @@ export function ChatPage({
                 )}
 
                 <main
+                  data-island="editor"
+                  data-block-size="w"
                   className={cn(
-                    'relative flex min-h-0 min-w-0 flex-1 flex-col',
-                    wide && !railCollapsed && 'pr-0',
+                    // Transparent island over MaterialLayer — same lift contract
+                    // as console tool/editor shells (rounded free edge, frame rail).
+                    // Flush to top/right; left seam is the icon-rail panel edge.
+                    // When the inspector opens it takes flex width — no right gutter.
+                    'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-ij-island bg-transparent',
                   )}
                 >
                   {needsSignIn ? (
@@ -473,35 +537,36 @@ export function ChatPage({
                 </main>
 
                 {wide ? (
-                  <ChatRail
+                  <InspectorRail
                     host={host}
-                    collapsed={railCollapsed}
-                    onToggleCollapse={toggleRail}
-                    artifacts={railArtifacts}
-                    contextEntries={contextEntries}
+                    open={inspectorOpen}
+                    onOpenChange={setInspectorOpenPersisted}
+                    sections={CHAT_INSPECTOR_SECTIONS}
+                    workspaceName={
+                      catalog?.projects.find((project) => project.id === catalog.activeProjectId)?.name
+                      ?? 'CommonPlace'
+                    }
                   />
                 ) : (
                   <>
-                    {!railCollapsed ? (
+                    {inspectorOpen ? (
                       <button
                         type="button"
-                        aria-label="Close agent rail"
+                        aria-label="Close inspector rail"
                         className="absolute inset-0 z-20 bg-ij-frame/50"
-                        onClick={toggleRail}
+                        onClick={() => setInspectorOpenPersisted(false)}
                       />
                     ) : null}
-                    <div
-                      className="absolute right-0 top-0 z-30 h-full"
-                      style={{
-                        width: railCollapsed ? 'var(--ij-sidebar-collapsed-w)' : 'var(--ij-chat-rail-overlay-w)',
-                      }}
-                    >
-                      <ChatRail
+                    <div className="absolute right-0 top-0 z-30 h-full">
+                      <InspectorRail
                         host={host}
-                        collapsed={railCollapsed}
-                        onToggleCollapse={toggleRail}
-                        artifacts={railArtifacts}
-                        contextEntries={contextEntries}
+                        open={inspectorOpen}
+                        onOpenChange={setInspectorOpenPersisted}
+                        sections={CHAT_INSPECTOR_SECTIONS}
+                        workspaceName={
+                          catalog?.projects.find((project) => project.id === catalog.activeProjectId)?.name
+                          ?? 'CommonPlace'
+                        }
                       />
                     </div>
                   </>

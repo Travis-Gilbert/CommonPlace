@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from 'next-auth';
 import {
-  configuredServiceTenantMatches,
   filterRunsForTenant,
   legacyServicePrincipal,
   principalFromSession,
@@ -19,19 +18,47 @@ function session(githubLogin?: string, harnessIdentity?: string): Session {
   };
 }
 
+const controlIdentity = {
+  principal: {
+    id: '00000000-0000-0000-0000-000000000001',
+    kind: 'human' as const,
+    display_name: 'Travis Gilbert',
+  },
+  kind: 'github' as const,
+  tenant: {
+    id: '00000000-0000-0000-0000-000000000002',
+    slug: 'Travis-Gilbert',
+  },
+  scopes: ['graph:read'],
+};
+
 describe('Harness principal resolution', () => {
-  it('derives the tenant from verified GitHub session claims', () => {
-    expect(principalFromSession(session('Travis-Gilbert', 'github:123'))).toEqual({
+  it('uses the canonical control identity instead of reconstructing the tenant', () => {
+    expect(
+      principalFromSession(
+        session('renamed-login', 'github:123'),
+        controlIdentity,
+      ),
+    ).toEqual({
       tenant: 'Travis-Gilbert',
-      githubLogin: 'Travis-Gilbert',
+      githubLogin: 'renamed-login',
       harnessIdentity: 'github:123',
+      controlIdentity,
     });
   });
 
-  it('refuses incomplete, anonymous, and reserved identities', () => {
+  it('refuses incomplete, anonymous, and non-GitHub control identities', () => {
     expect(principalFromSession(null)).toBeNull();
     expect(principalFromSession(session('Travis-Gilbert'))).toBeNull();
-    expect(principalFromSession(session('default', 'github:123'))).toBeNull();
+    expect(
+      principalFromSession(session('Travis-Gilbert', 'github:123')),
+    ).toBeNull();
+    expect(
+      principalFromSession(
+        session('Travis-Gilbert', 'github:123'),
+        { ...controlIdentity, kind: 'session' },
+      ),
+    ).toBeNull();
   });
 
   it('keeps the explicit legacy tenant only until GitHub auth is ready', () => {
@@ -42,22 +69,6 @@ describe('Harness principal resolution', () => {
     });
     expect(legacyServicePrincipal('default', false)).toBeNull();
     expect(legacyServicePrincipal('Travis-Gilbert', true)).toBeNull();
-  });
-
-  it('admits only the configured service tenant to shared object credentials', () => {
-    const owner = {
-      tenant: 'Travis-Gilbert',
-      githubLogin: 'Travis-Gilbert',
-      harnessIdentity: 'github:1',
-    };
-    const other = {
-      tenant: 'someone-else',
-      githubLogin: 'someone-else',
-      harnessIdentity: 'github:2',
-    };
-    expect(configuredServiceTenantMatches(owner, 'Travis-Gilbert')).toBe(true);
-    expect(configuredServiceTenantMatches(other, 'Travis-Gilbert')).toBe(false);
-    expect(configuredServiceTenantMatches(owner, undefined)).toBe(false);
   });
 
   it('preserves run ledger entries without nested scope', () => {

@@ -150,7 +150,7 @@ test.describe('Console information architecture', () => {
     );
     await expect(page.locator('[data-companion-nav]')).toHaveCount(0);
     await expect(page.locator('[data-rail-connection]')).toHaveCount(0);
-    await expect(page.locator('[data-connection-owner="status-bar"]')).toHaveCount(1);
+    await expect(page.locator('[data-connection-owner="status-bar"]')).toHaveCount(0);
 
     const blocks = page.locator('[data-rail-tier="blocks"] button');
     await expect(blocks).toHaveCount(10);
@@ -203,7 +203,8 @@ test.describe('Console information architecture', () => {
     const input = composer.locator('[data-composer-input]');
     await expect(page.locator('[data-chat-sidebar]')).toBeVisible();
     await expect(page.locator('[data-chat-transcript]')).toBeVisible();
-    await expect(page.locator('[data-chat-rail]')).toBeVisible();
+    await expect(page.locator('[data-inspector-rail]')).toBeVisible();
+    await expect(page.locator('[data-inspector-rail-edge]')).toBeVisible();
     await expect(page.locator('[data-thread-composer-input]')).toHaveCount(0);
     await expect(composer.getByRole('button', { name: 'Attach file' })).toBeVisible();
     await expect(composer.getByLabel('Model')).toHaveValue('theorem');

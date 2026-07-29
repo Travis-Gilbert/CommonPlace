@@ -15,12 +15,13 @@ import {
   type BridgeCommand,
 } from '@commonplace/theorem-acp/bridge';
 import { deltaStream, readChatRequest, requireMobileApiKey } from '@/lib/chat-delta';
-import {
-  configuredServiceTenantMatches,
-  resolveHarnessPrincipal,
-} from '@/lib/server/harness-principal';
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import { loadInstanceCapabilities } from '@/lib/server/instance-capabilities';
 import { loadWebResearch } from '@/lib/server/web-research';
+import {
+  credentialRefusalResponse,
+  resolveUpstreamCredential,
+} from '@/lib/server/upstream-credential';
 import { appendWebResearch } from '@/lib/web-research-contract';
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
 
@@ -41,15 +42,6 @@ export async function POST(request: Request): Promise<Response> {
       const resolution = await resolveHarnessPrincipal();
       if (!resolution.ok) return resolution.response;
       principal = resolution.principal;
-      if (!configuredServiceTenantMatches(resolution.principal)) {
-        return Response.json(
-          {
-            error: 'tenant_connector_unavailable',
-            message: 'This signed-in tenant does not yet have a matching hosted ACP credential.',
-          },
-          { status: 403 },
-        );
-      }
     }
     const chat = readChatRequest(await request.json().catch(() => null));
     let promptText = chat.promptText;
@@ -85,7 +77,21 @@ export async function POST(request: Request): Promise<Response> {
       sourceId: null,
       displayText: chat.displayText,
     };
-    const session = await resolveBridgeSession({});
+    let bridgeIdentity: Record<string, unknown> = {};
+    if (principal) {
+      const resolvedCredential = await resolveUpstreamCredential(principal);
+      if (!resolvedCredential.ok) {
+        return credentialRefusalResponse(resolvedCredential.refusal);
+      }
+      bridgeIdentity = {
+        tenant: principal.tenant,
+        authToken:
+          resolvedCredential.credential.kind === 'service_key'
+            ? resolvedCredential.credential.key
+            : resolvedCredential.credential.token,
+      };
+    }
+    const session = await resolveBridgeSession(bridgeIdentity);
     await dispatchBridgeCommands(session, [command]);
     return new Response(
       deltaStream((listener) => session.subscribe(listener), session.getState(), request.signal),

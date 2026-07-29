@@ -127,7 +127,7 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'static material, speed 0',
   },
   {
-    trigger: 'Chat sidebar dock hover',
+    trigger: 'Chat sidebar icon-rail hover',
     effect: 'Dock item width spring magnification',
     spec: 'motion spring mass 0.1 stiffness 150 damping 12; magnification 44 over 36px base',
     reducedMotion: 'no magnification spring; static icon size',

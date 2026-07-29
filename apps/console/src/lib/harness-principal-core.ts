@@ -5,19 +5,43 @@ export interface HarnessPrincipal {
   readonly tenant: string;
   readonly githubLogin: string;
   readonly harnessIdentity: string;
+  readonly controlIdentity?: ControlResolvedIdentity;
   readonly workspaceId?: string;
   readonly workspaceSlug?: string;
   readonly scopeRef?: string;
 }
 
-export function principalFromSession(session: Session | null): HarnessPrincipal | null {
+export interface ControlResolvedIdentity {
+  readonly principal: {
+    readonly id: string;
+    readonly kind: 'human' | 'agent' | 'service';
+    readonly display_name: string;
+  };
+  readonly kind: 'github' | 'session' | 'api_key' | 'signed_request' | 'store_bearer';
+  readonly tenant: {
+    readonly id: string;
+    readonly slug: string;
+  };
+  readonly scopes: readonly string[];
+}
+
+export function principalFromSession(
+  session: Session | null,
+  controlIdentity?: ControlResolvedIdentity,
+): HarnessPrincipal | null {
   const githubLogin = session?.user?.githubLogin;
   const harnessIdentity = session?.user?.harnessIdentity;
-  const tenant = githubTenantSlug(githubLogin);
-  if (!tenant || typeof githubLogin !== 'string' || typeof harnessIdentity !== 'string') {
+  const tenant = controlIdentity?.tenant.slug.trim();
+  if (
+    !tenant
+    || !controlIdentity?.principal.id
+    || controlIdentity.kind !== 'github'
+    || typeof githubLogin !== 'string'
+    || typeof harnessIdentity !== 'string'
+  ) {
     return null;
   }
-  return { tenant, githubLogin, harnessIdentity };
+  return { tenant, githubLogin, harnessIdentity, controlIdentity };
 }
 
 /** Compatibility principal for the pre-login Console. It is admitted only
@@ -35,17 +59,6 @@ export function legacyServicePrincipal(
     githubLogin: tenant,
     harnessIdentity: `service:commonplace-console:${tenant}`,
   };
-}
-
-/** True when the principal matches the deployment's configured service
- *  tenant. Shared object/ACP credentials stay owner-scoped until per-tenant
- *  connectors exist. */
-export function configuredServiceTenantMatches(
-  principal: HarnessPrincipal,
-  configuredTenant: unknown,
-): boolean {
-  const configured = typeof configuredTenant === 'string' ? configuredTenant.trim() : '';
-  return Boolean(configured && configured.toLowerCase() === principal.tenant.toLowerCase());
 }
 
 export function principalScopeHeaders(principal: HarnessPrincipal): Record<string, string> {
@@ -66,7 +79,7 @@ export function principalScopeHeaders(principal: HarnessPrincipal): Record<strin
  * True when the principal carries an admitted workspace/ScopeRef claim.
  * Object-seam auth still keys off the credential tenant; these claims travel
  * as headers for consumers that enforce them. Do not use this as a Console
- * hard-refuse — that blocked every onboarded workspace behind a false
+ * hard-refuse. That blocked every onboarded workspace behind a false
  * "data API unreachable" state.
  */
 export function principalRequiresScopedObjectConsumer(

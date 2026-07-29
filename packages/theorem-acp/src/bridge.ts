@@ -133,10 +133,23 @@ export function resolveProcessKey(body: Record<string, unknown>): AgentProcessKe
   if (bindingId !== null && typeof bindingId !== 'string') {
     throw new BridgeCommandError('bindingId must be a string or null.', 400);
   }
+  const tenant = body.tenant;
+  if (tenant !== undefined && (typeof tenant !== 'string' || tenant.trim() === '')) {
+    throw new BridgeCommandError('tenant must be a non-empty string when supplied.', 400);
+  }
+  const authToken = body.authToken;
+  if (
+    authToken !== undefined
+    && (typeof authToken !== 'string' || authToken.trim() === '')
+  ) {
+    throw new BridgeCommandError('authToken must be a non-empty string when supplied.', 400);
+  }
   return {
     mount: process.env.THEOREM_ACP_WORKSPACE_MOUNT ?? process.env.THEOREM_ACP_CWD ?? process.cwd(),
     mode,
     bindingId: mode === 'composed' ? bindingId ?? 'agent:theorem' : null,
+    ...(typeof tenant === 'string' ? { tenant: tenant.trim() } : {}),
+    ...(typeof authToken === 'string' ? { authToken: authToken.trim() } : {}),
   };
 }
 

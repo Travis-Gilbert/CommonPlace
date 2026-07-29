@@ -101,7 +101,11 @@ asks for inspiration, reference, mood, or direction.
 | Split layout, tool window panels | `react-resizable-panels` | split geometry, persisted sizes, 1px `--ij-divider` handles |
 | Search everywhere, palettes | `cmdk` | command list, filtering, keyboard nav |
 | Approval dialog | `cmdk` Dialog | focus-managed, keyboard-selectable one-shot Plan approval and rejection |
-| Tabular lenses | tablecn structure on `@tanstack/react-table` | record.table sorting, filtering, column model |
+| Tabular lenses | tablecn structure on `@tanstack/react-table` plus blocks.so `table-01`..`table-05` anatomy | record.table sorting, filtering, column model |
+| Schema-driven record cells and chips | FieldType map in `views/records/cells.tsx` plus blocks.so badge / jalco chip anatomy | polymorphic cells, RecordChip, select hues |
+| Model canvas object cards | `@xyflow/react` plus jalco `repo-card` header anatomy (structure extract) | ObjectTypeCard / GhostCard on the diagram lens |
+| Model relation edges | `@xyflow/react` BaseEdge / smooth-step | field-anchored RelationEdge |
+| Record view bar and calculate footer | `cmdk` plus blocks.so command-menu / table footer patterns | ViewBar grammar and server aggregate footer |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |
 | Composer mechanics | `@assistant-ui/react` 0.12 | auto-grow input, attachments, object mentions, destination slot, send behavior |

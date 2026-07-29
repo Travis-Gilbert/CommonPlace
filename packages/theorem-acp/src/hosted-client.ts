@@ -1,4 +1,4 @@
-// SOURCING: none — pure logic, no upstream component applies
+// SOURCING: none. Pure logic, no upstream component applies.
 /**
  * Hosted ACP transport: CommonPlace BFF attaches to Theorem's Railway ACP host
  * over `/v1/commonplace/acp/ws` instead of spawning a local `theorem acp`.

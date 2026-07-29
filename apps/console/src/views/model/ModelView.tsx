@@ -28,8 +28,9 @@ import { WhyTrace } from '../harness-ux/WhyTracePanel';
 import {
   DiagramLens,
   FieldsTableLens,
-  RecordsPreviewLens,
 } from './ObservedDeclaredLenses';
+import { RecordsLens } from './RecordsLens';
+import type { LayoutPositions } from './diagram/layout';
 import {
   createModelQueryState,
   modelScopeFromSet,
@@ -37,6 +38,8 @@ import {
   type ModelLens,
   type ModelSelection,
 } from './modelQuery';
+
+const MODEL_LAYOUT_TYPE = 'model.layout';
 
 function selectedObservedEvidence(
   selection: ModelSelection | null,
@@ -221,6 +224,8 @@ export function ModelView({ set, host }: ViewRenderProps) {
   const [proposalComposerOpen, setProposalComposerOpen] = useState(false);
   const [proposal, setProposal] = useState<SchemaProposalDraft | null>(null);
   const [proposalBusy, setProposalBusy] = useState(false);
+  const [layoutPositions, setLayoutPositions] = useState<LayoutPositions>({});
+  const [layoutObjectId, setLayoutObjectId] = useState<string | null>(null);
   const setScope = modelScopeFromSet(set);
   const setScopeTopicId = setScope?.kind === 'topic' ? setScope.topicId : '';
   const setScopeTenant = setScope?.tenant;
@@ -266,6 +271,70 @@ export function ModelView({ set, host }: ViewRenderProps) {
       active = false;
     };
   }, [topicId, reloadToken]);
+
+  useEffect(() => {
+    if (!topicId) return;
+    let active = true;
+    void Promise.resolve().then(async () => {
+      try {
+        const layouts = await host.query({
+          types: [MODEL_LAYOUT_TYPE],
+          where: { kind: 'eq', field: 'topicId', value: topicId },
+          page: { limit: 1 },
+        });
+        if (!active) return;
+        const layout = layouts.objects[0];
+        if (!layout) {
+          setLayoutObjectId(null);
+          setLayoutPositions({});
+          return;
+        }
+        setLayoutObjectId(layout.id);
+        const positions = layout.properties.positions;
+        if (positions && typeof positions === 'object' && !Array.isArray(positions)) {
+          setLayoutPositions(positions as LayoutPositions);
+        }
+      } catch {
+        if (!active) return;
+        setLayoutObjectId(null);
+        setLayoutPositions({});
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [host, topicId, reloadToken]);
+
+  async function persistLayout(positions: LayoutPositions): Promise<void> {
+    if (!topicId) return;
+    setLayoutPositions(positions);
+    try {
+      if (layoutObjectId) {
+        const updated = await host.emit({
+          kind: 'update',
+          id: layoutObjectId,
+          patch: { positions, topicId, scopeKind: 'topic' },
+        });
+        if (!updated.ok) {
+          setError(updated.error ?? 'Model layout update refused.');
+        }
+        return;
+      }
+      const created = await host.emit({
+        kind: 'create',
+        type: MODEL_LAYOUT_TYPE,
+        props: { positions, topicId, scopeKind: 'topic' },
+      });
+      if (!created.ok) {
+        setError(created.error ?? 'Model layout create refused.');
+        return;
+      }
+      const createdId = created.value?.target_ids?.[0];
+      if (createdId) setLayoutObjectId(createdId);
+    } catch (layoutError) {
+      setError(layoutError instanceof Error ? layoutError.message : String(layoutError));
+    }
+  }
 
   async function applyPin(
     observedKey: string,
@@ -356,6 +425,10 @@ export function ModelView({ set, host }: ViewRenderProps) {
     },
     onUnpin: (declaredId: string) => {
       void applyUnpin(declaredId);
+    },
+    layoutPositions,
+    onLayoutChange: (positions: LayoutPositions) => {
+      void persistLayout(positions);
     },
   };
   const unavailable = !topicId
@@ -467,7 +540,12 @@ export function ModelView({ set, host }: ViewRenderProps) {
             ) : queryState.lens === 'fields' ? (
               <FieldsTableLens {...lensProps} />
             ) : (
-              <RecordsPreviewLens {...lensProps} />
+              <RecordsLens
+                observed={observed}
+                declared={declared}
+                selection={queryState.selection}
+                host={host}
+              />
             )}
           </div>
         </main>

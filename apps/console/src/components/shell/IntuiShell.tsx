@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { SessionProvider } from 'next-auth/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type {
@@ -35,9 +36,22 @@ import { EditorTabs } from './EditorTabs';
 import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
-import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
-import { Sidebar, type SidebarRegion } from './Sidebar';
+import { Sidebar as ConsoleSidebar, type SidebarRegion } from './Sidebar';
+import { TwoLevelSidebarShell } from '@/components/ui/sidebar-component';
+import {
+  CONSOLE_INSPECTOR_SECTIONS,
+  InspectorRail,
+} from '@/components/shell/InspectorRail';
+import {
+  Analytics,
+  Dashboard,
+  DocumentAdd,
+  Folder,
+  Task,
+  UserMultiple,
+  type CarbonIconType,
+} from '@carbon/icons-react';
 import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
 import { HostFindLens } from '@/components/host/HostFindLens';
@@ -47,9 +61,15 @@ import type { BlockPaletteItem } from '@/lib/rail/rail-model';
 import { FindOverlay } from '@/views/search/FindOverlay';
 import { highlightPageTarget } from '@/views/search/page-find';
 
-/** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
-const SIDEBAR_WIDTH_PX = 180;
-const SIDEBAR_COLLAPSED_PX = 48;
+/** jshguo TwoLevelSidebar: Carbon icons match the published 21st component. */
+const PLACE_RAIL_ICONS: Record<string, CarbonIconType> = {
+  chat: Task,
+  workspace: Dashboard,
+  survey: UserMultiple,
+  index: Analytics,
+  editor: Folder,
+  model: DocumentAdd,
+};
 const OVERLAY_BREAKPOINT = 1100;
 const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
 
@@ -571,6 +591,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
 
   const landmarkCollapsed = landmarkRegion?.object.properties.collapsed === true;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(landmarkCollapsed);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [seenLandmarkCollapsed, setSeenLandmarkCollapsed] = useState(landmarkCollapsed);
   if (landmarkCollapsed !== seenLandmarkCollapsed) {
     setSeenLandmarkCollapsed(landmarkCollapsed);
@@ -587,6 +608,19 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const applySidebarCollapsed = useCallback((next: boolean) => {
     persistSidebarCollapsed(next);
   }, [persistSidebarCollapsed]);
+
+  // Meta/Ctrl+B must live on the shell: the detail panel unmounts when collapsed,
+  // so a listener inside ConsoleSidebar cannot reopen the rail.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (event.key.toLowerCase() !== 'b') return;
+      event.preventDefault();
+      applySidebarCollapsed(!sidebarCollapsed);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [applySidebarCollapsed, sidebarCollapsed]);
 
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
@@ -655,6 +689,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   };
 
   return (
+    <SessionProvider>
     <div
       ref={shellRef}
       data-shell
@@ -670,34 +705,54 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
         onOpenItem={openFindItem}
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside
-          data-shell-sidebar
-          className="min-h-0 shrink-0 overflow-hidden"
-          style={{
-            width: sidebarCollapsed || compact ? SIDEBAR_COLLAPSED_PX : SIDEBAR_WIDTH_PX,
-            transition: durations.reduced ? undefined : 'width var(--ij-motion) var(--ij-ease)',
+        {/* Composition: published 21st/@jshguo TwoLevelSidebarShell; ConsoleSidebar
+            is the detail-panel content. MaterialLayer islands stay in the well. */}
+        <TwoLevelSidebarShell
+          data-testid="console-sidebar"
+          items={PLACE_ENTRIES.map((place) => {
+            const Icon = PLACE_RAIL_ICONS[place.kind] ?? Dashboard;
+            return {
+              id: place.surfaceId,
+              label: place.label,
+              icon: <Icon size={16} />,
+            };
+          })}
+          activeSection={activeSurfaceId}
+          onSectionChange={(surfaceId) => {
+            const place = PLACE_ENTRIES.find((entry) => entry.surfaceId === surfaceId);
+            if (!place) return;
+            applySidebarCollapsed(false);
+            void softNavigate(router, place.path);
           }}
-        >
-          <Sidebar
-            host={host}
-            surfaces={surfaces}
-            companions={companions}
-            activeSurfaceId={activeSurfaceId}
-            compact={compact}
-            landmarksRegion={landmarkRegion}
-            activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
-            onToggleCompanion={toggle}
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={applySidebarCollapsed}
-            onAddBlock={handleAddBlock}
-          />
-        </aside>
+          panelOpen={!sidebarCollapsed && !compact}
+          onPanelOpenChange={(open) => applySidebarCollapsed(!open)}
+          title="Workspace"
+          panel={
+            <div data-shell-sidebar className="h-full min-h-0 overflow-hidden">
+              <ConsoleSidebar
+                host={host}
+                surfaces={surfaces}
+                companions={companions}
+                activeSurfaceId={activeSurfaceId}
+                compact={compact}
+                landmarksRegion={landmarkRegion}
+                activeGridRegionId={editor.object.properties.kind === 'grid' ? editor.object.id : null}
+                onToggleCompanion={toggle}
+                collapsed={false}
+                onCollapsedChange={applySidebarCollapsed}
+                onAddBlock={handleAddBlock}
+              />
+            </div>
+          }
+        />
         <div
           data-shell-sidebar-seam
           className="relative w-ij-island-gutter shrink-0 bg-transparent"
           aria-hidden
         />
-        <div id="console-editor-well" className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        {/* Ground gutters + data-island children: MaterialLayer paints the
+            lifted island body (rounded free edge + tone) over the frame rail. */}
+        <div id="console-editor-well" className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             data-shell-region="ground"
             className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
@@ -782,13 +837,20 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
             </div>
           </div>
         </div>
+        <InspectorRail
+          host={host}
+          open={inspectorOpen}
+          onOpenChange={setInspectorOpen}
+          sections={CONSOLE_INSPECTOR_SECTIONS}
+          workspaceName="CommonPlace"
+        />
       </div>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
-      <StatusBar host={host} />
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />
     </div>
+    </SessionProvider>
   );
 }
