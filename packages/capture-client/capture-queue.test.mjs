@@ -69,6 +69,10 @@ test("rejects invalid retry configuration", () => {
     () => createCaptureQueue({ storage, send, retryBaseMs: Number.NaN }),
     /retryBaseMs must be a non-negative finite number/,
   );
+  assert.throws(
+    () => createCaptureQueue({ storage, send, sendTimeoutMs: 0 }),
+    /sendTimeoutMs must be a positive finite number/,
+  );
 });
 
 test("treats a malformed sender result as retryable", async () => {
@@ -84,6 +88,36 @@ test("treats a malformed sender result as retryable", async () => {
   assert.equal(entry.state, "kept");
   assert.equal(entry.attempts, 1);
   assert.match(entry.lastError, /sender returned an invalid result/);
+});
+
+test("times out a hung sender and keeps the entry retryable", async () => {
+  const storage = memoryStorage();
+  const queue = createCaptureQueue({
+    storage,
+    retryBaseMs: 0,
+    sendTimeoutMs: 5,
+    send: async () => new Promise(() => {}),
+  });
+
+  await queue.enqueue(envelope("local-timeout"));
+  const [entry] = await queue.drain();
+  assert.equal(entry.state, "kept");
+  assert.equal(entry.attempts, 1);
+  assert.match(entry.lastError, /timed out after 5 ms/);
+});
+
+test("keeps an unclassified sender failure retryable", async () => {
+  const storage = memoryStorage();
+  const queue = createCaptureQueue({
+    storage,
+    retryBaseMs: 0,
+    send: async () => ({ ok: false, error: "temporarily unavailable" }),
+  });
+
+  await queue.enqueue(envelope("local-ambiguous"));
+  const [entry] = await queue.drain();
+  assert.equal(entry.state, "kept");
+  assert.equal(entry.lastError, "temporarily unavailable");
 });
 
 test("serializes concurrent queue mutations", async () => {

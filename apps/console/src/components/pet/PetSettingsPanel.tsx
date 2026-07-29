@@ -4,8 +4,16 @@
 // adapter. The panel uses existing ForkPanel, ForkField, ForkNotice, and Button
 // primitives so it stays inside the Console component ledger.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   ForkField,
   ForkNotice,
@@ -34,10 +42,31 @@ function modelSize(sizeBytes: number): string {
   return `${Math.round(sizeBytes / 1_000_000)} MB`;
 }
 
+function PetCheckbox({
+  checked,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  label: string;
+  onCheckedChange(checked: boolean): void;
+}) {
+  return (
+    <label className="flex min-h-ij-control items-center gap-2">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(next) => onCheckedChange(next === true)}
+      />
+      {label}
+    </label>
+  );
+}
+
 export function PetSettingsPanel() {
   const [available, setAvailable] = useState(false);
   const [preferences, setPreferences] =
     useState<PetNativePreferences | null>(null);
+  const persistedPreferences = useRef<PetNativePreferences | null>(null);
   const [credentialConfigured, setCredentialConfigured] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [models, setModels] =
@@ -60,6 +89,7 @@ export function PetSettingsPanel() {
       setAvailable(true);
       const failures: unknown[] = [];
       if (nextPreferences.status === 'fulfilled') {
+        persistedPreferences.current = nextPreferences.value;
         setPreferences(nextPreferences.value);
       } else {
         failures.push(nextPreferences.reason);
@@ -91,13 +121,15 @@ export function PetSettingsPanel() {
     patch: Partial<PetNativePreferences>,
   ): Promise<void> => {
     if (!preferences || busy) return;
-    const previous = preferences;
+    const previous = persistedPreferences.current ?? preferences;
     const next = { ...preferences, ...patch };
     setPreferences(next);
     setBusy(true);
     setMessage('Saving PET settings...');
     try {
-      setPreferences(await petUpdatePreferences(next));
+      const saved = await petUpdatePreferences(next);
+      persistedPreferences.current = saved;
+      setPreferences(saved);
       setMessage('PET settings saved.');
     } catch (error) {
       setPreferences(previous);
@@ -132,6 +164,7 @@ export function PetSettingsPanel() {
                 setMessage('Opening PET...');
                 void petShow()
                   .then((next) => {
+                    persistedPreferences.current = next;
                     setPreferences(next);
                     setMessage('PET is ready for input.');
                   })
@@ -152,48 +185,34 @@ export function PetSettingsPanel() {
               disabled={busy}
             >
               <div className="grid gap-2 sm:grid-cols-2">
-                <label className="flex min-h-ij-control items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={preferences.pinned}
-                    onChange={(event) =>
-                      void persist({ pinned: event.currentTarget.checked })
-                    }
-                  />
-                  Keep PET above other windows
-                </label>
-                <label className="flex min-h-ij-control items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={preferences.clickThrough}
-                    onChange={(event) =>
-                      void persist({
-                        clickThrough: event.currentTarget.checked,
-                      })
-                    }
-                  />
-                  Let clicks pass through PET
-                </label>
-                <label className="flex min-h-ij-control items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={preferences.quietHours}
-                    onChange={(event) =>
-                      void persist({ quietHours: event.currentTarget.checked })
-                    }
-                  />
-                  Quiet hours
-                </label>
-                <label className="flex min-h-ij-control items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={preferences.voiceEnabled}
-                    onChange={(event) =>
-                      void persist({ voiceEnabled: event.currentTarget.checked })
-                    }
-                  />
-                  Local voice
-                </label>
+                <PetCheckbox
+                  checked={preferences.pinned}
+                  label="Keep PET above other windows"
+                  onCheckedChange={(checked) =>
+                    void persist({ pinned: checked })
+                  }
+                />
+                <PetCheckbox
+                  checked={preferences.clickThrough}
+                  label="Let clicks pass through PET"
+                  onCheckedChange={(checked) =>
+                    void persist({ clickThrough: checked })
+                  }
+                />
+                <PetCheckbox
+                  checked={preferences.quietHours}
+                  label="Quiet hours"
+                  onCheckedChange={(checked) =>
+                    void persist({ quietHours: checked })
+                  }
+                />
+                <PetCheckbox
+                  checked={preferences.voiceEnabled}
+                  label="Local voice"
+                  onCheckedChange={(checked) =>
+                    void persist({ voiceEnabled: checked })
+                  }
+                />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -224,20 +243,28 @@ export function PetSettingsPanel() {
                   <span style={{ fontWeight: 'var(--rec-weight-cap)' }}>
                     Speech engine
                   </span>
-                  <select
-                    className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2.5 text-ij-ink outline-none focus-visible:border-ij-accent focus-visible:ring-2 focus-visible:ring-ij-accent"
+                  <Select
                     value={preferences.voiceEngine}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       void persist({
-                        voiceEngine: event.currentTarget
-                          .value as PetNativePreferences['voiceEngine'],
+                        voiceEngine:
+                          value as PetNativePreferences['voiceEngine'],
                       })
                     }
                   >
-                    <option value="apple">Apple on-device</option>
-                    <option value="parakeet">Parakeet local model</option>
-                    <option value="whisper">Whisper local model</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="apple">Apple on-device</SelectItem>
+                      <SelectItem value="parakeet">
+                        Parakeet local model
+                      </SelectItem>
+                      <SelectItem value="whisper">
+                        Whisper local model
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </label>
                 <ForkField
                   label="Speech locale"
@@ -256,19 +283,23 @@ export function PetSettingsPanel() {
                   <span style={{ fontWeight: 'var(--rec-weight-cap)' }}>
                     Signature voice
                   </span>
-                  <select
-                    className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2.5 text-ij-ink outline-none focus-visible:border-ij-accent focus-visible:ring-2 focus-visible:ring-ij-accent"
+                  <Select
                     value={preferences.signatureVoice}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       void persist({
-                        signatureVoice: event.currentTarget
-                          .value as PetNativePreferences['signatureVoice'],
+                        signatureVoice:
+                          value as PetNativePreferences['signatureVoice'],
                       })
                     }
                   >
-                    <option value="theorem-hearth">Hearth</option>
-                    <option value="theorem-lantern">Lantern</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="theorem-hearth">Hearth</SelectItem>
+                      <SelectItem value="theorem-lantern">Lantern</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </label>
                 <ForkField
                   label="Capture API base"
@@ -288,30 +319,20 @@ export function PetSettingsPanel() {
               </div>
 
               <div className="grid gap-2 sm:grid-cols-2">
-                <label className="flex min-h-ij-control items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={preferences.captureDictation}
-                    onChange={(event) =>
-                      void persist({
-                        captureDictation: event.currentTarget.checked,
-                      })
-                    }
-                  />
-                  File kept dictation in CommonPlace
-                </label>
-                <label className="flex min-h-ij-control items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={preferences.captureReadAloud}
-                    onChange={(event) =>
-                      void persist({
-                        captureReadAloud: event.currentTarget.checked,
-                      })
-                    }
-                  />
-                  File kept read-aloud text
-                </label>
+                <PetCheckbox
+                  checked={preferences.captureDictation}
+                  label="File kept dictation in CommonPlace"
+                  onCheckedChange={(checked) =>
+                    void persist({ captureDictation: checked })
+                  }
+                />
+                <PetCheckbox
+                  checked={preferences.captureReadAloud}
+                  label="File kept read-aloud text"
+                  onCheckedChange={(checked) =>
+                    void persist({ captureReadAloud: checked })
+                  }
+                />
               </div>
               <ForkNotice>
                 In-PET dictation works without Accessibility permission.

@@ -28,10 +28,7 @@ fn gpui_sidecar_spawns_restarts_and_reseeds_open_panes() {
     // process so Command inherits it when we set it before start.
     std::env::set_var("FAKE_PANE_HOST_LOG", &log_path);
 
-    let supervisor = PaneHostSupervisor::new(
-        config,
-        ParentSurface::AppKit { ns_view: 0xabc },
-    );
+    let supervisor = PaneHostSupervisor::new(config, ParentSurface::AppKit { ns_view: 0xabc });
     supervisor.start().expect("start fake host");
     assert!(supervisor.is_running());
 
@@ -66,9 +63,19 @@ fn gpui_sidecar_spawns_restarts_and_reseeds_open_panes() {
     // Give reseed Create a moment to land in the log.
     thread::sleep(Duration::from_millis(200));
     let body = std::fs::read_to_string(&log_path).expect("read log");
+    let create_frames = body
+        .lines()
+        .filter(|line| line.starts_with("create "))
+        .collect::<Vec<_>>();
     assert!(
-        body.contains("create") && body.contains("example.com"),
-        "expected create frames in log, got:\n{body}"
+        create_frames.len() >= 2,
+        "expected initial and reseed create frames, got:\n{body}"
+    );
+    assert!(
+        create_frames
+            .last()
+            .is_some_and(|line| line.contains("https://example.com/final")),
+        "expected final graph URL in reseed frame, got:\n{body}"
     );
 
     supervisor.stop();

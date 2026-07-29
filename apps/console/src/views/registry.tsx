@@ -5,7 +5,11 @@
 // registered here. The shell never grows a bespoke page; a new surface is a
 // registration in this file (the marriage requirement, G3/G8).
 
-import type { ViewDescriptor, ViewRenderProps } from '@commonplace/block-view/types';
+import type {
+  JsonValue,
+  ViewDescriptor,
+  ViewRenderProps,
+} from '@commonplace/block-view/types';
 import { createViewRegistry } from '@commonplace/block-view/registry';
 import type { ConsoleViewDescriptor } from '@/lib/rail/rail-model';
 import { RecordTableView } from './RecordTableView';
@@ -72,6 +76,29 @@ function SearchStackRender(props: ViewRenderProps) {
       onRecordSessionOrigin={(id, origin) =>
         recordSearchSessionOrigin(props.host, id, origin).then(() => undefined)}
     />
+  );
+}
+
+function BrowserPaneRender(props: ViewRenderProps) {
+  const config = props.instance?.properties.config;
+  const attrs =
+    config && typeof config === 'object' && !Array.isArray(config)
+      ? config as Record<string, JsonValue>
+      : {};
+  const url = typeof attrs.url === 'string' ? attrs.url : 'about:blank';
+  return (
+    <div
+      className="grid h-full min-h-40 content-center gap-2 bg-ij-editor p-4 text-ij-ink"
+      data-native-browser-pane={props.instance?.id ?? ''}
+      data-native-browser-url={url}
+    >
+      <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>Native browser pane</p>
+      <p className="font-ij-mono text-ij-link">{url}</p>
+      <p className="text-ij-ink-info">
+        Web content mounts here when the signed Servo sidecar and platform
+        surface transport are available.
+      </p>
+    </div>
   );
 }
 
@@ -569,6 +596,37 @@ const SEARCH_STACK: ConsoleViewDescriptor = {
   render: SearchStackRender,
 };
 
+const BROWSER_PANE: ConsoleViewDescriptor = {
+  id: 'browser.pane',
+  name: 'Browser',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'browser.pane',
+  sourcing: {
+    mode: 'bespoke',
+    allowedBespokeReason:
+      'The DOM pane is the measured composition slot for the out-of-process Servo surface.',
+  },
+  source: {
+    package: '@commonplace/block-view',
+    component: 'BlockHost',
+    mode: 'bespoke',
+    regime: 'css-vars',
+    allowedBespokeReason:
+      'The DOM pane is the measured composition slot for the out-of-process Servo surface.',
+  },
+  block: {
+    usage: 'host native web content',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'browser',
+    bodyBleed: 'flush',
+  },
+  render: BrowserPaneRender,
+};
+
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',
@@ -912,6 +970,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   SURVEY_BOARD,
   MODEL_STUDIO,
   SEARCH_STACK,
+  BROWSER_PANE,
   COMMONPLACE_CONSOLE,
 ] as const;
 

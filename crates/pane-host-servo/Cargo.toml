@@ -34,7 +34,7 @@ pane-protocol = { path = "../pane-protocol" }
 #   browser-embed = { path = "../Theorem/apps/browser/crates/browser-embed" }
 #
 # Cargo discovers the package in Theorem's nested apps/browser workspace.
-browser-embed = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "fd26be765d28b1223eabf784299ec5aa2927c6e7" }
+browser-embed = { git = "https://github.com/Travis-Gilbert/Theorem.git", rev = "b634e3fc71acbf04e749ca38534c68a441c97aa7" }
 raw-window-handle = "0.6"
 
 [features]

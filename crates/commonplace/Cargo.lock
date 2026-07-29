@@ -1895,6 +1895,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 [[package]]
 name = "rustyred-thg-core"
 version = "0.5.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "blake3",
  "bm25",
@@ -1909,6 +1910,7 @@ dependencies = [
  "memmap2",
  "rkyv",
  "roaring",
+ "rustyred-thg-derivation",
  "serde",
  "serde_json",
  "sha2",
@@ -1918,8 +1920,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustyred-thg-derivation"
+version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
+dependencies = [
+ "egglog",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "rustyred-thg-reconstruct-fact"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "rustyred-thg-core",
  "serde",
@@ -2178,6 +2192,7 @@ dependencies = [
 [[package]]
 name = "theorem-bayes"
 version = "0.1.0"
+source = "git+https://github.com/Travis-Gilbert/Theorem.git?rev=b02a09efc9a03622f57cb515dd7ffd621f7bc426#b02a09efc9a03622f57cb515dd7ffd621f7bc426"
 dependencies = [
  "serde",
  "serde_json",

@@ -62,4 +62,33 @@ describe('HostCapabilityRailBridge', () => {
     );
     expect(view.querySelector('[data-last-placed]')).toBeTruthy();
   });
+
+  it('delivers placed blocks to the Console arrangement consumer', async () => {
+    const host = new LoopbackHost(createLoopbackStore());
+    const onBlockPlaced = vi.fn();
+    await render(
+      <HostProvider host={host}>
+        <HostCapabilityRailBridge
+          workspaceId="default"
+          onBlockPlaced={onBlockPlaced}
+        />
+      </HostProvider>,
+    );
+
+    await act(async () => {
+      await host.placeBlock({
+        workspaceId: 'default',
+        kind: 'browser',
+        attrs: { url: 'https://example.com/' },
+        grants: [],
+      });
+    });
+
+    expect(onBlockPlaced).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'browser',
+        attrs: { url: 'https://example.com/' },
+      }),
+    );
+  });
 });

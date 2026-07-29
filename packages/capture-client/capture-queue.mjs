@@ -2,6 +2,7 @@ export const COMMONPLACE_CAPTURE_CONTRACT_VERSION = "commonplace-capture/v1";
 
 const DEFAULT_MAX_ATTEMPTS = 5;
 const DEFAULT_RETRY_BASE_MS = 1_000;
+const DEFAULT_SEND_TIMEOUT_MS = 30_000;
 
 export function normalizeCaptureApiBase(endpoint) {
   const trimmed = endpoint.trim();
@@ -88,6 +89,7 @@ export function createCaptureQueue({
   send,
   maxAttempts = DEFAULT_MAX_ATTEMPTS,
   retryBaseMs = DEFAULT_RETRY_BASE_MS,
+  sendTimeoutMs = DEFAULT_SEND_TIMEOUT_MS,
   now = Date.now,
 }) {
   if (!storage?.read || !storage?.write) {
@@ -104,6 +106,11 @@ export function createCaptureQueue({
   if (!Number.isFinite(retryBaseMs) || retryBaseMs < 0) {
     throw new RangeError(
       "capture queue retryBaseMs must be a non-negative finite number",
+    );
+  }
+  if (!Number.isFinite(sendTimeoutMs) || sendTimeoutMs <= 0) {
+    throw new RangeError(
+      "capture queue sendTimeoutMs must be a positive finite number",
     );
   }
 
@@ -170,10 +177,24 @@ export function createCaptureQueue({
       await persist(entries);
 
       let result;
+      let timeout;
       try {
-        result = await send(structuredClone(entry.envelope), {
-          localFilePaths: structuredClone(entry.localFilePaths ?? []),
-        });
+        result = await Promise.race([
+          send(structuredClone(entry.envelope), {
+            localFilePaths: structuredClone(entry.localFilePaths ?? []),
+          }),
+          new Promise((_, reject) => {
+            timeout = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `capture sender timed out after ${sendTimeoutMs} ms`,
+                  ),
+                ),
+              sendTimeoutMs,
+            );
+          }),
+        ]);
         if (
           !result ||
           typeof result !== "object" ||
@@ -187,6 +208,8 @@ export function createCaptureQueue({
           retryable: true,
           error: error instanceof Error ? error.message : String(error),
         };
+      } finally {
+        if (timeout !== undefined) clearTimeout(timeout);
       }
 
       entry.updatedAt = now();
@@ -200,7 +223,10 @@ export function createCaptureQueue({
 
       entry.lastError = errorMessage(result);
       const retryable =
-        result.retryable ?? isRetryableCaptureStatus(result.status ?? 0);
+        result.retryable ??
+        (result.status === undefined
+          ? true
+          : isRetryableCaptureStatus(result.status));
       if (retryable) {
         entry.state = "kept";
         entry.nextAttemptAt =

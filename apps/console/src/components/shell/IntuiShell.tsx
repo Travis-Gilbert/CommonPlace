@@ -21,11 +21,15 @@ import type {
   ObjectRef,
   ObjectSet,
 } from '@commonplace/block-view/types';
+import type { BlockInstance } from '@commonplace/host-bridge';
 import { buildSurfaceTree, CONTAINS_EDGE, surfaceQuery, type SurfaceTreeNode } from '@commonplace/block-view/surface-tree';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { SURFACE_ID } from '@/lib/workspace-seed';
 import { softNavigate } from '@/lib/soft-navigate';
-import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
+import {
+  deriveBlockPaletteItems,
+  PLACE_ENTRIES,
+} from '@/lib/rail/rail-model';
 import { surfaceIdForPath } from '@/lib/surface-routes';
 import { writeLastConsoleViewPath } from '@/lib/chat/last-console-view';
 import { useShellStore } from '@/lib/shell-store';
@@ -47,14 +51,50 @@ import { recordBlockMoveReceipts } from '@/lib/block-move-receipts';
 import type { BlockPaletteItem } from '@/lib/rail/rail-model';
 import { FindOverlay } from '@/views/search/FindOverlay';
 import { highlightPageTarget } from '@/views/search/page-find';
+import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
 
 /** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
 const SIDEBAR_WIDTH_PX = 180;
 const SIDEBAR_COLLAPSED_PX = 48;
 const OVERLAY_BREAKPOINT = 1100;
 const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
+const HOST_BLOCK_DESCRIPTORS: Readonly<Record<string, string>> = {
+  browser: 'browser.pane',
+  note: 'markdown.doc',
+};
 
 type RegionNode = SidebarRegion;
+
+export function paletteItemForHostBlock(
+  block: BlockInstance,
+): BlockPaletteItem | null {
+  const requestedDescriptor =
+    typeof block.attrs.descriptorId === 'string'
+      ? block.attrs.descriptorId
+      : HOST_BLOCK_DESCRIPTORS[block.kind];
+  const palette = deriveBlockPaletteItems(CONSOLE_VIEW_REGISTRY.descriptors);
+  const item = palette.find(
+    (candidate) =>
+      candidate.descriptorId === requestedDescriptor ||
+      candidate.kind === block.kind,
+  );
+  if (item) return item;
+  if (!requestedDescriptor || !CONSOLE_VIEW_REGISTRY.viewById(requestedDescriptor)) {
+    return null;
+  }
+  return {
+    id: block.kind,
+    label:
+      typeof block.attrs.title === 'string'
+        ? block.attrs.title
+        : block.kind === 'browser'
+          ? 'Browser'
+          : 'Note',
+    kind: block.kind,
+    descriptorId: requestedDescriptor,
+    material: 'sunken',
+  };
+}
 
 interface SurfaceRegions {
   readonly left: readonly RegionNode[];
@@ -426,46 +466,63 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [companions, toggle]);
 
-  const handleAddBlock = useCallback((item: BlockPaletteItem) => {
+  const placeBlockInEditor = useCallback(async (
+    item: BlockPaletteItem,
+    id: string,
+    config?: Record<string, unknown>,
+  ) => {
     if (!editor) return;
-    void (async () => {
-      const id = `palette.${item.id}.${Date.now()}`;
-      const created = await host.emit({
-        kind: 'create',
-        type: 'view-instance',
-        props: {
-          id,
-          descriptor_id: item.descriptorId,
-          title: item.label,
-          ...(item.query
-            ? { query: item.query as unknown as JsonValue }
-            : {}),
-        },
-      });
-      if (!created.ok) return;
-      let moves = 0;
-      for (const action of placeBlockAction(id, {
-        placement: 'ground',
-        regionId: editor.object.id,
-        order: editor.instances.length,
-      })) {
-        const result = await host.emit(action);
-        if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
-          moves += 1;
-        }
+    if (editor.instances.some((instance) => instance.id === id)) return;
+    const created = await host.emit({
+      kind: 'create',
+      type: 'view-instance',
+      props: {
+        id,
+        descriptor_id: item.descriptorId,
+        title: item.label,
+        ...(item.query
+          ? { query: item.query as unknown as JsonValue }
+          : {}),
+        ...(config ? { config: config as unknown as JsonValue } : {}),
+      },
+    });
+    if (!created.ok) return;
+    let moves = 0;
+    for (const action of placeBlockAction(id, {
+      placement: 'ground',
+      regionId: editor.object.id,
+      order: editor.instances.length,
+    })) {
+      const result = await host.emit(action);
+      if (result.ok && result.value?.action_kind === 'move' && result.value.status === 'applied') {
+        moves += 1;
       }
-      if (moves > 0) {
-        recordBlockMoveReceipts(moves);
-        if (editor.object.properties.kind !== 'grid') {
-          await host.emit({
-            kind: 'update',
-            id: editor.object.id,
-            patch: { active_tab: id },
-          });
-        }
+    }
+    if (moves > 0) {
+      recordBlockMoveReceipts(moves);
+      if (editor.object.properties.kind !== 'grid') {
+        await host.emit({
+          kind: 'update',
+          id: editor.object.id,
+          patch: { active_tab: id },
+        });
       }
-    })();
+    }
   }, [editor, host]);
+
+  const handleAddBlock = useCallback((item: BlockPaletteItem) => {
+    void placeBlockInEditor(item, `palette.${item.id}.${Date.now()}`);
+  }, [placeBlockInEditor]);
+
+  const handleHostBlockPlaced = useCallback((block: BlockInstance) => {
+    const item = paletteItemForHostBlock(block);
+    if (!item) return;
+    void placeBlockInEditor(item, block.id, {
+      ...block.attrs,
+      hostBlockId: block.id,
+      hostBlockKind: block.kind,
+    });
+  }, [placeBlockInEditor]);
 
   const activePageText = useCallback(
     () => shellRef.current?.querySelector<HTMLElement>('#console-editor-well')?.innerText ?? null,
@@ -790,7 +847,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />
-      <HostCapabilityRailBridge workspaceId="default" />
+      <HostCapabilityRailBridge
+        workspaceId="default"
+        onBlockPlaced={handleHostBlockPlaced}
+      />
     </div>
   );
 }

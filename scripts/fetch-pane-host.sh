@@ -215,7 +215,7 @@ install_target() {
 # --update: download each asset, compute its checksum, and rewrite the pin.
 update_pin() {
     local tag=$1
-    local triple asset computed
+    local triple asset computed prefix
     local pin_tmp="$work_dir/browser-sidecar.pin"
 
     cp "$PIN_FILE" "$pin_tmp"
@@ -224,10 +224,16 @@ update_pin() {
 
     while read -r triple _; do
         [[ -n "$triple" ]] || continue
-        asset="theorem-browser-${triple}.tar.gz"
+        prefix="${PANE_HOST_ASSET_PREFIX:-pane-host}"
+        asset="${prefix}-${triple}.tar.gz"
         mkdir -p "$work_dir/$triple"
         log "downloading $asset to record its checksum"
-        download_asset "$tag" "$asset" "$work_dir/$triple"
+        if ! download_asset "$tag" "$asset" "$work_dir/$triple" false 2>/dev/null; then
+            prefix="theorem-browser"
+            asset="${prefix}-${triple}.tar.gz"
+            log "falling back to $asset"
+            download_asset "$tag" "$asset" "$work_dir/$triple"
+        fi
         computed="$(sha256_of "$work_dir/$triple/$asset")"
         log "$triple -> $computed"
         # Rewrite only the sha256 line that follows this triple's block.

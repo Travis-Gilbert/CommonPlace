@@ -7,7 +7,7 @@
 //! Theorem `browser-embed` bounds x/y, IME, and SceneOS producer gaps remain
 //! upstream blockers; this only closes the CommonPlace-owned supervision seam.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Sender};
@@ -15,12 +15,20 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use pane_protocol::{
-    read_frame, write_frame, Bounds, Envelope, Outbound, PaneId, ParentSurface, Request, Response,
-    ResponseValue,
+    read_frame, write_frame, Bounds, Envelope, Outbound, PaneEvent, PaneId, ParentSurface, Request,
+    Response, ResponseValue,
 };
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const RESTART_BACKOFF: Duration = Duration::from_millis(100);
+const MAX_RESTART_BACKOFF: Duration = Duration::from_secs(5);
+const MAX_CONSECUTIVE_RESTARTS: u64 = 5;
+
+fn restart_backoff(attempt: u64) -> Duration {
+    RESTART_BACKOFF
+        .saturating_mul(1_u32 << attempt.min(6))
+        .min(MAX_RESTART_BACKOFF)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PaneSnapshot {
@@ -86,7 +94,9 @@ pub struct PaneHostSupervisor {
     panes: Mutex<BTreeMap<PaneId, PaneSnapshot>>,
     /// Last-known URLs from the session graph (chrome-side snapshot).
     graph_urls: Mutex<BTreeMap<PaneId, String>>,
+    events: Mutex<VecDeque<PaneEvent>>,
     stopping: AtomicBool,
+    consecutive_restarts: AtomicU64,
     restart_count: AtomicU64,
 }
 
@@ -101,7 +111,9 @@ impl PaneHostSupervisor {
             pending: Mutex::new(HashMap::new()),
             panes: Mutex::new(BTreeMap::new()),
             graph_urls: Mutex::new(BTreeMap::new()),
+            events: Mutex::new(VecDeque::new()),
             stopping: AtomicBool::new(false),
+            consecutive_restarts: AtomicU64::new(0),
             restart_count: AtomicU64::new(0),
         })
     }
@@ -116,6 +128,11 @@ impl PaneHostSupervisor {
 
     pub fn record_graph_url(&self, pane: PaneId, url: impl Into<String>) {
         self.graph_urls.lock().unwrap().insert(pane, url.into());
+    }
+
+    /// Drain sidecar events for the native chrome event loop.
+    pub fn drain_events(&self) -> Vec<PaneEvent> {
+        self.events.lock().unwrap().drain(..).collect()
     }
 
     pub fn start(self: &Arc<Self>) -> Result<(), String> {
@@ -150,7 +167,7 @@ impl PaneHostSupervisor {
             loop {
                 match read_frame::<_, Outbound>(&mut reader) {
                     Ok(Outbound::Response(response)) => supervisor.settle(response),
-                    Ok(Outbound::Event(_)) => {}
+                    Ok(Outbound::Event(event)) => supervisor.handle_event(event),
                     Err(_) => break,
                 }
             }
@@ -171,6 +188,7 @@ impl PaneHostSupervisor {
 
     /// Kill a running host (reader path restarts) or start when none is alive.
     pub fn restart(self: &Arc<Self>) -> Result<(), String> {
+        self.consecutive_restarts.store(0, Ordering::SeqCst);
         let running = {
             let mut child = self.child.lock().unwrap();
             match child.as_mut() {
@@ -197,6 +215,12 @@ impl PaneHostSupervisor {
         bounds: Bounds,
     ) -> Result<PaneId, String> {
         let pane = pane_id(key);
+        self.request(Request::Create {
+            pane,
+            parent: self.parent,
+            bounds,
+            url: url.to_string(),
+        })?;
         self.panes.lock().unwrap().insert(
             pane,
             PaneSnapshot {
@@ -207,12 +231,6 @@ impl PaneHostSupervisor {
             },
         );
         self.record_graph_url(pane, url);
-        self.request(Request::Create {
-            pane,
-            parent: self.parent,
-            bounds,
-            url: url.to_string(),
-        })?;
         Ok(pane)
     }
 
@@ -243,9 +261,21 @@ impl PaneHostSupervisor {
     }
 
     fn settle(&self, response: Response) {
+        self.consecutive_restarts.store(0, Ordering::SeqCst);
         if let Some(sender) = self.pending.lock().unwrap().remove(&response.id) {
             let _ = sender.send(response);
         }
+    }
+
+    fn handle_event(&self, event: PaneEvent) {
+        self.consecutive_restarts.store(0, Ordering::SeqCst);
+        if let PaneEvent::UrlChanged { pane, url } | PaneEvent::LoadStable { pane, url } = &event {
+            self.record_graph_url(*pane, url);
+            if let Some(snapshot) = self.panes.lock().unwrap().get_mut(pane) {
+                snapshot.url.clone_from(url);
+            }
+        }
+        self.events.lock().unwrap().push_back(event);
     }
 
     fn on_host_gone(self: &Arc<Self>) {
@@ -258,11 +288,19 @@ impl PaneHostSupervisor {
             return;
         }
 
-        std::thread::sleep(RESTART_BACKOFF);
+        let attempt = self.consecutive_restarts.load(Ordering::SeqCst);
+        if attempt >= MAX_CONSECUTIVE_RESTARTS {
+            eprintln!(
+                "[browser-native] pane host exited {attempt} consecutive times; automatic restart stopped"
+            );
+            return;
+        }
+        std::thread::sleep(restart_backoff(attempt));
         if let Err(error) = self.start() {
             eprintln!("[browser-native] could not restart pane host: {error}");
             return;
         }
+        self.consecutive_restarts.fetch_add(1, Ordering::SeqCst);
         self.restart_count.fetch_add(1, Ordering::SeqCst);
         self.reseed();
     }
@@ -326,5 +364,61 @@ mod tests {
         let closed = pane_id("pane-4");
         let restored = BTreeMap::from([(closed, "https://gone.example/".into())]);
         assert!(reseed_plan(&restored, &[]).is_empty());
+    }
+
+    #[test]
+    fn restart_backoff_grows_and_caps() {
+        assert_eq!(restart_backoff(0), Duration::from_millis(100));
+        assert_eq!(restart_backoff(1), Duration::from_millis(200));
+        assert_eq!(restart_backoff(20), MAX_RESTART_BACKOFF);
+    }
+
+    #[test]
+    fn failed_create_is_not_saved_for_reseed() {
+        let supervisor =
+            PaneHostSupervisor::new(SidecarConfig::default(), ParentSurface::Win32 { hwnd: 1 });
+        assert!(supervisor
+            .create(
+                "rejected",
+                "https://example.com/",
+                Bounds::new(0, 0, 800, 600),
+            )
+            .is_err());
+        assert!(supervisor.panes.lock().unwrap().is_empty());
+        assert!(supervisor.graph_urls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn navigation_events_update_reseed_url_and_remain_observable() {
+        let supervisor =
+            PaneHostSupervisor::new(SidecarConfig::default(), ParentSurface::Win32 { hwnd: 1 });
+        let pane = pane_id("changed");
+        supervisor.panes.lock().unwrap().insert(
+            pane,
+            PaneSnapshot {
+                key: "changed".into(),
+                url: "https://old.example/".into(),
+                bounds: Bounds::new(0, 0, 800, 600),
+                attention: false,
+            },
+        );
+        supervisor.handle_event(PaneEvent::UrlChanged {
+            pane,
+            url: "https://new.example/".into(),
+        });
+
+        assert_eq!(
+            supervisor
+                .graph_urls
+                .lock()
+                .unwrap()
+                .get(&pane)
+                .map(String::as_str),
+            Some("https://new.example/")
+        );
+        assert!(matches!(
+            supervisor.drain_events().as_slice(),
+            [PaneEvent::UrlChanged { url, .. }] if url == "https://new.example/"
+        ));
     }
 }

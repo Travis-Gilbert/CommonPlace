@@ -73,6 +73,8 @@ export interface CaptureQueueOptions {
   /** Caps retry-count metadata and exponential-backoff growth. */
   maxAttempts?: number;
   retryBaseMs?: number;
+  /** Bounds one sender attempt so a hung backend cannot stall queue mutation. */
+  sendTimeoutMs?: number;
   now?: () => number;
 }
 

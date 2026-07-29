@@ -38,6 +38,19 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function captureOutcome(
+  entry: Awaited<ReturnType<typeof enqueuePetCapture>>,
+  sent: string,
+  queued: string,
+  failed: string,
+): string {
+  if (entry.state === "sent") return sent;
+  if (entry.state === "error") {
+    return `${failed}: ${entry.lastError ?? "CommonPlace rejected the capture"}`;
+  }
+  return queued;
+}
+
 function insertTranscript(
   value: string,
   transcript: string,
@@ -84,6 +97,7 @@ export function PetSurface() {
   const draftHydratedRef = useRef(false);
   const preferencesRef = useRef(preferences);
   const voiceModeRef = useRef<"push" | "latch">("latch");
+  const voiceStopRequestedRef = useRef(false);
   const speechRequestRef = useRef(0);
 
   useEffect(() => {
@@ -150,9 +164,12 @@ export function PetSurface() {
         .then((entry) => {
           if (disposed) return;
           setStatus(
-            entry.state === "sent"
-              ? `Filed ${count} dropped file${count === 1 ? "" : "s"}.`
-              : "Dropped files are safe in the CommonPlace queue.",
+            captureOutcome(
+              entry,
+              `Filed ${count} dropped file${count === 1 ? "" : "s"}.`,
+              "Dropped files are safe in the CommonPlace queue.",
+              "Dropped-file capture failed",
+            ),
           );
         })
         .catch((error) => {
@@ -193,7 +210,11 @@ export function PetSurface() {
           return;
         }
         const transcript = payload.payload.text.trim();
-        setVoiceState(voiceModeRef.current === "latch" ? "listening" : "idle");
+        setVoiceState(
+          voiceModeRef.current === "latch" && !voiceStopRequestedRef.current
+            ? "listening"
+            : "idle",
+        );
         if (!transcript) return;
         setStatus(transcript);
         const textarea = textareaRef.current;
@@ -238,11 +259,23 @@ export function PetSurface() {
               capture_method: "voice",
               properties: { engine: payload.payload.engine },
             }),
-          ).catch((error) => {
-            setStatus(
-              `Transcript inserted, but capture filing failed: ${errorMessage(error)}`,
-            );
-          });
+          )
+            .then((entry) => {
+              if (entry.state === "sent") return;
+              setStatus(
+                captureOutcome(
+                  entry,
+                  "Transcript filed in CommonPlace.",
+                  "Transcript inserted and safe in the CommonPlace queue.",
+                  "Transcript inserted, but capture filing failed",
+                ),
+              );
+            })
+            .catch((error) => {
+              setStatus(
+                `Transcript inserted, but capture filing failed: ${errorMessage(error)}`,
+              );
+            });
         }
       }),
       listen<{ state: PetVoiceState; mode: "push" }>(
@@ -281,21 +314,52 @@ export function PetSurface() {
           const speechRequest = ++speechRequestRef.current;
           setVoiceState("speaking");
           setStatus("Reading your selection aloud.");
-          void petSpeak(
+          const speech = petSpeak(
             payload.text,
             preferencesRef.current.signatureVoice,
             "instant",
-          )
-            .then(() => {
+          );
+          const capture = preferencesRef.current.captureReadAloud
+            ? enqueuePetCapture(
+                newPetCaptureEnvelope({
+                  title: payload.text.slice(0, 120),
+                  body: payload.text,
+                  object_type: "note",
+                  capture_method: "voice",
+                  properties: { voice_action: "read_aloud" },
+                }),
+              )
+            : Promise.resolve(undefined);
+          void Promise.allSettled([speech, capture]).then(
+            ([speechResult, captureResult]) => {
               if (speechRequest !== speechRequestRef.current) return;
+              if (speechResult.status === "rejected") {
+                setVoiceState("error");
+                setStatus(
+                  `Read-aloud unavailable: ${errorMessage(speechResult.reason)}`,
+                );
+                return;
+              }
               setVoiceState("idle");
-              setStatus("Selection sent to the local voice.");
-            })
-            .catch((error) => {
-              if (speechRequest !== speechRequestRef.current) return;
-              setVoiceState("error");
-              setStatus(`Read-aloud unavailable: ${errorMessage(error)}`);
-            });
+              if (captureResult.status === "rejected") {
+                setStatus(
+                  `Selection read aloud, but capture filing failed: ${errorMessage(captureResult.reason)}`,
+                );
+                return;
+              }
+              const entry = captureResult.value;
+              setStatus(
+                entry
+                  ? captureOutcome(
+                      entry,
+                      "Selection read aloud and filed in CommonPlace.",
+                      "Selection read aloud and safe in the CommonPlace queue.",
+                      "Selection read aloud, but capture filing failed",
+                    )
+                  : "Selection sent to the local voice.",
+              );
+            },
+          );
           return;
         }
         void enqueuePetCapture(
@@ -306,7 +370,16 @@ export function PetSurface() {
             capture_method: "selected",
           }),
         )
-          .then(() => setStatus("Selection filed in CommonPlace."))
+          .then((entry) =>
+            setStatus(
+              captureOutcome(
+                entry,
+                "Selection filed in CommonPlace.",
+                "Selection is safe in the CommonPlace queue.",
+                "Selection capture failed",
+              ),
+            ),
+          )
           .catch((error) =>
             setStatus(`Selection capture failed: ${errorMessage(error)}`),
           );
@@ -347,6 +420,7 @@ export function PetSurface() {
 
   const toggleVoice = async (): Promise<void> => {
     if (voiceState === "listening" || voiceState === "processing") {
+      voiceStopRequestedRef.current = true;
       setVoiceState("processing");
       setStatus("Finishing transcription…");
       try {
@@ -360,6 +434,7 @@ export function PetSurface() {
     }
     speechRequestRef.current += 1;
     voiceModeRef.current = "latch";
+    voiceStopRequestedRef.current = false;
     setVoiceState("listening");
     setStatus("Listening…");
     try {
@@ -407,9 +482,12 @@ export function PetSurface() {
     )
       .then((entry) =>
         setStatus(
-          entry.state === "sent"
-            ? "Dropped text filed in CommonPlace."
-            : "Dropped text is safe in the CommonPlace queue.",
+          captureOutcome(
+            entry,
+            "Dropped text filed in CommonPlace.",
+            "Dropped text is safe in the CommonPlace queue.",
+            "Dropped-text capture failed",
+          ),
         ),
       )
       .catch((error) => setStatus(`Capture failed: ${errorMessage(error)}`));

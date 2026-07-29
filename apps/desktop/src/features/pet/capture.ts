@@ -53,6 +53,20 @@ export function newPetCaptureEnvelope(
   };
 }
 
+export function nextPetCaptureAttemptAt(
+  entries: readonly Pick<
+    CaptureQueueEntry,
+    "state" | "nextAttemptAt"
+  >[],
+): number | undefined {
+  const head = entries.find(
+    (entry) => entry.state !== "sent" && entry.state !== "error",
+  );
+  return head && Number.isFinite(head.nextAttemptAt)
+    ? head.nextAttemptAt
+    : undefined;
+}
+
 function scheduleNextDrain(entries: readonly CaptureQueueEntry[]): void {
   if (retryTimer !== undefined) {
     clearTimeout(retryTimer);
@@ -60,14 +74,8 @@ function scheduleNextDrain(entries: readonly CaptureQueueEntry[]): void {
   }
   if (!navigator.onLine) return;
 
-  const nextAttemptAt = entries.reduce(
-    (earliest, entry) =>
-      entry.state === "kept" && Number.isFinite(entry.nextAttemptAt)
-        ? Math.min(earliest, entry.nextAttemptAt)
-        : earliest,
-    Number.POSITIVE_INFINITY,
-  );
-  if (!Number.isFinite(nextAttemptAt)) return;
+  const nextAttemptAt = nextPetCaptureAttemptAt(entries);
+  if (nextAttemptAt === undefined) return;
 
   retryTimer = setTimeout(() => {
     retryTimer = undefined;

@@ -4,7 +4,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { ExtensionContribution } from '@commonplace/host-bridge';
+import type {
+  BlockInstance,
+  ExtensionContribution,
+} from '@commonplace/host-bridge';
 import { useHost } from '@/lib/commonplace-host/HostProvider';
 import { usePlaceBlock } from '@/lib/commonplace-host/usePlaceBlock';
 
@@ -15,8 +18,10 @@ import { usePlaceBlock } from '@/lib/commonplace-host/usePlaceBlock';
  */
 export function HostCapabilityRailBridge({
   workspaceId = 'default',
+  onBlockPlaced,
 }: {
   workspaceId?: string;
+  onBlockPlaced?(block: BlockInstance): void | Promise<void>;
 }) {
   const host = useHost();
   const { placeBlock } = usePlaceBlock(workspaceId);
@@ -26,8 +31,11 @@ export function HostCapabilityRailBridge({
   useEffect(() => {
     return host.subscribeWorkspace(workspaceId, (e) => {
       if (e.type === 'extension_points') setItems(e.contributions);
+      if (e.type === 'block_placed') {
+        void Promise.resolve(onBlockPlaced?.(e.block)).catch(() => undefined);
+      }
     });
-  }, [host, workspaceId]);
+  }, [host, onBlockPlaced, workspaceId]);
 
   if (items.length === 0) return null;
 

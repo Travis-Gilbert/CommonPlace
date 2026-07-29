@@ -15,7 +15,7 @@ pub enum RegistrationStatus {
     Unsupported,
 }
 
-const DEFAULT_SCHEME: &str = "commonplace";
+const DEFAULT_SCHEME: &str = "theorem";
 
 /// Inputs for an honest registration probe (env-backed in production).
 #[derive(Debug, Clone, Default)]
@@ -55,18 +55,22 @@ pub fn protocol_registration_status_with(probe: &RegistrationProbe) -> Registrat
     #[cfg(not(target_os = "macos"))]
     {
         let _ = probe;
-        RegistrationStatus::NotVerified
+        RegistrationStatus::Unsupported
     }
 }
 
-/// Default-browser registration follows the same honesty rule.
+/// Default-browser ownership needs its own OS-level proof.
 pub fn default_browser_registration_status() -> RegistrationStatus {
-    protocol_registration_status()
+    default_browser_registration_status_with(&RegistrationProbe::from_env())
 }
 
 pub fn default_browser_registration_status_with(probe: &RegistrationProbe) -> RegistrationStatus {
     let _ = probe;
-    RegistrationStatus::NotVerified
+    if cfg!(target_os = "macos") {
+        RegistrationStatus::NotVerified
+    } else {
+        RegistrationStatus::Unsupported
+    }
 }
 
 /// True when a capture receipt path exists (evidence of the OS dialog flow).
@@ -165,7 +169,7 @@ mod tests {
               <key>CFBundleURLTypes</key>
               <array><dict>
                 <key>CFBundleURLSchemes</key>
-                <array><string>commonplace</string></array>
+                <array><string>theorem</string></array>
               </dict></array>
             </dict></plist>"#,
         );
@@ -174,12 +178,12 @@ mod tests {
             capture_path: Some(capture.clone()),
             info_plist_path: Some(plist.clone()),
         };
-        assert!(bundle_declares_url_scheme(&probe, "commonplace"));
+        assert!(bundle_declares_url_scheme(&probe, "theorem"));
         assert!(registration_capture_present(&probe));
         let expected = if cfg!(target_os = "macos") {
             RegistrationStatus::VerifiedOnMacos
         } else {
-            RegistrationStatus::NotVerified
+            RegistrationStatus::Unsupported
         };
         assert_eq!(protocol_registration_status_with(&probe), expected);
         let _ = fs::remove_file(plist);
@@ -194,7 +198,7 @@ mod tests {
               <key>CFBundleURLTypes</key>
               <array><dict>
                 <key>CFBundleURLSchemes</key>
-                <array><string>commonplace</string></array>
+                <array><string>theorem</string></array>
               </dict></array>
             </dict></plist>"#,
         );
@@ -202,11 +206,13 @@ mod tests {
             capture_path: None,
             info_plist_path: Some(plist.clone()),
         };
-        assert!(bundle_declares_url_scheme(&probe, "commonplace"));
-        assert_eq!(
-            protocol_registration_status_with(&probe),
+        assert!(bundle_declares_url_scheme(&probe, "theorem"));
+        let expected = if cfg!(target_os = "macos") {
             RegistrationStatus::NotVerified
-        );
+        } else {
+            RegistrationStatus::Unsupported
+        };
+        assert_eq!(protocol_registration_status_with(&probe), expected);
         let _ = fs::remove_file(plist);
     }
 
@@ -222,10 +228,12 @@ mod tests {
     #[test]
     fn protocol_evidence_never_verifies_default_browser_ownership() {
         let probe = RegistrationProbe::default();
-        assert_eq!(
-            default_browser_registration_status_with(&probe),
+        let expected = if cfg!(target_os = "macos") {
             RegistrationStatus::NotVerified
-        );
+        } else {
+            RegistrationStatus::Unsupported
+        };
+        assert_eq!(default_browser_registration_status_with(&probe), expected);
     }
 
     #[test]
@@ -236,7 +244,7 @@ mod tests {
               <key>CFBundleURLTypes</key>
               <array><dict>
                 <key>CFBundleURLSchemes</key>
-                <array><string>commonplace-preview</string></array>
+                <array><string>theorem-preview</string></array>
               </dict></array>
             </dict></plist>"#,
         );
@@ -244,7 +252,7 @@ mod tests {
             capture_path: None,
             info_plist_path: Some(plist.clone()),
         };
-        assert!(!bundle_declares_url_scheme(&probe, "commonplace"));
+        assert!(!bundle_declares_url_scheme(&probe, "theorem"));
         let _ = fs::remove_file(plist);
     }
 }

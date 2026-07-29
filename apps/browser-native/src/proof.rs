@@ -17,7 +17,6 @@ use crate::traits::PromptHost;
 use crate::NativeShell;
 use browser_core::{
     default_browser_registration_status, protocol_registration_status, PermissionKind,
-    RegistrationStatus,
 };
 use interaction_arbiter::{InteractionArbiter, SurfaceId};
 use serde_json::json;
@@ -124,8 +123,8 @@ fn proof_servo_ordinary_site() -> ProofPoint {
     host.open("servo-1", "https://example.com/");
     ProofPoint {
         id: "servo_ordinary_site",
-        status: ProofStatus::Passed,
-        detail: "mock Servo panel loads ordinary URL; pane-host sidecar pin + browser-embed child-surface x/y seam landed (SPEC-THEOREM-BUILD-GRAPH-1.0)",
+        status: ProofStatus::Blocked,
+        detail: "deterministic Servo stand-in loads the URL, but macOS cross-process composition needs IOSurface/CALayerHost transport",
     }
 }
 
@@ -150,8 +149,8 @@ fn proof_side_by_side_resize() -> ProofPoint {
     }
     ProofPoint {
         id: "side_by_side_resize",
-        status: ProofStatus::Passed,
-        detail: "shell-side split tracking green; browser-embed applies x/y via child surface (Theorem seam)",
+        status: ProofStatus::Blocked,
+        detail: "shell-side split tracking is green; live macOS side-by-side composition is blocked on cross-process surface transport",
     }
 }
 
@@ -163,20 +162,13 @@ fn proof_keyboard_ime() -> ProofPoint {
     let ime_ok = s.begin_ime().is_ok();
     // Protocol + Theorem browser-embed inject seams close the former SR-008 API
     // gap. Live hardware capture remains optional under COMMONPLACE_F3_CAPTURE_IME.
-    let has_capture = std::env::var("COMMONPLACE_F3_CAPTURE_IME")
-        .map(|path| std::path::Path::new(&path).is_file())
-        .unwrap_or(false);
     ProofPoint {
         id: "keyboard_ime",
-        status: if ime_ok {
-            ProofStatus::Passed
+        status: ProofStatus::Blocked,
+        detail: if ime_ok {
+            "focus/IME API stand-in is green; live Servo IME remains blocked on macOS cross-process surface transport"
         } else {
-            ProofStatus::Blocked
-        },
-        detail: if has_capture {
-            "focus/IME seams green via pane-protocol SetFocus/InjectIme + browser-embed; live capture present"
-        } else {
-            "focus/IME seams green via pane-protocol SetFocus/InjectIme + browser-embed; live capture optional"
+            "focus/IME API stand-in failed"
         },
     }
 }
@@ -246,12 +238,12 @@ fn proof_presence_handoff() -> ProofPoint {
     let ok = arbiter.presence().surface.0 == "servo-1" && arbiter.handoffs().len() == 1;
     ProofPoint {
         id: "presence_handoff",
-        status: if ok {
-            ProofStatus::Passed
+        status: ProofStatus::Blocked,
+        detail: if ok {
+            "arbiter handoff events are ordered; live cross-realm capture needs macOS cross-process surface transport"
         } else {
-            ProofStatus::Blocked
+            "arbiter handoff ordering failed"
         },
-        detail: "arbiter handoff events ordered; cross-realm capture needs live B5 parenting",
     }
 }
 
@@ -322,12 +314,9 @@ pub fn registration_report() -> serde_json::Value {
     json!({
         "protocol": format!("{:?}", protocol_registration_status()),
         "default_browser": format!("{:?}", default_browser_registration_status()),
-        "macos": matches!(
-            protocol_registration_status(),
-            RegistrationStatus::NotVerified | RegistrationStatus::VerifiedOnMacos
-        ),
+        "macos": cfg!(target_os = "macos"),
         "capture_env": "COMMONPLACE_REGISTRATION_CAPTURE",
-        "note": "VerifiedOnMacos requires Info.plist scheme + dialog capture file; otherwise NotVerified"
+        "note": "VerifiedOnMacos requires the theorem scheme in Info.plist plus a dialog capture file; default-browser ownership remains separate"
     })
 }
 
@@ -337,11 +326,17 @@ pub fn registration_report() -> serde_json::Value {
 /// each slot stays `null` and the corresponding oracle class remains mock.
 pub fn capture_evidence_report() -> serde_json::Value {
     json!({
-        "surface_composition": std::env::var("COMMONPLACE_F3_CAPTURE_COMPOSITION").ok(),
-        "input_routing": std::env::var("COMMONPLACE_F3_CAPTURE_IME").ok(),
-        "overlay_handoff": std::env::var("COMMONPLACE_F3_CAPTURE_HANDOFF").ok(),
+        "surface_composition": capture_file("COMMONPLACE_F3_CAPTURE_COMPOSITION"),
+        "input_routing": capture_file("COMMONPLACE_F3_CAPTURE_IME"),
+        "overlay_handoff": capture_file("COMMONPLACE_F3_CAPTURE_HANDOFF"),
         "policy": "missing capture blocks chrome-migration Product complete; keyboard_ime API seam is no longer Blocked for missing embedder APIs"
     })
+}
+
+fn capture_file(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .filter(|path| std::path::Path::new(path).is_file())
 }
 
 #[cfg(test)]
@@ -360,16 +355,24 @@ mod tests {
             .iter()
             .filter(|p| p.status == ProofStatus::Blocked)
             .count();
-        assert!(passed >= 9, "expected nearly all points to pass after SR-008 seams, got {passed}");
-        assert_eq!(blocked, 0, "no designed Blocked points remain after build-graph seams");
+        assert_eq!(passed, 6, "expected six local seam proofs, got {passed}");
+        assert_eq!(
+            blocked, 4,
+            "live Servo composition, split, IME, and handoff must stay blocked"
+        );
         for point in &points {
             assert!(!point.detail.is_empty(), "{}", point.id);
         }
     }
 
     #[test]
-    fn registration_stays_not_verified_without_os_dialog() {
+    fn registration_never_claims_verified_without_os_dialog() {
         let report = registration_report();
-        assert_eq!(report["protocol"], "NotVerified");
+        assert_ne!(report["protocol"], "VerifiedOnMacos");
+    }
+
+    #[test]
+    fn missing_capture_path_is_not_reported_as_evidence() {
+        assert_eq!(capture_file("COMMONPLACE_F3_CAPTURE_DOES_NOT_EXIST"), None);
     }
 }
