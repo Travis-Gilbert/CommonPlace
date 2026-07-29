@@ -38,6 +38,7 @@ import { ActionSheet } from './ActionSheet';
 import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
+import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
 import { HostFindLens } from '@/components/host/HostFindLens';
@@ -789,6 +790,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />
+      <HostCapabilityRailBridge workspaceId="default" />
     </div>
   );
 }

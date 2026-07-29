@@ -1,4 +1,17 @@
 //! SPEC-COMMONPLACE-BROWSER-SHELL B2 — the pane-host wire contract.
+//! SPEC-THEOREM-BUILD-GRAPH-1.0 BG2 — versioned wire crate.
+//!
+//! # Semver
+//!
+//! - **Patch**: docs, non-serialized helpers, test-only changes.
+//! - **Minor**: additive `Request` / `Outbound` variants or optional fields with
+//!   `#[serde(default)]` that older peers can ignore safely.
+//! - **Major**: renaming/removing variants, changing framing, or changing the
+//!   meaning of an existing field. A breaking wire change is a version bump
+//!   both CommonPlace and Theorem see — never a silent drift.
+//!
+//! Conformance: `cargo test --manifest-path crates/pane-protocol/Cargo.toml`
+//! is the two-sided suite; both repos run it against this crate.
 //!
 //! The architecture this serves (Option B in the spec): the trusted chrome is
 //! the Next.js app in the Tauri system webview; untrusted content renders in
@@ -185,8 +198,42 @@ pub enum Request {
     Screenshot {
         pane: PaneId,
     },
+    /// Focus or blur the Servo pane (SR-008 / BG input seam).
+    SetFocus {
+        pane: PaneId,
+        focused: bool,
+    },
+    /// Keyboard key transition injected into the focused pane.
+    InjectKey {
+        pane: PaneId,
+        key: String,
+        code: String,
+        down: bool,
+    },
+    /// IME composition update and/or commit text.
+    InjectIme {
+        pane: PaneId,
+        composition: Option<String>,
+        commit: Option<String>,
+    },
+    /// SceneOS-shaped overlay atoms (presence / takeover / find).
+    SetOverlay {
+        pane: PaneId,
+        atoms: Vec<OverlayAtom>,
+    },
     /// Liveness probe used by the supervisor.
     Ping,
+}
+
+/// Overlay atom drawn through the SceneOS producer seam.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OverlayAtom {
+    pub kind: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub label: String,
 }
 
 impl Request {
@@ -205,7 +252,11 @@ impl Request {
             | Request::SetAttention { pane, .. }
             | Request::Highlight { pane, .. }
             | Request::ClearHighlight { pane }
-            | Request::Screenshot { pane } => Some(*pane),
+            | Request::Screenshot { pane }
+            | Request::SetFocus { pane, .. }
+            | Request::InjectKey { pane, .. }
+            | Request::InjectIme { pane, .. }
+            | Request::SetOverlay { pane, .. } => Some(*pane),
             Request::Ping => None,
         }
     }
@@ -486,6 +537,45 @@ mod tests {
         write_frame(&mut buffer, &envelope).expect("frame writes");
         let decoded: Envelope = read_frame(&mut buffer.as_slice()).expect("frame reads");
         assert_eq!(decoded, envelope);
+    }
+
+    #[test]
+    fn focus_ime_and_overlay_requests_round_trip() {
+        let frames = [
+            Request::SetFocus {
+                pane: PaneId(1),
+                focused: true,
+            },
+            Request::InjectKey {
+                pane: PaneId(1),
+                key: "a".into(),
+                code: "KeyA".into(),
+                down: true,
+            },
+            Request::InjectIme {
+                pane: PaneId(1),
+                composition: Some("ん".into()),
+                commit: Some("ん".into()),
+            },
+            Request::SetOverlay {
+                pane: PaneId(1),
+                atoms: vec![OverlayAtom {
+                    kind: "presence".into(),
+                    x: 1.0,
+                    y: 2.0,
+                    width: 3.0,
+                    height: 4.0,
+                    label: "agent".into(),
+                }],
+            },
+        ];
+        for request in frames {
+            let envelope = Envelope { id: 1, request };
+            let mut buffer = Vec::new();
+            write_frame(&mut buffer, &envelope).expect("write");
+            let decoded: Envelope = read_frame(&mut buffer.as_slice()).expect("read");
+            assert_eq!(decoded, envelope);
+        }
     }
 
     #[test]

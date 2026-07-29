@@ -17,6 +17,28 @@ pub fn capture_parent_surface(
     parent_surface_from_raw(display, window)
 }
 
+/// Window-handle-only capture for platforms where the display is implicit
+/// (AppKit / Win32). Prefer [`capture_parent_surface`] when both handles exist.
+pub fn parent_surface_from_window_handle(
+    window: &impl HasWindowHandle,
+) -> Result<ParentSurface, String> {
+    let window = window
+        .window_handle()
+        .map_err(|error| format!("native window handle is unavailable: {error}"))?
+        .as_raw();
+    match window {
+        RawWindowHandle::AppKit(handle) => Ok(ParentSurface::AppKit {
+            ns_view: handle.ns_view.as_ptr() as usize as u64,
+        }),
+        RawWindowHandle::Win32(handle) => Ok(ParentSurface::Win32 {
+            hwnd: handle.hwnd.get() as u64,
+        }),
+        other => Err(format!(
+            "pane-host needs a display handle for this GPUI parent: {other:?}"
+        )),
+    }
+}
+
 pub fn parent_surface_from_raw(
     display: RawDisplayHandle,
     window: RawWindowHandle,

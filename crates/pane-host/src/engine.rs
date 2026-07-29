@@ -112,4 +112,52 @@ pub trait Engine {
             format!("this engine cannot capture {pane}"),
         ))
     }
+
+    /// Focus or blur the pane. Default refuses; ServoEngine implements.
+    fn set_focused(&mut self, pane: PaneId, focused: bool) -> EngineResult {
+        let _ = focused;
+        Err(EngineError::new(
+            ErrorKind::Unavailable,
+            format!("this engine cannot focus {pane}"),
+        ))
+    }
+
+    fn inject_key(
+        &mut self,
+        pane: PaneId,
+        key: &str,
+        code: &str,
+        down: bool,
+    ) -> EngineResult {
+        let _ = (key, code, down);
+        Err(EngineError::new(
+            ErrorKind::Unavailable,
+            format!("this engine cannot inject keyboard into {pane}"),
+        ))
+    }
+
+    fn inject_ime(
+        &mut self,
+        pane: PaneId,
+        composition: Option<&str>,
+        commit: Option<&str>,
+    ) -> EngineResult {
+        let _ = (composition, commit);
+        Err(EngineError::new(
+            ErrorKind::Unavailable,
+            format!("this engine cannot inject IME into {pane}"),
+        ))
+    }
+
+    fn set_overlay(
+        &mut self,
+        pane: PaneId,
+        atoms: &[pane_protocol::OverlayAtom],
+    ) -> EngineResult {
+        let _ = atoms;
+        Err(EngineError::new(
+            ErrorKind::Unavailable,
+            format!("this engine cannot set overlays on {pane}"),
+        ))
+    }
 }

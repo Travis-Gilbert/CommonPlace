@@ -9,6 +9,8 @@ mod commonplace;
 #[cfg(feature = "servo-pane")]
 pub mod native_parent;
 mod servo;
+#[cfg(feature = "servo-pane")]
+pub mod sidecar;
 mod zorder;
 
 pub use commonplace::{

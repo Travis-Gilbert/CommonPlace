@@ -94,6 +94,72 @@ impl Engine for ServoEngine {
     fn spin(&mut self) {
         self.inner.spin();
     }
+
+    fn set_focused(&mut self, pane: PaneId, focused: bool) -> EngineResult {
+        self.inner
+            .set_focused(id(pane), focused)
+            .map_err(translate)
+    }
+
+    fn inject_key(
+        &mut self,
+        pane: PaneId,
+        key: &str,
+        code: &str,
+        down: bool,
+    ) -> EngineResult {
+        self.inner
+            .inject_input(
+                id(pane),
+                embed::EmbedInput::Key {
+                    key: key.to_string(),
+                    code: code.to_string(),
+                    down,
+                },
+            )
+            .map(|_| ())
+            .map_err(translate)
+    }
+
+    fn inject_ime(
+        &mut self,
+        pane: PaneId,
+        composition: Option<&str>,
+        commit: Option<&str>,
+    ) -> EngineResult {
+        self.inner
+            .inject_input(
+                id(pane),
+                embed::EmbedInput::Ime {
+                    composition: composition.map(str::to_string),
+                    commit: commit.map(str::to_string),
+                },
+            )
+            .map(|_| ())
+            .map_err(translate)
+    }
+
+    fn set_overlay(
+        &mut self,
+        pane: PaneId,
+        atoms: &[pane_protocol::OverlayAtom],
+    ) -> EngineResult {
+        let mapped: Vec<embed::OverlayAtom> = atoms
+            .iter()
+            .map(|atom| embed::OverlayAtom {
+                kind: atom.kind.clone(),
+                x: atom.x,
+                y: atom.y,
+                width: atom.width,
+                height: atom.height,
+                label: atom.label.clone(),
+            })
+            .collect();
+        self.inner
+            .set_overlay(id(pane), &mapped)
+            .map(|_| ())
+            .map_err(translate)
+    }
 }
 
 fn id(pane: PaneId) -> embed::PaneId {

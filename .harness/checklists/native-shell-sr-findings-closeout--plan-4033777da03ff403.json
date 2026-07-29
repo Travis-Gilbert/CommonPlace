@@ -1,0 +1,38 @@
+{
+  "schema": "plan-contract/1",
+  "harness_plan_id": "plan:4033777da03ff403",
+  "title": "Native-shell SR findings closeout",
+  "progress": {
+    "done": 5,
+    "total": 5,
+    "percent_complete": 100
+  },
+  "tasks": [
+    {
+      "id": "task:90ae43a64172ea9934e361a0",
+      "alias": "PT-014-rail",
+      "status": "done"
+    },
+    {
+      "id": "task:9ac0b8d61955b91a12a2f638",
+      "alias": "PT-006-chrome",
+      "status": "done"
+    },
+    {
+      "id": "task:917e755a055e8c55a46bda09",
+      "alias": "PT-003-registration",
+      "status": "done"
+    },
+    {
+      "id": "task:58bc6f5a0a09670f201dea1f",
+      "alias": "PT-009-wry-lifecycle",
+      "status": "done"
+    },
+    {
+      "id": "task:ac23cc499b39d5f69f3c9bc6",
+      "alias": "PT-008-015-blockers",
+      "status": "done"
+    }
+  ],
+  "note": "Projection of plan:4033777da03ff403; substrate is source of truth. Spec checklist remains commonplace-native-shell-1.0.json."
+}
