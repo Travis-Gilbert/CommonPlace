@@ -315,7 +315,7 @@ describe('CanvasStore', () => {
       },
     });
 
-    await store.ready();
+    await expect(store.ready()).rejects.toThrow(/durable read unavailable|refused:canvas_persistence_unavailable/);
     const result = await store.emit({
       kind: 'create',
       type: 'note',
@@ -323,7 +323,7 @@ describe('CanvasStore', () => {
     });
 
     expect(result).toEqual({ ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE });
-    // ready() + emit retry each hydrate default + inspector canvases.
+    // ready() + emit each retry hydrate for default + inspector canvases.
     expect(queryAttempts).toBe(4);
     expect(emitAttempts).toBe(0);
   });

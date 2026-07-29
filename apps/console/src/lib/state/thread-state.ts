@@ -71,6 +71,7 @@ export interface ThreadState {
   stage(refs: readonly StagedThreadRef[]): void;
   unstage(id: string): void;
   setMode(mode: ComposerMode): void;
+  appendRoomMessage(message: { readonly message_id: string; readonly message: string }): void;
   send(text: string): Promise<void>;
   cancel(): void;
 }
@@ -205,7 +206,7 @@ const threadSliceAtoms = {
 
 const threadStore = getDefaultStore();
 
-type ThreadActions = Pick<ThreadState, 'stage' | 'unstage' | 'setMode' | 'send' | 'cancel'>;
+type ThreadActions = Pick<ThreadState, 'stage' | 'unstage' | 'setMode' | 'appendRoomMessage' | 'send' | 'cancel'>;
 
 const threadActions: ThreadActions = {
   stage(refs) {
@@ -221,6 +222,18 @@ const threadActions: ThreadActions = {
 
   setMode(mode) {
     threadStore.set(threadModeAtom, mode);
+  },
+
+  appendRoomMessage(message) {
+    const id = `room:${message.message_id}`;
+    threadStore.set(threadMessagesAtom, (messages) => {
+      if (messages.some((existing) => existing.id === id)) return messages;
+      return [...messages, {
+        id,
+        role: 'assistant',
+        parts: [{ type: 'text', text: message.message }],
+      }];
+    });
   },
 
   async send(rawText) {

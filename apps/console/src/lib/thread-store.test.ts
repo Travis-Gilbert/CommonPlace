@@ -75,6 +75,25 @@ describe('thread store', () => {
     expect(useThreadStore.getState().messages).toHaveLength(0);
   });
 
+  it('appends each delivered room message once for the inspector count', () => {
+    useThreadStore.getState().appendRoomMessage({
+      message_id: 'message-1',
+      message: 'The room is ready.',
+    });
+    useThreadStore.getState().appendRoomMessage({
+      message_id: 'message-1',
+      message: 'The room is ready.',
+    });
+
+    expect(useThreadStore.getState().messages).toEqual([
+      {
+        id: 'room:message-1',
+        role: 'assistant',
+        parts: [{ type: 'text', text: 'The room is ready.' }],
+      },
+    ]);
+  });
+
   it('sends the selected web-search capability on the wire', async () => {
     const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => sseResponse([]));
     vi.stubGlobal('fetch', fetchSpy);

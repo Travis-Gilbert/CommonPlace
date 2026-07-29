@@ -427,6 +427,16 @@ const CANVAS_GRAPH_FIXTURE = {
   ],
 };
 
+const INSPECTOR_CANVAS_GRAPH_FIXTURE = {
+  id: 'canvas.inspector.rail',
+  title: 'Inspector canvas',
+  tenant: 'Travis-Gilbert',
+  placements: [],
+  groups: [],
+  objects: [],
+  connections: [],
+};
+
 const CANVAS_FIXTURE = [
   {
     id: 'canvas.default',
@@ -436,6 +446,17 @@ const CANVAS_FIXTURE = [
       tenant: CANVAS_GRAPH_FIXTURE.tenant,
       persistence_kind: 'canvas-work-v1',
       graph: CANVAS_GRAPH_FIXTURE,
+    },
+    relations: {},
+  },
+  {
+    id: 'canvas.inspector.rail',
+    type: 'canvas',
+    properties: {
+      title: INSPECTOR_CANVAS_GRAPH_FIXTURE.title,
+      tenant: INSPECTOR_CANVAS_GRAPH_FIXTURE.tenant,
+      persistence_kind: 'canvas-work-v1',
+      graph: INSPECTOR_CANVAS_GRAPH_FIXTURE,
     },
     relations: {},
   },

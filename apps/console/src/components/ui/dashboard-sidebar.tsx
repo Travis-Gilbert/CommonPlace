@@ -143,7 +143,7 @@ function WorkspaceSwitcher({
     <div className="relative pointer-events-auto">
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between px-2 py-2 mb-4 rounded-lg bg-card/85 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors select-none group backdrop-blur-[1px]"
+        className="flex items-center justify-between px-2 py-2 mb-4 rounded-[6px] bg-card text-muted-foreground hover:text-foreground/90 cursor-pointer transition-colors select-none group"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-[6px] bg-primary text-primary-foreground flex items-center justify-center font-semibold text-[13px] shadow-sm">
@@ -241,9 +241,9 @@ function NavItem({
     <div className="flex flex-col w-full">
       <div 
         className={`group pointer-events-auto flex items-center justify-between px-2.5 py-[7px] rounded-[6px] cursor-pointer transition-all duration-200 select-none
-          ${isActive 
-            ? 'bg-card/90 dark:bg-white/10 text-foreground font-medium backdrop-blur-[1px]' 
-            : 'bg-card/55 text-muted-foreground hover:bg-card/80 hover:text-foreground/90 backdrop-blur-[1px]'
+          ${isActive
+            ? 'bg-card text-foreground font-medium'
+            : 'bg-card text-muted-foreground hover:text-foreground/90'
           }
         `}
         style={{ paddingLeft: `${level * 12 + 10}px` }}

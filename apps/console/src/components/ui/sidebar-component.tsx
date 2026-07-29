@@ -602,6 +602,8 @@ function IconNavButton({
   return (
     <button
       type="button"
+      data-active={isActive ? 'true' : 'false'}
+      aria-pressed={isActive}
       className={`flex items-center justify-center rounded-lg size-10 min-w-10 transition-colors duration-500
         ${isActive ? "bg-neutral-800 text-neutral-50" : "hover:bg-neutral-800 text-neutral-400 hover:text-neutral-300"}`}
       style={{ transitionTimingFunction: softSpringEasing }}
@@ -624,12 +626,15 @@ function IconNavigation({
   items,
   brand,
   footer,
+  panelOpen = true,
 }: {
   activeSection: string;
   onSectionChange: (section: string) => void;
   items?: readonly TwoLevelSidebarItem[];
   brand?: ReactNode;
   footer?: ReactNode;
+  /** When the detail panel is closed, round the full rail (no seam gap). */
+  panelOpen?: boolean;
 }) {
   const navItems: readonly TwoLevelSidebarItem[] = items ?? [
     { id: 'dashboard', icon: <Dashboard size={16} />, label: 'Dashboard' },
@@ -644,7 +649,9 @@ function IconNavigation({
   return (
     <aside
       data-jshguo-icon-rail
-      className="bg-black flex h-full min-h-0 w-16 flex-col items-center gap-2 rounded-l-2xl border-r border-neutral-800 p-4"
+      className={`bg-black flex h-full min-h-0 w-16 flex-col items-center gap-2 border-r border-neutral-800/20 p-4 ${
+        panelOpen ? 'rounded-l-2xl' : 'rounded-2xl'
+      }`}
     >
       <div className="mb-2 flex size-10 items-center justify-center">
         {brand ?? (
@@ -781,14 +788,19 @@ function DetailSidebar({
     <aside
       data-jshguo-detail-panel
       data-collapsed={isCollapsed ? 'true' : 'false'}
-      className={`bg-black flex h-full min-h-0 flex-col items-start gap-4 rounded-r-2xl p-4 transition-all duration-500 ${
-        isCollapsed ? 'w-16 min-w-16 !px-0 justify-center' : 'w-80'
+      aria-hidden={isCollapsed}
+      className={`bg-black flex h-full min-h-0 flex-col items-start gap-4 rounded-r-2xl transition-all duration-500 overflow-hidden ${
+        isCollapsed
+          ? 'w-0 min-w-0 max-w-0 p-0 opacity-0 pointer-events-none border-0'
+          : 'w-80 p-4'
       }`}
       style={{ transitionTimingFunction: softSpringEasing }}
     >
       {!isCollapsed && <BrandBadge />}
 
-      <SectionTitle title={resolvedTitle} onToggleCollapse={toggleCollapse} isCollapsed={isCollapsed} />
+      {!isCollapsed ? (
+        <SectionTitle title={resolvedTitle} onToggleCollapse={toggleCollapse} isCollapsed={false} />
+      ) : null}
 
       {panel ? (
         !isCollapsed ? (
@@ -1039,9 +1051,17 @@ export function TwoLevelSidebarShell({
     >
       <IconNavigation
         activeSection={activeSection}
+        panelOpen={panelOpen}
         onSectionChange={(section) => {
+          // Second click on the active icon collapses the detail panel.
+          if (section === activeSection && panelOpen) {
+            onPanelOpenChange?.(false);
+            return;
+          }
+          // Selecting always expands — including re-click after a collapse —
+          // so open does not depend on a separate panelOpen branch racing navigate.
+          onPanelOpenChange?.(true);
           onSectionChange(section);
-          if (!panelOpen) onPanelOpenChange?.(true);
         }}
         items={items}
         brand={brand}

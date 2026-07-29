@@ -593,15 +593,39 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(landmarkCollapsed);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [seenLandmarkCollapsed, setSeenLandmarkCollapsed] = useState(landmarkCollapsed);
+  // User toggles race the async landmark write: close emits collapsed:true, a
+  // quick reopen can see stale properties.collapsed===false and skip the open
+  // emit, then the close write lands and forces the rail shut. Hold the pending
+  // local intent and ignore landmark echoes until they match it.
+  const pendingSidebarCollapsedRef = useRef<boolean | null>(null);
   if (landmarkCollapsed !== seenLandmarkCollapsed) {
     setSeenLandmarkCollapsed(landmarkCollapsed);
-    setSidebarCollapsed(landmarkCollapsed);
+    const pending = pendingSidebarCollapsedRef.current;
+    if (pending !== null) {
+      if (landmarkCollapsed === pending) {
+        pendingSidebarCollapsedRef.current = null;
+      }
+    } else {
+      setSidebarCollapsed(landmarkCollapsed);
+    }
   }
 
   const persistSidebarCollapsed = useCallback((next: boolean) => {
     setSidebarCollapsed(next);
-    if (!landmarkRegion) return;
-    if (landmarkRegion.object.properties.collapsed === next) return;
+    if (!landmarkRegion) {
+      pendingSidebarCollapsedRef.current = null;
+      return;
+    }
+    // Skip only when the durable landmark already matches and nothing is in
+    // flight. Skipping on a stale properties===next while a close emit is still
+    // pending is what left the rail unable to reopen.
+    if (
+      landmarkRegion.object.properties.collapsed === next &&
+      pendingSidebarCollapsedRef.current === null
+    ) {
+      return;
+    }
+    pendingSidebarCollapsedRef.current = next;
     void host.emit({ kind: 'update', id: landmarkRegion.object.id, patch: { collapsed: next } });
   }, [host, landmarkRegion]);
 
@@ -721,6 +745,8 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
           onSectionChange={(surfaceId) => {
             const place = PLACE_ENTRIES.find((entry) => entry.surfaceId === surfaceId);
             if (!place) return;
+            // Shell only receives this when selecting (not when re-click closes).
+            // Always expand so navigation after a soft route change is not stuck collapsed.
             applySidebarCollapsed(false);
             void softNavigate(router, place.path);
           }}

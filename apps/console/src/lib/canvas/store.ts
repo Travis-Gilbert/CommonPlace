@@ -156,9 +156,11 @@ export class CanvasStore {
         this.hydrateOne(INSPECTOR_CANVAS_ID, 'Inspector canvas'),
       ]);
       if (!results.every(Boolean)) {
+        // Clear the in-flight handle so ready() can retry; reject so callers
+        // do not treat a failed seed as hydrated (persist would only refuse).
         this.hydration = null;
         this.notify();
-        return;
+        throw new Error(this.persistenceError ?? PERSISTENCE_UNAVAILABLE_NOTE);
       }
       this.persistenceError = null;
       this.hydrationReady = true;
@@ -169,6 +171,7 @@ export class CanvasStore {
         : PERSISTENCE_UNAVAILABLE_NOTE;
       this.hydration = null;
       this.notify();
+      throw error instanceof Error ? error : new Error(this.persistenceError);
     }
   }
 
@@ -305,7 +308,11 @@ export class CanvasStore {
     canvasId: string,
     document: JSONCanvas,
   ): Promise<Result<ObjectActionReceipt>> {
-    await this.ensureHydrated();
+    try {
+      await this.ensureHydrated();
+    } catch {
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
+    }
     if (!this.hydrationReady) {
       return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }
@@ -361,7 +368,11 @@ export class CanvasStore {
   }
 
   private async emitOne(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
-    await this.ensureHydrated();
+    try {
+      await this.ensureHydrated();
+    } catch {
+      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
+    }
     if (!this.hydrationReady) {
       return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }

@@ -43,6 +43,7 @@ import {
   type ContextProvenance,
 } from '@/lib/chat/context-types';
 import { degradationFor } from '@/lib/degradation';
+import { useRoomEvents } from '@/lib/events/use-room-events';
 import { threadMessagesForPersistence, useThreadStore } from '@/lib/thread-store';
 import { cn } from '@/lib/cn';
 
@@ -175,6 +176,7 @@ function RuntimeTree({
         : { type: 'complete' as const, reason: 'stop' as const },
     })),
   });
+  useRoomEvents(thread.sessionId);
 
   const persistTimer = useRef<number | null>(null);
 
@@ -502,10 +504,10 @@ export function ChatPage({
                   data-island="editor"
                   data-block-size="w"
                   className={cn(
-                    // Transparent island over MaterialLayer — same lift contract
+                    // Transparent island over MaterialLayer: same lift contract
                     // as console tool/editor shells (rounded free edge, frame rail).
                     // Flush to top/right; left seam is the icon-rail panel edge.
-                    // When the inspector opens it takes flex width — no right gutter.
+                    // When the inspector opens it takes flex width: no right gutter.
                     'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-ij-island bg-transparent',
                   )}
                 >

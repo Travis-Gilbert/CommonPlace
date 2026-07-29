@@ -2,7 +2,7 @@
 
 // SOURCING: 21st/@jshguo/sidebar-component (via ChatSidebar) + InspectorRail.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
@@ -44,7 +44,12 @@ const catalog: ChatCatalog = {
 
 export default function ChromePreviewPage() {
   const [inspectorOpen, setInspectorOpen] = useState(true);
-  const host = new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {});
+  // Stable host identity — recreating each render cancels JsonCanvasLayer boot
+  // before hydrated=true, so double-click create never arms.
+  const host = useMemo(
+    () => new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {}),
+    [],
+  );
 
   return (
     <SessionProvider>
@@ -62,17 +67,9 @@ export default function ChromePreviewPage() {
           <main
             data-island="editor"
             data-block-size="w"
-            className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-ij-island bg-transparent p-6"
-          >
-            <p className="text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-              Lifted main island
-            </p>
-            <p className="mt-2 text-ij-ink-info">
-              Left: real 21st/@jshguo sidebar-component (TwoLevelSidebarShell). Right: integrated
-              DashboardSidebar — arunjdass 21st nav with Obsidian JSON Canvas as an in-component
-              feature layer (double-click to add a note).
-            </p>
-          </main>
+            className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-ij-island bg-transparent"
+            aria-label="Main island"
+          />
           <InspectorRail
             host={host}
             open={inspectorOpen}

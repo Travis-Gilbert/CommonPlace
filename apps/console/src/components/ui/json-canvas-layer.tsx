@@ -9,6 +9,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
+  ConnectionMode,
+  Handle,
+  Position,
   ReactFlow,
   type Connection,
   type Edge,
@@ -28,7 +31,7 @@ import {
   type CanvasNode,
   type JSONCanvas,
 } from '@commonplace/json-canvas';
-import { INSPECTOR_CANVAS_ID } from '@/lib/canvas/store';
+import { INSPECTOR_CANVAS_ID, PERSISTENCE_UNAVAILABLE_NOTE } from '@/lib/canvas/store';
 
 type JsonCanvasFlowNode = Node<{
   readonly kind: CanvasNode['type'];
@@ -138,9 +141,16 @@ function JsonCanvasNodeView({
 }) {
   return (
     <article
-      className="h-full min-h-[72px] rounded-lg border border-border/60 bg-card/90 px-3 py-2 text-ij-ink shadow-sm"
+      className="relative h-full min-h-[72px] rounded-lg border border-border/60 bg-card/90 px-3 py-2 text-ij-ink shadow-sm"
       data-json-canvas-node={data.kind}
     >
+      {/* Top/bottom keeps handles inside the rail; right-edge sources were
+          occluded by the inspector chrome (elementFromPoint missed them). */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!h-2.5 !w-2.5 !border-border !bg-muted-foreground/80"
+      />
       <div className="font-ij-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         {data.kind}
       </div>
@@ -148,6 +158,11 @@ function JsonCanvasNodeView({
       {data.detail ? (
         <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{data.detail}</p>
       ) : null}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!h-2.5 !w-2.5 !border-border !bg-muted-foreground/80"
+      />
     </article>
   );
 }
@@ -188,6 +203,7 @@ export function JsonCanvasLayer({
   const [nodes, setNodes] = useState<JsonCanvasFlowNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const documentRef = useRef(document);
   const lastReceiptedRef = useRef<JSONCanvas>(EMPTY_CANVAS);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -242,12 +258,25 @@ export function JsonCanvasLayer({
     let cancelled = false;
     const boot = async () => {
       if (!isInspectorCanvasHost(host)) return;
-      await host.readyCanvas();
-      if (cancelled) return;
-      const exported = host.exportCanvasDocument(canvasId) ?? EMPTY_CANVAS;
-      lastReceiptedRef.current = exported;
-      applyLocal(exported);
-      hydrated.current = true;
+      // Retry: CanvasStore.ready() rejects until both default + inspector
+      // canvases are seeded on the object seam.
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          await host.readyCanvas();
+          if (cancelled) return;
+          const exported = host.exportCanvasDocument(canvasId) ?? EMPTY_CANVAS;
+          lastReceiptedRef.current = exported;
+          applyLocal(exported);
+          hydrated.current = true;
+          setReady(true);
+          setPersistError(null);
+          return;
+        } catch (error) {
+          if (cancelled) return;
+          setPersistError(error instanceof Error ? error.message : PERSISTENCE_UNAVAILABLE_NOTE);
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        }
+      }
     };
     void boot();
     return () => {
@@ -302,11 +331,10 @@ export function JsonCanvasLayer({
     });
   }, [commitFlow]);
 
-  const onPaneClick = useCallback((event: React.MouseEvent) => {
-    if (event.detail !== 2 || !hydrated.current) return;
+  const createTextNodeAt = useCallback((clientX: number, clientY: number) => {
     const position = flowRef.current?.screenToFlowPosition({
-      x: event.clientX,
-      y: event.clientY,
+      x: clientX,
+      y: clientY,
     }) ?? { x: 48, y: 96 };
     const id = `text:${Date.now()}`;
     const node: JsonCanvasFlowNode = {
@@ -318,10 +346,26 @@ export function JsonCanvasLayer({
     };
     setNodes((current) => {
       const nextNodes = [...current, node];
+      // Local create always; commitFlow only emits once hydrated.
       commitFlow(nextNodes, edgesRef.current);
       return nextNodes;
     });
   }, [commitFlow]);
+
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    if (event.detail !== 2) return;
+    createTextNodeAt(event.clientX, event.clientY);
+  }, [createTextNodeAt]);
+
+  const onLayerDoubleClick = useCallback((event: React.MouseEvent) => {
+    // Capture-path create: RF's default zoomOnDoubleClick / d3-zoom can swallow
+    // the pane click path; this still fires for a pane double-click.
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.react-flow__pane')) return;
+    if (target.closest('.react-flow__node, .react-flow__edge, .react-flow__handle')) return;
+    event.preventDefault();
+    createTextNodeAt(event.clientX, event.clientY);
+  }, [createTextNodeAt]);
 
   return (
     <div
@@ -329,9 +373,11 @@ export function JsonCanvasLayer({
       data-json-canvas-layer
       data-json-canvas-id={canvasId}
       data-json-canvas-nodes={String(document.nodes.length)}
+      data-json-canvas-ready={ready ? 'true' : 'false'}
       data-json-canvas-persist-error={persistError ?? undefined}
       role="region"
       aria-label="Obsidian JSON Canvas"
+      onDoubleClick={onLayerDoubleClick}
     >
       <ReactFlow
         nodes={nodes}
@@ -347,8 +393,11 @@ export function JsonCanvasLayer({
         onPaneClick={onPaneClick}
         nodesConnectable
         elementsSelectable
+        connectionMode={ConnectionMode.Loose}
         panOnDrag
         zoomOnScroll
+        // Default zoom-on-double-click steals the create-note gesture.
+        zoomOnDoubleClick={false}
         deleteKeyCode={['Backspace', 'Delete']}
         proOptions={{ hideAttribution: true }}
         style={{ background: 'transparent' }}

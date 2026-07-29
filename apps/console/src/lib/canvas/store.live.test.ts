@@ -101,13 +101,15 @@ describe.skipIf(!LIVE || !BASE)('CanvasStore live seam (canvas.inspector.rail)',
     const reader = new CanvasStore(new LiveHttpSeam());
     await reader.ready();
     const exported = reader.exportDocument(INSPECTOR_CANVAS_ID);
+    // fromJsonCanvas mints stable object ids (`text:<nodeId>`) and may rewrite
+    // the JSON Canvas node id on export; match on content + placement.
     expect(exported?.nodes).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        id: noteId,
         type: 'text',
         text: 'Live durability probe',
         x: 64,
         y: 96,
+        graphId: `text:${noteId}`,
       }),
     ]));
   }, 60_000);
