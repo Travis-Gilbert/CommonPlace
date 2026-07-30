@@ -71,6 +71,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Read pinned Theorem contract source
+        id: theorem-contract-source
+        shell: bash
+        run: |
+          commit="$(
+            sed -n 's|^// SOURCE COMMIT: ||p' \
+              packages/program-contracts/src/program.generated.ts
+          )"
+          if [[ ! "$commit" =~ ^[0-9a-f]{9,40}$ ]]; then
+            echo "Invalid Theorem source commit: $commit" >&2
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout pinned Theorem contract source
+        uses: actions/checkout@v4
+        with:
+          repository: Travis-Gilbert/Theorem
+          ref: ${{ steps.theorem-contract-source.outputs.commit }}
+          path: .theorem-contract-source
+          persist-credentials: false
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -90,6 +112,8 @@ jobs:
 
       - name: Program contracts drift check (PG1)
         run: pnpm --filter @commonplace/program-contracts run check:generated
+        env:
+          THEOREM_REPO: ${{ github.workspace }}/.theorem-contract-source
 
       - name: Model canvas / OKF typecheck (MF1)
         run: pnpm --filter @commonplace/okf run check && pnpm --filter @commonplace/model-canvas run check
