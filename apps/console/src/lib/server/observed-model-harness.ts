@@ -20,12 +20,16 @@ import {
   type PinReceipt,
   type PinRequest,
   type RelationMetadata,
+  type SchemaDeclareInput,
+  type SchemaDeclareReceipt,
   type SchemaProposalDraft,
   type SchemaVersion,
   type ScopeRef,
+  type ViewColumnConfig,
+  type ViewFilter,
+  type ViewFilterOp,
   type ViewMetadata,
-  type SchemaDeclareInput,
-  type SchemaDeclareReceipt,
+  type ViewSort,
 } from '@commonplace/data-model-contracts';
 import {
   callHarnessGraphql,
@@ -95,6 +99,7 @@ export type RestoreMutation =
       readonly declared: DeclaredModel;
     }
   | GraphqlFailure;
+
 const MODELS_QUERY = `
   query ConsoleObservedAndDeclaredModel($topicId: String!) {
     observedModel(topicId: $topicId)
@@ -131,6 +136,7 @@ const RESTORE_MUTATION = `
     restoreDeclaredModel(versionId: $versionId)
   }
 `;
+
 const PROPOSE_MUTATION = `
   mutation ConsoleProposeSchemaChange($input: SchemaChangeInput!) {
     proposeSchemaChange(input: $input)
@@ -318,6 +324,10 @@ function normalizeObjectType(value: unknown): ObjectTypeMetadata | null {
   if (!id || !key) return null;
   const nameSingular = text(sourceValue(source, 'nameSingular', 'name_singular'), key);
   const namePlural = text(sourceValue(source, 'namePlural', 'name_plural'), `${nameSingular}s`);
+  const recordCountRaw = sourceValue(source, 'recordCount', 'record_count');
+  const recordCount = typeof recordCountRaw === 'number' && Number.isFinite(recordCountRaw)
+    ? recordCountRaw
+    : undefined;
   return {
     id,
     key,
@@ -333,6 +343,9 @@ function normalizeObjectType(value: unknown): ObjectTypeMetadata | null {
     ),
     system: Boolean(source.system),
     contentAnchor: text(sourceValue(source, 'contentAnchor', 'content_anchor'), id),
+    ...(recordCount !== undefined ? { recordCount } : {}),
+    icon: text(source.icon) || undefined,
+    tint: text(source.tint) || undefined,
     provenance: normalizeMetadataProvenance(source),
   };
 }
@@ -415,16 +428,66 @@ function normalizeDeclaredObjectProjection(rawObjectTypes: readonly unknown[]): 
   return { objectTypes, fields, relations };
 }
 
+function normalizeViewFilter(value: unknown): ViewFilter | null {
+  const source = record(value);
+  if (!source) return null;
+  const fieldKey = text(sourceValue(source, 'fieldKey', 'field_key'));
+  const op = text(source.op) as ViewFilterOp;
+  if (!fieldKey || !op) return null;
+  return {
+    fieldKey,
+    op,
+    value: source.value,
+  };
+}
+
+function normalizeViewSort(value: unknown): ViewSort | null {
+  const source = record(value);
+  if (!source) return null;
+  const fieldKey = text(sourceValue(source, 'fieldKey', 'field_key'));
+  if (!fieldKey) return null;
+  return {
+    fieldKey,
+    direction: source.direction === 'desc' ? 'desc' : 'asc',
+  };
+}
+
+function normalizeViewColumn(value: unknown, index: number): ViewColumnConfig | null {
+  const source = record(value);
+  if (!source) return null;
+  const fieldKey = text(sourceValue(source, 'fieldKey', 'field_key'));
+  if (!fieldKey) return null;
+  const widthRaw = source.width;
+  return {
+    fieldKey,
+    visible: source.visible !== false,
+    ...(typeof widthRaw === 'number' && Number.isFinite(widthRaw) ? { width: widthRaw } : {}),
+    order: typeof source.order === 'number' ? source.order : index,
+  };
+}
+
 function normalizeView(value: unknown): ViewMetadata | null {
   const source = record(value);
   if (!source) return null;
   const id = text(source.id);
   const key = text(source.key);
-  if (!id || !key) return null;
+  const objectTypeId = text(sourceValue(source, 'objectTypeId', 'object_type_id'));
+  if (!id || !key || !objectTypeId) return null;
   return {
     id,
     key,
     label: text(source.label, key),
+    objectTypeId,
+    filters: list(source.filters)
+      .map(normalizeViewFilter)
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    sorts: list(source.sorts)
+      .map(normalizeViewSort)
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    columns: list(source.columns)
+      .map((item, index) => normalizeViewColumn(item, index))
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    isDefault: Boolean(sourceValue(source, 'isDefault', 'is_default')),
     descriptorId: text(sourceValue(source, 'descriptorId', 'descriptor_id')) || undefined,
     provenance: normalizeMetadataProvenance(source),
   };
@@ -639,6 +702,7 @@ function normalizeDeclareReceipt(value: unknown): SchemaDeclareReceipt | null {
       : {}),
   };
 }
+
 async function executeGraphql(
   query: string,
   variables: Record<string, unknown>,
@@ -791,6 +855,7 @@ export async function restoreDeclaredModel(
     declared: declared.declared,
   };
 }
+
 export async function proposeSchemaChange(
   topicId: string,
   request: string,
