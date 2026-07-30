@@ -3,7 +3,14 @@
 // SOURCING: OWOX/models hard fork (Apache-2.0). MartNode + RelEdge + xyflow.
 // Empty in-memory ERD shell for MF1: zero network, no Supabase/PostHog/OWOX.
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import {
   ReactFlow,
   Background,
@@ -20,11 +27,12 @@ import {
 import '@xyflow/react/dist/style.css';
 import './components/canvas/canvas.css';
 
-import type { ModelGraph, ModelNode } from '@commonplace/okf';
+import type { ModelGraph } from '@commonplace/okf';
 import { MartNode, type MartNodeData } from './components/canvas/MartNode';
 import { RelEdge } from './components/canvas/RelEdge';
 import { buildRfEdges } from './components/canvas/edges';
 import { createModelStore } from './state/model';
+import { graphWithChangedNodePositions } from './state/positions';
 
 const nodeTypes = { mart: MartNode };
 const edgeTypes = { rel: RelEdge };
@@ -78,6 +86,7 @@ function ShellInner({
   );
   const live = controlled ?? store.get();
   const [nodes, setNodes] = useState<Node[]>(() => graphToNodes(live, onFieldSelect));
+  const lastSelectionIdentity = useRef('none');
   const edges: Edge[] = useMemo(
     () => buildRfEdges(live.edges, live.nodes, 'erd', 'all'),
     [live.nodes, live.edges],
@@ -99,14 +108,8 @@ function ShellInner({
     (changes: NodeChange[]) => {
       setNodes((prev) => {
         const next = applyNodeChanges(changes, prev);
-        const positions = new Map(next.map((n) => [n.id, n.position]));
-        const updated: ModelGraph = {
-          ...live,
-          nodes: live.nodes.map((n: ModelNode) => ({
-            ...n,
-            position: positions.get(n.key) ?? n.position,
-          })),
-        };
+        const updated = graphWithChangedNodePositions(live, next);
+        if (!updated) return next;
         if (!controlled) store.set(updated);
         onGraphChange?.(updated);
         return next;
@@ -120,14 +123,19 @@ function ShellInner({
       const selectedEdge = params.edges[0];
       if (selectedEdge) {
         const modelEdgeId = selectedEdge.data?.modelEdgeId;
-        onEdgeSelect?.(
-          typeof modelEdgeId === 'string'
-            ? modelEdgeId
-            : selectedEdge.id.split('::', 1)[0],
-        );
+        const edgeId = typeof modelEdgeId === 'string'
+          ? modelEdgeId
+          : selectedEdge.id.split('::', 1)[0];
+        const identity = `edge:${edgeId}`;
+        if (lastSelectionIdentity.current === identity) return;
+        lastSelectionIdentity.current = identity;
+        onEdgeSelect?.(edgeId);
         return;
       }
       const id = params.nodes[0]?.id ?? null;
+      const identity = id ? `node:${id}` : 'none';
+      if (lastSelectionIdentity.current === identity) return;
+      lastSelectionIdentity.current = identity;
       onNodeSelect?.(id);
     },
     [onEdgeSelect, onNodeSelect],

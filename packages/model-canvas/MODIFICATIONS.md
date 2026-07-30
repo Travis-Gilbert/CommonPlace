@@ -34,5 +34,7 @@ Removed from this fork:
 - `ModelCanvasShell` mounts an empty in-memory ERD with zero network
 - Persistence through the console object seam (`canvas.model.*`), not Supabase
 - Semantic truth lives in the Theorem schema registry; this package holds layout and canvas UI only
+- React Flow measurement changes are ignored; only changed node coordinates emit layout updates
+- Repeated React Flow selection notifications are deduplicated before they reach a controlled host
 
 LICENSE and NOTICE from upstream are preserved beside this file.

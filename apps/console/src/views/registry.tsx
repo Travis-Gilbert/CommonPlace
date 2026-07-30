@@ -548,7 +548,7 @@ const SURVEY_BOARD: ViewDescriptor = {
 
 const MODEL_STUDIO: ViewDescriptor = {
   id: 'model.studio',
-  name: 'Models',
+  name: 'Data model',
   accepts: { required_types: ['model-scope'] },
   emits: ['select', 'create', 'update', 'delete'],
   renderer: 'model.studio',

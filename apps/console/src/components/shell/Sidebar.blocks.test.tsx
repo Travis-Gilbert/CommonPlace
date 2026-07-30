@@ -99,6 +99,7 @@ describe('Sidebar Blocks group', () => {
       semantic: 'relate',
       edge: 'RELATED_TO',
     });
+    expect(CONSOLE_VIEW_REGISTRY.viewById('model.studio')?.name).toBe('Data model');
     expect(CONSOLE_VIEW_REGISTRY.viewById('canvas')?.block?.acceptsDrop).toBeUndefined();
   });
 });

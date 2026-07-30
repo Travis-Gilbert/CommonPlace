@@ -134,6 +134,7 @@
   --spacing-rec-utility-col: var(--rec-utility-col);
   --spacing-rec-side-panel: var(--rec-side-panel);
   --spacing-rec-sibling-gap: var(--rec-sibling-gap);
+  --spacing-ij-inspector-rail: var(--ij-inspector-rail-w);
 }
 
 /* The one shadow token (HANDOFF-CONSOLE-DIMENSIONALITY named choice 3): depth

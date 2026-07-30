@@ -148,6 +148,9 @@ describe('ConsoleBlockHost', () => {
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
     const models = buildSurfaceTree(MODEL_SURFACE_ID, set.objects);
     expect(models!.children[0]?.children[0]?.object.id).toBe(MODEL_VIEW_INSTANCE_ID);
+    expect(models!.children[0]?.children[0]?.object.properties.descriptor_id).toBe(
+      'model.studio',
+    );
   });
 
   it('adds missing seed surfaces to an existing server layout before adopting it', async () => {

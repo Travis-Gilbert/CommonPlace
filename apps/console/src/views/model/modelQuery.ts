@@ -44,6 +44,12 @@ export function reduceModelQuery(
     case 'switch-lens':
       return { ...state, lens: action.lens };
     case 'select':
+      if (
+        state.selection?.kind === action.selection?.kind
+        && state.selection?.key === action.selection?.key
+      ) {
+        return state;
+      }
       return { ...state, selection: action.selection };
     case 'pin-start':
       return state.pendingPins.includes(action.observedKey)
