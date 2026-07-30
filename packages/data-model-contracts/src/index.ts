@@ -102,6 +102,10 @@ export interface ObjectTypeMetadata {
   readonly labelIdentifierField: string;
   readonly system: boolean;
   readonly contentAnchor: string;
+  /** Live record count from MR10 dataModel; absent when the read omits counts. */
+  readonly recordCount?: number;
+  readonly icon?: string;
+  readonly tint?: string;
   readonly provenance?: MetadataProvenance;
 }
 
@@ -129,10 +133,45 @@ export interface RelationMetadata {
   readonly provenance?: MetadataProvenance;
 }
 
+export type ViewFilterOp =
+  | 'eq'
+  | 'neq'
+  | 'contains'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'is_empty'
+  | 'is_not_empty'
+  | 'in';
+
+export interface ViewFilter {
+  readonly fieldKey: string;
+  readonly op: ViewFilterOp;
+  readonly value?: unknown;
+}
+
+export interface ViewSort {
+  readonly fieldKey: string;
+  readonly direction: 'asc' | 'desc';
+}
+
+export interface ViewColumnConfig {
+  readonly fieldKey: string;
+  readonly visible: boolean;
+  readonly width?: number;
+  readonly order: number;
+}
+
 export interface ViewMetadata {
   readonly id: string;
   readonly key: string;
   readonly label: string;
+  readonly objectTypeId: string;
+  readonly filters: readonly ViewFilter[];
+  readonly sorts: readonly ViewSort[];
+  readonly columns: readonly ViewColumnConfig[];
+  readonly isDefault?: boolean;
   readonly descriptorId?: string;
   readonly provenance?: MetadataProvenance;
 }
@@ -217,6 +256,7 @@ export interface SchemaDeclareReceipt {
     readonly detail: string;
   };
 }
+
 export interface SchemaProposalDraft {
   readonly id: string;
   readonly scope: ScopeRef;
