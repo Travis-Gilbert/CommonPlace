@@ -20,4 +20,24 @@ describe('model query state', () => {
     expect(records.selection).toEqual(initial.selection);
     expect(records.pendingPins).toEqual(initial.pendingPins);
   });
+
+  it('preserves state identity when React Flow repeats the same selection', () => {
+    const initial = createModelQueryState({
+      kind: 'topic',
+      topicId: 'topic-models',
+    });
+    expect(reduceModelQuery(initial, {
+      type: 'select',
+      selection: null,
+    })).toBe(initial);
+
+    const selected = reduceModelQuery(initial, {
+      type: 'select',
+      selection: { kind: 'declared-type', key: 'orders' },
+    });
+    expect(reduceModelQuery(selected, {
+      type: 'select',
+      selection: { kind: 'declared-type', key: 'orders' },
+    })).toBe(selected);
+  });
 });

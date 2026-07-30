@@ -8,6 +8,8 @@ import type {
   ObservedModel,
   PinReceipt,
   PinRequest,
+  SchemaDeclareInput,
+  SchemaDeclareReceipt,
   SchemaProposalDraft,
 } from '@commonplace/data-model-contracts';
 import {
@@ -26,6 +28,71 @@ export interface ModelPayload {
 export interface PinPayload {
   readonly receipt: PinReceipt;
   readonly declared: DeclaredModel;
+}
+
+export interface SchemaDeclarePayload {
+  readonly receipt: SchemaDeclareReceipt;
+  readonly declared: DeclaredModel;
+}
+
+export interface SchemaRestorePayload {
+  readonly receipt: unknown;
+  readonly declared: DeclaredModel;
+}
+
+export interface OkfModelPreviewPayload {
+  readonly validation: {
+    readonly conformant: boolean;
+    readonly errors: readonly string[];
+    readonly warnings: readonly unknown[];
+  };
+  readonly changes: readonly {
+    readonly concept_id: string;
+    readonly object_type_id: string;
+    readonly requested_anchor: string;
+    readonly status: 'new' | 'unchanged' | 'conflict';
+  }[];
+}
+
+export interface OkfModelExportPayload {
+  readonly bundle_id: string;
+  readonly files: Readonly<Record<string, string>>;
+  readonly object_count: number;
+}
+
+async function postOkfModel(
+  bundleId: string,
+  action: 'preview' | 'import' | 'export',
+  files?: Readonly<Record<string, string>>,
+): Promise<Record<string, unknown>> {
+  const response = await fetch('/api/observed-model/okf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bundleId, action, ...(files ? { files } : {}) }),
+  });
+  const payload = await responseJson(response);
+  if (!response.ok) throw new Error(errorMessage(payload, 'OKF model operation failed.'));
+  return payload;
+}
+
+export async function previewOkfModel(
+  bundleId: string,
+  files: Readonly<Record<string, string>>,
+): Promise<OkfModelPreviewPayload> {
+  return await postOkfModel(bundleId, 'preview', files) as unknown as OkfModelPreviewPayload;
+}
+
+export async function importOkfModel(
+  bundleId: string,
+  files: Readonly<Record<string, string>>,
+): Promise<{ readonly receipts: readonly unknown[] }> {
+  return await postOkfModel(bundleId, 'import', files) as {
+    readonly receipts: readonly unknown[];
+  };
+}
+
+export async function exportOkfModel(bundleId: string): Promise<OkfModelExportPayload> {
+  return await postOkfModel(bundleId, 'export') as unknown as OkfModelExportPayload;
 }
 
 async function responseJson(response: Response): Promise<Record<string, unknown>> {
@@ -181,6 +248,45 @@ export async function postUnpin(
   if (!receipt || !declared) throw new Error('Unpin returned an invalid receipt.');
   await syncDeclaredOverlay(host, declared);
   return { receipt, declared };
+}
+
+export async function postSchemaDeclare(
+  topicId: string,
+  input: SchemaDeclareInput,
+  host?: BlockHost,
+): Promise<SchemaDeclarePayload> {
+  const response = await fetch('/api/observed-model/declare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topicId, input }),
+  });
+  const payload = await responseJson(response);
+  if (!response.ok) throw new Error(errorMessage(payload, 'Schema declaration failed.'));
+  const receipt = payload.receipt as SchemaDeclareReceipt | undefined;
+  const declared = payload.declared as DeclaredModel | undefined;
+  if (!receipt || !declared) throw new Error('Schema declaration returned an invalid receipt.');
+  await syncDeclaredOverlay(host, declared);
+  return { receipt, declared };
+}
+
+export async function postSchemaRestore(
+  topicId: string,
+  versionId: string,
+  host?: BlockHost,
+): Promise<SchemaRestorePayload> {
+  const response = await fetch('/api/observed-model/restore', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topicId, versionId }),
+  });
+  const payload = await responseJson(response);
+  if (!response.ok) throw new Error(errorMessage(payload, 'Schema restore failed.'));
+  const declared = payload.declared as DeclaredModel | undefined;
+  if (!declared || !payload.receipt) {
+    throw new Error('Schema restore returned an invalid receipt.');
+  }
+  await syncDeclaredOverlay(host, declared);
+  return { receipt: payload.receipt, declared };
 }
 
 export async function postSchemaProposal(

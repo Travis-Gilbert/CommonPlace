@@ -13,7 +13,7 @@ import {
   type PinKind,
 } from '@commonplace/data-model-contracts';
 import type { ModelSelection } from './modelQuery';
-import { DiagramCanvas } from './diagram/DiagramCanvas';
+import { ForkDiagramCanvas } from './diagram/ForkDiagramCanvas';
 import type { LayoutPositions } from './diagram/layout';
 
 export interface LensProps {
@@ -29,7 +29,8 @@ export interface LensProps {
 }
 
 export function DiagramLens(props: LensProps) {
-  return <DiagramCanvas {...props} />;
+  // MF1: the OWOX fork shell supersedes and removes the hand-built canvas.
+  return <ForkDiagramCanvas {...props} />;
 }
 
 export function FieldsTableLens({

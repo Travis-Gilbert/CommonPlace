@@ -21,6 +21,7 @@ import {
   DEFAULT_CANVAS_ID,
   INSPECTOR_CANVAS_ID,
   PERSISTENCE_UNAVAILABLE_NOTE,
+  modelCanvasId,
 } from './store';
 
 class DurableObjectSeam {
@@ -89,6 +90,12 @@ class DurableObjectSeam {
 }
 
 describe('CanvasStore', () => {
+  it('keeps complete topic identity in model canvas ids', () => {
+    expect(modelCanvasId('customer/a')).not.toBe(modelCanvasId('customer_a'));
+    expect(modelCanvasId(`topic-${'a'.repeat(121)}-left`))
+      .not.toBe(modelCanvasId(`topic-${'a'.repeat(121)}-right`));
+  });
+
   it('seeds the stable default and inspector canvases through the object seam', async () => {
     const seam = new DurableObjectSeam();
     const store = new CanvasStore(seam);
@@ -326,6 +333,17 @@ describe('CanvasStore', () => {
     // ready() + emit each retry hydrate for default + inspector canvases.
     expect(queryAttempts).toBe(4);
     expect(emitAttempts).toBe(0);
+  });
+
+  it('rejects when a named canvas cannot be seeded durably', async () => {
+    const seam = new DurableObjectSeam();
+    const store = new CanvasStore(seam);
+    await store.ready();
+    seam.emit = async () => ({ ok: false, error: 'named canvas refused' });
+
+    await expect(store.readyNamedCanvas('canvas.model.orders')).rejects.toThrow(
+      'named canvas refused',
+    );
   });
 
   it('serializes document imports with ordinary canvas mutations', async () => {

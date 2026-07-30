@@ -3,26 +3,35 @@
 // SOURCING: @commonplace/block-view for scope and mutation seams,
 // @xyflow/react and tablecn structure through the registered lens components.
 
-import { useEffect, useReducer, useState, type FormEvent } from 'react';
+import { useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
   emptyDeclaredModel,
   emptyObservedModel,
   formatFieldType,
   type DeclaredModel,
+  type FieldMetadata,
+  type FieldType,
   type ObservedEdge,
   type ObservedField,
   type PinKind,
   type SchemaProposalDraft,
   type ScopeRef,
 } from '@commonplace/data-model-contracts';
+import { DiffDialog, diffGraphs, type ModelGraph } from '@commonplace/model-canvas';
 import { BlockShell } from '@/components/block/BlockShell';
 import { degradationFor, withAction } from '@/lib/degradation';
 import {
+  exportOkfModel,
   fetchObservedModel,
+  importOkfModel,
   postPin,
+  postSchemaDeclare,
   postSchemaProposal,
+  postSchemaRestore,
   postUnpin,
+  previewOkfModel,
+  type OkfModelPreviewPayload,
 } from '@/lib/observed-model-client';
 import { WhyTrace } from '../harness-ux/WhyTracePanel';
 import {
@@ -38,8 +47,52 @@ import {
   type ModelLens,
   type ModelSelection,
 } from './modelQuery';
+import { modelCanvasId } from '@/lib/canvas/store';
+import type { JSONCanvas } from '@commonplace/json-canvas';
+import {
+  declaredToModelGraph,
+  parseOkfBundle,
+} from './okfBridge';
+import { schemaDeclareInputForField } from './schemaDeclare';
 
-const MODEL_LAYOUT_TYPE = 'model.layout';
+type ModelLayoutHost = ViewRenderProps['host'] & {
+  readyNamedCanvas?(canvasId: string, title?: string): Promise<void>;
+  exportCanvasDocument?(canvasId: string): JSONCanvas | null;
+  applyCanvasDocument?(canvasId: string, document: JSONCanvas): Promise<{ ok: boolean; error?: string }>;
+};
+
+type OkfImportPreview = {
+  readonly graph: ModelGraph;
+  readonly diff: ReturnType<typeof diffGraphs>;
+  readonly bundleId: string;
+  readonly files: Readonly<Record<string, string>>;
+  readonly server: OkfModelPreviewPayload;
+};
+
+function layoutDocumentFromPositions(positions: LayoutPositions): JSONCanvas {
+  return {
+    nodes: Object.entries(positions).map(([id, pos]) => ({
+      id,
+      type: 'text' as const,
+      x: pos.x,
+      y: pos.y,
+      width: 1,
+      height: 1,
+      text: id,
+      graphId: id,
+    })),
+    edges: [],
+  };
+}
+
+function positionsFromLayoutDocument(document: JSONCanvas | null): LayoutPositions {
+  if (!document) return {};
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const node of document.nodes) {
+    positions[node.id] = { x: node.x, y: node.y };
+  }
+  return positions;
+}
 
 function selectedObservedEvidence(
   selection: ModelSelection | null,
@@ -112,10 +165,16 @@ function ModelInspector({
   selection,
   observed,
   declared,
+  fieldEditBusy,
+  fieldEditError,
+  onFieldEdit,
 }: {
   readonly selection: ModelSelection | null;
   readonly observed: ReturnType<typeof emptyObservedModel>;
   readonly declared: DeclaredModel;
+  readonly fieldEditBusy: boolean;
+  readonly fieldEditError: string | null;
+  readonly onFieldEdit: (fieldId: string, replacement: FieldMetadata) => void;
 }) {
   const evidence = selectedObservedEvidence(selection, observed);
   const declaredField = selection?.kind === 'declared-field'
@@ -131,9 +190,43 @@ function ModelInspector({
   const evidenceSources = evidence?.sourceRefs?.length
     ? evidence.sourceRefs
     : observed.sources;
+  const [fieldKey, setFieldKey] = useState(declaredField?.key ?? '');
+  const [fieldLabel, setFieldLabel] = useState(declaredField?.label ?? '');
+  const [fieldKind, setFieldKind] = useState(declaredField?.fieldType.kind ?? 'text');
+  const [fieldRequired, setFieldRequired] = useState(declaredField?.required ?? false);
+
+  function editedFieldType(current: FieldType, kind: string): FieldType {
+    if (current.kind === kind) return current;
+    switch (kind) {
+      case 'long_text':
+        return { kind: 'long_text' };
+      case 'integer':
+        return { kind: 'integer' };
+      case 'number':
+        return { kind: 'number' };
+      case 'boolean':
+        return { kind: 'boolean' };
+      case 'timestamp':
+        return { kind: 'timestamp' };
+      case 'date':
+        return { kind: 'date' };
+      case 'uuid':
+        return { kind: 'uuid' };
+      case 'json':
+        return { kind: 'json' };
+      case 'geometry':
+        return { kind: 'geometry' };
+      default:
+        return { kind: 'text' };
+    }
+  }
 
   return (
-    <aside className="w-full shrink-0 overflow-auto border-t border-ij-seam bg-ij-chrome xl:w-rec-side-panel xl:border-l xl:border-t-0" aria-label="Model inspector">
+    <aside
+      className="w-full shrink-0 overflow-auto border-t border-ij-seam bg-ij-chrome xl:w-ij-inspector-rail xl:border-l xl:border-t-0"
+      aria-label="Model inspector"
+      data-model-inspector
+    >
       <header className="flex h-ij-toolbar items-center border-b border-ij-seam px-3">
         <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Inspector</h2>
       </header>
@@ -180,10 +273,94 @@ function ModelInspector({
         <div className="flex min-h-full flex-col">
           <div className="p-4">
             <p className="text-xs text-ij-gold">declared field</p>
-            <h3 className="mt-1 text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-              {declaredField.label}
-            </h3>
-            <p className="mt-2 font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{formatFieldType(declaredField.fieldType)}</p>
+            <form
+              className="mt-3 grid gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onFieldEdit(declaredField.id, {
+                  ...declaredField,
+                  key: fieldKey,
+                  label: fieldLabel,
+                  fieldType: editedFieldType(declaredField.fieldType, fieldKind),
+                  required: fieldRequired,
+                });
+              }}
+            >
+              <label className="grid gap-1 text-xs text-ij-ink-info">
+                Field key
+                <input
+                  value={fieldKey}
+                  onChange={(event) => setFieldKey(event.target.value)}
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink"
+                  data-mono-ok
+                />
+              </label>
+              <label className="grid gap-1 text-xs text-ij-ink-info">
+                Label
+                <input
+                  value={fieldLabel}
+                  onChange={(event) => setFieldLabel(event.target.value)}
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+                />
+              </label>
+              <label className="grid gap-1 text-xs text-ij-ink-info">
+                Type
+                <select
+                  value={fieldKind}
+                  onChange={(event) => setFieldKind(event.target.value as FieldType['kind'])}
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink"
+                  data-mono-ok
+                >
+                  {![
+                    'text',
+                    'long_text',
+                    'integer',
+                    'number',
+                    'boolean',
+                    'timestamp',
+                    'date',
+                    'uuid',
+                    'json',
+                    'geometry',
+                  ].includes(declaredField.fieldType.kind) ? (
+                    <option value={declaredField.fieldType.kind}>
+                      {formatFieldType(declaredField.fieldType)}
+                    </option>
+                  ) : null}
+                  <option value="text">text</option>
+                  <option value="long_text">long text</option>
+                  <option value="integer">integer</option>
+                  <option value="number">number</option>
+                  <option value="boolean">boolean</option>
+                  <option value="timestamp">timestamp</option>
+                  <option value="date">date</option>
+                  <option value="uuid">uuid</option>
+                  <option value="json">json</option>
+                  <option value="geometry">geometry</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-ij-ink-info">
+                <input
+                  type="checkbox"
+                  checked={fieldRequired}
+                  onChange={(event) => setFieldRequired(event.target.checked)}
+                  className="size-4 accent-ij-accent"
+                />
+                Required
+              </label>
+              <button
+                type="submit"
+                disabled={fieldEditBusy || !fieldKey.trim() || !fieldLabel.trim()}
+                className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
+              >
+                {fieldEditBusy ? 'Declaring' : 'Declare field edit'}
+              </button>
+              {fieldEditError ? (
+                <p className="rounded-ij-arc border border-ij-warn bg-ij-warn-bg p-2 text-xs text-ij-warn" role="alert">
+                  {fieldEditError}
+                </p>
+              ) : null}
+            </form>
           </div>
           {whyNodeId ? (
             <div className="min-h-96 flex-1 border-t border-ij-seam">
@@ -206,6 +383,7 @@ function ModelInspector({
 }
 
 const LENSES: readonly ModelLens[] = ['diagram', 'fields', 'records'];
+const LAYOUT_PERSIST_MS = 400;
 
 export function ModelView({ set, host }: ViewRenderProps) {
   const initialScope = modelScopeFromSet(set) ?? { kind: 'topic' as const, topicId: '' };
@@ -225,8 +403,14 @@ export function ModelView({ set, host }: ViewRenderProps) {
   const [proposal, setProposal] = useState<SchemaProposalDraft | null>(null);
   const [proposalBusy, setProposalBusy] = useState(false);
   const [layoutPositions, setLayoutPositions] = useState<LayoutPositions>({});
-  const [layoutObjectId, setLayoutObjectId] = useState<string | null>(null);
+  const layoutPersistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [okfPreview, setOkfPreview] = useState<OkfImportPreview | null>(null);
+  const [diffVersionIds, setDiffVersionIds] = useState<readonly [string, string]>(['', '']);
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [fieldEditBusy, setFieldEditBusy] = useState(false);
+  const [fieldEditError, setFieldEditError] = useState<string | null>(null);
   const setScope = modelScopeFromSet(set);
+  const layoutHost = host as ModelLayoutHost;
   const setScopeTopicId = setScope?.kind === 'topic' ? setScope.topicId : '';
   const setScopeTenant = setScope?.tenant;
   const topicId = queryState.scope.kind === 'topic' ? queryState.scope.topicId : '';
@@ -274,67 +458,91 @@ export function ModelView({ set, host }: ViewRenderProps) {
 
   useEffect(() => {
     if (!topicId) return;
+    let unsubscribe: (() => void) | undefined;
+    // Verify First: theorem-canvas-compile has no console-consumable subscription
+    // contract in rustyredcore_THG/crates/theorem-canvas-compile. It invalidates
+    // Program CanvasDoc execution, not the registry projection rendered here.
+    // Model state therefore subscribes to the registry metadata query, and every
+    // successful pin/unpin/import/restore also advances reloadToken.
+    void Promise.resolve(host.query({
+      types: [
+        'object-type-metadata',
+        'field-metadata',
+        'relation-metadata',
+        'view-metadata',
+        'schema-version',
+      ],
+      where: { kind: 'eq', field: 'topic_id', value: topicId },
+    })).then((set) => {
+      unsubscribe = set.subscribe(() => setReloadToken((token) => token + 1));
+    }).catch(() => undefined);
+    return () => unsubscribe?.();
+  }, [host, topicId]);
+
+  useEffect(() => {
+    if (!topicId) return;
     let active = true;
+    const canvasId = modelCanvasId(topicId);
     void Promise.resolve().then(async () => {
       try {
-        const layouts = await host.query({
-          types: [MODEL_LAYOUT_TYPE],
-          where: { kind: 'eq', field: 'topicId', value: topicId },
-          page: { limit: 1 },
-        });
+        if (layoutHost.readyNamedCanvas) {
+          await layoutHost.readyNamedCanvas(canvasId, `Model layout ${topicId}`);
+        }
+        const document = layoutHost.exportCanvasDocument?.(canvasId) ?? null;
         if (!active) return;
-        const layout = layouts.objects[0];
-        if (!layout) {
-          setLayoutObjectId(null);
-          setLayoutPositions({});
-          return;
-        }
-        setLayoutObjectId(layout.id);
-        const positions = layout.properties.positions;
-        if (positions && typeof positions === 'object' && !Array.isArray(positions)) {
-          setLayoutPositions(positions as LayoutPositions);
-        }
+        setLayoutPositions(positionsFromLayoutDocument(document));
       } catch {
         if (!active) return;
-        setLayoutObjectId(null);
         setLayoutPositions({});
       }
     });
     return () => {
       active = false;
     };
-  }, [host, topicId, reloadToken]);
+  }, [layoutHost, topicId, reloadToken]);
 
   async function persistLayout(positions: LayoutPositions): Promise<void> {
     if (!topicId) return;
-    setLayoutPositions(positions);
+    const canvasId = modelCanvasId(topicId);
+    const document = layoutDocumentFromPositions(positions);
     try {
-      if (layoutObjectId) {
-        const updated = await host.emit({
-          kind: 'update',
-          id: layoutObjectId,
-          patch: { positions, topicId, scopeKind: 'topic' },
-        });
-        if (!updated.ok) {
-          setError(updated.error ?? 'Model layout update refused.');
+      if (layoutHost.readyNamedCanvas) {
+        await layoutHost.readyNamedCanvas(canvasId, `Model layout ${topicId}`);
+      }
+      if (layoutHost.applyCanvasDocument) {
+        const applied = await layoutHost.applyCanvasDocument(canvasId, document);
+        if (!applied.ok) {
+          setError(applied.error ?? 'Model layout persist refused.');
         }
         return;
       }
-      const created = await host.emit({
-        kind: 'create',
-        type: MODEL_LAYOUT_TYPE,
-        props: { positions, topicId, scopeKind: 'topic' },
+      const applied = await host.emit({
+        kind: 'invoke_tool',
+        tool: 'canvas.apply_json',
+        args: {
+          canvasId,
+          document: document as unknown as import('@commonplace/block-view/types').JsonValue,
+        },
       });
-      if (!created.ok) {
-        setError(created.error ?? 'Model layout create refused.');
-        return;
+      if (!applied.ok) {
+        setError(applied.error ?? 'Model layout persist refused.');
       }
-      const createdId = created.value?.target_ids?.[0];
-      if (createdId) setLayoutObjectId(createdId);
     } catch (layoutError) {
       setError(layoutError instanceof Error ? layoutError.message : String(layoutError));
     }
   }
+
+  function scheduleLayoutPersist(positions: LayoutPositions): void {
+    setLayoutPositions(positions);
+    if (layoutPersistTimer.current) clearTimeout(layoutPersistTimer.current);
+    layoutPersistTimer.current = setTimeout(() => {
+      void persistLayout(positions);
+    }, LAYOUT_PERSIST_MS);
+  }
+
+  useEffect(() => () => {
+    if (layoutPersistTimer.current) clearTimeout(layoutPersistTimer.current);
+  }, [topicId]);
 
   async function applyPin(
     observedKey: string,
@@ -353,6 +561,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
       }, host);
       setDeclared(result.declared);
       setNotice(result.receipt.note ?? `${observedKey} is declared.`);
+      setReloadToken((token) => token + 1);
     } catch (pinError) {
       setError(pinError instanceof Error ? pinError.message : String(pinError));
     } finally {
@@ -367,8 +576,33 @@ export function ModelView({ set, host }: ViewRenderProps) {
       const result = await postUnpin(topicId, declaredId, host);
       setDeclared(result.declared);
       setNotice(result.receipt.note ?? `${declaredId} is no longer declared.`);
+      setReloadToken((token) => token + 1);
     } catch (unpinError) {
       setError(unpinError instanceof Error ? unpinError.message : String(unpinError));
+    }
+  }
+
+  async function applyFieldEdit(
+    fieldId: string,
+    replacement: FieldMetadata,
+  ): Promise<void> {
+    if (!topicId) return;
+    setFieldEditBusy(true);
+    setFieldEditError(null);
+    try {
+      const input = schemaDeclareInputForField(declared, fieldId, replacement);
+      const result = await postSchemaDeclare(topicId, input, host);
+      setDeclared(result.declared);
+      setNotice(
+        result.receipt.idempotentReplay
+          ? 'Declaration already matches the registry.'
+          : `Declared ${replacement.label}.`,
+      );
+      setReloadToken((token) => token + 1);
+    } catch (editError) {
+      setFieldEditError(editError instanceof Error ? editError.message : String(editError));
+    } finally {
+      setFieldEditBusy(false);
     }
   }
 
@@ -407,6 +641,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
       setDeclared(nextDeclared);
       setNotice('Schema proposal accepted and declared.');
       setProposal(null);
+      setReloadToken((token) => token + 1);
     } catch (proposalError) {
       setError(proposalError instanceof Error ? proposalError.message : String(proposalError));
     } finally {
@@ -414,12 +649,110 @@ export function ModelView({ set, host }: ViewRenderProps) {
     }
   }
 
+  async function previewOkfImport(fileList: FileList | null): Promise<void> {
+    if (!fileList?.length || !topicId) return;
+    setError(null);
+    try {
+      const selectedFiles = [...fileList];
+      const firstFile = selectedFiles[0];
+      const firstSource = await firstFile.text();
+      const files = selectedFiles.length === 1 && firstFile.name.endsWith('.json')
+        ? JSON.parse(firstSource) as Record<string, string>
+        : Object.fromEntries(await Promise.all(selectedFiles.map(async (file) => [
+            file.webkitRelativePath || file.name,
+            await file.text(),
+          ])));
+      const bundleId = firstFile.name
+        .replace(/\.okf\.json$/i, '')
+        .replace(/\.(json|md)$/i, '')
+        .trim() || 'model-import';
+      const [graph, server] = await Promise.all([
+        Promise.resolve(parseOkfBundle(JSON.stringify(files), `${bundleId}.json`)),
+        previewOkfModel(bundleId, files),
+      ]);
+      setOkfPreview({
+        graph,
+        diff: diffGraphs(declaredToModelGraph(declared), graph),
+        bundleId,
+        files,
+        server,
+      });
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : String(importError));
+    }
+  }
+
+  async function applyOkfImport(): Promise<void> {
+    if (!okfPreview) return;
+    setProposalBusy(true);
+    setError(null);
+    try {
+      const result = await importOkfModel(okfPreview.bundleId, okfPreview.files);
+      setOkfPreview(null);
+      setReloadToken((token) => token + 1);
+      setNotice(`${result.receipts.length} OKF model declarations receipted by the registry.`);
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : String(importError));
+    } finally {
+      setProposalBusy(false);
+    }
+  }
+
+  async function restoreRightVersion(): Promise<void> {
+    if (!rightVersion || !topicId) return;
+    setProposalBusy(true);
+    setError(null);
+    try {
+      const result = await postSchemaRestore(topicId, rightVersion.id, host);
+      setDeclared(result.declared);
+      setReloadToken((token) => token + 1);
+      setNotice(
+        `Restored schema ${String(rightVersion.version)} as a new receipted declaration batch.`,
+      );
+    } catch (restoreError) {
+      setError(restoreError instanceof Error ? restoreError.message : String(restoreError));
+    } finally {
+      setProposalBusy(false);
+    }
+  }
+
+  async function exportOkf(): Promise<void> {
+    const title = topicId ? `Model ${topicId}` : 'Model';
+    const bundleId = title.toLocaleLowerCase().replaceAll(/\s+/g, '-');
+    setProposalBusy(true);
+    setError(null);
+    try {
+      const bundle = await exportOkfModel(bundleId);
+      const href = URL.createObjectURL(new Blob([JSON.stringify(bundle.files, null, 2)], {
+        type: 'application/json',
+      }));
+      const anchor = document.createElement('a');
+      anchor.href = href;
+      anchor.download = `${bundle.bundle_id}.okf.json`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+      setNotice(`${bundle.object_count} registry object types exported through rustyred-thg-okf.`);
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : String(exportError));
+    } finally {
+      setProposalBusy(false);
+    }
+  }
+
+  const versionById = new Map(declared.versions.map((version) => [version.id, version]));
+  const [leftVersionId, rightVersionId] = diffVersionIds;
+  const leftVersion = versionById.get(leftVersionId);
+  const rightVersion = versionById.get(rightVersionId);
+
   const lensProps = {
     observed,
     declared,
     selection: queryState.selection,
     pendingPins: queryState.pendingPins,
-    onSelect: (selection: ModelSelection | null) => dispatch({ type: 'select', selection }),
+    onSelect: (selection: ModelSelection | null) => {
+      setFieldEditError(null);
+      dispatch({ type: 'select', selection });
+    },
     onPin: (observedKey: string, kind: PinKind, parentObservedKey?: string) => {
       void applyPin(observedKey, kind, parentObservedKey);
     },
@@ -428,7 +761,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
     },
     layoutPositions,
     onLayoutChange: (positions: LayoutPositions) => {
-      void persistLayout(positions);
+      scheduleLayoutPersist(positions);
     },
   };
   const unavailable = !topicId
@@ -441,24 +774,87 @@ export function ModelView({ set, host }: ViewRenderProps) {
     <div className="h-full min-h-0" data-model-studio>
       <BlockShell
         material="sunken"
-        title="Models"
+        title="Data model"
         scope={topicId ? <span className="font-ij-mono" data-mono-ok>topic:{topicId}</span> : 'No topic selected'}
         count={`${observed.eventCount} events`}
         degradation={unavailable}
         controlRow={(
-          <div className="flex items-center gap-1" role="tablist" aria-label="Model lens">
-            {LENSES.map((lens) => (
-              <button
-                key={lens}
-                type="button"
-                role="tab"
-                aria-selected={queryState.lens === lens}
-                onClick={() => dispatch({ type: 'switch-lens', lens })}
-                className="h-ij-control rounded-ij-arc px-3 capitalize hover:bg-ij-hover-surface aria-selected:bg-ij-selection"
-              >
-                {lens}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-1">
+            <div className="flex items-center gap-1" role="tablist" aria-label="Model lens">
+              {LENSES.map((lens) => (
+                <button
+                  key={lens}
+                  type="button"
+                  role="tab"
+                  aria-selected={queryState.lens === lens}
+                  onClick={() => dispatch({ type: 'switch-lens', lens })}
+                  className="h-ij-control rounded-ij-arc px-3 capitalize hover:bg-ij-hover-surface aria-selected:bg-ij-selection"
+                >
+                  {lens}
+                </button>
+              ))}
+            </div>
+            <label className="flex h-ij-control cursor-pointer items-center rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface">
+              Import OKF
+              <input
+                type="file"
+                accept=".md,.json,text/markdown,application/json"
+                multiple
+                ref={(input) => input?.setAttribute('webkitdirectory', '')}
+                className="sr-only"
+                onChange={(event) => void previewOkfImport(event.target.files)}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void exportOkf()}
+              disabled={proposalBusy || declared.objectTypes.length === 0}
+              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
+            >
+              Export OKF
+            </button>
+            {declared.versions.length >= 2 ? (
+              <div className="flex items-center gap-1">
+                <select
+                  aria-label="Earlier schema version"
+                  value={leftVersionId}
+                  onChange={(event) => setDiffVersionIds([event.target.value, rightVersionId])}
+                  className="h-ij-control max-w-32 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
+                >
+                  <option value="">Earlier version</option>
+                  {declared.versions.map((version) => (
+                    <option key={version.id} value={version.id}>{String(version.version)}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Later schema version"
+                  value={rightVersionId}
+                  onChange={(event) => setDiffVersionIds([leftVersionId, event.target.value])}
+                  className="h-ij-control max-w-32 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
+                >
+                  <option value="">Later version</option>
+                  {declared.versions.map((version) => (
+                    <option key={version.id} value={version.id}>{String(version.version)}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!leftVersion || !rightVersion || leftVersionId === rightVersionId}
+                  onClick={() => setDiffOpen(true)}
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
+                >
+                  Diff
+                </button>
+                <button
+                  type="button"
+                  disabled={proposalBusy || !rightVersion}
+                  onClick={() => void restoreRightVersion()}
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
+                >
+                  Restore right version
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
         className="bg-transparent text-ij-ink"
@@ -524,6 +920,44 @@ export function ModelView({ set, host }: ViewRenderProps) {
               onDecline={() => setProposal(null)}
             />
           ) : null}
+          {okfPreview ? (
+            <section className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-3" aria-label="OKF import preview">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="min-w-0 flex-1 text-sm text-ij-ink">
+                  OKF dry run: {okfPreview.diff.tables.added.length} tables added,
+                  {' '}{okfPreview.diff.tables.removed.length} removed, and
+                  {' '}{okfPreview.diff.fields.length} field groups changed.
+                  {' '}{okfPreview.server.changes.length} Rust model-profile declarations checked.
+                </p>
+                <button
+                  type="button"
+                  disabled={proposalBusy || !okfPreview.server.validation.conformant}
+                  onClick={() => void applyOkfImport()}
+                  className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
+                >
+                  Confirm import
+                </button>
+                <button
+                  type="button"
+                  disabled={proposalBusy}
+                  onClick={() => setOkfPreview(null)}
+                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
+                >
+                  Cancel
+                </button>
+              </div>
+              {okfPreview.server.changes.some((change) => change.status === 'conflict') ? (
+                <p className="mt-2 text-xs text-ij-warn">
+                  Registry conflicts: {
+                    okfPreview.server.changes
+                      .filter((change) => change.status === 'conflict')
+                      .map((change) => change.concept_id)
+                      .join(', ')
+                  }
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           {notice ? (
             <div className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-2 text-ij-ink" role="status">
               {notice}
@@ -549,9 +983,31 @@ export function ModelView({ set, host }: ViewRenderProps) {
             )}
           </div>
         </main>
-        <ModelInspector selection={queryState.selection} observed={observed} declared={declared} />
+        <ModelInspector
+          key={[
+            queryState.selection?.kind ?? 'none',
+            queryState.selection?.key ?? 'none',
+            declared.versions.at(-1)?.id ?? 'unversioned',
+          ].join(':')}
+          selection={queryState.selection}
+          observed={observed}
+          declared={declared}
+          fieldEditBusy={fieldEditBusy}
+          fieldEditError={fieldEditError}
+          onFieldEdit={(fieldId, replacement) => {
+            void applyFieldEdit(fieldId, replacement);
+          }}
+        />
         </div>
       </BlockShell>
+      {diffOpen && leftVersion && rightVersion ? (
+        <DiffDialog
+          prev={declaredToModelGraph(declared, leftVersion)}
+          next={declaredToModelGraph(declared, rightVersion)}
+          label={`schema ${String(leftVersion.version)} to ${String(rightVersion.version)}`}
+          onClose={() => setDiffOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

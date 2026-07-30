@@ -147,7 +147,7 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     id: 'place-models',
     kind: 'model',
     label: 'Models',
-    path: '/models',
+    path: '/Data-model',
     surfaceId: 'console-models',
     stripeOrder: 4,
   },

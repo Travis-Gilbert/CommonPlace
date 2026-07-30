@@ -296,8 +296,7 @@ export class ConsoleBlockHost implements BlockHost {
       },
     });
     this.canvas = new CanvasStore(this.http);
-    // ready() rejects until the seam seeds; callers await readyCanvas().
-    void this.canvas.ready().catch(() => {});
+    void this.canvas.ready().catch(() => undefined);
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure, this.http);
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();
@@ -314,9 +313,19 @@ export class ConsoleBlockHost implements BlockHost {
     return this.canvas.ready();
   }
 
+  /** Hydrate or seed a namespaced canvas (e.g. canvas.model.{topicId}). */
+  readyNamedCanvas(canvasId: string, title?: string): Promise<void> {
+    return this.canvas.readyNamedCanvas(canvasId, title);
+  }
+
   /** Obsidian JSON Canvas 1.0 export for a persisted canvas id. */
   exportCanvasDocument(canvasId: string): JSONCanvas | null {
     return this.canvas.exportDocument(canvasId);
+  }
+
+  /** Persist a JSON Canvas document through canvas.apply_json. */
+  applyCanvasDocument(canvasId: string, document: JSONCanvas) {
+    return this.canvas.applyJsonCanvas(canvasId, document);
   }
 
   /** Cheap health probe for the Reconnect affordance (R2.3): reports through

@@ -27,7 +27,7 @@ describe('rail-model', () => {
       '/indexer',
       '/filing',
       '/workspace',
-      '/models',
+      '/Data-model',
     ]);
     expect(PLACE_ENTRIES.map((place) => place.surfaceId)).toEqual([
       'console-chat',

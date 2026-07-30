@@ -1,6 +1,7 @@
 // SOURCING: none. Barrel re-exports for the model diagram surface.
 
-export { DiagramCanvas, type DiagramCanvasProps } from './DiagramCanvas';
+export { ForkDiagramCanvas, type ForkDiagramCanvasProps } from './ForkDiagramCanvas';
+// The OWOX fork shell supersedes the removed MC1 hand-built canvas.
 export { GhostCard } from './GhostCard';
 export { ObjectTypeCard } from './ObjectTypeCard';
 export { RecordChip, type RecordChipProps } from './RecordChip';

@@ -105,6 +105,7 @@ asks for inspiration, reference, mood, or direction.
 | Schema-driven record cells and chips | FieldType map in `views/records/cells.tsx` plus blocks.so badge / jalco chip anatomy | polymorphic cells, RecordChip, select hues |
 | Model canvas object cards | `@xyflow/react` plus jalco `repo-card` header anatomy (structure extract) | ObjectTypeCard / GhostCard on the diagram lens |
 | Model relation edges | `@xyflow/react` BaseEdge / smooth-step | field-anchored RelationEdge |
+| Program canvas graph, palette, and layout | `@xyflow/react`, `cmdk`, `@dagrejs/dagre`, generated `@commonplace/program-contracts` | typed program nodes/edges, searchable operation insertion, deterministic layout, and Theorem-owned wire contracts |
 | Record view bar and calculate footer | `cmdk` plus blocks.so command-menu / table footer patterns | ViewBar grammar and server aggregate footer |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |
 | Thread and messages | `@assistant-ui/react` 0.12 | message list, streaming, message state |

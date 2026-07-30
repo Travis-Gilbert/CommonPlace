@@ -1,2 +1,6 @@
-// SOURCING: none. App Router segment for the Models surface.
-export { default } from '@/lib/console-surface-page';
+// SOURCING: none. Compatibility route for the former Models path.
+import { permanentRedirect } from 'next/navigation';
+
+export default function LegacyModelsPage() {
+  permanentRedirect('/Data-model');
+}

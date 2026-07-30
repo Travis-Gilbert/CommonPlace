@@ -94,6 +94,8 @@ export interface ObjectTypeMetadata {
   readonly id: string;
   readonly key: string;
   readonly label: string;
+  readonly description?: string;
+  readonly nodeLabel?: string;
   readonly enforcement: Enforcement;
   readonly nameSingular: string;
   readonly namePlural: string;
@@ -112,8 +114,10 @@ export interface FieldMetadata {
   readonly objectTypeId: string;
   readonly key: string;
   readonly label: string;
+  readonly description?: string;
   readonly fieldType: FieldType;
   readonly required: boolean;
+  readonly system?: boolean;
   readonly indexPolicy?: IndexPolicy;
   readonly provenance?: MetadataProvenance;
 }
@@ -185,6 +189,9 @@ export interface SchemaVersion {
   readonly request?: string;
   readonly validationSummary?: string;
   readonly impactSummary?: string;
+  readonly objectTypes?: readonly ObjectTypeMetadata[];
+  readonly fields?: readonly FieldMetadata[];
+  readonly relations?: readonly RelationMetadata[];
 }
 
 export interface DeclaredModel {
@@ -211,6 +218,43 @@ export interface PinReceipt {
   readonly status: 'applied' | 'accepted' | 'unchanged' | 'refused';
   readonly targetIds: readonly string[];
   readonly note?: string;
+}
+
+export interface SchemaFieldInput {
+  readonly key: string;
+  readonly label: string;
+  readonly description?: string;
+  readonly fieldType: FieldType;
+  readonly required: boolean;
+  readonly system: boolean;
+}
+
+export interface SchemaDeclareInput {
+  readonly nameSingular: string;
+  readonly namePlural: string;
+  readonly labelSingular: string;
+  readonly labelPlural: string;
+  readonly description?: string;
+  readonly nodeLabel: string;
+  readonly labelIdentifierField: string;
+  readonly fields: readonly SchemaFieldInput[];
+  readonly enforcement: Enforcement;
+  readonly system: boolean;
+  readonly extensions?: Readonly<Record<string, unknown>>;
+  readonly expectedContentAnchor?: string;
+}
+
+export interface SchemaDeclareReceipt {
+  readonly status: 'declared' | 'conflict';
+  readonly idempotentReplay: boolean;
+  readonly objectTypeId: string;
+  readonly graphVersionAfter: number;
+  readonly conflict?: {
+    readonly id: string;
+    readonly existingAnchor: string;
+    readonly requestedAnchor: string;
+    readonly detail: string;
+  };
 }
 
 export interface SchemaProposalDraft {

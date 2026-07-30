@@ -23,7 +23,7 @@ const ROUTES = [
   '/files',
   '/records',
   '/threads',
-  '/models',
+  '/Data-model',
   '/appearance',
   '/login',
   '/onboarding',
@@ -43,7 +43,7 @@ const CONSOLE_SHELL_ROUTES = new Set<string>([
   '/files',
   '/records',
   '/threads',
-  '/models',
+  '/Data-model',
   '/appearance',
 ]);
 
