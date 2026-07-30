@@ -120,11 +120,34 @@ function registryToModelGraph(
 
   for (const relation of declared.relations) {
     if (!relation.targetObjectTypeId) continue;
+    const sourceFields = new Set(
+      declared.fields
+        .filter((field) => field.objectTypeId === relation.objectTypeId)
+        .map((field) => field.key),
+    );
+    const targetFields = new Set(
+      declared.fields
+        .filter((field) => field.objectTypeId === relation.targetObjectTypeId)
+        .map((field) => field.key),
+    );
+    const observedEdge = relation.provenance?.observedKey
+      ? observed.types
+          .flatMap((type) => type.edges)
+          .find((edge) => edge.observedKey === relation.provenance?.observedKey)
+      : undefined;
+    const observedPair = observedEdge
+      ? [
+          { left: observedEdge.fromField, right: observedEdge.toField },
+          { left: observedEdge.toField, right: observedEdge.fromField },
+        ].find((pair) => sourceFields.has(pair.left) && targetFields.has(pair.right))
+      : undefined;
     edges.push({
       id: `declared-relation:${relation.id}`,
       from: `declared:${relation.objectTypeId}`,
       to: `declared:${relation.targetObjectTypeId}`,
-      keys: [{ left: relation.key, right: relation.key }],
+      // If the registry does not carry both endpoints, render a node-level edge
+      // instead of inventing a same-name join.
+      keys: observedPair ? [observedPair] : [],
       bidirectional: false,
       cardinality: relation.direction === 'out' ? '1:N' : 'N:1',
     });
@@ -172,6 +195,31 @@ export function ForkDiagramCanvas({
           return;
         }
         onSelect(null);
+      }}
+      onFieldSelect={(nodeKey, fieldKey) => {
+        if (nodeKey.startsWith('declared:')) {
+          const objectTypeId = nodeKey.slice('declared:'.length);
+          const field = declared.fields.find(
+            (candidate) =>
+              candidate.objectTypeId === objectTypeId && candidate.key === fieldKey,
+          );
+          onSelect(field ? { kind: 'declared-field', key: field.id } : null);
+          return;
+        }
+        if (nodeKey.startsWith('ghost:')) {
+          const observedKey = nodeKey.slice('ghost:'.length);
+          const field = observed.types
+            .find((type) => type.observedKey === observedKey)
+            ?.fields.find((candidate) => candidate.key === fieldKey);
+          onSelect(field ? { kind: 'observed-field', key: field.observedKey } : null);
+        }
+      }}
+      onEdgeSelect={(edgeKey) => {
+        onSelect(
+          edgeKey.startsWith('declared-relation:')
+            ? { kind: 'declared-relation', key: edgeKey.slice('declared-relation:'.length) }
+            : null,
+        );
       }}
     />
   );

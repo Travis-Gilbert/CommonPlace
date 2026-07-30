@@ -6,6 +6,12 @@ describe("slugify", () => {
   it("falls back when empty", () => expect(slugify("", "n1")).toBe("n1"));
 });
 describe("frontmatter", () => {
+  it("accepts Windows CRLF delimiters", () => {
+    const parsed = parseFrontmatter("---\r\ntitle: \"Customer\"\r\n---\r\nbody\r\n");
+    expect(parsed.data).toEqual({ title: "Customer" });
+    expect(parsed.body).toBe("body\n");
+  });
+
   it("round-trips scalars, lists and nested owox block", () => {
     const fm = { type: "OWOX Data Mart", title: "A", tags: ["owox", "sql"],
       owox: { key: "a", inputSource: "SQL", position: { x: 1, y: 2 } } };

@@ -38,6 +38,25 @@ describe("diffGraphs", () => {
     const cust = d.fields.find(f => f.table === "Customer")!;
     expect(cust.added).toEqual(["country"]);
     expect(cust.removed).toEqual(["email"]);
+    expect(cust.modified).toEqual([]);
+  });
+
+  it("detects field contract edits without a key change", () => {
+    const next = structuredClone(base);
+    next.nodes[0].schema[0] = {
+      ...next.nodes[0].schema[0],
+      type: "UUID",
+      pk: true,
+      description: "Stable identifier",
+    };
+    const d = diffGraphs(base, next);
+    expect(d.changed).toBe(true);
+    expect(d.fields).toEqual([{
+      table: "Customer",
+      added: [],
+      removed: [],
+      modified: ["id"],
+    }]);
   });
 
   it("detects an added join with a readable label", () => {

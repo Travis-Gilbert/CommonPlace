@@ -34,6 +34,7 @@ export function DiffDialog({ prev, next, label, onClose }: { prev: ModelGraph; n
                     <div className="font-medium text-ij-ink">{f.table}</div>
                     {f.added.map(n => <Row key={"fa" + n} sign="+" color="text-ij-ok" text={n} />)}
                     {f.removed.map(n => <Row key={"fr" + n} sign="−" color="text-ij-error" text={n} />)}
+                    {f.modified.map(n => <Row key={"fm" + n} sign="~" color="text-ij-warn" text={n} />)}
                   </div>
                 ))}
               </Section>

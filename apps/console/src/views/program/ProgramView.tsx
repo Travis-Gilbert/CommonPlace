@@ -146,7 +146,8 @@ function definitionToFlow(
         : {
             catalogId: node.block_id,
             refusal: data.refusal,
-            ports: [...node.inputs.map((port) => port.id), ...node.outputs.map((port) => port.id)],
+            inputs: node.inputs.map((port) => port.id),
+            outputs: node.outputs.map((port) => port.id),
           },
     };
   });
@@ -198,10 +199,25 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const [proposal, setProposal] = useState<CompilerProposal | null>(null);
   const [proposalDiff, setProposalDiff] = useState<ProgramDiff | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const programIdRef = useRef(programId);
+  const definitionRef = useRef(definition);
+  const edgesRef = useRef(edges);
   const catalogById = useMemo(
     () => new Map(catalog.map((entry) => [entry.id, entry])),
     [catalog],
   );
+
+  useEffect(() => {
+    programIdRef.current = programId;
+  }, [programId]);
+
+  useEffect(() => {
+    definitionRef.current = definition;
+  }, [definition]);
+
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
 
   useEffect(() => {
     void Promise.all([
@@ -227,7 +243,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const scheduleSave = useCallback((
     next: ProgramDefinition,
     layout: ProgramLayout,
-    targetProgramId: string | null = programId,
+    targetProgramId: string | null = programIdRef.current,
   ) => {
     if (!next.tenant_id) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -241,14 +257,17 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
               : typeof result.program_id === 'string'
                 ? result.program_id
                 : null;
-          if (id) setProgramId(id);
+          if (id) {
+            programIdRef.current = id;
+            setProgramId(id);
+          }
           setNotice('Draft saved');
         })
         .catch((saveError: unknown) => {
           setError(saveError instanceof Error ? saveError.message : String(saveError));
         });
     }, 400);
-  }, [programId]);
+  }, []);
 
   const persistFromFlow = useCallback((nextNodes: Node[], nextEdges: Edge[]) => {
     const layout: ProgramLayout = {
@@ -265,10 +284,11 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
         };
       }
     }
+    const currentDefinition = definitionRef.current;
     const liveNodeIds = new Set(nextNodes.map((node) => node.id));
     const nextDefinition: ProgramDefinition = {
-      ...definition,
-      nodes: definition.nodes.filter((node) => liveNodeIds.has(node.id)),
+      ...currentDefinition,
+      nodes: currentDefinition.nodes.filter((node) => liveNodeIds.has(node.id)),
       edges: nextEdges.map((edge) => ({
         id: edge.id,
         from_node: edge.source,
@@ -276,13 +296,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
         to_node: edge.target,
         to_port: String(edge.targetHandle ?? 'in'),
       })),
-      metadata: { ...definition.metadata, draft: true },
+      metadata: { ...currentDefinition.metadata, draft: true },
     };
+    definitionRef.current = nextDefinition;
     setDefinition(nextDefinition);
     scheduleSave(nextDefinition, layout);
-  }, [definition, scheduleSave]);
+  }, [scheduleSave]);
 
-  function toggleNodeCollapsed(nodeId: string): void {
+  const toggleNodeCollapsed = useCallback((nodeId: string): void => {
     setNodes((current) => {
       const next = current.map((node) => node.id === nodeId
         ? {
@@ -293,10 +314,10 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             },
           }
         : node);
-      persistFromFlow(next, edges);
+      persistFromFlow(next, edgesRef.current);
       return next;
     });
-  }
+  }, [persistFromFlow]);
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     const removedNodeIds = new Set(
