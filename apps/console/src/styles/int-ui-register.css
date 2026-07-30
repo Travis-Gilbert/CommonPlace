@@ -92,6 +92,14 @@
   --ij-room: var(--ij-purple-7);    --ij-room-tint: var(--ij-purple-2);
   --ij-graph: var(--ij-teal-7);     --ij-graph-tint: var(--ij-teal-2);
 
+  /* Program Canvas wire hues encode data shape, not execution state. Keep
+     amber available for warnings by limiting scalar/value to low chroma. */
+  --ij-program-shape-graph: oklch(0.62 0.08 250);
+  --ij-program-shape-tabular: oklch(0.62 0.08 145);
+  --ij-program-shape-tensor: oklch(0.62 0.08 300);
+  --ij-program-shape-scalar: oklch(0.62 0.06 80);
+  --ij-program-shape-artifact: oklch(0.58 0.05 40);
+
   /* Row tints for record lists (FileColor set, verbatim) */
   --ij-row-yellow: #3D3223; --ij-row-green: #273828; --ij-row-orange: #45322B;
   --ij-row-rose: #472B2B;   --ij-row-violet: #3B3147; --ij-row-blue: #1D3D3B;

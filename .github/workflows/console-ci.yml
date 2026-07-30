@@ -19,6 +19,9 @@ on:
       - "packages/block-view/**"
       - "packages/console-block/**"
       - "packages/theorem-acp/**"
+      - "packages/program-contracts/**"
+      - "packages/model-canvas/**"
+      - "packages/okf/**"
       - ".github/workflows/console-ci.yml"
 
 permissions:
@@ -84,6 +87,12 @@ jobs:
 
       - name: Contract package typecheck
         run: pnpm --filter @commonplace/block-view run check
+
+      - name: Program contracts drift check (PG1)
+        run: pnpm --filter @commonplace/program-contracts run check:generated
+
+      - name: Model canvas / OKF typecheck (MF1)
+        run: pnpm --filter @commonplace/okf run check && pnpm --filter @commonplace/model-canvas run check
 
       - name: Console block typecheck
         run: pnpm --filter @commonplace/console-block run check

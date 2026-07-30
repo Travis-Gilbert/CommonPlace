@@ -39,6 +39,15 @@ const CANVAS_PERSISTENCE_KIND = 'canvas-work-v1';
 const AUTHENTICATED_SCOPE = 'authenticated-object-seam';
 export const PERSISTENCE_UNAVAILABLE_NOTE = 'refused:canvas_persistence_unavailable';
 export const DEFAULT_CANVAS_ID = 'canvas.default';
+/** Rail-owned Obsidian JSON Canvas Z-layer (not the claim-graph CanvasView surface). */
+export const INSPECTOR_CANVAS_ID = 'canvas.inspector.rail';
+const PERSISTED_CANVAS_IDS = [DEFAULT_CANVAS_ID, INSPECTOR_CANVAS_ID] as const;
+
+/** Layout-only model ERD canvas id, namespaced per topic scope (MF2). */
+export function modelCanvasId(topicId: string): string {
+  const encoded = encodeURIComponent(topicId.trim());
+  return `canvas.model.${encoded || 'unset'}`;
+}
 
 function stringValue(value: JsonValue | undefined): string | undefined {
   return typeof value === 'string' ? value : undefined;
@@ -72,7 +81,11 @@ export class CanvasStore {
   constructor(private readonly host: Pick<BlockHost, 'query' | 'emit'>) {
     this.canvases.set(
       DEFAULT_CANVAS_ID,
-      emptyGraphCanvas(DEFAULT_CANVAS_ID, AUTHENTICATED_SCOPE),
+      emptyGraphCanvas(DEFAULT_CANVAS_ID, AUTHENTICATED_SCOPE, 'Canvas'),
+    );
+    this.canvases.set(
+      INSPECTOR_CANVAS_ID,
+      emptyGraphCanvas(INSPECTOR_CANVAS_ID, AUTHENTICATED_SCOPE, 'Inspector canvas'),
     );
   }
 
@@ -117,40 +130,62 @@ export class CanvasStore {
     return this.hydration;
   }
 
+  private async hydrateOne(canvasId: string, title: string): Promise<boolean> {
+    const set = await this.host.query({
+      types: [CANVAS_TYPE],
+      where: { kind: 'eq', field: 'id', value: canvasId },
+      page: { limit: 1 },
+    });
+    const persisted = set.objects
+      .map((object) => this.graphFromObject(object))
+      .find((canvas): canvas is GraphCanvas => canvas !== null);
+    if (persisted) {
+      this.persistedIds.add(persisted.id);
+      this.commit(persisted);
+      return true;
+    }
+    const blank = this.canvases.get(canvasId)
+      ?? emptyGraphCanvas(canvasId, AUTHENTICATED_SCOPE, title);
+    const result = await this.persist(blank);
+    if (!result.ok || result.value?.status !== 'applied') {
+      this.persistenceError = result.error ?? PERSISTENCE_UNAVAILABLE_NOTE;
+      return false;
+    }
+    this.commit(blank);
+    return true;
+  }
+
   private async hydrate(): Promise<void> {
     try {
-      const set = await this.host.query({
-        types: [CANVAS_TYPE],
-        where: { kind: 'eq', field: 'id', value: DEFAULT_CANVAS_ID },
-        page: { limit: 1 },
-      });
-      const persisted = set.objects
-        .map((object) => this.graphFromObject(object))
-        .find((canvas): canvas is GraphCanvas => canvas !== null);
-      if (persisted) {
-        this.persistedIds.add(persisted.id);
-        this.persistenceError = null;
-        this.hydrationReady = true;
-        this.commit(persisted);
-        return;
+      const results = await Promise.all([
+        this.hydrateOne(DEFAULT_CANVAS_ID, 'Canvas'),
+        this.hydrateOne(INSPECTOR_CANVAS_ID, 'Inspector canvas'),
+      ]);
+      if (!results.every(Boolean)) {
+        throw new Error(this.persistenceError ?? PERSISTENCE_UNAVAILABLE_NOTE);
       }
-      const blank = this.canvases.get(DEFAULT_CANVAS_ID)
-        ?? emptyGraphCanvas(DEFAULT_CANVAS_ID, AUTHENTICATED_SCOPE);
-      const result = await this.persist(blank);
-      if (!result.ok || result.value?.status !== 'applied') {
-        this.persistenceError = result.error ?? PERSISTENCE_UNAVAILABLE_NOTE;
-        this.hydration = null;
-        this.notify();
-        return;
-      }
+      this.persistenceError = null;
       this.hydrationReady = true;
+      this.notify();
     } catch (error) {
       this.persistenceError = error instanceof Error
         ? error.message
         : PERSISTENCE_UNAVAILABLE_NOTE;
       this.hydration = null;
       this.notify();
+      throw error instanceof Error
+        ? error
+        : new Error(PERSISTENCE_UNAVAILABLE_NOTE);
     }
+  }
+
+  private async requireHydrated(): Promise<boolean> {
+    try {
+      await this.ensureHydrated();
+    } catch {
+      return false;
+    }
+    return this.hydrationReady;
   }
 
   private notify(): void {
@@ -192,10 +227,32 @@ export class CanvasStore {
   }
 
   /** Resolves after the authenticated object seam has restored or seeded the
-   * default canvas. CanvasView stays on ObjectRefs and learns the result through
-   * its normal ObjectSet subscription. */
+   * default and inspector canvases. CanvasView stays on ObjectRefs and learns
+   * the result through its normal ObjectSet subscription. */
   ready(): Promise<void> {
     return this.ensureHydrated();
+  }
+
+  /**
+   * Hydrate (or seed) a dynamic canvas id such as `canvas.model.{topicId}`.
+   * Must be called before applyJsonCanvas for ids outside PERSISTED_CANVAS_IDS.
+   */
+  async readyNamedCanvas(canvasId: string, title = 'Model layout'): Promise<void> {
+    await this.ensureHydrated();
+    if (this.canvases.has(canvasId) && this.persistedIds.has(canvasId)) return;
+    const hydrated = await this.hydrateOne(canvasId, title);
+    if (!hydrated) {
+      throw new Error(this.persistenceError ?? PERSISTENCE_UNAVAILABLE_NOTE);
+    }
+  }
+
+  /** True once hydrate finished for every id in PERSISTED_CANVAS_IDS. */
+  isReady(): boolean {
+    return this.hydrationReady;
+  }
+
+  persistedCanvasIds(): readonly string[] {
+    return PERSISTED_CANVAS_IDS;
   }
 
   private receipt(actionKind: ObjectActionReceipt['action_kind'], ids: readonly string[]): Result<ObjectActionReceipt> {
@@ -219,7 +276,7 @@ export class CanvasStore {
 
   query(query: ObjectQuery): ObjectSet {
     void this.ensureHydrated();
-    this.ensureCanvas(DEFAULT_CANVAS_ID);
+    for (const canvasId of PERSISTED_CANVAS_IDS) this.ensureCanvas(canvasId);
     const objects = [...this.canvases.values()].flatMap(graphToObjectRefs)
       .filter((object) => query.types.includes(object.type))
       .filter((object) => matchesWhere(object, query.where));
@@ -277,8 +334,7 @@ export class CanvasStore {
     canvasId: string,
     document: JSONCanvas,
   ): Promise<Result<ObjectActionReceipt>> {
-    await this.ensureHydrated();
-    if (!this.hydrationReady) {
+    if (!await this.requireHydrated()) {
       return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }
     const current = this.canvases.get(canvasId);
@@ -333,8 +389,7 @@ export class CanvasStore {
   }
 
   private async emitOne(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
-    await this.ensureHydrated();
-    if (!this.hydrationReady) {
+    if (!await this.requireHydrated()) {
       return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }
     if (action.kind === 'invoke_tool') {

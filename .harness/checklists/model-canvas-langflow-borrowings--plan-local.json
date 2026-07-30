@@ -1,0 +1,212 @@
+{
+  "plan_id": "model-canvas-langflow-borrowings-local",
+  "title": "Model Canvas Fork and Langflow Program Canvas Borrowings",
+  "objective": "Implement MF1 through MF7 and Langflow borrowings 1 through 10 across CommonPlace and Theorem without replacing canonical registry, programmable-graph, QuickJS, Extism, or coordination contracts.",
+  "source_specs": [
+    "docs/plans/console/SPEC-COMMONPLACE-MODEL-CANVAS-FORK-1.0.md",
+    "/Users/travisgilbert/Downloads/langflow-borrowings-program-canvas (1).md"
+  ],
+  "created_at": "2026-07-29",
+  "substrate_status": "local_receipt_coordination_unavailable",
+  "branches": {
+    "commonplace": "codex/model-program-canvas-specs-1-0",
+    "theorem": "feat/program-canvas-serving-1-0"
+  },
+  "items": [
+    {
+      "id": "MF1",
+      "title": "Vendor and gut the OWOX model canvas",
+      "status": "partial",
+      "oracle_class": "production",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "THEOREM_RUN_CANVAS_LIVE=1 THEOREM_CANVAS_LIVE_STORAGE_STATE=/absolute/path/to/storage-state.json pnpm --filter @commonplace/console exec playwright test --config playwright.live.config.ts",
+      "evidence": "Apache-2.0 fork and notices preserved; prohibited services and calls removed; 45 package tests and typecheck pass. Browser network trace remains blocked because no browser is connected."
+    },
+    {
+      "id": "MF2",
+      "title": "Persist layout through the object seam",
+      "status": "partial",
+      "oracle_class": "substrate",
+      "implementation_mode": "production",
+      "evidence_class": "in_memory",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "CONSOLE_LIVE_CANVAS_SMOKE=1 CONSOLE_LIVE_CANVAS_BASE=https://v2.theoremharness.com/api CONSOLE_LIVE_CANVAS_COOKIE='...' pnpm --filter @commonplace/console exec vitest run src/lib/canvas/store.live.test.ts",
+      "evidence": "Layout-only canvas.model documents share the CanvasStore door and debounce; 11 store tests pass. Live refresh, re-login, and Railway restart remain required."
+    },
+    {
+      "id": "MF3",
+      "title": "Bind the fork to observed and declared registry reads",
+      "status": "partial",
+      "oracle_class": "production",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "THEOREM_RUN_CANVAS_LIVE=1 THEOREM_CANVAS_LIVE_STORAGE_STATE=/absolute/path/to/storage-state.json pnpm --filter @commonplace/console exec playwright test --config playwright.live.config.ts",
+      "evidence": "Generated contracts drive declared cards, observed ghosts, typed fields, anchored cardinality edges, and counts. Focused model tests pass; deployed cross-door invalidation remains required."
+    },
+    {
+      "id": "MF4",
+      "title": "Declare through canonical registry writes",
+      "status": "partial",
+      "oracle_class": "production",
+      "implementation_mode": "production",
+      "evidence_class": "integration",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "THEOREM_RUN_CANVAS_LIVE=1 THEOREM_CANVAS_LIVE_STORAGE_STATE=/absolute/path/to/storage-state.json pnpm --filter @commonplace/console exec playwright test --config playwright.live.config.ts",
+      "evidence": "Ghost and field declarations use canonical mutations, anchors, receipts, and verbatim refusals. Tenant-scope GraphQL integration passes; a deployed conflict receipt remains required."
+    },
+    {
+      "id": "MF5",
+      "title": "Extend rustyred-thg-okf with the model profile",
+      "status": "partial",
+      "oracle_class": "production",
+      "implementation_mode": "production",
+      "evidence_class": "integration",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "Export from the deployed Model Canvas, round-trip the bundle through a third-party OKF tool, then import it with THEOREM_RUN_CANVAS_LIVE=1",
+      "evidence": "One Rust crate owns preview, model mapping, atomic declaration, byte-stable export, and x-theorem extension preservation. The 29-test Rust suite and the MCP preview/import/export integration pass; third-party OKF preservation remains an external oracle."
+    },
+    {
+      "id": "MF6",
+      "title": "Diff and restore canonical registry versions",
+      "status": "partial",
+      "oracle_class": "production",
+      "implementation_mode": "production",
+      "evidence_class": "integration",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "THEOREM_RUN_CANVAS_LIVE=1 THEOREM_CANVAS_LIVE_STORAGE_STATE=/absolute/path/to/storage-state.json pnpm --filter @commonplace/console exec playwright test --config playwright.live.config.ts",
+      "evidence": "Canonical SchemaVersion projections support tables, fields, joins, atomic restore, and receipts. Focused tests pass; deployed visual diff and restore remain required."
+    },
+    {
+      "id": "MF7",
+      "title": "Wire the model canvas to theorem-canvas-compile",
+      "status": "blocked",
+      "oracle_class": "contract",
+      "implementation_mode": "not_started",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Verify First found theorem-canvas-compile compiles semantic CanvasDoc and Graph Lisp state and exposes no schema-registry projection consumer contract. A spec amendment or new versioned contract is required; no unrelated substitute was introduced."
+    },
+    {
+      "id": "LF1",
+      "title": "Playground beside the graph",
+      "status": "partial",
+      "oracle_class": "production",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "THEOREM_RUN_CANVAS_LIVE=1 THEOREM_CANVAS_LIVE_STORAGE_STATE=/absolute/path/to/storage-state.json pnpm --filter @commonplace/console exec playwright test --config playwright.live.config.ts",
+      "evidence": "Run, node inspection, input/output, receipt, and spill-handle UI is implemented. Deployed stream interaction remains required."
+    },
+    {
+      "id": "LF2",
+      "title": "Per-node events and drain law",
+      "status": "verified",
+      "oracle_class": "contract",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Server-authored started, output, token, finished, error, cached, parked, and refusal events carry sequence and terminal drain markers; Rust execution tests pass."
+    },
+    {
+      "id": "LF3",
+      "title": "Visible pin and invalidation",
+      "status": "verified",
+      "oracle_class": "contract",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Pinned values replace recomputation only when explicit, emit cached liveness, and remain stale in receipt and inspection state until removed."
+    },
+    {
+      "id": "LF4",
+      "title": "Per-run tweak overlay",
+      "status": "verified",
+      "oracle_class": "contract",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Tweaks are invocation-only, do not change ProgramDefinition identity, and are copied verbatim into receipt and inspection state."
+    },
+    {
+      "id": "LF5",
+      "title": "Published program as a catalog node",
+      "status": "verified",
+      "oracle_class": "local_process",
+      "implementation_mode": "production",
+      "evidence_class": "local_process",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Published programs expose declared ports in the published catalog section and use the same schema-satisfaction function as every other edge."
+    },
+    {
+      "id": "LF6",
+      "title": "Published program as a generated MCP tool",
+      "status": "verified",
+      "oracle_class": "local_process",
+      "implementation_mode": "production",
+      "evidence_class": "local_process",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Publication registers a generated tool with program-derived input and output schemas; invocation executes the same program adapter and returns a run receipt."
+    },
+    {
+      "id": "LF7",
+      "title": "Durable human-input park and resume",
+      "status": "partial",
+      "oracle_class": "substrate",
+      "implementation_mode": "production",
+      "evidence_class": "local_process",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "live_test_command": "Run programmable_graph_apply action=run with a human-input node, restart the harness process, then call action=resume with the persisted resume_token",
+      "evidence": "Human-input nodes persist coordination asks, parked receipts, and resume tokens through the canonical graph path. A process-restart live smoke remains required."
+    },
+    {
+      "id": "LF8",
+      "title": "Starter programs",
+      "status": "verified",
+      "oracle_class": "contract",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Empty-state starters are returned by the serving catalog and consumed by Program Canvas without a console fixture."
+    },
+    {
+      "id": "LF9",
+      "title": "Catalog lifecycle flags",
+      "status": "verified",
+      "oracle_class": "contract",
+      "implementation_mode": "production",
+      "evidence_class": "contract",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Catalog entries carry stable, beta, or legacy lifecycle metadata and the palette renders beta and legacy markers."
+    },
+    {
+      "id": "LF10",
+      "title": "In-canvas authoring inside QuickJS and Extism rings",
+      "status": "verified",
+      "oracle_class": "local_process",
+      "implementation_mode": "production",
+      "evidence_class": "local_process",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "evidence": "Eight MCP tests pass, including real QuickJS durable code-mode execution, real WAT execution through Extism, runtime receipts, schema-derived ports, durable node errors, and refusal of read-only simulation."
+    }
+  ]
+}

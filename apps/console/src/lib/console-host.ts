@@ -49,6 +49,7 @@ import {
   parseIndexerObjectsPayload,
 } from './indexer-projection';
 import { unreachableObjectSet, UNREACHABLE_NOTE } from './chat/object-set-error';
+import type { JSONCanvas } from '@commonplace/json-canvas';
 import { CANVAS_TYPES } from './canvas/object-bridge';
 import { CanvasStore } from './canvas/store';
 
@@ -304,6 +305,26 @@ export class ConsoleBlockHost implements BlockHost {
     this.cardTemplates = seedCardTemplates();
     this.surveyObjects = seedSurveyObjects();
     this.hydrateLayout();
+  }
+
+  /** Wait until default + inspector canvases are restored or seeded on the seam. */
+  readyCanvas(): Promise<void> {
+    return this.canvas.ready();
+  }
+
+  /** Hydrate or seed a namespaced canvas (e.g. canvas.model.{topicId}). */
+  readyNamedCanvas(canvasId: string, title?: string): Promise<void> {
+    return this.canvas.readyNamedCanvas(canvasId, title);
+  }
+
+  /** Obsidian JSON Canvas 1.0 export for a persisted canvas id. */
+  exportCanvasDocument(canvasId: string): JSONCanvas | null {
+    return this.canvas.exportDocument(canvasId);
+  }
+
+  /** Persist a JSON Canvas document through canvas.apply_json. */
+  applyCanvasDocument(canvasId: string, document: JSONCanvas) {
+    return this.canvas.applyJsonCanvas(canvasId, document);
   }
 
   /** Cheap health probe for the Reconnect affordance (R2.3): reports through
