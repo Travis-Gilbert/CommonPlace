@@ -34,6 +34,7 @@ import { AutomationHistoryView } from './blocks/AutomationHistoryView';
 import { KanbanBlock } from './blocks/KanbanBlock';
 import { SurveyView } from './SurveyView';
 import { ModelView } from './model/ModelView';
+import { ProgramView } from './program/ProgramView';
 import { SearchStackView } from './search/SearchStackView';
 import { CommandsGalleryView } from './CommandsGalleryView';
 import { PG_TYPES } from '@/lib/proactivity/object-bridge';
@@ -570,6 +571,32 @@ const MODEL_STUDIO: ViewDescriptor = {
   render: ModelView,
 };
 
+const PROGRAM_CANVAS: ConsoleViewDescriptor = {
+  id: 'program.canvas',
+  name: 'Program',
+  paletteVisible: true,
+  palette: { id: 'program', label: 'Program', kind: 'automation', material: 'sunken' },
+  accepts: {},
+  emits: ['select', 'invoke_tool', 'update'],
+  renderer: 'program.canvas',
+  source: {
+    package: '@xyflow/react',
+    component: 'ReactFlow',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'compose programmable graph',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'automation',
+    bodyBleed: 'flush',
+  },
+  render: ProgramView,
+};
+
 const SEARCH_STACK: ConsoleViewDescriptor = {
   id: 'search.stack',
   name: 'Search',
@@ -938,6 +965,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   COMMANDS_GALLERY,
   SURVEY_BOARD,
   MODEL_STUDIO,
+  PROGRAM_CANVAS,
   SEARCH_STACK,
   COMMONPLACE_CONSOLE,
 ] as const;

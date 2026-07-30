@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@commonplace/okf": ["../okf/src/index.ts"]
+    }
+  },
+  "include": [
+    "src/index.ts",
+    "src/ModelCanvasShell.tsx",
+    "src/components/canvas/MartNode.tsx",
+    "src/components/canvas/RelEdge.tsx",
+    "src/components/canvas/edges.ts",
+    "src/components/canvas/layoutSize.ts",
+    "src/state/model.ts",
+    "src/state/viewMode.ts",
+    "src/state/relLabels.ts",
+    "src/state/objLabels.ts",
+    "src/lib/icons.tsx",
+    "src/lib/diff.ts",
+    "src/lib/joinFieldType.ts"
+  ]
+}

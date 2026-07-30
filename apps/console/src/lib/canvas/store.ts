@@ -43,6 +43,12 @@ export const DEFAULT_CANVAS_ID = 'canvas.default';
 export const INSPECTOR_CANVAS_ID = 'canvas.inspector.rail';
 const PERSISTED_CANVAS_IDS = [DEFAULT_CANVAS_ID, INSPECTOR_CANVAS_ID] as const;
 
+/** Layout-only model ERD canvas id, namespaced per topic scope (MF2). */
+export function modelCanvasId(topicId: string): string {
+  const safe = topicId.trim().replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120);
+  return `canvas.model.${safe || 'unset'}`;
+}
+
 function stringValue(value: JsonValue | undefined): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
@@ -156,10 +162,6 @@ export class CanvasStore {
         this.hydrateOne(INSPECTOR_CANVAS_ID, 'Inspector canvas'),
       ]);
       if (!results.every(Boolean)) {
-        // Clear the in-flight handle so ready() can retry; reject so callers
-        // do not treat a failed seed as hydrated (persist would only refuse).
-        this.hydration = null;
-        this.notify();
         throw new Error(this.persistenceError ?? PERSISTENCE_UNAVAILABLE_NOTE);
       }
       this.persistenceError = null;
@@ -171,8 +173,19 @@ export class CanvasStore {
         : PERSISTENCE_UNAVAILABLE_NOTE;
       this.hydration = null;
       this.notify();
-      throw error instanceof Error ? error : new Error(this.persistenceError);
+      throw error instanceof Error
+        ? error
+        : new Error(PERSISTENCE_UNAVAILABLE_NOTE);
     }
+  }
+
+  private async requireHydrated(): Promise<boolean> {
+    try {
+      await this.ensureHydrated();
+    } catch {
+      return false;
+    }
+    return this.hydrationReady;
   }
 
   private notify(): void {
@@ -218,6 +231,16 @@ export class CanvasStore {
    * the result through its normal ObjectSet subscription. */
   ready(): Promise<void> {
     return this.ensureHydrated();
+  }
+
+  /**
+   * Hydrate (or seed) a dynamic canvas id such as `canvas.model.{topicId}`.
+   * Must be called before applyJsonCanvas for ids outside PERSISTED_CANVAS_IDS.
+   */
+  async readyNamedCanvas(canvasId: string, title = 'Model layout'): Promise<void> {
+    await this.ensureHydrated();
+    if (this.canvases.has(canvasId) && this.persistedIds.has(canvasId)) return;
+    await this.hydrateOne(canvasId, title);
   }
 
   /** True once hydrate finished for every id in PERSISTED_CANVAS_IDS. */
@@ -308,12 +331,7 @@ export class CanvasStore {
     canvasId: string,
     document: JSONCanvas,
   ): Promise<Result<ObjectActionReceipt>> {
-    try {
-      await this.ensureHydrated();
-    } catch {
-      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
-    }
-    if (!this.hydrationReady) {
+    if (!await this.requireHydrated()) {
       return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }
     const current = this.canvases.get(canvasId);
@@ -368,12 +386,7 @@ export class CanvasStore {
   }
 
   private async emitOne(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
-    try {
-      await this.ensureHydrated();
-    } catch {
-      return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
-    }
-    if (!this.hydrationReady) {
+    if (!await this.requireHydrated()) {
       return { ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE };
     }
     if (action.kind === 'invoke_tool') {

@@ -24,7 +24,7 @@ import type {
   Result,
 } from '@commonplace/block-view/types';
 import { parseCanvasValue } from '@commonplace/json-canvas';
-import { CanvasStore, INSPECTOR_CANVAS_ID } from './store';
+import { CanvasStore, INSPECTOR_CANVAS_ID, modelCanvasId } from './store';
 
 const LIVE = process.env.CONSOLE_LIVE_CANVAS_SMOKE === '1';
 const BASE = (process.env.CONSOLE_LIVE_CANVAS_BASE ?? '').replace(/\/$/, '');
@@ -101,15 +101,52 @@ describe.skipIf(!LIVE || !BASE)('CanvasStore live seam (canvas.inspector.rail)',
     const reader = new CanvasStore(new LiveHttpSeam());
     await reader.ready();
     const exported = reader.exportDocument(INSPECTOR_CANVAS_ID);
-    // fromJsonCanvas mints stable object ids (`text:<nodeId>`) and may rewrite
-    // the JSON Canvas node id on export; match on content + placement.
     expect(exported?.nodes).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        id: noteId,
         type: 'text',
         text: 'Live durability probe',
         x: 64,
         y: 96,
-        graphId: `text:${noteId}`,
+      }),
+    ]));
+  }, 60_000);
+});
+
+describe.skipIf(!LIVE || !BASE)('CanvasStore live seam (canvas.model.*)', () => {
+  it('persists a layout-only model canvas across a fresh named store', async () => {
+    const canvasId = modelCanvasId('live-smoke');
+    const nodeId = `live-model-layout:${Date.now()}`;
+    const document = parseCanvasValue({
+      nodes: [
+        {
+          id: nodeId,
+          type: 'text',
+          x: 128,
+          y: 256,
+          width: 1,
+          height: 1,
+          text: 'declared:live-smoke',
+        },
+      ],
+      edges: [],
+    });
+
+    const writer = new CanvasStore(new LiveHttpSeam());
+    await writer.readyNamedCanvas(canvasId, 'Model layout live smoke');
+    const applied = await writer.applyJsonCanvas(canvasId, document);
+    expect(applied.ok).toBe(true);
+
+    const reader = new CanvasStore(new LiveHttpSeam());
+    await reader.readyNamedCanvas(canvasId, 'Model layout live smoke');
+    const exported = reader.exportDocument(canvasId);
+    expect(exported?.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: nodeId,
+        type: 'text',
+        text: 'declared:live-smoke',
+        x: 128,
+        y: 256,
       }),
     ]));
   }, 60_000);
