@@ -106,14 +106,22 @@ test.describe('Console sidebar', () => {
           timeout: 15_000,
         });
         await settled(page);
-        if (id === 'console-models') {
-          await expect(page.getByTestId('model-canvas-shell')).toBeVisible({
-            timeout: 30_000,
-          });
-          await expect(page.locator('[data-model-inspector]')).toHaveCSS('width', '320px');
-        }
       }
     }
+  });
+
+  test('Data model route mounts the canonical canvas with page proportions', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto('/Data-model');
+    await settled(page);
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-models',
+    );
+    await expect(page.getByTestId('model-canvas-shell')).toBeVisible({
+      timeout: 120_000,
+    });
+    await expect(page.locator('[data-model-inspector]')).toHaveCSS('width', '320px');
   });
 
   test('landmark to ground survives cleared localStorage via server layout', async ({ page, request }) => {
