@@ -126,7 +126,7 @@ export function ChatSidebar({
       return;
     }
     if (next === 'models') {
-      router.push('/models');
+      router.push('/Data-model');
     }
   };
 

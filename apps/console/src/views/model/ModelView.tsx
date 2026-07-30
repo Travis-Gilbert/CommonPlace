@@ -222,7 +222,11 @@ function ModelInspector({
   }
 
   return (
-    <aside className="w-full shrink-0 overflow-auto border-t border-ij-seam bg-ij-chrome xl:w-rec-side-panel xl:border-l xl:border-t-0" aria-label="Model inspector">
+    <aside
+      className="w-full shrink-0 overflow-auto border-t border-ij-seam bg-ij-chrome xl:w-ij-inspector-rail xl:border-l xl:border-t-0"
+      aria-label="Model inspector"
+      data-model-inspector
+    >
       <header className="flex h-ij-toolbar items-center border-b border-ij-seam px-3">
         <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Inspector</h2>
       </header>
@@ -770,7 +774,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
     <div className="h-full min-h-0" data-model-studio>
       <BlockShell
         material="sunken"
-        title="Models"
+        title="Data model"
         scope={topicId ? <span className="font-ij-mono" data-mono-ok>topic:{topicId}</span> : 'No topic selected'}
         count={`${observed.eventCount} events`}
         degradation={unavailable}
