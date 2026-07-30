@@ -24,7 +24,6 @@ const ROUTES = [
   '/records',
   '/threads',
   '/Data-model',
-  '/models',
   '/appearance',
   '/login',
   '/onboarding',
@@ -45,7 +44,6 @@ const CONSOLE_SHELL_ROUTES = new Set<string>([
   '/records',
   '/threads',
   '/Data-model',
-  '/models',
   '/appearance',
 ]);
 
