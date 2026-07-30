@@ -685,7 +685,7 @@
     "--ij-chrome": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -820,7 +820,7 @@
     "--ij-control-border": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -859,7 +859,7 @@
     "--ij-divider": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -874,7 +874,7 @@
     "--ij-editor": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -949,7 +949,7 @@
     "--ij-frame": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css",
@@ -1345,7 +1345,7 @@
     "--ij-keyline": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
@@ -1353,7 +1353,7 @@
     "--ij-keyline-decorative": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
@@ -1361,7 +1361,7 @@
     "--ij-keyline-focus": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css"
       ]
@@ -1579,6 +1579,36 @@
         "src/styles/primer-register.css"
       ]
     },
+    "--ij-program-shape-artifact": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
+      "resolvedAlsoIn": []
+    },
+    "--ij-program-shape-graph": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
+      "resolvedAlsoIn": []
+    },
+    "--ij-program-shape-scalar": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
+      "resolvedAlsoIn": []
+    },
+    "--ij-program-shape-tabular": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
+      "resolvedAlsoIn": []
+    },
+    "--ij-program-shape-tensor": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
+      "resolvedAlsoIn": []
+    },
     "--ij-progress": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
@@ -1672,7 +1702,7 @@
     "--ij-raised": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
@@ -1823,7 +1853,7 @@
     "--ij-seam": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Structural surfaces mapped onto the tier axis (hex so gates can resolve).",
+      "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css"
