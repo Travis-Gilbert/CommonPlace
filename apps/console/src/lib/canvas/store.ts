@@ -240,7 +240,10 @@ export class CanvasStore {
   async readyNamedCanvas(canvasId: string, title = 'Model layout'): Promise<void> {
     await this.ensureHydrated();
     if (this.canvases.has(canvasId) && this.persistedIds.has(canvasId)) return;
-    await this.hydrateOne(canvasId, title);
+    const hydrated = await this.hydrateOne(canvasId, title);
+    if (!hydrated) {
+      throw new Error(this.persistenceError ?? PERSISTENCE_UNAVAILABLE_NOTE);
+    }
   }
 
   /** True once hydrate finished for every id in PERSISTED_CANVAS_IDS. */

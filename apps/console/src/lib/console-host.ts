@@ -296,7 +296,7 @@ export class ConsoleBlockHost implements BlockHost {
       },
     });
     this.canvas = new CanvasStore(this.http);
-    void this.canvas.ready();
+    void this.canvas.ready().catch(() => undefined);
     this.proactivity = new ProactivityStore(tenant, seedStandingStructure, this.http);
     this.docs = seedDocs();
     this.codeFiles = seedCodeFiles();

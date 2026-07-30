@@ -3,11 +3,12 @@
 // SOURCING: OWOX/models hard fork (Apache-2.0). MartNode + RelEdge + xyflow.
 // Empty in-memory ERD shell for MF1: zero network, no Supabase/PostHog/OWOX.
 
-import { useCallback, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
+  ConnectionMode,
   Controls,
   ReactFlowProvider,
   type Node,
@@ -69,6 +70,18 @@ function ShellInner({
     [live.nodes, live.edges],
   );
 
+  useEffect(() => {
+    setNodes((current) => {
+      const currentById = new Map(current.map((node) => [node.id, node]));
+      return graphToNodes(live).map((node) => {
+        const previous = currentById.get(node.id);
+        return previous?.dragging
+          ? { ...node, position: previous.position, dragging: true }
+          : node;
+      });
+    });
+  }, [live]);
+
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       setNodes((prev) => {
@@ -111,6 +124,7 @@ function ShellInner({
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onSelectionChange={onSelectionChange}
+        connectionMode={ConnectionMode.Loose}
         fitView
         proOptions={{ hideAttribution: true }}
         colorMode="dark"

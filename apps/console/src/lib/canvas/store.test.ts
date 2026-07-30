@@ -328,6 +328,17 @@ describe('CanvasStore', () => {
     expect(emitAttempts).toBe(0);
   });
 
+  it('rejects when a named canvas cannot be seeded durably', async () => {
+    const seam = new DurableObjectSeam();
+    const store = new CanvasStore(seam);
+    await store.ready();
+    seam.emit = async () => ({ ok: false, error: 'named canvas refused' });
+
+    await expect(store.readyNamedCanvas('canvas.model.orders')).rejects.toThrow(
+      'named canvas refused',
+    );
+  });
+
   it('serializes document imports with ordinary canvas mutations', async () => {
     const seam = new DurableObjectSeam();
     let activeWrites = 0;

@@ -79,6 +79,7 @@ function layoutDocumentFromPositions(positions: LayoutPositions): JSONCanvas {
       width: 1,
       height: 1,
       text: id,
+      graphId: id,
     })),
     edges: [],
   };
@@ -302,7 +303,7 @@ function ModelInspector({
                 Type
                 <select
                   value={fieldKind}
-                  onChange={(event) => setFieldKind(event.target.value)}
+                  onChange={(event) => setFieldKind(event.target.value as FieldType['kind'])}
                   className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink"
                   data-mono-ok
                 >
@@ -644,20 +645,25 @@ export function ModelView({ set, host }: ViewRenderProps) {
     }
   }
 
-  async function previewOkfImport(file: File | undefined): Promise<void> {
-    if (!file || !topicId) return;
+  async function previewOkfImport(fileList: FileList | null): Promise<void> {
+    if (!fileList?.length || !topicId) return;
     setError(null);
     try {
-      const source = await file.text();
-      const files = file.name.endsWith('.json')
-        ? JSON.parse(source) as Record<string, string>
-        : { [file.name]: source };
-      const bundleId = file.name
+      const selectedFiles = [...fileList];
+      const firstFile = selectedFiles[0];
+      const firstSource = await firstFile.text();
+      const files = selectedFiles.length === 1 && firstFile.name.endsWith('.json')
+        ? JSON.parse(firstSource) as Record<string, string>
+        : Object.fromEntries(await Promise.all(selectedFiles.map(async (file) => [
+            file.webkitRelativePath || file.name,
+            await file.text(),
+          ])));
+      const bundleId = firstFile.name
         .replace(/\.okf\.json$/i, '')
         .replace(/\.(json|md)$/i, '')
         .trim() || 'model-import';
       const [graph, server] = await Promise.all([
-        Promise.resolve(parseOkfBundle(source, file.name)),
+        Promise.resolve(parseOkfBundle(JSON.stringify(files), `${bundleId}.json`)),
         previewOkfModel(bundleId, files),
       ]);
       setOkfPreview({
@@ -789,8 +795,10 @@ export function ModelView({ set, host }: ViewRenderProps) {
               <input
                 type="file"
                 accept=".md,.json,text/markdown,application/json"
+                multiple
+                ref={(input) => input?.setAttribute('webkitdirectory', '')}
                 className="sr-only"
-                onChange={(event) => void previewOkfImport(event.target.files?.[0])}
+                onChange={(event) => void previewOkfImport(event.target.files)}
               />
             </label>
             <button
