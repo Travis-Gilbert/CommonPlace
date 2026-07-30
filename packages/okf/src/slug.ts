@@ -26,8 +26,9 @@ function scalar(v: unknown): string {
   return `"${String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 export function parseFrontmatter(text: string): { data: Record<string, any>; body: string } {
-  const m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!m) return { data: {}, body: text };
+  const normalized = text.replace(/\r\n?/g, "\n");
+  const m = normalized.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!m) return { data: {}, body: normalized };
   return { data: parseYaml(m[1]), body: m[2] };
 }
 function parseYaml(src: string): Record<string, any> {

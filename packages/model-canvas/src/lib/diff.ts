@@ -8,6 +8,7 @@ export interface FieldChange {
   table: string;
   added: string[];
   removed: string[];
+  modified: string[];
 }
 
 export interface GraphDiff {
@@ -50,7 +51,21 @@ export function diffGraphs(prev: ModelGraph, next: ModelGraph): GraphDiff {
     const afterFields = new Set(n.schema.map(f => f.name));
     const added = n.schema.map(f => f.name).filter(f => !beforeFields.has(f));
     const removed = before.schema.map(f => f.name).filter(f => !afterFields.has(f));
-    if (added.length || removed.length) fields.push({ table: n.title || n.key, added, removed });
+    const beforeByName = new Map(before.schema.map(field => [field.name, field]));
+    const modified = n.schema
+      .filter((field) => {
+        const prior = beforeByName.get(field.name);
+        return prior !== undefined && (
+          prior.type !== field.type
+          || prior.pk !== field.pk
+          || prior.alias !== field.alias
+          || prior.description !== field.description
+        );
+      })
+      .map((field) => field.name);
+    if (added.length || removed.length || modified.length) {
+      fields.push({ table: n.title || n.key, added, removed, modified });
+    }
   }
 
   const prevJoins = new Map(prev.edges.map(e => [joinKey(e.from, e.to, e.keys), e]));

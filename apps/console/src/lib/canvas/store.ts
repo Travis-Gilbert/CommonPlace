@@ -45,8 +45,8 @@ const PERSISTED_CANVAS_IDS = [DEFAULT_CANVAS_ID, INSPECTOR_CANVAS_ID] as const;
 
 /** Layout-only model ERD canvas id, namespaced per topic scope (MF2). */
 export function modelCanvasId(topicId: string): string {
-  const safe = topicId.trim().replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120);
-  return `canvas.model.${safe || 'unset'}`;
+  const encoded = encodeURIComponent(topicId.trim());
+  return `canvas.model.${encoded || 'unset'}`;
 }
 
 function stringValue(value: JsonValue | undefined): string | undefined {

@@ -21,6 +21,7 @@ import {
   DEFAULT_CANVAS_ID,
   INSPECTOR_CANVAS_ID,
   PERSISTENCE_UNAVAILABLE_NOTE,
+  modelCanvasId,
 } from './store';
 
 class DurableObjectSeam {
@@ -89,6 +90,12 @@ class DurableObjectSeam {
 }
 
 describe('CanvasStore', () => {
+  it('keeps complete topic identity in model canvas ids', () => {
+    expect(modelCanvasId('customer/a')).not.toBe(modelCanvasId('customer_a'));
+    expect(modelCanvasId(`topic-${'a'.repeat(121)}-left`))
+      .not.toBe(modelCanvasId(`topic-${'a'.repeat(121)}-right`));
+  });
+
   it('seeds the stable default and inspector canvases through the object seam', async () => {
     const seam = new DurableObjectSeam();
     const store = new CanvasStore(seam);

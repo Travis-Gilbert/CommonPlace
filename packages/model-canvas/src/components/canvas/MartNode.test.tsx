@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { MartNode } from "./MartNode";
 import { NOTHING_HIDDEN, ALL_HIDDEN, type ObjHidden } from "../../state/objLabels";
@@ -13,11 +13,23 @@ const node = {
   ],
 };
 
-function renderNode(viewMode: "compact" | "erd", hidden: Partial<ObjHidden> = {}) {
+function renderNode(
+  viewMode: "compact" | "erd",
+  hidden: Partial<ObjHidden> = {},
+  onFieldSelect?: (fieldName: string) => void,
+) {
   return render(
     <ReactFlowProvider>
       {/* @ts-expect-error minimal NodeProps for a render-only test */}
-      <MartNode id="n1" data={{ ...node, _viewMode: viewMode, _objHidden: { ...NOTHING_HIDDEN, ...hidden } }} />
+      <MartNode
+        id="n1"
+        data={{
+          ...node,
+          _viewMode: viewMode,
+          _objHidden: { ...NOTHING_HIDDEN, ...hidden },
+          _onFieldSelect: onFieldSelect,
+        }}
+      />
     </ReactFlowProvider>,
   );
 }
@@ -35,6 +47,15 @@ describe("MartNode ERD rendering", () => {
     expect(screen.getByText("INT64")).toBeTruthy();
     expect(screen.getByText("email")).toBeTruthy();
     expect(screen.getByText("STRING")).toBeTruthy();
+  });
+
+  it("forwards the exact selected field key", () => {
+    const onFieldSelect = vi.fn();
+    renderNode("erd", {}, onFieldSelect);
+
+    fireEvent.click(screen.getByText("email"));
+
+    expect(onFieldSelect).toHaveBeenCalledWith("email");
   });
 });
 

@@ -27,6 +27,8 @@ export type MartNodeData = ModelNode & {
   _divergenceCount?: number;
   /** MF4 Declare (pin) -- replaces upstream product push. */
   _onDeclare?: () => void;
+  /** MF3 inspector selection without collapsing field identity into the card. */
+  _onFieldSelect?: (fieldName: string) => void;
 };
 
 function StatusDot({ status }: { status: string }) {
@@ -85,9 +87,29 @@ function FieldAnchors({ name }: { name: string }) {
   );
 }
 
-function FieldRow({ f }: { f: SchemaField }) {
+function FieldRow({ f, onSelect }: { f: SchemaField; onSelect?: (fieldName: string) => void }) {
+  const select = () => onSelect?.(f.name);
   return (
-    <div className="relative flex items-center gap-2 border-b border-ij-seam px-3 py-1 text-xs last:border-b-0">
+    <div
+      className="relative flex items-center gap-2 border-b border-ij-seam px-3 py-1 text-xs last:border-b-0"
+      {...(onSelect
+        ? {
+            role: "button",
+            tabIndex: 0,
+            onClick: (event: React.MouseEvent) => {
+              event.stopPropagation();
+              select();
+            },
+            onKeyDown: (event: React.KeyboardEvent) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                select();
+              }
+            },
+          }
+        : {})}
+    >
       <FieldAnchors name={f.name} />
       {f.pk
         ? <KeyRound size={11} className="shrink-0 text-ij-gold" />
@@ -119,7 +141,7 @@ function ErdBody({ node }: { node: MartNodeData }) {
 
   return (
     <div className="border-t border-ij-seam">
-      {visible.map(f => <FieldRow key={f.name} f={f} />)}
+      {visible.map(f => <FieldRow key={f.name} f={f} onSelect={node._onFieldSelect} />)}
       {hidden > 0 && (
         <button
           type="button"

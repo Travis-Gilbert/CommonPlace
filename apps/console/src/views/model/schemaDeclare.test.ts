@@ -44,6 +44,7 @@ describe('schemaDeclareInputForField', () => {
 
     expect(input.nameSingular).toBe('Customer');
     expect(input.nodeLabel).toBe('Customer');
+    expect(input.labelIdentifierField).toBe('display_name');
     expect(input.expectedContentAnchor).toBe('anchor:one');
     expect(input.fields).toEqual([{
       key: 'display_name',

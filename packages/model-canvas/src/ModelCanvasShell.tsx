@@ -36,18 +36,29 @@ export type ModelCanvasShellProps = {
   readonly graph?: ModelGraph;
   readonly onGraphChange?: (graph: ModelGraph) => void;
   readonly onNodeSelect?: (nodeKey: string | null) => void;
+  readonly onFieldSelect?: (nodeKey: string, fieldName: string) => void;
+  readonly onEdgeSelect?: (edgeKey: string) => void;
   readonly className?: string;
   readonly style?: CSSProperties;
 };
 
-function graphToNodes(graph: ModelGraph): Node[] {
+function graphToNodes(
+  graph: ModelGraph,
+  onFieldSelect?: ModelCanvasShellProps['onFieldSelect'],
+): Node[] {
   return graph.nodes.map((n) => {
     const data = n as MartNodeData;
     return {
       id: n.key,
       type: 'mart',
       position: n.position,
-      data: { ...data, _viewMode: data._viewMode ?? 'erd' } satisfies MartNodeData,
+      data: {
+        ...data,
+        _viewMode: data._viewMode ?? 'erd',
+        _onFieldSelect: onFieldSelect
+          ? (fieldName: string) => onFieldSelect(n.key, fieldName)
+          : data._onFieldSelect,
+      } satisfies MartNodeData,
     };
   });
 }
@@ -57,6 +68,8 @@ function ShellInner({
   graph: controlled,
   onGraphChange,
   onNodeSelect,
+  onFieldSelect,
+  onEdgeSelect,
   className,
   style,
 }: ModelCanvasShellProps) {
@@ -64,7 +77,7 @@ function ShellInner({
     createModelStore(controlled ?? initialGraph ?? { storageId: null, nodes: [], edges: [] }),
   );
   const live = controlled ?? store.get();
-  const [nodes, setNodes] = useState<Node[]>(() => graphToNodes(live));
+  const [nodes, setNodes] = useState<Node[]>(() => graphToNodes(live, onFieldSelect));
   const edges: Edge[] = useMemo(
     () => buildRfEdges(live.edges, live.nodes, 'erd', 'all'),
     [live.nodes, live.edges],
@@ -73,14 +86,14 @@ function ShellInner({
   useEffect(() => {
     setNodes((current) => {
       const currentById = new Map(current.map((node) => [node.id, node]));
-      return graphToNodes(live).map((node) => {
+      return graphToNodes(live, onFieldSelect).map((node) => {
         const previous = currentById.get(node.id);
         return previous?.dragging
           ? { ...node, position: previous.position, dragging: true }
           : node;
       });
     });
-  }, [live]);
+  }, [live, onFieldSelect]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -104,10 +117,20 @@ function ShellInner({
 
   const onSelectionChange = useCallback(
     (params: OnSelectionChangeParams) => {
+      const selectedEdge = params.edges[0];
+      if (selectedEdge) {
+        const modelEdgeId = selectedEdge.data?.modelEdgeId;
+        onEdgeSelect?.(
+          typeof modelEdgeId === 'string'
+            ? modelEdgeId
+            : selectedEdge.id.split('::', 1)[0],
+        );
+        return;
+      }
       const id = params.nodes[0]?.id ?? null;
       onNodeSelect?.(id);
     },
-    [onNodeSelect],
+    [onEdgeSelect, onNodeSelect],
   );
 
   return (

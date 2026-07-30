@@ -38,7 +38,9 @@ export function schemaDeclareInputForField(
     labelPlural: objectType.namePlural,
     ...(objectType.description ? { description: objectType.description } : {}),
     nodeLabel: objectType.nodeLabel ?? objectType.key,
-    labelIdentifierField: objectType.labelIdentifierField,
+    labelIdentifierField: objectType.labelIdentifierField === current.key
+      ? replacement.key
+      : objectType.labelIdentifierField,
     fields,
     enforcement: objectType.enforcement,
     system: objectType.system,
