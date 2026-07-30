@@ -59,6 +59,7 @@ import {
   forkProgramDefinition,
   listPrograms,
   loadProgram,
+  materializeProgram,
   resumeProgramDefinition,
   runProgramDefinition,
   saveProgramDraft,
@@ -106,7 +107,7 @@ function emptyDraft(tenantId: string): ProgramDefinition {
     intent: '',
     authority: 'advisory',
     trigger: { kind: 'graph_change', labels: [], properties: [] },
-    budget: { max_invocations: 10, window_seconds: 3600, max_cost_microunits: 0 },
+    budget: { max_invocations: 10, window_seconds: 3600, max_cost_microunits: 1 },
     approval: { mode: 'preapproved_within_grants', grant_ids: [] },
     nodes: [],
     edges: [],
@@ -158,7 +159,7 @@ function definitionToFlow(
     type: 'program',
     data: {
       shapeClass: shapeClassFor('tabular_any'),
-      status: 'compatible' as const,
+      status: 'undetermined' as const,
     },
   }));
   return {
@@ -223,11 +224,15 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       });
   }, []);
 
-  const scheduleSave = useCallback((next: ProgramDefinition, layout: ProgramLayout) => {
+  const scheduleSave = useCallback((
+    next: ProgramDefinition,
+    layout: ProgramLayout,
+    targetProgramId: string | null = programId,
+  ) => {
     if (!next.tenant_id) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void saveProgramDraft(next, layout, programId ?? undefined)
+      void saveProgramDraft(next, layout, targetProgramId ?? undefined)
         .then((result) => {
           const id = typeof result.node_id === 'string'
             ? result.node_id
@@ -294,11 +299,22 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   }
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
+    const removedNodeIds = new Set(
+      changes.flatMap((change) => change.type === 'remove' ? [change.id] : []),
+    );
     setNodes((current) => {
       const next = applyNodeChanges(changes, current);
-      persistFromFlow(next, edges);
+      const nextEdges = removedNodeIds.size === 0
+        ? edges
+        : edges.filter((edge) =>
+          !removedNodeIds.has(edge.source) && !removedNodeIds.has(edge.target));
+      persistFromFlow(next, nextEdges);
       return next;
     });
+    if (removedNodeIds.size > 0) {
+      setEdges((current) => current.filter((edge) =>
+        !removedNodeIds.has(edge.source) && !removedNodeIds.has(edge.target)));
+    }
   }, [edges, persistFromFlow]);
 
   const isValidConnection = useCallback((connection: Connection | Edge) => {
@@ -722,7 +738,11 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       setNodes(flow.nodes);
       setEdges(flow.edges);
       resetRunState();
-      scheduleSave(forked, { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) });
+      scheduleSave(
+        forked,
+        { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) },
+        null,
+      );
       setNotice(`Fork opened from ${definition.name}.`);
     } catch (forkError) {
       setError(forkError instanceof Error ? forkError.message : String(forkError));
@@ -756,18 +776,30 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     }
   }
 
-  function acceptProposal(): void {
+  async function acceptProposal(): Promise<void> {
     if (!proposal) return;
     const next = proposal.proposed_program;
-    setDefinition(next);
-    const flow = definitionToFlow(next, catalogById, { nodes: {} }, toggleNodeCollapsed);
-    setNodes(flow.nodes);
-    setEdges(flow.edges);
-    resetRunState();
-    scheduleSave(next, { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) });
-    setProposal(null);
-    setProposalDiff(null);
-    setNotice('Proposal accepted into draft.');
+    setBusy(true);
+    setError(null);
+    try {
+      const receipt = await materializeProgram(next, programId);
+      setDefinition(next);
+      const flow = definitionToFlow(next, catalogById, { nodes: {} }, toggleNodeCollapsed);
+      setNodes(flow.nodes);
+      setEdges(flow.edges);
+      resetRunState();
+      scheduleSave(
+        next,
+        { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) },
+      );
+      setProposal(null);
+      setProposalDiff(null);
+      setNotice(`Proposal materialized: ${String(receipt.program_id ?? receipt.node_id ?? 'accepted')}.`);
+    } catch (proposalError) {
+      setError(proposalError instanceof Error ? proposalError.message : String(proposalError));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function autoLayout(): void {
@@ -800,9 +832,11 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setNodes(flow.nodes);
     setEdges(flow.edges);
     resetRunState();
-    scheduleSave(next, {
-      nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])),
-    });
+    scheduleSave(
+      next,
+      { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) },
+      null,
+    );
     setNotice(`Started from ${starter.name}.`);
   }
 
@@ -908,7 +942,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
           <button
             type="button"
             className="h-ij-control rounded-ij-arc border border-ij-control-border px-3"
-            disabled={busy || definition.nodes.length === 0}
+            disabled={
+              busy
+              || definition.nodes.length === 0
+              || !('publicationAttestation' in host)
+            }
+            title={'publicationAttestation' in host
+              ? 'Publish selected nodes as a signed block'
+              : 'Publish unavailable: the authenticated host has no signing attestation'}
             onClick={() => void publishSelected()}
           >
             Publish
@@ -1014,7 +1055,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
           <ProposalOverlay
             proposal={proposal}
             diff={proposalDiff}
-            onAccept={acceptProposal}
+            onAccept={() => void acceptProposal()}
             onReject={() => {
               setProposal(null);
               setProposalDiff(null);

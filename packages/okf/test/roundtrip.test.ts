@@ -58,6 +58,26 @@ describe("okf round-trip", () => {
     expect(g.edges).toHaveLength(1);
     expect(g.edges[0].bidirectional).toBe(true);
   });
+
+  it("keeps distinct joins between the same pair of marts", () => {
+    const files = {
+      "p/a.md": frontless("a", "A")
+        + "\n## Joins\n- [B](./b.md) — `owner_id = id`\n- [B](./b.md) — `reviewer_id = id`\n",
+      "p/b.md": frontless("b", "B"),
+    };
+    const g = parseBundle(files);
+    expect(g.edges).toHaveLength(2);
+    expect(g.edges.map(edge => edge.keys[0]?.left).sort()).toEqual(["owner_id", "reviewer_id"]);
+    expect(g.edges.every(edge => !edge.bidirectional)).toBe(true);
+  });
+
+  it("does not treat a filename ending in index.md as the bundle index", () => {
+    const g = parseBundle({
+      "p/search_index.md": frontless("search-index", "Search index"),
+      "p/index.md": "# Bundle index",
+    });
+    expect(g.nodes.map(node => node.key)).toEqual(["search-index"]);
+  });
 });
 function frontless(key: string, title: string) {
   return `---\ntype: "OWOX Data Mart"\ntitle: "${title}"\nowox:\n  key: "${key}"\n  inputSource: "SQL"\n  position: { x: 0, y: 0 }\n---\n# ${title}`;

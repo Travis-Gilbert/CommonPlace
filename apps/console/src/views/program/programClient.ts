@@ -203,20 +203,55 @@ export async function resumeProgramDefinition(
 }
 
 export async function fetchProgramSpill(fetchHandle: string): Promise<Record<string, unknown>> {
-  const response = await fetch('/api/harness/tool-result', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fetchHandle }),
-  });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    const error = payload && typeof payload === 'object' && !Array.isArray(payload)
-      && typeof (payload as { error?: unknown }).error === 'string'
-      ? (payload as { error: string }).error
-      : `tool_result_fetch_${response.status}`;
-    throw new Error(error);
+  let offset = 0;
+  let totalBytes: number | null = null;
+  let text = '';
+
+  do {
+    const response = await fetch('/api/harness/tool-result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fetchHandle, offset }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      const error = payload && typeof payload === 'object' && !Array.isArray(payload)
+        && typeof (payload as { error?: unknown }).error === 'string'
+        ? (payload as { error: string }).error
+        : `tool_result_fetch_${response.status}`;
+      throw new Error(error);
+    }
+    const page = payload as Record<string, unknown>;
+    if (
+      typeof page.text !== 'string'
+      || typeof page.offset !== 'number'
+      || page.offset !== offset
+      || typeof page.total_bytes !== 'number'
+    ) {
+      throw new Error('tool_result_fetch_invalid_page');
+    }
+    totalBytes ??= page.total_bytes;
+    if (page.total_bytes !== totalBytes) {
+      throw new Error('tool_result_fetch_changed_during_read');
+    }
+    text += page.text;
+    if (page.next_offset === null || page.next_offset === undefined) break;
+    if (typeof page.next_offset !== 'number' || page.next_offset <= offset) {
+      throw new Error('tool_result_fetch_invalid_continuation');
+    }
+    offset = page.next_offset;
+  } while (offset < totalBytes);
+
+  if (new TextEncoder().encode(text).byteLength !== totalBytes) {
+    throw new Error('tool_result_fetch_incomplete');
   }
-  return payload as Record<string, unknown>;
+  return {
+    fetch_handle: fetchHandle,
+    offset: 0,
+    next_offset: null,
+    total_bytes: totalBytes,
+    text,
+  };
 }
 
 export type PublicationAttestation = {

@@ -20,6 +20,9 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
   const tool = body.tool ?? 'programmable_graph';
+  if (tool !== 'programmable_graph' && tool !== 'programmable_graph_apply') {
+    return NextResponse.json({ error: 'unsupported_programmable_graph_tool' }, { status: 400 });
+  }
   const action = body.action;
   if (!action || typeof action !== 'string') {
     return NextResponse.json({ error: 'action_required' }, { status: 400 });

@@ -11,7 +11,7 @@ function basename(path: string): string {
 
 export function parseBundle(files: Record<string, string>): ModelGraph {
   const docs = Object.entries(files)
-    .filter(([p]) => p.endsWith(".md") && !p.endsWith("index.md"))
+    .filter(([path]) => path.endsWith(".md") && basename(path).toLowerCase() !== "index")
     .filter(([, text]) => isMartDoc(text));
   const nodes: ModelNode[] = []; const slugToKey = new Map<string, string>();
   const pkByKey = new Map<string, string | undefined>();
@@ -67,7 +67,16 @@ export function parseBundle(files: Record<string, string>): ModelGraph {
   // edges. A discovered key upgrades an existing keyless edge for the same pair.
   const addProseEdge = (from: string, to: string, key: string | undefined) => {
     const keys = key ? [{ left: key, right: pkByKey.get(to) ?? key }] : [];
-    const ex = raw.find(r => (r.from === from && r.to === to) || (r.from === to && r.to === from));
+    const ex = raw.find(r =>
+      ((r.from === from && r.to === to) || (r.from === to && r.to === from))
+      && (
+        r.keys.length === 0
+        || keys.length === 0
+        || JSON.stringify(r.from === from
+          ? r.keys
+          : r.keys.map(existing => ({ left: existing.right, right: existing.left })))
+          === JSON.stringify(keys)
+      ));
     if (ex) {
       if (keys.length && ex.keys.length === 0) {
         ex.keys = ex.from === from ? keys : keys.map(k => ({ left: k.right, right: k.left }));
@@ -98,10 +107,25 @@ export function parseBundle(files: Record<string, string>): ModelGraph {
     }
   }
 
+  const normalizedJoin = (
+    from: string,
+    to: string,
+    keys: { left: string; right: string }[],
+  ): string => {
+    const forward = from.localeCompare(to) <= 0;
+    return JSON.stringify({
+      from: forward ? from : to,
+      to: forward ? to : from,
+      keys: keys
+        .map((key) => forward ? key : { left: key.right, right: key.left })
+        .sort((left, right) =>
+          `${left.left}\0${left.right}`.localeCompare(`${right.left}\0${right.right}`)),
+    });
+  };
   const edges: ModelEdge[] = []; const seen = new Map<string, ModelEdge>();
   for (const r of raw) {
-    const pairKey = [r.from, r.to].sort().join("|");
-    const ex = seen.get(pairKey);
+    const joinKey = normalizedJoin(r.from, r.to, r.keys);
+    const ex = seen.get(joinKey);
     if (ex) {
       ex.bidirectional = true;
       if (!ex.cardinality && r.cardinality) {
@@ -111,7 +135,7 @@ export function parseBundle(files: Record<string, string>): ModelGraph {
     }
     const e: ModelEdge = { id: `e${edges.length + 1}`, from: r.from, to: r.to, keys: r.keys, bidirectional: false };
     if (r.cardinality) e.cardinality = r.cardinality;
-    seen.set(pairKey, e); edges.push(e);
+    seen.set(joinKey, e); edges.push(e);
   }
   const storageId = (docs[0] && (parseFrontmatter(docs[0][1]).data.owox || {}).storageId) || null;
   return { storageId, nodes, edges };
