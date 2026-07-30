@@ -2,7 +2,7 @@
 
 // SOURCING: none. Receipt-backed Program Canvas playground and node inspector.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type {
   ProcessLiveness,
   ProgramRunReceipt,
@@ -37,11 +37,6 @@ function ValuePreview({
 }) {
   const [fetched, setFetched] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setFetched(null);
-    setError(null);
-  }, [value]);
 
   if (!value) return <p className="text-xs text-ij-ink-info">No value captured.</p>;
   if (value.storage === 'inline') {
@@ -155,11 +150,19 @@ export function RunRail({
           ) : null}
           <div>
             <p className="mb-1 text-xs text-ij-ink-info">Inputs</p>
-            <ValuePreview value={inspection?.inputs} onFetchSpill={onFetchSpill} />
+            <ValuePreview
+              key={`inputs:${receipt?.receipt_id ?? 'none'}:${selectedNodeId}`}
+              value={inspection?.inputs}
+              onFetchSpill={onFetchSpill}
+            />
           </div>
           <div>
             <p className="mb-1 text-xs text-ij-ink-info">Outputs</p>
-            <ValuePreview value={inspection?.outputs} onFetchSpill={onFetchSpill} />
+            <ValuePreview
+              key={`outputs:${receipt?.receipt_id ?? 'none'}:${selectedNodeId}`}
+              value={inspection?.outputs}
+              onFetchSpill={onFetchSpill}
+            />
           </div>
           {runtimeReceipt ? (
             <details className="rounded-ij-arc border border-ij-control-border p-2">

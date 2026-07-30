@@ -189,23 +189,10 @@ function ModelInspector({
   const evidenceSources = evidence?.sourceRefs?.length
     ? evidence.sourceRefs
     : observed.sources;
-  const [fieldKey, setFieldKey] = useState('');
-  const [fieldLabel, setFieldLabel] = useState('');
-  const [fieldKind, setFieldKind] = useState('text');
-  const [fieldRequired, setFieldRequired] = useState(false);
-
-  useEffect(() => {
-    setFieldKey(declaredField?.key ?? '');
-    setFieldLabel(declaredField?.label ?? '');
-    setFieldKind(declaredField?.fieldType.kind ?? 'text');
-    setFieldRequired(declaredField?.required ?? false);
-  }, [
-    declaredField?.fieldType.kind,
-    declaredField?.id,
-    declaredField?.key,
-    declaredField?.label,
-    declaredField?.required,
-  ]);
+  const [fieldKey, setFieldKey] = useState(declaredField?.key ?? '');
+  const [fieldLabel, setFieldLabel] = useState(declaredField?.label ?? '');
+  const [fieldKind, setFieldKind] = useState(declaredField?.fieldType.kind ?? 'text');
+  const [fieldRequired, setFieldRequired] = useState(declaredField?.required ?? false);
 
   function editedFieldType(current: FieldType, kind: string): FieldType {
     if (current.kind === kind) return current;
@@ -985,6 +972,11 @@ export function ModelView({ set, host }: ViewRenderProps) {
           </div>
         </main>
         <ModelInspector
+          key={[
+            queryState.selection?.kind ?? 'none',
+            queryState.selection?.key ?? 'none',
+            declared.versions.at(-1)?.id ?? 'unversioned',
+          ].join(':')}
           selection={queryState.selection}
           observed={observed}
           declared={declared}
