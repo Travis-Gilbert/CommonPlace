@@ -7,7 +7,9 @@ test.describe('fork page architecture', () => {
     await expect(
       page.getByRole('button', { name: 'GitHub login is not configured' }),
     ).toBeDisabled();
-    await expect(page.getByText('There is no shared default tenant')).toBeVisible();
+    await expect(
+      page.getByText('Login is unavailable. The control is disabled so it cannot start a broken authorization flow.'),
+    ).toBeVisible();
   });
 
   test('signed-out onboarding, settings, and admin pages name their boundary', async ({ page }) => {
@@ -18,7 +20,9 @@ test.describe('fork page architecture', () => {
     await page.goto('/settings');
     await expect(page.getByRole('heading', { name: 'CommonPlace settings' })).toBeVisible();
     await expect(
-      page.getByText('These settings configure identity and presentation.'),
+      page.getByText(
+        'These settings configure identity, presentation, and desktop extensions. Model routing stays with the Harness.',
+      ),
     ).toBeVisible();
 
     await page.goto('/admin');
