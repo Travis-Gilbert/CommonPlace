@@ -21,6 +21,11 @@ export interface NodeLayout {
   /** Ports the reader has hidden on this node. */
   readonly hiddenPorts?: readonly string[];
   /**
+   * Ports this reader has pushed into the advanced section, overriding whatever
+   * the kind derives. Arrangement, not meaning, so it belongs here.
+   */
+  readonly advancedPorts?: readonly string[];
+  /**
    * Last frame this node resolved into. Cached so a node dragged out of every
    * frame and back lands in the same one, and so headless consumers do not have
    * to recompute geometry. `frameMembership` is still the authority.
@@ -72,10 +77,17 @@ function area(frame: FrameLayout): number {
 }
 
 /**
- * Resolve which frame owns each node. Membership is geometry: a node belongs to
- * the smallest frame that fully contains it, so nesting a small frame inside a
- * large one gives the inner frame the node. Nodes inside no frame are absent
- * from the result rather than mapped to null.
+ * Resolve which frame owns each node. Membership is geometry, and the rule is
+ * total so two readers never disagree about it:
+ *
+ * 1. A frame owns a node only if it *fully* contains it. A node straddling a
+ *    frame edge is not a member, however much of it is inside.
+ * 2. When several frames contain a node, the smallest by area wins, so a frame
+ *    nested inside another takes the nodes it encloses.
+ * 3. Ties on area are broken by frame id, ascending, so the answer does not
+ *    depend on object iteration order.
+ * 4. A node inside no frame is absent from the result rather than mapped to
+ *    null: "belongs to nothing" is the absence of a fact, not a fact.
  */
 export function frameMembership(
   frames: Readonly<Record<string, FrameLayout>>,
@@ -89,7 +101,7 @@ export function frameMembership(
     for (const [frameId, frame] of entries) {
       if (!contains(frame, node)) continue;
       const size = area(frame);
-      if (size < ownerArea) {
+      if (size < ownerArea || (size === ownerArea && owner !== undefined && frameId < owner)) {
         owner = frameId;
         ownerArea = size;
       }
@@ -210,6 +222,7 @@ export interface CanvasLayoutWire {
       collapsed?: boolean;
       advanced_open?: boolean;
       hidden_ports?: string[];
+      advanced_ports?: string[];
       frame_id?: string;
       /** Read for compatibility with layouts written before frames existed. */
       group_id?: string;
@@ -231,6 +244,7 @@ export function toLayoutWire(document: CanvasLayoutDocument): CanvasLayoutWire {
     if (layout.collapsed) metadata.collapsed = true;
     if (layout.advancedOpen) metadata.advanced_open = true;
     if (layout.hiddenPorts?.length) metadata.hidden_ports = [...layout.hiddenPorts];
+    if (layout.advancedPorts?.length) metadata.advanced_ports = [...layout.advancedPorts];
     if (layout.frameId) metadata.frame_id = layout.frameId;
     if (Object.keys(metadata).length > 0) nodeMetadata[nodeId] = metadata;
   }
@@ -275,6 +289,9 @@ export function fromLayoutWire(wire: CanvasLayoutWire | undefined): CanvasLayout
       ...(metadata?.advanced_open ? { advancedOpen: true } : {}),
       ...(metadata?.hidden_ports?.length
         ? { hiddenPorts: [...metadata.hidden_ports] }
+        : {}),
+      ...(metadata?.advanced_ports?.length
+        ? { advancedPorts: [...metadata.advanced_ports] }
         : {}),
       // `group_id` is the pre-frame spelling; read it so older saved layouts
       // keep their grouping instead of silently flattening.

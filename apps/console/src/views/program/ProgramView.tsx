@@ -48,7 +48,6 @@ import type {
   JsonValue,
   PinnedNodeValue,
   ProcessLiveness,
-  ProgramBindingPreset,
   ProgramDefinition,
   ProgramDiff,
   ProgramRunOptions,
@@ -59,10 +58,6 @@ import { BlockShell } from '@/components/block/BlockShell';
 import { degradationFor } from '@/lib/degradation';
 import { PROGRAM_NODE_KIND, programNodeKind, type ProgramNodeData } from './programNodeKind';
 import { ProgramWidget } from './ProgramWidget';
-import {
-  BINDING_PRESET_DRAG_TYPE,
-  BindingStationTray,
-} from './BindingStationTray';
 import { PlaceholderNode } from './PlaceholderNode';
 import { NodePalette } from './NodePalette';
 import { RunRail } from './RunRail';
@@ -77,8 +72,6 @@ import {
 import { applyRunEvent } from './liveness';
 import { programNodeFromCatalog } from './catalogNode';
 import {
-  dropBindingPreset,
-  fetchBindingPresets,
   fetchProgramCatalog,
   fetchProgramContext,
   fetchProgramSpill,
@@ -118,14 +111,12 @@ function diffPrograms(left: ProgramDefinition, right: ProgramDefinition): Progra
 }
 
 // The program node is a substrate kind now, so this map is assembled from the
-// registry instead of hand-written. `program` stays mapped to the same
-// component so saved graphs naming the old type keep rendering.
+// registry instead of hand-written. The kind declares its own `program` alias,
+// so graphs saved under the old type name keep rendering.
 const KIND_REGISTRY = createNodeKindRegistry([programNodeKind]);
-const KIND_TYPES = KIND_REGISTRY.nodeTypes({ Widget: ProgramWidget });
 
 const NODE_TYPES: NodeTypes = {
-  ...KIND_TYPES,
-  program: KIND_TYPES[PROGRAM_NODE_KIND],
+  ...KIND_REGISTRY.nodeTypes({ Widget: ProgramWidget }),
   placeholder: PlaceholderNode,
 };
 
@@ -186,10 +177,10 @@ function definitionToFlow(
       refusal: entry ? undefined : `Unknown catalog id ${node.block_id}`,
       bypassed: node.bypassed,
       muted: node.muted,
-      station: node.station,
       collapsed: nodeLayout?.collapsed,
       advancedOpen: nodeLayout?.advancedOpen,
       connectedInputs: connectedByNode.get(node.id) ?? [],
+      advancedPorts: nodeLayout?.advancedPorts,
       tweaks: tweaksByNode[node.id] ?? {},
       onToggleCollapsed: () => handlers.onToggleCollapsed(node.id),
       onToggleAdvanced: () => handlers.onToggleAdvanced(node.id),
@@ -249,7 +240,6 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
-  const [bindingPresets, setBindingPresets] = useState<ProgramBindingPreset[]>([]);
   const [programs, setPrograms] = useState<ProgramListItem[]>([]);
   const [starters, setStarters] = useState<ProgramDefinition[]>([]);
   const [programId, setProgramId] = useState<string | null>(null);
@@ -313,14 +303,12 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     void Promise.all([
       fetchProgramContext(),
       fetchProgramCatalog(),
-      fetchBindingPresets(),
       listPrograms(),
       fetchStarterPrograms(),
     ])
-      .then(([context, entries, presets, items, starterPrograms]) => {
+      .then(([context, entries, items, starterPrograms]) => {
         setTenantId(context.tenantId);
         setCatalog(entries);
-        setBindingPresets(presets);
         setPrograms(items);
         setStarters(starterPrograms);
         setDefinition((current) => current.tenant_id
@@ -702,7 +690,6 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       lifecycle: entry.lifecycle,
       bypassed: false,
       muted: false,
-      station: programNode.station,
       connectedInputs: [],
       tweaks: {},
       onToggleCollapsed: () => nodeHandlers.onToggleCollapsed(id),
@@ -1065,6 +1052,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setRunInvocationId(null);
     setLivenessByNode({});
     setTweaksByNode({});
+    setWidgetTweaks({});
     setPinnedByNode({});
     setSelectedNodeId(null);
   }
@@ -1113,65 +1101,6 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     };
     setDefinition(next);
     scheduleSave(next, layoutRef.current);
-  }
-
-  async function applyBindingStation(
-    preset: ProgramBindingPreset,
-    nodeId: string,
-  ): Promise<void> {
-    if (!definitionRef.current.nodes.some((node) => node.id === nodeId)) {
-      setError(`Program node ${nodeId} was not found.`);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      if (saveTimer.current) {
-        clearTimeout(saveTimer.current);
-        saveTimer.current = null;
-      }
-      const saved = await saveProgramDraft(
-        definitionRef.current,
-        toLayoutWire(layoutRef.current),
-        programIdRef.current ?? undefined,
-      );
-      const savedNodeId = typeof saved.node_id === 'string'
-        ? saved.node_id
-        : programIdRef.current;
-      if (!savedNodeId) {
-        throw new Error('binding_station_requires_saved_program');
-      }
-      programIdRef.current = savedNodeId;
-      setProgramId(savedNodeId);
-      const receipt = await dropBindingPreset({
-        programId: savedNodeId,
-        nodeId,
-        presetId: preset.preset_id,
-      });
-      const nextDefinition: ProgramDefinition = {
-        ...definitionRef.current,
-        nodes: definitionRef.current.nodes.map((node) => node.id === nodeId
-          ? { ...node, station: receipt.station }
-          : node),
-      };
-      definitionRef.current = nextDefinition;
-      setDefinition(nextDefinition);
-      setNodes((current) => current.map((node) => node.id === nodeId
-        ? {
-            ...node,
-            data: {
-              ...node.data,
-              station: receipt.station,
-            },
-          }
-        : node));
-      setNotice(`${preset.display_name} bound to ${nodeId}.`);
-    } catch (stationError) {
-      setError(stationError instanceof Error ? stationError.message : String(stationError));
-    } finally {
-      setBusy(false);
-    }
   }
 
   return (
@@ -1266,12 +1195,6 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       className="bg-transparent text-ij-ink"
     >
       <div className="relative flex h-full min-h-96">
-        <BindingStationTray
-          presets={bindingPresets}
-          selectedNodeId={selectedNodeId}
-          busy={busy}
-          onApply={(preset, nodeId) => void applyBindingStation(preset, nodeId)}
-        />
         <div className="relative min-h-96 min-w-0 flex-1">
           <ReactFlow
             nodes={nodes}
@@ -1283,31 +1206,6 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             onConnectEnd={onConnectEnd}
-            onDragOver={(event) => {
-              if (
-                event.dataTransfer.types.includes(BINDING_PRESET_DRAG_TYPE)
-                || event.dataTransfer.types.includes('text/plain')
-              ) {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'copy';
-              }
-            }}
-            onDrop={(event) => {
-              const presetId = event.dataTransfer.getData(BINDING_PRESET_DRAG_TYPE)
-                || event.dataTransfer.getData('text/plain');
-              if (!presetId) return;
-              event.preventDefault();
-              const target = event.target instanceof HTMLElement
-                ? event.target.closest<HTMLElement>('.react-flow__node')
-                : null;
-              const nodeId = target?.dataset.id;
-              const preset = bindingPresets.find((candidate) => candidate.preset_id === presetId);
-              if (!nodeId || !preset) {
-                setError('Drop a binding station directly onto a program node.');
-                return;
-              }
-              void applyBindingStation(preset, nodeId);
-            }}
             onNodeClick={(_event, node) => setSelectedNodeId(node.id)}
             onEdgeDoubleClick={(event, edge) => {
               // Double-click drops a reroute dot where the reader clicked. It

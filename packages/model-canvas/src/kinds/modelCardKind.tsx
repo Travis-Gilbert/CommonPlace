@@ -7,11 +7,14 @@
 
 import type { NodeBadge, NodeKindEntry, SubstratePort } from '@commonplace/canvas-substrate';
 import { shortNodeBadge } from '@commonplace/canvas-substrate';
-import type { SchemaField } from '@commonplace/okf';
 import { DataMartIcon } from '../lib/icons';
 import { ErdFieldRows, type MartNodeData } from '../components/canvas/MartNode';
 
 export const MODEL_CARD_KIND = 'model-card';
+
+/** Card widths. Named so a denser or roomier card is one edit, not a search. */
+export const ERD_CARD_WIDTH = 256;
+export const COMPACT_CARD_WIDTH = 208;
 
 /** The card badge for the registry provider facet (issue 144 D). */
 export interface ProviderBadge {
@@ -73,27 +76,26 @@ function badgesFor(node: ModelCardData): NodeBadge[] {
 }
 
 /**
- * Node-level ports are the only way to draw a new relationship. Field rows get
- * anchor-only handles so an existing edge can land on the right row without the
- * row offering to start a connection of its own.
+ * Node-level ports are the only way to draw a new relationship, and they are
+ * the only ports the shell renders.
+ *
+ * The per-field `fl:`/`fr:` anchors deliberately stay in the body: `ErdFieldRows`
+ * already places them on the row they belong to, which is the whole point of a
+ * field anchor. Declaring them here as well would register the same handle ids
+ * twice and draw a second, rowless copy of every field, so an ERD edge would
+ * have two candidate landing points and pick arbitrarily.
  */
-function portsFor(node: ModelCardData): SubstratePort[] {
-  const ports: SubstratePort[] = [
+function portsFor(): SubstratePort[] {
+  return [
     { id: 'left', side: 'source', label: 'left' },
     { id: 'right', side: 'source', label: 'right' },
   ];
-  if (node._viewMode !== 'erd') return ports;
-  for (const field of node.schema ?? ([] as SchemaField[])) {
-    ports.push(
-      { id: `fl:${field.name}`, side: 'source', connectable: false },
-      { id: `fr:${field.name}`, side: 'source', connectable: false },
-    );
-  }
-  return ports;
 }
 
 export const modelCardKind: NodeKindEntry<ModelCardData> = {
   id: MODEL_CARD_KIND,
+  // Graphs saved before the substrate name this node type `mart`.
+  aliases: ['mart'],
   // Relation edges are not typed flows, so the model palette keeps them neutral
   // and spends the reader's attention on the chip and cardinality glyph instead.
   palette: 'model',
@@ -103,11 +105,11 @@ export const modelCardKind: NodeKindEntry<ModelCardData> = {
     icon: <DataMartIcon size={15} />,
     idBadge: shortNodeBadge(context.nodeId),
     badges: badgesFor(node),
-    ports: portsFor(node),
+    ports: portsFor(),
     ghost: Boolean(node._ghost),
     accent: !node._objHidden?.source && !node._ghost,
     status: node.status === 'error' ? 'failed' : node.status === 'creating' ? 'running' : 'idle',
-    width: node._viewMode === 'erd' ? 256 : 208,
+    width: node._viewMode === 'erd' ? ERD_CARD_WIDTH : COMPACT_CARD_WIDTH,
   }),
   Body: ({ data }) => <ErdFieldRows node={data} />,
 };

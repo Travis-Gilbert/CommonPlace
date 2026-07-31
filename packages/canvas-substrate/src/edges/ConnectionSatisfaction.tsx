@@ -10,7 +10,7 @@
 // accept, so the five family rules in substrate.css resolve the dimming without
 // React touching a single node.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useConnection } from '@xyflow/react';
 import type { EdgeFamily } from '../kinds/types';
 
@@ -28,12 +28,17 @@ export interface ConnectionSatisfactionProps {
 
 export function ConnectionSatisfaction({ familyForHandle }: ConnectionSatisfactionProps) {
   const connection = useConnection();
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
   const inProgress = connection.inProgress;
   const fromNodeId = connection.fromNode?.id ?? null;
   const fromHandleId = connection.fromHandle?.id ?? null;
 
   useEffect(() => {
-    const root = document.querySelector<HTMLElement>('.react-flow');
+    // Resolve the flow root by walking up from this component's own anchor.
+    // `document.querySelector('.react-flow')` would find the first instance on
+    // the page, so with the model and program canvases both mounted a drag in
+    // one would dim the other and leave its own targets bright.
+    const root = anchorRef.current?.closest<HTMLElement>('.react-flow') ?? null;
     if (!root) return;
     if (!inProgress || !fromNodeId) {
       root.removeAttribute('data-connecting-family');
@@ -48,5 +53,5 @@ export function ConnectionSatisfaction({ familyForHandle }: ConnectionSatisfacti
     return () => root.removeAttribute('data-connecting-family');
   }, [familyForHandle, fromHandleId, fromNodeId, inProgress]);
 
-  return null;
+  return <span ref={anchorRef} hidden data-substrate-connection-anchor />;
 }

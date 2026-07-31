@@ -35,17 +35,16 @@ import {
 import '@commonplace/canvas-substrate/substrate.css';
 import { type MartNodeData } from './components/canvas/MartNode';
 import { buildRfEdges } from './components/canvas/edges';
-import { modelCardKind, MODEL_CARD_KIND } from './kinds/modelCardKind';
+import { modelCardKind } from './kinds/modelCardKind';
 import { createModelStore } from './state/model';
 import { graphWithChangedNodePositions } from './state/positions';
 
 // The ERD card is now a registry entry on the shared substrate rather than a
 // bespoke node component, and relation edges ride the one edge language with
-// the model palette. `mart` and `rel` stay mapped so saved graphs that name the
-// old types keep rendering.
+// the model palette. The kind declares its own `mart` alias, and `rel` stays
+// mapped, so graphs saved under the old type names keep rendering.
 const kinds = createNodeKindRegistry([modelCardKind]);
-const kindTypes = kinds.nodeTypes();
-const nodeTypes = { ...kindTypes, mart: kindTypes[MODEL_CARD_KIND] };
+const nodeTypes = kinds.nodeTypes();
 const edgeTypes = { rel: SubstrateEdge, substrate: SubstrateEdge };
 
 export type ModelCanvasShellProps = {

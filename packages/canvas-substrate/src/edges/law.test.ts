@@ -19,6 +19,9 @@ describe('edge dash law', () => {
       strokeWidth: EDGE_STROKE.rest,
       strokeDasharray: '0.1 6',
       strokeLinecap: 'round',
+      // Dash and width are user units; without this the dots alias away at 0.5x
+      // and swell into beads at 2x. The rhythm is visual, not diagram-scaled.
+      vectorEffect: 'non-scaling-stroke',
     });
     // Attention must not remove the dash: solidifying is a dash change, not a
     // state jump to a different mark.

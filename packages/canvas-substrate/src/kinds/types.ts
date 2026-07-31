@@ -155,6 +155,12 @@ export interface NodeKindEntry<TData = never> {
   readonly palette?: EdgePaletteId;
   /** Frames are registered like any other kind; the shell reads this too. */
   readonly frame?: boolean;
+  /**
+   * Additional React Flow type names this kind answers to. Saved graphs name
+   * the type that existed when they were written, so a kind that replaces an
+   * older node type lists its former name here and keeps rendering it.
+   */
+  readonly aliases?: readonly string[];
 }
 
 /**

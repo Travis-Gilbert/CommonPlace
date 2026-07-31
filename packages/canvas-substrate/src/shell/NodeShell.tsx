@@ -282,23 +282,39 @@ function FlagButton({
   );
 }
 
+/**
+ * A collapsed node still has to be connectable, and each port has to stay
+ * individually reachable: stacking every handle at one offset means only the
+ * topmost is clickable and no reader can tell which wire belongs to which port.
+ * Handles fan down each side at a tight pitch, so the node keeps its collapsed
+ * silhouette while every port keeps its own target.
+ */
+const COLLAPSED_HANDLE_TOP = 14;
+const COLLAPSED_HANDLE_PITCH = 9;
+
 function CollapsedHandles({ ports }: { readonly ports: readonly SubstratePort[] }) {
+  let targets = 0;
+  let sources = 0;
   return (
     <>
-      {ports.map((port) => (
-        <Handle
-          key={port.id}
-          type={port.side}
-          position={port.side === 'target' ? Position.Left : Position.Right}
-          id={port.id}
-          isConnectable={port.connectable !== false}
-          style={{
-            top: 14,
-            background: port.family ? familyStroke(port.family) : 'var(--ij-editor)',
-            borderColor: 'var(--ij-accent)',
-          }}
-        />
-      ))}
+      {ports.map((port) => {
+        const index = port.side === 'target' ? targets++ : sources++;
+        return (
+          <Handle
+            key={port.id}
+            type={port.side}
+            position={port.side === 'target' ? Position.Left : Position.Right}
+            id={port.id}
+            isConnectable={port.connectable !== false}
+            title={port.label ?? port.id}
+            style={{
+              top: COLLAPSED_HANDLE_TOP + index * COLLAPSED_HANDLE_PITCH,
+              background: port.family ? familyStroke(port.family) : 'var(--ij-editor)',
+              borderColor: 'var(--ij-accent)',
+            }}
+          />
+        );
+      })}
     </>
   );
 }

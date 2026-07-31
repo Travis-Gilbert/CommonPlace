@@ -33,15 +33,16 @@ import type {
   CatalogLifecycle,
   ProcessLiveness,
   ProgramNodeKind as ProgramNodeKindContract,
-  ProgramStationFields,
 } from '@commonplace/program-contracts';
-import { shapeClassFor } from './shapeHue';
+import { isWidgetizableShape, shapeClassFor } from './shapeHue';
 
 export const PROGRAM_NODE_KIND = 'program-node';
 
 export interface ProgramPortView {
   readonly id: string;
   readonly shape: string;
+  /** Catalog display label. Falls back to the port id when absent. */
+  readonly label?: string;
 }
 
 export interface ProgramNodeData {
@@ -61,9 +62,14 @@ export interface ProgramNodeData {
   readonly catalog?: CatalogEntry;
   readonly bypassed?: boolean;
   readonly muted?: boolean;
-  readonly station?: ProgramStationFields;
   /** Input port ids that already have an incoming edge; these stay ports. */
   readonly connectedInputs?: readonly string[];
+  /**
+   * Explicit advanced classification, overriding the derived rule. Sourced
+   * from the canvas layout document today; a catalog port flag can feed the
+   * same field once the contract carries one.
+   */
+  readonly advancedPorts?: readonly string[];
   /** Current tweak overlay for this node, keyed by port id. */
   readonly tweaks?: Readonly<Record<string, unknown>>;
   readonly onTweakChange?: (portId: string, value: unknown) => void;
@@ -95,20 +101,16 @@ function KindIcon({ kind }: { readonly kind: ProgramNodeKindContract['kind'] }) 
 
 /**
  * A shape id is not a field type, so this is a deliberate projection for
- * editing only: structured planes edit as JSON, everything else as a scalar.
- * The server's validate_edge stays the authority on what a port accepts; this
- * only decides which control a reader gets.
+ * editing only. Only widgetizable shapes reach here (see `isWidgetizableShape`);
+ * the structured planes deliberately get no control rather than a JSON textarea
+ * standing in for a table. The server's validate_edge stays the authority on
+ * what a port accepts; this only decides which control a reader gets.
  */
 export function widgetFieldTypeForShape(shape: string): FieldType {
-  switch (shapeClassFor(shape)) {
-    case 'graph-plane':
-    case 'tabular':
-    case 'tensor-and-model':
-    case 'artifact-and-sink':
-      return { kind: 'json' };
-    case 'scalar-value':
-      return { kind: 'text' };
-  }
+  // Variable bags edit as JSON; anything else widgetizable is a plain value.
+  return shape === 'variables_declared_at_init' || shape === 'preserve_or_replace_variables'
+    ? { kind: 'json' }
+    : { kind: 'text' };
 }
 
 function livenessStatus(liveness: ProcessLiveness | undefined): NodeStatus | undefined {
@@ -146,38 +148,39 @@ function badgesFor(node: ProgramNodeData): NodeBadge[] {
   }
   if (node.pinned) badges.push({ id: 'pinned', text: 'pinned', mono: true, tone: 'gold' });
   if (node.stale) badges.push({ id: 'stale', text: 'stale', mono: true, tone: 'warn' });
-  if (node.station) {
-    badges.push({
-      id: 'binding-station',
-      text: `${node.station.topology} station`,
-      mono: true,
-      tone: 'gold',
-      title: node.station.sealed
-        ? 'Sealed system binding'
-        : `Binding ${node.station.binding_ref}`,
-    });
-  }
-  if (node.refusal) badges.push({ id: 'refusal', text: node.refusal, tone: 'warn' });
   return badges;
 }
 
 /**
- * Ports for the shell. Connected inputs and the node's first input stay
- * primary; every other unconnected input drops into the advanced section,
- * which is what keeps a node with a long tuning tail readable at rest.
+ * Ports for the shell.
+ *
+ * "Has a wire" and "is advanced" are different questions, and the widget
+ * duality makes them independent: primary is every connected port plus every
+ * input a reader can actually type into, so a node's tuning tail shows at rest
+ * the way it does in the pattern this adapts. Advanced holds only unconnected
+ * inputs that expect a wire and offer no control, which is the set that reads
+ * as clutter when a node is idle.
+ *
+ * Authority order: an explicit `advancedPorts` override (per node, from the
+ * layout document, or from the catalog once a port contract carries the flag)
+ * wins over the derived rule, so a node author or a reader can always disagree
+ * with it.
  */
 function portsFor(node: ProgramNodeData): SubstratePort[] {
   const connected = new Set(node.connectedInputs ?? []);
-  const inputs = node.inputs.map((port, index): SubstratePort => {
+  const override = node.advancedPorts ? new Set(node.advancedPorts) : null;
+
+  const inputs = node.inputs.map((port): SubstratePort => {
     const isConnected = connected.has(port.id);
-    const widgetized = !isConnected;
+    const widgetized = !isConnected && isWidgetizableShape(port.shape) && Boolean(node.onTweakChange);
+    const derivedAdvanced = !isConnected && !widgetized;
     return {
       id: port.id,
       side: 'target',
-      label: port.id,
+      label: port.label ?? port.id,
       family: shapeClassFor(port.shape),
-      section: isConnected || index === 0 ? 'primary' : 'advanced',
-      ...(widgetized && node.onTweakChange
+      section: (override ? override.has(port.id) : derivedAdvanced) ? 'advanced' : 'primary',
+      ...(widgetized
         ? {
             widget: {
               fieldType: widgetFieldTypeForShape(port.shape),
@@ -191,7 +194,7 @@ function portsFor(node: ProgramNodeData): SubstratePort[] {
   const outputs = node.outputs.map((port): SubstratePort => ({
     id: port.id,
     side: 'source',
-    label: port.id,
+    label: port.label ?? port.id,
     family: shapeClassFor(port.shape),
   }));
   return [...inputs, ...outputs];
@@ -199,6 +202,8 @@ function portsFor(node: ProgramNodeData): SubstratePort[] {
 
 export const programNodeKind: NodeKindEntry<ProgramNodeData> = {
   id: PROGRAM_NODE_KIND,
+  // Programs saved before the substrate name this node type `program`.
+  aliases: ['program'],
   palette: 'program',
   shell: (node, context) => ({
     kindId: PROGRAM_NODE_KIND,

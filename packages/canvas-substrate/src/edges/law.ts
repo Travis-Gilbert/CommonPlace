@@ -27,15 +27,25 @@ export const EDGE_DASH = {
   attended: '4 3',
 } as const;
 
-/** One dash cycle at rest. Marching by exactly this reads as seamless. */
+/** One dash cycle at rest, in user units. */
 export const EDGE_DASH_CYCLE = 6.1;
 
 export const EDGE_LINECAP = 'round' as const;
 
 /**
+ * Direction pips sampled along a running edge. The console motion constitution
+ * permits transform and opacity only, so flow direction is carried by a
+ * staggered opacity cascade across these fixed points rather than by marching
+ * the dash: animating `stroke-dashoffset` repaints the whole path every frame,
+ * which is exactly the cost that rule exists to prevent. Their positions are
+ * measured once per geometry change, never per frame.
+ */
+export const RUNNING_EDGE_PIP_STOPS = [0.25, 0.5, 0.75] as const;
+
+/**
  * Concurrently animated running edges are capped so a wide fan-out cannot turn
  * the canvas into a strobe. Past the cap, running edges keep the width bump and
- * drop the march. Reduced motion drops the march at any count.
+ * drop the pips. Reduced motion drops them at any count.
  */
 export const RUNNING_EDGE_ANIMATION_CAP = 40;
 
@@ -52,13 +62,30 @@ export interface EdgeStrokeStyle {
   readonly strokeWidth: number;
   readonly strokeDasharray: string;
   readonly strokeLinecap: typeof EDGE_LINECAP;
+  readonly vectorEffect: 'non-scaling-stroke';
 }
 
-export function edgeStrokeStyle(attention: EdgeAttention): EdgeStrokeStyle {
+/**
+ * A running edge wears the attended width even when nothing is pointing at it.
+ * That bump is the only execution signal left once the direction pips are
+ * suppressed -- past the animation cap or under reduced motion -- so it cannot
+ * be conditional on hover.
+ */
+export function edgeStrokeStyle(
+  attention: EdgeAttention,
+  running = false,
+): EdgeStrokeStyle {
+  const width = attention === 'attended' || running
+    ? EDGE_STROKE.attended
+    : EDGE_STROKE.rest;
   return {
-    strokeWidth: EDGE_STROKE[attention],
+    strokeWidth: width,
     strokeDasharray: EDGE_DASH[attention],
     strokeLinecap: EDGE_LINECAP,
+    // Dash lengths and stroke width are in user units, so without this a dot
+    // shrinks to sub-pixel at 0.5x zoom and swells into a bead at 2x. The dash
+    // pattern is a fixed visual rhythm, not a property of the diagram's scale.
+    vectorEffect: 'non-scaling-stroke',
   };
 }
 

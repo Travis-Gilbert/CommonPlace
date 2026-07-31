@@ -1,48 +1,85 @@
-// SOURCING: none. Functional shape-class hue encoding for program wires (PG5).
+// SOURCING: @commonplace/canvas-substrate for the family union and its token
+// map. This file keeps only the projection from a Rust `ShapeSpec` onto a
+// family, which is genuine console-side knowledge; the hues themselves belong
+// to the edge language and are not restated here (issue 144 B).
 
 import type { ShapeSpec } from '@commonplace/program-contracts';
+import { type EdgeFamily, familyStroke } from '@commonplace/canvas-substrate';
 
-export type ShapeClass =
-  | 'graph-plane'
-  | 'tabular'
-  | 'tensor-and-model'
-  | 'scalar-value'
-  | 'artifact-and-sink';
+/**
+ * Shape class and family are the same idea. The alias keeps existing call sites
+ * reading naturally while there is exactly one definition, in the substrate.
+ */
+export type ShapeClass = EdgeFamily;
+
+type ShapeKind = ShapeSpec['kind'];
+
+/**
+ * Every shape kind the Rust contract declares, mapped to a family.
+ *
+ * Declared as a total record over the generated `ShapeSpec['kind']` union, so a
+ * new kind added on the Rust side fails the console typecheck instead of
+ * silently rendering as a scalar wire with a text widget. `check:generated`
+ * already guards the contract itself; this makes the projection over it total.
+ */
+const FAMILY_BY_SHAPE_KIND: Record<ShapeKind, EdgeFamily> = {
+  graph_nodes: 'graph-plane',
+  node_scores: 'graph-plane',
+  tabular_any: 'tabular',
+  tabular_pair: 'tabular',
+  join_columns: 'tabular',
+  preserve_columns: 'tabular',
+  variables_declared_at_init: 'tensor-and-model',
+  preserve_or_replace_variables: 'tensor-and-model',
+  function: 'tensor-and-model',
+  other: 'artifact-and-sink',
+};
+
+/**
+ * A wire whose shape cannot be resolved still has to render. Falling back to
+ * the scalar family keeps it visible rather than letting an unmapped kind
+ * produce an invisible stroke; the exhaustive record above is what keeps that
+ * fallback for genuinely unknown runtime values, not for new contract kinds.
+ */
+const UNRESOLVED_FAMILY: EdgeFamily = 'scalar-value';
+
+/**
+ * Whether an input of this shape can honestly be typed into.
+ *
+ * Editability is a different question from hue, so it gets its own total map
+ * rather than being derived from the family: a variable bag and a tabular plane
+ * can share a colour budget while only one of them is something a reader can
+ * fill in by hand. Offering a JSON textarea in place of a table would be a fake
+ * affordance; those inputs want a wire.
+ *
+ * Total over the generated union for the same reason as the family map: a new
+ * Rust shape has to declare which side of this line it falls on.
+ */
+const WIDGETIZABLE_BY_SHAPE_KIND: Record<ShapeKind, boolean> = {
+  graph_nodes: false,
+  node_scores: false,
+  tabular_any: false,
+  tabular_pair: false,
+  join_columns: false,
+  preserve_columns: false,
+  variables_declared_at_init: true,
+  preserve_or_replace_variables: true,
+  function: false,
+  other: true,
+};
+
+export function isWidgetizableShape(shape: ShapeSpec | string | undefined): boolean {
+  const kind = typeof shape === 'string' ? shape : shape?.kind;
+  if (!kind) return false;
+  return WIDGETIZABLE_BY_SHAPE_KIND[kind as ShapeKind] ?? false;
+}
 
 export function shapeClassFor(shape: ShapeSpec | string | undefined): ShapeClass {
   const kind = typeof shape === 'string' ? shape : shape?.kind;
-  switch (kind) {
-    case 'graph_nodes':
-    case 'node_scores':
-      return 'graph-plane';
-    case 'tabular_any':
-    case 'tabular_pair':
-    case 'join_columns':
-    case 'preserve_columns':
-      return 'tabular';
-    case 'variables_declared_at_init':
-    case 'preserve_or_replace_variables':
-    case 'function':
-      return 'tensor-and-model';
-    case 'other':
-      return 'artifact-and-sink';
-    default:
-      return 'scalar-value';
-  }
+  if (!kind) return UNRESOLVED_FAMILY;
+  return FAMILY_BY_SHAPE_KIND[kind as ShapeKind] ?? UNRESOLVED_FAMILY;
 }
 
-/** Semantic register hues for the five shape classes. */
-export function hueForShapeClass(shapeClass: ShapeClass): string {
-  switch (shapeClass) {
-    case 'graph-plane':
-      return 'var(--ij-program-shape-graph)';
-    case 'tabular':
-      return 'var(--ij-program-shape-tabular)';
-    case 'tensor-and-model':
-      return 'var(--ij-program-shape-tensor)';
-    case 'scalar-value':
-      return 'var(--ij-program-shape-scalar)';
-    case 'artifact-and-sink':
-      return 'var(--ij-program-shape-artifact)';
-  }
-}
+/** Re-exported so callers keep one import for the family and its token. */
+export { familyStroke, familyStroke as hueForShapeClass };
+export type { EdgeFamily };

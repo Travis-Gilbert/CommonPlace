@@ -14,12 +14,15 @@ import {
 } from '@commonplace/model-canvas';
 import '@commonplace/model-canvas/canvas.css';
 import {
+  DEFAULT_PROVIDER_FACET,
   formatFieldType,
   isPinned,
+  providerBadgeText,
   type DeclaredModel,
   type ObservedModel,
   type PinKind,
 } from '@commonplace/data-model-contracts';
+import type { ModelCardData } from '@commonplace/model-canvas';
 import type { ModelSelection } from '../modelQuery';
 import type { LayoutPositions } from './layout';
 
@@ -67,10 +70,23 @@ function registryToModelGraph(
     const fields = declared.fields.filter((f) => f.objectTypeId === type.id);
     const divergences = declared.divergences.filter((d) => d.objectTypeId === type.id);
     const divergenceCount = divergences.reduce((sum, d) => sum + d.count, 0);
-    const node: MartNodeData = {
+    const provider = type.provider ?? DEFAULT_PROVIDER_FACET;
+    const node: ModelCardData = {
       key,
       title: type.label || type.nameSingular || type.key,
       inputSource: 'TABLE',
+      // Issue 144 D: where the rows actually come from supersedes the importer
+      // chip. `derived-program` also names the program that materializes them.
+      _provider: {
+        text: providerBadgeText(provider),
+        title: provider.kind === 'derived-program'
+          ? `Materialized by ${provider.program_id}`
+          : provider.kind === 'connector'
+            ? `Arrives from ${provider.connector_id}`
+            : provider.kind === 'native-view'
+              ? `Served as a native view${provider.relation ? ` from ${provider.relation}` : ''}`
+              : 'Declared records held in the graph',
+      },
       schema: fields.map((f) => ({
         name: f.key,
         type: formatFieldType(f.fieldType),

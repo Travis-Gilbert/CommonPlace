@@ -35,7 +35,24 @@ function kindComponent(
   entry: AnyNodeKindEntry,
   Widget: WidgetRenderer | undefined,
 ): ComponentType<NodeProps> {
-  function KindNode({ id, data, selected }: NodeProps) {
+  const accepted = new Set<string>([entry.id, ...(entry.aliases ?? [])]);
+  function KindNode({ id, data, type, selected }: NodeProps) {
+    // The type erasure above is only sound while a node reaches the entry that
+    // matches its own kind. Check it here so a mis-registered node fails by
+    // name instead of exploding somewhere inside a body that was handed data
+    // of a shape it never expected.
+    if (type !== undefined && !accepted.has(type)) {
+      return (
+        <article
+          className="rounded-ij-arc border border-dashed border-ij-warn bg-ij-raised px-2 py-1 text-xs text-ij-warn"
+          data-substrate-kind-mismatch={type}
+        >
+          <span className="font-ij-mono" data-mono-ok>
+            {`kind mismatch: node ${id} is ${type}, rendered by ${entry.id}`}
+          </span>
+        </article>
+      );
+    }
     const kindData = data as never;
     const model = entry.shell(kindData, { nodeId: id, selected: Boolean(selected) });
     const hidden = (data as SubstrateNodeData)[SUBSTRATE_LAYOUT_KEY]?.hiddenPorts;
@@ -91,7 +108,11 @@ export function createNodeKindRegistry(
       if (cached) return cached;
       const types: NodeTypes = {};
       for (const [id, entry] of entries) {
-        types[id] = kindComponent(entry, Widget);
+        const component = kindComponent(entry, Widget);
+        types[id] = component;
+        // Aliases resolve to the same component, so a saved graph naming an
+        // older type renders without the host hand-splicing the map.
+        for (const alias of entry.aliases ?? []) types[alias] = component;
       }
       compiled.set(Widget, types);
       return types;
