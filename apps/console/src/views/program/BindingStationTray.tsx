@@ -32,7 +32,7 @@ export function BindingStationTray({
   return (
     <aside
       aria-label="Binding stations"
-      className="flex w-48 shrink-0 flex-col border-r border-ij-seam bg-ij-panel"
+      className="flex w-rec-side-panel shrink-0 flex-col border-r border-ij-seam bg-transparent"
       data-binding-station-tray
     >
       <header className="border-b border-ij-seam px-3 py-2">
@@ -43,7 +43,7 @@ export function BindingStationTray({
           Select a node, or drag a preset onto one.
         </p>
       </header>
-      <div className="grid gap-2 overflow-auto p-2">
+      <div className="grid gap-0.5 overflow-auto p-2">
         {presets.map((preset) => {
           const roster = visiblePresetRoster(preset);
           return (

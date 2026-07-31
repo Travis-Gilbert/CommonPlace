@@ -292,6 +292,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   /** Positions, collapse, advanced-port state, and reroute waypoints. */
   const [layoutDoc, setLayoutDoc] = useState<CanvasLayoutDocument>(EMPTY_LAYOUT);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyingStationRef = useRef(false);
   const programIdRef = useRef(programId);
   const definitionRef = useRef(definition);
   const edgesRef = useRef(edges);
@@ -996,6 +997,9 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     preset: ProgramBindingPreset,
     nodeId: string,
   ): Promise<void> => {
+    if (busy || applyingStationRef.current) return;
+    applyingStationRef.current = true;
+    const generation = draftGeneration.current;
     setBusy(true);
     setError(null);
     try {
@@ -1010,6 +1014,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
           definitionRef.current,
           toLayoutWire(layoutRef.current),
         );
+        if (generation !== draftGeneration.current) return;
         targetProgramId = typeof saved.node_id === 'string'
           ? saved.node_id
           : typeof saved.id === 'string'
@@ -1029,6 +1034,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
         nodeId,
         presetId: preset.preset_id,
       });
+      if (generation !== draftGeneration.current) return;
       const currentDefinition = definitionRef.current;
       const nextDefinition: ProgramDefinition = {
         ...currentDefinition,
@@ -1051,11 +1057,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       scheduleSave(nextDefinition, layoutRef.current, targetProgramId);
       setNotice(`Applied ${preset.display_name} to ${nodeId}.`);
     } catch (stationError) {
-      setError(stationError instanceof Error ? stationError.message : String(stationError));
+      if (generation === draftGeneration.current) {
+        setError(stationError instanceof Error ? stationError.message : String(stationError));
+      }
     } finally {
       setBusy(false);
+      applyingStationRef.current = false;
     }
-  }, [scheduleSave]);
+  }, [busy, scheduleSave]);
 
   const onBindingStationDrop = useCallback((
     event: ReactDragEvent<HTMLDivElement>,

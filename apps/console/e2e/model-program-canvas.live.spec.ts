@@ -72,11 +72,21 @@ test.describe('deployed Model and Program Canvas acceptance', () => {
       return body?.tool === 'programmable_graph_apply'
         && body.action === 'drop_binding_preset';
     });
-    await page
+    const sealedPreset = page
       .locator('[data-binding-station-tray] [data-sealed="true"]')
-      .first()
-      .click();
+      .first();
+    const selectedPresetId = await sealedPreset.getAttribute('data-preset-id');
+    if (!selectedPresetId) throw new Error('sealed binding preset is missing data-preset-id');
+    await sealedPreset.click();
     await expect((await dropResponse).ok()).toBe(true);
-    await expect(programNode.getByText(/station$/)).toBeVisible();
+    await expect(programNode.getByText(selectedPresetId, { exact: false })).toBeVisible();
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-shell]')).toBeVisible();
+    await page.locator('[data-block-palette="program"]').click();
+    await expect(page.locator('[data-program-canvas]')).toBeVisible();
+    await expect(
+      page.locator('.react-flow__node').first().getByText(selectedPresetId, { exact: false }),
+    ).toBeVisible();
   });
 });

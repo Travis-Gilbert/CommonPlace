@@ -45,7 +45,7 @@ describe('binding station disclosure', () => {
       sealed: false,
     })).toMatchObject({
       id: 'station',
-      text: 'pair station',
+      text: 'pair station (preset:principal)',
     });
   });
 });
