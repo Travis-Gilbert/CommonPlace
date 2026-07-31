@@ -5,10 +5,13 @@ import type {
   CanvasProjection,
   CatalogEntry,
   CompilerProposal,
+  ProgramBindingPreset,
   ProgramDefinition,
   ProgramPort,
   ProgramRunOptions,
   ProgramRunReceipt,
+  ProgramStationTopology,
+  StationDropReceipt,
 } from '@commonplace/program-contracts';
 import {
   edgeSchemaValidationFromResponse,
@@ -63,6 +66,37 @@ export async function fetchProgramContext(): Promise<{ tenantId: string }> {
 export async function fetchStarterPrograms(): Promise<ProgramDefinition[]> {
   const data = await callProgramGraph('starters');
   return Array.isArray(data.programs) ? data.programs as ProgramDefinition[] : [];
+}
+
+export async function fetchBindingPresets(): Promise<ProgramBindingPreset[]> {
+  const data = await callProgramGraph('binding_presets');
+  return Array.isArray(data.presets) ? data.presets as ProgramBindingPreset[] : [];
+}
+
+export async function dropBindingPreset(input: {
+  readonly programId: string;
+  readonly nodeId: string;
+  readonly presetId: string;
+  readonly requestedTopology?: ProgramStationTopology;
+}): Promise<StationDropReceipt> {
+  const data = await callProgramGraph(
+    'drop_binding_preset',
+    {
+      drop: {
+        program_id: input.programId,
+        node_id: input.nodeId,
+        preset_id: input.presetId,
+        ...(input.requestedTopology
+          ? { requested_topology: input.requestedTopology }
+          : {}),
+      },
+    },
+    'programmable_graph_apply',
+  );
+  if (!data.receipt || typeof data.receipt !== 'object' || Array.isArray(data.receipt)) {
+    throw new Error('drop_binding_preset_missing_receipt');
+  }
+  return data.receipt as unknown as StationDropReceipt;
 }
 
 export type ProgramListItem = {

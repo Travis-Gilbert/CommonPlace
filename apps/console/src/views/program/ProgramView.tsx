@@ -3,7 +3,14 @@
 // SOURCING: @xyflow/react wrap for SPEC-PROGRAM-CANVAS-1.0 ProgramView (PG3-PG6).
 // Catalog-driven nodes; MCP catalog/list/load/save/valid_next; no fixture path.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+} from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -50,6 +57,7 @@ import type {
   JsonValue,
   PinnedNodeValue,
   ProcessLiveness,
+  ProgramBindingPreset,
   ProgramDefinition,
   ProgramDiff,
   ProgramRunOptions,
@@ -60,6 +68,10 @@ import { BlockShell } from '@/components/block/BlockShell';
 import { degradationFor } from '@/lib/degradation';
 import { PROGRAM_NODE_KIND, programNodeKind, type ProgramNodeData } from './programNodeKind';
 import { ProgramWidget } from './ProgramWidget';
+import {
+  BINDING_PRESET_DRAG_TYPE,
+  BindingStationTray,
+} from './BindingStationTray';
 import { PlaceholderNode } from './PlaceholderNode';
 import { NodePalette } from './NodePalette';
 import { RunRail } from './RunRail';
@@ -74,6 +86,8 @@ import {
 import { applyRunEvent } from './liveness';
 import { programNodeFromCatalog } from './catalogNode';
 import {
+  dropBindingPreset,
+  fetchBindingPresets,
   fetchProgramCatalog,
   fetchProgramContext,
   fetchProgramSpill,
@@ -179,6 +193,7 @@ function definitionToFlow(
       refusal: entry ? undefined : `Unknown catalog id ${node.block_id}`,
       bypassed: node.bypassed,
       muted: node.muted,
+      station: node.station ?? undefined,
       collapsed: nodeLayout?.collapsed,
       advancedOpen: nodeLayout?.advancedOpen,
       connectedInputs: connectedByNode.get(node.id) ?? [],
@@ -244,6 +259,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [programs, setPrograms] = useState<ProgramListItem[]>([]);
   const [starters, setStarters] = useState<ProgramDefinition[]>([]);
+  const [bindingPresets, setBindingPresets] = useState<ProgramBindingPreset[]>([]);
   const [programId, setProgramId] = useState<string | null>(null);
   const [definition, setDefinition] = useState<ProgramDefinition>(() => emptyDraft(''));
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -320,12 +336,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       fetchProgramCatalog(),
       listPrograms(),
       fetchStarterPrograms(),
+      fetchBindingPresets(),
     ])
-      .then(([context, entries, items, starterPrograms]) => {
+      .then(([context, entries, items, starterPrograms, presets]) => {
         setTenantId(context.tenantId);
         setCatalog(entries);
         setPrograms(items);
         setStarters(starterPrograms);
+        setBindingPresets(presets);
         setDefinition((current) => current.tenant_id
           ? current
           : emptyDraft(context.tenantId));
@@ -636,12 +654,12 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const familyForHandle = useCallback(
     (nodeId: string, handleId: string | null): EdgeFamily | undefined => {
       if (!handleId) return undefined;
-      const node = definitionRef.current.nodes.find((candidate) => candidate.id === nodeId);
+      const node = definition.nodes.find((candidate) => candidate.id === nodeId);
       const port = node?.outputs.find((candidate) => candidate.id === handleId)
         ?? node?.inputs.find((candidate) => candidate.id === handleId);
       return port ? shapeClassFor(port.shape_id) : undefined;
     },
-    [],
+    [definition.nodes],
   );
 
   const ConnectionLine = useMemo(
@@ -731,6 +749,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       lifecycle: entry.lifecycle,
       bypassed: false,
       muted: false,
+      station: programNode.station ?? undefined,
       connectedInputs: [],
       tweaks: {},
       onToggleCollapsed: () => nodeHandlers.onToggleCollapsed(id),
@@ -831,6 +850,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             : {}),
         },
       };
+      definitionRef.current = nextDefinition;
       setDefinition(nextDefinition);
       setNodes(nextNodes);
       setEdges(nextEdges);
@@ -971,6 +991,89 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       : node));
     setNotice(`Pinned ${selectedNodeId}. The next run will serve its stale value.`);
   }
+
+  const applyBindingStation = useCallback(async (
+    preset: ProgramBindingPreset,
+    nodeId: string,
+  ): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+
+      let targetProgramId = programIdRef.current;
+      if (!targetProgramId) {
+        const saved = await saveProgramDraft(
+          definitionRef.current,
+          toLayoutWire(layoutRef.current),
+        );
+        targetProgramId = typeof saved.node_id === 'string'
+          ? saved.node_id
+          : typeof saved.id === 'string'
+            ? saved.id
+            : typeof saved.program_id === 'string'
+              ? saved.program_id
+              : null;
+        if (!targetProgramId) {
+          throw new Error('station_drop_program_id_missing');
+        }
+        programIdRef.current = targetProgramId;
+        setProgramId(targetProgramId);
+      }
+
+      const receipt = await dropBindingPreset({
+        programId: targetProgramId,
+        nodeId,
+        presetId: preset.preset_id,
+      });
+      const currentDefinition = definitionRef.current;
+      const nextDefinition: ProgramDefinition = {
+        ...currentDefinition,
+        nodes: currentDefinition.nodes.map((node) => node.id === nodeId
+          ? { ...node, station: receipt.station }
+          : node),
+        metadata: { ...currentDefinition.metadata, draft: true },
+      };
+      definitionRef.current = nextDefinition;
+      setDefinition(nextDefinition);
+      setNodes((current) => current.map((node) => node.id === nodeId
+        ? {
+            ...node,
+            data: {
+              ...(node.data as unknown as ProgramNodeData),
+              station: receipt.station,
+            },
+          }
+        : node));
+      scheduleSave(nextDefinition, layoutRef.current, targetProgramId);
+      setNotice(`Applied ${preset.display_name} to ${nodeId}.`);
+    } catch (stationError) {
+      setError(stationError instanceof Error ? stationError.message : String(stationError));
+    } finally {
+      setBusy(false);
+    }
+  }, [scheduleSave]);
+
+  const onBindingStationDrop = useCallback((
+    event: ReactDragEvent<HTMLDivElement>,
+  ): void => {
+    const presetId = event.dataTransfer.getData(BINDING_PRESET_DRAG_TYPE);
+    if (!presetId) return;
+    event.preventDefault();
+    const target = event.target instanceof Element
+      ? event.target.closest<HTMLElement>('.react-flow__node')
+      : null;
+    const nodeId = target?.dataset.id;
+    const preset = bindingPresets.find((candidate) => candidate.preset_id === presetId);
+    if (!nodeId || !preset) {
+      setError('Drop a binding station directly onto a program node.');
+      return;
+    }
+    void applyBindingStation(preset, nodeId);
+  }, [applyBindingStation, bindingPresets]);
 
   async function publishSelected(): Promise<void> {
     setBusy(true);
@@ -1240,7 +1343,22 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       className="bg-transparent text-ij-ink"
     >
       <div className="relative flex h-full min-h-96">
-        <div className="relative min-h-96 min-w-0 flex-1">
+        <BindingStationTray
+          presets={bindingPresets}
+          selectedNodeId={selectedNodeId}
+          busy={busy}
+          onApply={(preset, nodeId) => void applyBindingStation(preset, nodeId)}
+        />
+        <div
+          className="relative min-h-96 min-w-0 flex-1"
+          onDragOver={(event) => {
+            if (event.dataTransfer.types.includes(BINDING_PRESET_DRAG_TYPE)) {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={onBindingStationDrop}
+        >
           <ReactFlow
             nodes={nodes}
             edges={renderedEdges}

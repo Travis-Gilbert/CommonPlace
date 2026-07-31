@@ -1,6 +1,6 @@
 'use client';
 
-// SOURCING: @commonplace/canvas-substrate node-kind registry — the program node
+// SOURCING: @commonplace/canvas-substrate node-kind registry: the program node
 // is registered as a kind rather than shipping its own node component, which is
 // the property that keeps the substrate shell kind-agnostic (issue 144 A).
 //
@@ -33,6 +33,7 @@ import type {
   CatalogLifecycle,
   ProcessLiveness,
   ProgramNodeKind as ProgramNodeKindContract,
+  ProgramStationFields,
 } from '@commonplace/program-contracts';
 import { isWidgetizableShape, shapeClassFor } from './shapeHue';
 
@@ -62,6 +63,7 @@ export interface ProgramNodeData {
   readonly catalog?: CatalogEntry;
   readonly bypassed?: boolean;
   readonly muted?: boolean;
+  readonly station?: ProgramStationFields;
   /** Input port ids that already have an incoming edge; these stay ports. */
   readonly connectedInputs?: readonly string[];
   /**
@@ -128,6 +130,18 @@ function livenessStatus(liveness: ProcessLiveness | undefined): NodeStatus | und
   }
 }
 
+export function stationBadgeFor(station: ProgramStationFields | undefined): NodeBadge | null {
+  return station
+    ? {
+        id: 'station',
+        text: `${station.compiled_topology} station`,
+        mono: true,
+        tone: 'gold',
+        title: `Binding preset ${station.preset_id}`,
+      }
+    : null;
+}
+
 function badgesFor(node: ProgramNodeData): NodeBadge[] {
   const badges: NodeBadge[] = [];
   if (node.catalog) {
@@ -148,6 +162,8 @@ function badgesFor(node: ProgramNodeData): NodeBadge[] {
   }
   if (node.pinned) badges.push({ id: 'pinned', text: 'pinned', mono: true, tone: 'gold' });
   if (node.stale) badges.push({ id: 'stale', text: 'stale', mono: true, tone: 'warn' });
+  const stationBadge = stationBadgeFor(node.station);
+  if (stationBadge) badges.push(stationBadge);
   return badges;
 }
 
