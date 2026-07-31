@@ -1,6 +1,12 @@
 import 'server-only';
 
-import { createParser } from 'eventsource-parser';
+import { createHash } from 'node:crypto';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError,
+} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { McpError } from '@modelcontextprotocol/sdk/types.js';
 import {
   principalTenantHeaders,
   resolveHarnessPrincipal,
@@ -13,9 +19,25 @@ export type HarnessMcpResult =
   | { ok: true; data: Record<string, unknown>; principal: HarnessPrincipal }
   | { ok: false; response: Response };
 
-const MCP_PROTOCOL_VERSION = '2025-06-18';
-const MCP_TEARDOWN_TIMEOUT_MS = 2_000;
-const MCP_SSE_MAX_BUFFER_SIZE = 1024 * 1024;
+type HarnessMcpClient = {
+  client: Client;
+  transport: StreamableHTTPClientTransport;
+};
+
+type CachedHarnessMcpClient = {
+  pending: Promise<HarnessMcpClient>;
+  lastUsedAt: number;
+};
+
+const MCP_CLIENT_IDLE_TTL_MS = 5 * 60_000;
+const MCP_CLIENT_CACHE_MAX_ENTRIES = 64;
+const clientByCredential = new Map<string, CachedHarnessMcpClient>();
+
+class MissingMcpSessionError extends Error {
+  constructor() {
+    super('MCP initialize completed without a session id');
+  }
+}
 
 export async function callHarnessMcp(
   name: string,
@@ -30,118 +52,31 @@ export async function callHarnessMcp(
       response: Response.json({ error: 'console_harness_unconfigured' }, { status: 404 }),
     };
   }
+
   const endpoint = `${base.replace(/\/(?:mcp)?\/?$/, '')}/mcp`;
+  const credential = process.env.CONSOLE_HARNESS_TOKEN?.trim() ?? '';
+  const cacheKey = credentialCacheKey(
+    endpoint,
+    credential,
+    resolution.principal.tenant,
+    resolution.principal.harnessIdentity,
+  );
   const timeout = startHarnessRequestTimeout();
-  const headers = {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': MCP_PROTOCOL_VERSION,
-    ...principalTenantHeaders(resolution.principal),
-    ...(process.env.CONSOLE_HARNESS_TOKEN
-      ? { Authorization: `Bearer ${process.env.CONSOLE_HARNESS_TOKEN}` }
-      : {}),
-  };
-  let sessionId: string | null = null;
-  let sessionProtocolVersion = MCP_PROTOCOL_VERSION;
+  let activeClient: HarnessMcpClient | undefined;
   try {
-    const initializeRequestId = `initialize-${Date.now()}`;
-    const initialized = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: initializeRequestId,
-        method: 'initialize',
-        params: {
-          protocolVersion: MCP_PROTOCOL_VERSION,
-          capabilities: {},
-          clientInfo: { name: 'commonplace-console', version: '1' },
-        },
-      }),
-      cache: 'no-store',
+    const result = await callToolWithSessionRetry({
+      endpoint,
+      credential,
+      cacheKey,
+      principal: resolution.principal,
+      name,
+      argumentsValue,
       signal: timeout.signal,
+      onConnection(connection) {
+        activeClient = connection;
+      },
     });
-    const initializePayload = await readMcpPayload(initialized, initializeRequestId);
-    const initializeResult = record(initializePayload?.result);
-    const negotiatedProtocolVersion =
-      typeof initializeResult?.protocolVersion === 'string'
-        ? initializeResult.protocolVersion.trim()
-        : '';
-    sessionId = initialized.headers.get('mcp-session-id')?.trim() || null;
-    if (!initialized.ok || !sessionId || !initializeResult || !negotiatedProtocolVersion) {
-      return {
-        ok: false,
-        response: Response.json(
-          { error: 'harness_mcp_initialization_failed', status: initialized.status },
-          { status: initialized.ok ? 502 : initialized.status },
-        ),
-      };
-    }
-    sessionProtocolVersion = negotiatedProtocolVersion;
-
-    const sessionHeaders = {
-      ...headers,
-      'MCP-Protocol-Version': sessionProtocolVersion,
-      'MCP-Session-Id': sessionId,
-    };
-    const ready = await fetch(endpoint, {
-      method: 'POST',
-      headers: sessionHeaders,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'notifications/initialized',
-      }),
-      cache: 'no-store',
-      signal: timeout.signal,
-    });
-    if (!ready.ok) {
-      return {
-        ok: false,
-        response: Response.json(
-          { error: 'harness_mcp_initialization_failed', status: ready.status },
-          { status: ready.status },
-        ),
-      };
-    }
-    await ready.arrayBuffer();
-
-    const toolRequestId = `${name}-${Date.now()}`;
-    const upstream = await fetch(endpoint, {
-      method: 'POST',
-      headers: sessionHeaders,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: toolRequestId,
-        method: 'tools/call',
-        params: {
-          name,
-          arguments: identityBoundArguments(argumentsValue, resolution.principal),
-        },
-      }),
-      cache: 'no-store',
-      signal: timeout.signal,
-    });
-    const payload = await readMcpPayload(upstream, toolRequestId);
-    if (!upstream.ok) {
-      return {
-        ok: false,
-        response: Response.json(
-          { error: 'harness_mcp_failed', status: upstream.status },
-          { status: upstream.status },
-        ),
-      };
-    }
-    const rpcError = record(payload?.error);
-    if (rpcError) {
-      return {
-        ok: false,
-        response: Response.json(
-          { error: 'harness_mcp_refused', detail: rpcError.message },
-          { status: 502 },
-        ),
-      };
-    }
-    const data = normalizeResult(payload?.result);
+    const data = normalizeResult(result);
     if (!data) {
       return {
         ok: false,
@@ -149,74 +84,229 @@ export async function callHarnessMcp(
       };
     }
     return { ok: true, data, principal: resolution.principal };
-  } catch {
+  } catch (error) {
+    if (timeout.didTimeout() && activeClient) {
+      void evictClient(cacheKey, activeClient);
+    }
     return {
       ok: false,
-      response: Response.json(
-        { error: timeout.didTimeout() ? 'harness_mcp_timeout' : 'harness_mcp_unreachable' },
-        { status: timeout.didTimeout() ? 504 : 502 },
-      ),
+      response: transportFailureResponse(error, timeout.didTimeout(), activeClient),
     };
   } finally {
-    if (sessionId) {
-      await fetch(endpoint, {
-        method: 'DELETE',
-        headers: {
-          ...headers,
-          'MCP-Protocol-Version': sessionProtocolVersion,
-          'MCP-Session-Id': sessionId,
-        },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(MCP_TEARDOWN_TIMEOUT_MS),
-      }).catch(() => null);
-    }
     timeout.clear();
   }
 }
 
-async function readMcpPayload(
-  response: Response,
-  expectedId: string,
-): Promise<Record<string, unknown> | null> {
-  if (response.headers.get('content-type')?.includes('application/json')) {
-    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
-    return payload?.id === expectedId ? payload : null;
-  }
-  const reader = response.body?.getReader();
-  if (!reader) return null;
-
-  const decoder = new TextDecoder();
-  let matched: Record<string, unknown> | null = null;
-  let parseFailed = false;
-  const parser = createParser({
-    maxBufferSize: MCP_SSE_MAX_BUFFER_SIZE,
-    onEvent(event) {
-      if (matched) return;
-      try {
-        const payload = record(JSON.parse(event.data));
-        if (payload?.id === expectedId) matched = payload;
-      } catch {
-        // A malformed or request-scoped event is not the matching response.
+async function callToolWithSessionRetry(input: {
+  endpoint: string;
+  credential: string;
+  cacheKey: string;
+  principal: HarnessPrincipal;
+  name: string;
+  argumentsValue: Record<string, unknown>;
+  signal: AbortSignal;
+  onConnection?: (connection: HarnessMcpClient) => void;
+}): Promise<unknown> {
+  let connection = await clientForCredential(input);
+  input.onConnection?.(connection);
+  try {
+    return await callTool(connection, input);
+  } catch (error) {
+    if (!isSessionError(error, connection)) throw error;
+    await evictClient(input.cacheKey, connection);
+    connection = await clientForCredential(input);
+    input.onConnection?.(connection);
+    try {
+      return await callTool(connection, input);
+    } catch (retryError) {
+      if (isSessionError(retryError, connection)) {
+        await evictClient(input.cacheKey, connection);
       }
+      throw retryError;
+    }
+  }
+}
+
+async function callTool(
+  connection: HarnessMcpClient,
+  input: {
+    name: string;
+    argumentsValue: Record<string, unknown>;
+    principal: HarnessPrincipal;
+    signal: AbortSignal;
+  },
+): Promise<unknown> {
+  return connection.client.callTool(
+    {
+      name: input.name,
+      arguments: identityBoundArguments(input.argumentsValue, input.principal),
     },
-    onError() {
-      parseFailed = true;
+    undefined,
+    { signal: input.signal },
+  );
+}
+
+async function clientForCredential(input: {
+  endpoint: string;
+  credential: string;
+  cacheKey: string;
+  principal: HarnessPrincipal;
+  signal: AbortSignal;
+}): Promise<HarnessMcpClient> {
+  await evictIdleClients();
+  const cached = clientByCredential.get(input.cacheKey);
+  if (cached) {
+    cached.lastUsedAt = Date.now();
+    return cached.pending;
+  }
+
+  const pending = createClient(input);
+  const entry = { pending, lastUsedAt: Date.now() };
+  clientByCredential.set(input.cacheKey, entry);
+  void pending.catch(() => {
+    if (clientByCredential.get(input.cacheKey) === entry) {
+      clientByCredential.delete(input.cacheKey);
+    }
+  });
+  await evictOverflowClients(input.cacheKey);
+  return pending;
+}
+
+async function createClient(input: {
+  endpoint: string;
+  credential: string;
+  principal: HarnessPrincipal;
+  signal: AbortSignal;
+}): Promise<HarnessMcpClient> {
+  const transport = new StreamableHTTPClientTransport(new URL(input.endpoint), {
+    requestInit: {
+      cache: 'no-store',
+      headers: {
+        ...principalTenantHeaders(input.principal),
+        ...(input.credential
+          ? { Authorization: `Bearer ${input.credential}` }
+          : {}),
+      },
     },
   });
+  const client = new Client(
+    { name: 'commonplace-console', version: '1' },
+    { capabilities: {} },
+  );
   try {
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) {
-        parser.feed(decoder.decode());
-        parser.reset({ consume: true });
-        return matched;
-      }
-      parser.feed(decoder.decode(chunk.value, { stream: true }));
-      if (matched || parseFailed) return matched;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
+    await client.connect(transport, { signal: input.signal });
+    if (!transport.sessionId) throw new MissingMcpSessionError();
+    return { client, transport };
+  } catch (error) {
+    await client.close().catch(() => undefined);
+    throw error;
   }
+}
+
+async function evictClient(
+  cacheKey: string,
+  expected?: HarnessMcpClient,
+  expectedEntry?: CachedHarnessMcpClient,
+): Promise<void> {
+  const entry = clientByCredential.get(cacheKey);
+  if (!entry || (expectedEntry && entry !== expectedEntry)) return;
+  const connection = await entry.pending.catch(() => null);
+  if (expected && connection !== expected) return;
+  if (clientByCredential.get(cacheKey) === entry) {
+    clientByCredential.delete(cacheKey);
+  }
+  await connection?.transport.terminateSession().catch(() => undefined);
+  await connection?.client.close().catch(() => undefined);
+}
+
+async function evictIdleClients(): Promise<void> {
+  const staleBefore = Date.now() - MCP_CLIENT_IDLE_TTL_MS;
+  const stale = [...clientByCredential.entries()].filter(
+    ([, entry]) => entry.lastUsedAt <= staleBefore,
+  );
+  for (const [cacheKey, entry] of stale) {
+    await evictClient(cacheKey, undefined, entry);
+  }
+}
+
+async function evictOverflowClients(activeCacheKey: string): Promise<void> {
+  if (clientByCredential.size <= MCP_CLIENT_CACHE_MAX_ENTRIES) return;
+  const oldest = [...clientByCredential.entries()]
+    .filter(([cacheKey]) => cacheKey !== activeCacheKey)
+    .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt);
+  for (const [cacheKey, entry] of oldest) {
+    if (clientByCredential.size <= MCP_CLIENT_CACHE_MAX_ENTRIES) break;
+    await evictClient(cacheKey, undefined, entry);
+  }
+}
+
+function credentialCacheKey(
+  endpoint: string,
+  credential: string,
+  tenant: string,
+  principalIdentity: string,
+): string {
+  return createHash('sha256')
+    .update(endpoint)
+    .update('\0')
+    .update(credential)
+    .update('\0')
+    .update(tenant)
+    .update('\0')
+    .update(principalIdentity)
+    .digest('hex');
+}
+
+function isSessionError(
+  error: unknown,
+  connection?: HarnessMcpClient,
+): boolean {
+  if (
+    error instanceof StreamableHTTPError
+    && error.code === 404
+    && connection?.transport.sessionId
+  ) {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /mcp_session_uninitialized|session(?: id)?(?: is)? (?:expired|invalid|missing|not found|uninitialized)/i
+    .test(message);
+}
+
+function transportFailureResponse(
+  error: unknown,
+  didTimeout: boolean,
+  connection?: HarnessMcpClient,
+): Response {
+  const upstreamStatus =
+    error instanceof StreamableHTTPError
+    && typeof error.code === 'number'
+    && error.code >= 400
+    && error.code <= 599
+      ? error.code
+      : null;
+  const status = didTimeout ? 504 : upstreamStatus ?? 502;
+  let code = 'harness_mcp_unreachable';
+  if (didTimeout) {
+    code = 'harness_mcp_timeout';
+  } else if (isSessionError(error, connection)) {
+    code = 'mcp_session_uninitialized';
+  } else if (upstreamStatus === 401 || upstreamStatus === 403) {
+    code = 'mcp_authentication_failed';
+  } else if (upstreamStatus === 406) {
+    code = 'mcp_not_acceptable';
+  } else if (error instanceof MissingMcpSessionError) {
+    code = 'harness_mcp_initialization_failed';
+  } else if (error instanceof McpError) {
+    code = 'harness_mcp_refused';
+  }
+  return Response.json(
+    {
+      error: code,
+      ...(upstreamStatus ? { status: upstreamStatus } : {}),
+    },
+    { status },
+  );
 }
 
 function normalizeResult(value: unknown): Record<string, unknown> | null {

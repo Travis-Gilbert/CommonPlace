@@ -10,6 +10,7 @@ vi.mock('@/lib/server/harness-mcp', () => ({
 }));
 
 import { callHarnessGraphql } from './harness-graphql';
+import { sentenceForCode } from '@/lib/degradation';
 
 const principal = {
   tenant: 'Travis-Gilbert',
@@ -89,5 +90,24 @@ describe('callHarnessGraphql', () => {
       status: 504,
       error: 'harness_graphql_timeout',
     });
+  });
+
+  it.each([
+    [401, 'mcp_authentication_failed'],
+    [404, 'mcp_session_uninitialized'],
+    [406, 'mcp_not_acceptable'],
+  ])('preserves named MCP failure %s through the GraphQL adapter', async (status, error) => {
+    const response = Response.json({ error }, { status });
+    callHarnessMcpMock.mockResolvedValue({ ok: false, response });
+
+    const result = await callHarnessGraphql('query { status }');
+
+    expect(result).toMatchObject({ ok: false, status, error });
+    expect(sentenceForCode(result.ok ? '' : result.error)).not.toBe(
+      'This surface cannot render right now.',
+    );
+    if (status === 401 && !result.ok) {
+      expect(result.response).toBe(response);
+    }
   });
 });

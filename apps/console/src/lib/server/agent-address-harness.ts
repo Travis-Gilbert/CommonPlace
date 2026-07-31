@@ -47,6 +47,7 @@ export async function mintAgentAlias(input: {
       }
     }`,
     input,
+    'mutate',
   );
   if (!result.ok) return { ok: false, status: result.status, error: result.error };
   return { ok: true, alias: result.data.mintAgentAlias as AliasBlock };
@@ -63,6 +64,7 @@ export async function revokeAgentAlias(alias: string): Promise<
       }
     }`,
     { alias },
+    'mutate',
   );
   if (!result.ok) return { ok: false, status: result.status, error: result.error };
   return { ok: true, alias: result.data.revokeAgentAlias as AliasBlock };

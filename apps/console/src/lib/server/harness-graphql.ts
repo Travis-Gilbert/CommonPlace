@@ -11,6 +11,12 @@ export type HarnessGraphqlResult =
   | { ok: true; data: Record<string, unknown>; principal: HarnessPrincipal }
   | { ok: false; status: number; error: string; response?: Response };
 
+const NAMED_MCP_FAILURES = new Set([
+  'mcp_authentication_failed',
+  'mcp_session_uninitialized',
+  'mcp_not_acceptable',
+]);
+
 export async function callHarnessGraphql(
   query: string,
   variables: Record<string, unknown> = {},
@@ -44,6 +50,14 @@ async function graphqlFailure(response: Response): Promise<HarnessGraphqlResult>
   const code = typeof payload?.error === 'string' ? payload.error : '';
   const responseForCaller =
     response.status === 401 || response.status === 403 ? response : undefined;
+  if (NAMED_MCP_FAILURES.has(code)) {
+    return {
+      ok: false,
+      status: response.status,
+      error: code,
+      ...(responseForCaller ? { response: responseForCaller } : {}),
+    };
+  }
   if (response.status === 401 || response.status === 403) {
     return {
       ok: false,

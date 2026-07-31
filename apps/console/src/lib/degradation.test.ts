@@ -14,6 +14,9 @@ describe('degradationFor', () => {
       'harness_graphql_timeout',
       'harness_graphql_unconfigured',
       'harness_graphql_unreachable',
+      'mcp_authentication_failed',
+      'mcp_session_uninitialized',
+      'mcp_not_acceptable',
       'observed_model_graphql_failed',
       'observed_model_graphql_timeout',
       'observed_model_graphql_unconfigured',
@@ -40,6 +43,12 @@ describe('degradationFor', () => {
     const result = degradationFor('console_data_api_unreachable');
     expect(result.level).toBe('unavailable');
     expect(result.cause.toLowerCase()).toMatch(/data|unreachable|transport|api/);
+  });
+
+  it('names MCP authentication, session, and response negotiation failures', () => {
+    expect(sentenceForCode('mcp_authentication_failed')).toMatch(/credential|account/i);
+    expect(sentenceForCode('mcp_session_uninitialized')).toMatch(/session|expired/i);
+    expect(sentenceForCode('mcp_not_acceptable')).toMatch(/response|format|protocol/i);
   });
 
   it('reports unmapped codes in development without shipping the code to the user', () => {

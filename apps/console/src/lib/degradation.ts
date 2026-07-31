@@ -42,6 +42,21 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     cause: 'The Harness service is unreachable.',
     actionLabel: 'Retry',
   },
+  mcp_authentication_failed: {
+    level: 'unavailable',
+    cause: 'The Harness credential was rejected.',
+    actionLabel: 'Open Account',
+  },
+  mcp_session_uninitialized: {
+    level: 'unavailable',
+    cause: 'The Harness session expired before the request completed.',
+    actionLabel: 'Retry',
+  },
+  mcp_not_acceptable: {
+    level: 'unavailable',
+    cause: 'The Harness client and service could not agree on an MCP response format.',
+    actionLabel: 'Retry',
+  },
   observed_model_graphql_failed: {
     level: 'unavailable',
     cause: 'The observed model could not be loaded.',
