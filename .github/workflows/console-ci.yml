@@ -21,6 +21,8 @@ on:
       - "packages/theorem-acp/**"
       - "packages/program-contracts/**"
       - "packages/model-canvas/**"
+      - "packages/canvas-substrate/**"
+      - "packages/data-model-contracts/**"
       - "packages/okf/**"
       - ".github/workflows/console-ci.yml"
 
@@ -130,6 +132,16 @@ jobs:
 
       - name: Model canvas / OKF typecheck (MF1)
         run: pnpm --filter @commonplace/okf run check && pnpm --filter @commonplace/model-canvas run check
+
+      # The console design gates only walk apps/console/src, so a package is
+      # outside every one of them. Typecheck and test the canvas substrate here
+      # explicitly, or the shell both canvases render through goes unchecked.
+      - name: Canvas substrate typecheck and tests
+        run: |
+          pnpm --filter @commonplace/canvas-substrate run check
+          pnpm --filter @commonplace/canvas-substrate run test
+          pnpm --filter @commonplace/model-canvas run test
+          pnpm --filter @commonplace/data-model-contracts run test
 
       - name: Console block typecheck
         run: pnpm --filter @commonplace/console-block run check

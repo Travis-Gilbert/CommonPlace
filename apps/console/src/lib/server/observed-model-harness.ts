@@ -30,6 +30,7 @@ import {
   type ViewFilterOp,
   type ViewMetadata,
   type ViewSort,
+  parseProviderFacet,
 } from '@commonplace/data-model-contracts';
 import {
   callHarnessGraphql,
@@ -344,6 +345,7 @@ function normalizeObjectType(value: unknown): ObjectTypeMetadata | null {
     system: Boolean(source.system),
     contentAnchor: text(sourceValue(source, 'contentAnchor', 'content_anchor'), id),
     ...(recordCount !== undefined ? { recordCount } : {}),
+    provider: parseProviderFacet(source.provider),
     icon: text(source.icon) || undefined,
     tint: text(source.tint) || undefined,
     provenance: normalizeMetadataProvenance(source),
@@ -514,6 +516,7 @@ function normalizeVersion(value: unknown, scope: ScopeRef): SchemaVersion | null
       ? source.version
       : 0,
     status,
+    contentAnchor: text(sourceValue(source, 'contentAnchor', 'content_anchor')) || undefined,
     objectTypeIds: stringList(sourceValue(source, 'objectTypeIds', 'object_type_ids')),
     fieldIds: stringList(sourceValue(source, 'fieldIds', 'field_ids')),
     relationIds: stringList(sourceValue(source, 'relationIds', 'relation_ids')),

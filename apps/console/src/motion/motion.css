@@ -26,6 +26,35 @@
   transition: stroke-dashoffset var(--ij-motion) var(--ij-ease);
 }
 
+/* Canvas substrate running edges (issue 144 B). Flow direction is carried by a
+   staggered opacity cascade across three pips sampled along the wire, producer
+   to consumer. Opacity only: this register permits transform and opacity, and
+   animating stroke-dashoffset would repaint the whole path every frame, which
+   is the cost that rule exists to prevent. Only edges the substrate's animation
+   budget admitted render pips at all -- past the cap, and under reduced motion,
+   a running edge keeps its width bump and stands still. */
+@keyframes substrate-edge-pip {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  35% {
+    opacity: 1;
+  }
+}
+
+.substrate-edge-pip {
+  animation: substrate-edge-pip calc(var(--ij-motion) * 4) linear infinite;
+}
+
+.substrate-edge-pip[data-substrate-pip='1'] {
+  animation-delay: calc(var(--ij-motion) * 0.6);
+}
+
+.substrate-edge-pip[data-substrate-pip='2'] {
+  animation-delay: calc(var(--ij-motion) * 1.2);
+}
+
 .ij-progress-indeterminate {
   position: relative;
   overflow: hidden;
@@ -54,6 +83,10 @@
 
   .goal-edge-progress {
     transition: none;
+  }
+
+  .substrate-edge-running {
+    animation: none;
   }
 }
 

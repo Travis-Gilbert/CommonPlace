@@ -12,7 +12,8 @@
     "./rel-edge": "./src/components/canvas/RelEdge.tsx",
     "./diff": "./src/lib/diff.ts",
     "./store": "./src/state/model.ts",
-    "./canvas.css": "./src/components/canvas/canvas.css"
+    "./canvas.css": "./src/components/canvas/canvas.css",
+    "./kinds": "./src/kinds/modelCardKind.tsx"
   },
   "scripts": {
     "check": "npx --yes -p typescript@5.7.3 tsc --noEmit -p tsconfig.json",
@@ -23,6 +24,7 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@commonplace/canvas-substrate": "workspace:*",
     "@commonplace/okf": "workspace:*",
     "@dagrejs/dagre": "^1.1.0",
     "@xyflow/react": "^12.11.2",
@@ -34,6 +36,8 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "jsdom": "29.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "typescript": "^5.7.3",
     "vitest": "^4.1.6"
   }

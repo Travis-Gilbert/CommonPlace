@@ -21,11 +21,24 @@ export interface GraphDiff {
 const titleMap = (g: ModelGraph): Map<string, string> =>
   new Map(g.nodes.map(n => [n.key, n.title || n.key]));
 
-/** A stable identity for a join, independent of node order within the pair. */
-const joinKey = (from: string, to: string, keys: { left: string; right: string }[]): string => {
+/**
+ * A stable identity for a join, independent of node order within the pair.
+ *
+ * Cardinality and bidirectionality are part of it. Without them a relationship
+ * that kept its endpoints and join columns but changed from `N:1` to `N:N`
+ * compared equal, and the schema-version and OKF review dialogs reported
+ * "No structural changes" over a material contract change.
+ */
+const joinKey = (
+  from: string,
+  to: string,
+  keys: { left: string; right: string }[],
+  cardinality?: string,
+  bidirectional?: boolean,
+): string => {
   const pair = [from, to].sort().join("|");
   const k = keys.map(x => `${x.left}=${x.right}`).sort().join(",");
-  return `${pair}#${k}`;
+  return `${pair}#${k}#${cardinality ?? ""}#${bidirectional ? "bi" : "uni"}`;
 };
 
 export function diffGraphs(prev: ModelGraph, next: ModelGraph): GraphDiff {
@@ -68,8 +81,12 @@ export function diffGraphs(prev: ModelGraph, next: ModelGraph): GraphDiff {
     }
   }
 
-  const prevJoins = new Map(prev.edges.map(e => [joinKey(e.from, e.to, e.keys), e]));
-  const nextJoins = new Map(next.edges.map(e => [joinKey(e.from, e.to, e.keys), e]));
+  const prevJoins = new Map(
+    prev.edges.map(e => [joinKey(e.from, e.to, e.keys, e.cardinality, e.bidirectional), e]),
+  );
+  const nextJoins = new Map(
+    next.edges.map(e => [joinKey(e.from, e.to, e.keys, e.cardinality, e.bidirectional), e]),
+  );
   const label = (e: { from: string; to: string }) => `${titleOf(e.from)} → ${titleOf(e.to)}`;
   const joins = {
     added: [...nextJoins].filter(([k]) => !prevJoins.has(k)).map(([, e]) => label(e)),

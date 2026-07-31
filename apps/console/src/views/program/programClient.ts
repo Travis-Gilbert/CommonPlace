@@ -1,13 +1,17 @@
 // SOURCING: none. Console client for programmable_graph PG2 actions.
 
+import type { CanvasLayoutWire } from '@commonplace/canvas-substrate';
 import type {
   CanvasProjection,
   CatalogEntry,
   CompilerProposal,
+  ProgramBindingPreset,
   ProgramDefinition,
   ProgramPort,
   ProgramRunOptions,
   ProgramRunReceipt,
+  ProgramStationTopology,
+  StationDropReceipt,
 } from '@commonplace/program-contracts';
 import {
   edgeSchemaValidationFromResponse,
@@ -64,6 +68,37 @@ export async function fetchStarterPrograms(): Promise<ProgramDefinition[]> {
   return Array.isArray(data.programs) ? data.programs as ProgramDefinition[] : [];
 }
 
+export async function fetchBindingPresets(): Promise<ProgramBindingPreset[]> {
+  const data = await callProgramGraph('binding_presets');
+  return Array.isArray(data.presets) ? data.presets as ProgramBindingPreset[] : [];
+}
+
+export async function dropBindingPreset(input: {
+  readonly programId: string;
+  readonly nodeId: string;
+  readonly presetId: string;
+  readonly requestedTopology?: ProgramStationTopology;
+}): Promise<StationDropReceipt> {
+  const data = await callProgramGraph(
+    'drop_binding_preset',
+    {
+      drop: {
+        program_id: input.programId,
+        node_id: input.nodeId,
+        preset_id: input.presetId,
+        ...(input.requestedTopology
+          ? { requested_topology: input.requestedTopology }
+          : {}),
+      },
+    },
+    'programmable_graph_apply',
+  );
+  if (!data.receipt || typeof data.receipt !== 'object' || Array.isArray(data.receipt)) {
+    throw new Error('drop_binding_preset_missing_receipt');
+  }
+  return data.receipt as unknown as StationDropReceipt;
+}
+
 export type ProgramListItem = {
   readonly id: string;
   readonly name?: string;
@@ -72,10 +107,13 @@ export type ProgramListItem = {
   readonly draft?: boolean;
 };
 
-export type ProgramLayout = {
-  readonly nodes: Record<string, { x: number; y: number }>;
-  readonly node_metadata?: Record<string, { collapsed?: boolean; group_id?: string }>;
-};
+/**
+ * The canvas layout wire. The server stores `program.layout` opaquely, so this
+ * is the substrate's own wire shape rather than a narrowed copy: rebuilding it
+ * field by field is what silently dropped reroute waypoints and frames on
+ * reload, since only the keys named here survived the round trip.
+ */
+export type ProgramLayout = CanvasLayoutWire;
 
 export async function listPrograms(): Promise<ProgramListItem[]> {
   const data = await callProgramGraph('list');
@@ -108,14 +146,12 @@ export async function loadProgram(programId: string): Promise<{
   let layout: ProgramLayout | undefined;
   if (layoutRaw && typeof layoutRaw === 'object' && !Array.isArray(layoutRaw)) {
     const record = layoutRaw as Record<string, unknown>;
-    if (record.nodes && typeof record.nodes === 'object' && !Array.isArray(record.nodes)) {
-      layout = {
-        nodes: record.nodes as Record<string, { x: number; y: number }>,
-        node_metadata: record.node_metadata as ProgramLayout['node_metadata'],
-      };
-    } else {
-      layout = { nodes: layoutRaw as Record<string, { x: number; y: number }> };
-    }
+    layout = record.nodes && typeof record.nodes === 'object' && !Array.isArray(record.nodes)
+      // Pass the whole document through; `fromLayoutWire` validates it and is
+      // the single place that decides which keys are meaningful.
+      ? (record as unknown as ProgramLayout)
+      // Pre-metadata layouts were a bare positions map.
+      : { nodes: layoutRaw as ProgramLayout['nodes'] };
   }
   return { definition, layout };
 }

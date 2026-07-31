@@ -1,0 +1,37 @@
+{
+  "name": "@commonplace/canvas-substrate",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./kinds": "./src/kinds/index.ts",
+    "./edges": "./src/edges/index.ts",
+    "./layout": "./src/layout/document.ts",
+    "./substrate.css": "./src/substrate.css"
+  },
+  "scripts": {
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@commonplace/json-canvas": "workspace:*",
+    "@xyflow/react": "^12.11.2",
+    "d3-shape": "^3.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/d3-shape": "^3.1.7",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jsdom": "29.1.1",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.6"
+  }
+}

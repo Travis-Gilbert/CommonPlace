@@ -206,9 +206,11 @@ function parseDraft(fieldType: FieldType, draft: string): unknown {
     case 'boolean':
       return draft === 'true';
     case 'integer':
-      return parseNumberInput(draft) ?? 0;
     case 'number':
-      return parseNumberInput(draft) ?? 0;
+      // `?? 0` here turned "cleared" into a real zero, changing aggregates and
+      // record semantics. An empty numeric field is absent, not zero; a
+      // required-field constraint is the server's to enforce.
+      return parseNumberInput(draft);
     case 'json':
     case 'geometry':
     case 'vector':

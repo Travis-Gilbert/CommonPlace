@@ -1,3 +1,7 @@
+// SOURCING: OWOX/models MartNode hard fork (Apache-2.0) — the ERD card.
+// Its chrome now lives in the @commonplace/canvas-substrate shell; the field
+// rows exported here are the card's body (issue 144 A).
+
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { KeyRound, ChevronDown, ChevronRight } from "lucide-react";
@@ -124,6 +128,34 @@ function FieldRow({ f, onSelect }: { f: SchemaField; onSelect?: (fieldName: stri
 // readable; the rest hide behind a "+N more" toggle. PK and relationship-key
 // fields are always kept in the visible set so their edge handles exist even
 // while collapsed (edges anchor to those field rows).
+/**
+ * The ERD rows plus the ghost Declare action: everything specific to a model
+ * card rather than to nodes in general. The substrate `model-card` kind renders
+ * this as its body, which is why it is exported.
+ */
+export function ErdFieldRows({ node }: { node: MartNodeData }) {
+  return (
+    <>
+      {node._viewMode === "erd" ? <ErdBody node={node} /> : null}
+      {node._ghost && node._onDeclare ? (
+        <div className="border-t border-ij-seam px-3 py-2">
+          <button
+            type="button"
+            disabled={node._pendingDeclare}
+            onClick={(e) => {
+              e.stopPropagation();
+              node._onDeclare?.();
+            }}
+            className="w-full rounded-ij-arc border border-ij-control-border py-1.5 text-xs font-medium hover:bg-ij-hover-surface disabled:opacity-50"
+          >
+            {node._pendingDeclare ? "Declaring…" : "Declare"}
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function ErdBody({ node }: { node: MartNodeData }) {
   const [expanded, setExpanded] = useState(false);
   const schema = node.schema;

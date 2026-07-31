@@ -106,7 +106,72 @@ export interface ObjectTypeMetadata {
   readonly recordCount?: number;
   readonly icon?: string;
   readonly tint?: string;
+  /**
+   * Where this type's rows come from (Theorem `ProviderFacet`). The model
+   * canvas renders it as the card badge and `derived-program` links the type to
+   * the published program that materializes it. Absent on a registry that
+   * predates the facet, which reads as `declared-record`.
+   */
+  readonly provider?: ProviderFacet;
   readonly provenance?: MetadataProvenance;
+}
+
+/**
+ * Mirror of `rustyred_thg_schema::ProviderFacet`. The generated union ships in
+ * @commonplace/program-contracts; this alias keeps the model contracts usable
+ * without taking that dependency, and `parseProviderFacet` is the only place
+ * the two spellings have to agree.
+ */
+export type ProviderFacet =
+  | { readonly kind: 'native-view'; readonly relation?: string }
+  | { readonly kind: 'declared-record' }
+  | { readonly kind: 'derived-program'; readonly program_id: string }
+  | { readonly kind: 'connector'; readonly connector_id: string };
+
+export const DEFAULT_PROVIDER_FACET: ProviderFacet = { kind: 'declared-record' };
+
+/**
+ * Read a provider facet off a wire object. Anything unrecognised falls back to
+ * `declared-record`: a reader must never be told a type is program-derived on
+ * the strength of a malformed payload.
+ */
+export function parseProviderFacet(value: unknown): ProviderFacet {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return DEFAULT_PROVIDER_FACET;
+  }
+  const record = value as Record<string, unknown>;
+  switch (record.kind) {
+    case 'native-view':
+      return typeof record.relation === 'string'
+        ? { kind: 'native-view', relation: record.relation }
+        : { kind: 'native-view' };
+    case 'derived-program':
+      return typeof record.program_id === 'string'
+        ? { kind: 'derived-program', program_id: record.program_id }
+        : DEFAULT_PROVIDER_FACET;
+    case 'connector':
+      return typeof record.connector_id === 'string'
+        ? { kind: 'connector', connector_id: record.connector_id }
+        : DEFAULT_PROVIDER_FACET;
+    case 'declared-record':
+      return DEFAULT_PROVIDER_FACET;
+    default:
+      return DEFAULT_PROVIDER_FACET;
+  }
+}
+
+/** Short badge text for a provider facet, as the model card shows it. */
+export function providerBadgeText(provider: ProviderFacet): string {
+  switch (provider.kind) {
+    case 'native-view':
+      return provider.relation ? `VIEW ${provider.relation}` : 'VIEW';
+    case 'declared-record':
+      return 'RECORD';
+    case 'derived-program':
+      return 'PROGRAM';
+    case 'connector':
+      return provider.connector_id.toUpperCase();
+  }
 }
 
 export interface FieldMetadata {
@@ -180,6 +245,12 @@ export interface SchemaVersion {
   readonly id: string;
   readonly scope: ScopeRef;
   readonly version: string | number;
+  /**
+   * Content anchor of this version. With the sequence it is the registry change
+   * signal the ERD canvas subscribes to: same anchor means the registry did not
+   * move, whatever else a read returned.
+   */
+  readonly contentAnchor?: string;
   readonly status: 'draft' | 'declared' | 'published' | 'superseded';
   readonly objectTypeIds: readonly string[];
   readonly fieldIds: readonly string[];

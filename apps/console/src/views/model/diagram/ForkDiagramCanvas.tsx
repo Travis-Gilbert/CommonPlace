@@ -14,12 +14,15 @@ import {
 } from '@commonplace/model-canvas';
 import '@commonplace/model-canvas/canvas.css';
 import {
+  DEFAULT_PROVIDER_FACET,
   formatFieldType,
   isPinned,
+  providerBadgeText,
   type DeclaredModel,
   type ObservedModel,
   type PinKind,
 } from '@commonplace/data-model-contracts';
+import type { ModelCardData } from '@commonplace/model-canvas';
 import type { ModelSelection } from '../modelQuery';
 import type { LayoutPositions } from './layout';
 
@@ -44,6 +47,21 @@ function recordCountForType(
   if (typeof metadata?.recordCount === 'number' && Number.isFinite(metadata.recordCount)) {
     return metadata.recordCount;
   }
+  return undefined;
+}
+
+/**
+ * Observed ingest events for a declared type. Deliberately separate from the
+ * record count: an event is one write we saw, and several can touch the same
+ * record, so showing an event total where a reader expects "how many rows do I
+ * have" overstates the corpus.
+ */
+function eventCountForType(
+  declaredTypeId: string,
+  declared: DeclaredModel,
+  observed: ObservedModel,
+): number | undefined {
+  const metadata = declared.objectTypes.find((type) => type.id === declaredTypeId);
   const observedKey = metadata?.provenance?.observedKey;
   if (!observedKey) return undefined;
   return observed.types.find((type) => type.observedKey === observedKey)?.eventCount;
@@ -67,10 +85,23 @@ function registryToModelGraph(
     const fields = declared.fields.filter((f) => f.objectTypeId === type.id);
     const divergences = declared.divergences.filter((d) => d.objectTypeId === type.id);
     const divergenceCount = divergences.reduce((sum, d) => sum + d.count, 0);
-    const node: MartNodeData = {
+    const provider = type.provider ?? DEFAULT_PROVIDER_FACET;
+    const node: ModelCardData = {
       key,
       title: type.label || type.nameSingular || type.key,
       inputSource: 'TABLE',
+      // Issue 144 D: where the rows actually come from supersedes the importer
+      // chip. `derived-program` also names the program that materializes them.
+      _provider: {
+        text: providerBadgeText(provider),
+        title: provider.kind === 'derived-program'
+          ? `Materialized by ${provider.program_id}`
+          : provider.kind === 'connector'
+            ? `Arrives from ${provider.connector_id}`
+            : provider.kind === 'native-view'
+              ? `Served as a native view${provider.relation ? ` from ${provider.relation}` : ''}`
+              : 'Declared records held in the graph',
+      },
       schema: fields.map((f) => ({
         name: f.key,
         type: formatFieldType(f.fieldType),
@@ -82,6 +113,7 @@ function registryToModelGraph(
       owoxId: null,
       _viewMode: 'erd',
       _recordCount: recordCountForType(type.id, declared, observed),
+      _eventCount: eventCountForType(type.id, declared, observed),
       _divergenceCount: type.enforcement === 'warn' ? divergenceCount : 0,
     };
     nodes.push(node);
@@ -95,7 +127,7 @@ function registryToModelGraph(
     const coverage = type.fields.length
       ? type.fields.reduce((sum, field) => sum + field.coverage, 0) / type.fields.length
       : 0;
-    const node: MartNodeData = {
+    const node: ModelCardData = {
       key,
       title: type.dataType,
       inputSource: 'TABLE',
@@ -111,7 +143,8 @@ function registryToModelGraph(
       _viewMode: 'erd',
       _ghost: true,
       _coverage: coverage,
-      _recordCount: type.eventCount,
+      // A ghost is observed only, so what we have is events, never records.
+      _eventCount: type.eventCount,
       _pendingDeclare: pendingPins.includes(type.observedKey),
       _onDeclare: () => onPin(type.observedKey, 'type'),
     };

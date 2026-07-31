@@ -175,6 +175,18 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'solid completed segment with no dash movement',
   },
   {
+    trigger: 'Program canvas step runs',
+    effect: 'the running edge dashes march from producer toward consumer, so flow direction is visible while a program executes',
+    spec: 'CSS keyframes in the motion register only (.substrate-edge-running); one 6.1-unit dash cycle per loop so it seams; at most 40 edges animate at once and the rest hold a static width bump; geometry and node positions remain still',
+    reducedMotion: 'no dash movement; running edges keep the width bump alone',
+  },
+  {
+    trigger: 'Canvas wire drag',
+    effect: 'targets that cannot accept the dragged shape class dim to 35%',
+    spec: 'attribute-driven CSS in @commonplace/canvas-substrate; one data-connecting-family write on the flow root, no per-node React pass; nodes that declare no port families never dim',
+    reducedMotion: 'same; opacity change is not vestibular motion',
+  },
+  {
     trigger: 'Data canvas paper ground',
     effect: 'static Paper DotGrid behind the React Flow pane; register colors for back and fill',
     spec: 'Paper DotGrid from Island Shells extract (size 0.7, gap 32, triangle, speed 0); tokens --ij-editor and --ij-seam-raised',

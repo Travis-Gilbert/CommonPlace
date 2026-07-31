@@ -28,14 +28,24 @@ import '@xyflow/react/dist/style.css';
 import './components/canvas/canvas.css';
 
 import type { ModelGraph } from '@commonplace/okf';
-import { MartNode, type MartNodeData } from './components/canvas/MartNode';
-import { RelEdge } from './components/canvas/RelEdge';
+import {
+  SubstrateEdge,
+  createNodeKindRegistry,
+} from '@commonplace/canvas-substrate';
+import '@commonplace/canvas-substrate/substrate.css';
+import { type MartNodeData } from './components/canvas/MartNode';
 import { buildRfEdges } from './components/canvas/edges';
+import { modelCardKind } from './kinds/modelCardKind';
 import { createModelStore } from './state/model';
 import { graphWithChangedNodePositions } from './state/positions';
 
-const nodeTypes = { mart: MartNode };
-const edgeTypes = { rel: RelEdge };
+// The ERD card is now a registry entry on the shared substrate rather than a
+// bespoke node component, and relation edges ride the one edge language with
+// the model palette. The kind declares its own `mart` alias, and `rel` stays
+// mapped, so graphs saved under the old type names keep rendering.
+const kinds = createNodeKindRegistry([modelCardKind]);
+const nodeTypes = kinds.nodeTypes();
+const edgeTypes = { rel: SubstrateEdge, substrate: SubstrateEdge };
 
 export type ModelCanvasShellProps = {
   /** Optional initial graph. Defaults to empty (MF1 boot proof). */
