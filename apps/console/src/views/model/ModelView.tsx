@@ -3,7 +3,7 @@
 // SOURCING: @commonplace/block-view for scope and mutation seams,
 // @xyflow/react and tablecn structure through the registered lens components.
 
-import { useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
   emptyDeclaredModel,
@@ -54,6 +54,12 @@ import {
   parseOkfBundle,
 } from './okfBridge';
 import { schemaDeclareInputForField } from './schemaDeclare';
+import {
+  UNKNOWN_REGISTRY_SIGNAL,
+  registryMoved,
+  registrySignal,
+  type RegistrySignal,
+} from './registrySignal';
 
 type ModelLayoutHost = ViewRenderProps['host'] & {
   readyNamedCanvas?(canvasId: string, title?: string): Promise<void>;
@@ -384,6 +390,8 @@ function ModelInspector({
 
 const LENSES: readonly ModelLens[] = ['diagram', 'fields', 'records'];
 const LAYOUT_PERSIST_MS = 400;
+/** Fallback heartbeat for registry changes made outside this client. */
+const REGISTRY_SIGNAL_MS = 15_000;
 
 export function ModelView({ set, host }: ViewRenderProps) {
   const initialScope = modelScopeFromSet(set) ?? { kind: 'topic' as const, topicId: '' };
@@ -456,14 +464,44 @@ export function ModelView({ set, host }: ViewRenderProps) {
     };
   }, [topicId, reloadToken]);
 
+  // Issue 144 E, the "now" seam. The object-seam subscription below only sees
+  // changes this client made. A declaration from another head -- an agent, the
+  // MCP door, a restore -- moves the registry without touching local objects,
+  // and PR 385's versioned projections are how we notice: re-read the head
+  // version on the same subscription tick and rehydrate only when the anchor
+  // actually moved, so an unchanged registry costs one comparison.
+  const registrySignalRef = useRef<RegistrySignal>(UNKNOWN_REGISTRY_SIGNAL);
+
+  useEffect(() => {
+    if (!declared) return;
+    registrySignalRef.current = registrySignal(declared);
+  }, [declared]);
+
+  const pollRegistrySignal = useCallback(async () => {
+    if (!topicId) return;
+    try {
+      const payload = await fetchObservedModel(topicId);
+      const next = registrySignal(payload.declared);
+      if (registryMoved(registrySignalRef.current, next)) {
+        registrySignalRef.current = next;
+        setReloadToken((token) => token + 1);
+      }
+    } catch {
+      // A failed signal read is not a change. Staying on the last good
+      // projection beats blanking a canvas because one poll lost the network.
+    }
+  }, [topicId]);
+
   useEffect(() => {
     if (!topicId) return;
     let unsubscribe: (() => void) | undefined;
-    // Verify First: theorem-canvas-compile has no console-consumable subscription
-    // contract in rustyredcore_THG/crates/theorem-canvas-compile. It invalidates
-    // Program CanvasDoc execution, not the registry projection rendered here.
-    // Model state therefore subscribes to the registry metadata query, and every
-    // successful pin/unpin/import/restore also advances reloadToken.
+    // theorem-canvas-compile has no console-consumable subscription contract in
+    // rustyredcore_THG/crates/theorem-canvas-compile: it invalidates Program
+    // CanvasDoc execution, not the registry projection rendered here. Until the
+    // projection producer specified in
+    // docs/plans/canvas/SPEC-REGISTRY-ERD-PROJECTION-1.0 exists, model state
+    // subscribes to the registry metadata query plus the version signal above,
+    // and every successful pin/unpin/import/restore also advances reloadToken.
     void Promise.resolve(host.query({
       types: [
         'object-type-metadata',
@@ -474,10 +512,22 @@ export function ModelView({ set, host }: ViewRenderProps) {
       ],
       where: { kind: 'eq', field: 'topic_id', value: topicId },
     })).then((set) => {
-      unsubscribe = set.subscribe(() => setReloadToken((token) => token + 1));
+      unsubscribe = set.subscribe(() => {
+        setReloadToken((token) => token + 1);
+        void pollRegistrySignal();
+      });
     }).catch(() => undefined);
     return () => unsubscribe?.();
-  }, [host, topicId]);
+  }, [host, pollRegistrySignal, topicId]);
+
+  // A slow heartbeat is the fallback for declarations made entirely outside
+  // this client, which the object seam cannot see at all. It reads the version
+  // signal, not the canvas: an unmoved registry re-renders nothing.
+  useEffect(() => {
+    if (!topicId) return;
+    const timer = setInterval(() => { void pollRegistrySignal(); }, REGISTRY_SIGNAL_MS);
+    return () => clearInterval(timer);
+  }, [pollRegistrySignal, topicId]);
 
   useEffect(() => {
     if (!topicId) return;

@@ -245,6 +245,12 @@ export interface SchemaVersion {
   readonly id: string;
   readonly scope: ScopeRef;
   readonly version: string | number;
+  /**
+   * Content anchor of this version. With the sequence it is the registry change
+   * signal the ERD canvas subscribes to: same anchor means the registry did not
+   * move, whatever else a read returned.
+   */
+  readonly contentAnchor?: string;
   readonly status: 'draft' | 'declared' | 'published' | 'superseded';
   readonly objectTypeIds: readonly string[];
   readonly fieldIds: readonly string[];

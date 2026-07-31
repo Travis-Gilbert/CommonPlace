@@ -516,6 +516,7 @@ function normalizeVersion(value: unknown, scope: ScopeRef): SchemaVersion | null
       ? source.version
       : 0,
     status,
+    contentAnchor: text(sourceValue(source, 'contentAnchor', 'content_anchor')) || undefined,
     objectTypeIds: stringList(sourceValue(source, 'objectTypeIds', 'object_type_ids')),
     fieldIds: stringList(sourceValue(source, 'fieldIds', 'field_ids')),
     relationIds: stringList(sourceValue(source, 'relationIds', 'relation_ids')),
