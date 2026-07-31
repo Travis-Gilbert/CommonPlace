@@ -12,7 +12,10 @@ import {
   submitOnboardingWorkspace,
   workspaceSlugFromName,
 } from '@/components/fork/OnboardingPage';
-import { safeCallback } from '@/components/fork/LoginPage';
+import {
+  prepareLoginDestination,
+  safeCallback,
+} from '@/components/fork/LoginPage';
 import { IdentityClientError } from './client';
 import { resolveIdentityWorkspaceRoute } from './workspace-route';
 
@@ -123,6 +126,60 @@ describe('fork identity page contracts', () => {
     expect(safeCallback('/\n//attacker.example/path')).toBe('/chat');
     expect(safeCallback('/\u0000//attacker.example/path')).toBe('/chat');
     expect(safeCallback('https://attacker.example/path')).toBe('/chat');
+  });
+
+  it('selects a sole workspace before opening the login callback', async () => {
+    const selected: string[] = [];
+    const destination = await prepareLoginDestination(
+      IdentitySessionSchema.parse({
+        user: {
+          id: 'user-1',
+          username: 'Travis-Gilbert',
+          displayName: null,
+          email: null,
+          status: 'ACTIVE',
+        },
+        workspaces: [workspace],
+        onboardingComplete: true,
+      }),
+      '/chat',
+      {
+        select: async (workspaceId) => {
+          selected.push(workspaceId);
+          return workspace;
+        },
+      },
+    );
+
+    expect(selected).toEqual(['workspace-1']);
+    expect(destination).toBe('/chat');
+  });
+
+  it('opens the workspace picker instead of guessing among memberships', async () => {
+    let selectCalls = 0;
+    const destination = await prepareLoginDestination(
+      IdentitySessionSchema.parse({
+        user: {
+          id: 'user-1',
+          username: 'Travis-Gilbert',
+          displayName: null,
+          email: null,
+          status: 'ACTIVE',
+        },
+        workspaces: [workspace, { ...workspace, id: 'workspace-2' }],
+        onboardingComplete: true,
+      }),
+      '/chat',
+      {
+        select: async () => {
+          selectCalls += 1;
+          return workspace;
+        },
+      },
+    );
+
+    expect(selectCalls).toBe(0);
+    expect(destination).toBe('/onboarding');
   });
 
   it('reuses the created workspace when active selection is retried', async () => {

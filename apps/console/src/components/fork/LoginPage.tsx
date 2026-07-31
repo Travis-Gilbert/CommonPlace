@@ -6,7 +6,7 @@
 // Card shell adapted from the blocks.so SignIn composition (email/password
 // fields omitted — CommonPlace admits only verified GitHub identity).
 
-import { type JSX, type SVGProps, useEffect, useState } from 'react';
+import { type JSX, type SVGProps, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Key } from 'lucide-react';
 import { SessionProvider, signIn, useSession } from 'next-auth/react';
@@ -19,6 +19,11 @@ import {
 } from '@/components/ui/card';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { ForkNotice } from './ForkPageFrame';
+import {
+  IdentityClientError,
+  selectIdentityWorkspace,
+} from '@/lib/identity/client';
+import type { IdentitySession } from '@/lib/identity/contracts';
 import { useIdentitySession } from '@/lib/identity/use-identity-session';
 
 type ProviderState = 'loading' | 'ready' | 'unconfigured';
@@ -32,6 +37,29 @@ export function safeCallback(value: unknown): string {
     && !UNSAFE_CALLBACK_CHARACTER.test(value)
     ? value
     : '/chat';
+}
+
+type LoginWorkspaceActions = {
+  readonly select: typeof selectIdentityWorkspace;
+};
+
+const DEFAULT_LOGIN_WORKSPACE_ACTIONS: LoginWorkspaceActions = {
+  select: selectIdentityWorkspace,
+};
+
+/** Establish the scoped workspace claim before opening an authenticated route.
+ * Multiple-workspace identities must choose explicitly; a single workspace can
+ * be selected without adding another screen to the sign-in flow. */
+export async function prepareLoginDestination(
+  session: IdentitySession,
+  callbackUrl: string,
+  actions: LoginWorkspaceActions = DEFAULT_LOGIN_WORKSPACE_ACTIONS,
+): Promise<string> {
+  if (!session.onboardingComplete || session.workspaces.length !== 1) {
+    return '/onboarding';
+  }
+  await actions.select(session.workspaces[0].id);
+  return safeCallback(callbackUrl);
 }
 
 const Logo = (props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) => (
@@ -61,6 +89,8 @@ function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {
   const authSession = useSession();
   const identity = useIdentitySession();
   const [provider, setProvider] = useState<ProviderState>('loading');
+  const [openingError, setOpeningError] = useState<string | null>(null);
+  const openingAttempted = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -77,19 +107,24 @@ function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {
     };
   }, []);
 
-  const destination =
-    identity.state.status === 'ready' && !identity.state.session.onboardingComplete
-      ? '/onboarding'
-      : safeCallback(callbackUrl);
+  const readySession = identity.state.status === 'ready'
+    ? identity.state.session
+    : null;
 
   useEffect(() => {
-    if (identity.state.status !== 'ready') return;
-    window.location.assign(
-      identity.state.session.onboardingComplete
-        ? safeCallback(callbackUrl)
-        : '/onboarding',
+    if (!readySession || openingAttempted.current) return;
+    openingAttempted.current = true;
+    void prepareLoginDestination(readySession, callbackUrl).then(
+      (destination) => window.location.assign(destination),
+      (error: unknown) => {
+        setOpeningError(
+          error instanceof IdentityClientError
+            ? error.message
+            : 'The workspace could not be selected',
+        );
+      },
     );
-  }, [callbackUrl, identity.state]);
+  }, [callbackUrl, readySession]);
 
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden text-ij-ink">
@@ -130,15 +165,21 @@ function LoginContent({ callbackUrl }: { readonly callbackUrl: string }) {
                   </p>
                 ) : identity.state.status === 'error' ? (
                   <ForkNotice tone="error">{identity.state.message}</ForkNotice>
+                ) : identity.state.status === 'ready' && openingError ? (
+                  <ForkNotice tone="error">{openingError}</ForkNotice>
                 ) : identity.state.status === 'ready' ? (
                   <p className="text-center text-sm text-ij-ink-info">Opening CommonPlace...</p>
                 ) : null}
                 {identity.state.status === 'ready' ? (
-                  <Button asChild className="w-full" size="lg">
-                    <Link href={destination}>
-                      {destination === '/onboarding' ? 'Continue onboarding' : 'Open CommonPlace'}
-                    </Link>
-                  </Button>
+                  openingError ? (
+                    <Button asChild className="w-full" size="lg">
+                      <Link href="/onboarding">Choose a workspace</Link>
+                    </Button>
+                  ) : (
+                    <Button className="w-full" size="lg" disabled>
+                      Opening CommonPlace...
+                    </Button>
+                  )
                 ) : identity.state.status === 'error' ? null : (
                   <Button className="w-full" size="lg" disabled>
                     Resolving workspace membership...
