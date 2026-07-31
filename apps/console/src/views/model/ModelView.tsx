@@ -201,20 +201,23 @@ function ModelInspector({
   const [fieldKind, setFieldKind] = useState(declaredField?.fieldType.kind ?? 'text');
   const [fieldRequired, setFieldRequired] = useState(declaredField?.required ?? false);
 
-  // These initialisers run once, at mount, which normally happens with nothing
-  // selected. Without this the editor opened empty on the first selection and
-  // kept field A's key, label, type and required flag after moving to field B,
-  // so submitting could redeclare B with A's values.
+  // The initialisers above run once, at mount, which normally happens with
+  // nothing selected. Without this reset the editor opened empty on the first
+  // selection and kept field A's key, label, type and required flag after
+  // moving to field B, so submitting could redeclare B with A's values.
+  //
+  // Adjusted during render rather than in an effect: an effect would paint the
+  // stale draft first and then cascade a second render. Guarded by the field
+  // identity so it never fights the reader's typing.
   const editedFieldId = declaredField?.id ?? null;
-  useEffect(() => {
+  const [editorFieldId, setEditorFieldId] = useState(editedFieldId);
+  if (editorFieldId !== editedFieldId) {
+    setEditorFieldId(editedFieldId);
     setFieldKey(declaredField?.key ?? '');
     setFieldLabel(declaredField?.label ?? '');
     setFieldKind(declaredField?.fieldType.kind ?? 'text');
     setFieldRequired(declaredField?.required ?? false);
-    // Keyed on the field identity: re-syncing on every render would fight the
-    // reader's typing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editedFieldId]);
+  }
 
   function editedFieldType(current: FieldType, kind: string): FieldType {
     if (current.kind === kind) return current;
@@ -601,8 +604,6 @@ export function ModelView({ set, host }: ViewRenderProps) {
     }
   }
 
-  persistLayoutRef.current = persistLayout;
-
   function scheduleLayoutPersist(positions: LayoutPositions): void {
     setLayoutPositions(positions);
     pendingLayoutRef.current = positions;
@@ -611,6 +612,12 @@ export function ModelView({ set, host }: ViewRenderProps) {
       void persistLayout(positions);
     }, LAYOUT_PERSIST_MS);
   }
+
+  // Kept current after every render so the unmount flush below calls the
+  // latest closure rather than one captured at mount.
+  useEffect(() => {
+    persistLayoutRef.current = persistLayout;
+  });
 
   useEffect(() => () => {
     // Cancelling the debounce without writing loses the reader's last drag,
