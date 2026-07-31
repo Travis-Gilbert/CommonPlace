@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: @xyflow/react Handle/Position — vendor the connection primitives;
-// the surrounding chrome is the substrate's own shell (issue #144 A).
+// the surrounding chrome is the substrate's own shell (issue 144 A).
 //
 // This file is the one component every node kind renders through. It must not
 // learn about kinds: everything it draws comes from `NodeShellModel`, which the

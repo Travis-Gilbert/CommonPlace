@@ -22,12 +22,33 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
+import {
+  ConnectionSatisfaction,
+  EMPTY_LAYOUT,
+  SubstrateEdge,
+  createNodeKindRegistry,
+  edgeWaypoints,
+  fromLayoutWire,
+  insertWaypoint,
+  makeConnectionLine,
+  marchingEdgeIds,
+  moveWaypoint,
+  removeWaypoint,
+  toLayoutWire,
+  withEdgeWaypoints,
+  withNodeLayout,
+  type CanvasLayoutDocument,
+  type EdgeFamily,
+  type SubstrateEdgeData,
+} from '@commonplace/canvas-substrate';
+import '@commonplace/canvas-substrate/substrate.css';
 import type {
   CatalogEntry,
   CompilerProposal,
   JsonValue,
   PinnedNodeValue,
   ProcessLiveness,
+  ProgramBindingPreset,
   ProgramDefinition,
   ProgramDiff,
   ProgramRunOptions,
@@ -36,8 +57,12 @@ import type {
 } from '@commonplace/program-contracts';
 import { BlockShell } from '@/components/block/BlockShell';
 import { degradationFor } from '@/lib/degradation';
-import { ProgramNodeView, type ProgramNodeData } from './ProgramNodeView';
-import { ProgramEdgeView } from './ProgramEdgeView';
+import { PROGRAM_NODE_KIND, programNodeKind, type ProgramNodeData } from './programNodeKind';
+import { ProgramWidget } from './ProgramWidget';
+import {
+  BINDING_PRESET_DRAG_TYPE,
+  BindingStationTray,
+} from './BindingStationTray';
 import { PlaceholderNode } from './PlaceholderNode';
 import { NodePalette } from './NodePalette';
 import { RunRail } from './RunRail';
@@ -52,6 +77,8 @@ import {
 import { applyRunEvent } from './liveness';
 import { programNodeFromCatalog } from './catalogNode';
 import {
+  dropBindingPreset,
+  fetchBindingPresets,
   fetchProgramCatalog,
   fetchProgramContext,
   fetchProgramSpill,
@@ -66,7 +93,6 @@ import {
   validNext,
   validateCompilerProposal,
   validateEdgeSchema,
-  type ProgramLayout,
   type ProgramListItem,
 } from './programClient';
 
@@ -91,13 +117,20 @@ function diffPrograms(left: ProgramDefinition, right: ProgramDefinition): Progra
   };
 }
 
+// The program node is a substrate kind now, so this map is assembled from the
+// registry instead of hand-written. `program` stays mapped to the same
+// component so saved graphs naming the old type keep rendering.
+const KIND_REGISTRY = createNodeKindRegistry([programNodeKind]);
+const KIND_TYPES = KIND_REGISTRY.nodeTypes({ Widget: ProgramWidget });
+
 const NODE_TYPES: NodeTypes = {
-  program: ProgramNodeView,
+  ...KIND_TYPES,
+  program: KIND_TYPES[PROGRAM_NODE_KIND],
   placeholder: PlaceholderNode,
 };
 
 const EDGE_TYPES: EdgeTypes = {
-  program: ProgramEdgeView,
+  program: SubstrateEdge,
 };
 
 function emptyDraft(tenantId: string): ProgramDefinition {
@@ -115,14 +148,33 @@ function emptyDraft(tenantId: string): ProgramDefinition {
   };
 }
 
+/** Per-node handlers the substrate kind needs, supplied once by the view. */
+interface NodeHandlers {
+  readonly onToggleCollapsed: (nodeId: string) => void;
+  readonly onToggleAdvanced: (nodeId: string) => void;
+  readonly onToggleFlag: (nodeId: string, flag: 'bypassed' | 'muted') => void;
+  readonly onTweakChange: (nodeId: string, portId: string, value: unknown) => void;
+}
+
 function definitionToFlow(
   definition: ProgramDefinition,
   catalogById: Map<string, CatalogEntry>,
-  layout: ProgramLayout,
-  onToggleCollapsed?: (nodeId: string) => void,
+  layout: CanvasLayoutDocument,
+  handlers: NodeHandlers,
+  tweaksByNode: Readonly<Record<string, Record<string, unknown>>> = {},
 ): { nodes: Node[]; edges: Edge[] } {
+  // An input with an incoming edge stays a port; an unconnected one becomes a
+  // parameter widget. Computing it here keeps the kind free of edge knowledge.
+  const connectedByNode = new Map<string, string[]>();
+  for (const edge of definition.edges) {
+    const ports = connectedByNode.get(edge.to_node) ?? [];
+    ports.push(edge.to_port);
+    connectedByNode.set(edge.to_node, ports);
+  }
+
   const rawNodes: Node[] = definition.nodes.map((node, index) => {
     const entry = catalogById.get(node.block_id);
+    const nodeLayout = layout.nodes[node.id];
     const data: ProgramNodeData = {
       label: entry?.class_name ?? entry?.id ?? node.block_id,
       catalogId: node.block_id,
@@ -134,15 +186,22 @@ function definitionToFlow(
       refusal: entry ? undefined : `Unknown catalog id ${node.block_id}`,
       bypassed: node.bypassed,
       muted: node.muted,
-      collapsed: layout.node_metadata?.[node.id]?.collapsed,
-      onToggleCollapsed: onToggleCollapsed ? () => onToggleCollapsed(node.id) : undefined,
+      station: node.station,
+      collapsed: nodeLayout?.collapsed,
+      advancedOpen: nodeLayout?.advancedOpen,
+      connectedInputs: connectedByNode.get(node.id) ?? [],
+      tweaks: tweaksByNode[node.id] ?? {},
+      onToggleCollapsed: () => handlers.onToggleCollapsed(node.id),
+      onToggleAdvanced: () => handlers.onToggleAdvanced(node.id),
+      onToggleFlag: (flag) => handlers.onToggleFlag(node.id, flag),
+      onTweakChange: (portId, value) => handlers.onTweakChange(node.id, portId, value),
     };
     return {
       id: node.id,
-      type: entry ? 'program' : 'placeholder',
-      position: layout.nodes[node.id] ?? { x: index * 220, y: 40 },
+      type: entry ? PROGRAM_NODE_KIND : 'placeholder',
+      position: nodeLayout ? { x: nodeLayout.x, y: nodeLayout.y } : { x: index * 220, y: 40 },
       data: entry
-        ? data
+        ? (data as unknown as Record<string, unknown>)
         : {
             catalogId: node.block_id,
             refusal: data.refusal,
@@ -151,20 +210,37 @@ function definitionToFlow(
           },
     };
   });
-  const edges: Edge[] = definition.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.from_node,
-    target: edge.to_node,
-    sourceHandle: edge.from_port,
-    targetHandle: edge.to_port,
-    type: 'program',
-    data: {
-      shapeClass: shapeClassFor('tabular_any'),
-      status: 'undetermined' as const,
-    },
-  }));
+
+  const portShapeById = new Map<string, string>();
+  for (const node of definition.nodes) {
+    for (const port of node.outputs) {
+      portShapeById.set(`${node.id}:${port.id}`, port.shape_id);
+    }
+  }
+
+  const edges: Edge[] = definition.edges.map((edge) => {
+    const shape = portShapeById.get(`${edge.from_node}:${edge.from_port}`);
+    const data: SubstrateEdgeData = {
+      palette: 'program',
+      family: shape ? shapeClassFor(shape) : undefined,
+      waypoints: edgeWaypoints(layout, edge.id),
+    };
+    return {
+      id: edge.id,
+      source: edge.from_node,
+      target: edge.to_node,
+      sourceHandle: edge.from_port,
+      targetHandle: edge.to_port,
+      type: 'program',
+      data: data as unknown as Record<string, unknown>,
+    };
+  });
+
+  const positions = Object.fromEntries(
+    Object.entries(layout.nodes).map(([id, entry]) => [id, { x: entry.x, y: entry.y }]),
+  );
   return {
-    nodes: layoutProgramGraph(rawNodes, edges, layout.nodes),
+    nodes: layoutProgramGraph(rawNodes, edges, positions),
     edges,
   };
 }
@@ -173,6 +249,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
+  const [bindingPresets, setBindingPresets] = useState<ProgramBindingPreset[]>([]);
   const [programs, setPrograms] = useState<ProgramListItem[]>([]);
   const [starters, setStarters] = useState<ProgramDefinition[]>([]);
   const [programId, setProgramId] = useState<string | null>(null);
@@ -194,14 +271,23 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const [runReceipt, setRunReceipt] = useState<ProgramRunReceipt | null>(null);
   const [runInvocationId, setRunInvocationId] = useState<string | null>(null);
   const [tweaksByNode, setTweaksByNode] = useState<Record<string, string>>({});
+  /**
+   * Widget values, keyed node -> port. Kept apart from the raw JSON tweak text
+   * so a reader can use either without one clobbering the other; they merge at
+   * run time in `optionsForRun`.
+   */
+  const [widgetTweaks, setWidgetTweaks] = useState<Record<string, Record<string, unknown>>>({});
   const [pinnedByNode, setPinnedByNode] = useState<Record<string, PinnedNodeValue>>({});
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [proposal, setProposal] = useState<CompilerProposal | null>(null);
   const [proposalDiff, setProposalDiff] = useState<ProgramDiff | null>(null);
+  /** Positions, collapse, advanced-port state, and reroute waypoints. */
+  const [layoutDoc, setLayoutDoc] = useState<CanvasLayoutDocument>(EMPTY_LAYOUT);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const programIdRef = useRef(programId);
   const definitionRef = useRef(definition);
   const edgesRef = useRef(edges);
+  const layoutRef = useRef(layoutDoc);
   const catalogById = useMemo(
     () => new Map(catalog.map((entry) => [entry.id, entry])),
     [catalog],
@@ -216,6 +302,10 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   }, [definition]);
 
   useEffect(() => {
+    layoutRef.current = layoutDoc;
+  }, [layoutDoc]);
+
+  useEffect(() => {
     edgesRef.current = edges;
   }, [edges]);
 
@@ -223,12 +313,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     void Promise.all([
       fetchProgramContext(),
       fetchProgramCatalog(),
+      fetchBindingPresets(),
       listPrograms(),
       fetchStarterPrograms(),
     ])
-      .then(([context, entries, items, starterPrograms]) => {
+      .then(([context, entries, presets, items, starterPrograms]) => {
         setTenantId(context.tenantId);
         setCatalog(entries);
+        setBindingPresets(presets);
         setPrograms(items);
         setStarters(starterPrograms);
         setDefinition((current) => current.tenant_id
@@ -242,13 +334,13 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
 
   const scheduleSave = useCallback((
     next: ProgramDefinition,
-    layout: ProgramLayout,
+    layout: CanvasLayoutDocument,
     targetProgramId: string | null = programIdRef.current,
   ) => {
     if (!next.tenant_id) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void saveProgramDraft(next, layout, targetProgramId ?? undefined)
+      void saveProgramDraft(next, toLayoutWire(layout), targetProgramId ?? undefined)
         .then((result) => {
           const id = typeof result.node_id === 'string'
             ? result.node_id
@@ -269,21 +361,32 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     }, 400);
   }, []);
 
+  /**
+   * Fold the current React Flow geometry back into the layout document and
+   * save. Everything non-positional -- collapse, advanced-port state, reroute
+   * waypoints -- is carried forward from the live document rather than
+   * re-derived from node data, which is what stops a bypass toggle from
+   * quietly discarding a reader's collapsed nodes and rerouted wires.
+   */
   const persistFromFlow = useCallback((nextNodes: Node[], nextEdges: Edge[]) => {
-    const layout: ProgramLayout = {
-      nodes: {},
-      node_metadata: {},
-    };
+    let layout = layoutRef.current;
+    const liveIds = new Set(nextNodes.map((node) => node.id));
     for (const node of nextNodes) {
-      layout.nodes[node.id] = node.position;
-      const data = node.data as Partial<ProgramNodeData>;
-      if (data.collapsed || data.groupId) {
-        layout.node_metadata![node.id] = {
-          ...(data.collapsed ? { collapsed: true } : {}),
-          ...(data.groupId ? { group_id: data.groupId } : {}),
-        };
-      }
+      layout = withNodeLayout(layout, node.id, { x: node.position.x, y: node.position.y });
     }
+    // Drop layout for nodes that no longer exist so a deleted node cannot
+    // resurrect its arrangement if its id is reused.
+    const prunedNodes = Object.fromEntries(
+      Object.entries(layout.nodes).filter(([nodeId]) => liveIds.has(nodeId)),
+    );
+    const liveEdgeIds = new Set(nextEdges.map((edge) => edge.id));
+    const prunedEdges = Object.fromEntries(
+      Object.entries(layout.edges).filter(([edgeId]) => liveEdgeIds.has(edgeId)),
+    );
+    layout = { ...layout, nodes: prunedNodes, edges: prunedEdges };
+    layoutRef.current = layout;
+    setLayoutDoc(layout);
+
     const currentDefinition = definitionRef.current;
     const liveNodeIds = new Set(nextNodes.map((node) => node.id));
     const nextDefinition: ProgramDefinition = {
@@ -303,21 +406,46 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     scheduleSave(nextDefinition, layout);
   }, [scheduleSave]);
 
-  const toggleNodeCollapsed = useCallback((nodeId: string): void => {
-    setNodes((current) => {
-      const next = current.map((node) => node.id === nodeId
-        ? {
-            ...node,
-            data: {
-              ...(node.data as ProgramNodeData),
-              collapsed: !Boolean((node.data as ProgramNodeData).collapsed),
-            },
-          }
-        : node);
-      persistFromFlow(next, edgesRef.current);
+  /** Apply a layout-only change: no definition edit, no content identity. */
+  const patchLayout = useCallback(
+    (mutate: (layout: CanvasLayoutDocument) => CanvasLayoutDocument) => {
+      const next = mutate(layoutRef.current);
+      layoutRef.current = next;
+      setLayoutDoc(next);
+      scheduleSave(definitionRef.current, next);
       return next;
-    });
-  }, [persistFromFlow]);
+    },
+    [scheduleSave],
+  );
+
+  const toggleNodeCollapsed = useCallback((nodeId: string): void => {
+    const next = patchLayout((layout) =>
+      withNodeLayout(layout, nodeId, { collapsed: !layout.nodes[nodeId]?.collapsed }));
+    setNodes((current) => current.map((node) => node.id === nodeId
+      ? { ...node, data: { ...node.data, collapsed: next.nodes[nodeId]?.collapsed } }
+      : node));
+  }, [patchLayout]);
+
+  const toggleNodeAdvanced = useCallback((nodeId: string): void => {
+    const next = patchLayout((layout) =>
+      withNodeLayout(layout, nodeId, { advancedOpen: !layout.nodes[nodeId]?.advancedOpen }));
+    setNodes((current) => current.map((node) => node.id === nodeId
+      ? { ...node, data: { ...node.data, advancedOpen: next.nodes[nodeId]?.advancedOpen } }
+      : node));
+  }, [patchLayout]);
+
+  const setWidgetTweak = useCallback(
+    (nodeId: string, portId: string, value: unknown): void => {
+      setWidgetTweaks((current) => {
+        const next = { ...current, [nodeId]: { ...current[nodeId], [portId]: value } };
+        setNodes((liveNodes) => liveNodes.map((node) => node.id === nodeId
+          ? { ...node, data: { ...node.data, tweaks: next[nodeId] } }
+          : node));
+        return next;
+      });
+    },
+    [],
+  );
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     const removedNodeIds = new Set(
@@ -348,8 +476,8 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     ) {
       return false;
     }
-    const source = nodes.find((node) => node.id === connection.source)?.data as ProgramNodeData | undefined;
-    const target = nodes.find((node) => node.id === connection.target)?.data as ProgramNodeData | undefined;
+    const source = nodes.find((node) => node.id === connection.source)?.data as unknown as ProgramNodeData | undefined;
+    const target = nodes.find((node) => node.id === connection.target)?.data as unknown as ProgramNodeData | undefined;
     const producer = source?.outputs.find((port) => port.id === connection.sourceHandle);
     const consumer = target?.inputs.find((port) => port.id === connection.targetHandle);
     return typesCompatibleClient(producer?.shape, consumer?.shape);
@@ -390,9 +518,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
               id: `e_${connection.source}_${connection.target}_${Date.now()}`,
               type: 'program',
               data: {
-                shapeClass: shapeClassFor(producer.shape_id),
-                status: validation.status,
-              },
+                palette: 'program',
+                family: shapeClassFor(producer.shape_id),
+                // The server is the authority on schema fit; an undetermined
+                // verdict is stated on the wire rather than assumed compatible.
+                ...(validation.status === 'undetermined'
+                  ? { note: 'schema unknown' }
+                  : {}),
+              } satisfies SubstrateEdgeData,
             },
           ];
           persistFromFlow(nodes, next);
@@ -451,15 +584,82 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       ? {
           ...node,
           data: {
-            ...(node.data as ProgramNodeData),
-            [flag]: !Boolean((node.data as ProgramNodeData)[flag]),
+            ...(node.data as unknown as ProgramNodeData),
+            [flag]: !Boolean((node.data as unknown as ProgramNodeData)[flag]),
           },
         }
       : node);
     setDefinition(nextDefinition);
+    definitionRef.current = nextDefinition;
     setNodes(nextNodes);
-    scheduleSave(nextDefinition, { nodes: Object.fromEntries(nextNodes.map((node) => [node.id, node.position])) });
+    // Save against the live layout document, not a positions-only object:
+    // rebuilding the layout here is what used to discard collapse and grouping.
+    scheduleSave(nextDefinition, layoutRef.current);
   }
+
+  const nodeHandlers: NodeHandlers = useMemo(() => ({
+    onToggleCollapsed: toggleNodeCollapsed,
+    onToggleAdvanced: toggleNodeAdvanced,
+    onToggleFlag: (nodeId, flag) => toggleNodeFlag(nodeId, flag),
+    onTweakChange: setWidgetTweak,
+  // toggleNodeFlag closes over `definition`/`nodes` by design: it is a
+  // definition edit, unlike the layout-only toggles beside it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [toggleNodeCollapsed, toggleNodeAdvanced, setWidgetTweak, definition, nodes]);
+
+  /** Shape-class family behind a port, for the drag preview and dimming. */
+  const familyForHandle = useCallback(
+    (nodeId: string, handleId: string | null): EdgeFamily | undefined => {
+      if (!handleId) return undefined;
+      const node = definitionRef.current.nodes.find((candidate) => candidate.id === nodeId);
+      const port = node?.outputs.find((candidate) => candidate.id === handleId)
+        ?? node?.inputs.find((candidate) => candidate.id === handleId);
+      return port ? shapeClassFor(port.shape_id) : undefined;
+    },
+    [],
+  );
+
+  const ConnectionLine = useMemo(
+    () => makeConnectionLine(familyForHandle),
+    [familyForHandle],
+  );
+
+  /**
+   * Edges whose producer is running, with the animation budget applied. An edge
+   * marches only if its producer is live and it won a slot; past the cap and
+   * under reduced motion the wire keeps the width bump and holds still.
+   */
+  const renderedEdges = useMemo(() => {
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const running = edges.filter((edge) => livenessByNode[edge.source] === 'running');
+    const marching = marchingEdgeIds(running.map((edge) => edge.id), { reducedMotion });
+    const runningIds = new Set(running.map((edge) => edge.id));
+    return edges.map((edge) => {
+      const isRunning = runningIds.has(edge.id);
+      const waypoints = edgeWaypoints(layoutDoc, edge.id);
+      const data = edge.data as SubstrateEdgeData | undefined;
+      return {
+        ...edge,
+        data: {
+          ...data,
+          waypoints,
+          running: isRunning,
+          marching: marching.has(edge.id),
+          onWaypointMove: (index: number, point: { x: number; y: number }) => {
+            patchLayout((layout) =>
+              withEdgeWaypoints(layout, edge.id, moveWaypoint(edgeWaypoints(layout, edge.id), index, point)));
+          },
+          onWaypointRemove: (index: number) => {
+            patchLayout((layout) =>
+              withEdgeWaypoints(layout, edge.id, removeWaypoint(edgeWaypoints(layout, edge.id), index)));
+          },
+        } as unknown as Record<string, unknown>,
+      };
+    });
+  }, [edges, layoutDoc, livenessByNode, patchLayout]);
 
   async function openProgram(id: string): Promise<void> {
     setBusy(true);
@@ -468,7 +668,10 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       const loaded = await loadProgram(id);
       setProgramId(id);
       setDefinition(loaded.definition);
-      const flow = definitionToFlow(loaded.definition, catalogById, loaded.layout ?? { nodes: {} }, toggleNodeCollapsed);
+      const loadedLayout = fromLayoutWire(loaded.layout as never);
+      layoutRef.current = loadedLayout;
+      setLayoutDoc(loadedLayout);
+      const flow = definitionToFlow(loaded.definition, catalogById, loadedLayout, nodeHandlers, widgetTweaks);
       setNodes(flow.nodes);
       setEdges(flow.edges);
       resetRunState();
@@ -499,9 +702,23 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       lifecycle: entry.lifecycle,
       bypassed: false,
       muted: false,
-      onToggleCollapsed: () => toggleNodeCollapsed(id),
+      station: programNode.station,
+      connectedInputs: [],
+      tweaks: {},
+      onToggleCollapsed: () => nodeHandlers.onToggleCollapsed(id),
+      onToggleAdvanced: () => nodeHandlers.onToggleAdvanced(id),
+      onToggleFlag: (flag) => nodeHandlers.onToggleFlag(id, flag),
+      onTweakChange: (portId, value) => nodeHandlers.onTweakChange(id, portId, value),
     };
-    const nextNodes = [...nodes, { id, type: 'program' as const, position, data }];
+    const nextNodes: Node[] = [
+      ...nodes,
+      {
+        id,
+        type: PROGRAM_NODE_KIND,
+        position,
+        data: data as unknown as Record<string, unknown>,
+      },
+    ];
     let nextEdges = edges;
     let nextProgramEdges = definition.edges;
     try {
@@ -527,9 +744,12 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             targetHandle: consumer.id,
             type: 'program' as const,
             data: {
-              shapeClass: shapeClassFor(producer.shape_id),
-              status: validation.status,
-            },
+              palette: 'program',
+              family: shapeClassFor(producer.shape_id),
+              ...(validation.status === 'undetermined'
+                ? { note: 'schema unknown' }
+                : {}),
+            } satisfies SubstrateEdgeData,
           },
         ];
         nextProgramEdges = [
@@ -586,9 +806,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       setDefinition(nextDefinition);
       setNodes(nextNodes);
       setEdges(nextEdges);
-      scheduleSave(nextDefinition, {
-        nodes: Object.fromEntries(nextNodes.map((node) => [node.id, node.position])),
-      });
+      scheduleSave(nextDefinition, layoutRef.current);
       setError(null);
     } catch (insertError) {
       setError(insertError instanceof Error ? insertError.message : String(insertError));
@@ -606,13 +824,28 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     humanAnswers: Record<string, JsonValue> = {},
   ): ProgramRunOptions {
     const tweaks: Record<string, JsonValue> = {};
+    // Widget values first, then the raw JSON tweak text, so a reader who opens
+    // the tweak editor and writes a whole object still wins over the inline
+    // controls for the keys they named.
+    for (const [nodeId, ports] of Object.entries(widgetTweaks)) {
+      const set = Object.entries(ports).filter(([, value]) => value !== undefined && value !== '');
+      if (set.length === 0) continue;
+      tweaks[nodeId] = Object.fromEntries(set) as JsonValue;
+    }
     for (const [nodeId, source] of Object.entries(tweaksByNode)) {
       if (!source.trim()) continue;
+      let parsed: JsonValue;
       try {
-        tweaks[nodeId] = JSON.parse(source) as JsonValue;
+        parsed = JSON.parse(source) as JsonValue;
       } catch {
         throw new Error(`Tweak for ${nodeId} is not valid JSON.`);
       }
+      const existing = tweaks[nodeId];
+      tweaks[nodeId] =
+        existing && typeof existing === 'object' && !Array.isArray(existing) &&
+        parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+          ? { ...existing, ...parsed }
+          : parsed;
     }
     return {
       invocation_id: invocationId,
@@ -641,7 +874,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       return {
         ...node,
         data: {
-          ...(node.data as ProgramNodeData),
+          ...(node.data as unknown as ProgramNodeData),
           liveness: nextLiveness[node.id],
           pinned: inspection?.pinned ?? Boolean(pinnedByNode[node.id]),
           stale: inspection?.stale ?? false,
@@ -705,7 +938,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setNodes((current) => current.map((node) => node.id === selectedNodeId
       ? {
           ...node,
-          data: { ...(node.data as ProgramNodeData), pinned: true, stale: true },
+          data: { ...(node.data as unknown as ProgramNodeData), pinned: true, stale: true },
         }
       : node));
     setNotice(`Pinned ${selectedNodeId}. The next run will serve its stale value.`);
@@ -755,15 +988,13 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       );
       setProgramId(null);
       setDefinition(forked);
-      const flow = definitionToFlow(forked, catalogById, { nodes: {} }, toggleNodeCollapsed);
+      layoutRef.current = EMPTY_LAYOUT;
+      setLayoutDoc(EMPTY_LAYOUT);
+      const flow = definitionToFlow(forked, catalogById, EMPTY_LAYOUT, nodeHandlers, {});
       setNodes(flow.nodes);
       setEdges(flow.edges);
       resetRunState();
-      scheduleSave(
-        forked,
-        { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) },
-        null,
-      );
+      scheduleSave(forked, layoutRef.current, null);
       setNotice(`Fork opened from ${definition.name}.`);
     } catch (forkError) {
       setError(forkError instanceof Error ? forkError.message : String(forkError));
@@ -805,14 +1036,13 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     try {
       const receipt = await materializeProgram(next, programId);
       setDefinition(next);
-      const flow = definitionToFlow(next, catalogById, { nodes: {} }, toggleNodeCollapsed);
+      layoutRef.current = EMPTY_LAYOUT;
+      setLayoutDoc(EMPTY_LAYOUT);
+      const flow = definitionToFlow(next, catalogById, EMPTY_LAYOUT, nodeHandlers, {});
       setNodes(flow.nodes);
       setEdges(flow.edges);
       resetRunState();
-      scheduleSave(
-        next,
-        { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) },
-      );
+      scheduleSave(next, layoutRef.current);
       setProposal(null);
       setProposalDiff(null);
       setNotice(`Proposal materialized: ${String(receipt.program_id ?? receipt.node_id ?? 'accepted')}.`);
@@ -847,17 +1077,15 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       name: `Fork of ${starter.name}`,
       metadata: { ...starter.metadata, draft: true, starter_name: starter.name },
     };
-    const flow = definitionToFlow(next, catalogById, { nodes: {} }, toggleNodeCollapsed);
+    layoutRef.current = EMPTY_LAYOUT;
+    setLayoutDoc(EMPTY_LAYOUT);
+    const flow = definitionToFlow(next, catalogById, EMPTY_LAYOUT, nodeHandlers, {});
     setProgramId(null);
     setDefinition(next);
     setNodes(flow.nodes);
     setEdges(flow.edges);
     resetRunState();
-    scheduleSave(
-      next,
-      { nodes: Object.fromEntries(flow.nodes.map((node) => [node.id, node.position])) },
-      null,
-    );
+    scheduleSave(next, layoutRef.current, null);
     setNotice(`Started from ${starter.name}.`);
   }
 
@@ -884,9 +1112,66 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       },
     };
     setDefinition(next);
-    scheduleSave(next, {
-      nodes: Object.fromEntries(nodes.map((node) => [node.id, node.position])),
-    });
+    scheduleSave(next, layoutRef.current);
+  }
+
+  async function applyBindingStation(
+    preset: ProgramBindingPreset,
+    nodeId: string,
+  ): Promise<void> {
+    if (!definitionRef.current.nodes.some((node) => node.id === nodeId)) {
+      setError(`Program node ${nodeId} was not found.`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      const saved = await saveProgramDraft(
+        definitionRef.current,
+        toLayoutWire(layoutRef.current),
+        programIdRef.current ?? undefined,
+      );
+      const savedNodeId = typeof saved.node_id === 'string'
+        ? saved.node_id
+        : programIdRef.current;
+      if (!savedNodeId) {
+        throw new Error('binding_station_requires_saved_program');
+      }
+      programIdRef.current = savedNodeId;
+      setProgramId(savedNodeId);
+      const receipt = await dropBindingPreset({
+        programId: savedNodeId,
+        nodeId,
+        presetId: preset.preset_id,
+      });
+      const nextDefinition: ProgramDefinition = {
+        ...definitionRef.current,
+        nodes: definitionRef.current.nodes.map((node) => node.id === nodeId
+          ? { ...node, station: receipt.station }
+          : node),
+      };
+      definitionRef.current = nextDefinition;
+      setDefinition(nextDefinition);
+      setNodes((current) => current.map((node) => node.id === nodeId
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              station: receipt.station,
+            },
+          }
+        : node));
+      setNotice(`${preset.display_name} bound to ${nodeId}.`);
+    } catch (stationError) {
+      setError(stationError instanceof Error ? stationError.message : String(stationError));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -981,23 +1266,72 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       className="bg-transparent text-ij-ink"
     >
       <div className="relative flex h-full min-h-96">
+        <BindingStationTray
+          presets={bindingPresets}
+          selectedNodeId={selectedNodeId}
+          busy={busy}
+          onApply={(preset, nodeId) => void applyBindingStation(preset, nodeId)}
+        />
         <div className="relative min-h-96 min-w-0 flex-1">
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={renderedEdges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
+            connectionLineComponent={ConnectionLine}
             onNodesChange={onNodesChange}
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             onConnectEnd={onConnectEnd}
+            onDragOver={(event) => {
+              if (
+                event.dataTransfer.types.includes(BINDING_PRESET_DRAG_TYPE)
+                || event.dataTransfer.types.includes('text/plain')
+              ) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+              }
+            }}
+            onDrop={(event) => {
+              const presetId = event.dataTransfer.getData(BINDING_PRESET_DRAG_TYPE)
+                || event.dataTransfer.getData('text/plain');
+              if (!presetId) return;
+              event.preventDefault();
+              const target = event.target instanceof HTMLElement
+                ? event.target.closest<HTMLElement>('.react-flow__node')
+                : null;
+              const nodeId = target?.dataset.id;
+              const preset = bindingPresets.find((candidate) => candidate.preset_id === presetId);
+              if (!nodeId || !preset) {
+                setError('Drop a binding station directly onto a program node.');
+                return;
+              }
+              void applyBindingStation(preset, nodeId);
+            }}
             onNodeClick={(_event, node) => setSelectedNodeId(node.id)}
+            onEdgeDoubleClick={(event, edge) => {
+              // Double-click drops a reroute dot where the reader clicked. It
+              // is layout, so it never touches the program definition.
+              event.stopPropagation();
+              const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+              const source = nodes.find((node) => node.id === edge.source);
+              const target = nodes.find((node) => node.id === edge.target);
+              if (!source || !target) return;
+              patchLayout((layout) => withEdgeWaypoints(
+                layout,
+                edge.id,
+                insertWaypoint(source.position, target.position, edgeWaypoints(layout, edge.id), point),
+              ));
+            }}
             onPaneClick={(event) => {
               setSelectedNodeId(null);
               if (event.detail === 2) {
+                // Quick add with no port context: the palette shows the whole
+                // catalog, since nothing constrains the boundary here.
                 setBoundaryShape(undefined);
                 setPaletteEntries(null);
                 setPendingConnect(null);
+                setDropPoint(screenToFlowPosition({ x: event.clientX, y: event.clientY }));
                 setPaletteOpen(true);
               }
             }}
@@ -1007,6 +1341,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
           >
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
             <Controls showInteractive={false} />
+            <ConnectionSatisfaction familyForHandle={familyForHandle} />
           </ReactFlow>
           {nodes.length === 0 ? (
             <section className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center" aria-label="Empty program">
@@ -1058,7 +1393,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
                 onClick={() => toggleNodeFlag(selectedNodeId, 'bypassed')}
                 className="h-ij-control rounded-ij-arc px-2 text-xs hover:bg-ij-hover-surface"
               >
-                {(nodes.find((node) => node.id === selectedNodeId)?.data as ProgramNodeData | undefined)?.bypassed
+                {(nodes.find((node) => node.id === selectedNodeId)?.data as unknown as ProgramNodeData | undefined)?.bypassed
                   ? 'Enable node'
                   : 'Bypass node'}
               </button>
@@ -1067,7 +1402,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
                 onClick={() => toggleNodeFlag(selectedNodeId, 'muted')}
                 className="h-ij-control rounded-ij-arc px-2 text-xs hover:bg-ij-hover-surface"
               >
-                {(nodes.find((node) => node.id === selectedNodeId)?.data as ProgramNodeData | undefined)?.muted
+                {(nodes.find((node) => node.id === selectedNodeId)?.data as unknown as ProgramNodeData | undefined)?.muted
                   ? 'Unmute node'
                   : 'Mute node'}
               </button>
@@ -1127,7 +1462,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             setNodes((current) => current.map((node) => node.id === selectedNodeId
               ? {
                   ...node,
-                  data: { ...(node.data as ProgramNodeData), pinned: false, stale: false },
+                  data: { ...(node.data as unknown as ProgramNodeData), pinned: false, stale: false },
                 }
               : node));
           }}

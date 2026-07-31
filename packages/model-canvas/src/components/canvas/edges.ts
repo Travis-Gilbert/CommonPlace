@@ -1,10 +1,40 @@
+// SOURCING: @xyflow/react Edge shape; relation edges now carry
+// @commonplace/canvas-substrate SubstrateEdgeData with the model palette, so
+// both canvases share one geometry and dash system (issue 144 B).
+
 import type { Edge } from "@xyflow/react";
+import type { SubstrateEdgeData } from "@commonplace/canvas-substrate";
 import type { ModelNode, ModelEdge } from "@commonplace/okf";
 import type { ViewMode } from "../../state/viewMode";
-import type { RelLabelMode } from "../../state/relLabels";
+import { visibleKeys, showCardinality, type RelLabelMode } from "../../state/relLabels";
 import { erdAwareNodeSize } from "./layoutSize";
 
 type Side = "left" | "right";
+
+/**
+ * Project a relation onto the substrate edge contract. The model palette stays
+ * neutral ink on purpose: a relation is not a typed flow, so the information
+ * rides the key chip and the cardinality glyph rather than a hue.
+ */
+function relationEdgeData(
+  e: ModelEdge,
+  keys: ModelEdge["keys"],
+  relLabelMode: RelLabelMode,
+): SubstrateEdgeData & { modelEdgeId: string } {
+  const shown = visibleKeys(keys, relLabelMode);
+  const label = shown.length > 0
+    ? shown.map(k => `${k.left || "?"} = ${k.right || "?"}`).join(", ")
+    : undefined;
+  return {
+    palette: "model",
+    ...(label ? { label } : {}),
+    ...(e.cardinality && showCardinality(keys, relLabelMode)
+      ? { cardinality: e.cardinality }
+      : {}),
+    arrow: e.bidirectional ? "both" : "end",
+    modelEdgeId: e.id,
+  };
+}
 
 // Pick the horizontal side each end of an edge attaches to.
 //
@@ -42,7 +72,7 @@ function compactEdge(e: ModelEdge, sides: { source: Side; target: Side }, relLab
     sourceHandle: sides.source,
     targetHandle: sides.target,
     type: "rel",
-    data: { keys: e.keys, bidirectional: e.bidirectional, cardinality: e.cardinality, modelEdgeId: e.id, relLabelMode } as unknown as Record<string, unknown>,
+    data: relationEdgeData(e, e.keys, relLabelMode) as unknown as Record<string, unknown>,
   };
 }
 
@@ -88,7 +118,7 @@ export function buildRfEdges(edges: ModelEdge[], nodes: ModelNode[], viewMode: V
       sourceHandle: k.left && srcFields?.has(k.left) ? `${srcSide}:${k.left}` : sides.source,
       targetHandle: k.right && tgtFields?.has(k.right) ? `${tgtSide}:${k.right}` : sides.target,
       type: "rel",
-      data: { keys: [k], bidirectional: e.bidirectional, cardinality: e.cardinality, modelEdgeId: e.id, relLabelMode } as unknown as Record<string, unknown>,
+      data: relationEdgeData(e, [k], relLabelMode) as unknown as Record<string, unknown>,
     }));
   });
 }

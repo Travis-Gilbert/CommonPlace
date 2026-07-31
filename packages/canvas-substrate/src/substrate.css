@@ -1,4 +1,4 @@
-/* Canvas substrate CSS (issue #144 B).
+/* Canvas substrate CSS (issue 144 B).
 
    Deliberately declares NO @keyframes. The running-edge march is defined in the
    console motion register (apps/console/src/motion/motion.css), which is the

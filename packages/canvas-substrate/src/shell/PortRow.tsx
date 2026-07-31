@@ -2,7 +2,7 @@
 
 // SOURCING: @xyflow/react Handle — vendor the connection primitive. The
 // parameter row itself renders through the host-injected widget renderer
-// (issue #144 C, "widgets-on-node from generated types"), so the substrate
+// (issue 144 C, "widgets-on-node from generated types"), so the substrate
 // never owns a second field-editor map beside the records surface.
 
 import { memo } from 'react';

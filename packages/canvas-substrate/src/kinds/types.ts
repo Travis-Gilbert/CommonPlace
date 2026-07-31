@@ -1,4 +1,4 @@
-// SOURCING: none — pure contract types for the canvas substrate (issue #144 A).
+// SOURCING: none — pure contract types for the canvas substrate (issue 144 A).
 //
 // One generic node shell hosts every kind. A kind contributes two things and
 // nothing else: a projection from its own data onto `NodeShellModel`, and an
@@ -11,7 +11,7 @@ import type { ComponentType, ReactNode } from 'react';
 export type NodeKindId = string;
 
 /**
- * Which palette an edge leaving this kind wears (issue #144 B). One geometry
+ * Which palette an edge leaving this kind wears (issue 144 B). One geometry
  * and dash system, two palettes: program edges take the source port's
  * shape-class family, model relation edges stay neutral ink.
  */
@@ -156,3 +156,14 @@ export interface NodeKindEntry<TData = never> {
   /** Frames are registered like any other kind; the shell reads this too. */
   readonly frame?: boolean;
 }
+
+/**
+ * A kind entry with its data type erased, which is what a heterogeneous
+ * registry has to hold. `unknown` will not do: `Body` is contravariant in its
+ * data, so an entry for a concrete type is not assignable to one for `unknown`.
+ * The erasure is safe because the registry only ever hands a kind back the data
+ * that kind's own node carries -- `shell` and `Body` always agree with each
+ * other, and nothing else reads either.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyNodeKindEntry = NodeKindEntry<any>;

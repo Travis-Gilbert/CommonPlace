@@ -1,4 +1,4 @@
-// SOURCING: none — the canvas layout document (issue #144, standing law).
+// SOURCING: none — the canvas layout document (issue 144, standing law).
 //
 // Positions, frame membership, edge waypoints, collapse, and port visibility
 // all live here. None of it is content identity: deleting this document must

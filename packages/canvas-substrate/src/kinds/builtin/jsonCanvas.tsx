@@ -2,7 +2,7 @@
 
 // SOURCING: @commonplace/json-canvas types — the Obsidian JSON Canvas node
 // kinds (text/file/link/group) seated on the substrate shell so the inspector
-// rail's Z-layer can converge here later (issue #144 A).
+// rail's Z-layer can converge here later (issue 144 A).
 
 import type { CanvasNode } from '@commonplace/json-canvas';
 import type { NodeKindEntry } from '../types';

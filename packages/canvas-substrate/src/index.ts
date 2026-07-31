@@ -1,4 +1,4 @@
-// SOURCING: none — public surface of the canvas substrate (issue #144 A).
+// SOURCING: none — public surface of the canvas substrate (issue 144 A).
 //
 // One shell, a kind registry, one edge language, and the layout document that
 // holds arrangement without ever touching content identity. The two product

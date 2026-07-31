@@ -4,7 +4,7 @@
 // the drag geometry so the preview matches the committed edge exactly.
 //
 // The preview wears the source family and the resting dash, so what the reader
-// drags is visibly the same wire they will get (issue #144 B).
+// drags is visibly the same wire they will get (issue 144 B).
 
 import { getBezierPath, Position, type ConnectionLineComponentProps } from '@xyflow/react';
 import type { EdgeFamily } from '../kinds/types';

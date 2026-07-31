@@ -114,22 +114,42 @@ describe("buildRfEdges cardinality passthrough", () => {
     expect((rf[0].data as any).cardinality).toBe("N:1");
   });
 
-  it("threads the relLabelMode into edge data (compact)", () => {
+  // The label mode used to be handed to the edge component to apply. It is
+  // resolved here now, so these assert the outcome -- which chip text and
+  // cardinality glyph actually reach the wire -- rather than the plumbing.
+  it("applies the relLabelMode to the chip text (compact)", () => {
     const out = buildRfEdges([edge([{ left: "id", right: "a_id" }])], nodes, "compact", "defined");
-    expect((out[0].data as { relLabelMode?: string }).relLabelMode).toBe("defined");
+    expect((out[0].data as { label?: string }).label).toBe("id = a_id");
   });
 
-  it("threads the relLabelMode into every ERD per-key edge", () => {
+  it("drops the chip and the cardinality glyph when the mode excludes every key", () => {
     const out = buildRfEdges(
       [edge([{ left: "id", right: "a_id" }, { left: "x", right: "y" }])],
       nodes, "erd", "undefined",
     );
-    expect(out.every(e => (e.data as { relLabelMode?: string }).relLabelMode === "undefined")).toBe(true);
+    expect(out.every(e => (e.data as { label?: string }).label === undefined)).toBe(true);
+    expect(out.every(e => (e.data as { cardinality?: string }).cardinality === undefined)).toBe(true);
   });
 
-  it("defaults the mode to 'all' when the arg is omitted", () => {
+  it("hides the chip entirely in 'hidden' mode", () => {
+    const out = buildRfEdges(edges, nodes, "compact", "hidden");
+    expect((out[0].data as { label?: string }).label).toBeUndefined();
+    expect((out[0].data as { cardinality?: string }).cardinality).toBeUndefined();
+  });
+
+  it("defaults to 'all', so every key shows without an explicit mode", () => {
     const out = buildRfEdges([edge([{ left: "id", right: "a_id" }])], nodes, "compact");
-    expect((out[0].data as { relLabelMode?: string }).relLabelMode).toBe("all");
+    expect((out[0].data as { label?: string }).label).toBe("id = a_id");
+  });
+
+  it("rides the model palette and keeps relation direction", () => {
+    const out = buildRfEdges(edges, nodes, "compact");
+    expect((out[0].data as { palette?: string }).palette).toBe("model");
+    expect((out[0].data as { arrow?: string }).arrow).toBe("end");
+    const both = buildRfEdges(
+      [{ ...edges[0], bidirectional: true }], nodes, "compact",
+    );
+    expect((both[0].data as { arrow?: string }).arrow).toBe("both");
   });
 });
 

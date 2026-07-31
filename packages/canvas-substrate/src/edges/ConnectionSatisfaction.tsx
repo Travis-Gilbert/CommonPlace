@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: @xyflow/react useConnection — vendor the in-progress connection
-// state; the satisfaction dimming is the substrate's (issue #144 B).
+// state; the satisfaction dimming is the substrate's (issue 144 B).
 //
 // While a wire is being dragged, targets that cannot accept it dim. The naive
 // way is to push a per-node flag through React state, which re-renders every

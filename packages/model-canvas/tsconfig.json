@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
@@ -12,7 +16,15 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "paths": {
-      "@commonplace/okf": ["../okf/src/index.ts"]
+      "@commonplace/okf": [
+        "../okf/src/index.ts"
+      ],
+      "@commonplace/canvas-substrate": [
+        "../canvas-substrate/src/index.ts"
+      ],
+      "@commonplace/json-canvas": [
+        "../json-canvas/src/index.ts"
+      ]
     }
   },
   "include": [
@@ -28,6 +40,8 @@
     "src/state/objLabels.ts",
     "src/lib/icons.tsx",
     "src/lib/diff.ts",
-    "src/lib/joinFieldType.ts"
+    "src/lib/joinFieldType.ts",
+    "src/kinds/modelCardKind.tsx",
+    "src/state/positions.ts"
   ]
 }

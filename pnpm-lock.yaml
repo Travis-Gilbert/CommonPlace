@@ -638,6 +638,9 @@ importers:
 
   packages/model-canvas:
     dependencies:
+      '@commonplace/canvas-substrate':
+        specifier: workspace:*
+        version: link:../canvas-substrate
       '@commonplace/okf':
         specifier: workspace:*
         version: link:../okf
@@ -646,23 +649,17 @@ importers:
         version: 1.1.8
       '@xyflow/react':
         specifier: ^12.11.2
-        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       lucide-react:
         specifier: ^0.460.0
-        version: 0.460.0(react@19.2.7)
-      react:
-        specifier: ^19.0.0
-        version: 19.2.7
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.7(react@19.2.7)
+        version: 0.460.0(react@19.2.3)
     devDependencies:
       '@testing-library/jest-dom':
         specifier: 6.9.1
         version: 6.9.1
       '@testing-library/react':
         specifier: 16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.17
@@ -672,6 +669,12 @@ importers:
       jsdom:
         specifier: 29.1.1
         version: 29.1.1(@noble/hashes@1.8.0)
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+      react-dom:
+        specifier: 19.2.3
+        version: 19.2.3(react@19.2.3)
       typescript:
         specifier: ^5.7.3
         version: 5.8.3
@@ -13206,16 +13209,6 @@ snapshots:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.3(@types/react@19.2.17)
 
-  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@babel/runtime': 7.29.7
-      '@testing-library/dom': 10.4.1
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-    optionalDependencies:
-      '@types/react': 19.2.17
-      '@types/react-dom': 19.2.3(@types/react@19.2.17)
-
   '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1)':
     dependencies:
       '@testing-library/dom': 10.4.1
@@ -13894,19 +13887,6 @@ snapshots:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       zustand: 4.5.7(@types/react@19.2.17)(react@19.2.3)
-    optionalDependencies:
-      '@types/react': 19.2.17
-      '@types/react-dom': 19.2.3(@types/react@19.2.17)
-    transitivePeerDependencies:
-      - immer
-
-  '@xyflow/react@12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@xyflow/system': 0.0.79
-      classcat: 5.0.5
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-      zustand: 4.5.7(@types/react@19.2.17)(react@19.2.7)
     optionalDependencies:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.3(@types/react@19.2.17)
@@ -17300,9 +17280,9 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.460.0(react@19.2.7):
+  lucide-react@0.460.0(react@19.2.3):
     dependencies:
-      react: 19.2.7
+      react: 19.2.3
 
   lucide-react@1.27.0(react@19.2.3):
     dependencies:
@@ -18746,6 +18726,7 @@ snapshots:
     dependencies:
       react: 19.2.7
       scheduler: 0.27.0
+    optional: true
 
   react-fast-compare@3.2.2: {}
 
@@ -20264,6 +20245,7 @@ snapshots:
   use-sync-external-store@1.6.0(react@19.2.7):
     dependencies:
       react: 19.2.7
+    optional: true
 
   util-deprecate@1.0.2: {}
 
@@ -20663,13 +20645,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.17
       react: 19.2.3
-
-  zustand@4.5.7(@types/react@19.2.17)(react@19.2.7):
-    dependencies:
-      use-sync-external-store: 1.6.0(react@19.2.7)
-    optionalDependencies:
-      '@types/react': 19.2.17
-      react: 19.2.7
 
   zustand@5.0.14(@types/react@19.2.17)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)):
     optionalDependencies:

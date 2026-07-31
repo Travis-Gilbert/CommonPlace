@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: @xyflow/react BaseEdge/getBezierPath/EdgeLabelRenderer — vendor the
-// edge primitives; the dash law and palettes are the substrate's (issue #144 B).
+// edge primitives; the dash law and palettes are the substrate's (issue 144 B).
 //
 // One edge component serves both canvases. The palette is the only difference,
 // and it arrives as data. The march animation is a class defined in the console
@@ -38,6 +38,12 @@ export interface SubstrateEdgeData {
   readonly cardinality?: string;
   /** Rendered as a dashed advisory label when the schema is unknown. */
   readonly note?: string;
+  /**
+   * Relation direction. The dotted wire carries no direction on its own, and an
+   * ERD relation genuinely has one, so the model palette keeps an arrowhead.
+   * Program wires read direction from port sides and leave this unset.
+   */
+  readonly arrow?: 'end' | 'both';
   readonly onWaypointMove?: (index: number, point: Point) => void;
   readonly onWaypointRemove?: (index: number) => void;
 }
@@ -63,8 +69,39 @@ function SubstrateEdgeInner(props: EdgeProps) {
 
   const chip = data.label || data.cardinality || data.note;
 
+  const arrowEnd = data.arrow ? `substrate-arrow-end-${props.id}` : undefined;
+  const arrowStart = data.arrow === 'both' ? `substrate-arrow-start-${props.id}` : undefined;
+
   return (
     <>
+      {data.arrow ? (
+        <defs>
+          <marker
+            id={arrowEnd}
+            markerWidth="9"
+            markerHeight="9"
+            refX="7"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0,0 L7,3 L0,6 z" fill={stroke} />
+          </marker>
+          {arrowStart ? (
+            <marker
+              id={arrowStart}
+              markerWidth="9"
+              markerHeight="9"
+              refX="0"
+              refY="3"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path d="M7,0 L0,3 L7,6 z" fill={stroke} />
+            </marker>
+          ) : null}
+        </defs>
+      ) : null}
       {/* A 1.5px dotted line is a small target. This invisible companion widens
           the hit area without widening the mark, so hover and reroute stay
           reachable at the stroke weight the language actually calls for. */}

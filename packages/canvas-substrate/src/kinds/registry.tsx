@@ -3,7 +3,7 @@
 // SOURCING: @xyflow/react NodeTypes — the registry compiles kind entries into
 // the map React Flow expects, so hosts never hand-write a nodeTypes object.
 //
-// The whole point of issue #144 A: a kind is data plus an optional body, and
+// The whole point of issue 144 A: a kind is data plus an optional body, and
 // registering one produces a working node without touching NodeShell. The
 // generic component below is created once per kind and cached, because React
 // Flow re-creates every node when the nodeTypes identity changes.
@@ -12,6 +12,7 @@ import { memo, useMemo, type ComponentType } from 'react';
 import type { NodeProps, NodeTypes } from '@xyflow/react';
 import { NodeShell } from '../shell/NodeShell';
 import type {
+  AnyNodeKindEntry,
   NodeKindEntry,
   NodeKindId,
   WidgetRenderer,
@@ -31,7 +32,7 @@ export interface SubstrateNodeData {
 }
 
 function kindComponent(
-  entry: NodeKindEntry<never>,
+  entry: AnyNodeKindEntry,
   Widget: WidgetRenderer | undefined,
 ): ComponentType<NodeProps> {
   function KindNode({ id, data, selected }: NodeProps) {
@@ -57,7 +58,7 @@ function kindComponent(
 export interface NodeKindRegistry {
   /** Register a kind. Returns the registry so calls chain at module scope. */
   register<TData>(entry: NodeKindEntry<TData>): NodeKindRegistry;
-  get(id: NodeKindId): NodeKindEntry<never> | undefined;
+  get(id: NodeKindId): AnyNodeKindEntry | undefined;
   ids(): readonly NodeKindId[];
   /**
    * The React Flow `nodeTypes` map. Stable for a given widget renderer, so
@@ -67,14 +68,14 @@ export interface NodeKindRegistry {
 }
 
 export function createNodeKindRegistry(
-  initial: readonly NodeKindEntry<never>[] = [],
+  initial: readonly AnyNodeKindEntry[] = [],
 ): NodeKindRegistry {
-  const entries = new Map<NodeKindId, NodeKindEntry<never>>();
+  const entries = new Map<NodeKindId, AnyNodeKindEntry>();
   const compiled = new Map<WidgetRenderer | undefined, NodeTypes>();
 
   const registry: NodeKindRegistry = {
     register<TData>(entry: NodeKindEntry<TData>) {
-      entries.set(entry.id, entry as unknown as NodeKindEntry<never>);
+      entries.set(entry.id, entry as AnyNodeKindEntry);
       compiled.clear();
       return registry;
     },

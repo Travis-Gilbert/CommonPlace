@@ -8,6 +8,7 @@ export {
   type SubstrateNodeData,
 } from './registry';
 export type {
+  AnyNodeKindEntry,
   BadgeTone,
   EdgeFamily,
   EdgePaletteId,

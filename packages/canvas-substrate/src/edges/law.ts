@@ -1,4 +1,4 @@
-// SOURCING: none — the substrate edge language (issue #144 B), pure constants
+// SOURCING: none — the substrate edge language (issue 144 B), pure constants
 // and pure functions. Rendering binds to @xyflow/react in SubstrateEdge.
 //
 // One geometry and one dash system across both canvases; only the palette
