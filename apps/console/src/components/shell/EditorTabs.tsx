@@ -89,7 +89,11 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
             transition={{ duration: seconds(durations.fast), ease: EASE_OUT }}
             className="h-full"
           >
-            <ViewInstanceHost instance={active} host={host} />
+            <ViewInstanceHost
+              instance={active}
+              host={host}
+              bare={bare && region.properties.chrome === 'bare'}
+            />
           </motion.div>
         ) : null}
       </div>

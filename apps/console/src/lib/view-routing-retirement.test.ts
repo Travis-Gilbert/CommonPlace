@@ -22,7 +22,9 @@ describe('page-owned routing', () => {
     expect(pathForSurfaceId('console-workspace')).toBe('/workspace');
     expect(pathForSurfaceId('console-appearance')).toBe('/appearance');
     expect(pathForSurfaceId('console-models')).toBe('/Data-model');
+    expect(pathForSurfaceId('console-program')).toBe('/program');
     expect(surfaceIdForPath('/Data-model')).toBe('console-models');
+    expect(surfaceIdForPath('/program')).toBe('console-program');
     expect(surfaceIdForPath('/appearance')).toBe('console-appearance');
   });
 
