@@ -24,6 +24,8 @@ import {
   seedRecords,
   MODEL_SURFACE_ID,
   MODEL_VIEW_INSTANCE_ID,
+  PROGRAM_SURFACE_ID,
+  PROGRAM_VIEW_INSTANCE_ID,
 } from './workspace-seed';
 import { PLACE_ENTRIES } from './rail/rail-model';
 
@@ -73,6 +75,7 @@ describe('ConsoleBlockHost', () => {
       'console-index',
       'console-models',
       'console-proactivity',
+      'console-program',
       'console-records',
       'console-review',
       'console-survey',
@@ -151,6 +154,77 @@ describe('ConsoleBlockHost', () => {
     expect(models!.children[0]?.children[0]?.object.properties.descriptor_id).toBe(
       'model.studio',
     );
+    expect(models!.children[0]?.object.properties.chrome).toBe('bare');
+    const program = buildSurfaceTree(PROGRAM_SURFACE_ID, set.objects);
+    expect(program!.children[0]?.children[0]?.object.id).toBe(PROGRAM_VIEW_INSTANCE_ID);
+    expect(program!.children[0]?.children[0]?.object.properties.descriptor_id).toBe(
+      'program.canvas',
+    );
+    expect(program!.children[0]?.object.properties.chrome).toBe('bare');
+  });
+
+  it('adds the canonical Program surface to an existing server layout', async () => {
+    const remote = seedLayout()
+      .filter((object) => object.id !== PROGRAM_SURFACE_ID && !object.id.startsWith('program.'))
+      .map((object) => object.id === 'models.region-editor'
+        ? {
+            ...object,
+            properties: { ...object.properties, chrome: 'framed', seed_revision: 1 },
+          }
+        : object);
+    const actionBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      if (!('kind' in body)) {
+        return Response.json({
+          objects: remote,
+          shape: {
+            types: ['surface', 'region', 'view-instance'],
+            fields: [],
+            relations: [CONTAINS_EDGE],
+            axes: {},
+            cardinality: 'many',
+          },
+        });
+      }
+      actionBodies.push(body);
+      return Response.json({
+        action_kind: body.kind,
+        status: 'applied',
+        target_ids: [],
+        legacy_without_op_range: true,
+      });
+    }));
+
+    const host = new ConsoleBlockHost(NO_VIEWS);
+    await host.ensureSeedLayout();
+
+    const program = buildSurfaceTree(
+      PROGRAM_SURFACE_ID,
+      host.queryLayout(surfaceQuery()).objects,
+    );
+    expect(program!.children[0]?.children[0]?.object.id).toBe(PROGRAM_VIEW_INSTANCE_ID);
+    expect(actionBodies).toContainEqual(expect.objectContaining({
+      kind: 'create',
+      type: 'surface',
+      props: expect.objectContaining({ id: PROGRAM_SURFACE_ID }),
+    }));
+    expect(actionBodies).toContainEqual(expect.objectContaining({
+      kind: 'move',
+      id: PROGRAM_VIEW_INSTANCE_ID,
+      new_parent: 'program.region-editor',
+    }));
+    expect(actionBodies).toContainEqual({
+      kind: 'update',
+      id: 'models.region-editor',
+      patch: { chrome: 'bare', seed_revision: 2 },
+    });
+    expect(program!.children[0]?.object.properties.chrome).toBe('bare');
+    expect(
+      host.queryLayout(surfaceQuery()).objects
+        .find((object) => object.id === 'models.region-editor')
+        ?.properties.chrome,
+    ).toBe('bare');
   });
 
   it('adds missing seed surfaces to an existing server layout before adopting it', async () => {

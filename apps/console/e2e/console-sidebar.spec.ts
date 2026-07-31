@@ -124,6 +124,19 @@ test.describe('Console sidebar', () => {
     await expect(page.locator('[data-model-inspector]')).toHaveCSS('width', '320px');
   });
 
+  test('Program route mounts the canonical Program Canvas surface', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto('/program');
+    await settled(page);
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-program',
+    );
+    await expect(page.locator('[data-program-canvas]')).toBeVisible({
+      timeout: 120_000,
+    });
+  });
+
   test('landmark to ground survives cleared localStorage via server layout', async ({ page, request }) => {
     test.setTimeout(120_000);
     await resetStubLayout(request);

@@ -22,6 +22,8 @@ export const SURVEY_SURFACE_ID = 'console-survey';
 export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
 export const MODEL_SURFACE_ID = 'console-models';
 export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
+export const PROGRAM_SURFACE_ID = 'console-program';
+export const PROGRAM_VIEW_INSTANCE_ID = 'program.vi-canvas';
 export const CONSOLE_DATA_SURFACE_ID = 'console-your-data';
 function layoutObject(
   id: string,
@@ -288,7 +290,7 @@ export function seedLayout(): ObjectRef[] {
       name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 2,
     }, ['models.region-editor', ...companionIds('models')]),
     layoutObject('models.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 1,
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 2,
     }, [MODEL_VIEW_INSTANCE_ID]),
     layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
       descriptor_id: 'model.studio',
@@ -307,6 +309,17 @@ export function seedLayout(): ObjectRef[] {
       } as unknown as JsonValue,
     }),
     ...companionSeeds('models'),
+
+    layoutObject(PROGRAM_SURFACE_ID, 'surface', {
+      name: 'Program', kind: 'program', role: 'place', active: false, seed_revision: 1,
+    }, ['program.region-editor', ...companionIds('program')]),
+    layoutObject('program.region-editor', 'region', {
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: PROGRAM_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [PROGRAM_VIEW_INSTANCE_ID]),
+    layoutObject(PROGRAM_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'program.canvas', title: 'Program',
+    }),
+    ...companionSeeds('program'),
 
     layoutObject('console-docs', 'surface', {
       name: 'Documents', kind: 'documents', role: 'collection', active: false, seed_revision: 3,

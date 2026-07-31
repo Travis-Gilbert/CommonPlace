@@ -386,6 +386,9 @@ export class ConsoleBlockHost implements BlockHost {
           added = true;
         }
       }
+      if (this.canonicalizeCanvasPageRegions().length > 0) {
+        added = true;
+      }
       // IA revision 3 moves Workspace onto the durable substrate renderer and
       // inserts Goal Stack into the primary stripe. Preserve person-sized
       // panels while migrating only the seeded navigation and tab membership.
@@ -547,6 +550,28 @@ export class ConsoleBlockHost implements BlockHost {
     this.notifyLayout();
   }
 
+  /** Canonical canvas pages own their internal chrome. Persisted layouts from
+   *  before the page routes existed must not keep wrapping them in a second
+   *  generic BlockShell. */
+  private canonicalizeCanvasPageRegions(): ObjectAction[] {
+    const actions: ObjectAction[] = [];
+    for (const [id, seedRevision] of [
+      ['models.region-editor', 2],
+      ['program.region-editor', 1],
+    ] as const) {
+      const region = this.layout.get(id);
+      if (region?.type !== 'region' || region.properties.chrome === 'bare') continue;
+      region.properties.chrome = 'bare';
+      region.properties.seed_revision = seedRevision;
+      actions.push({
+        kind: 'update',
+        id,
+        patch: { chrome: 'bare', seed_revision: seedRevision },
+      });
+    }
+    return actions;
+  }
+
   /** B6: adopt server arrangement when present; otherwise push the local seed. */
   async ensureSeedLayout(): Promise<void> {
     if (this.records !== null) return;
@@ -605,11 +630,16 @@ export class ConsoleBlockHost implements BlockHost {
         const missing = seed.filter((object) => !durableIds.has(object.id));
         const shouldFillMissing =
           missing.length > 0 && durable.length >= Math.ceil(seed.length / 2);
-        this.replaceLayout(
-          shouldFillMissing ? [...durable, ...missing] : durable,
-        );
-        if (shouldFillMissing) {
-          await this.pushMissingSeedObjects(missing);
+        const additions = shouldFillMissing ? missing : [];
+        this.replaceLayout([...durable, ...additions]);
+        const canvasPageMigrations = this.canonicalizeCanvasPageRegions();
+        if (canvasPageMigrations.length > 0) {
+          this.persistLayout();
+          this.notifyLayout();
+          await this.writeThroughLayoutUpdates(canvasPageMigrations);
+        }
+        if (additions.length > 0) {
+          await this.pushMissingSeedObjects(additions);
         }
         return;
       }
