@@ -3,6 +3,19 @@ import { slugify, renderFrontmatter } from "./slug";
 
 const FLIP_CARDINALITY: Record<Cardinality, Cardinality> = { "1:1": "1:1", "N:N": "N:N", "1:N": "N:1", "N:1": "1:N" };
 
+/**
+ * Make a value safe to sit in a Markdown table cell.
+ *
+ * The parser splits rows on every `|`, so an unescaped pipe in a description
+ * such as `Source A | Source B` shifts every later cell and silently corrupts
+ * the field metadata on reimport. Newlines end the row outright. Escaping the
+ * pipe and folding newlines keeps the round trip lossless for the reader and
+ * for the parser.
+ */
+function escapeTableCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+}
+
 export interface OkfBundle { files: Record<string, string>; }
 
 export function serializeBundle(graph: ModelGraph, projectTitle = "Data Marts"): OkfBundle {
@@ -58,13 +71,14 @@ function renderNode(n: ModelNode, g: ModelGraph, slugByKey: Map<string, string>)
   const fk = fkColumns(n, g, slugByKey);
   const schema = n.schema.length
     ? "# Schema\n\n| Column | Type | Description |\n|--------|------|-------------|\n" +
+
       n.schema.map(f => {
         const parts: string[] = [];
         if (f.pk) parts.push("PK.");
         if (f.description) parts.push(f.description);
         const ref = fk.get(f.name);
         if (ref) parts.push(`FK to [${ref.title}](./${ref.slug}.md)`);
-        return `| \`${f.name}\` | ${f.type} | ${parts.join(" ").trim()} |`;
+        return `| \`${f.name}\` | ${escapeTableCell(f.type)} | ${escapeTableCell(parts.join(" ").trim())} |`;
       }).join("\n") + "\n\n"
     : "";
 

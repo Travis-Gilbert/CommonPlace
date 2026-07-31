@@ -47,6 +47,21 @@ function recordCountForType(
   if (typeof metadata?.recordCount === 'number' && Number.isFinite(metadata.recordCount)) {
     return metadata.recordCount;
   }
+  return undefined;
+}
+
+/**
+ * Observed ingest events for a declared type. Deliberately separate from the
+ * record count: an event is one write we saw, and several can touch the same
+ * record, so showing an event total where a reader expects "how many rows do I
+ * have" overstates the corpus.
+ */
+function eventCountForType(
+  declaredTypeId: string,
+  declared: DeclaredModel,
+  observed: ObservedModel,
+): number | undefined {
+  const metadata = declared.objectTypes.find((type) => type.id === declaredTypeId);
   const observedKey = metadata?.provenance?.observedKey;
   if (!observedKey) return undefined;
   return observed.types.find((type) => type.observedKey === observedKey)?.eventCount;
@@ -98,6 +113,7 @@ function registryToModelGraph(
       owoxId: null,
       _viewMode: 'erd',
       _recordCount: recordCountForType(type.id, declared, observed),
+      _eventCount: eventCountForType(type.id, declared, observed),
       _divergenceCount: type.enforcement === 'warn' ? divergenceCount : 0,
     };
     nodes.push(node);
@@ -111,7 +127,7 @@ function registryToModelGraph(
     const coverage = type.fields.length
       ? type.fields.reduce((sum, field) => sum + field.coverage, 0) / type.fields.length
       : 0;
-    const node: MartNodeData = {
+    const node: ModelCardData = {
       key,
       title: type.dataType,
       inputSource: 'TABLE',
@@ -127,7 +143,8 @@ function registryToModelGraph(
       _viewMode: 'erd',
       _ghost: true,
       _coverage: coverage,
-      _recordCount: type.eventCount,
+      // A ghost is observed only, so what we have is events, never records.
+      _eventCount: type.eventCount,
       _pendingDeclare: pendingPins.includes(type.observedKey),
       _onDeclare: () => onPin(type.observedKey, 'type'),
     };

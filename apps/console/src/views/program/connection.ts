@@ -35,11 +35,25 @@ export function catalogEntryAcceptsBoundary(
   return typesCompatibleClient(boundary, entry.input_shape);
 }
 
+/**
+ * Read a validate_edge response.
+ *
+ * The generated contract is an externally tagged enum:
+ * `"compatible" | "undetermined" | { "mismatch": SchemaMismatch }`, so the
+ * mismatch arrives as an object under `status`, not as the string `'mismatch'`
+ * with a sibling property. Reading only the sibling form turned every real
+ * mismatch into "unknown schema status" and hid the column and shape detail
+ * that makes the refusal actionable. Both shapes are accepted because the MCP
+ * layer between here and the enum is free to reshape it.
+ */
 export function edgeSchemaValidationFromResponse(value: Record<string, unknown>): EdgeSchemaValidation {
   const status = value.status;
   if (status === 'compatible' || status === 'undetermined') return { status };
-  if (status === 'mismatch') {
-    const mismatch = value.mismatch;
+  const tagged = status && typeof status === 'object' && !Array.isArray(status)
+    ? (status as Record<string, unknown>).mismatch
+    : undefined;
+  if (tagged !== undefined || status === 'mismatch') {
+    const mismatch = tagged ?? value.mismatch;
     if (
       !mismatch
       || typeof mismatch !== 'object'
@@ -58,7 +72,7 @@ export function edgeSchemaValidationFromResponse(value: Record<string, unknown>)
       throw new Error('validate_edge returned an invalid schema mismatch');
     }
     return {
-      status,
+      status: 'mismatch',
       mismatch: {
         column: record.column,
         producer_shape: record.producer_shape,

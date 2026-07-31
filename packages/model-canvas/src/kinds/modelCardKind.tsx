@@ -23,6 +23,8 @@ export interface ProviderBadge {
 }
 
 export type ModelCardData = MartNodeData & {
+  /** Observed ingest events. Never presented as a record count. */
+  readonly _eventCount?: number;
   /** Rendered as the per-card source badge; the general form of the fork's SQL badge. */
   readonly _provider?: ProviderBadge;
 };
@@ -54,7 +56,22 @@ function badgesFor(node: ModelCardData): NodeBadge[] {
   }
 
   if (typeof node._recordCount === 'number') {
-    badges.push({ id: 'records', text: String(node._recordCount), mono: true, title: 'Records' });
+    badges.push({
+      id: 'records',
+      text: `${node._recordCount} rec`,
+      mono: true,
+      title: 'Declared records',
+    });
+  }
+  if (typeof node._eventCount === 'number') {
+    // Distinct from records on purpose: several events can touch one record, so
+    // an unlabelled number here would overstate the corpus.
+    badges.push({
+      id: 'events',
+      text: `${node._eventCount} ev`,
+      mono: true,
+      title: 'Observed ingest events',
+    });
   }
   if (typeof node._coverage === 'number') {
     badges.push({

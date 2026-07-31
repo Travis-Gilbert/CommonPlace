@@ -17,7 +17,9 @@ import {
   type NodeTypes,
   type OnConnect,
   type OnConnectEnd,
+  type OnEdgesChange,
   type OnNodesChange,
+  applyEdgeChanges,
   applyNodeChanges,
   useReactFlow,
 } from '@xyflow/react';
@@ -277,7 +279,16 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const programIdRef = useRef(programId);
   const definitionRef = useRef(definition);
   const edgesRef = useRef(edges);
+  const nodesRef = useRef(nodes);
   const layoutRef = useRef(layoutDoc);
+  /**
+   * Bumped whenever the open draft changes identity: opening a program,
+   * forking, starting from a starter, materializing a proposal, or resetting to
+   * a new draft. Every async completion captures it and drops its result if it
+   * no longer matches, so a save, load or edge validation belonging to the
+   * program the reader just left cannot write over the one they are in.
+   */
+  const draftGeneration = useRef(0);
   const catalogById = useMemo(
     () => new Map(catalog.map((entry) => [entry.id, entry])),
     [catalog],
@@ -298,6 +309,10 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   useEffect(() => {
     edgesRef.current = edges;
   }, [edges]);
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
 
   useEffect(() => {
     void Promise.all([
@@ -327,9 +342,11 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   ) => {
     if (!next.tenant_id) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    const generation = draftGeneration.current;
     saveTimer.current = setTimeout(() => {
       void saveProgramDraft(next, toLayoutWire(layout), targetProgramId ?? undefined)
         .then((result) => {
+          if (generation !== draftGeneration.current) return;
           const id = typeof result.node_id === 'string'
             ? result.node_id
             : typeof result.id === 'string'
@@ -454,6 +471,24 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     }
   }, [edges, persistFromFlow]);
 
+  /**
+   * The edges array is controlled, so without this a reader could select a wire
+   * and press delete with nothing happening: React Flow had no way to tell the
+   * view its edge set changed, leaving no way to correct a wire short of
+   * deleting one of the nodes it joins.
+   */
+  const onEdgesChange: OnEdgesChange = useCallback((changes) => {
+    setEdges((current) => {
+      const next = applyEdgeChanges(changes, current);
+      if (next.length !== current.length) {
+        // A removal also drops the edge's reroute waypoints, which are keyed by
+        // edge id and would otherwise outlive the wire they belong to.
+        persistFromFlow(nodesRef.current, next);
+      }
+      return next;
+    });
+  }, [persistFromFlow]);
+
   const isValidConnection = useCallback((connection: Connection | Edge) => {
     if (
       !connection.source
@@ -491,8 +526,10 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       return;
     }
 
+    const generation = draftGeneration.current;
     void validateEdgeSchema(producer, consumer)
       .then((validation) => {
+        if (generation !== draftGeneration.current) return;
         if (validation.status === 'mismatch') {
           setError(schemaMismatchMessage(validation.mismatch!));
           return;
@@ -650,10 +687,14 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   }, [edges, layoutDoc, livenessByNode, patchLayout]);
 
   async function openProgram(id: string): Promise<void> {
+    draftGeneration.current += 1;
+    const generation = draftGeneration.current;
     setBusy(true);
     setError(null);
     try {
       const loaded = await loadProgram(id);
+      // The reader may have opened something else while this was in flight.
+      if (generation !== draftGeneration.current) return;
       setProgramId(id);
       setDefinition(loaded.definition);
       const loadedLayout = fromLayoutWire(loaded.layout as never);
@@ -968,6 +1009,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setBusy(true);
     setError(null);
     try {
+      draftGeneration.current += 1;
       const forked = await forkProgramDefinition(
         definition,
         `Fork of ${definition.name}`,
@@ -1021,6 +1063,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setBusy(true);
     setError(null);
     try {
+      draftGeneration.current += 1;
       const receipt = await materializeProgram(next, programId);
       setDefinition(next);
       layoutRef.current = EMPTY_LAYOUT;
@@ -1058,6 +1101,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   }
 
   function openStarter(starter: ProgramDefinition): void {
+    draftGeneration.current += 1;
     if (!tenantId) return;
     const next: ProgramDefinition = {
       ...starter,
@@ -1123,6 +1167,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
                 if (id) {
                   void openProgram(id);
                 } else if (tenantId) {
+                  draftGeneration.current += 1;
                   setProgramId(null);
                   setDefinition(emptyDraft(tenantId));
                   setNodes([]);
@@ -1203,6 +1248,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             edgeTypes={EDGE_TYPES}
             connectionLineComponent={ConnectionLine}
             onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             onConnectEnd={onConnectEnd}

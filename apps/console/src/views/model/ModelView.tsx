@@ -201,6 +201,21 @@ function ModelInspector({
   const [fieldKind, setFieldKind] = useState(declaredField?.fieldType.kind ?? 'text');
   const [fieldRequired, setFieldRequired] = useState(declaredField?.required ?? false);
 
+  // These initialisers run once, at mount, which normally happens with nothing
+  // selected. Without this the editor opened empty on the first selection and
+  // kept field A's key, label, type and required flag after moving to field B,
+  // so submitting could redeclare B with A's values.
+  const editedFieldId = declaredField?.id ?? null;
+  useEffect(() => {
+    setFieldKey(declaredField?.key ?? '');
+    setFieldLabel(declaredField?.label ?? '');
+    setFieldKind(declaredField?.fieldType.kind ?? 'text');
+    setFieldRequired(declaredField?.required ?? false);
+    // Keyed on the field identity: re-syncing on every render would fight the
+    // reader's typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editedFieldId]);
+
   function editedFieldType(current: FieldType, kind: string): FieldType {
     if (current.kind === kind) return current;
     switch (kind) {
@@ -412,6 +427,9 @@ export function ModelView({ set, host }: ViewRenderProps) {
   const [proposalBusy, setProposalBusy] = useState(false);
   const [layoutPositions, setLayoutPositions] = useState<LayoutPositions>({});
   const layoutPersistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Latest debounced positions and the writer, so unmount can flush them. */
+  const pendingLayoutRef = useRef<LayoutPositions | null>(null);
+  const persistLayoutRef = useRef<((positions: LayoutPositions) => Promise<void>) | null>(null);
   const [okfPreview, setOkfPreview] = useState<OkfImportPreview | null>(null);
   const [diffVersionIds, setDiffVersionIds] = useState<readonly [string, string]>(['', '']);
   const [diffOpen, setDiffOpen] = useState(false);
@@ -552,6 +570,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
   }, [layoutHost, topicId, reloadToken]);
 
   async function persistLayout(positions: LayoutPositions): Promise<void> {
+    pendingLayoutRef.current = null;
     if (!topicId) return;
     const canvasId = modelCanvasId(topicId);
     const document = layoutDocumentFromPositions(positions);
@@ -582,8 +601,11 @@ export function ModelView({ set, host }: ViewRenderProps) {
     }
   }
 
+  persistLayoutRef.current = persistLayout;
+
   function scheduleLayoutPersist(positions: LayoutPositions): void {
     setLayoutPositions(positions);
+    pendingLayoutRef.current = positions;
     if (layoutPersistTimer.current) clearTimeout(layoutPersistTimer.current);
     layoutPersistTimer.current = setTimeout(() => {
       void persistLayout(positions);
@@ -591,7 +613,14 @@ export function ModelView({ set, host }: ViewRenderProps) {
   }
 
   useEffect(() => () => {
-    if (layoutPersistTimer.current) clearTimeout(layoutPersistTimer.current);
+    // Cancelling the debounce without writing loses the reader's last drag,
+    // which the canvas durability contract does not allow. Flush what is
+    // pending, then cancel.
+    if (!layoutPersistTimer.current) return;
+    clearTimeout(layoutPersistTimer.current);
+    layoutPersistTimer.current = null;
+    const pending = pendingLayoutRef.current;
+    if (pending) void persistLayoutRef.current?.(pending);
   }, [topicId]);
 
   async function applyPin(
@@ -850,7 +879,6 @@ export function ModelView({ set, host }: ViewRenderProps) {
                 type="file"
                 accept=".md,.json,text/markdown,application/json"
                 multiple
-                ref={(input) => input?.setAttribute('webkitdirectory', '')}
                 className="sr-only"
                 onChange={(event) => void previewOkfImport(event.target.files)}
               />
