@@ -19,6 +19,9 @@ on:
       - "packages/block-view/**"
       - "packages/console-block/**"
       - "packages/theorem-acp/**"
+      - "packages/program-contracts/**"
+      - "packages/model-canvas/**"
+      - "packages/okf/**"
       - ".github/workflows/console-ci.yml"
 
 permissions:
@@ -64,9 +67,35 @@ jobs:
   gates:
     name: Gates, unit tests, build
     runs-on: ubuntu-latest
+    env:
+      THEOREM_REPO_TOKEN: ${{ secrets.THEOREM_REPO_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Read pinned Theorem contract source
+        id: theorem-contract-source
+        shell: bash
+        run: |
+          commit="$(
+            sed -n 's|^// SOURCE COMMIT: ||p' \
+              packages/program-contracts/src/program.generated.ts
+          )"
+          if [[ ! "$commit" =~ ^[0-9a-f]{9,40}$ ]]; then
+            echo "Invalid Theorem source commit: $commit" >&2
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout pinned Theorem contract source
+        if: env.THEOREM_REPO_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: Travis-Gilbert/Theorem
+          ref: ${{ steps.theorem-contract-source.outputs.commit }}
+          path: .theorem-contract-source
+          persist-credentials: false
+          token: ${{ env.THEOREM_REPO_TOKEN }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -84,6 +113,23 @@ jobs:
 
       - name: Contract package typecheck
         run: pnpm --filter @commonplace/block-view run check
+
+      - name: Program contract package typecheck (PG1)
+        run: pnpm --filter @commonplace/program-contracts run check
+
+      - name: Program contracts drift check (PG1)
+        if: env.THEOREM_REPO_TOKEN != ''
+        run: pnpm --filter @commonplace/program-contracts run check:generated
+        env:
+          THEOREM_REPO: ${{ github.workspace }}/.theorem-contract-source
+
+      - name: Report unavailable cross-repo drift oracle
+        if: env.THEOREM_REPO_TOKEN == ''
+        run: |
+          echo "::notice::Program contract typechecking passed; Rust regeneration is skipped because THEOREM_REPO_TOKEN is not configured."
+
+      - name: Model canvas / OKF typecheck (MF1)
+        run: pnpm --filter @commonplace/okf run check && pnpm --filter @commonplace/model-canvas run check
 
       - name: Console block typecheck
         run: pnpm --filter @commonplace/console-block run check

@@ -587,6 +587,23 @@ function runQuery(query) {
 }
 
 function graphqlFixture(query, variables, tenant) {
+  if (query.includes('ConsoleObservedAndDeclaredModel')) {
+    return {
+      data: {
+        observedModel: {
+          eventCount: 0,
+          types: [],
+          sources: [],
+        },
+        declaredModel: {
+          objectTypes: [],
+          views: [],
+          versions: [],
+          divergences: [],
+        },
+      },
+    };
+  }
   if (query.includes('CommonPlaceConsolePluginState')) {
     const installed = pluginState(tenant) === 'installed' ? [installedPlugin()] : [];
     return { data: { installedApps: installed, pendingApps: [] } };

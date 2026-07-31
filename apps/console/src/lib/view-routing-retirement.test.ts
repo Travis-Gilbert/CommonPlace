@@ -21,13 +21,15 @@ describe('page-owned routing', () => {
     expect(pathForSurfaceId('console-chat')).toBe('/chat');
     expect(pathForSurfaceId('console-workspace')).toBe('/workspace');
     expect(pathForSurfaceId('console-appearance')).toBe('/appearance');
-    expect(surfaceIdForPath('/models')).toBe('console-models');
+    expect(pathForSurfaceId('console-models')).toBe('/Data-model');
+    expect(surfaceIdForPath('/Data-model')).toBe('console-models');
     expect(surfaceIdForPath('/appearance')).toBe('console-appearance');
   });
 
   it('migrates known persisted view routes and refuses unknown ones', () => {
     expect(normalizeConsolePagePath('/v/researcher')).toBe('/indexer');
-    expect(normalizeConsolePagePath('/v/data-model')).toBe('/models');
+    expect(normalizeConsolePagePath('/v/data-model')).toBe('/Data-model');
+    expect(normalizeConsolePagePath('/models')).toBe('/Data-model');
     expect(normalizeConsolePagePath('/v/person-created')).toBe('/workspace');
   });
 

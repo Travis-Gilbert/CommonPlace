@@ -1,0 +1,40 @@
+{
+  "name": "@commonplace/model-canvas",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Hard fork of OWOX/models web canvas for CommonPlace. Registry is model truth; this package owns the ERD surface. Apache-2.0, NOTICE preserved.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./shell": "./src/ModelCanvasShell.tsx",
+    "./mart-node": "./src/components/canvas/MartNode.tsx",
+    "./rel-edge": "./src/components/canvas/RelEdge.tsx",
+    "./diff": "./src/lib/diff.ts",
+    "./store": "./src/state/model.ts",
+    "./canvas.css": "./src/components/canvas/canvas.css"
+  },
+  "scripts": {
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@commonplace/okf": "workspace:*",
+    "@dagrejs/dagre": "^1.1.0",
+    "@xyflow/react": "^12.11.2",
+    "lucide-react": "^0.460.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "jsdom": "29.1.1",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.6"
+  }
+}

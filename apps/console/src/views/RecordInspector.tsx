@@ -7,13 +7,79 @@
 // compact card above the raw field table; relation chips there navigate the
 // inspector to the related object.
 
-import { useCallback, useEffect, useState } from 'react';
-import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { BlockHost, JsonValue, ObjectRef } from '@commonplace/block-view/types';
+import type { FieldMetadata } from '@commonplace/data-model-contracts';
+import { parseFieldType } from '@commonplace/data-model-contracts';
 import { CopyAddressButton } from '@/components/shell/CopyAddressButton';
 import { objectAddress } from '@/lib/object-address';
 import { objectChip, useShellStore } from '@/lib/shell-store';
 import { RecordCard } from './CardView';
 import { ViewState } from './ViewStates';
+import { renderFieldCell } from './records/cells';
+import { FieldEditor } from './records/editors';
+import { RecordChip } from './records/RecordChip';
+import { hueForObjectKey } from './records/tints';
+
+function parseDeclaredFields(record: ObjectRef): FieldMetadata[] {
+  const raw = record.properties.declaredFields
+    ?? record.properties.fields
+    ?? record.properties.schemaFields;
+  if (!Array.isArray(raw)) return [];
+  const objectTypeId = String(record.properties.objectTypeKey ?? record.type ?? 'record');
+  return raw
+    .map((entry): FieldMetadata | null => {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return null;
+      const source = entry as Record<string, unknown>;
+      const key = typeof source.key === 'string' ? source.key : '';
+      if (!key) return null;
+      return {
+        id: typeof source.id === 'string' ? source.id : `${objectTypeId}:${key}`,
+        objectTypeId,
+        key,
+        label: typeof source.label === 'string' ? source.label : key,
+        fieldType: parseFieldType(source.fieldType ?? source.field_type),
+        required: Boolean(source.required),
+      };
+    })
+    .filter((entry): entry is FieldMetadata => entry !== null);
+}
+
+function readProvenance(record: ObjectRef): { eventIds: string[]; sourceRefs: string[] } {
+  const provenance = record.properties.provenance;
+  if (typeof provenance !== 'object' || provenance === null || Array.isArray(provenance)) {
+    return { eventIds: [], sourceRefs: [] };
+  }
+  const source = provenance as Record<string, unknown>;
+  const eventIds = Array.isArray(source.eventIds)
+    ? source.eventIds.filter((item): item is string => typeof item === 'string')
+    : Array.isArray(source.event_ids)
+      ? source.event_ids.filter((item): item is string => typeof item === 'string')
+      : [];
+  const sourceRefs = Array.isArray(source.sourceRefs)
+    ? source.sourceRefs.filter((item): item is string => typeof item === 'string')
+    : Array.isArray(source.source_refs)
+      ? source.source_refs.filter((item): item is string => typeof item === 'string')
+      : [];
+  return { eventIds, sourceRefs };
+}
+
+function relationEntries(record: ObjectRef, fields: readonly FieldMetadata[]): Array<{ key: string; value: unknown }> {
+  const relationKeys = new Set(
+    fields.filter((field) => field.fieldType.kind === 'relation').map((field) => field.key),
+  );
+  const entries: Array<{ key: string; value: unknown }> = [];
+  for (const [key, value] of Object.entries(record.properties)) {
+    if (relationKeys.has(key) || key.endsWith('_id') || key.endsWith('Ids')) {
+      entries.push({ key, value });
+    }
+  }
+  const explicit = record.properties.relations;
+  if (Array.isArray(explicit)) {
+    for (const item of explicit) entries.push({ key: 'relations', value: item });
+  }
+  return entries;
+}
 
 export function RecordInspector({ host }: { host: BlockHost }) {
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
@@ -23,17 +89,37 @@ export function RecordInspector({ host }: { host: BlockHost }) {
   const openActionSheet = useShellStore((state) => state.openActionSheet);
   const tenant = useShellStore((state) => state.tenant);
   const [fetched, setFetched] = useState<ObjectRef | null>(null);
-  // The opener may have handed us the object (a grid cell, a chip with a
-  // resolved target); deriving at render time keeps the effect fetch-only
-  // (no sync setState in effects, the react-hooks v6 rule).
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const record =
     selectedRecordObject && selectedRecordObject.id === selectedRecordId
       ? selectedRecordObject
       : fetched;
 
-  // Closing returns focus to the stream row that opened the inspector (R4
-  // punch list). The row may have virtualized away; the record scroller is
-  // the fallback focus target so keyboard flow never dead-ends.
+  const declaredFields = useMemo(
+    () => (record ? parseDeclaredFields(record) : []),
+    [record],
+  );
+
+  const labelField = useMemo(() => {
+    const fromProps = record?.properties.labelIdentifierField;
+    if (typeof fromProps === 'string' && fromProps.length > 0) return fromProps;
+    return declaredFields[0]?.key ?? 'title';
+  }, [declaredFields, record?.properties.labelIdentifierField]);
+
+  const headerLabel = record
+    ? String(record.properties[labelField] ?? record.properties.title ?? record.id)
+    : '';
+
+  const provenance = useMemo(
+    () => (record ? readProvenance(record) : { eventIds: [], sourceRefs: [] }),
+    [record],
+  );
+
+  const relations = useMemo(
+    () => (record ? relationEntries(record, declaredFields) : []),
+    [declaredFields, record],
+  );
+
   const close = useCallback(() => {
     const id = selectedRecordId;
     selectRecord(null);
@@ -47,16 +133,12 @@ export function RecordInspector({ host }: { host: BlockHost }) {
 
   useEffect(() => {
     let active = true;
-    // A stashed object needs no wire: the render derives it directly, and
-    // the effect stays fetch-only (no sync setState in effects).
     if (
       !selectedRecordId ||
       (selectedRecordObject && selectedRecordObject.id === selectedRecordId)
     ) {
       return;
     }
-    // Cross-kind fetch: a chip's target kind rides along as the hint; the
-    // record wire stays the default so table selections resolve as before.
     const types = selectedTypeHint && selectedTypeHint !== 'record'
       ? [selectedTypeHint, 'record']
       : ['record'];
@@ -64,7 +146,6 @@ export function RecordInspector({ host }: { host: BlockHost }) {
       host.query({ types, where: { kind: 'eq', field: 'id', value: selectedRecordId } }),
     ).then((set) => {
       if (!active) return;
-      // The fixture host filters on properties; fall back to scanning by id.
       const match =
         set.objects.find((object) => object.id === selectedRecordId) ??
         null;
@@ -81,7 +162,22 @@ export function RecordInspector({ host }: { host: BlockHost }) {
     };
   }, [host, selectedRecordId, selectedRecordObject, selectedTypeHint]);
 
+  const commitField = useCallback(
+    async (fieldKey: string, nextValue: unknown) => {
+      if (!record) return;
+      setEditingKey(null);
+      await host.emit({
+        kind: 'update',
+        id: record.id,
+        patch: { [fieldKey]: nextValue as JsonValue },
+      });
+    },
+    [host, record],
+  );
+
   if (!selectedRecordId) return null;
+
+  const headerHue = hueForObjectKey(String(record?.type ?? 'record'));
 
   return (
     <aside
@@ -91,21 +187,31 @@ export function RecordInspector({ host }: { host: BlockHost }) {
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.stopPropagation();
+          if (editingKey) {
+            setEditingKey(null);
+            return;
+          }
           close();
         }
       }}
     >
-      <div className="flex h-ij-toolbar shrink-0 items-center border-b border-ij-seam px-3">
-        <span className="text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-          Inspector
-        </span>
+      <div className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam px-3">
+        {record ? (
+          <RecordChip
+            label={headerLabel}
+            tint={headerHue.tint}
+            ink={headerHue.ink}
+          />
+        ) : (
+          <span className="text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
+            Inspector
+          </span>
+        )}
         {record ? (
           <button
             type="button"
             data-inspector-action
             onClick={() =>
-              // The Action verb on the inspector (K3): same sheet, this
-              // object pre-staged as the originating chip.
               openActionSheet({
                 chips: [
                   objectChip(
@@ -121,12 +227,14 @@ export function RecordInspector({ host }: { host: BlockHost }) {
           >
             Action
           </button>
-        ) : null}
+        ) : (
+          <span className="ml-auto" />
+        )}
         <button
           type="button"
           onClick={close}
           aria-label="Close inspector"
-          className="ml-auto h-6 w-6 rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+          className="h-6 w-6 shrink-0 rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
           style={{ transition: 'var(--rec-clickable-transition)' }}
         >
           ×
@@ -137,21 +245,93 @@ export function RecordInspector({ host }: { host: BlockHost }) {
           <div className="border-b border-ij-seam p-3" data-inspector-card>
             <RecordCard object={record} host={host} size="compact" />
           </div>
-          <dl className="p-4">
-            {Object.entries(record.properties).map(([key, value]) => (
-              <div key={key} className="mb-rec-grid border-b border-ij-divider pb-rec-grid">
-                <dt className="text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-medium)' }}>
-                  {key}
-                </dt>
-                <dd className="text-ij-ink">
-                  {Array.isArray(value) ? value.join(', ') : String(value)}
-                </dd>
+          {relations.length > 0 ? (
+            <section className="border-b border-ij-seam p-4" data-inspector-relations>
+              <h3 className="mb-2 text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-medium)' }}>
+                Relations
+              </h3>
+              <div className="flex flex-wrap gap-rec-sibling-gap">
+                {relations.flatMap(({ key, value }) => {
+                  const entries = Array.isArray(value) ? value : [value];
+                  return entries.map((entry, index) => {
+                    const label = typeof entry === 'string'
+                      ? entry
+                      : typeof entry === 'object' && entry !== null
+                        ? String((entry as Record<string, unknown>).title
+                          ?? (entry as Record<string, unknown>).label
+                          ?? (entry as Record<string, unknown>).id
+                          ?? key)
+                        : String(entry);
+                    const hue = hueForObjectKey(key);
+                    return (
+                      <RecordChip
+                        key={`${key}-${index}`}
+                        label={label}
+                        tint={hue.tint}
+                        ink={hue.ink}
+                        title={key}
+                      />
+                    );
+                  });
+                })}
               </div>
-            ))}
-            {/* The footer names the object the way everything else does
-                (DESIGN-THEOREM-URI section 3): the canonical address stands
-                where the bare id used to, and it is copyable. The id is still
-                legible, because it is the address's last segment. */}
+            </section>
+          ) : null}
+          <dl className="p-4">
+            {(declaredFields.length > 0
+              ? declaredFields.map((field) => ({ key: field.key, field }))
+              : Object.keys(record.properties).map((key) => ({ key, field: undefined }))
+            ).map(({ key, field }) => {
+              const value = record.properties[key];
+              const isEditing = editingKey === key;
+              return (
+                <div key={key} className="mb-rec-grid border-b border-ij-divider pb-rec-grid">
+                  <dt className="text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-medium)' }}>
+                    {field?.label ?? key}
+                  </dt>
+                  <dd className="text-ij-ink">
+                    {isEditing && field ? (
+                      <FieldEditor
+                        fieldType={field.fieldType}
+                        value={value}
+                        onCommit={(next) => void commitField(key, next)}
+                        onCancel={() => setEditingKey(null)}
+                        autoFocus
+                      />
+                    ) : field ? (
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onClick={() => setEditingKey(key)}
+                      >
+                        {renderFieldCell(field.fieldType, value, { label: field.label })}
+                      </button>
+                    ) : (
+                      <span>
+                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
+            {(provenance.eventIds.length > 0 || provenance.sourceRefs.length > 0) ? (
+              <div className="mt-2 border-t border-ij-divider pt-rec-grid" data-inspector-provenance>
+                <h3 className="mb-1 text-ij-ink-info" style={{ fontWeight: 'var(--rec-weight-medium)' }}>
+                  Provenance
+                </h3>
+                {provenance.eventIds.length > 0 ? (
+                  <p className="font-ij-mono text-xs text-ij-ink-info">
+                    Events: {provenance.eventIds.join(', ')}
+                  </p>
+                ) : null}
+                {provenance.sourceRefs.length > 0 ? (
+                  <p className="font-ij-mono text-xs text-ij-ink-info">
+                    Sources: {provenance.sourceRefs.join(', ')}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-2 flex items-center gap-1" data-inspector-address>
               <span
                 className="min-w-0 flex-1 truncate font-ij-mono text-ij-ink-disabled"

@@ -20,10 +20,16 @@ import {
   type PinReceipt,
   type PinRequest,
   type RelationMetadata,
+  type SchemaDeclareInput,
+  type SchemaDeclareReceipt,
   type SchemaProposalDraft,
   type SchemaVersion,
   type ScopeRef,
+  type ViewColumnConfig,
+  type ViewFilter,
+  type ViewFilterOp,
   type ViewMetadata,
+  type ViewSort,
 } from '@commonplace/data-model-contracts';
 import {
   callHarnessGraphql,
@@ -76,6 +82,24 @@ export type CompileMutation =
   | { readonly ok: true; readonly tenant: string; readonly value: unknown }
   | GraphqlFailure;
 
+export type DeclareMutation =
+  | {
+      readonly ok: true;
+      readonly tenant: string;
+      readonly receipt: SchemaDeclareReceipt;
+      readonly declared: DeclaredModel;
+    }
+  | GraphqlFailure;
+
+export type RestoreMutation =
+  | {
+      readonly ok: true;
+      readonly tenant: string;
+      readonly receipt: unknown;
+      readonly declared: DeclaredModel;
+    }
+  | GraphqlFailure;
+
 const MODELS_QUERY = `
   query ConsoleObservedAndDeclaredModel($topicId: String!) {
     observedModel(topicId: $topicId)
@@ -98,6 +122,18 @@ const PIN_MUTATION = `
 const UNPIN_MUTATION = `
   mutation ConsoleUnpinDeclared($targetId: String!) {
     unpinDeclared(targetId: $targetId)
+  }
+`;
+
+const DECLARE_MUTATION = `
+  mutation ConsoleDeclareSchema($input: JSON!) {
+    declareSchema(input: $input)
+  }
+`;
+
+const RESTORE_MUTATION = `
+  mutation ConsoleRestoreDeclaredModel($versionId: String!) {
+    restoreDeclaredModel(versionId: $versionId)
   }
 `;
 
@@ -288,10 +324,16 @@ function normalizeObjectType(value: unknown): ObjectTypeMetadata | null {
   if (!id || !key) return null;
   const nameSingular = text(sourceValue(source, 'nameSingular', 'name_singular'), key);
   const namePlural = text(sourceValue(source, 'namePlural', 'name_plural'), `${nameSingular}s`);
+  const recordCountRaw = sourceValue(source, 'recordCount', 'record_count');
+  const recordCount = typeof recordCountRaw === 'number' && Number.isFinite(recordCountRaw)
+    ? recordCountRaw
+    : undefined;
   return {
     id,
     key,
     label: text(source.label ?? source.name, key),
+    description: text(source.description) || undefined,
+    nodeLabel: text(sourceValue(source, 'nodeLabel', 'node_label'), key),
     enforcement: normalizeEnforcement(source.enforcement),
     nameSingular,
     namePlural,
@@ -301,6 +343,9 @@ function normalizeObjectType(value: unknown): ObjectTypeMetadata | null {
     ),
     system: Boolean(source.system),
     contentAnchor: text(sourceValue(source, 'contentAnchor', 'content_anchor'), id),
+    ...(recordCount !== undefined ? { recordCount } : {}),
+    icon: text(source.icon) || undefined,
+    tint: text(source.tint) || undefined,
     provenance: normalizeMetadataProvenance(source),
   };
 }
@@ -317,8 +362,10 @@ function normalizeField(value: unknown): FieldMetadata | null {
     objectTypeId,
     key,
     label: text(source.label, key),
+    description: text(source.description) || undefined,
     fieldType: coerceObservedFieldType(sourceValue(source, 'fieldType', 'field_type')),
     required: Boolean(source.required),
+    system: Boolean(source.system),
     indexPolicy: coerceIndexPolicy(sourceValue(source, 'indexPolicy', 'index_policy')),
     provenance: normalizeMetadataProvenance(source),
   };
@@ -344,55 +391,11 @@ function normalizeRelation(value: unknown): RelationMetadata | null {
   };
 }
 
-function normalizeView(value: unknown): ViewMetadata | null {
-  const source = record(value);
-  if (!source) return null;
-  const id = text(source.id);
-  const key = text(source.key);
-  if (!id || !key) return null;
-  return {
-    id,
-    key,
-    label: text(source.label, key),
-    descriptorId: text(sourceValue(source, 'descriptorId', 'descriptor_id')) || undefined,
-    provenance: normalizeMetadataProvenance(source),
-  };
-}
-
-function normalizeVersion(value: unknown, scope: ScopeRef): SchemaVersion | null {
-  const source = record(value);
-  if (!source) return null;
-  const id = text(source.id);
-  if (!id) return null;
-  const rawStatus = text(source.status);
-  const status = rawStatus === 'declared'
-    || rawStatus === 'published'
-    || rawStatus === 'superseded'
-    ? rawStatus
-    : 'draft';
-  return {
-    id,
-    scope,
-    version: typeof source.version === 'string' || typeof source.version === 'number'
-      ? source.version
-      : 0,
-    status,
-    objectTypeIds: stringList(sourceValue(source, 'objectTypeIds', 'object_type_ids')),
-    fieldIds: stringList(sourceValue(source, 'fieldIds', 'field_ids')),
-    relationIds: stringList(sourceValue(source, 'relationIds', 'relation_ids')),
-    viewIds: stringList(sourceValue(source, 'viewIds', 'view_ids')),
-    createdAt: text(sourceValue(source, 'createdAt', 'created_at')) || undefined,
-    request: text(source.request) || undefined,
-    validationSummary: text(sourceValue(source, 'validationSummary', 'validation_summary')) || undefined,
-    impactSummary: text(sourceValue(source, 'impactSummary', 'impact_summary')) || undefined,
-  };
-}
-
-function normalizeDeclaredModel(value: unknown, topicId: string, tenant: string): DeclaredModel {
-  const scope = scopeFor(topicId, tenant);
-  const source = record(value);
-  if (!source) return emptyDeclaredModel(scope);
-  const rawObjectTypes = list(sourceValue(source, 'objectTypes', 'object_types'));
+function normalizeDeclaredObjectProjection(rawObjectTypes: readonly unknown[]): {
+  readonly objectTypes: readonly ObjectTypeMetadata[];
+  readonly fields: readonly FieldMetadata[];
+  readonly relations: readonly RelationMetadata[];
+} {
   const objectTypes = rawObjectTypes
     .map(normalizeObjectType)
     .filter((item): item is ObjectTypeMetadata => item !== null);
@@ -413,24 +416,140 @@ function normalizeDeclaredModel(value: unknown, topicId: string, tenant: string)
     ]),
   );
   const relations = relationValues.flatMap((value) => {
-      const item = normalizeRelation(value);
-      if (!item) return [];
-      const raw = record(value);
-      const targetKey = text(sourceValue(raw ?? {}, 'targetDataType', 'target_data_type'));
-      const normalized = targetKey && objectTypeIdByKey.has(targetKey)
-        ? { ...item, targetObjectTypeId: objectTypeIdByKey.get(targetKey) }
-        : item;
-      return [normalized];
-    });
+    const item = normalizeRelation(value);
+    if (!item) return [];
+    const raw = record(value);
+    const targetKey = text(sourceValue(raw ?? {}, 'targetDataType', 'target_data_type'));
+    const normalized = targetKey && objectTypeIdByKey.has(targetKey)
+      ? { ...item, targetObjectTypeId: objectTypeIdByKey.get(targetKey) }
+      : item;
+    return [normalized];
+  });
+  return { objectTypes, fields, relations };
+}
+
+function normalizeViewFilter(value: unknown): ViewFilter | null {
+  const source = record(value);
+  if (!source) return null;
+  const fieldKey = text(sourceValue(source, 'fieldKey', 'field_key'));
+  const op = text(source.op) as ViewFilterOp;
+  if (!fieldKey || !op) return null;
+  return {
+    fieldKey,
+    op,
+    value: source.value,
+  };
+}
+
+function normalizeViewSort(value: unknown): ViewSort | null {
+  const source = record(value);
+  if (!source) return null;
+  const fieldKey = text(sourceValue(source, 'fieldKey', 'field_key'));
+  if (!fieldKey) return null;
+  return {
+    fieldKey,
+    direction: source.direction === 'desc' ? 'desc' : 'asc',
+  };
+}
+
+function normalizeViewColumn(value: unknown, index: number): ViewColumnConfig | null {
+  const source = record(value);
+  if (!source) return null;
+  const fieldKey = text(sourceValue(source, 'fieldKey', 'field_key'));
+  if (!fieldKey) return null;
+  const widthRaw = source.width;
+  return {
+    fieldKey,
+    visible: source.visible !== false,
+    ...(typeof widthRaw === 'number' && Number.isFinite(widthRaw) ? { width: widthRaw } : {}),
+    order: typeof source.order === 'number' ? source.order : index,
+  };
+}
+
+function normalizeView(value: unknown): ViewMetadata | null {
+  const source = record(value);
+  if (!source) return null;
+  const id = text(source.id);
+  const key = text(source.key);
+  const objectTypeId = text(sourceValue(source, 'objectTypeId', 'object_type_id'));
+  if (!id || !key || !objectTypeId) return null;
+  return {
+    id,
+    key,
+    label: text(source.label, key),
+    objectTypeId,
+    filters: list(source.filters)
+      .map(normalizeViewFilter)
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    sorts: list(source.sorts)
+      .map(normalizeViewSort)
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    columns: list(source.columns)
+      .map((item, index) => normalizeViewColumn(item, index))
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    isDefault: Boolean(sourceValue(source, 'isDefault', 'is_default')),
+    descriptorId: text(sourceValue(source, 'descriptorId', 'descriptor_id')) || undefined,
+    provenance: normalizeMetadataProvenance(source),
+  };
+}
+
+function normalizeVersion(value: unknown, scope: ScopeRef): SchemaVersion | null {
+  const source = record(value);
+  if (!source) return null;
+  const id = text(source.id);
+  if (!id) return null;
+  const rawStatus = text(source.status);
+  const status = rawStatus === 'declared'
+    || rawStatus === 'published'
+    || rawStatus === 'superseded'
+    ? rawStatus
+    : 'draft';
+  const snapshot = normalizeDeclaredObjectProjection(
+    list(sourceValue(source, 'objectTypes', 'object_types')),
+  );
+  return {
+    id,
+    scope,
+    version: typeof source.version === 'string' || typeof source.version === 'number'
+      ? source.version
+      : 0,
+    status,
+    objectTypeIds: stringList(sourceValue(source, 'objectTypeIds', 'object_type_ids')),
+    fieldIds: stringList(sourceValue(source, 'fieldIds', 'field_ids')),
+    relationIds: stringList(sourceValue(source, 'relationIds', 'relation_ids')),
+    viewIds: stringList(sourceValue(source, 'viewIds', 'view_ids')),
+    createdAt: text(sourceValue(source, 'createdAt', 'created_at')) || undefined,
+    request: text(source.request) || undefined,
+    validationSummary: text(sourceValue(source, 'validationSummary', 'validation_summary')) || undefined,
+    impactSummary: text(sourceValue(source, 'impactSummary', 'impact_summary')) || undefined,
+    ...(snapshot.objectTypes.length > 0
+      ? {
+          objectTypes: snapshot.objectTypes,
+          fields: snapshot.fields,
+          relations: snapshot.relations,
+        }
+      : {}),
+  };
+}
+
+function normalizeDeclaredModel(value: unknown, topicId: string, tenant: string): DeclaredModel {
+  const scope = scopeFor(topicId, tenant);
+  const source = record(value);
+  if (!source) return emptyDeclaredModel(scope);
+  const rawObjectTypes = list(sourceValue(source, 'objectTypes', 'object_types'));
+  const projection = normalizeDeclaredObjectProjection(rawObjectTypes);
   const schemaVersion = sourceValue(source, 'schemaVersion', 'schema_version');
   const normalizedVersion = normalizeVersion(schemaVersion, scope);
+  const versions = list(source.versions)
+    .map((version) => normalizeVersion(version, scope))
+    .filter((version): version is SchemaVersion => version !== null);
   return {
     scope,
-    objectTypes,
-    fields,
-    relations,
+    objectTypes: projection.objectTypes,
+    fields: projection.fields,
+    relations: projection.relations,
     views: list(source.views).map(normalizeView).filter((item): item is ViewMetadata => item !== null),
-    versions: normalizedVersion ? [normalizedVersion] : [],
+    versions: versions.length > 0 ? versions : normalizedVersion ? [normalizedVersion] : [],
     divergences: list(source.divergences)
       .map(normalizeDivergence)
       .filter((item): item is Divergence => item !== null),
@@ -508,6 +627,79 @@ function normalizeProposal(value: unknown, topicId: string, tenant: string): Sch
     validationSummary,
     impactSummary: `${proposedPinCount} proposed pins across ${observedEventCount} observed events.`,
     status: 'draft',
+  };
+}
+
+function fieldTypeInput(value: FieldMetadata['fieldType']): Record<string, unknown> {
+  if (value.kind === 'relation') {
+    return {
+      kind: value.kind,
+      target_object_type_id: value.targetObjectTypeId,
+      cardinality: value.cardinality,
+    };
+  }
+  if (value.kind === 'enum') return { kind: value.kind, variants: [...value.variants] };
+  if (value.kind === 'vector') return { kind: value.kind, dim: value.dim };
+  return { kind: value.kind };
+}
+
+function schemaDeclareWire(input: SchemaDeclareInput): Record<string, unknown> {
+  return {
+    name_singular: input.nameSingular,
+    name_plural: input.namePlural,
+    label_singular: input.labelSingular,
+    label_plural: input.labelPlural,
+    ...(input.description ? { description: input.description } : {}),
+    node_label: input.nodeLabel,
+    label_identifier_field: input.labelIdentifierField,
+    fields: input.fields.map((field) => ({
+      key: field.key,
+      label: field.label,
+      ...(field.description ? { description: field.description } : {}),
+      field_type: fieldTypeInput(field.fieldType),
+      required: field.required,
+      system: field.system,
+    })),
+    enforcement: input.enforcement,
+    system: input.system,
+    ...(input.extensions ? { extensions: input.extensions } : {}),
+    ...(input.expectedContentAnchor
+      ? { expected_content_anchor: input.expectedContentAnchor }
+      : {}),
+  };
+}
+
+function normalizeDeclareReceipt(value: unknown): SchemaDeclareReceipt | null {
+  const source = record(value);
+  const objectType = record(source?.object_type);
+  if (!source || !objectType) return null;
+  const status = text(source.status);
+  const objectTypeId = text(sourceValue(objectType, 'objectTypeId', 'object_type_id'));
+  if ((status !== 'declared' && status !== 'conflict') || !objectTypeId) return null;
+  const conflict = record(source.conflict);
+  return {
+    status,
+    idempotentReplay: Boolean(
+      sourceValue(source, 'idempotentReplay', 'idempotent_replay'),
+    ),
+    objectTypeId,
+    graphVersionAfter: numberValue(
+      sourceValue(source, 'graphVersionAfter', 'graph_version_after'),
+    ),
+    ...(conflict
+      ? {
+          conflict: {
+            id: text(sourceValue(conflict, 'conflictId', 'conflict_id')),
+            existingAnchor: text(
+              sourceValue(conflict, 'existingAnchor', 'existing_anchor'),
+            ),
+            requestedAnchor: text(
+              sourceValue(conflict, 'requestedAnchor', 'requested_anchor'),
+            ),
+            detail: text(conflict.detail, 'Schema declaration conflicts with current registry state.'),
+          },
+        }
+      : {}),
   };
 }
 
@@ -613,6 +805,55 @@ export async function unpinDeclared(topicId: string, declaredId: string): Promis
   const declared = await readDeclaredModel(topicId);
   if (!declared.ok) return declared;
   return { ok: true, tenant: declared.tenant, receipt, declared: declared.declared };
+}
+
+export async function declareSchema(
+  topicId: string,
+  input: SchemaDeclareInput,
+): Promise<DeclareMutation> {
+  const mutation = await executeGraphql(
+    DECLARE_MUTATION,
+    { input: schemaDeclareWire(input) },
+    'mutate',
+  );
+  if (!mutation.ok) return mutation;
+  const receipt = normalizeDeclareReceipt(mutation.data.declareSchema);
+  if (!receipt) return { ok: false, status: 502, error: 'invalid_schema_declare_receipt' };
+  if (receipt.status === 'conflict') {
+    return {
+      ok: false,
+      status: 409,
+      error: receipt.conflict?.detail ?? 'schema_declare_conflict',
+    };
+  }
+  const declared = await readDeclaredModel(topicId);
+  if (!declared.ok) return declared;
+  return {
+    ok: true,
+    tenant: declared.tenant,
+    receipt,
+    declared: declared.declared,
+  };
+}
+
+export async function restoreDeclaredModel(
+  topicId: string,
+  versionId: string,
+): Promise<RestoreMutation> {
+  const mutation = await executeGraphql(
+    RESTORE_MUTATION,
+    { versionId },
+    'mutate',
+  );
+  if (!mutation.ok) return mutation;
+  const declared = await readDeclaredModel(topicId);
+  if (!declared.ok) return declared;
+  return {
+    ok: true,
+    tenant: declared.tenant,
+    receipt: mutation.data.restoreDeclaredModel,
+    declared: declared.declared,
+  };
 }
 
 export async function proposeSchemaChange(

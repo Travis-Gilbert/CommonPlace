@@ -3,26 +3,20 @@
 // SOURCING: @xyflow/react in wrap mode for the diagram lens, tablecn structure
 // on native tables for the field and record lenses.
 
-import { useMemo } from 'react';
-import {
-  Background,
-  Controls,
-  ReactFlow,
-  type Edge,
-  type Node,
-} from '@xyflow/react';
 import {
   formatCoverage,
   formatFieldType,
   isPinned,
   type DeclaredModel,
-  type Divergence,
+  type ObservedField,
   type ObservedModel,
   type PinKind,
 } from '@commonplace/data-model-contracts';
 import type { ModelSelection } from './modelQuery';
+import { ForkDiagramCanvas } from './diagram/ForkDiagramCanvas';
+import type { LayoutPositions } from './diagram/layout';
 
-interface LensProps {
+export interface LensProps {
   readonly observed: ObservedModel;
   readonly declared: DeclaredModel;
   readonly selection: ModelSelection | null;
@@ -30,157 +24,13 @@ interface LensProps {
   readonly onSelect: (selection: ModelSelection | null) => void;
   readonly onPin: (observedKey: string, kind: PinKind, parentObservedKey?: string) => void;
   readonly onUnpin: (declaredId: string) => void;
+  readonly layoutPositions?: LayoutPositions;
+  readonly onLayoutChange?: (positions: LayoutPositions) => void;
 }
 
-function divergencesForType(declared: DeclaredModel, objectTypeId: string): Divergence[] {
-  return declared.divergences.filter((item) => item.objectTypeId === objectTypeId);
-}
-
-function DivergenceBadge({
-  divergences,
-  onOpen,
-}: {
-  readonly divergences: readonly Divergence[];
-  readonly onOpen: () => void;
-}) {
-  if (divergences.length === 0) return null;
-  const count = divergences.reduce((sum, item) => sum + item.count, 0);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="rounded-ij-arc bg-ij-warn-bg px-2 py-0.5 font-ij-mono text-ij-island-meta text-ij-warn"
-      data-mono-ok
-      title={divergences.flatMap((item) => item.signalNodeIds).join(', ')}
-    >
-      {count} diverge
-    </button>
-  );
-}
-
-function stringifySample(value: unknown): string {
-  if (typeof value === 'string') return value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-export function DiagramLens({
-  observed,
-  declared,
-  selection,
-  onSelect,
-}: LensProps) {
-  const graph = useMemo(() => {
-    const observedNodes: Node[] = observed.types.map((type, index) => ({
-      id: `observed:${type.observedKey}`,
-      position: { x: 48, y: 40 + index * 112 },
-      data: {
-        label: `${type.dataType}\n${type.fields.length} fields, ${type.eventCount} events`,
-      },
-      className: [
-        'model-node-observed whitespace-pre-line rounded-ij-arc border border-dashed border-ij-seam bg-ij-chrome font-ij-mono text-ij-ink-info',
-        selection?.kind === 'observed-type' && selection.key === type.observedKey
-          ? 'border-ij-accent text-ij-ink'
-          : '',
-      ].filter(Boolean).join(' '),
-    }));
-    const declaredNodes: Node[] = declared.objectTypes.map((type, index) => {
-      const divergences = divergencesForType(declared, type.id);
-      const count = divergences.reduce((sum, item) => sum + item.count, 0);
-      const showBadge = type.enforcement === 'warn' && count > 0;
-      return {
-        id: `declared:${type.id}`,
-        position: { x: 440, y: 40 + index * 112 },
-        data: {
-          label: showBadge
-            ? `${type.label}\n${type.enforcement} · ${count} diverge`
-            : `${type.label}\n${type.enforcement}`,
-        },
-        className: [
-          'model-node-declared whitespace-pre-line rounded-ij-arc border bg-ij-raised font-ij-mono text-ij-ink',
-          showBadge ? 'border-ij-warn text-ij-warn' : 'border-ij-gold',
-          selection?.kind === 'declared-type' && selection.key === type.id
-            ? 'border-ij-accent'
-            : '',
-        ].filter(Boolean).join(' '),
-      };
-    });
-    const observedEdges: Edge[] = observed.types.flatMap((type) =>
-      type.edges.flatMap((edge) => {
-        // Field-level observed edges stay in the table lens. The diagram only
-        // draws when both ends resolve to distinct type nodes.
-        const targetType = observed.types.find((candidate) => (
-          candidate.fields.some((field) => field.key === edge.toField)
-          && candidate.observedKey !== type.observedKey
-        ));
-        if (!targetType) return [];
-        return [{
-          id: `observed-edge:${edge.observedKey}`,
-          source: `observed:${type.observedKey}`,
-          target: `observed:${targetType.observedKey}`,
-          label: edge.label,
-          className: 'model-edge-observed',
-        }];
-      }),
-    );
-    const declaredEdges: Edge[] = declared.relations
-      .filter((relation) => relation.targetObjectTypeId)
-      .map((relation) => ({
-        id: `declared-relation:${relation.id}`,
-        source: `declared:${relation.objectTypeId}`,
-        target: `declared:${relation.targetObjectTypeId}`,
-        label: relation.label,
-        className: 'model-edge-declared',
-      }));
-    return {
-      nodes: [...observedNodes, ...declaredNodes],
-      edges: [...observedEdges, ...declaredEdges],
-    };
-  }, [declared.divergences, declared.objectTypes, declared.relations, observed.types, selection]);
-
-  if (graph.nodes.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-ij-ink-info">
-        No observed or declared types exist in this topic.
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full min-h-80" aria-label="Observed and declared model diagram">
-      <ReactFlow
-        nodes={graph.nodes}
-        edges={graph.edges}
-        fitView
-        minZoom={0.3}
-        maxZoom={2}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable
-        onPaneClick={() => onSelect(null)}
-        onNodeClick={(_event, node) => {
-          const [material, key] = node.id.split(':', 2);
-          if (!key) return;
-          onSelect(material === 'declared'
-            ? { kind: 'declared-type', key }
-            : { kind: 'observed-type', key });
-        }}
-        onEdgeClick={(_event, edge) => {
-          if (edge.id.startsWith('observed-edge:')) {
-            onSelect({ kind: 'observed-edge', key: edge.id.slice('observed-edge:'.length) });
-          } else if (edge.id.startsWith('declared-relation:')) {
-            onSelect({ kind: 'declared-relation', key: edge.id.slice('declared-relation:'.length) });
-          }
-        }}
-      >
-        <Background />
-        <Controls showInteractive={false} />
-      </ReactFlow>
-    </div>
-  );
+export function DiagramLens(props: LensProps) {
+  // MF1: the OWOX fork shell supersedes and removes the hand-built canvas.
+  return <ForkDiagramCanvas {...props} />;
 }
 
 export function FieldsTableLens({
@@ -439,6 +289,15 @@ export function FieldsTableLens({
       </section>
     </div>
   );
+}
+
+function stringifySample(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 export function RecordsPreviewLens({ observed, onSelect }: LensProps) {

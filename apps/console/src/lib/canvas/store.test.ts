@@ -19,7 +19,9 @@ import {
 import {
   CanvasStore,
   DEFAULT_CANVAS_ID,
+  INSPECTOR_CANVAS_ID,
   PERSISTENCE_UNAVAILABLE_NOTE,
+  modelCanvasId,
 } from './store';
 
 class DurableObjectSeam {
@@ -88,18 +90,83 @@ class DurableObjectSeam {
 }
 
 describe('CanvasStore', () => {
-  it('seeds the stable default canvas through the object seam', async () => {
+  it('keeps complete topic identity in model canvas ids', () => {
+    expect(modelCanvasId('customer/a')).not.toBe(modelCanvasId('customer_a'));
+    expect(modelCanvasId(`topic-${'a'.repeat(121)}-left`))
+      .not.toBe(modelCanvasId(`topic-${'a'.repeat(121)}-right`));
+  });
+
+  it('seeds the stable default and inspector canvases through the object seam', async () => {
     const seam = new DurableObjectSeam();
     const store = new CanvasStore(seam);
 
     await store.ready();
 
     expect(seam.objects.get(DEFAULT_CANVAS_ID)?.type).toBe(CANVAS_TYPE);
-    expect(seam.actions[0]).toMatchObject({
-      kind: 'create',
-      type: CANVAS_TYPE,
-      props: { id: DEFAULT_CANVAS_ID, persistence_kind: 'canvas-work-v1' },
+    expect(seam.objects.get(INSPECTOR_CANVAS_ID)?.type).toBe(CANVAS_TYPE);
+    expect(seam.actions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: 'create',
+        type: CANVAS_TYPE,
+        props: expect.objectContaining({ id: DEFAULT_CANVAS_ID, persistence_kind: 'canvas-work-v1' }),
+      }),
+      expect.objectContaining({
+        kind: 'create',
+        type: CANVAS_TYPE,
+        props: expect.objectContaining({ id: INSPECTOR_CANVAS_ID, persistence_kind: 'canvas-work-v1' }),
+      }),
+    ]));
+  });
+
+  it('persists and rehydrates the rail-owned inspector Obsidian JSON Canvas', async () => {
+    const seam = new DurableObjectSeam();
+    const store = new CanvasStore(seam);
+    await store.ready();
+
+    const document = parseCanvasValue({
+      nodes: [
+        { id: 'note-1', type: 'text', x: 40, y: 80, width: 200, height: 100, text: 'Rail note' },
+      ],
+      edges: [],
     });
+    const applied = await store.applyJsonCanvas(INSPECTOR_CANVAS_ID, document);
+    expect(applied.ok).toBe(true);
+
+    const restored = new CanvasStore(seam);
+    await restored.ready();
+    const exported = restored.exportDocument(INSPECTOR_CANVAS_ID);
+    expect(exported?.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'text', text: 'Rail note', x: 40, y: 80 }),
+    ]));
+  });
+
+  it('keeps inspector topology after create, connect, and edge delete batches', async () => {
+    const seam = new DurableObjectSeam();
+    const store = new CanvasStore(seam);
+    await store.ready();
+
+    const withEdge = parseCanvasValue({
+      nodes: [
+        { id: 'a', type: 'text', x: 10, y: 10, width: 160, height: 80, text: 'A' },
+        { id: 'b', type: 'text', x: 220, y: 10, width: 160, height: 80, text: 'B' },
+      ],
+      edges: [
+        { id: 'e-ab', fromNode: 'a', toNode: 'b', label: 'link' },
+      ],
+    });
+    expect((await store.applyJsonCanvas(INSPECTOR_CANVAS_ID, withEdge)).ok).toBe(true);
+
+    const withoutEdge = parseCanvasValue({
+      nodes: withEdge.nodes,
+      edges: [],
+    });
+    expect((await store.applyJsonCanvas(INSPECTOR_CANVAS_ID, withoutEdge)).ok).toBe(true);
+
+    const restored = new CanvasStore(seam);
+    await restored.ready();
+    const exported = restored.exportDocument(INSPECTOR_CANVAS_ID);
+    expect(exported?.nodes).toHaveLength(2);
+    expect(exported?.edges).toEqual([]);
   });
 
   it('places, moves, links, and unlinks without deleting the object', async () => {
@@ -255,7 +322,7 @@ describe('CanvasStore', () => {
       },
     });
 
-    await store.ready();
+    await expect(store.ready()).rejects.toThrow(/durable read unavailable|refused:canvas_persistence_unavailable/);
     const result = await store.emit({
       kind: 'create',
       type: 'note',
@@ -263,8 +330,20 @@ describe('CanvasStore', () => {
     });
 
     expect(result).toEqual({ ok: false, error: PERSISTENCE_UNAVAILABLE_NOTE });
-    expect(queryAttempts).toBe(2);
+    // ready() + emit each retry hydrate for default + inspector canvases.
+    expect(queryAttempts).toBe(4);
     expect(emitAttempts).toBe(0);
+  });
+
+  it('rejects when a named canvas cannot be seeded durably', async () => {
+    const seam = new DurableObjectSeam();
+    const store = new CanvasStore(seam);
+    await store.ready();
+    seam.emit = async () => ({ ok: false, error: 'named canvas refused' });
+
+    await expect(store.readyNamedCanvas('canvas.model.orders')).rejects.toThrow(
+      'named canvas refused',
+    );
   });
 
   it('serializes document imports with ordinary canvas mutations', async () => {

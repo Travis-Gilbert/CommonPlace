@@ -2,12 +2,13 @@
 
 export const LAST_CONSOLE_VIEW_KEY = 'commonplace.console.last-view.v1';
 
-const RETIRED_VIEW_PATHS: Readonly<Record<string, string>> = {
+const LEGACY_CONSOLE_PATHS: Readonly<Record<string, string>> = {
+  '/models': '/Data-model',
   '/v/chat': '/chat',
   '/v/researcher': '/indexer',
   '/v/index': '/filing',
   '/v/editor': '/workspace',
-  '/v/data-model': '/models',
+  '/v/data-model': '/Data-model',
 };
 
 const UNSAFE_CONSOLE_PATH_CHARACTER = /[\u0000-\u001F\u007F\\]/;
@@ -20,8 +21,8 @@ export function normalizeConsolePagePath(path: string | null): string {
   ) {
     return '/workspace';
   }
-  if (path.startsWith('/v/')) return RETIRED_VIEW_PATHS[path] ?? '/workspace';
-  return path;
+  return LEGACY_CONSOLE_PATHS[path]
+    ?? (path.startsWith('/v/') ? '/workspace' : path);
 }
 
 export function readLastConsoleViewPath(): string {

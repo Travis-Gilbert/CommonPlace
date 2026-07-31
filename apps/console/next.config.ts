@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
   // (and it occludes the records table's last row). R4 punch list.
   devIndicators: false,
   reactCompiler: true,
+  experimental: {
+    webpackMemoryOptimizations: true,
+  },
   images: {
     unoptimized: true,
   },

@@ -148,6 +148,9 @@ describe('ConsoleBlockHost', () => {
     expect(survey!.children[0]?.children[0]?.object.id).toBe(SURVEY_VIEW_INSTANCE_ID);
     const models = buildSurfaceTree(MODEL_SURFACE_ID, set.objects);
     expect(models!.children[0]?.children[0]?.object.id).toBe(MODEL_VIEW_INSTANCE_ID);
+    expect(models!.children[0]?.children[0]?.object.properties.descriptor_id).toBe(
+      'model.studio',
+    );
   });
 
   it('adds missing seed surfaces to an existing server layout before adopting it', async () => {
@@ -605,7 +608,7 @@ describe('ConsoleBlockHost', () => {
       types: ['canvas', 'canvas.card', 'canvas.group', 'canvas.connection'],
       page: { limit: 500 },
     });
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
 
     const receipt = await host.emit({
       kind: 'create',
@@ -633,10 +636,12 @@ describe('ConsoleBlockHost', () => {
     });
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       '/api/objects/query',
+      '/api/objects/query',
+      '/api/objects/action',
       '/api/objects/action',
       '/api/objects/action',
     ]);
-    const update = JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body ?? '{}')) as {
+    const update = JSON.parse(String(fetchMock.mock.calls[4]?.[1]?.body ?? '{}')) as {
       patch?: Record<string, unknown>;
     };
     expect(update.patch?.persistence_kind).toBe('canvas-work-v1');
