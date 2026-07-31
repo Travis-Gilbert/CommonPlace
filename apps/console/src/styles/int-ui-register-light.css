@@ -11,7 +11,7 @@
 
    Ladder (verified against scripts/check-contrast.mjs floors):
      frame  #EAE7E1  oklch(92.9% 0.0087 85)   desk / gutters
-     chrome #F4F2EF  oklch(96.2% 0.0045 78)   tool islands (page tone)
+     chrome #F0EEE9                             tool islands (page tone, A2-separated)
      editor #FBFAF8  oklch(98.5% 0.0029 85)   main well (near-white paper)
      raised #FBFAF8 / floating #FFFFFF        popovers
    Warm paper, cool verbatim Int UI ink: the two-family rule (paper hue
@@ -56,7 +56,7 @@
 
   --ij-frame: #EAE7E1;
   --ij-editor: #FBFAF8;
-  --ij-chrome: #F4F2EF;
+  --ij-chrome: #F0EEE9;
   --ij-raised: var(--ij-tier-floating);
   --ij-seam: color-mix(in oklab, var(--ij-ink) 11%, transparent);
   --ij-seam-raised: #C8C6C1;
