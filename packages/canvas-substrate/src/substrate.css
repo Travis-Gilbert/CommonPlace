@@ -1,0 +1,47 @@
+/* Canvas substrate CSS (issue #144 B).
+
+   Deliberately declares NO @keyframes. The running-edge march is defined in the
+   console motion register (apps/console/src/motion/motion.css), which is the
+   only stylesheet the motion gate permits to declare animation. This file only
+   consumes that class and carries the static rules the shell needs.
+
+   Colours are var(--ij-*) references throughout: the substrate never mints a
+   colour, so the console's contrast gate stays the authority on every value
+   that reaches a pixel. */
+
+/* Satisfaction dimming. While a wire is dragged, ConnectionSatisfaction writes
+   the source family onto the flow root and these five rules -- one per family,
+   because the hue budget caps the families at five -- dim every node that
+   declares ports and cannot accept it. Nodes that declare no families are
+   untouched: saying nothing is not the same as refusing. */
+.react-flow[data-connecting-family] [data-substrate-node][data-port-families] {
+  opacity: 0.35;
+}
+
+.react-flow[data-connecting-family='graph-plane']
+  [data-substrate-node][data-port-families~='graph-plane'],
+.react-flow[data-connecting-family='tabular']
+  [data-substrate-node][data-port-families~='tabular'],
+.react-flow[data-connecting-family='tensor-and-model']
+  [data-substrate-node][data-port-families~='tensor-and-model'],
+.react-flow[data-connecting-family='scalar-value']
+  [data-substrate-node][data-port-families~='scalar-value'],
+.react-flow[data-connecting-family='artifact-and-sink']
+  [data-substrate-node][data-port-families~='artifact-and-sink'] {
+  opacity: 1;
+}
+
+/* Reroute dots read as bare port dots sitting on the wire. */
+.substrate-waypoint {
+  cursor: grab;
+}
+
+.substrate-waypoint:active {
+  cursor: grabbing;
+}
+
+/* The wide invisible companion path that makes a 1.5px dotted wire clickable
+   must never eat pointer events meant for the nodes above it. */
+[data-substrate-edge-hit] {
+  fill: none;
+}

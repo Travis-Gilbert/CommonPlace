@@ -26,6 +26,21 @@
   transition: stroke-dashoffset var(--ij-motion) var(--ij-ease);
 }
 
+/* Canvas substrate running edges (issue #144 B). The resting dash is
+   `0.1 6`, so one full cycle is 6.1 user units; marching by exactly that
+   distance makes the loop seamless. Only edges the substrate's animation
+   budget admitted carry this class -- past the cap a running edge keeps its
+   width bump and stands still, so a wide fan-out cannot strobe. */
+@keyframes substrate-edge-march {
+  to {
+    stroke-dashoffset: -6.1;
+  }
+}
+
+.substrate-edge-running {
+  animation: substrate-edge-march calc(var(--ij-motion) * 4) linear infinite;
+}
+
 .ij-progress-indeterminate {
   position: relative;
   overflow: hidden;
@@ -54,6 +69,10 @@
 
   .goal-edge-progress {
     transition: none;
+  }
+
+  .substrate-edge-running {
+    animation: none;
   }
 }
 
