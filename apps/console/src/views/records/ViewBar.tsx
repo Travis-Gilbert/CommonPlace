@@ -19,6 +19,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import type { ViewPresenceActor } from './presence';
+import { RecordChip } from './RecordChip';
 
 export interface ViewBarProps {
   readonly views: readonly ViewMetadata[];
@@ -26,6 +28,8 @@ export interface ViewBarProps {
   readonly count: number;
   readonly onSelectView: (viewId: string) => void;
   readonly onSaveAs?: () => void;
+  /** Live actors on this view (humans and heads). Nothing simulated. */
+  readonly presence?: readonly ViewPresenceActor[];
 }
 
 export function ViewBar({
@@ -34,12 +38,18 @@ export function ViewBar({
   count,
   onSelectView,
   onSaveAs,
+  presence = [],
 }: ViewBarProps) {
   const [open, setOpen] = useState(false);
   const activeView = useMemo(
     () => views.find((view) => view.id === activeViewId) ?? views[0],
     [activeViewId, views],
   );
+  const presenceActors = useMemo(() => {
+    const byId = new Map<string, ViewPresenceActor>();
+    for (const actor of presence) byId.set(actor.actorId, actor);
+    return [...byId.values()];
+  }, [presence]);
 
   if (views.length === 0) return null;
 
@@ -77,6 +87,16 @@ export function ViewBar({
           </Command>
         </PopoverContent>
       </Popover>
+      {presenceActors.length > 0 ? (
+        <div className="flex min-w-0 items-center gap-1 overflow-x-auto" data-view-presence>
+          {presenceActors.map((actor) => (
+            <RecordChip
+              key={actor.actorId}
+              label={`${actor.actorKind === 'head' ? 'head' : 'human'}:${actor.actorId}`}
+            />
+          ))}
+        </div>
+      ) : null}
       {onSaveAs ? (
         <Button variant="outline" size="sm" className="ml-auto h-ij-control" onClick={onSaveAs}>
           Save as

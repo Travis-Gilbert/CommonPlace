@@ -6,10 +6,13 @@ import type {
   FieldMetadata,
   FieldType,
   ObjectTypeMetadata,
+  ViewFilter,
+  ViewFilterOp,
   ViewMetadata,
+  ViewSort,
 } from '@commonplace/data-model-contracts';
 import { parseFieldType } from '@commonplace/data-model-contracts';
-import type { JsonValue, ObjectRef, ObjectSet } from '@commonplace/block-view/types';
+import type { JsonValue, ObjectRef, ObjectSet, Predicate, Ranker } from '@commonplace/block-view/types';
 
 export interface SchemaColumnDef {
   readonly fieldKey: string;
@@ -183,7 +186,50 @@ function parseFieldMetadata(value: unknown, objectTypeId: string): FieldMetadata
   };
 }
 
-function parseViewMetadata(value: unknown): ViewMetadata | undefined {
+const VIEW_FILTER_OPS = new Set<ViewFilterOp>([
+  'eq',
+  'neq',
+  'contains',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'is_empty',
+  'is_not_empty',
+  'in',
+]);
+
+function parseViewFilter(value: unknown): ViewFilter | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const fieldKey = typeof record.fieldKey === 'string'
+    ? record.fieldKey
+    : typeof record.field_key === 'string'
+      ? record.field_key
+      : '';
+  const opRaw = typeof record.op === 'string' ? record.op : '';
+  if (!fieldKey || !VIEW_FILTER_OPS.has(opRaw as ViewFilterOp)) return undefined;
+  return {
+    fieldKey,
+    op: opRaw as ViewFilterOp,
+    ...('value' in record ? { value: record.value } : {}),
+  };
+}
+
+function parseViewSort(value: unknown): ViewSort | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const fieldKey = typeof record.fieldKey === 'string'
+    ? record.fieldKey
+    : typeof record.field_key === 'string'
+      ? record.field_key
+      : '';
+  const direction = record.direction === 'desc' ? 'desc' : record.direction === 'asc' ? 'asc' : null;
+  if (!fieldKey || !direction) return undefined;
+  return { fieldKey, direction };
+}
+
+export function parseViewMetadata(value: unknown): ViewMetadata | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
   const id = typeof record.id === 'string' ? record.id : '';
@@ -212,17 +258,71 @@ function parseViewMetadata(value: unknown): ViewMetadata | undefined {
       }];
     })
     : [];
+  const filters = Array.isArray(record.filters)
+    ? record.filters.map(parseViewFilter).filter((entry): entry is ViewFilter => entry !== undefined)
+    : [];
+  const sorts = Array.isArray(record.sorts)
+    ? record.sorts.map(parseViewSort).filter((entry): entry is ViewSort => entry !== undefined)
+    : [];
   return {
     id: id || key,
     key,
     label: typeof record.label === 'string' ? record.label : key,
     objectTypeId,
-    filters: [],
-    sorts: [],
+    filters,
+    sorts,
     columns,
     isDefault: Boolean(record.isDefault ?? record.is_default),
     ...(typeof record.descriptorId === 'string' ? { descriptorId: record.descriptorId } : {}),
   };
+}
+
+/** Map ViewMetadata filters onto ObjectQuery Predicate (supported ops only). */
+export function predicatesFromViewFilters(filters: readonly ViewFilter[]): Predicate[] {
+  const out: Predicate[] = [];
+  for (const filter of filters) {
+    switch (filter.op) {
+      case 'eq':
+        out.push({ kind: 'eq', field: filter.fieldKey, value: (filter.value ?? null) as JsonValue });
+        break;
+      case 'neq':
+        out.push({ kind: 'not_eq', field: filter.fieldKey, value: (filter.value ?? null) as JsonValue });
+        break;
+      case 'contains':
+        out.push({ kind: 'contains', field: filter.fieldKey, value: (filter.value ?? '') as JsonValue });
+        break;
+      case 'is_empty':
+        out.push({ kind: 'not', predicate: { kind: 'exists', field: filter.fieldKey } });
+        break;
+      case 'is_not_empty':
+        out.push({ kind: 'exists', field: filter.fieldKey });
+        break;
+      default:
+        // gt/gte/lt/lte/in require generated-tool filter args; skip at ObjectQuery layer.
+        break;
+    }
+  }
+  return out;
+}
+
+/** Map ViewMetadata sorts onto ObjectQuery rankers. */
+export function rankersFromViewSorts(sorts: readonly ViewSort[]): Ranker[] {
+  return sorts.map((sort) => ({
+    kind: 'field' as const,
+    field: sort.fieldKey,
+    direction: sort.direction,
+  }));
+}
+
+/** Equality filters suitable as aggregate_{plural} top-level filter args. */
+export function aggregateFiltersFromView(filters: readonly ViewFilter[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const filter of filters) {
+    if (filter.op === 'eq' && filter.value !== undefined) {
+      out[filter.fieldKey] = filter.value;
+    }
+  }
+  return out;
 }
 
 function propertyBag(sources: readonly (ObjectRef | undefined)[]): Record<string, JsonValue> {

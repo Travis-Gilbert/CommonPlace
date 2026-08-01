@@ -79,3 +79,44 @@ export function focusedRecordIds(
   }
   return map;
 }
+
+export type PresencePublishArgs = {
+  readonly kind: typeof VIEW_PRESENCE_KIND | typeof VIEW_FOCUS_KIND | typeof VIEW_LEAVE_KIND;
+  readonly viewId: string;
+  readonly objectTypeId: string;
+  readonly actorId: string;
+  readonly actorKind?: 'human' | 'head';
+  readonly recordId?: string;
+  readonly stream?: string;
+};
+
+/** Args for stream_publish of a view presence event (RT7). */
+export function presencePublishToolArgs(input: PresencePublishArgs): Record<string, unknown> {
+  const actorKind = input.actorKind ?? 'human';
+  const payload: Record<string, unknown> = {
+    viewId: input.viewId,
+    objectTypeId: input.objectTypeId,
+    actorKind,
+  };
+  if (input.recordId) payload.recordId = input.recordId;
+  return {
+    stream: input.stream ?? `records.view.${input.viewId}`,
+    kind: input.kind,
+    actor: input.actorId,
+    urgency: 'info',
+    payload,
+  };
+}
+
+/** Merge stream_subscribe / stream_read payloads into presence actors for a view. */
+export function actorsForView(
+  events: unknown[],
+  viewId: string,
+  excludeActorId?: string,
+): ViewPresenceActor[] {
+  return parsePresenceEvents(events).filter((actor) => {
+    if (actor.viewId !== viewId) return false;
+    if (excludeActorId && actor.actorId === excludeActorId) return false;
+    return true;
+  });
+}
