@@ -5,17 +5,42 @@
 
 export type Degradation =
   | { level: 'reduced'; cause: string; detail?: string }
-  | { level: 'unavailable'; cause: string; action?: { label: string; run: () => void } };
+  | {
+      level: 'unavailable';
+      cause: string;
+      detail?: string;
+      action?: { label: string; run: () => void };
+    };
+
+/**
+ * What was dialed, and what came back.
+ *
+ * CS15 keeps wire codes out of the cause sentence. This keeps the *evidence*
+ * beside it, so a reader can tell a 401 from a 404 from a request that never
+ * landed. On 2026-08-01 the console showed 'The data API is unreachable.' while
+ * that API answered 200 on /healthz: one sentence covered CORS, 404, 401, DNS
+ * and a dead dependency, so it named none of them and the healthy service read
+ * as dark.
+ */
+export type DegradationOrigin = {
+  /** The endpoint dialed, e.g. '/api/objects/views'. */
+  door?: string;
+  /** The host that answered, when the caller knows it. */
+  host?: string;
+  /** HTTP status, when the request was answered at all. Omit for no answer. */
+  status?: number;
+};
 
 type DegradationTemplate =
   | { level: 'reduced'; cause: string; detail?: string }
-  | { level: 'unavailable'; cause: string; actionLabel?: string };
+  | { level: 'unavailable'; cause: string; actionLabel?: string; door?: string };
 
 const WIRE_MAP: Record<string, DegradationTemplate> = {
   console_data_api_unreachable: {
     level: 'unavailable',
     cause: 'The data API is unreachable.',
     actionLabel: 'Reconnect',
+    door: 'The data API',
   },
   workspace_object_scope_unenforced: {
     level: 'unavailable',
@@ -41,6 +66,7 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     level: 'unavailable',
     cause: 'The Harness service is unreachable.',
     actionLabel: 'Retry',
+    door: 'The Harness GraphQL door',
   },
   observed_model_graphql_failed: {
     level: 'unavailable',
@@ -136,9 +162,19 @@ export function sentenceForCode(code: string): string {
  * Wire code to sentence. An unmapped code renders its generic sentence and
  * reports itself in dev, so a new code is visible without shipping the code.
  */
-export function degradationFor(code: string, status?: number): Degradation {
+export function degradationFor(
+  code: string,
+  statusOrOrigin?: number | DegradationOrigin,
+): Degradation {
   const normalized = code.trim();
   const mapped = WIRE_MAP[normalized];
+  // A bare number is a template hint, not an observation: several callers pass
+  // a synthetic 400/500 to steer the generic branch for a failure that never
+  // made an HTTP request. Only an explicit origin object is evidence, so only
+  // that renders a detail line. Inventing "answered 400" would be a new lie in
+  // place of the one this change removes.
+  const origin = typeof statusOrOrigin === 'object' ? statusOrOrigin : undefined;
+  const status = typeof statusOrOrigin === 'number' ? statusOrOrigin : origin?.status;
 
   if (!mapped) {
     if (process.env.NODE_ENV !== 'production') {
@@ -151,10 +187,37 @@ export function degradationFor(code: string, status?: number): Degradation {
         : /fail|timeout|unreach|unavail|refus|unauth|unconfig/i.test(normalized)
           ? GENERIC_UNAVAILABLE
           : GENERIC_REDUCED;
-    return fromTemplate(template);
+    return fromTemplate(template, origin);
   }
 
-  return fromTemplate(mapped);
+  return fromTemplate(mapped, origin);
+}
+
+/**
+ * Render the evidence line: which door, which host, what came back.
+ *
+ * The distinctions that matter to whoever is debugging: a request that was
+ * answered is a different failure from one that never landed, and a 401 is a
+ * credential problem rather than an outage. Returns undefined when there is
+ * nothing concrete to say, so no caller is forced to show an empty line.
+ */
+export function describeOrigin(origin: DegradationOrigin | undefined): string | undefined {
+  if (!origin) return undefined;
+  const { door, host, status } = origin;
+  if (!door && !host && status === undefined) return undefined;
+
+  const subject = [door ?? 'The request', host ? `at ${host}` : null].filter(Boolean).join(' ');
+
+  if (status === undefined) {
+    return `${subject} did not answer. That is DNS, the network, or a blocked origin, not a status code.`;
+  }
+  if (status === 401 || status === 403) {
+    return `${subject} answered ${status}. That is a credential problem, not an outage.`;
+  }
+  if (status === 404) {
+    return `${subject} answered 404. Check the configured URL before assuming the service is down.`;
+  }
+  return `${subject} answered ${status}.`;
 }
 
 /** Collapse a list of missing capability codes into one reduced marker. */
@@ -168,13 +231,22 @@ export function reducedFromMissing(missing: readonly string[]): Degradation | nu
   };
 }
 
-function fromTemplate(template: DegradationTemplate): Degradation {
+function fromTemplate(
+  template: DegradationTemplate,
+  origin?: DegradationOrigin,
+): Degradation {
   if (template.level === 'reduced') {
     return { level: 'reduced', cause: template.cause, detail: template.detail };
   }
+  // The wire code knows its own door; the caller supplies host and status. A
+  // caller-supplied door wins, since it saw the actual request.
+  const resolved = origin
+    ? { ...origin, door: origin.door ?? template.door }
+    : undefined;
   return {
     level: 'unavailable',
     cause: template.cause,
+    detail: describeOrigin(resolved),
     action: template.actionLabel
       ? { label: template.actionLabel, run: () => undefined }
       : undefined,

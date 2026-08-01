@@ -56,3 +56,63 @@ describe('degradationFor', () => {
     expect(sentenceForCode('observed_model_graphql_failed')).toMatch(/model|schema|graph/i);
   });
 });
+
+// 2026-08-01: 'The data API is unreachable.' was shown for an API answering 200
+// on /healthz. One sentence covered CORS, 404, 401, DNS and a dead dependency,
+// so it named none of them. These pin the distinctions back down.
+describe('degradationFor origin evidence', () => {
+  it('does not invent a status from a bare number', () => {
+    // Callers pass a synthetic 400/500 to steer the generic branch for failures
+    // that never made a request. Rendering "answered 400" would be a new lie.
+    const result = degradationFor('console_data_api_unreachable', 400);
+    expect(result.level).toBe('unavailable');
+    expect(result).not.toHaveProperty('detail', expect.stringContaining('400'));
+    expect(result.detail).toBeUndefined();
+  });
+
+  it('names the door, the host, and the status code', () => {
+    const result = degradationFor('console_data_api_unreachable', {
+      door: '/api/objects/views',
+      host: 'commonplace-api-production.up.railway.app',
+      status: 404,
+    });
+    expect(result.detail).toContain('/api/objects/views');
+    expect(result.detail).toContain('commonplace-api-production.up.railway.app');
+    expect(result.detail).toContain('404');
+  });
+
+  it('separates a credential refusal from an outage', () => {
+    const unauthorized = degradationFor('console_data_api_unreachable', { status: 401 });
+    const missing = degradationFor('console_data_api_unreachable', { status: 404 });
+    expect(unauthorized.detail).toMatch(/credential/i);
+    expect(unauthorized.detail).not.toEqual(missing.detail);
+  });
+
+  it('separates a request that never landed from any answered status', () => {
+    const noAnswer = degradationFor('console_data_api_unreachable', {
+      door: '/api/objects/views',
+    });
+    const answered = degradationFor('console_data_api_unreachable', {
+      door: '/api/objects/views',
+      status: 502,
+    });
+    expect(noAnswer.detail).toMatch(/did not answer/i);
+    expect(answered.detail).toContain('502');
+    expect(noAnswer.detail).not.toEqual(answered.detail);
+  });
+
+  it('falls back to the door the wire code already knows', () => {
+    const result = degradationFor('harness_graphql_unreachable', { status: 503 });
+    expect(result.detail).toMatch(/harness/i);
+    expect(result.detail).toContain('503');
+  });
+
+  it('still keeps the wire code out of what the user sees', () => {
+    const result = degradationFor('console_data_api_unreachable', {
+      door: '/api/objects/views',
+      host: 'example.internal',
+      status: 502,
+    });
+    expect(JSON.stringify(result)).not.toContain('console_data_api_unreachable');
+  });
+});

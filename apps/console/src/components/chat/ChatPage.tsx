@@ -241,13 +241,25 @@ export function ChatPage({
   const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
   const attachments = useChatAttachments();
 
+  // connectionFor collapses the wire outcome into a ConnectionState, which is
+  // right for the status bar and useless for a degraded state: it discards the
+  // status code and the host. Keep the raw outcome so the banner can name what
+  // actually happened. setState identities are stable, so this does not
+  // re-create the host.
+  const [lastTransport, setLastTransport] = useState<{
+    status: number | null;
+    origin?: { door?: string; host?: string };
+  } | null>(null);
+
   const host = useMemo(
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
             proactivityTenant: tenant ?? null,
-            onTransport: (status, error) =>
-              useShellStore.getState().setConnection(connectionFor(status, error)),
+            onTransport: (status, error, origin) => {
+              setLastTransport({ status, origin });
+              useShellStore.getState().setConnection(connectionFor(status, error));
+            },
           })
         : null,
     [mounted, tenant],
@@ -393,14 +405,25 @@ export function ChatPage({
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;
   }
 
+  // A null status means the request never landed, which describeOrigin reports
+  // differently from any answered status. Passing the observed origin is what
+  // turns "The data API is unreachable." into a sentence that also says which
+  // door, which host, and what came back.
+  const transportOrigin = {
+    door: lastTransport?.origin?.door,
+    host: lastTransport?.origin?.host,
+    status: lastTransport?.status ?? undefined,
+  };
+
   const degradation = loadError
     ? degradationFor(
         loadError === 'workspace_object_scope_unenforced'
           ? 'workspace_object_scope_unenforced'
           : 'console_data_api_unreachable',
+        transportOrigin,
       )
     : connection === 'disconnected'
-      ? degradationFor('console_data_api_unreachable')
+      ? degradationFor('console_data_api_unreachable', transportOrigin)
       : null;
 
   return (
