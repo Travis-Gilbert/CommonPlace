@@ -236,14 +236,18 @@ function createApp({
     }
   );
 
-  app.delete("/v1/api-keys/:keyId", async (request, response) => {
+  app.delete(
+    "/v1/workspaces/:workspaceId/api-keys/:keyId",
+    async (request, response) => {
     response.json(
       await operations.revokeApiKey(
         request.body?.principal,
+        request.params.workspaceId,
         request.params.keyId
       )
     );
-  });
+    }
+  );
 
   app.post("/v1/api-keys/authenticate", async (request, response) => {
     response.json(await operations.authenticateApiKey(request.body?.apiKey));

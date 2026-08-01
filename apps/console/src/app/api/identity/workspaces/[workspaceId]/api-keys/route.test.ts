@@ -12,12 +12,13 @@ vi.mock('@/lib/server/fork-identity', () => ({
       { error: error instanceof Error ? error.message : 'identity_error' },
       { status: 401 },
     ),
-  forkIdentityResponse: vi.fn(),
+  forkIdentityResponse: (result: { status: number; body: unknown }) =>
+    Response.json(result.body, { status: result.status }),
   requestForkIdentity: mocks.requestForkIdentity,
   resolveForkIdentityPrincipal: mocks.resolveForkIdentityPrincipal,
 }));
 
-import { POST } from './route';
+import { API_KEY_REVOCATION_CACHE_SECS, POST } from './route';
 
 describe('workspace API key issuance route', () => {
   beforeEach(() => {
@@ -25,10 +26,20 @@ describe('workspace API key issuance route', () => {
     mocks.resolveForkIdentityPrincipal.mockReset();
   });
 
-  it('authenticates the user but refuses to mint an unconsumable key', async () => {
+  it('mints a dual-lane key with models:invoke and agent:bind by default', async () => {
     mocks.resolveForkIdentityPrincipal.mockResolvedValue({
       subject: 'github:1',
       username: 'Travis-Gilbert',
+    });
+    mocks.requestForkIdentity.mockResolvedValue({
+      status: 201,
+      body: {
+        key: 'cpk_deadbeef_abcdefghijklmnopqrstuvwxyz0123456789ABC',
+        record: {
+          id: 'key-1',
+          scopes: ['models:invoke', 'agent:bind', 'workspace.read'],
+        },
+      },
     });
 
     const response = await POST(
@@ -36,16 +47,32 @@ describe('workspace API key issuance route', () => {
         'https://console.example.test/api/identity/workspaces/workspace-1/api-keys',
         {
           method: 'POST',
-          headers: { origin: 'https://console.example.test' },
+          headers: {
+            origin: 'https://console.example.test',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ name: 'Widget' }),
         },
       ),
+      { params: Promise.resolve({ workspaceId: 'workspace-1' }) },
     );
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({
-      error: 'api_key_consumer_unavailable',
+      record: {
+        scopes: expect.arrayContaining(['models:invoke', 'agent:bind']),
+      },
+      revocationCacheSeconds: API_KEY_REVOCATION_CACHE_SECS,
     });
-    expect(mocks.resolveForkIdentityPrincipal).toHaveBeenCalledOnce();
-    expect(mocks.requestForkIdentity).not.toHaveBeenCalled();
+    expect(mocks.requestForkIdentity).toHaveBeenCalledWith(
+      '/v1/workspaces/workspace-1/api-keys',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          apiKey: expect.objectContaining({
+            scopes: expect.arrayContaining(['models:invoke', 'agent:bind']),
+          }),
+        }),
+      }),
+    );
   });
 });
