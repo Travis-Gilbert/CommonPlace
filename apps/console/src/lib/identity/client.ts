@@ -159,9 +159,32 @@ export async function listIdentityApiKeys(
   return result.apiKeys;
 }
 
-export async function revokeIdentityApiKey(keyId: string): Promise<void> {
+export async function createIdentityApiKey(
+  workspaceId: string,
+  input: { readonly name: string },
+): Promise<{
+  readonly key: string;
+  readonly record: ApiKeyMeta;
+  readonly revocationCacheSeconds: number;
+}> {
+  return requestJson(
+    `/api/identity/workspaces/${encodeURIComponent(workspaceId)}/api-keys`,
+    z.object({
+      key: z.string().min(1),
+      record: ApiKeyMetaSchema,
+      revocationCacheSeconds: z.number().int().positive(),
+    }),
+    { method: 'POST', body: JSON.stringify(input) },
+  );
+}
+
+export async function revokeIdentityApiKey(
+  workspaceId: string,
+  keyId: string,
+): Promise<void> {
   await requestJson(
-    `/api/identity/api-keys/${encodeURIComponent(keyId)}`,
+    `/api/identity/workspaces/${encodeURIComponent(workspaceId)}`
+      + `/api-keys/${encodeURIComponent(keyId)}`,
     z.object({ revoked: z.literal(true) }),
     { method: 'DELETE' },
   );

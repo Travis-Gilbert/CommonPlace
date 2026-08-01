@@ -1,7 +1,11 @@
 // SOURCING: vitest; same-origin fork client boundary tests.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { uploadIdentityWorkspaceDocument } from './client';
+import {
+  createIdentityApiKey,
+  revokeIdentityApiKey,
+  uploadIdentityWorkspaceDocument,
+} from './client';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -89,5 +93,50 @@ describe('fork identity document client', () => {
       expect.objectContaining({ 'content-type': 'text/plain' }),
       expect.objectContaining({ 'content-type': 'application/octet-stream' }),
     ]);
+  });
+});
+
+describe('fork identity API key client', () => {
+  it('creates a key through the same-origin workspace route', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        key: 'cpk_deadbeef_abcdefghijklmnopqrstuvwxyz0123456789ABC',
+        record: {
+          id: 'key-1',
+          name: 'Agent and models',
+          prefix: 'cpk_deadbeef',
+          scopes: ['models:invoke', 'agent:bind'],
+          createdAt: '2026-07-30T12:00:00.000Z',
+          expiresAt: null,
+        },
+        revocationCacheSeconds: 60,
+      }, { status: 201 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const created = await createIdentityApiKey('workspace/one', {
+      name: 'Agent and models',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/identity/workspaces/workspace%2Fone/api-keys',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'Agent and models' }),
+      }),
+    );
+    expect(created.record.scopes).toEqual(['models:invoke', 'agent:bind']);
+    expect(created.revocationCacheSeconds).toBe(60);
+  });
+
+  it('revokes a key through the workspace-scoped route', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ revoked: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await revokeIdentityApiKey('workspace/one', 'key/two');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/identity/workspaces/workspace%2Fone/api-keys/key%2Ftwo',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
   });
 });

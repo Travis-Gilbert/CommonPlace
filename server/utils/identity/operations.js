@@ -17,7 +17,12 @@ const API_KEY_SCOPES = Object.freeze([
   "content.read",
   "content.write",
   "chat.write",
+  // SPEC-THEOREM-AGENT-DISTRIBUTION-1.0 D9: one key both lanes.
+  "models:invoke",
+  "agent:bind",
 ]);
+// Revocation cache interval named for account UI and serving-tier docs (seconds).
+const API_KEY_REVOCATION_CACHE_SECS = 60;
 const ADMIN_OVERVIEW_LIMIT = 100;
 const API_KEY_LAST_USED_WRITE_INTERVAL_MS = 5 * 60 * 1000;
 const API_KEY_PATTERN = /^cpk_[a-f0-9]{8}_[A-Za-z0-9_-]{43}$/;
@@ -706,18 +711,19 @@ function createIdentityOperations(
     });
   }
 
-  async function revokeApiKey(principalInput, keyIdInput) {
+  async function revokeApiKey(principalInput, workspaceIdInput, keyIdInput) {
     const session = await reconcilePrincipal(principalInput);
+    const workspaceId = requiredText(workspaceIdInput, "workspace.id", 80);
     const keyId = requiredText(keyIdInput, "apiKey.id", 80);
     return access.withTransaction(async (transaction) => {
       const record = await transaction.apiKey.findUnique({ where: { id: keyId } });
-      if (!record?.workspaceId) {
+      if (!record?.workspaceId || record.workspaceId !== workspaceId) {
         throw new IdentityOperationError(404, "api_key_missing", "API key not found");
       }
       const membership = await membershipFor(
         transaction,
         session.user.id,
-        record.workspaceId
+        workspaceId
       );
       requirePermission(membership, "keys.manage");
       await transaction.apiKey.update({
@@ -850,6 +856,7 @@ function createIdentityOperations(
 module.exports = {
   ADMIN_OVERVIEW_LIMIT,
   API_KEY_SCOPES,
+  API_KEY_REVOCATION_CACHE_SECS,
   IdentityOperationError,
   createIdentityOperations,
   normalizePrincipal,

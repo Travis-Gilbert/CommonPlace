@@ -3,7 +3,10 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { WorkspaceDocumentsPanel } from './WorkspaceSettingsPage';
+import {
+  WorkspaceApiKeysPanel,
+  WorkspaceDocumentsPanel,
+} from './WorkspaceSettingsPage';
 
 describe('WorkspaceDocumentsPanel', () => {
   it('does not expose an upload control to a content writer', () => {
@@ -23,5 +26,27 @@ describe('WorkspaceDocumentsPanel', () => {
 
     expect(markup).toContain('Your role cannot add workspace content.');
     expect(markup).not.toContain('type="file"');
+  });
+});
+
+describe('WorkspaceApiKeysPanel', () => {
+  it('names dual-lane issuance and the revocation interval', () => {
+    const markup = renderToStaticMarkup(
+      <WorkspaceApiKeysPanel workspaceId="workspace-1" canManageKeys />,
+    );
+
+    expect(markup).toContain('One key can use hosted models and bind the agent.');
+    expect(markup).toContain('within 60 seconds');
+    expect(markup).toContain('Create key');
+    expect(markup).not.toContain('Issuance remains disabled');
+  });
+
+  it('preserves the role refusal for a non-manager', () => {
+    const markup = renderToStaticMarkup(
+      <WorkspaceApiKeysPanel workspaceId="workspace-1" canManageKeys={false} />,
+    );
+
+    expect(markup).toContain('Your role cannot manage API keys.');
+    expect(markup).not.toContain('Create key');
   });
 });

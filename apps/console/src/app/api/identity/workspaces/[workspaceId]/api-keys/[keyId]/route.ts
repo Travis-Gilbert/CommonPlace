@@ -1,4 +1,4 @@
-// SOURCING: none. Same-origin API key revocation proxy.
+// SOURCING: none. Same-origin workspace-scoped API key revocation proxy.
 
 import {
   assertSameOriginIdentityMutation,
@@ -10,19 +10,25 @@ import {
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ keyId: string }> },
+  {
+    params,
+  }: { params: Promise<{ workspaceId: string; keyId: string }> },
 ) {
   try {
     assertSameOriginIdentityMutation(request);
-    const [{ keyId }, principal] = await Promise.all([
+    const [{ workspaceId, keyId }, principal] = await Promise.all([
       params,
       resolveForkIdentityPrincipal(),
     ]);
     return forkIdentityResponse(
-      await requestForkIdentity(`/v1/api-keys/${encodeURIComponent(keyId)}`, {
-        method: 'DELETE',
-        body: { principal },
-      }),
+      await requestForkIdentity(
+        `/v1/workspaces/${encodeURIComponent(workspaceId)}`
+          + `/api-keys/${encodeURIComponent(keyId)}`,
+        {
+          method: 'DELETE',
+          body: { principal },
+        },
+      ),
     );
   } catch (error) {
     return forkIdentityErrorResponse(error);

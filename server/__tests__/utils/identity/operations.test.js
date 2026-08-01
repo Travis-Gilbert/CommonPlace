@@ -5,6 +5,8 @@ const test = require("node:test");
 
 const {
   ADMIN_OVERVIEW_LIMIT,
+  API_KEY_REVOCATION_CACHE_SECS,
+  API_KEY_SCOPES,
   IdentityOperationError,
   createIdentityOperations,
   tokenHash,
@@ -564,11 +566,59 @@ test("stores only API key hashes, authenticates scope, and enforces revocation",
   );
   access.rows.workspaceMembership[0].status = "ACTIVE";
 
-  await operations.revokeApiKey(owner, created.record.id);
+  await operations.revokeApiKey(owner, workspace.id, created.record.id);
   await assert.rejects(
     operations.authenticateApiKey(created.key),
     (error) => error.code === "api_key_refused"
   );
+});
+
+test("refuses API key revocation through a different workspace", async () => {
+  const { operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Keys",
+    slug: "keys",
+  });
+  const otherWorkspace = await operations.createWorkspace(owner, {
+    name: "Other keys",
+    slug: "other-keys",
+  });
+  const created = await operations.createApiKey(owner, workspace.id, {
+    name: "Scoped",
+    scopes: ["models:invoke"],
+  });
+
+  await assert.rejects(
+    operations.revokeApiKey(owner, otherWorkspace.id, created.record.id),
+    (error) => error.code === "api_key_missing"
+  );
+  assert.equal(
+    (await operations.authenticateApiKey(created.key)).workspaceId,
+    workspace.id
+  );
+});
+
+test("accepts models:invoke and agent:bind scopes for dual-lane keys", async () => {
+  assert.equal(API_KEY_REVOCATION_CACHE_SECS, 60);
+  assert.ok(API_KEY_SCOPES.includes("models:invoke"));
+  assert.ok(API_KEY_SCOPES.includes("agent:bind"));
+
+  const { access, operations } = operationsFixture();
+  const owner = principal("1", "Travis-Gilbert");
+  const workspace = await operations.createWorkspace(owner, {
+    name: "Dual lane",
+    slug: "dual-lane",
+  });
+  const created = await operations.createApiKey(owner, workspace.id, {
+    name: "Agent+Models",
+    scopes: ["models:invoke", "agent:bind"],
+  });
+  assert.deepEqual(created.record.scopes, ["models:invoke", "agent:bind"]);
+  const auth = await operations.authenticateApiKey(created.key);
+  assert.deepEqual(auth.scopes, ["models:invoke", "agent:bind"]);
+  assert.equal(auth.tenant, "Travis-Gilbert");
+  assert.equal(access.rows.apiKey[0].keyHash, tokenHash(created.key, PEPPER));
 });
 
 test("defaults API key scopes only when the field is omitted", async () => {
