@@ -1,11 +1,10 @@
-// SOURCING: none. Barrel re-exports for the model diagram surface.
+// SOURCING: none. Barrel re-exports for the live model diagram surface.
+// MC1 long-term surface is the OWOX fork (`ForkDiagramCanvas` +
+// `@commonplace/model-canvas`). Pre-fork ObjectTypeCard / GhostCard /
+// RelationEdge are quarantined — see ORPHAN.md.
 
 export { ForkDiagramCanvas, type ForkDiagramCanvasProps } from './ForkDiagramCanvas';
-// The OWOX fork shell supersedes the removed MC1 hand-built canvas.
-export { GhostCard } from './GhostCard';
-export { ObjectTypeCard } from './ObjectTypeCard';
 export { RecordChip, type RecordChipProps } from './RecordChip';
-export { RelationEdge } from './RelationEdge';
 export {
   GHOST_NODE_HEIGHT,
   layoutModelGraph,

@@ -17,22 +17,36 @@ import {
   type VisibilityState,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { BlockHost, ObjectQuery, ObjectRef, ObjectSet, Predicate } from '@commonplace/block-view/types';
+import type { BlockHost, JsonValue, ObjectQuery, ObjectRef, ObjectSet, Predicate } from '@commonplace/block-view/types';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { useShellStore } from '@/lib/shell-store';
 import { ViewState, type ViewStateKind } from './ViewStates';
+import { invokeAggregate, updateOneToolName } from './records/aggregates';
 import { CalculateFooter, type AggregateCellValue } from './records/CalculateFooter';
 import { renderFieldCell } from './records/cells';
+import { FieldEditor } from './records/editors';
 import {
   enterHardFocus,
   exitFocus,
   moveSoftFocus,
   type CellFocus,
 } from './records/focus';
+import {
+  actorsForView,
+  focusedRecordIds,
+  presencePublishToolArgs,
+  VIEW_FOCUS_KIND,
+  VIEW_LEAVE_KIND,
+  VIEW_PRESENCE_KIND,
+  type ViewPresenceActor,
+} from './records/presence';
 import { RecordChip } from './records/RecordChip';
 import {
+  aggregateFiltersFromView,
   columnsFromObjectType,
   extractRecordSchemaContext,
+  predicatesFromViewFilters,
+  rankersFromViewSorts,
   type AggregateOp,
   type SchemaColumnDef,
   visibilityForWidth as schemaVisibilityForWidth,
@@ -98,17 +112,26 @@ function legacyVisibilityFor(width: number): VisibilityState {
   return { utility, status, kind, updated, tags };
 }
 
-type HostWithInvoke = BlockHost & {
-  invoke?: (tool: string, args: Record<string, unknown>) => Promise<unknown>;
+type HostWithPresence = BlockHost & {
+  readonly actorId?: string;
 };
 
-function unavailableAggregates(columns: readonly SchemaColumnDef[]): Record<string, AggregateCellValue> {
+function unavailableAggregates(
+  columns: readonly SchemaColumnDef[],
+  reason = 'Aggregate host unavailable',
+): Record<string, AggregateCellValue> {
   return Object.fromEntries(
     columns.map((column) => [
       column.fieldKey,
-      { status: 'unavailable', reason: 'Aggregate host unavailable' } satisfies AggregateCellValue,
+      { status: 'unavailable', reason } satisfies AggregateCellValue,
     ]),
   );
+}
+
+function combinePredicates(parts: Predicate[]): Predicate | undefined {
+  if (parts.length === 0) return undefined;
+  if (parts.length === 1) return parts[0];
+  return { kind: 'and', all: parts };
 }
 
 export function RecordTableView({ set: initialSet, host, instance }: ViewRenderProps) {
@@ -124,6 +147,9 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
   const [cellFocus, setCellFocus] = useState<CellFocus | null>(null);
   const [aggregateOps, setAggregateOps] = useState<Record<string, AggregateOp>>({});
   const [aggregateValues, setAggregateValues] = useState<Record<string, AggregateCellValue>>({});
+  const [editError, setEditError] = useState<string | null>(null);
+  const [presenceActors, setPresenceActors] = useState<ViewPresenceActor[]>([]);
+  const optimisticRef = useRef<Map<string, unknown>>(new Map());
 
   const schemaContext = useMemo(
     () => extractRecordSchemaContext(result, instance),
@@ -134,6 +160,12 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
     () => schemaContext?.views.find((view) => view.id === activeViewId)
       ?? schemaContext?.views[0],
     [activeViewId, schemaContext?.views],
+  );
+
+  const localActorId = (host as HostWithPresence).actorId ?? 'console.human';
+  const presenceFocusByRecord = useMemo(
+    () => focusedRecordIds(presenceActors, localActorId),
+    [localActorId, presenceActors],
   );
 
   const schemaColumns = useMemo(() => {
@@ -154,14 +186,23 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
     let active = true;
     setStateKind('loading');
     const predicates: Predicate[] = [];
-    if (filterText) predicates.push({ kind: 'contains', field: 'title', value: filterText });
-    if (statusFilter) predicates.push({ kind: 'eq', field: 'status', value: statusFilter });
+    if (schemaContext && activeView) {
+      predicates.push(...predicatesFromViewFilters(activeView.filters));
+    }
+    const labelField = schemaContext?.objectType?.labelIdentifierField ?? 'title';
+    if (filterText) predicates.push({ kind: 'contains', field: labelField, value: filterText });
+    if (!schemaContext && statusFilter) {
+      predicates.push({ kind: 'eq', field: 'status', value: statusFilter });
+    }
+    const viewRank = schemaContext && activeView && activeView.sorts.length > 0
+      ? rankersFromViewSorts(activeView.sorts)
+      : undefined;
     const query: ObjectQuery = {
       types: schemaContext?.objectTypeKey ? [schemaContext.objectTypeKey] : ['record'],
-      where: predicates.length === 0 ? undefined : predicates.length === 1 ? predicates[0] : { kind: 'and', all: predicates },
+      where: combinePredicates(predicates),
       rank: sorting[0]
         ? [{ kind: 'field', field: sorting[0].id, direction: sorting[0].desc ? 'desc' : 'asc' }]
-        : undefined,
+        : viewRank,
       live: true,
     };
     Promise.resolve(host.query(query))
@@ -176,10 +217,68 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
     return () => {
       active = false;
     };
-  }, [host, schemaContext?.objectTypeKey, sorting, filterText, statusFilter]);
+  }, [activeView, filterText, host, schemaContext, sorting, statusFilter]);
 
   const legacyRows = useMemo(() => result.objects.map(toLegacyRow), [result]);
   const schemaRows = useMemo(() => result.objects.map(toSchemaRow), [result]);
+
+  const setSchemaRowProperty = useCallback((rowId: string, fieldKey: string, value: unknown) => {
+    setResult((current) => ({
+      ...current,
+      objects: current.objects.map((object) => {
+        if (object.id !== rowId) return object;
+        return {
+          ...object,
+          properties: {
+            ...object.properties,
+            [fieldKey]: value as JsonValue,
+          },
+        };
+      }),
+    }));
+  }, []);
+
+  const commitCellEdit = useCallback(
+    async (rowId: string, fieldKey: string, previous: unknown, next: unknown) => {
+      const objectType = schemaContext?.objectType;
+      if (!objectType) return;
+      const keys = schemaColumns.map((column) => column.fieldKey);
+      const tool = updateOneToolName(objectType.nameSingular);
+      optimisticRef.current.set(`${rowId}:${fieldKey}`, previous);
+      setSchemaRowProperty(rowId, fieldKey, next);
+      setEditError(null);
+      const receipt = await host.emit({
+        kind: 'invoke_tool',
+        tool,
+        args: {
+          id: rowId,
+          [fieldKey]: next as JsonValue,
+        },
+      });
+      if (!receipt.ok || receipt.value?.status === 'deferred') {
+        setSchemaRowProperty(rowId, fieldKey, previous);
+        setEditError(receipt.error ?? receipt.value?.note ?? 'Update refused');
+        setCellFocus((current) => (current ? { ...current, mode: 'soft' } : current));
+        return;
+      }
+      const note = receipt.value?.note ?? '';
+      if (/reject|enforcement|refused/i.test(note)) {
+        setSchemaRowProperty(rowId, fieldKey, previous);
+        setEditError(note);
+        setCellFocus((current) => (current ? { ...current, mode: 'soft' } : current));
+        return;
+      }
+      optimisticRef.current.delete(`${rowId}:${fieldKey}`);
+      setCellFocus((current) => {
+        if (!current) return current;
+        const fieldIndex = keys.indexOf(current.fieldKey);
+        const nextField = keys[fieldIndex + 1];
+        if (!nextField) return { ...current, mode: 'soft' };
+        return { rowId: current.rowId, fieldKey: nextField, mode: 'soft' };
+      });
+    },
+    [host, schemaColumns, schemaContext?.objectType, setSchemaRowProperty],
+  );
 
   const legacyColumns = useMemo(
     () => [
@@ -255,12 +354,33 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
           {
             id: column.fieldKey,
             header: column.label,
-            cell: (info) => renderFieldCell(column.fieldType, info.getValue(), { label: column.label }),
+            cell: (info) => {
+              const rowId = info.row.original.id;
+              const hard = cellFocus?.mode === 'hard'
+                && cellFocus.rowId === rowId
+                && cellFocus.fieldKey === column.fieldKey;
+              if (hard) {
+                return (
+                  <FieldEditor
+                    fieldType={column.fieldType}
+                    value={info.getValue()}
+                    onCancel={() => {
+                      setEditError(null);
+                      setCellFocus((current) => exitFocus(current));
+                    }}
+                    onCommit={(next) => {
+                      void commitCellEdit(rowId, column.fieldKey, info.getValue(), next);
+                    }}
+                  />
+                );
+              }
+              return renderFieldCell(column.fieldType, info.getValue(), { label: column.label });
+            },
           },
         ),
       ),
     ],
-    [schemaColumns, selectRecord, selectedRecordId],
+    [cellFocus, commitCellEdit, schemaColumns, selectRecord, selectedRecordId],
   );
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -338,6 +458,7 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
   const onTableKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (!schemaContext) return;
+      if (cellFocus?.mode === 'hard') return;
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
         const direction = event.key === 'ArrowUp'
@@ -355,8 +476,22 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
         setCellFocus(enterHardFocus(cellFocus));
         return;
       }
+      if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (!cellFocus) {
+          if (rowIds[0] && fieldKeys[0]) {
+            setCellFocus({ rowId: rowIds[0], fieldKey: fieldKeys[0], mode: 'hard' });
+          }
+          return;
+        }
+        if (cellFocus.mode === 'soft') {
+          event.preventDefault();
+          setCellFocus(enterHardFocus(cellFocus));
+        }
+        return;
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
+        setEditError(null);
         setCellFocus((current) => exitFocus(current));
       }
     },
@@ -364,47 +499,114 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
   );
 
   useEffect(() => {
-    if (!schemaContext || schemaColumns.length === 0) {
+    if (!schemaContext?.objectType || schemaColumns.length === 0) {
       setAggregateValues({});
       return;
     }
-    const invoke = (host as HostWithInvoke).invoke;
-    if (!invoke) {
-      setAggregateValues(unavailableAggregates(schemaColumns));
-      return;
-    }
+    const namePlural = schemaContext.objectType.namePlural;
+    const filters = activeView ? aggregateFiltersFromView(activeView.filters) : {};
     let active = true;
     setAggregateValues(
       Object.fromEntries(
         schemaColumns.map((column) => [column.fieldKey, { status: 'loading' } satisfies AggregateCellValue]),
       ),
     );
-    Promise.resolve(
-      invoke('records.aggregate', {
-        objectTypeKey: schemaContext.objectTypeKey ?? schemaContext.objectType?.key,
-        columns: schemaColumns.map((column) => ({
-          fieldKey: column.fieldKey,
-          op: aggregateOps[column.fieldKey] ?? 'count',
-        })),
-        recordIds: schemaRows.map((row) => row.id),
+    void Promise.all(
+      schemaColumns.map(async (column) => {
+        const op = aggregateOps[column.fieldKey] ?? 'count';
+        const result = await invokeAggregate(host.emit.bind(host), namePlural, column.fieldKey, op, filters);
+        return [
+          column.fieldKey,
+          result.available
+            ? ({ status: 'value', value: result.value } satisfies AggregateCellValue)
+            : ({
+              status: 'unavailable',
+              reason: result.reason ?? 'Aggregate unavailable',
+            } satisfies AggregateCellValue),
+        ] as const;
       }),
-    )
-      .then((payload) => {
-        if (!active) return;
-        if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
-          setAggregateValues(unavailableAggregates(schemaColumns));
-          return;
-        }
-        const record = payload as Record<string, AggregateCellValue>;
-        setAggregateValues(record);
-      })
-      .catch(() => {
-        if (active) setAggregateValues(unavailableAggregates(schemaColumns));
-      });
+    ).then((entries) => {
+      if (!active) return;
+      setAggregateValues(Object.fromEntries(entries));
+    }).catch(() => {
+      if (active) setAggregateValues(unavailableAggregates(schemaColumns, 'Aggregate invoke failed'));
+    });
     return () => {
       active = false;
     };
-  }, [aggregateOps, host, schemaColumns, schemaContext, schemaRows]);
+  }, [activeView, aggregateOps, host, schemaColumns, schemaContext?.objectType]);
+
+  useEffect(() => {
+    if (!schemaContext?.objectType || !activeView) {
+      setPresenceActors([]);
+      return;
+    }
+    const viewId = activeView.id;
+    const objectTypeId = schemaContext.objectType.id;
+    let cancelled = false;
+    const publish = (kind: typeof VIEW_PRESENCE_KIND | typeof VIEW_FOCUS_KIND | typeof VIEW_LEAVE_KIND, recordId?: string) => {
+      void host.emit({
+        kind: 'invoke_tool',
+        tool: 'stream_publish',
+        args: presencePublishToolArgs({
+          kind,
+          viewId,
+          objectTypeId,
+          actorId: localActorId,
+          actorKind: 'human',
+          recordId,
+        }) as Record<string, JsonValue>,
+      });
+    };
+    publish(VIEW_PRESENCE_KIND);
+    const poll = window.setInterval(() => {
+      void host.emit({
+        kind: 'invoke_tool',
+        tool: 'stream_read',
+        args: {
+          stream: `records.view.${viewId}`,
+          limit: 50,
+        },
+      }).then((receipt) => {
+        if (cancelled || !receipt.ok) return;
+        const note = receipt.value?.note;
+        let events: unknown[] = [];
+        if (typeof note === 'string' && note.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(note) as { events?: unknown[] };
+            events = Array.isArray(parsed.events) ? parsed.events : [];
+          } catch {
+            events = [];
+          }
+        }
+        const extended = receipt.value as { events?: unknown[]; payload?: { events?: unknown[] } } | undefined;
+        if (Array.isArray(extended?.events)) events = extended.events;
+        if (Array.isArray(extended?.payload?.events)) events = extended.payload.events;
+        setPresenceActors(actorsForView(events, viewId));
+      });
+    }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      publish(VIEW_LEAVE_KIND);
+    };
+  }, [activeView, host, localActorId, schemaContext?.objectType]);
+
+  useEffect(() => {
+    if (!schemaContext?.objectType || !activeView || !cellFocus) return;
+    void host.emit({
+      kind: 'invoke_tool',
+      tool: 'stream_publish',
+      args: presencePublishToolArgs({
+        kind: VIEW_FOCUS_KIND,
+        viewId: activeView.id,
+        objectTypeId: schemaContext.objectType.id,
+        actorId: localActorId,
+        actorKind: 'human',
+        recordId: cellFocus.rowId,
+      }) as Record<string, JsonValue>,
+    });
+  }, [activeView, cellFocus?.rowId, host, localActorId, schemaContext?.objectType]);
 
   const onSelectAggregateOp = useCallback((fieldKey: string, op: AggregateOp) => {
     setAggregateOps((current) => ({ ...current, [fieldKey]: op }));
@@ -437,8 +639,14 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
           activeViewId={activeView?.id}
           count={rowCount}
           onSelectView={setActiveViewId}
+          presence={presenceActors}
           onSaveAs={() => undefined}
         />
+      ) : null}
+      {editError ? (
+        <div className="shrink-0 border-b border-ij-seam bg-ij-error-bg px-2 py-1 text-sm text-ij-error" role="alert" data-edit-error>
+          {editError}
+        </div>
       ) : null}
       <div className="flex h-ij-toolbar shrink-0 items-center gap-2 px-2">
         <input
@@ -503,14 +711,19 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
                   const originalId = schemaContext
                     ? (row.original as SchemaRow).id
                     : (row.original as RecordRow).id;
+                  const remoteFocuser = presenceFocusByRecord.get(originalId);
                   return (
                     <tr
                       key={row.id}
                       tabIndex={-1}
                       data-record-id={originalId}
                       data-selected={selectedRecordId === originalId ? 'true' : undefined}
+                      data-remote-focus={remoteFocuser ?? undefined}
+                      title={remoteFocuser ? `Focused by ${remoteFocuser}` : undefined}
                       onClick={() => selectRecord(originalId)}
-                      className="absolute left-0 top-0 flex w-full cursor-default items-center overflow-hidden hover:bg-ij-hover-surface data-[selected]:bg-ij-selection"
+                      className={`absolute left-0 top-0 flex w-full cursor-default items-center overflow-hidden hover:bg-ij-hover-surface data-[selected]:bg-ij-selection ${
+                        remoteFocuser ? 'bg-ij-hover-surface/70' : ''
+                      }`}
                       style={{
                         transform: `translateY(${virtualRow.start}px)`,
                         height: 32,
