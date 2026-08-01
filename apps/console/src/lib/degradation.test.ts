@@ -88,6 +88,18 @@ describe('degradationFor origin evidence', () => {
     expect(unauthorized.detail).not.toEqual(missing.detail);
   });
 
+  // 403 here is active_workspace_claim_required / active_workspace_membership_refused
+  // from the objects proxy, which connectionFor maps to 'identity-refused'. The
+  // credential is good and simply does not reach this workspace, so telling the
+  // reader to fix their credential would send them the wrong way.
+  it('separates a workspace refusal from a missing credential', () => {
+    const unauthenticated = degradationFor('console_data_api_unreachable', { status: 401 });
+    const refused = degradationFor('console_data_api_unreachable', { status: 403 });
+    expect(refused.detail).toMatch(/workspace/i);
+    expect(refused.detail).not.toEqual(unauthenticated.detail);
+    expect(refused.detail).not.toMatch(/not authenticated/i);
+  });
+
   it('separates a request that never landed from any answered status', () => {
     const noAnswer = degradationFor('console_data_api_unreachable', {
       door: '/api/objects/views',

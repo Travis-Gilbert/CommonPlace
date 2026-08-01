@@ -118,8 +118,6 @@ export function retireSeedViewObjects(objects: readonly ObjectRef[]): ObjectRef[
     });
 }
 
-/** Transport health as the host observes it (R2.3 / D5): status plus the
- *  named error body when the upstream refused with a JSON reason. */
 /** Where a record-wire request went, for degraded states that must name a
  *  door and a host rather than collapsing every failure into one sentence. */
 export type TransportOrigin = {
@@ -129,6 +127,9 @@ export type TransportOrigin = {
   readonly host?: string;
 };
 
+/** Transport health as the host observes it (R2.3 / D5): status plus the
+ *  named error body when the upstream refused with a JSON reason, and where
+ *  the request went when the caller knows. */
 export type TransportObserver = (
   status: number | null,
   error?: string | null,
@@ -297,7 +298,11 @@ export class ConsoleBlockHost implements BlockHost {
       baseUrl: '/api',
       // Same-origin relay; server maps THEOREM_PROACTIVITY_CHANGEFEED_URL.
       changefeedUrl: '/api/proactivity/stream',
-      onStatus: (status) => this.observer?.(status),
+      // Carry the door through. Without it a later /objects/query or
+      // /objects/action failure would overwrite the probe's origin with a
+      // bare status, and the banner would fall back to naming "the data API"
+      // when it could have named the request that actually failed.
+      onStatus: (status, door) => this.observer?.(status, null, door ? { door } : undefined),
       onChangefeedStatus: (status) => {
         // CS13/CS16: staleness is a property of connection state, not a second
         // progress claim. Only an outstanding connect attempt may animate.

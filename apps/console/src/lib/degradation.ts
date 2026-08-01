@@ -211,8 +211,16 @@ export function describeOrigin(origin: DegradationOrigin | undefined): string | 
   if (status === undefined) {
     return `${subject} did not answer. That is DNS, the network, or a blocked origin, not a status code.`;
   }
-  if (status === 401 || status === 403) {
-    return `${subject} answered ${status}. That is a credential problem, not an outage.`;
+  if (status === 401) {
+    return `${subject} answered 401. The request was not authenticated, which is a credential problem rather than an outage.`;
+  }
+  if (status === 403) {
+    // Not the same failure as 401, and saying so matters. connectionFor maps
+    // 403 to 'identity-refused', and the objects proxy returns it for
+    // active_workspace_claim_required and active_workspace_membership_refused.
+    // In those cases the credential is fine and simply does not reach this
+    // workspace, so "fix your credential" would send the reader the wrong way.
+    return `${subject} answered 403. The credential was accepted but refused for this workspace, which is not an outage.`;
   }
   if (status === 404) {
     return `${subject} answered 404. Check the configured URL before assuming the service is down.`;

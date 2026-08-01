@@ -91,8 +91,13 @@ export interface HttpBlockHostConfig {
   readonly onChangefeedStatus?: (status: ChangefeedConnectionStatus) => void;
   /** Observes every HTTP outcome: the response status, or null when the
    *  request itself failed (network down). Hosts surface transport health
-   *  (e.g. 403 as an identity-refused state) without re-wrapping fetch. */
-  readonly onStatus?: (status: number | null) => void;
+   *  (e.g. 403 as an identity-refused state) without re-wrapping fetch.
+   *
+   *  `door` names the endpoint that produced the outcome. A degraded state
+   *  that says which request failed beats one that says "the data API",
+   *  and only this layer knows which of /objects/query or /objects/action
+   *  ran. Optional so existing observers keep compiling. */
+  readonly onStatus?: (status: number | null, door?: string) => void;
 }
 
 export class HttpBlockHost implements BlockHost {
@@ -118,35 +123,37 @@ export class HttpBlockHost implements BlockHost {
   }
 
   private async fetchRawObjectSet(query: ObjectQuery): Promise<RawObjectSet> {
+    const door = `${this.config.baseUrl}/objects/query`;
     let response: Response;
     try {
-      response = await fetch(`${this.config.baseUrl}/objects/query`, {
+      response = await fetch(door, {
         method: 'POST',
         headers: this.headers(),
         body: JSON.stringify(query),
       });
     } catch (error) {
-      this.config.onStatus?.(null);
+      this.config.onStatus?.(null, door);
       throw error;
     }
-    this.config.onStatus?.(response.status);
+    this.config.onStatus?.(response.status, door);
     if (!response.ok) throw new Error(`objects/query failed: ${response.status}`);
     return (await response.json()) as RawObjectSet;
   }
 
   async emit(action: ObjectAction): Promise<Result<ObjectActionReceipt>> {
+    const door = `${this.config.baseUrl}/objects/action`;
     let response: Response;
     try {
-      response = await fetch(`${this.config.baseUrl}/objects/action`, {
+      response = await fetch(door, {
         method: 'POST',
         headers: this.headers(),
         body: JSON.stringify(action),
       });
     } catch (error) {
-      this.config.onStatus?.(null);
+      this.config.onStatus?.(null, door);
       return { ok: false, error: 'objects/action failed: network unreachable' };
     }
-    this.config.onStatus?.(response.status);
+    this.config.onStatus?.(response.status, door);
     if (!response.ok) return { ok: false, error: `objects/action failed: ${response.status}` };
     return { ok: true, value: (await response.json()) as ObjectActionReceipt };
   }

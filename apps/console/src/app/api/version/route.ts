@@ -32,6 +32,11 @@ export function GET() {
       sha: runtimeEnv('RAILWAY_GIT_COMMIT_SHA') ?? runtimeEnv('GITHUB_SHA'),
       branch: runtimeEnv('RAILWAY_GIT_BRANCH') ?? runtimeEnv('GITHUB_REF_NAME'),
     },
+    // Names only, no identifiers. This route is unauthenticated like
+    // /api/healthz, and project, service and replica IDs are infrastructure
+    // metadata that answers no question this endpoint exists to answer. The
+    // question is "which commit is running, and where", and a service name
+    // plus an environment name answer it.
     railway: {
       service_name: runtimeEnv('RAILWAY_SERVICE_NAME'),
       environment_name: runtimeEnv('RAILWAY_ENVIRONMENT_NAME'),
