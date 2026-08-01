@@ -3,27 +3,28 @@
 // SOURCING: React useSyncExternalStore. The appearance preference is a small
 // browser external store because system-color changes can happen without a
 // React event, and the same snapshot must drive controls, root attributes,
-// persistence, and the contrast note.
+// and persistence.
+//
+// Derived coloration (the Navy family and its OKLCH knobs) is retired
+// (2026-08-01). It painted generated values onto documentElement as inline
+// styles, which outrank every stylesheet rule, so a stored derived theme
+// permanently overrode --ij-frame and the whole --ij-gray ramp and made the
+// pinned registers unreachable. The store now selects between pinned
+// registers only, and never writes inline paint. theme-engine.ts survives as
+// a pure module because the contrast gate exercises its clamping against
+// adversarial inputs; nothing at runtime calls it.
 
 import { useSyncExternalStore } from 'react';
-import {
-  GENERATED_THEME_VARIABLES,
-  NAVY_KNOBS,
-  generateTheme,
-  type GeneratedTheme,
-  type ResolvedThemeMode,
-  type ThemeKnobs,
-} from '@/styles/theme-engine';
+import { GENERATED_THEME_VARIABLES, type ResolvedThemeMode } from '@/styles/theme-engine';
 
 export type ThemeMode = 'auto' | ResolvedThemeMode;
-export type ThemeFamily = 'intellij' | 'github' | 'navy';
-export type AppearancePresetId = 'intellij-dark' | 'intellij-light' | 'github-dark' | 'github-light' | 'navy';
+export type ThemeFamily = 'intellij' | 'github';
+export type AppearancePresetId = 'intellij-dark' | 'intellij-light' | 'github-dark' | 'github-light';
 export type AppearanceDensity = 'comfortable' | 'compact';
 
 export interface AppearancePreference {
   readonly mode: ThemeMode;
   readonly family: ThemeFamily;
-  readonly knobs: ThemeKnobs;
   readonly density: AppearanceDensity;
 }
 
@@ -31,12 +32,9 @@ export interface AppearanceSnapshot {
   readonly preference: AppearancePreference;
   readonly resolvedMode: ResolvedThemeMode;
   readonly presetId: AppearancePresetId;
-  readonly generated: GeneratedTheme | null;
 }
 
-export type AppearancePresetSource =
-  | { readonly kind: 'pinned'; readonly register: 'intellij' | 'github' }
-  | { readonly kind: 'knobs'; readonly knobs: ThemeKnobs };
+export type AppearancePresetSource = { readonly kind: 'pinned'; readonly register: 'intellij' | 'github' };
 
 export const APPEARANCE_STORAGE_KEY = 'commonplace.console.appearance.v1';
 
@@ -51,13 +49,11 @@ export const APPEARANCE_PRESETS: readonly {
   { id: 'intellij-light', label: 'IntelliJ Light', family: 'intellij', mode: 'light', source: { kind: 'pinned', register: 'intellij' } },
   { id: 'github-dark', label: 'GitHub Dark', family: 'github', mode: 'dark', source: { kind: 'pinned', register: 'github' } },
   { id: 'github-light', label: 'GitHub Light', family: 'github', mode: 'light', source: { kind: 'pinned', register: 'github' } },
-  { id: 'navy', label: 'Navy', family: 'navy', mode: 'dark', source: { kind: 'knobs', knobs: NAVY_KNOBS } },
 ];
 
 const defaultPreference: AppearancePreference = {
   mode: 'auto',
   family: 'intellij',
-  knobs: NAVY_KNOBS,
   density: 'comfortable',
 };
 
@@ -65,7 +61,6 @@ let snapshot: AppearanceSnapshot = {
   preference: defaultPreference,
   resolvedMode: 'dark',
   presetId: 'intellij-dark',
-  generated: null,
 };
 let started = false;
 const listeners = new Set<() => void>();
@@ -77,21 +72,21 @@ function resolvedMode(mode: ThemeMode): ResolvedThemeMode {
 }
 
 function presetId(preference: AppearancePreference, mode: ResolvedThemeMode): AppearancePresetId {
-  return preference.family === 'navy' ? 'navy' : `${preference.family}-${mode}`;
+  return `${preference.family}-${mode}`;
 }
 
 function validPreference(value: unknown): AppearancePreference | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<AppearancePreference>;
   if (!['auto', 'dark', 'light'].includes(String(candidate.mode))) return null;
-  if (!['intellij', 'github', 'navy'].includes(String(candidate.family))) return null;
-  const knobs = candidate.knobs as Partial<ThemeKnobs> | undefined;
-  if (!knobs || ![knobs.tintHue, knobs.tintChroma, knobs.highlightHue].every((item) => typeof item === 'number')) return null;
+  // A stored 'navy' or 'paper' family fails here and falls back to the
+  // default, which is the migration off derived coloration.
+  if (!['intellij', 'github'].includes(String(candidate.family))) return null;
   const density =
     candidate.density === 'compact' || candidate.density === 'comfortable'
       ? candidate.density
       : 'comfortable';
-  return { ...(candidate as AppearancePreference), density };
+  return { mode: candidate.mode as ThemeMode, family: candidate.family as ThemeFamily, density };
 }
 
 function readPreference(): AppearancePreference {
@@ -115,7 +110,6 @@ function writeSnapshot(next: AppearanceSnapshot): void {
         preference: next.preference,
         resolvedMode: next.resolvedMode,
         presetId: next.presetId,
-        variables: next.generated?.variables ?? {},
       }),
     );
   } catch {
@@ -129,12 +123,13 @@ function paint(next: AppearanceSnapshot): void {
   root.dataset.themeMode = next.preference.mode;
   root.dataset.themeFamily = next.preference.family;
   root.dataset.themePreset = next.presetId;
-  root.dataset.themeDerived = next.generated ? 'true' : 'false';
+  root.dataset.themeDerived = 'false';
   root.dataset.density = next.preference.density;
+  // Sweep any inline paint left by a derived theme in this document. Inline
+  // styles do not survive a reload, so this only matters within a session
+  // that started before the retirement; it costs nothing and guarantees the
+  // register is the only source of color.
   for (const name of GENERATED_THEME_VARIABLES) root.style.removeProperty(name);
-  for (const [name, value] of Object.entries(next.generated?.variables ?? {})) {
-    root.style.setProperty(name, value);
-  }
 }
 
 function commit(preference: AppearancePreference): void {
@@ -143,7 +138,6 @@ function commit(preference: AppearancePreference): void {
     preference,
     resolvedMode: mode,
     presetId: presetId(preference, mode),
-    generated: preference.family === 'navy' ? generateTheme(mode, preference.knobs) : null,
   };
   snapshot = next;
   paint(next);
@@ -167,19 +161,7 @@ function onSystemThemeChange(): void {
 }
 
 export function setAppearancePreference(patch: Partial<AppearancePreference>): void {
-  const preference = {
-    ...snapshot.preference,
-    ...patch,
-    knobs: patch.knobs ?? snapshot.preference.knobs,
-  };
-  commit(preference);
-}
-
-export function setAppearanceKnobs(patch: Partial<ThemeKnobs>): void {
-  setAppearancePreference({
-    family: 'navy',
-    knobs: { ...snapshot.preference.knobs, ...patch },
-  });
+  commit({ ...snapshot.preference, ...patch });
 }
 
 export function selectAppearancePreset(id: AppearancePresetId): void {
@@ -189,7 +171,6 @@ export function selectAppearancePreset(id: AppearancePresetId): void {
     ...snapshot.preference,
     family: preset.family,
     mode: preset.mode,
-    knobs: preset.source.kind === 'knobs' ? preset.source.knobs : snapshot.preference.knobs,
   });
 }
 
