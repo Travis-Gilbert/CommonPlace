@@ -18,7 +18,8 @@ vi.mock('@/lib/server/fork-identity', () => ({
   resolveForkIdentityPrincipal: mocks.resolveForkIdentityPrincipal,
 }));
 
-import { API_KEY_REVOCATION_CACHE_SECS, POST } from './route';
+import { API_KEY_REVOCATION_CACHE_SECS } from './policy';
+import { POST } from './route';
 
 describe('workspace API key issuance route', () => {
   beforeEach(() => {
