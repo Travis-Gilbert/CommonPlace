@@ -1,14 +1,27 @@
-/* Int UI Light coloration register for the CommonPlace console.
-   Source of truth: JetBrains/intellij-community
-   platform/platform-resources/src/themes/expUI/expUI_light.theme.json
-   commit 0db751c0cd8ce1f778d64d6fea7662305ab3e6a0
-   source SHA-256 411be97aed281d557a14c7f2d03b364e41299658fc7d377ae39950bec5ca8ff1.
-   The dark register remains untouched. Components consume the same semantic
-   --ij-* slots in both modes; this file changes only their light resolution. */
+/* Zed-derived light coloration register for the CommonPlace console.
+   Source of truth: zed.dev production CSS + DOM, extracted 2026-07-29
+   (curl of /_next/static/chunks/0.tckse1odg.w.css and the homepage /
+   /extensions markup). Zed's light language: page is cream-100/20 over
+   white (#F6F5F4, oklch 97.1% 0.0017 68); cards are white/60 with
+   hairline borders (border-offgray-100 and alpha variants); radii are
+   small; shadows are absent; texture is a tiling noise image at 3%.
+   The dark register remains untouched. Components consume the same
+   semantic --ij-* slots in both modes; this file changes only their
+   light resolution.
+
+   Ladder (verified against scripts/check-contrast.mjs floors):
+     frame  #EAE7E1  oklch(92.9% 0.0087 85)   desk / gutters
+     chrome #F0EEE9                             tool islands (page tone, A2-separated)
+     editor #FBFAF8  oklch(98.5% 0.0029 85)   main well (near-white paper)
+     raised #FBFAF8 / floating #FFFFFF        popovers
+   Warm paper, cool verbatim Int UI ink: the two-family rule (paper hue
+   ~80, ink hue ~260) holds with chroma clamped under 0.011. Seams are
+   ink at low alpha per the border direction (a couple shades darker
+   than the surrounding page, never a hard opaque line). */
 
 [data-register="intui"][data-theme="light"] {
   /* Palette ramps (Int UI Light, verbatim). Kept verbatim for ink, borders,
-     and functional tints. Surface FILLS are warmed below. */
+     and functional tints. Surface FILLS are the Zed ladder below. */
   --ij-gray-1: #000000;  --ij-gray-2: #27282E;  --ij-gray-3: #383A42;
   --ij-gray-4: #494B57;  --ij-gray-5: #5A5D6B;  --ij-gray-6: #6C707E;
   --ij-gray-7: #818594;  --ij-gray-8: #A8ADBD;  --ij-gray-9: #C9CCD6;
@@ -31,54 +44,44 @@
   --ij-purple-2: #643CB8; --ij-purple-7: #DCCBFB; --ij-purple-9: #F5EDFF;
   --ij-teal-2: #077A7F; --ij-teal-7: #B6E4E5;
 
-  /* AMENDMENT-01 A1: decompress light elevation (already landed). Editor stays
-     paper, tool drops a real step, frame deepens so gutters and Material Layer
-     shadows read.
-
-     Round-trip test 2026-07-21 (warm surface tint): the verbatim Int UI grays
-     are cold (blue-biased), which reads clinical against CommonPlace's warm
-     paper identity. Surface FILLS below shift to matched-luminance warm
-     neutrals (R >= G >= B) while ink, borders, and functional tints stay on the
-     verbatim ramp. Elevation order and the island-to-frame contrast floor are
-     preserved: editor #FFFEFC over frame #D9D6CF clears 1.20:1, editor over
-     tool #EEEDE9 is a visible step. The principled home for this is the theme
-     engine tint hue set warm; this static override demonstrates the change and
-     exercises the register round-trip into Paper. */
-  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), light.
-     Before (light L% approx): editor/raised ~99.7, chrome ~94.6, frame ~87.7 (spread ~12pp).
-     After: sunken ~92, ground ~88, raised ~95, floating ~99.7 (spread widened; keylines on raised+). */
-  --ij-tier-sunken: #D2CEC5;
-  --ij-tier-ground: #D9D6CF;
-  --ij-tier-raised: #EEEDE9;
-  --ij-tier-floating: #FFFEFC;
+  /* Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), Zed-flat light.
+     The spread is deliberately narrow (sunken ~90.8 L to floating 100);
+     hairline seams and the grain tile carry the boundaries, matching
+     Zed's flat card language. Only floating casts shadow. */
+  --ij-tier-sunken: #E4E0D9;
+  --ij-tier-ground: #EAE7E1;
+  --ij-tier-raised: #FBFAF8;
+  --ij-tier-floating: #FFFFFF;
   --ij-tier-scrim: color-mix(in oklab, #000000 36%, transparent);
 
-  --ij-frame: #D9D6CF;
-  --ij-editor: #D2CEC5;
-  --ij-chrome: #EEEDE9;
+  --ij-frame: #EAE7E1;
+  --ij-editor: #FBFAF8;
+  --ij-chrome: #F0EEE9;
   --ij-raised: var(--ij-tier-floating);
-  --ij-seam: #C9C5BC;
-  --ij-seam-raised: var(--ij-gray-9);
-  --ij-divider: #C9C5BC;
-  --ij-control-border: var(--ij-gray-9);
+  --ij-seam: color-mix(in oklab, var(--ij-ink) 11%, transparent);
+  --ij-seam-raised: #C8C6C1;
+  --ij-divider: color-mix(in oklab, var(--ij-ink) 8%, transparent);
+  --ij-control-border: color-mix(in oklab, var(--ij-ink) 22%, transparent);
   --ij-keyline: var(--ij-seam-raised);
   --ij-keyline-focus: var(--ij-accent);
-  --ij-keyline-decorative: color-mix(in oklab, var(--ij-ink) 14%, transparent);
+  --ij-keyline-decorative: color-mix(in oklab, var(--ij-ink) 12%, transparent);
 
   --ij-ink: var(--ij-gray-2);
   --ij-ink-info: var(--ij-gray-6);
   --ij-ink-disabled: var(--ij-gray-7);
   --ij-ink-bright: var(--ij-gray-14);
 
-  --ij-accent: var(--ij-blue-4);
-  --ij-accent-hover: var(--ij-blue-3);
+  /* Accent: Zed cobalt (--color-accent-blue #1348DC), hover one step
+     deeper, link on Zed blue-700. 6.29:1 on chrome, 7.03:1 under bright. */
+  --ij-accent: #1348DC;
+  --ij-accent-hover: #0F3CC0;
   --ij-selection: var(--ij-blue-11);
-  --ij-selection-inactive: var(--ij-gray-11);
-  --ij-link: var(--ij-blue-3);
-  --ij-modified: var(--ij-blue-3);
+  --ij-selection-inactive: #E4E0D9;
+  --ij-link: #1447E6;
+  --ij-modified: #1447E6;
   --ij-hover-overlay: #0000000D;
   --ij-pressed-overlay: #0000001A;
-  --ij-hover-surface: #E4E1DA;
+  --ij-hover-surface: color-mix(in oklab, var(--ij-ink) 6%, transparent);
 
   --ij-error: var(--ij-red-1);      --ij-error-bg: #FFEBEC;
   --ij-warn: var(--ij-yellow-1);    --ij-warn-bg: #FFF5DB;
@@ -92,12 +95,21 @@
 
   --ij-row-yellow: #FFF5DB; --ij-row-green: #E3F7E7; --ij-row-orange: #FFEFE3;
   --ij-row-rose: #FFEBEC;   --ij-row-violet: var(--ij-purple-9); --ij-row-blue: #DAF4F5;
-  --ij-row-gray: #E4E1DA;
+  --ij-row-gray: #EAE7E1;
 
-  --ij-progress: var(--ij-blue-4);
-  --ij-progress-a: var(--ij-blue-3);
+  --ij-progress: var(--ij-accent);
+  --ij-progress-a: #1447E6;
   --ij-progress-b: var(--ij-blue-7);
   --ij-progress-track: var(--ij-gray-10);
 
+  /* Zed grain tile reads a touch stronger on light paper. */
+  --paper-grain-opacity: 0.16;
+
   color-scheme: light;
+}
+
+/* Zed-flat islands: with the tone spread narrowed, the island boundary is a
+   hairline (border-offgray-100 analog), not a fill jump plus shader rim. */
+[data-register="intui"][data-theme="light"] [data-island] {
+  border-color: var(--ij-seam);
 }

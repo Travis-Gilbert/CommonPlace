@@ -335,6 +335,28 @@ body {
   background: var(--ij-frame);
 }
 
+/* The Zed paper texture (extracted from zed.dev, 2026-07-29): one tiling
+   noise field over every surface. Zed ships a 180px noise webp repeated at
+   opacity 0.03 light / 0.012 dark behind each section; the console runs one
+   fixed overlay above the paint stack instead, because MaterialLayer's
+   canvas is opaque (alpha:false) and would swallow an under-layer. The tile
+   is an inline SVG fractalNoise (no binary asset, tiles seamlessly via
+   stitchTiles); pointer-events none keeps it out of hit testing, and portal
+   chrome (z-50 and up) floats above it so dialogs and popovers stay crisp.
+   Opacity is the register token --paper-grain-opacity (dark 0.10 base,
+   light 0.16). */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  background-repeat: repeat;
+  opacity: var(--paper-grain-opacity, 0.12);
+}
+
 /* Overlay scrollbars (amendment 35): thin IntelliJ-style overlays that do not
    steal layout width from island content. Register colors only. */
 [data-register='intui'] {
@@ -379,7 +401,9 @@ body {
 }
 
 /* Island border equals island fill (choice 8): consume register token only.
-   Tool/editor overrides live in register-bridge.css. Frame shows in the gutters. */
+   Tool/editor overrides live in register-bridge.css; the light register
+   overrides the border to a hairline seam (Zed-flat). Frame shows in the
+   gutters. */
 [data-island] {
   border-width: 1px;
   border-style: solid;

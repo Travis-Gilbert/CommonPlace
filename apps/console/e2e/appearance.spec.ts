@@ -29,13 +29,23 @@ async function resetStub(request: import('@playwright/test').APIRequestContext) 
 }
 
 async function waitForThreadChrome(page: import('@playwright/test').Page) {
-  await expect.poll(async () => {
-    const empty = await page.locator('[data-chat-empty-state]').boundingBox();
-    const composer = await page.locator('[data-composer-zone]').boundingBox();
-    if (!empty || !composer) return false;
-    const gap = Math.round(composer.y - (empty.y + empty.height));
-    return gap >= 0 && gap < 80;
-  }, { timeout: 30_000 }).toBe(true);
+  let lastGap: number | null = null;
+  let stableSamples = 0;
+  try {
+    await expect.poll(async () => {
+      const empty = await page.locator('[data-chat-empty-state]').boundingBox();
+      const composer = await page.locator('[data-composer-zone]').boundingBox();
+      if (!empty || !composer) return false;
+      const gap = Math.round(composer.y - (empty.y + empty.height));
+      stableSamples = lastGap === gap ? stableSamples + 1 : 0;
+      lastGap = gap;
+      return gap >= 0 && stableSamples >= 1;
+    }, { timeout: 30_000 }).toBe(true);
+  } catch (error) {
+    throw new Error(`Thread chrome did not stabilize without overlap; last measured gap was ${String(lastGap)}px.`, {
+      cause: error,
+    });
+  }
 }
 
 async function openAppearance(page: import('@playwright/test').Page) {
@@ -132,7 +142,8 @@ test.describe('appearance surface', () => {
     );
     const underline = page.locator('[role="tab"][aria-selected="true"] .h-ij-underline');
     await expect(underline).toHaveCSS('height', '4px');
-    await expect(underline).toHaveCSS('background-color', 'rgb(53, 116, 240)');
+    const accent = await resolveToken(page, '--ij-accent');
+    await expect(underline).toHaveCSS('background-color', accent);
     const running = await page.evaluate(() => {
       const probe = document.createElement('div');
       probe.style.backgroundColor = 'var(--ij-running)';

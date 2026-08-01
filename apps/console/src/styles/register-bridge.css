@@ -303,7 +303,7 @@
   --ij-island-header-tool: #22252A;
   --ij-island-header-editor: #181A1D;
   /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
-     Dark: warm pool ~#4C271D. Light: soft clay until the light material pass. */
+     Dark: warm pool ~#4C271D. Light re-anchors on the paper family below. */
   --ij-ground-terra: #4C271D;
   /* Quieter ground; islands take a hint via --ij-island-terra-tint. */
   --ij-material-glow: 0.32;
@@ -324,16 +324,21 @@
 }
 
 [data-register="intui"][data-theme="light"] {
-  --ij-ground-terra: #EACAB4;
-  --ij-material-glow: 0.38;
-  --ij-material-grain: 0.018;
-  --ij-island-terra-tint: 0.045;
-  /* AMENDMENT-01 A3: header one step toward frame, distinct from body without
-     relying on the seam hairline. Tool body gray-12 → header gray-11; editor
-     paper → header gray-12. */
-  --ij-island-header-tool: var(--ij-gray-11);
-  --ij-island-header-editor: var(--ij-gray-12);
-  /* Gold clamp for light tool body (gray-12 after A1); #9A6000 was for gray-13. */
+  /* Zed-flat light material (2026-07-29): the terracotta pool and island
+     tint retire. The ground pool rides the paper family (a barely warmer
+     cream), the glow drops, and the shader grain hands texture ownership
+     to the app.css tile so the two grains do not stack. */
+  --ij-ground-terra: #F0EBE2;
+  --ij-material-glow: 0.22;
+  --ij-material-grain: 0.010;
+  --ij-island-terra-tint: 0;
+  /* Header bands on the warm ladder, one visible step from their island
+     base (both clear the 1.05 gate at ~1.10): tool #F4F2EF -> #EAE7E1,
+     editor #FBFAF8 -> #F1EFEA. Cool Int UI grays read clinical against
+     the Zed paper and are retired here. */
+  --ij-island-header-tool: #EAE7E1;
+  --ij-island-header-editor: #F1EFEA;
+  /* Gold clamp for the light tool body; passes 4.5 on #F4F2EF at 5.27. */
   --ij-gold: #8F5800;
   --ij-gold-tint: #FFF5DB;
 }
@@ -376,7 +381,9 @@
   --ij-island-title-size: 15px;
 }
 
-/* Choice 8: island border color equals that island's fill token. */
+/* Choice 8: island border color equals that island's fill token. The light
+   register overrides this with a hairline seam (Zed-flat: boundaries are
+   hairlines, not fill jumps). */
 [data-island="tool"] {
   --ij-island-border: var(--ij-chrome);
 }
@@ -462,25 +469,25 @@
   --cp-presence-commit: #7FE0CF;    /* teal contraction with brightness lift */
   --cp-presence-interrupt: var(--cp-human);
 
-  /* Typography system (owner direction, 2026-07-18): four faces, assigned by
-     role on content surfaces. Chrome and the agent voice share IBM Plex Sans;
+  /* Typography system (owner direction, 2026-07-29 serif wipe): three faces,
+     assigned by role on content surfaces. Chrome, the agent voice, and titles
+     share IBM Plex Sans (titles at a heavier weight are a component choice);
      human authorship is Manrope (a light sans that reads well as body, ~200);
-     titles are Vollkorn; metadata and machinery are JetBrains Mono. Chrome is
-     itself Plex now, so agent voice and chrome no longer diverge; the faces held
-     distinct are human (Manrope), title (Vollkorn), and machine (JetBrains). */
+     metadata and machinery are JetBrains Mono. Vollkorn is wiped: the title
+     slot stays a token so a future display face lands as a one-line change. */
   --cp-font-human: var(--font-console-manrope), "Manrope", system-ui, sans-serif; /* human authorship */
   --cp-font-agent: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* agent voice = chrome */
-  --cp-font-title: var(--font-console-vollkorn), Georgia, "Times New Roman", serif; /* titles */
+  --cp-font-title: var(--font-console-plex), "IBM Plex Sans", system-ui, sans-serif; /* titles: chrome face, weight-differentiated */
   --cp-font-machine: var(--gy-font-mono);  /* JetBrains Mono: metadata + machinery */
 }
 
 /* Speaker register, light mode: the "two values, one token" of section 2.2, now
    that HANDOFF-CONSOLE-COLORATION shipped the light register. The direct-hex
-   roles re-tune for AA on the light chrome (Gray13 #F7F8FA) and the light editor
-   well (Gray14 #FFFFFF): deep oxblood and deep teal replace the dark-well lifted
-   values. The var-chained roles (memory, destructive, presence, interrupt)
-   follow --ij-gold, --ij-error, and the human/agent values, which the light
-   register already re-tunes. The contrast gate proves both modes. */
+   roles re-tune for AA on the light chrome and the light editor well: deep
+   oxblood and deep teal replace the dark-well lifted values. The var-chained
+   roles (memory, destructive, presence, interrupt) follow --ij-gold,
+   --ij-error, and the human/agent values, which the light register already
+   re-tunes. The contrast gate proves both modes. */
 [data-register="intui"][data-theme="light"] {
   --cp-human: #7A2733;              /* deep oxblood, AA on the light well */
   --cp-agent: #2D5F6B;              /* deep teal, AA on the light well */

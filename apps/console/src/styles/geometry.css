@@ -9,7 +9,12 @@
    Opaque paper fills would paint a CSS layer over the paper shaders, which
    is the regression PR #122 fixed. Fully transparent fills are the opposite
    failure: sunken and lifted stop differing and the material typology stops
-   meaning anything. Translucent is the resolution. */
+   meaning anything. Translucent is the resolution.
+
+   Zed-flat pass (2026-07-29): lifted and docked consume the register radius
+   scale directly so the DOM clip and the MaterialLayer SDF share one number,
+   and the lifted shadow drops to a whisper now that the shader rim no longer
+   paints a second shadow behind it. */
 
 [data-register="intui"] {
   --gutter: 6px;
@@ -17,22 +22,22 @@
   --radius-chip: 4px;      /* tags, counts, status pills */
   --radius-control: 7px;   /* buttons, inputs, segmented controls */
   --radius-sunken: 10px;   /* inset blocks */
-  --radius-lifted: 14px;   /* floating blocks */
-  --radius-docked: 14px;   /* free corners; docked edge is 0 */
+  --radius-lifted: var(--ij-radius-lg);   /* floating blocks: one scale with the SDF */
+  --radius-docked: var(--ij-radius-lg);   /* free corners; docked edge is 0 */
 
-  /* CS3 depth budget. Blur never exceeds 8px, y-offset never exceeds 2px.
+  /* CS3 depth budget. Blur never exceeds 6px, y-offset never exceeds 1px.
      IDE chrome gets depth from tone difference; shadow only confirms a
      boundary that tone already made. --ij-floating-shadow is the register's
      popup shadow and is deliberately not used here. */
   --shadow-lifted:
-    0 1px 2px rgb(0 0 0 / 0.06),
-    0 2px 8px rgb(0 0 0 / 0.04);
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 1px 6px rgb(0 0 0 / 0.03);
 
   /* Docked casts on its free side only. */
-  --shadow-docked-right: -1px 0 3px rgb(0 0 0 / 0.05);
-  --shadow-docked-left: 1px 0 3px rgb(0 0 0 / 0.05);
-  --shadow-docked-top: 0 1px 3px rgb(0 0 0 / 0.05);
-  --shadow-docked-bottom: 0 -1px 3px rgb(0 0 0 / 0.05);
+  --shadow-docked-right: -1px 0 3px rgb(0 0 0 / 0.04);
+  --shadow-docked-left: 1px 0 3px rgb(0 0 0 / 0.04);
+  --shadow-docked-top: 0 1px 3px rgb(0 0 0 / 0.04);
+  --shadow-docked-bottom: 0 -1px 3px rgb(0 0 0 / 0.04);
 
   /* Translucent material fills. Shader grain reads through; the tone delta
      survives. Alpha is the tuning knob: raise for separation, lower for
@@ -50,7 +55,7 @@
   );
 }
 
-/* Docked material: 14 on three corners, 0 on the docked edge. */
+/* Docked material: register-lg on three corners, 0 on the docked edge. */
 [data-register="intui"] [data-material="docked"][data-dock="right"] {
   border-radius: var(--radius-docked) 0 0 var(--radius-docked);
   box-shadow: var(--shadow-docked-right);

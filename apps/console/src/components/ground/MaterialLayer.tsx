@@ -6,6 +6,11 @@
 // Owns frame, island fill, and the window-inactive wash (inactiveAlpha).
 // DOM keeps text, focus, and hit-testing only. Paper MCP designs the anatomy;
 // this canvas is the console ground shader (not @paper-design/shaders-react).
+//
+// Zed-flat pass (2026-07-29): the rim, sheen, and vignette constants below are
+// deliberately faint. Depth is tone + hairline in the register; the shader
+// confirms a boundary the tokens already made, it does not paint elevation of
+// its own. Raising these constants re-creates the double-papering regression.
 
 import { useEffect, useRef } from 'react';
 
@@ -56,7 +61,8 @@ void main(){
     float shadowReach = mix(gut * 1.35, gut * 2.4, clamp(minSide / 900., 0., 1.));
     float shadowK = 2.2 / max(shadowReach, 1.);
     float d = sdRound(uv - c - vec2(0., shadowReach * 0.35), isl[i].zw*0.5, rad[i]);
-    if(d > 0.) col *= 1. - exp(-d * shadowK) * (0.30 + 0.08*(1.-dark));
+    /* Zed-flat: the rim is a confirmation, not a painted drop shadow. */
+    if(d > 0.) col *= 1. - exp(-d * shadowK) * (0.10 + 0.04*(1.-dark));
   }
 
   for(int i=0;i<${MAX_ISLANDS};i++){
@@ -85,11 +91,11 @@ void main(){
       /* Body reads flatter / more planar; header keeps a soft lit edge. */
       surf = mix(surf, base, (1. - headerMix) * 0.22);
       float sheenH = mix(6., 18., cover);
-      float sheen = (1. - smoothstep(0., sheenH, by)) * (dark>.5 ? .045 : .09);
+      float sheen = (1. - smoothstep(0., sheenH, by)) * (dark>.5 ? .03 : .04);
       surf += sheen * mix(0.45, 1.2, headerMix);
       float innerReach = mix(14., 36., cover);
       float inner = clamp(-d, 0., innerReach);
-      surf *= mix(1. - (dark>.5 ? .04 : .025), 1., smoothstep(0., innerReach * 0.75, inner));
+      surf *= mix(1. - (dark>.5 ? .03 : .015), 1., smoothstep(0., innerReach * 0.75, inner));
       /* Header takes a touch more terracotta; body stays quieter. */
       surf = mix(surf, cTerra, islandTint * (0.35 + 0.65 * t) * mix(0.7, 1.35, headerMix));
       surf += (hash(uv + float(i)*7.13) - .5) * grain * mix(0.35, 1.55, headerMix);
@@ -258,9 +264,9 @@ export function MaterialLayer() {
       const headerTool = cssToRgb(rootStyle.getPropertyValue('--ij-island-header-tool').trim()) ?? tool;
       const headerEditor = cssToRgb(rootStyle.getPropertyValue('--ij-island-header-editor').trim()) ?? editor;
       const hi = dark > 0.5 ? [0.014, 0.014, 0.016] : [0, 0, 0];
-      const glow = cssNumber(rootStyle.getPropertyValue('--ij-material-glow'), dark > 0.5 ? 0.32 : 0.38);
-      const grain = cssNumber(rootStyle.getPropertyValue('--ij-material-grain'), 0.014) * (dark > 0.5 ? 1 : 1.3);
-      const tint = cssNumber(rootStyle.getPropertyValue('--ij-island-terra-tint'), 0.055);
+      const glow = cssNumber(rootStyle.getPropertyValue('--ij-material-glow'), dark > 0.5 ? 0.32 : 0.22);
+      const grain = cssNumber(rootStyle.getPropertyValue('--ij-material-grain'), 0.012) * (dark > 0.5 ? 1 : 1.3);
+      const tint = cssNumber(rootStyle.getPropertyValue('--ij-island-terra-tint'), 0);
       const inactive =
         document.documentElement.getAttribute('data-window-inactive') === 'true'
           ? cssNumber(rootStyle.getPropertyValue('--ij-inactive-alpha'), 0.44)
