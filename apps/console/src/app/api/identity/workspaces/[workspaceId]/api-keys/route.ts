@@ -9,8 +9,7 @@ import {
   type ForkIdentityResponse,
 } from '@/lib/server/fork-identity';
 
-/** Named revocation propagation interval (seconds). D9 account UI surface. */
-export const API_KEY_REVOCATION_CACHE_SECS = 60;
+import { API_KEY_REVOCATION_CACHE_SECS } from './policy';
 
 const DEFAULT_DUAL_LANE_SCOPES = Object.freeze([
   'models:invoke',
