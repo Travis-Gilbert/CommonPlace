@@ -1,4 +1,5 @@
 // SOURCING: none. Pure logic, no upstream component applies.
+import { ForkThemeBridge } from '@/components/fork-theme-bridge';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { fontVariableClasses } from './fonts';
@@ -65,7 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
-        {children}
+        <ForkThemeBridge>{children}</ForkThemeBridge>
       </body>
     </html>
   );

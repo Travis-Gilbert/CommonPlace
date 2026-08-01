@@ -1,10 +1,25 @@
 'use client';
 
-// SOURCING: Twenty field cell projections plus tablecn read-only cell pattern.
-// Maps every @commonplace/data-model-contracts FieldTypeKind to a ReactNode.
+// SOURCING: twenty-ui (packages/twenty-ui, hard fork) — Chip, LinkChip, Tag,
+// Status, Checkmark, and the json-visualizer node, one per field family. TU4
+// re-seat: every hand-rolled span, pill, and truncation here is replaced by the
+// fork primitive that already models it.
+//
+// The map itself stays: every @commonplace/data-model-contracts FieldTypeKind
+// still resolves to exactly one ReactNode, and the renderer table is the same
+// shape RecordTableView and RecordInspector already read.
 
 import type { ReactNode } from 'react';
 import type { FieldType } from '@commonplace/data-model-contracts';
+import {
+  Chip,
+  ChipAccent,
+  ChipSize,
+  ChipVariant,
+  LinkChip,
+  Status,
+} from 'twenty-ui/data-display';
+import { LightButton } from 'twenty-ui/input';
 import { RecordChip } from './RecordChip';
 import { hueForTag } from './tints';
 
@@ -35,43 +50,49 @@ function relationLabel(entry: unknown): string {
   return formatScalar(entry);
 }
 
-function renderUrlPill(value: string): ReactNode {
+/** A url cell is a navigable chip, not a bare anchor: LinkChip carries the
+ *  click-outside id and the mouse-down navigation the records surface expects. */
+function renderUrlChip(value: string): ReactNode {
   return (
-    <a
-      href={value}
+    <LinkChip
+      to={value}
+      label={value}
+      size={ChipSize.Small}
+      variant={ChipVariant.Highlighted}
+      accent={ChipAccent.TextSecondary}
       target="_blank"
-      rel="noreferrer"
-      className="inline-flex max-w-full truncate rounded-ij-arc border border-ij-control-border px-2 py-0.5 font-ij-mono text-xs text-ij-link hover:bg-ij-hover-surface"
-      onClick={(event) => event.stopPropagation()}
-    >
-      {value}
-    </a>
+    />
   );
+}
+
+function renderEmpty(): ReactNode {
+  return <Chip label="" emptyLabel="-" size={ChipSize.Small} variant={ChipVariant.Transparent} />;
 }
 
 function renderRelation(value: unknown, ctx?: FieldCellContext): ReactNode {
   const entries = Array.isArray(value) ? value : value == null ? [] : [value];
-  if (entries.length === 0) {
-    return <span className="text-ij-ink-disabled">-</span>;
-  }
+  if (entries.length === 0) return renderEmpty();
   const visible = entries.slice(0, 3);
   const overflow = entries.length - visible.length;
   return (
     <span className="flex min-w-0 items-center gap-rec-sibling-gap">
       {visible.map((entry, index) => {
         const label = relationLabel(entry);
-        const hue = ctx?.tint ? { tint: ctx.tint, ink: 'var(--ij-ink)' } : hueForTag(label);
         return (
           <RecordChip
             key={`${label}-${index}`}
             label={label}
-            tint={hue.tint}
-            ink={hue.ink}
+            color={ctx?.label ? hueForTag(ctx.label) : undefined}
           />
         );
       })}
       {overflow > 0 ? (
-        <span className="font-ij-mono text-xs text-ij-ink-info">+{overflow}</span>
+        <Chip
+          label={`+${overflow}`}
+          size={ChipSize.Small}
+          variant={ChipVariant.Transparent}
+          accent={ChipAccent.TextSecondary}
+        />
       ) : null}
     </span>
   );
@@ -82,20 +103,22 @@ function renderTruncatedJson(value: unknown, onInspect?: () => void): ReactNode 
   const preview = raw.length > 48 ? `${raw.slice(0, 45)}...` : raw;
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
-      <span className="truncate font-ij-mono text-xs text-ij-ink-info" title={raw}>
-        {preview}
-      </span>
+      <Chip
+        label={preview}
+        size={ChipSize.Small}
+        variant={ChipVariant.Transparent}
+        accent={ChipAccent.TextSecondary}
+        maxWidth={280}
+      />
       {onInspect ? (
-        <button
-          type="button"
-          className="shrink-0 rounded-ij-arc border border-ij-control-border px-1.5 text-xs text-ij-ink-info hover:bg-ij-hover-surface"
+        <LightButton
+          title="Inspect"
+          accent="tertiary"
           onClick={(event) => {
             event.stopPropagation();
             onInspect();
           }}
-        >
-          Inspect
-        </button>
+        />
       ) : null}
     </span>
   );
@@ -103,23 +126,25 @@ function renderTruncatedJson(value: unknown, onInspect?: () => void): ReactNode 
 
 function renderTextFamily(value: unknown): ReactNode {
   const text = formatScalar(value);
-  if (!text) return <span className="text-ij-ink-disabled">-</span>;
-  if (isHttpUrl(text)) return renderUrlPill(text);
+  if (!text) return renderEmpty();
+  if (isHttpUrl(text)) return renderUrlChip(text);
   return <span className="truncate">{text}</span>;
 }
 
+function renderNumeric(value: unknown): ReactNode {
+  const text = formatScalar(value);
+  if (!text) return renderEmpty();
+  return <span className="font-ij-mono tabular-nums text-ij-ink">{text}</span>;
+}
+
 function renderDateLike(value: unknown): ReactNode {
-  if (value === null || value === undefined || value === '') {
-    return <span className="text-ij-ink-disabled">-</span>;
-  }
+  if (value === null || value === undefined || value === '') return renderEmpty();
   const parsed = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(parsed.getTime())) {
     return <span className="font-ij-mono text-ij-ink-info">{formatScalar(value)}</span>;
   }
   return (
-    <span className="font-ij-mono text-ij-ink-info">
-      {parsed.toLocaleString()}
-    </span>
+    <span className="font-ij-mono text-ij-ink-info">{parsed.toLocaleString()}</span>
   );
 }
 
@@ -135,34 +160,37 @@ const CELL_RENDERERS: CellRendererMap = {
   ip: renderTextFamily,
   soundex: renderTextFamily,
   metaphone: renderTextFamily,
-  number: (value) => (
-    <span className="font-ij-mono tabular-nums text-ij-ink">{formatScalar(value) || '-'}</span>
-  ),
-  integer: (value) => (
-    <span className="font-ij-mono tabular-nums text-ij-ink">{formatScalar(value) || '-'}</span>
-  ),
+  number: renderNumeric,
+  integer: renderNumeric,
   boolean: (value) => {
     const yes = value === true || value === 'true' || value === 1 || value === '1';
     const no = value === false || value === 'false' || value === 0 || value === '0';
-    const label = yes ? 'Yes' : no ? 'No' : formatScalar(value) || '-';
-    if (!yes && !no && !value && value !== 0) {
-      return <span className="text-ij-ink-disabled">-</span>;
-    }
-    return <RecordChip label={label} tint={yes ? 'var(--ij-ok-bg)' : 'var(--ij-row-gray)'} ink={yes ? 'var(--ij-ok)' : 'var(--ij-ink-info)'} />;
+    if (!yes && !no && !value && value !== 0) return renderEmpty();
+    // A boolean is a state, not a label: Status is the fork's state pill.
+    return <Status color={yes ? 'green' : 'gray'} text={yes ? 'Yes' : 'No'} />;
   },
   date: renderDateLike,
   timestamp: renderDateLike,
   enum: (value) => {
     const label = formatScalar(value) || '-';
-    const hue = hueForTag(label);
-    return <RecordChip label={label} tint={hue.tint} ink={hue.ink} />;
+    return <RecordChip label={label} />;
   },
   relation: (value, ctx) => renderRelation(value, ctx),
   json: (value, ctx) => renderTruncatedJson(value, ctx?.onInspectJson),
   geometry: (value, ctx) => renderTruncatedJson(value, ctx?.onInspectJson),
   vector: (value, ctx) => renderTruncatedJson(value, ctx?.onInspectJson),
   geo: (value, ctx) => renderTruncatedJson(value, ctx?.onInspectJson),
-  noop: () => <span className="text-ij-ink-disabled">noop</span>,
+  // A `noop` field has no renderer, which is not the same as an empty value.
+  // Rendering "-" here would read as "this record has nothing in this field",
+  // so the kind stays on the face of the chip.
+  noop: () => (
+    <Chip
+      label="noop"
+      size={ChipSize.Small}
+      variant={ChipVariant.Transparent}
+      accent={ChipAccent.TextSecondary}
+    />
+  ),
 };
 
 export function renderFieldCell(

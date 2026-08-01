@@ -16,7 +16,7 @@ import {
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { motion } from 'motion/react';
 import { getToolMeta } from '@/components/chat/toolMeta';
-import { JsonViewer, type JsonViewerProps } from '@/components/jalco';
+import { ReceiptJson } from '@/components/receipt-json';
 import { PresenceMark } from '@/components/mark/PresenceMark';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import { useThreadStore, chatEndpoint, type AgentPlanStep } from '@/lib/thread-store';
@@ -27,8 +27,6 @@ import { ThreadExcerpt } from './thread/ThreadExcerpt';
 
 import { Composer, NEW_LINE_HINT } from '@/components/chat/RuntimeComposer';
 import { reducedFromMissing } from '@/lib/degradation';
-
-type JsonViewerData = JsonViewerProps['data'];
 
 export const ThreadRuntimeAvailable = createContext(false);
 
@@ -81,20 +79,18 @@ function ToolCallExcerpt(props: ToolCallMessagePartProps) {
       {useJson ? (
         <div className="flex flex-col gap-2">
           {argsObject != null && typeof argsObject === 'object' ? (
-            <JsonViewer
-              data={argsObject as JsonViewerData}
+            <ReceiptJson
+              data={argsObject}
               defaultExpanded={1}
-              className="border-0 bg-transparent shadow-none"
-            />
+              />
           ) : props.argsText ? (
             <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">{props.argsText}</pre>
           ) : null}
           {resultObject != null ? (
-            <JsonViewer
-              data={resultObject as JsonViewerData}
+            <ReceiptJson
+              data={resultObject}
               defaultExpanded={1}
-              className="border-0 bg-transparent shadow-none"
-            />
+              />
           ) : resultText ? (
             <pre className="overflow-x-auto whitespace-pre-wrap font-ij-mono text-ij-ink-info">{resultText}</pre>
           ) : null}

@@ -1,0 +1,33 @@
+twenty-ui (CommonPlace fork)
+
+This package is a hard fork of the `twenty-ui` component library from
+twentyhq/twenty, vendored at commit b754e15331c6472d772b1bbe448469f811b28afd.
+
+Original work:
+  Copyright (c) 2023-present Twenty.com, PBC
+  Licensed under the MIT License. The full license text is in LICENSE beside
+  this file and travels with every copy and substantial portion of this
+  software.
+
+Modifications:
+  Copyright (c) 2026 Travis Gilbert / CommonPlace
+  Licensed under the MIT License, on the same terms.
+
+The list of modifications is in MODIFICATIONS.md. The upstream pin is in
+UPSTREAM.md.
+
+Trademarks are not licensed by the MIT License. Twenty's name, logo, star mark,
+and identity-carrying product assets are removed from this fork, as are the
+third-party company marks (Google, Microsoft, Anthropic, OpenAI, and others)
+that upstream vendored for its integration surfaces.
+
+Third-party components retained by this fork carry their own licenses:
+
+  @tabler/icons-react   MIT   https://github.com/tabler/tabler-icons
+  @base-ui/react        MIT   https://github.com/mui/base-ui
+  @monaco-editor/react  MIT   https://github.com/suren-atoyan/monaco-react
+  @sniptt/guards        MIT   https://github.com/sniptt-official/guards
+  react-responsive      MIT   https://github.com/yocontra/react-responsive
+  clsx                  MIT   https://github.com/lukeed/clsx
+  type-fest             (MIT OR CC0-1.0)  https://github.com/sindresorhus/type-fest
+  zod                   MIT   https://github.com/colinhacks/zod

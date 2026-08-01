@@ -6,6 +6,13 @@
 @import 'tailwindcss';
 @import '@xyflow/react/dist/style.css';
 @import './int-ui-register.css';
+/* twenty-ui fork: compiled component styles, then the generated --t-* layer.
+   Both theme files are imported; each scopes itself to the register and, for
+   light, to [data-theme="light"], so the console's own mode switch drives
+   them. Every --t-* value resolves back to an --ij-* token (TU2). */
+@import 'twenty-ui/style.css';
+@import 'twenty-ui/theme-dark.css';
+@import 'twenty-ui/theme-light.css';
 @import './int-ui-register-light.css';
 @import './rec-structural.css';
 @import './geometry.css';

@@ -1,13 +1,22 @@
 'use client';
 
-// SOURCING: Twenty inline field editors (structure only, register controls).
+// SOURCING: twenty-ui `Checkbox` (packages/twenty-ui, hard fork) for the
+// boolean editor; shadcn Input / Textarea / Select for the rest.
+//
+// TU4 re-seat, with a named limit: the fork ships no general text field and no
+// dropdown host. Twenty's Dropdown lives in twenty-front, which is AGPL and
+// never crosses into this repository, so text, number, date, and enum keep
+// their existing shadcn sources. Those are ledger rows already, not
+// hand-rolled equivalents.
+//
 // Esc cancels, Enter commits except in textarea/json editors.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FieldType } from '@commonplace/data-model-contracts';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from 'twenty-ui/input';
+import { InlineCodeEditor } from '@/components/inline-code-editor';
 import {
   Select,
   SelectContent,
@@ -76,7 +85,7 @@ export function FieldEditor({
             <Checkbox
               checked={draft === 'true'}
               onCheckedChange={(checked) => {
-                const next = checked === true ? 'true' : 'false';
+                const next = checked ? 'true' : 'false';
                 setDraft(next);
                 onCommit(parseDraft(fieldType, next));
               }}
@@ -149,6 +158,19 @@ export function FieldEditor({
     case 'geometry':
     case 'vector':
     case 'geo':
+      // Structured payloads edit in the inline code surface: JSON language
+      // support, bracket matching, and folding, against a Monaco chunk that
+      // only loads when a cell like this actually opens (TU7).
+      return (
+        <div ref={rootRef} onKeyDown={onKeyDown} onBlur={commitDraft}>
+          <InlineCodeEditor
+            value={draft}
+            language="json"
+            height={160}
+            onChange={setDraft}
+          />
+        </div>
+      );
     case 'long_text':
       return (
         <div ref={rootRef} onKeyDown={onKeyDown}>

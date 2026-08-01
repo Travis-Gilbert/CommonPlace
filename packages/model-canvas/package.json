@@ -28,7 +28,8 @@
     "@commonplace/okf": "workspace:*",
     "@dagrejs/dagre": "^1.1.0",
     "@xyflow/react": "^12.11.2",
-    "lucide-react": "^0.460.0"
+    "lucide-react": "^0.460.0",
+    "twenty-ui": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.9.1",

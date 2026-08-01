@@ -1,11 +1,18 @@
 'use client';
 
-// SOURCING: cmdk view switcher grammar (Twenty "ViewName · count" header).
-// ViewBar names the active lens and exposes save-as when the host provides views.
+// SOURCING: cmdk view switcher grammar (Twenty "ViewName · count" header) plus
+// twenty-ui `Button` (packages/twenty-ui, hard fork) for the save-as action.
+//
+// TU5 re-seat, with a named limit: the popover trigger stays on the shadcn
+// Button because Radix `asChild` needs a ref-forwarding child and the fork's
+// Button does not forward one. Adding forwardRef upstream-side is a fork edit
+// with no design content, so it is available, but the trigger is part of the
+// Popover composition the ledger already assigns to Radix.
 
 import { useMemo, useState } from 'react';
 import type { ViewMetadata } from '@commonplace/data-model-contracts';
 import { Button } from '@/components/ui/button';
+import { Button as ForkButton } from 'twenty-ui/input';
 import {
   Command,
   CommandEmpty,
@@ -98,9 +105,9 @@ export function ViewBar({
         </div>
       ) : null}
       {onSaveAs ? (
-        <Button variant="outline" size="sm" className="ml-auto h-ij-control" onClick={onSaveAs}>
-          Save as
-        </Button>
+        <span className="ml-auto">
+          <ForkButton title="Save as" variant="secondary" size="small" onClick={onSaveAs} />
+        </span>
       ) : null}
     </div>
   );
