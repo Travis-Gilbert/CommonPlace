@@ -10,6 +10,18 @@ import { fontVariableClasses } from './fonts';
 import '../styles/galley-register.css';
 import '../styles/app.css';
 
+// The bootstrap sets root data attributes before hydration so the register
+// paints the right theme on first frame. It sets attributes ONLY.
+//
+// It used to also replay a derived theme's generated variables back onto the
+// root as inline styles (the navy/paper "derived coloration" path). Inline
+// styles outrank every stylesheet rule, so a stored derived theme silently
+// overrode --ij-frame and the entire --ij-gray ramp on every load, on every
+// deploy, forever: register changes appeared to have no effect, and the
+// override followed the browser rather than the code. Derived coloration is
+// retired (2026-08-01) and this script never writes inline paint again.
+// A stored 'navy' or 'paper' family now fails validation and falls back to
+// the IntelliJ family, which is the migration for anyone still carrying one.
 const appearanceBootstrap = `(() => {
   const key = 'commonplace.console.appearance.v2';
   const legacy = 'commonplace.console.appearance.v1';
@@ -19,25 +31,18 @@ const appearanceBootstrap = `(() => {
   try { saved = JSON.parse(localStorage.getItem(key) || localStorage.getItem(legacy) || 'null'); } catch {}
   const candidate = saved?.preference;
   const validMode = ['auto', 'dark', 'light'].includes(candidate?.mode);
-  const validFamily = ['intellij', 'github', 'navy', 'paper'].includes(candidate?.family);
+  const validFamily = ['intellij', 'github'].includes(candidate?.family);
   const preference = validMode && validFamily
     ? candidate
     : { mode: 'auto', family: 'intellij' };
   const mode = preference.mode === 'auto'
     ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
     : preference.mode;
-  const derived = preference.family === 'navy' || preference.family === 'paper';
-  const preset = preference.family === 'navy' || preference.family === 'paper'
-    ? preference.family
-    : preference.family + '-' + mode;
   root.dataset.theme = mode;
   root.dataset.themeMode = preference.mode;
   root.dataset.themeFamily = preference.family;
-  root.dataset.themePreset = preset;
-  root.dataset.themeDerived = derived ? 'true' : 'false';
-  if (derived && saved?.resolvedMode === mode && saved?.variables) {
-    for (const [name, value] of Object.entries(saved.variables)) root.style.setProperty(name, String(value));
-  }
+  root.dataset.themePreset = preference.family + '-' + mode;
+  root.dataset.themeDerived = 'false';
 })();`;
 
 export const metadata: Metadata = {
