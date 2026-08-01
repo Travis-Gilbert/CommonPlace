@@ -3,13 +3,18 @@
 // SOURCING: hand-roll over the shared appearance external store. This is a
 // registered workspace view, not a settings page, so it exercises the same
 // surface/descriptor contract as records, documents, code, and thread.
+//
+// The derived-coloration section (OKLCH knob sliders that selected the Navy
+// family) is retired 2026-08-01 along with the family itself: deriving a
+// theme meant painting generated values inline on the root, which outranks
+// the register and made pinned coloration unreachable. Appearance now
+// chooses mode, density, and a pinned preset.
 
 import { useEffect } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
   APPEARANCE_PRESETS,
   selectAppearancePreset,
-  setAppearanceKnobs,
   setAppearancePreference,
   startAppearanceStore,
   useAppearance,
@@ -30,44 +35,9 @@ const DENSITIES: readonly { id: AppearanceDensity; label: string }[] = [
   { id: 'compact', label: 'Compact' },
 ];
 
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange(value: number): void;
-}) {
-  return (
-    <label className="grid gap-2 text-ij-ink">
-      <span className="flex items-baseline justify-between gap-3">
-        {label}
-        <output className="font-ij-mono text-ij-ink-info">{value.toFixed(step < 1 ? 3 : 0)}</output>
-      </span>
-      <input
-        type="range"
-        aria-label={label}
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-        style={{ accentColor: 'var(--ij-accent)' }}
-      />
-    </label>
-  );
-}
-
 export function AppearanceView({ host }: ViewRenderProps) {
   const appearance = useAppearance();
-  const { preference, generated } = appearance;
+  const { preference } = appearance;
 
   useEffect(() => startAppearanceStore(), []);
 
@@ -120,7 +90,7 @@ export function AppearanceView({ host }: ViewRenderProps) {
 
         <section className="grid gap-3" aria-labelledby="appearance-presets-heading">
           <h2 id="appearance-presets-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Presets</h2>
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {APPEARANCE_PRESETS.map((preset) => (
               <button
                 key={preset.id}
@@ -134,30 +104,7 @@ export function AppearanceView({ host }: ViewRenderProps) {
               </button>
             ))}
           </div>
-        </section>
-
-        <section className="grid gap-4" aria-labelledby="appearance-derived-heading">
-          <div>
-            <h2 id="appearance-derived-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>Derived coloration</h2>
-            <p className="text-ij-ink-info">Moving a control selects Navy and re-anchors the neutral ladder in OKLCH.</p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="grid gap-4">
-              <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Background tint</h3>
-              <Slider label="Tint hue" value={preference.knobs.tintHue} min={0} max={360} step={1} onChange={(tintHue) => setAppearanceKnobs({ tintHue })} />
-              <Slider label="Tint chroma" value={preference.knobs.tintChroma} min={0} max={0.04} step={0.001} onChange={(tintChroma) => setAppearanceKnobs({ tintChroma })} />
-            </div>
-            <div className="grid gap-4">
-              <h3 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Highlight</h3>
-              <Slider label="Highlight hue" value={preference.knobs.highlightHue} min={0} max={360} step={1} onChange={(highlightHue) => setAppearanceKnobs({ highlightHue })} />
-              <div className="rounded-ij-arc bg-ij-selection p-3 text-ij-ink">Selected text stays readable while the hue moves.</div>
-            </div>
-          </div>
-          <div aria-live="polite" className="min-h-ij-row text-ij-ink-info">
-            {generated?.clampNotes.length
-              ? generated.clampNotes.join(' ')
-              : 'No contrast clamps are active.'}
-          </div>
+          <p className="text-ij-ink-info">Each preset is a pinned register; the register file is the only source of color.</p>
         </section>
 
         <section className="grid gap-3" aria-labelledby="appearance-preview-heading">
