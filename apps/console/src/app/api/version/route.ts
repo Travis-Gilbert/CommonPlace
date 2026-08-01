@@ -33,11 +33,8 @@ export function GET() {
       branch: runtimeEnv('RAILWAY_GIT_BRANCH') ?? runtimeEnv('GITHUB_REF_NAME'),
     },
     railway: {
-      project_id: runtimeEnv('RAILWAY_PROJECT_ID'),
-      service_id: runtimeEnv('RAILWAY_SERVICE_ID'),
       service_name: runtimeEnv('RAILWAY_SERVICE_NAME'),
       environment_name: runtimeEnv('RAILWAY_ENVIRONMENT_NAME'),
-      replica_id: runtimeEnv('RAILWAY_REPLICA_ID'),
     },
   });
 }
