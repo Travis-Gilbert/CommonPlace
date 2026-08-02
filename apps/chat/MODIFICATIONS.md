@@ -238,7 +238,9 @@ GitGuardian workspace, which needs dashboard access.
 
 ## Pending, with owning deliverable
 
-- `cdn.simpleicons.org` is fetched for provider favicons: a genuine third-party
+- Provider icons are fetched from third parties: `cdn.simpleicons.org` for a
+  recognized slug, and Google's favicon endpoint as the fallback, which also
+  discloses configured service domains. Both are genuine third-party
   request the app makes on its own behalf, unlike the user-configured connector
   hosts (Google Workspace, OpenAI, GitHub Copilot, and the `mcp.*` quick-connect
   catalog), which are only contacted when an operator configures them.
