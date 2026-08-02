@@ -221,3 +221,83 @@ navigation, error recovery — is not Electron-gated and survives a browser
 session unchanged. Voice is the exception: it is driven through the Chrome
 DevTools Protocol against the desktop shell, and `packages/handsfree` is a
 macOS-only Swift Accessibility runtime, declined.
+
+### A9. The route-versus-zone decision: a route on the console origin
+
+OW4 requires the entry decision be recorded. It is a **route on the console
+origin**, reverse-proxied to the workspace service. Not a Next.js zone, and not
+a subdomain.
+
+The reason is the session, not the routing. The console authenticates with an
+HttpOnly `cp_active_workspace` cookie. A cookie the browser will send to the
+chat register without a second sign-in is a cookie on the same origin: a
+subdomain would need the cookie widened to a parent domain, which hands every
+future subdomain the console's session, and a zone is a build-time composition
+that does not change the origin question at all. A route keeps the cookie
+scoped exactly as narrow as it is today.
+
+The anti-scope line holds: this is a proxy in front of a Vite app, not a port
+into App Router. The chat register is still built by Vite and still served as
+its own bundle; the console's origin is the only thing shared. The audit's
+"chat register is still a Vite app" check stays mechanical.
+
+Consequence recorded honestly: the workspace service is reachable only through
+the console for browser sessions. Direct access still works with a workspace
+token, which is what the standalone and development cases use, and which is why
+`/session/console` answers `configured: false` rather than 401 when no console
+secret is present.
+
+### A10. The head's memory instructions were Den's, and are corrected
+
+OW1 severed every Den endpoint but left the opencode agent prompt instructing
+the head to reach Den's meta-MCP for memory, naming `search_capabilities`,
+`execute_capability`, and `postMemory` as the way to remember and recall. A
+head told to open a door that no longer exists reports the failure as its own
+confusion rather than as a missing dependency, and no bundle or path audit
+would ever catch it, because a prompt is a string.
+
+The block is replaced by graph doctrine against the `theorem` MCP: recall
+before assuming, offload exact structural questions rather than computing them
+by inspection, encode outcomes rather than transcripts, and discover the tools
+the MCP actually exposes rather than guessing names. `theorem-mcp.test.ts`
+asserts the Den tool names are absent from the shipped prompt.
+
+This is a correction to the Frame's implicit claim that OW1's severing was
+complete at the transport layer. Severing a transport does not sever the
+instructions that describe it.
+
+### A11. The Theorem MCP is server-managed, and has no default endpoint
+
+OW2's entry is merged over the runtime MCP map rather than written into it. The
+runtime map is what the settings UI edits; an operator disabling an entry named
+"theorem" there would otherwise disconnect the head from the graph silently,
+with the session showing only that recall stopped working.
+
+It resolves from `THEOREM_MCP_URL` and is **absent when unset**. No default
+endpoint, by the same reasoning that removed the hosted model catalog in OW1: a
+third-party host contacted because a constant said so, rather than because an
+operator asked, is the pattern the severing existed to end. A malformed URL
+yields absence rather than a throw, so a bad value cannot take the whole engine
+config down with it.
+
+### A12. OW2's live proof is partial, and the gap is named
+
+The engine binding is proven as far as this environment allows and no further.
+
+**Proven at runtime.** opencode 1.17.11 was installed, started against the
+config this fork generates (`OPENCODE_CONFIG`), and accepted it: the server
+comes up clean with the Theorem MCP entry present in the emitted config.
+
+**Not proven at runtime.** The MCP connection handshake, tool registration, the
+permission round-trip through the fork's approval surface, and todos and events
+rendering from live session events. Every app-scoped route on this engine build
+(`GET /mcp`, `GET /config`, `POST /mcp/{name}/connect`) hangs without
+answering, and a local listener standing in for the Theorem MCP received no
+request. That is an unresolved engine or environment behavior, not evidence
+that the binding is wrong; it is also not evidence that it is right.
+
+The three OW2 acceptance criteria therefore remain open. What is closed is the
+configuration contract, which is what the deliverable's "no SDK surgery" clause
+actually scopes, plus the prompt correction in A10. The remaining proof needs a
+workspace with a model provider credential and an engine whose app-scoped
+routes answer.

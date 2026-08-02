@@ -5,8 +5,8 @@
    object identity colour exists in exactly one place: a small square in that
    object's own block header. Workspace avatars are that square for this
    register, so the ramp is built from the console's own hue ramps rather than
-   minted here. Each slot is the saturated step of one console hue family —
-   the level the ramps use for foreground marks — so the ramp re-tunes with the
+   minted here. Each slot is the saturated step of one console hue family
+   (the level the ramps use for foreground marks), so the ramp re-tunes with the
    register in both modes instead of freezing a dark-mode value.
 
    --ij-row-* was the other candidate and is wrong for this: those are the

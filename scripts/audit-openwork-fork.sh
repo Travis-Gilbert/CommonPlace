@@ -130,6 +130,47 @@ refute "no raw oklch() literals in fork component source" \
   "oklch\(" apps/chat/src/react-app apps/chat/src/components
 
 echo
+echo "OW3 — the token truth is generated, not hand-maintained"
+if node apps/chat/scripts/check-console-register.mjs >/dev/null 2>&1; then
+  pass "console-register.css matches the console registers"
+else
+  fail "console-register.css matches the console registers"
+  note "run: pnpm --filter @commonplace/chat tokens"
+fi
+if node apps/chat/scripts/check-shader-mounts.mjs >/dev/null 2>&1; then
+  pass "exactly one shader mount in the chat register"
+else
+  fail "exactly one shader mount in the chat register"
+fi
+# Named choice 5 forbids a second design authority. A per-organization accent
+# written onto the register at runtime is exactly that, whatever it is called.
+refute "no runtime override of a register token" \
+  "setProperty\(\s*['\"]--(ij|cp|gy|dls)-" $FORK_ALL
+
+echo
+echo "Named choice 4 / OW4 — the console session replaces Den sign-in"
+for f in apps/chat-server/src/console-session.ts apps/chat/src/react-app/shell/console-session-gate.tsx; do
+  [ -f "$f" ] && pass "$f exists" || fail "$f exists"
+done
+# The daemon verifies sessions; it must never be able to mint one.
+refute "the workspace daemon never signs a console session" \
+  "encodeActiveWorkspaceClaims|createHmac\([^)]*\)\s*\.update\(\s*['\"]commonplace-active-workspace" \
+  apps/chat-server/src
+
+echo
+echo "Named choice 6 / OW5 — one workspace container, two doors"
+if [ -f packaging/workspace/Dockerfile ] && [ -f packaging/workspace/entrypoint.sh ]; then
+  pass "workspace image and entrypoint exist"
+  if node packaging/workspace/check-two-doors.mjs >/dev/null 2>&1; then
+    pass "two doors resolve to one checkout and one token"
+  else
+    fail "two doors resolve to one checkout and one token"
+  fi
+else
+  fail "workspace image and entrypoint exist"
+fi
+
+echo
 echo "Anti-scope — no artifact blob store treated as semantic truth"
 refute "no artifact table in the daemon schema" \
   "sqliteTable\(\s*['\"](artifacts|messages|sessions)" apps/chat-server

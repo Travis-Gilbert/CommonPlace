@@ -115,35 +115,118 @@ obligation and by named choice 1.
   `../../../constants.json` from the monorepo root, which was not vendored. The
   file (one field, `opencodeVersion`) now sits beside the package.
 
+## Token and shader binding (OW3)
+
+- `scripts/generate-console-register.mjs` emits `src/styles/console-register.css`
+  from the console's own registers (`galley-register`, `int-ui-register`,
+  `int-ui-register-light`, `register-bridge`, `gy-bridge`). The chat register is
+  a separate Vite app and cannot import the console's stylesheets, so the
+  resolved values are materialized. `check-console-register.mjs` fails on drift,
+  and the generator hard-errors on any emitted token whose `var()` head no
+  source register defines: such a token resolves to nothing, which is invisible
+  in review and in a screenshot of a surface that happens not to use it.
+- The console's bare selector is dark and light is the override; the fork's
+  `:root` is light. The generator composes `dark ∪ light` for `:root` and emits
+  the bare base under the dark selector, which is what the console's cascade
+  resolves. A direct copy would invert every color.
+- `src/app/index.css` — **both** semantic layers rebind to the register.
+  Upstream's own `--dls-*` layer is read by dozens of components, so binding
+  only the shadcn slots would have left most surfaces on the donor's Radix
+  palette. The dark override block is deleted: mode now lives in the token.
+- Radius: upstream multiplied one base by seven coefficients, producing values
+  no register chose. The scale points at the console's five-step ladder.
+- Fonts: `@fontsource-variable/geist` **dropped**. It shipped a font file that
+  no rule ever named, and the two `@fontsource` imports were inert because the
+  body stack was a literal system list. `--font-sans`, `--font-heading`, and
+  `--font-mono` now resolve to `--ij-font-ui`, `--cp-font-title`, and
+  `--ij-font-mono`; JetBrains Mono and Manrope are added so the three faces the
+  tokens declare are the three faces that ship. Verified against the build:
+  `ibm`, `jetbrains`, `manrope`, and KaTeX's math faces, which belong to the
+  math renderer rather than to the type system.
+- Raw hex leaves component source. `design-system/workspace-avatar-utils.ts`
+  and `sidebar/utils.ts` read `src/styles/identity-register.css`, whose ramp is
+  built from console hue families; `app-sidebar.tsx`'s outcome dots read
+  `--ij-ok` and `--ij-warn`. The boring-avatars palette table moves to
+  `src/styles/marble-avatar-palettes.ts`, matching the console's own precedent
+  for an adopted third-party palette (`jalco-file-tree-colors.ts`); it cannot be
+  tokenized because boring-avatars emits the values as literal SVG fills.
+- `design-system/register-token.ts` — WebGL uniforms, xterm's `ITheme`, and the
+  avatar palettes take literal color strings and would render `var(--ij-ink)` as
+  an invalid color. They read the register through `getComputedStyle` and
+  re-read on a scheme change, which a frozen literal never did.
+- **Shader law, one mount per window.** `PageBackground`'s dither is the mount.
+  `welcome-page.tsx` held a second inline copy, and the activity orbs each held
+  their own `PaperGrainGradient`, one per in-flight message, so the count was
+  unbounded against a per-document WebGL context limit of about sixteen. The
+  orbs are now `design-system/grain-orb.tsx`, a conic gradient on the
+  compositor. `page.tsx`'s `dark:invert` is gone with the literal it corrected.
+  `scripts/check-shader-mounts.mjs` holds the line.
+
+## Auth and serving (OW4)
+
+- `apps/chat-server/src/console-session.ts` — verifies the console's signed
+  `cp_active_workspace` cookie. Verify half only: this daemon never mints a
+  session, so it never holds the signing key in a writing role. The wire format
+  is pinned by `console-session.test.ts` against a frozen fixture **and** a live
+  round-trip through the console's own encoder, because the two halves live in
+  different apps and nothing else would fail if they diverged.
+- `server.ts` — a console session is an Actor with owner scope, checked before
+  bearer tokens on both the client and host paths. `routes/core.ts` serves
+  `GET /session/console`, unauthenticated on purpose: the cookie is HttpOnly, so
+  the page cannot read it, and a 401 would be indistinguishable from the daemon
+  being unreachable. It reports `configured` separately from `authenticated` so
+  a standalone workspace is not mistaken for a signed-out console user.
+- `shell/console-session-gate.tsx` replaces upstream's `DenSigninGate`, which
+  held the UI at `/signin` and bounced between three routes while revalidating a
+  cached Den token. It renders children in every case but one, and never flashes
+  a sign-in during the check.
+- **Deleted:** `domains/cloud/{den-signin-surface,forced-signin-page,
+  enterprise-activation-gate,org-onboarding-page,signin-fallback-notice}.tsx`,
+  `shell/{cloud-workspace-overlay,cloud-workspace-status,welcome-den-session}`,
+  and `apps/chat-server/src/enterprise-den-origin.ts`.
+- **`domains/cloud/brand-theme.tsx` deleted.** A per-organization accent that
+  overwrote `--dls-accent` at runtime is a second design authority, which named
+  choice 5 and the anti-scope line both forbid. It also wrote `--dls-accent-rgb`,
+  a token OW3 removed in favor of `color-mix`.
+- `welcome-route.tsx`'s orphaned `joinOrganizationOpen`, and the
+  `onJoinOrganization` prop it fed, are gone with the join affordance.
+- Entry decision: **a route on the console origin**, recorded as amendment A9.
+- Bundle scan: `VITE_DEN_REQUIRE_SIGNIN`, `DEN_ENABLED`, and
+  `HOSTED_DEFAULT_DEN_BASE_URL` are absent from the built bundle.
+
+## Head binding (OW2)
+
+- `apps/chat-server/src/theorem-mcp.ts` — the head's graph door, merged over the
+  runtime MCP map so an operator cannot silently disconnect it from the settings
+  UI. Absent when `THEOREM_MCP_URL` is unset; no default endpoint, for the same
+  reason OW1 removed the hosted model catalog. See amendment A11.
+- `openwork-runtime-config.ts` — the agent prompt's "Memory Bank" block named
+  Den's meta-MCP and its `search_capabilities`/`postMemory` tools as memory
+  truth. Severing a transport does not sever the instructions describing it.
+  Replaced with graph doctrine against the `theorem` MCP. See amendment A10.
+- `package.json` — the `build` script still listed the
+  `openwork-capabilities-knowledge` plugin OW1 deleted.
+- OW2's live proof is partial and the gap is named in amendment A12.
+
 ## Pending, with owning deliverable
 
-Recorded so the gap is visible rather than implied. Known-remaining work, not
-accepted state:
-
-- The Den **view surfaces** (`domains/settings/pages/cloud-*`, `domains/cloud/*`,
-  `shell/cloud-workspace-*`, `welcome-den-session.ts`) are still present in the
-  tree. With `DEN_ENABLED` statically false they are unreachable and the bundle
-  scan confirms they carry no donor host, but they have not been deleted.
-  Deleting them unwinds the onboarding surface, which is coupled to OW4's console
-  session work. **OW4.**
-- `apps/chat-server/src/enterprise-den-origin.ts` resolves an enterprise Den
-  control-plane origin. Inert with Den severed; not yet deleted. **OW4.**
-- `welcome-route.tsx` retains a now-inert `joinOrganizationOpen` state and its
-  `onJoinOrganization` prop after the dialog was removed. Unwinding the prop
-  touches the onboarding component interface, so it rides with the view deletion
-  above. **OW4.**
-- `cdn.simpleicons.org` is fetched for provider favicons — a genuine third-party
+- `cdn.simpleicons.org` is fetched for provider favicons: a genuine third-party
   request the app makes on its own behalf, unlike the user-configured connector
   hosts (Google Workspace, OpenAI, GitHub Copilot, and the `mcp.*` quick-connect
   catalog), which are only contacted when an operator configures them.
-  **Disposition decided 2026-08-02: replaced by Noun Project icons**, which lands
-  the icon set locally and removes the CDN call as a side effect. Until that
-  lands, the full-session network-trace criterion is claimed with this one
+  **Disposition decided 2026-08-02: replaced by Noun Project icons**, which
+  lands the icon set locally and removes the CDN call as a side effect. Until
+  that lands, the full-session network-trace criterion is claimed with this one
   qualification. Call site: `src/react-app/design-system/provider-logo-src.ts`.
   **OW1 residual, closed by the Noun Project icon swap.**
-- Raw hex colors in `design-system/workspace-avatar-utils.ts` and `page.tsx`
-  violate the one-token-truth rule and are the current failing check in
-  `scripts/audit-openwork-fork.sh`. **OW3.**
+- The Den **client library** (`app/lib/den.ts`, `den-handoff.ts`,
+  `domains/cloud/den-auth-provider.tsx`) survives. It is not inert: the
+  provider-auth and MCP-connection paths still read its types and helpers, so
+  its symbols and its `openwork.orgOnboardingSeen` storage keys remain in the
+  bundle. The Den **view** layer is gone; the library is a larger unwind that
+  belongs with whatever replaces provider auth, not with OW4.
+- `readDenBootstrapConfig().requireSignin` survives as a data-shape field with
+  no gate reading it, `DenSigninGate` having been its only consumer.
 
 ## Retirements from the console (OW7)
 

@@ -5,15 +5,15 @@
 // SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW3, shader law: one shader mount per
 // window. That mount is PageBackground's dither.
 //
-// The small activity orbs — a streaming-message indicator, a session-surface
-// badge, the voice orb — each rendered their own <PaperGrainGradient>, and
+// The small activity orbs (a streaming-message indicator, a session-surface
+// badge, the voice orb) each rendered their own <PaperGrainGradient>, and
 // every one of those is a ShaderMount with its own WebGL context. The message
 // list mounts one per in-flight message, so the count was unbounded and the
 // browser's per-document context limit (about 16, oldest silently killed) was
 // reachable in one busy session.
 //
-// A 34px orb does not need a fragment shader. This paints the same reading —
-// soft coloured lobes, slow drift — with a conic gradient and a transform
+// A 34px orb does not need a fragment shader. This paints the same reading,
+// soft coloured lobes and slow drift, with a conic gradient and a transform
 // animation, which stays on the compositor and costs no context. Colours come
 // from the register, so the orb tracks the scheme instead of freezing one.
 

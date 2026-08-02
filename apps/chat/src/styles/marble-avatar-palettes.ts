@@ -8,8 +8,8 @@
 // These cannot become custom properties: boring-avatars computes SVG gradient
 // stops from the values and emits them as literal fill attributes, so a var()
 // reference would render as an invalid colour. They stay literal on purpose.
-// They are decorative generative fill for extension tiles, not object identity
-// — identity is the workspace marker, which does read the ramp
+// They are decorative generative fill for extension tiles, not object identity.
+// Identity is the workspace marker, which does read the ramp
 // (identity-register.css).
 
 export const MARBLE_DEFAULT_PALETTE = ["#0a0310", "#49007e", "#ff005b", "#ff7d10", "#ffb238"];

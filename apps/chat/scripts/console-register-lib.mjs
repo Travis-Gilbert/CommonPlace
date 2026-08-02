@@ -10,7 +10,7 @@
 // under a bare [data-register="intui"] and light as a [data-theme="light"]
 // override; the fork's default is light with a .dark override. Composing
 // dark then light for the fork's :root reproduces exactly what the console's
-// cascade resolves — it is materialized here, not reinvented.
+// cascade resolves: it is materialized here, not reinvented.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
