@@ -10,7 +10,7 @@ import type {
   ProgramPort,
   ProgramRunOptions,
   ProgramRunReceipt,
-  ProgramStationTopology,
+  ProgramStationReplication,
   StationDropReceipt,
 } from '@commonplace/program-contracts';
 import {
@@ -77,7 +77,7 @@ export async function dropBindingPreset(input: {
   readonly programId: string;
   readonly nodeId: string;
   readonly presetId: string;
-  readonly requestedTopology?: ProgramStationTopology;
+  readonly requestedReplication?: ProgramStationReplication;
 }): Promise<StationDropReceipt> {
   const data = await callProgramGraph(
     'drop_binding_preset',
@@ -86,8 +86,8 @@ export async function dropBindingPreset(input: {
         program_id: input.programId,
         node_id: input.nodeId,
         preset_id: input.presetId,
-        ...(input.requestedTopology
-          ? { requested_topology: input.requestedTopology }
+        ...(input.requestedReplication
+          ? { requested_replication: input.requestedReplication }
           : {}),
       },
     },

@@ -5,9 +5,9 @@ import { stationBadgeFor } from './programNodeKind';
 
 const transparent: ProgramBindingPreset = {
   preset_id: 'preset:principal',
-  display_name: 'Personal pair',
+  display_name: 'Personal single',
   binding_ref: 'composition:principal',
-  topology: 'pair',
+  replication: 'single',
   capability_pack: ['theorem.peer-stations.v1'],
   budget_units: 200,
   sealed: false,
@@ -34,18 +34,18 @@ describe('binding station disclosure', () => {
     expect(visiblePresetRoster(transparent)).toEqual(transparent.roster);
   });
 
-  it('renders the server-compiled topology as the node station badge', () => {
+  it('renders the server-compiled replication as the node station badge', () => {
     expect(stationBadgeFor({
       preset_id: 'preset:principal',
       binding_ref: 'composition:principal',
       capability_pack: ['theorem.peer-stations.v1'],
       budget_units: 200,
-      topology: 'peer',
-      compiled_topology: 'pair',
+      replication: 'peer',
+      compiled_replication: 'single',
       sealed: false,
     })).toMatchObject({
       id: 'station',
-      text: 'pair station',
+      text: 'single station (preset:principal)',
     });
   });
 });

@@ -60,9 +60,9 @@ describe('binding station client', () => {
     const presets = [
       {
         preset_id: 'preset:system',
-        display_name: 'Pair',
+        display_name: 'Flash + M3',
         binding_ref: 'composition:system',
-        topology: 'pair',
+        replication: 'single',
         capability_pack: ['theorem.peer-stations.v1'],
         budget_units: 200,
         sealed: true,
@@ -71,7 +71,7 @@ describe('binding station client', () => {
         preset_id: 'preset:principal',
         display_name: 'Personal',
         binding_ref: 'composition:principal',
-        topology: 'pair',
+        replication: 'single',
         capability_pack: ['theorem.peer-stations.v1'],
         budget_units: 200,
         sealed: false,
@@ -99,12 +99,12 @@ describe('binding station client', () => {
       program_id: 'program-draft:one',
       node_id: 'node:one',
       station: {
-        preset_id: 'preset:pair',
-        binding_ref: 'composition:pair',
+        preset_id: 'preset:single',
+        binding_ref: 'composition:single',
         capability_pack: ['theorem.peer-stations.v1'],
         budget_units: 200,
-        topology: 'peer',
-        compiled_topology: 'pair',
+        replication: 'peer',
+        compiled_replication: 'single',
         sealed: true,
       },
     };
@@ -117,8 +117,8 @@ describe('binding station client', () => {
     await expect(dropBindingPreset({
       programId: 'program-draft:one',
       nodeId: 'node:one',
-      presetId: 'preset:pair',
-      requestedTopology: 'peer',
+      presetId: 'preset:single',
+      requestedReplication: 'peer',
     })).resolves.toEqual(receipt);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/harness/programmable-graph',
@@ -130,8 +130,8 @@ describe('binding station client', () => {
             drop: {
               program_id: 'program-draft:one',
               node_id: 'node:one',
-              preset_id: 'preset:pair',
-              requested_topology: 'peer',
+              preset_id: 'preset:single',
+              requested_replication: 'peer',
             },
           },
         }),
