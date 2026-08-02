@@ -169,6 +169,17 @@ if [ -f packaging/workspace/Dockerfile ] && [ -f packaging/workspace/entrypoint.
 else
   fail "workspace image and entrypoint exist"
 fi
+# The image installs with --frozen-lockfile, which fails hard when the lockfile
+# and any package.json disagree. That failure surfaces only when the image is
+# built, and nothing in this repo builds it on every change, so a dependency
+# edit committed without its lockfile stays green here and breaks the deploy.
+# This is the check that would have caught exactly that (it did, once).
+if pnpm install --frozen-lockfile --lockfile-only >/dev/null 2>&1; then
+  pass "lockfile satisfies --frozen-lockfile (what the image build runs)"
+else
+  fail "lockfile satisfies --frozen-lockfile (what the image build runs)"
+  note "run: pnpm install, and commit pnpm-lock.yaml with the package.json change"
+fi
 
 echo
 echo "Anti-scope — no artifact blob store treated as semantic truth"
