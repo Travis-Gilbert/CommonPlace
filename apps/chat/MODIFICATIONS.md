@@ -208,6 +208,34 @@ obligation and by named choice 1.
   `openwork-capabilities-knowledge` plugin OW1 deleted.
 - OW2's live proof is partial and the gap is named in amendment A12.
 
+## Secret-scanner findings in vendored tests, verified false
+
+GitGuardian flags three values in vendored `apps/chat-server` test files. All
+three are canaries whose purpose is to prove the diagnostic sanitizer redacts
+them, so the scanner is flagging the test data of a secret-redaction test
+suite. Recorded here because they will re-trip on every upstream cherry-pick
+that touches these files, and nobody should have to re-derive this.
+
+The values are described rather than quoted. An earlier revision of this table
+pasted them verbatim, and the scanner promptly flagged this file too: a finding
+count went from three to four because the documentation reproduced the thing it
+was documenting. Read the cited line if you need the literal.
+
+| File | Why it is not a secret |
+|---|---|
+| `agent-context-cloud-probe.test.ts:233` | An `ow_mcp_at_` prefix followed by base64 that decodes to a sentence saying this canary must never be returned. Injected as a provider-controlled tool ID at :254 and asserted absent at :269. |
+| `agent-context-diagnostics.schema.test.ts:44` | One row of a table of redaction-evasion vectors: multiply percent-encoded `Bearer`, fullwidth characters, zero-width spaces. The row's own trailing word is `canary`. |
+| `cloud-mcp-health.test.ts:207` | A JWT whose header is `{"alg":"none"}` and whose signature segment is an English word followed by digits. Unsigned by construction, so no signing key exists, and the payload is the `sub: 1234567890` from the JWT specification's own example. Asserted absent at :215. |
+
+Nothing to revoke or rotate. None can be removed or altered: each is the input
+to a `not.toContain(...)` assertion, so changing it would delete the security
+property the test exists to hold.
+
+The check is the GitGuardian GitHub App, not a `ggshield` CI step, so it reads
+no configuration from this repository. A `.gitguardian.yaml` here would be
+inert. Remediation is marking the three incidents false-positive in the
+GitGuardian workspace, which needs dashboard access.
+
 ## Pending, with owning deliverable
 
 - `cdn.simpleicons.org` is fetched for provider favicons: a genuine third-party
