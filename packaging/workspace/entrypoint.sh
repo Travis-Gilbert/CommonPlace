@@ -111,10 +111,23 @@ setsid code-server \
   "${WORKSPACE_DIR}" &
 pids+=($!)
 
+# Invoked as an explicit path, not through PATH.
+#
+# `openwork-server` on PATH depends on pnpm creating a bin shim in the root
+# node_modules/.bin for a workspace project. That happens for a full workspace
+# install, which is what a developer machine has, but the image runs a filtered
+# install and I cannot confirm the shim exists there without building the
+# image. A missing shim exits 127 and takes code-server down with it on every
+# container start.
+#
+# dist/cli.js is what `pnpm build` emits and what the package's own `start`
+# script runs, so this is the same entrypoint by a path that cannot fail to
+# resolve.
+#
 # --workspace, not --dir: the daemon's flag is a repeatable workspace root
 # (apps/chat-server/src/config.ts). The token rides the environment rather than
 # --host-token so it never appears in the container's process list.
-setsid openwork-server \
+setsid bun /srv/openwork/apps/chat-server/dist/cli.js \
   --host 0.0.0.0 \
   --port "${OPENWORK_PORT}" \
   --workspace "${WORKSPACE_DIR}" &
