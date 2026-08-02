@@ -1330,6 +1330,17 @@ function consoleSessionActor(request: Request, config: ServerConfig): Actor | nu
   };
 }
 
+/**
+ * Whether a console session may act on a host-only route.
+ *
+ * Extracted and exported so the authorization decision is testable on its own.
+ * The bug this replaced was invisible to every existing test because they all
+ * asserted the shape of the actor, never what the auth path did with it.
+ */
+export function consoleActorSatisfiesHost(actor: Actor | null): actor is Actor {
+  return actor?.scope === "owner";
+}
+
 async function requireClient(request: Request, config: ServerConfig, tokens: TokenService): Promise<Actor> {
   const consoleActor = consoleSessionActor(request, config);
   if (consoleActor) return consoleActor;
@@ -1362,9 +1373,20 @@ async function requireHost(request: Request, config: ServerConfig, tokens: Token
     return { type: "host", tokenHash: hashToken(hostToken), scope: "owner" };
   }
 
-  // OW4: a console session carries owner scope, so it satisfies host routes.
+  // OW4: a console session satisfies a host route only at owner scope.
+  //
+  // This branch used to return the actor unconditionally, on the assumption
+  // that a console session was always owner. When that assumption was removed
+  // and the actor became collaborator, this line kept accepting it, so the
+  // elevation it was meant to close stayed open: any console member still
+  // reached token minting, workspace deletion, and runtime upgrades. The
+  // bearer path below has always made the same check explicitly.
+  //
+  // Console actors are collaborator today, so this rejects them all. The gate
+  // is written against the scope rather than the actor type so that a console
+  // that later signs an owner role works without touching this code.
   const consoleActor = consoleSessionActor(request, config);
-  if (consoleActor) return consoleActor;
+  if (consoleActorSatisfiesHost(consoleActor)) return consoleActor;
 
   const header = request.headers.get("authorization") ?? "";
   const match = header.match(/^Bearer\s+(.+)$/i);
