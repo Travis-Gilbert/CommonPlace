@@ -2,7 +2,11 @@
 import { useBootState, useBootOverlayVisible } from "./boot-state";
 import { OwDotTicker } from "./dot-ticker";
 
-const RELEASES_URL = "https://github.com/different-ai/openwork/releases";
+// OW1 residual: this pointed at the donor's releases, so a CommonPlace user
+// hitting a boot error was sent to install a different application. Opt-in via
+// the same env pattern as the other destinations; absent, the action is not
+// rendered rather than defaulting to somebody else's download.
+const RELEASES_URL = (import.meta.env?.VITE_OPENWORK_RELEASES_URL ?? "").trim();
 
 /**
  * Quiet, opaque boot overlay. Solid surface fill so nothing bleeds through.
@@ -34,17 +38,19 @@ export function LoadingOverlay() {
         {error ? (
           <div className="flex flex-col gap-2 text-[12px] leading-5 text-red-11">
             <div>{error}</div>
-            <div className="text-dls-secondary">
-              Download the latest version manually here:{" "}
-              <a
-                href={RELEASES_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="text-dls-primary underline decoration-dls-primary/40 underline-offset-4"
-              >
-                {RELEASES_URL}
-              </a>
-            </div>
+            {RELEASES_URL ? (
+              <div className="text-dls-secondary">
+                Download the latest version manually here:{" "}
+                <a
+                  href={RELEASES_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-dls-primary underline decoration-dls-primary/40 underline-offset-4"
+                >
+                  {RELEASES_URL}
+                </a>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

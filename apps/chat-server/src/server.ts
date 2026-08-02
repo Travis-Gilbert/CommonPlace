@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { resolveGlobalOpencodeConfigPath } from "@openwork/paths";
 import { readConsoleSession } from "./console-session.js";
+import { sanitizeDiagnosticValue } from "./diagnostic-sanitizer.js";
 import type { ApprovalRequest, Capabilities, ServerConfig, WorkspaceInfo, Actor, ReloadReason, ReloadTrigger, TokenScope } from "./types.js";
 import { agentContextDiagnosticsRequestSchema } from "./agent-context-diagnostics-schema.js";
 import { ApprovalService } from "./approvals.js";
@@ -1299,7 +1300,17 @@ function consoleSessionActor(request: Request, config: ServerConfig): Actor | nu
 
   return {
     type: "console",
-    scope: "owner",
+    // Not owner. The console issues this cookie after checking membership
+    // only: its workspace contract carries a role, but the signed claim does
+    // not, so this daemon cannot tell a read-only member from an admin. Minting
+    // owner for everyone let any member reach token management, approvals,
+    // workspace deletion, and runtime upgrades.
+    //
+    // Collaborator is what the chat register actually needs. Owner-only
+    // operations are deliberately unreachable by console session until the
+    // console signs a role and this derives the scope from it, which is the
+    // same missing piece as the console-origin route in A9.
+    scope: "collaborator",
     subject: claims.subject,
     // File sessions bind to actor.tokenHash and refuse a request whose hash
     // does not match the one that opened them (routes/files.ts). A console
@@ -2207,7 +2218,14 @@ function createRoutes(
     const managedFile = await readManagedRuntimeConfigDebug(config);
     const sweep = await readLegacyConfigSweepState(config);
 
-    return jsonResponse({
+    // OW2 injects the Theorem MCP entry with an Authorization header built
+    // from THEOREM_API_KEY, and this route is "client" auth, which admits a
+    // viewer token. Returned verbatim it handed every viewer the workspace's
+    // bearer key, plus whatever credentials the runtime and global MCP configs
+    // carry. Redacted through the daemon's own diagnostic sanitizer rather
+    // than a bespoke filter, so it tracks the same rules as every other
+    // diagnostic surface.
+    return jsonResponse(sanitizeDiagnosticValue({
       runtime,
       runtimeKeys: runtimeConfigKeys(runtime),
       effectiveRuntime,
@@ -2246,7 +2264,7 @@ function createRoutes(
         keys: userOpencodeConfigKeys(persistedOpencode),
         migratableKeys: user.keys,
       },
-    });
+    }));
   });
 
   addRoute(routes, "GET", "/workspace/:id/opencode-config", "client", async (ctx) => {
