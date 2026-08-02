@@ -155,23 +155,26 @@ describe("cookie parsing", () => {
 });
 
 describe("console session workspace binding", () => {
-  // Regression test for a cross-workspace escalation. The actor carried owner
-  // scope and the subject, but not the workspace the console signed for, while
-  // the daemon can serve several workspaces at once (--workspace is
-  // repeatable). A cookie for workspace A therefore reached workspace B's
-  // routes on the same daemon with owner rights.
-  it("carries the signed workspace, so owner scope can be scoped to it", () => {
+  // The escalation this guards is real: a daemon can serve several workspaces
+  // (--workspace is repeatable) and handlers resolve :id against the whole
+  // configured set, so an owner-scoped console actor would reach every one.
+  //
+  // A first fix compared claims.workspaceId against the route :id. It was
+  // wrong twice: the ids are different namespaces (this daemon derives
+  // ws_<hash-of-path>, the console mints its own), and :id is not always a
+  // workspace, so POST /approvals/:id was rejected too. The binding now lives
+  // in server.ts consoleSessionActor and keys off deployment shape instead.
+  it("carries the signed workspace for auditing", () => {
     const claims = decodeConsoleSessionClaims(FIXTURE_COOKIE, FIXTURE_SECRET);
     expect(claims?.workspaceId).toBe("ws_01");
+    expect(claims?.subject).toBe("user:travis");
   });
 
-  it("readConsoleSession surfaces the workspace the request is authorized for", () => {
+  it("keeps the claim available to callers that need to attribute an action", () => {
     const claims = readConsoleSession(requestWithCookie(FIXTURE_COOKIE), {
       COMMONPLACE_ACTIVE_WORKSPACE_SECRET: FIXTURE_SECRET,
     });
-    // server.ts compares this against the route's :id and rejects a mismatch
-    // with 403 workspace_unauthorized.
     expect(claims?.workspaceId).toBe("ws_01");
-    expect(claims?.workspaceId).not.toBe("ws_02");
+    expect(claims?.tenant).toBe("Travis-Gilbert");
   });
 });

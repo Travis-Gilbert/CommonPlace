@@ -44,6 +44,7 @@ dockerfilePath = "packaging/workspace/Dockerfile"
 watchPatterns = [
   "apps/chat-server/**",
   "apps/chat/**",
+  "packages/openwork-ui/**",
   "packages/openwork-types/**",
   "packages/openwork-paths/**",
   "packaging/workspace/**",

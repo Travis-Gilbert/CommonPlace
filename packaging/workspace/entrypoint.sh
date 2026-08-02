@@ -31,8 +31,16 @@ mkdir -p "${WORKSPACE_DIR}"
 # an operator who mounts an existing checkout keeps theirs untouched.
 if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
   if [ -n "${WORKSPACE_REPO_URL:-}" ]; then
-    echo "workspace: cloning ${WORKSPACE_REPO_URL} into ${WORKSPACE_DIR}"
+    # A private HTTPS clone URL can carry a deploy token in its userinfo.
+    # Printing it publishes the credential to container logs, and git would
+    # persist the same string as remote.origin.url on a volume any code-server
+    # user can read, so the credential would outlive WORKSPACE_TOKEN and be
+    # recoverable independently of it. Log a redacted form, and rewrite the
+    # stored remote to the same URL without userinfo after cloning.
+    redacted_url="$(printf '%s' "${WORKSPACE_REPO_URL}" | sed -E 's#(://)[^/@]*@#\1#')"
+    echo "workspace: cloning ${redacted_url} into ${WORKSPACE_DIR}"
     git clone --depth "${WORKSPACE_CLONE_DEPTH:-1}" "${WORKSPACE_REPO_URL}" "${WORKSPACE_DIR}"
+    git -C "${WORKSPACE_DIR}" remote set-url origin "${redacted_url}"
   else
     echo "workspace: initializing an empty repository at ${WORKSPACE_DIR}"
     git init --quiet "${WORKSPACE_DIR}"
@@ -102,8 +110,15 @@ pids+=($!)
 # Exit when either door dies. A container running half its contract is worse
 # than one that restarts: the console's healthcheck sees a live chat door and
 # keeps routing to a workspace whose IDE is gone.
-wait -n
-status=$?
+# `wait -n` returns the exited child's status, and under `set -e` a nonzero
+# status terminates the script at this line: shutdown would never run, and the
+# surviving door would be killed by container teardown rather than TERM,
+# risking a half-written state file. The `if` makes the failure branch
+# errexit-safe so the cleanup path always runs.
+status=0
+if ! wait -n; then
+  status=$?
+fi
 echo "workspace: a door exited with ${status}; stopping the other" >&2
 shutdown
 exit "${status}"

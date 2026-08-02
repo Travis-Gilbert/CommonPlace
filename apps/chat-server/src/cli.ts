@@ -66,6 +66,21 @@ if (!config.opencodeBaseUrl && process.env.OPENWORK_MANAGE_OPENCODE === "1") {
         ...(opencodeModelsUrl ? { OPENCODE_MODELS_URL: opencodeModelsUrl } : {}),
       },
     });
+    // OW5: when the managed engine dies the daemon stays up and /health keeps
+    // answering ok, so a container healthcheck sees a healthy service whose
+    // every session operation has lost its engine, and the restart policy
+    // never fires. Exit instead, and let the supervisor restart the pair.
+    // Only armed for a managed engine: an externally supplied opencode is
+    // somebody else's lifecycle.
+    const engineWatchdogMs = Number(process.env.OPENWORK_ENGINE_WATCHDOG_MS ?? "") || 5_000;
+    const engineWatchdog = setInterval(() => {
+      if (managedOpencode?.isAlive()) return;
+      logger.log("error", "Managed opencode engine exited; stopping the daemon so it can be restarted");
+      clearInterval(engineWatchdog);
+      process.exit(70);
+    }, engineWatchdogMs);
+    engineWatchdog.unref?.();
+
     config.opencodeBaseUrl = managedOpencode.url;
     config.opencodeUsername = managedOpencode.username;
     config.opencodePassword = managedOpencode.password;

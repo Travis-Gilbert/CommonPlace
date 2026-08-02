@@ -985,10 +985,6 @@ export async function startServer(config: ServerConfig): Promise<ServeResult> {
               : route.auth === "client"
                 ? await requireClient(request, config, tokens)
                 : undefined;
-        // Enforced here rather than in each handler: this is the one place
-        // every authenticated route passes through, so a route added later
-        // cannot forget it.
-        assertConsoleWorkspace(actor, route.params);
         const response = await route.handler({
           request,
           url,
@@ -1237,50 +1233,41 @@ function withCors(response: Response, request: Request, config: ServerConfig) {
  * narrower scope would silently break write paths for a user the console
  * considers authorized.
  */
-function consoleSessionActor(request: Request): Actor | null {
+function consoleSessionActor(request: Request, config: ServerConfig): Actor | null {
   const claims = readConsoleSession(request);
   if (!claims) return null;
+
+  // The workspace boundary is the container, not a comparison here.
+  //
+  // A first attempt compared claims.workspaceId against the route's :id. That
+  // was wrong twice over. The two ids are different namespaces: the console
+  // mints its own, while this daemon derives ws_<hash-of-path> in
+  // buildWorkspaceInfos, so the comparison rejected every console request. And
+  // :id is not always a workspace: POST /approvals/:id carries an approval id,
+  // so it rejected every permission response as well, which is the round-trip
+  // OW2 depends on.
+  //
+  // What actually bounds a console session is deployment shape. OW5 runs one
+  // workspace per container and the console reaches it with a
+  // workspace-scoped token, so on a single-workspace daemon there is no other
+  // workspace to escalate into. A daemon serving several has no such boundary:
+  // one cookie would reach all of them, and no reliable mapping exists between
+  // the two id namespaces. Refuse there and fall through to token auth, which
+  // fails closed, rather than guess a mapping.
+  if (config.workspaces.length > 1) return null;
+
   return {
     type: "console",
     scope: "owner",
     subject: claims.subject,
-    // The signed workspace is carried, not discarded. Owner scope is only
-    // meaningful next to the workspace the console actually granted it for;
-    // without this field the actor says "owner of something" and every
-    // workspace route on this daemon would accept it. See assertConsoleWorkspace.
     workspaceId: claims.workspaceId,
     tenant: claims.tenant,
     workspaceSlug: claims.workspaceSlug,
   };
 }
 
-/**
- * A console session is owner of exactly one workspace, so a request naming a
- * different one is refused.
- *
- * A daemon can serve several workspaces (`--workspace` is repeatable), and the
- * route handlers resolve `:id` against the whole configured set. Owner scope
- * from a cookie signed for workspace A would otherwise reach workspace B on
- * the same daemon: same origin, same cookie, different tenant's files.
- *
- * Token actors are unaffected. Their scope comes from this daemon's own token
- * store, which is already per-daemon rather than per-workspace, and changing
- * that is a different decision than the one OW4 is making.
- */
-function assertConsoleWorkspace(actor: Actor | undefined, params: Record<string, string>): void {
-  if (actor?.type !== "console") return;
-  const requested = params.id;
-  if (!requested) return;
-  if (requested === actor.workspaceId) return;
-  throw new ApiError(
-    403,
-    "workspace_unauthorized",
-    "Console session is not authorized for this workspace",
-  );
-}
-
 async function requireClient(request: Request, config: ServerConfig, tokens: TokenService): Promise<Actor> {
-  const consoleActor = consoleSessionActor(request);
+  const consoleActor = consoleSessionActor(request, config);
   if (consoleActor) return consoleActor;
 
   const header = request.headers.get("authorization") ?? "";
@@ -1312,7 +1299,7 @@ async function requireHost(request: Request, config: ServerConfig, tokens: Token
   }
 
   // OW4: a console session carries owner scope, so it satisfies host routes.
-  const consoleActor = consoleSessionActor(request);
+  const consoleActor = consoleSessionActor(request, config);
   if (consoleActor) return consoleActor;
 
   const header = request.headers.get("authorization") ?? "";
