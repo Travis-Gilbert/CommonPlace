@@ -290,14 +290,67 @@ comes up clean with the Theorem MCP entry present in the emitted config.
 
 **Not proven at runtime.** The MCP connection handshake, tool registration, the
 permission round-trip through the fork's approval surface, and todos and events
-rendering from live session events. Every app-scoped route on this engine build
-(`GET /mcp`, `GET /config`, `POST /mcp/{name}/connect`) hangs without
-answering, and a local listener standing in for the Theorem MCP received no
-request. That is an unresolved engine or environment behavior, not evidence
-that the binding is wrong; it is also not evidence that it is right.
+rendering from live session events.
 
-The three OW2 acceptance criteria therefore remain open. What is closed is the
-configuration contract, which is what the deliverable's "no SDK surgery" clause
-actually scopes, plus the prompt correction in A10. The remaining proof needs a
-workspace with a model provider credential and an engine whose app-scoped
-routes answer.
+**The cause is upstream and is not ours.** Every app-scoped route on this build
+(`GET /config`, `GET /mcp`, `POST /mcp/{name}/connect`) deadlocks: it never
+answers, verified against a 150-second timeout rather than inferred from a
+short one. Ruled out, each by direct experiment:
+
+- **Our config.** Stock opencode started with no `OPENCODE_CONFIG` at all
+  deadlocks identically. This is the decisive control: the binding is not
+  implicated.
+- **The model catalog.** OW1 removed the hosted catalog default, so the engine
+  falls back to models.dev. Mirroring that catalog locally and pointing
+  `OPENCODE_MODELS_URL` at the mirror changed nothing.
+- **A missing repository.** A real `git init` workspace with a commit behaves
+  the same as an empty directory.
+- **Disk pressure.** The first runs happened with 116 MiB free on the data
+  volume, which was a genuine confound; re-run with 7 GiB free, identical.
+- **A missing model credential.** Not reachable as a cause: the deadlock
+  happens on `GET /config`, before any provider is selected or contacted.
+
+That last point corrects the earlier framing of this gap. The blocker was never
+a credential, and adding one would not have moved it. A model provider is
+needed for the *task* half of criterion 1 (context landing in the graph), but
+nothing in OW2 is gated on it until the engine answers at all.
+
+The three OW2 acceptance criteria therefore remain open, and the next attempt
+should start from a different opencode build or host rather than repeating the
+five experiments above. What is closed is the configuration contract, which is
+what the deliverable's "no SDK surgery" clause actually scopes, plus the prompt
+correction in A10.
+
+### A13. Theorem ACP is not the answer to OW2, and the reason is on the record
+
+`@commonplace/theorem-acp` is real and already carries what a second agent path
+would need: local and hosted ACP clients, a session manager, an agent state
+reducer, identity policy, and plan state. The console consumes it today.
+
+It is nonetheless the wrong instrument here, for two independent reasons.
+
+**It would change the deliverable rather than verify it.** OW2's text is
+"sessions run against opencode configured with the Theorem MCP." A session
+driven over ACP does not exercise the opencode head, the engine config, or the
+MCP entry this deliverable adds. Passing that way would prove something real
+but not this.
+
+**The engine decision is already made and still holds.** The anti-scope line is
+"no engine surgery before OW6's report exists," and OW6 reported: stay on the
+opencode head (A5). Its reversal condition is specifically that OW2's live
+proof *contradicts the permission assumption*. What A12 records is not a
+contradiction: it is a deadlock with a ruled-out cause list that never reached
+the permission model. The condition has not fired, so the decision stands on
+evidence rather than on inertia.
+
+Where ACP is the right tool is elsewhere and worth naming so it is not lost:
+it is the console's existing agent path, which makes it relevant to OW7, and it
+is the obvious stage-two candidate if the A5 reversal condition ever does fire.
+
+Related, and settled cheaply: DeepSeek needs no work to become the head's
+provider. The fork already carries it in its provider tables
+(`apps/chat/src/app/utils/index.ts` lists `deepseek-r1`, `deepseek-v3`, and
+`deepseek-chat`, with a provider label and logo mapping), and opencode takes
+any provider through the `provider` block the runtime config already passes
+through. It is a configuration line whenever a live session is wanted, not a
+code change, and per A12 it was never what stood in the way.
