@@ -111,7 +111,11 @@ ENV OPENWORK_WEB_BOOTSTRAP_TOKEN=0
 # a redeploy would keep the checkout and discard every transcript.
 ENV XDG_DATA_HOME=/workspace/state/data
 ENV XDG_CONFIG_HOME=/workspace/state/config
-RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}"
+# The audit trail does not use XDG at all: openworkServerDataDir() defaults to
+# $HOME/.openwork and reads OPENWORK_DATA_DIR, so without this the log behind
+# /workspace/:id/audit was still discarded on every redeploy.
+ENV OPENWORK_DATA_DIR=/workspace/state/openwork
+RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${OPENWORK_DATA_DIR}"
 VOLUME ["/workspace"]
 
 EXPOSE 8787 8080

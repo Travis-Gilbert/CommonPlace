@@ -26,6 +26,24 @@ function hasUsableConnection(url: string, token: string) {
 }
 
 /**
+ * OW4: a same-origin web deployment is usable without a bearer token.
+ *
+ * The console session is an HttpOnly cookie, so the page cannot read it and
+ * has no token to present. Requiring one classified that connection as
+ * "empty", and use-workspace-route-state then cleared the client before any
+ * request went out, so the browser never got the chance to attach the cookie
+ * it already holds. The cookie-only flow was structurally unreachable.
+ *
+ * Same-origin is the condition that makes this safe: the cookie is only sent
+ * to the origin that set it, and the daemon still authenticates every request
+ * (readConsoleSession, else a bearer token, else 401). A blank token here
+ * grants nothing; it only stops the client refusing to ask.
+ */
+function hasSameOriginCookieConnection(url: string) {
+  return isWebDeployment() && url.trim().length > 0;
+}
+
+/**
  * Resolve the OpenWork server connection for routes that consume the server API.
  *
  * Local desktop-hosted servers expose ephemeral loopback ports and freshly
@@ -89,6 +107,7 @@ export async function resolveOpenworkConnection(): Promise<ResolvedOpenworkConne
     !storedConnectionIsStaleDesktopRuntime && hasUsableConnection(normalizedBaseUrl, resolvedToken)
       ? "stored-settings"
       : hasUsableConnection(sameOriginBaseUrl, resolvedToken)
+          || hasSameOriginCookieConnection(sameOriginBaseUrl)
         ? "same-origin"
         : "empty";
 

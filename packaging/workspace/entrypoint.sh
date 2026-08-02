@@ -111,14 +111,15 @@ pids+=($!)
 # than one that restarts: the console's healthcheck sees a live chat door and
 # keeps routing to a workspace whose IDE is gone.
 # `wait -n` returns the exited child's status, and under `set -e` a nonzero
-# status terminates the script at this line: shutdown would never run, and the
-# surviving door would be killed by container teardown rather than TERM,
-# risking a half-written state file. The `if` makes the failure branch
-# errexit-safe so the cleanup path always runs.
+# status would terminate the script here, so shutdown would never run and the
+# surviving door would die with the container instead of receiving TERM.
+#
+# `|| status=$?` is errexit-safe and keeps the status. `if ! wait -n` is not:
+# the `!` inverts the result, so `$?` inside the branch is the negation's own
+# status, which is 0. The entrypoint would then exit successfully after any
+# door failure and Railway's ON_FAILURE policy would never restart it.
 status=0
-if ! wait -n; then
-  status=$?
-fi
+wait -n || status=$?
 echo "workspace: a door exited with ${status}; stopping the other" >&2
 shutdown
 exit "${status}"
