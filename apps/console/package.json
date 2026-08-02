@@ -10,7 +10,7 @@
     "start:railway": "node scripts/start-railway.mjs",
     "start": "next start",
     "lint": "eslint src scripts next.config.ts",
-    "test": "vitest run && node --test scripts/railway-env.test.mjs",
+    "test": "node --test scripts/railway-env.test.mjs && vitest run",
     "test:watch": "vitest",
     "gate:fence": "node scripts/check-import-fence.mjs",
     "gate:register": "node scripts/check-register-lint.mjs",
