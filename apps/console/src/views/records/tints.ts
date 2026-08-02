@@ -1,28 +1,36 @@
-// SOURCING: RecordTableView tag/status hue ladder (TWENTY-APP-VALUES pattern).
-// Register tokens only: tint surfaces plus ink pairs for record chips and cells.
+// SOURCING: twenty-ui `Tag` / `Status` (packages/twenty-ui, hard fork) — the
+// record tag and status hue namespace. TU4 re-seat.
+//
+// Before the fork this file named CSS values directly (`var(--ij-gold-tint)`).
+// It now names palette slots, and the fork's theme generator resolves those
+// slots back to the same register tokens (see REGISTER_HUE_SLOTS in
+// packages/twenty-ui/src/theme/generator/commonplaceTokens.ts). One indirection
+// more, one place fewer for the two systems to drift apart.
 
-export const TAG_HUES: Record<string, { tint: string; ink: string }> = {
-  harness: { tint: 'var(--ij-gold-tint)', ink: 'var(--ij-gold)' },
-  memory: { tint: 'var(--ij-memory-tint)', ink: 'var(--ij-memory)' },
-  graph: { tint: 'var(--ij-graph-tint)', ink: 'var(--ij-graph)' },
-  index: { tint: 'var(--ij-row-blue)', ink: 'var(--ij-link)' },
-  publish: { tint: 'var(--ij-ok-bg)', ink: 'var(--ij-ok)' },
-  agent: { tint: 'var(--ij-agent-tint)', ink: 'var(--ij-agent)' },
-  room: { tint: 'var(--ij-room-tint)', ink: 'var(--ij-room)' },
+import type { TagColor } from 'twenty-ui/data-display';
+
+export const TAG_HUES: Record<string, TagColor> = {
+  harness: 'gold',
+  memory: 'jade',
+  graph: 'turquoise',
+  index: 'blue',
+  publish: 'green',
+  agent: 'amber',
+  room: 'purple',
 };
 
-export const STATUS_HUES: Record<string, { tint: string; ink: string }> = {
-  open: { tint: 'var(--ij-row-blue)', ink: 'var(--ij-link)' },
-  processing: { tint: 'var(--ij-warn-bg)', ink: 'var(--ij-warn)' },
-  settled: { tint: 'var(--ij-ok-bg)', ink: 'var(--ij-ok)' },
+export const STATUS_HUES: Record<string, TagColor> = {
+  open: 'blue',
+  processing: 'yellow',
+  settled: 'green',
 };
 
-const OBJECT_KEY_HUES: Record<string, { tint: string; ink: string }> = {
-  record: { tint: 'var(--ij-row-gray)', ink: 'var(--ij-ink)' },
-  task: { tint: 'var(--ij-agent-tint)', ink: 'var(--ij-agent)' },
-  note: { tint: 'var(--ij-memory-tint)', ink: 'var(--ij-memory)' },
-  company: { tint: 'var(--ij-row-blue)', ink: 'var(--ij-link)' },
-  person: { tint: 'var(--ij-room-tint)', ink: 'var(--ij-room)' },
+const OBJECT_KEY_HUES: Record<string, TagColor> = {
+  record: 'gray',
+  task: 'amber',
+  note: 'jade',
+  company: 'blue',
+  person: 'purple',
 };
 
 function hashLabel(label: string): number {
@@ -35,16 +43,16 @@ function hashLabel(label: string): number {
 
 const FALLBACK_HUE_KEYS = Object.keys(TAG_HUES);
 
-/** Stable hue pair for a tag or enum option string. */
-export function hueForTag(tag: string): { tint: string; ink: string } {
+/** Stable hue for a tag or enum option string. */
+export function hueForTag(tag: string): TagColor {
   const direct = TAG_HUES[tag] ?? STATUS_HUES[tag];
   if (direct) return direct;
   const bucket = FALLBACK_HUE_KEYS[hashLabel(tag) % FALLBACK_HUE_KEYS.length] ?? 'harness';
-  return TAG_HUES[bucket] ?? { tint: 'var(--ij-row-gray)', ink: 'var(--ij-ink-info)' };
+  return TAG_HUES[bucket] ?? 'gray';
 }
 
-/** Hue pair for an object type key (relation chip targets). */
-export function hueForObjectKey(key: string): { tint: string; ink: string } {
+/** Hue for an object type key (relation chip targets). */
+export function hueForObjectKey(key: string): TagColor {
   const normalized = key.trim().toLowerCase();
   return (
     OBJECT_KEY_HUES[normalized]

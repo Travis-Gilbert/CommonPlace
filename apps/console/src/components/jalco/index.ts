@@ -4,11 +4,8 @@
 // path as the console-facing namespace.
 
 export { Kbd, KbdCombo, type KbdProps, type KbdComboProps } from '@/components/kbd';
-export {
-  StatusIndicator,
-  type Status,
-  type StatusIndicatorProps,
-} from '@/components/status-indicator';
+// The hand-rolled status pill is deleted; twenty-ui `Status` (fork) carries the
+// state pill now. Import it from 'twenty-ui/data-display' (TU5).
 export {
   LogViewerTerminal as LogViewer,
   LogViewerMinimal,
@@ -22,7 +19,8 @@ export {
   FileTree,
   type FileTreeNode,
 } from '@/components/file-tree';
-export { JsonViewer, type JsonViewerProps } from '@/components/json-viewer';
+// The shiki-themed JSON viewer is deleted; twenty-ui json-visualizer (fork)
+// carries every JSON surface through '@/components/receipt-json' (TU6).
 export {
   CommitGraph,
   type CommitGraphCommit,

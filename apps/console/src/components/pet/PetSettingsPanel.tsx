@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from 'twenty-ui/input';
 import {
   Select,
   SelectContent,

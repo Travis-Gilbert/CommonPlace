@@ -1,14 +1,21 @@
-// SOURCING: OWOX/models MartNode hard fork (Apache-2.0) — the ERD card.
-// Its chrome now lives in the @commonplace/canvas-substrate shell; the field
-// rows exported here are the card's body (issue 144 A).
+// SOURCING: OWOX/models MartNode hard fork (Apache-2.0) — the ERD card —
+// re-seated on twenty-ui primitives (packages/twenty-ui, hard fork, MIT) per
+// SPEC-COMMONPLACE-TWENTY-UI-FORK-1.0 TU5.
+//
+// MC2 card anatomy takes TintedIconTile for the type mark, MC4 ghosts take Tag
+// for the observed badge and Button for Declare, MC5 counts take Pill. Its
+// chrome still lives in the @commonplace/canvas-substrate shell; the field rows
+// exported here are the card's body (issue 144 A).
 
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { KeyRound, ChevronDown, ChevronRight } from "lucide-react";
+import { KeyRound } from "lucide-react";
+import { Pill, Tag, TintedIconTile } from "twenty-ui/data-display";
+import { Button, LightButton } from "twenty-ui/input";
+import { IconTable } from "twenty-ui/icon";
 import type { ModelNode, SchemaField } from "@commonplace/okf";
 import type { ViewMode } from "../../state/viewMode";
 import { NOTHING_HIDDEN, type ObjHidden } from "../../state/objLabels";
-import { DataMartIcon } from "../../lib/icons";
 import { ERD_COLLAPSED_ROWS } from "./layoutSize";
 
 const STATUS_TIP: Record<string, string> = {
@@ -70,8 +77,11 @@ function NodePorts() {
 function MartHeader({ node, showAccent }: { node: MartNodeData; showAccent: boolean }) {
   return (
     <div className="flex items-center gap-2 px-3 pb-2 pt-3">
-      {showAccent ? <span className="min-h-5 w-1 shrink-0 self-stretch rounded-sm bg-ij-graph" /> : null}
-      <DataMartIcon size={15} className="shrink-0 text-ij-ink-info" />
+      <TintedIconTile
+        Icon={IconTable}
+        color={showAccent ? "turquoise" : "gray"}
+        size={16}
+      />
       <span className="line-clamp-2 flex-1 pr-3 text-sm font-semibold leading-tight text-ij-ink">
         {node.title}
       </span>
@@ -139,17 +149,18 @@ export function ErdFieldRows({ node }: { node: MartNodeData }) {
       {node._viewMode === "erd" ? <ErdBody node={node} /> : null}
       {node._ghost && node._onDeclare ? (
         <div className="border-t border-ij-seam px-3 py-2">
-          <button
-            type="button"
+          <Button
+            title={node._pendingDeclare ? "Declaring…" : "Declare"}
+            variant="secondary"
+            size="small"
+            fullWidth
+            justify="center"
             disabled={node._pendingDeclare}
             onClick={(e) => {
               e.stopPropagation();
               node._onDeclare?.();
             }}
-            className="w-full rounded-ij-arc border border-ij-control-border py-1.5 text-xs font-medium hover:bg-ij-hover-surface disabled:opacity-50"
-          >
-            {node._pendingDeclare ? "Declaring…" : "Declare"}
-          </button>
+          />
         </div>
       ) : null}
     </>
@@ -175,15 +186,20 @@ function ErdBody({ node }: { node: MartNodeData }) {
     <div className="border-t border-ij-seam">
       {visible.map(f => <FieldRow key={f.name} f={f} onSelect={node._onFieldSelect} />)}
       {hidden > 0 && (
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
-          className="flex w-full items-center justify-center gap-1 border-t border-ij-seam px-3 py-1 text-xs font-medium text-ij-accent hover:bg-ij-hover-surface"
-        >
-          {expanded
-            ? <><ChevronDown size={12} /> Show less</>
-            : <><ChevronRight size={12} /> +{hidden} more field{hidden > 1 ? "s" : ""}</>}
-        </button>
+        <div className="flex w-full justify-center border-t border-ij-seam px-3 py-1">
+          <LightButton
+            accent="tertiary"
+            title={
+              expanded
+                ? "Show less"
+                : `+${hidden} more field${hidden > 1 ? "s" : ""}`
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(v => !v);
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -217,26 +233,24 @@ function MartNodeInner({ data }: NodeProps) {
 
       <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
         {ghost ? (
-          <span className="rounded-full bg-ij-row-gray px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ij-ink-info">
-            observed
-          </span>
+          <Tag color="gray" text="observed" variant="outline" weight="medium" />
         ) : withSource ? (
-          <span className="rounded-full bg-ij-row-gray px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-ij-ink-info">
-            {node.inputSource}
-          </span>
+          <Tag color="turquoise" text={node.inputSource} weight="medium" />
         ) : null}
         {typeof node._recordCount === "number" ? (
-          <span className="text-xs text-ij-ink-info">· {node._recordCount}</span>
+          <Pill label={String(node._recordCount)} />
         ) : withFieldCount ? (
-          <span className="text-xs text-ij-ink-info">{fieldText}</span>
+          <Pill label={fieldText} />
         ) : null}
         {typeof node._coverage === "number" ? (
-          <span className="text-xs text-ij-ink-info">{Math.round(node._coverage * 100)}%</span>
+          <Pill label={`${Math.round(node._coverage * 100)}%`} />
         ) : null}
         {(node._divergenceCount ?? 0) > 0 ? (
-          <span className="rounded bg-ij-warn-bg px-1.5 py-0.5 text-xs font-semibold text-ij-warn">
-            {node._divergenceCount} diverge
-          </span>
+          <Tag
+            color="yellow"
+            text={`${node._divergenceCount} diverge`}
+            weight="medium"
+          />
         ) : null}
       </div>
 
@@ -244,17 +258,18 @@ function MartNodeInner({ data }: NodeProps) {
 
       {ghost && node._onDeclare ? (
         <div className="border-t border-ij-seam px-3 py-2">
-          <button
-            type="button"
+          <Button
+            title={node._pendingDeclare ? "Declaring…" : "Declare"}
+            variant="secondary"
+            size="small"
+            fullWidth
+            justify="center"
             disabled={node._pendingDeclare}
             onClick={(e) => {
               e.stopPropagation();
               node._onDeclare?.();
             }}
-            className="w-full rounded-ij-arc border border-ij-control-border py-1.5 text-xs font-medium hover:bg-ij-hover-surface disabled:opacity-50"
-          >
-            {node._pendingDeclare ? "Declaring…" : "Declare"}
-          </button>
+          />
         </div>
       ) : null}
 

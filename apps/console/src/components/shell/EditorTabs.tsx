@@ -5,6 +5,7 @@
 // 4px arc); no library models the Int UI tab contract. Tabs host view
 // instances; the active tab persists on the region object through the host.
 
+import { StyledTabButton } from 'twenty-ui/input';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { motion } from 'motion/react';
 import { seconds, useMotionDurations, EASE_OUT } from '@/motion/motion-tokens';
@@ -56,17 +57,13 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
         {instances.map((instance) => {
           const selected = instance.id === active?.id;
           return (
-            <button
+            <StyledTabButton
               key={instance.id}
               role="tab"
               aria-selected={selected}
+              active={selected}
               onClick={() => activate(instance.id)}
               className="relative flex h-full items-center gap-2 px-4 text-ij-ink"
-              style={{
-                opacity: selected ? 1 : 0.75,
-                background: selected ? 'var(--ij-editor)' : 'transparent',
-                transition: 'var(--rec-clickable-transition)',
-              }}
             >
               <KindDot kind={kindOf(instance)} />
               {String(instance.properties.title ?? instance.id)}
@@ -76,7 +73,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
                   className="absolute inset-x-1 bottom-0 h-ij-underline rounded-ij-arc-underline bg-ij-accent"
                 />
               ) : null}
-            </button>
+            </StyledTabButton>
           );
         })}
       </div>}

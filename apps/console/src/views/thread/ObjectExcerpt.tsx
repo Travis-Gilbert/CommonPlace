@@ -6,11 +6,9 @@
 import { useEffect, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { parseTheoremUri } from '@commonplace/block-view/addressing';
-import { JsonViewer, type JsonViewerProps } from '@/components/jalco';
+import { ReceiptJson } from '@/components/receipt-json';
 import { ThreadExcerpt } from './ThreadExcerpt';
 import { useShellStore } from '@/lib/shell-store';
-
-type JsonViewerData = JsonViewerProps['data'];
 
 export function ObjectExcerpt({
   host,
@@ -88,11 +86,7 @@ export function ObjectExcerpt({
         {error ? (
           <p className="text-ij-error">{error}</p>
         ) : object ? (
-          <JsonViewer
-            data={object.properties as unknown as JsonViewerData}
-            defaultExpanded={1}
-            className="border-0 bg-transparent shadow-none"
-          />
+          <ReceiptJson data={object.properties} defaultExpanded={1} />
         ) : (
           <p className="text-ij-ink-info">Loading through the object seam…</p>
         )}

@@ -71,6 +71,10 @@ One material system. Two structural sources. Bridged, not blended.
 
 - The Int UI register (`--ij-*` tokens) and utilities emitted from it.
 - The Twenty structural token group (`--rec-*`), structure only.
+- The vendored `packages/twenty-ui` fork (MIT), whose paint is generated from
+  the register. Nothing else from the Twenty universe: `twenty-front`,
+  `twenty-server`, and every `@license Enterprise` file are AGPL and never
+  cross into this repository. `npm run gate:twenty` makes that structural.
 - `@travis-gilbert/markdown-theory` (Galley) for document rendering.
 - `@commonplace/block-view` for the object contract.
 - The library ledger below. Nothing renders outside it.
@@ -129,6 +133,11 @@ gap: add the row, with a named source, before writing code.
 | Filing receipt affordance | Radix Popover | the focus-managed transient "why is this here" surface, and the one place in the Index a shadow token is legal (dimensionality named choice 3) |
 | Undo toast | `motion` (`motion/react`) entrance on the interaction inventory | the time-boxed reversal affordance carrying the receipt, per SPEC-COMMONPLACE-FILING-AND-INDEX-1.0's undo-over-approval law |
 | Filing rule predicates | `cmdk` | predicate selection in the rules author; values stay register controls |
+| Record primitives (cells, chips, tags, status pills, checkboxes) | hard fork of `twentyhq/twenty` `packages/twenty-ui` at `b754e153` (MIT), vendored as `packages/twenty-ui` | Chip, LinkChip, Tag, Status, Checkmark, Avatar, Checkbox, Toggle, Radio, SegmentedControl, Slider, the button family, TintedIconTile, Pill, NotificationCounter. Twenty's proportions arrive as structure; all paint enters through the fork's token generator |
+| Fork theme generation | `packages/twenty-ui/src/theme/generator` | the single seam where styling truth enters the fork: emits THEME_LIGHT/THEME_DARK and the `--t-*` CSS layer from the OKLCH paper and ink families, the chroma clamp, the three materials, and the radius law. Semantic slots resolve to `--ij-*` by reference, so the register and the theme engine drive fork components unchanged. A token gap routes to the token specification, never to a component edit |
+| JSON, receipts, and tool results | `twenty-ui/json-visualizer` through `src/components/receipt-json.tsx` | every JSON surface in this app: harness receipts, tool args and results, object excerpts, inspector rails, blocks |
+| Inline code | `twenty-ui/input` CodeEditor (Monaco) through `src/components/inline-code-editor.tsx`, `next/dynamic` with `ssr: false` | short snippets, tool payloads, read-mostly object code. Monaco is banned from initial route bundles; CodeMirror 6 remains the document-grade code surface |
+| Fork navigation | `twenty-ui/navigation` LinkAdapter over `next/link` | every link the fork's components emit; `react-router-dom` is absent from the dependency graph |
 | Object addressing and copy | `@commonplace/block-view/addressing` (the shared `theorem://` grammar, per DESIGN-THEOREM-URI) plus the platform Clipboard API | every canonical address this app emits, parses, or offers: the inspector footer, the card copy affordance, mention chips, the Composer paste offer, and the Search field's address lane. `src/lib/object-address.ts` is the only place a tenant plus an object becomes an address, and `src/lib/use-copy.ts` is the only clipboard call (the apps/web hook's shape, re-implemented because the import fence is structural) |
 
 glide-data-grid is the escalation path for spreadsheet-scale grids only and is
@@ -174,9 +183,10 @@ markdown. Use colons, periods, commas, semicolons, or parentheses instead.
 ## Gates (all block merge)
 
 1. Import fence: `npm run gate:fence`
-2. Register lint: `npm run gate:register`
-3. Contrast gate: `npm run gate:contrast`
-4. Motion inventory scan: `npm run gate:motion`
-5. Icon paint scan: `npm run gate:icons`
-6. Canonical checkout: `npm run gate:canonical-root`
-7. Playwright visual baseline: `npm run test:e2e`
+2. Twenty fence (AGPL path audit plus the fork's deletion list): `npm run gate:twenty`
+3. Register lint: `npm run gate:register`
+4. Contrast gate: `npm run gate:contrast`
+5. Motion inventory scan: `npm run gate:motion`
+6. Icon paint scan: `npm run gate:icons`
+7. Canonical checkout: `npm run gate:canonical-root`
+8. Playwright visual baseline: `npm run test:e2e`

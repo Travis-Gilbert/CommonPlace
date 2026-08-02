@@ -114,6 +114,6 @@ Accepted per the canvas-compile spec's own acceptance shape once read, with the 
 - No `packages/server` survival, no Supabase, no analytics, no third-party AI calls from the fork.
 - No model semantics in any canvas document, and no blob store of models anywhere.
 - No second model canvas: MC1's from-scratch build ends, by amendment on its spec.
-- No records-surface changes; RT1 through RT7 stand.
+- No records-surface changes; RT1 through RT7 stand. **Amended 2026-08-01 by SPEC-COMMONPLACE-TWENTY-UI-FORK-1.0:** structure stands, primitives re-seat. RT orchestration, virtualization, selection, and the keyboard model are untouched; cells, chips, tags, status pills, and checkboxes bind to the vendored `packages/twenty-ui` fork, and MC2 card anatomy, MC4 ghosts, and MC5 counts consume its `TintedIconTile`, `Tag`, and `Pill`.
 - No adoption of the declined candidates without reopening their disposition lines by name.
 - No OKF divergence: the bundle format tracks the published specification, and extensions go through the registry's types, not through format forks.

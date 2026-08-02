@@ -40,6 +40,7 @@ import {
   VIEW_PRESENCE_KIND,
   type ViewPresenceActor,
 } from './records/presence';
+import { Checkbox } from 'twenty-ui/input';
 import { RecordChip } from './records/RecordChip';
 import {
   aggregateFiltersFromView,
@@ -287,12 +288,10 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
         size: 32,
         header: () => null,
         cell: ({ row }) => (
-          <input
-            type="checkbox"
+          <Checkbox
             aria-label={`Select ${row.original.title}`}
             checked={selectedRecordId === row.original.id}
-            onChange={() => selectRecord(selectedRecordId === row.original.id ? null : row.original.id)}
-            className="accent-ij-accent"
+            onCheckedChange={() => selectRecord(selectedRecordId === row.original.id ? null : row.original.id)}
           />
         ),
       }),
@@ -300,14 +299,13 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
       legacyColumnHelper.accessor('kind', {
         header: 'Kind',
         cell: (info) => (
-          <RecordChip label={info.getValue()} tint={TAG_HUES[info.getValue()]?.tint} ink={TAG_HUES[info.getValue()]?.ink} />
+          <RecordChip label={info.getValue()} color={TAG_HUES[info.getValue()]} />
         ),
       }),
       legacyColumnHelper.accessor('status', {
         header: 'Status',
         cell: (info) => {
-          const hue = STATUS_HUES[info.getValue()];
-          return <RecordChip label={info.getValue()} tint={hue.tint} ink={hue.ink} />;
+          return <RecordChip label={info.getValue()} color={STATUS_HUES[info.getValue()]} />;
         },
       }),
       legacyColumnHelper.accessor('updated', {
@@ -319,12 +317,9 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
         enableSorting: false,
         cell: (info) => (
           <span className="flex gap-rec-sibling-gap">
-            {info.getValue().map((tag) => {
-              const hue = TAG_HUES[tag];
-              return (
-                <RecordChip key={tag} label={tag} tint={hue?.tint} ink={hue?.ink} />
-              );
-            })}
+            {info.getValue().map((tag) => (
+              <RecordChip key={tag} label={tag} color={TAG_HUES[tag]} />
+            ))}
           </span>
         ),
       }),
@@ -339,12 +334,10 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
         size: 32,
         header: () => null,
         cell: ({ row }) => (
-          <input
-            type="checkbox"
+          <Checkbox
             aria-label={`Select ${row.original.id}`}
             checked={selectedRecordId === row.original.id}
-            onChange={() => selectRecord(selectedRecordId === row.original.id ? null : row.original.id)}
-            className="accent-ij-accent"
+            onCheckedChange={() => selectRecord(selectedRecordId === row.original.id ? null : row.original.id)}
           />
         ),
       }),

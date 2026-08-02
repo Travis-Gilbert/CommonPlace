@@ -197,11 +197,7 @@ export function RecordInspector({ host }: { host: BlockHost }) {
     >
       <div className="flex h-ij-toolbar shrink-0 items-center gap-2 border-b border-ij-seam px-3">
         {record ? (
-          <RecordChip
-            label={headerLabel}
-            tint={headerHue.tint}
-            ink={headerHue.ink}
-          />
+          <RecordChip label={headerLabel} color={headerHue} />
         ) : (
           <span className="text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
             Inspector
@@ -262,14 +258,11 @@ export function RecordInspector({ host }: { host: BlockHost }) {
                           ?? (entry as Record<string, unknown>).id
                           ?? key)
                         : String(entry);
-                    const hue = hueForObjectKey(key);
                     return (
                       <RecordChip
                         key={`${key}-${index}`}
                         label={label}
-                        tint={hue.tint}
-                        ink={hue.ink}
-                        title={key}
+                        color={hueForObjectKey(key)}
                       />
                     );
                   });
