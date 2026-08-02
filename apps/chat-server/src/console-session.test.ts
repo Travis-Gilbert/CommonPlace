@@ -153,3 +153,25 @@ describe("cookie parsing", () => {
     expect(readCookie(`${ACTIVE_WORKSPACE_COOKIE}=`, ACTIVE_WORKSPACE_COOKIE)).toBeNull();
   });
 });
+
+describe("console session workspace binding", () => {
+  // Regression test for a cross-workspace escalation. The actor carried owner
+  // scope and the subject, but not the workspace the console signed for, while
+  // the daemon can serve several workspaces at once (--workspace is
+  // repeatable). A cookie for workspace A therefore reached workspace B's
+  // routes on the same daemon with owner rights.
+  it("carries the signed workspace, so owner scope can be scoped to it", () => {
+    const claims = decodeConsoleSessionClaims(FIXTURE_COOKIE, FIXTURE_SECRET);
+    expect(claims?.workspaceId).toBe("ws_01");
+  });
+
+  it("readConsoleSession surfaces the workspace the request is authorized for", () => {
+    const claims = readConsoleSession(requestWithCookie(FIXTURE_COOKIE), {
+      COMMONPLACE_ACTIVE_WORKSPACE_SECRET: FIXTURE_SECRET,
+    });
+    // server.ts compares this against the route's :id and rejects a mismatch
+    // with 403 workspace_unauthorized.
+    expect(claims?.workspaceId).toBe("ws_01");
+    expect(claims?.workspaceId).not.toBe("ws_02");
+  });
+});

@@ -36,7 +36,7 @@
     "bump:major": "node scripts/bump-version.mjs major",
     "bump:set": "node scripts/bump-version.mjs --set",
     "tokens": "node scripts/generate-console-register.mjs",
-    "check:tokens": "node scripts/check-console-register.mjs"
+    "check:tokens": "node scripts/check-console-register.mjs && node scripts/check-token-references.mjs"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.148",

@@ -211,6 +211,11 @@ export interface Actor {
   subject?: string;
   tenant?: string;
   workspaceSlug?: string;
+  /**
+   * The workspace the console signed this session for. Owner scope is scoped
+   * to it: a request naming another workspace on this daemon is refused.
+   */
+  workspaceId?: string;
 }
 
 export interface ApprovalRequest {

@@ -159,7 +159,7 @@ export function CreateWorkspaceLocalPanel(
                 className="mt-4 overflow-hidden rounded-[20px] border-dls-border bg-dls-hover/60 shadow-none before:hidden"
               >
                 <AccordionItem value="analytics" className="border-b-0">
-                  <AccordionTrigger className="items-center px-4 py-4 hover:no-underline focus-visible:ring-2 focus-visible:ring-[rgba(var(--dls-accent-rgb),0.18)]">
+                  <AccordionTrigger className="items-center px-4 py-4 hover:no-underline focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--ij-accent)_18%,transparent)]">
                     <span className="flex min-w-0 flex-1 items-start gap-3">
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl border border-dls-border bg-dls-surface text-dls-text">
                         <ChartNoAxesColumnIncreasing size={17} className="shrink-0 text-current" />

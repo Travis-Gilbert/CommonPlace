@@ -7,7 +7,7 @@ export const softCardClass =
   "rounded-[20px] border border-dls-border bg-dls-hover p-4";
 
 export const interactiveCardClass =
-  "rounded-[20px] border border-dls-border bg-dls-surface p-5 text-left transition-all duration-150 hover:border-dls-border hover:shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.16)]";
+  "rounded-[20px] border border-dls-border bg-dls-surface p-5 text-left transition-all duration-150 hover:border-dls-border hover:shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_16%,transparent)]";
 
 export const iconTileClass =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dls-border bg-dls-hover text-dls-secondary";
@@ -22,13 +22,13 @@ export const inputLabelClass = "text-[13px] font-medium text-dls-text";
 export const inputHintClass = "text-[12px] leading-5 text-dls-secondary";
 
 export const inputClass =
-  "w-full rounded-xl border border-dls-border bg-dls-surface px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.12)] disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full rounded-xl border border-dls-border bg-dls-surface px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_12%,transparent)] disabled:cursor-not-allowed disabled:opacity-60";
 
 export const subtleInputClass =
-  "w-full rounded-xl border border-dls-border bg-dls-hover px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.12)] disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full rounded-xl border border-dls-border bg-dls-hover px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_12%,transparent)] disabled:cursor-not-allowed disabled:opacity-60";
 
 const pillButtonBaseClass =
-  "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.18)] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_18%,transparent)] disabled:cursor-not-allowed disabled:opacity-60";
 
 export const pillPrimaryClass = `${pillButtonBaseClass} bg-dls-accent text-[var(--dls-accent-fg)] hover:bg-[var(--dls-accent-hover)]`;
 

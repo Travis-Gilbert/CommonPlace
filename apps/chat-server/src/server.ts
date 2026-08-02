@@ -985,6 +985,10 @@ export async function startServer(config: ServerConfig): Promise<ServeResult> {
               : route.auth === "client"
                 ? await requireClient(request, config, tokens)
                 : undefined;
+        // Enforced here rather than in each handler: this is the one place
+        // every authenticated route passes through, so a route added later
+        // cannot forget it.
+        assertConsoleWorkspace(actor, route.params);
         const response = await route.handler({
           request,
           url,
@@ -1240,9 +1244,39 @@ function consoleSessionActor(request: Request): Actor | null {
     type: "console",
     scope: "owner",
     subject: claims.subject,
+    // The signed workspace is carried, not discarded. Owner scope is only
+    // meaningful next to the workspace the console actually granted it for;
+    // without this field the actor says "owner of something" and every
+    // workspace route on this daemon would accept it. See assertConsoleWorkspace.
+    workspaceId: claims.workspaceId,
     tenant: claims.tenant,
     workspaceSlug: claims.workspaceSlug,
   };
+}
+
+/**
+ * A console session is owner of exactly one workspace, so a request naming a
+ * different one is refused.
+ *
+ * A daemon can serve several workspaces (`--workspace` is repeatable), and the
+ * route handlers resolve `:id` against the whole configured set. Owner scope
+ * from a cookie signed for workspace A would otherwise reach workspace B on
+ * the same daemon: same origin, same cookie, different tenant's files.
+ *
+ * Token actors are unaffected. Their scope comes from this daemon's own token
+ * store, which is already per-daemon rather than per-workspace, and changing
+ * that is a different decision than the one OW4 is making.
+ */
+function assertConsoleWorkspace(actor: Actor | undefined, params: Record<string, string>): void {
+  if (actor?.type !== "console") return;
+  const requested = params.id;
+  if (!requested) return;
+  if (requested === actor.workspaceId) return;
+  throw new ApiError(
+    403,
+    "workspace_unauthorized",
+    "Console session is not authorized for this workspace",
+  );
 }
 
 async function requireClient(request: Request, config: ServerConfig, tokens: TokenService): Promise<Actor> {

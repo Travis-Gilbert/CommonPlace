@@ -377,7 +377,7 @@ function DevProfilerOverlayVisible({ onHide }: { onHide: () => void }) {
                     <tr
                       key={zone.id}
                       className={`border-t border-dls-border transition-colors ${
-                        isFlashing ? "bg-[rgba(var(--dls-accent-rgb),0.14)]" : ""
+                        isFlashing ? "bg-[color-mix(in_oklab,var(--ij-accent)_14.000000000000002%,transparent)]" : ""
                       }`}
                     >
                       <td className="px-2 py-1 font-mono text-[11px] text-dls-text">

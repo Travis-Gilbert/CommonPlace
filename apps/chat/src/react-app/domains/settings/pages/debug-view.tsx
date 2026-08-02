@@ -1334,7 +1334,7 @@ export function DebugView(props: DebugViewProps) {
               placeholder={t("settings.nuke_confirmation_placeholder")}
               onChange={(event) => props.onSetNukeConfirmationText(event.currentTarget.value)}
               disabled={props.nukeConfigBusy || props.nukePreviewBusy}
-              className="w-full rounded-xl border border-dls-border bg-dls-surface px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl border border-dls-border bg-dls-surface px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_12%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
             />
             <span className="mt-1.5 block text-[11px] text-dls-secondary">
               {t("settings.nuke_confirmation_hint")}

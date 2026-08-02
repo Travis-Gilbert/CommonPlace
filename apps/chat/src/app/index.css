@@ -538,29 +538,29 @@ select:disabled {
    "awaiting first token", and any idle-but-alive hint. */
 @keyframes ow-dot-ticker {
   0% {
-    background-color: rgb(var(--dls-secondary-rgb) / 0.22);
-    box-shadow: 0 0 0 rgb(var(--dls-accent-rgb) / 0);
+    background-color: color-mix(in oklab, var(--ij-ink-info) 22%, transparent);
+    box-shadow: 0 0 0 color-mix(in oklab, var(--ij-accent) 0%, transparent);
   }
   20% {
-    background-color: rgb(var(--dls-accent-rgb) / 0.95);
-    box-shadow: 0 0 8px rgb(var(--dls-accent-rgb) / 0.45);
+    background-color: color-mix(in oklab, var(--ij-accent) 95%, transparent);
+    box-shadow: 0 0 8px color-mix(in oklab, var(--ij-accent) 45%, transparent);
   }
   55%,
   100% {
-    background-color: rgb(var(--dls-secondary-rgb) / 0.22);
-    box-shadow: 0 0 0 rgb(var(--dls-accent-rgb) / 0);
+    background-color: color-mix(in oklab, var(--ij-ink-info) 22%, transparent);
+    box-shadow: 0 0 0 color-mix(in oklab, var(--ij-accent) 0%, transparent);
   }
 }
 
 .ow-dot-ticker {
   animation: ow-dot-ticker 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  background-color: rgb(var(--dls-secondary-rgb) / 0.22);
+  background-color: color-mix(in oklab, var(--ij-ink-info) 22%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ow-dot-ticker {
     animation: none;
-    background-color: rgb(var(--dls-accent-rgb) / 0.6);
+    background-color: color-mix(in oklab, var(--ij-accent) 60%, transparent);
   }
 }
 

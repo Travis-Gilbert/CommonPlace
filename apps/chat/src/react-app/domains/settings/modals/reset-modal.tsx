@@ -83,7 +83,7 @@ export function ResetModal(props: ResetModalProps) {
                 value={props.text}
                 onChange={(event) => props.onTextChange(event.currentTarget.value)}
                 disabled={props.busy}
-                className="w-full rounded-xl border border-dls-border bg-dls-surface px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.12)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl border border-dls-border bg-dls-surface px-4 py-3 text-[14px] text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_12%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
               />
             </label>
           </div>

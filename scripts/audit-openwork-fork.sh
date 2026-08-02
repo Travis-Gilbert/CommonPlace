@@ -137,6 +137,14 @@ else
   fail "console-register.css matches the console registers"
   note "run: pnpm --filter @commonplace/chat tokens"
 fi
+# An undefined custom property is dropped silently, so a removed token leaves
+# no trace in typecheck, build, or a screenshot of a surface that does not use
+# it. OW3 shipped exactly that bug across thirteen call sites.
+if node apps/chat/scripts/check-token-references.mjs >/dev/null 2>&1; then
+  pass "every --dls/--ij/--cp/--gy/--ow token used is also defined"
+else
+  fail "every --dls/--ij/--cp/--gy/--ow token used is also defined"
+fi
 if node apps/chat/scripts/check-shader-mounts.mjs >/dev/null 2>&1; then
   pass "exactly one shader mount in the chat register"
 else

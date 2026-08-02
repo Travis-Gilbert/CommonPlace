@@ -10,6 +10,33 @@
 # Build context is the repository root:
 #   docker build -f packaging/workspace/Dockerfile -t commonplace-workspace .
 
+# --- Stage 1: build the chat register -------------------------------------
+# apps/chat/dist is gitignored, so it is never in the build context. Copying it
+# was a straight defect: the image could not build at all.
+FROM oven/bun:1.3.10-debian AS web
+
+WORKDIR /build
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates git \
+  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/chat/package.json apps/chat/
+COPY packages/openwork-ui/package.json packages/openwork-ui/
+COPY packages/openwork-types/package.json packages/openwork-types/
+COPY packages/openwork-paths/package.json packages/openwork-paths/
+RUN pnpm install --filter @commonplace/chat... --frozen-lockfile
+
+COPY apps/chat apps/chat
+COPY packages/openwork-ui packages/openwork-ui
+COPY packages/openwork-types packages/openwork-types
+COPY packages/openwork-paths packages/openwork-paths
+# The token generator reads the console's registers, so they must be present.
+COPY apps/console/src/styles apps/console/src/styles
+RUN pnpm --filter @commonplace/chat build:web
+
+# --- Stage 2: the workspace image -----------------------------------------
 FROM oven/bun:1.3.10-debian AS base
 
 # git: the workspace is a checkout, and both doors expect real VCS state.
@@ -39,7 +66,7 @@ RUN curl -fsSL https://code-server.dev/install.sh \
 # and the daemon agree about which engine they are talking to.
 ARG OPENCODE_VERSION=1.17.11
 RUN bun add -g "opencode-ai@${OPENCODE_VERSION}"
-ENV PATH="/root/.bun/bin:${PATH}"
+ENV PATH="/root/.bun/bin:/srv/openwork/node_modules/.bin:${PATH}"
 
 WORKDIR /srv/openwork
 
@@ -59,9 +86,8 @@ COPY packages/openwork-paths packages/openwork-paths
 
 RUN pnpm --filter @commonplace/chat-server build
 
-# The built chat register, served by the daemon's static handler. Built on the
-# host or in a prior stage: this image does not carry the web app's toolchain.
-COPY apps/chat/dist /srv/openwork/public
+# The built chat register, from the stage above.
+COPY --from=web /build/apps/chat/dist /srv/openwork/public
 
 COPY packaging/workspace/entrypoint.sh /usr/local/bin/workspace-entrypoint
 RUN chmod +x /usr/local/bin/workspace-entrypoint
@@ -71,7 +97,21 @@ RUN chmod +x /usr/local/bin/workspace-entrypoint
 ENV WORKSPACE_DIR=/workspace/repo
 ENV OPENWORK_PORT=8787
 ENV CODE_SERVER_PORT=8080
-RUN mkdir -p "${WORKSPACE_DIR}"
+# Without this the daemon starts with no engine and sessions cannot run
+# (apps/chat-server/src/cli.ts gates the managed engine on exactly "1").
+ENV OPENWORK_MANAGE_OPENCODE=1
+# serveStaticUi is a no-op unless this names the web root, so the copied
+# bundle above would never be served.
+ENV OPENWORK_WEB_ROOT=/srv/openwork/public
+# The static handler otherwise embeds config.token in the HTML it serves, so
+# an unauthenticated GET / hands out a usable bearer token.
+ENV OPENWORK_WEB_BOOTSTRAP_TOKEN=0
+# opencode keeps its session database here and the daemon keeps runtime.sqlite,
+# tokens, and config here. Both default under /root, which is container layer:
+# a redeploy would keep the checkout and discard every transcript.
+ENV XDG_DATA_HOME=/workspace/state/data
+ENV XDG_CONFIG_HOME=/workspace/state/config
+RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}"
 VOLUME ["/workspace"]
 
 EXPOSE 8787 8080

@@ -43,9 +43,29 @@ fi
 # shared workspace token is what it checks.
 export PASSWORD="${WORKSPACE_TOKEN}"
 
-# The chat door. The daemon's own token store is seeded from the same value,
-# so a client presenting it is an owner on both doors.
+# The chat door. Both credentials are seeded, not just the host one: ordinary
+# API routes authenticate bearer tokens against OPENWORK_TOKEN, and the web
+# client deliberately withholds the host token from non-loopback servers. With
+# only the host credential set, WORKSPACE_TOKEN opened the IDE and then got 401
+# from every chat route.
+export OPENWORK_TOKEN="${WORKSPACE_TOKEN}"
 export OPENWORK_HOST_TOKEN="${WORKSPACE_TOKEN}"
+
+# This container runs user and agent code and publishes a terminal through
+# code-server. The console's cookie signing key is symmetric, so anything that
+# can read this environment could mint a valid session for any subject, tenant,
+# or workspace, not merely verify one. It must never be delivered here.
+#
+# Refuse to start rather than run in that state: the failure is silent
+# otherwise, and a workspace that boots is a workspace someone will route
+# traffic to. The console authenticates the user at its own edge and reaches
+# this service with WORKSPACE_TOKEN, which is already scoped to one workspace.
+if [ -n "${COMMONPLACE_ACTIVE_WORKSPACE_SECRET:-}" ]; then
+  echo "workspace: COMMONPLACE_ACTIVE_WORKSPACE_SECRET is set in a workspace container." >&2
+  echo "workspace: that key signs console sessions, so a terminal user here could forge" >&2
+  echo "workspace: identities for other tenants. Remove it from this service's variables." >&2
+  exit 78
+fi
 
 pids=()
 

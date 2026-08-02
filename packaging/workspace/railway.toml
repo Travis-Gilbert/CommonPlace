@@ -22,14 +22,21 @@
 #                          without the graph and says so.
 #   THEOREM_API_KEY        Bearer credential for the above.
 #   THEOREM_TENANT_ID      Tenant scope for the above.
+# Deliberately NOT set here:
 #   COMMONPLACE_ACTIVE_WORKSPACE_SECRET
-#                          Must equal the console's value (OW4). This is what
-#                          lets a console session authenticate here with no
-#                          second sign-in. Absent, the daemon falls back to
-#                          token auth and the console gate renders normally.
+#                          The console's cookie signing key is symmetric, so a
+#                          container that runs user code and publishes a
+#                          terminal could mint sessions for any tenant rather
+#                          than merely verify its own. The entrypoint refuses to
+#                          start if it finds this variable. The console
+#                          authenticates the user at its own edge and reaches
+#                          this service with WORKSPACE_TOKEN, which is already
+#                          scoped to one workspace, so no sign-in is added.
 #
 # A volume must be mounted at /workspace. Without it the checkout lives in the
-# container layer and every deploy silently discards the user's work.
+# container layer and every deploy silently discards the user's work, and so do
+# the opencode session database and the daemon runtime state, which the image
+# places under /workspace/state via XDG_DATA_HOME and XDG_CONFIG_HOME.
 
 [build]
 builder = "DOCKERFILE"

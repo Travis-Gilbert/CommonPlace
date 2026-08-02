@@ -310,7 +310,7 @@ export function SkillsView(props: SkillsViewProps) {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.currentTarget.value)}
               placeholder={t("skills.catalog_search_placeholder")}
-              className="w-full rounded-xl border border-dls-border bg-dls-surface py-3 pl-11 pr-4 text-[14px] text-dls-text focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.12)]"
+              className="w-full rounded-xl border border-dls-border bg-dls-surface py-3 pl-11 pr-4 text-[14px] text-dls-text focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_12%,transparent)]"
             />
           </div>
 
@@ -477,7 +477,7 @@ export function SkillsView(props: SkillsViewProps) {
                     setSelectedContent(event.currentTarget.value);
                     setSelectedDirty(true);
                   }}
-                  className="min-h-[420px] w-full rounded-xl border border-dls-border bg-dls-hover px-4 py-3 text-xs font-mono text-dls-text focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.25)]"
+                  className="min-h-[420px] w-full rounded-xl border border-dls-border bg-dls-hover px-4 py-3 text-xs font-mono text-dls-text focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_25%,transparent)]"
                   spellCheck={false}
                 />
               )}

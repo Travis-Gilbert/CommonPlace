@@ -338,7 +338,7 @@ export function ModelPickerModal(props: ModelPickerModalProps) {
             <input
               ref={searchInputRef}
               type="text"
-              className="h-10 w-full rounded-xl border border-dls-border bg-dls-surface pl-9 pr-3 text-sm text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[rgba(var(--dls-accent-rgb),0.2)]"
+              className="h-10 w-full rounded-xl border border-dls-border bg-dls-surface pl-9 pr-3 text-sm text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--ij-accent)_20%,transparent)]"
               placeholder={t("models.search_placeholder")}
               value={props.query}
               onChange={(e) => props.setQuery(e.target.value)}
@@ -371,7 +371,7 @@ export function ModelPickerModal(props: ModelPickerModalProps) {
           ) : null}
 
           {showOpenWorkModelsPromo ? (
-            <div className="mb-3 flex shrink-0 items-center overflow-hidden rounded-2xl border border-blue-6/60 bg-blue-2/60 shadow-[0_12px_30px_-20px_rgba(var(--dls-accent-rgb),0.45)]">
+            <div className="mb-3 flex shrink-0 items-center overflow-hidden rounded-2xl border border-blue-6/60 bg-blue-2/60 shadow-[0_12px_30px_-20px_color-mix(in_oklab,var(--ij-accent)_45%,transparent)]">
               <button
                 type="button"
                 className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-3/70"
