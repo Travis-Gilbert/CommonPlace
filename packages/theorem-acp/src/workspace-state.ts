@@ -28,6 +28,11 @@ export interface WorkspaceReadiness {
   capabilities: ReadinessCapability[];
 }
 
+export interface WorkspaceDegradation {
+  degraded: boolean;
+  missingIndexes: string[];
+}
+
 export interface FileRevision {
   generation: number;
   hash: string;
@@ -227,6 +232,23 @@ export function readinessIsBuilding(readiness: WorkspaceReadiness | null): boole
   return readiness.capabilities.some(
     (item) => item.state.toLowerCase() !== 'ready' || item.missing.length > 0,
   );
+}
+
+export function workspaceDegradationOf(
+  readiness: WorkspaceReadiness,
+): WorkspaceDegradation {
+  const missingIndexes = readiness.capabilities.flatMap((capability) => (
+    capability.missing.length > 0
+      ? capability.missing
+      : capability.state.toLowerCase() === 'ready'
+        ? []
+        : [capability.capability]
+  ));
+  const uniqueMissingIndexes = [...new Set(missingIndexes)];
+  return {
+    degraded: uniqueMissingIndexes.length > 0,
+    missingIndexes: uniqueMissingIndexes,
+  };
 }
 
 async function graphql<T>(

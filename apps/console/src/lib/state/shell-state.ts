@@ -5,6 +5,7 @@
 
 import { atom, getDefaultStore } from 'jotai';
 import type { ObjectRef } from '@commonplace/block-view/types';
+import type { WorkspaceDegradation } from '@commonplace/theorem-acp/workspace-state';
 import { addressOf } from '../object-address';
 import { createAtomStoreFacade } from './store-facade';
 
@@ -80,6 +81,9 @@ export interface ShellState {
   /** Indeterminate progress label; null hides the bar. */
   progressLabel: string | null;
   setProgress(label: string | null): void;
+  /** Latest workspace-index degradation reported by readiness or scatter. */
+  workspaceDegradation: WorkspaceDegradation | null;
+  setWorkspaceDegradation(degradation: WorkspaceDegradation | null): void;
   /** Tenant identity shown in the status bar. Slug casing is load-bearing. */
   tenant: string;
   /** The action sheet (K3): one sheet, three entries, identical everywhere. */
@@ -99,6 +103,7 @@ export const selectedTypeHintAtom = atom<string | null>(null);
 export const connectionAtom = atom<ConnectionState>('disconnected');
 export const presenceCountAtom = atom<number | null>(null);
 export const progressLabelAtom = atom<string | null>(null);
+export const workspaceDegradationAtom = atom<WorkspaceDegradation | null>(null);
 export const tenantAtom = atom('Travis-Gilbert');
 export const actionSheetOriginAtom = atom<ActionSheetOrigin | null>(null);
 
@@ -114,6 +119,7 @@ const shellSliceAtoms = {
   connection: connectionAtom,
   presenceCount: presenceCountAtom,
   progressLabel: progressLabelAtom,
+  workspaceDegradation: workspaceDegradationAtom,
   tenant: tenantAtom,
   actionSheetOrigin: actionSheetOriginAtom,
 };
@@ -128,6 +134,7 @@ type ShellActions = Pick<
   | 'setConnection'
   | 'setPresence'
   | 'setProgress'
+  | 'setWorkspaceDegradation'
   | 'openActionSheet'
   | 'closeActionSheet'
 >;
@@ -153,6 +160,8 @@ const shellActions: ShellActions = {
   setConnection: (state) => shellStore.set(connectionAtom, state),
   setPresence: (count) => shellStore.set(presenceCountAtom, count),
   setProgress: (label) => shellStore.set(progressLabelAtom, label),
+  setWorkspaceDegradation: (degradation) =>
+    shellStore.set(workspaceDegradationAtom, degradation),
   openActionSheet: (origin) => shellStore.set(actionSheetOriginAtom, origin),
   closeActionSheet: () => shellStore.set(actionSheetOriginAtom, null),
 };
