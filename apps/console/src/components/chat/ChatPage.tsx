@@ -241,13 +241,25 @@ export function ChatPage({
   const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
   const attachments = useChatAttachments();
 
+  // connectionFor collapses the wire outcome into a ConnectionState, which is
+  // right for the status bar and useless for a degraded state: it discards the
+  // status code and the host. Keep the raw outcome so the banner can name what
+  // actually happened. setState identities are stable, so this does not
+  // re-create the host.
+  const [lastTransport, setLastTransport] = useState<{
+    status: number | null;
+    origin?: { door?: string; host?: string };
+  } | null>(null);
+
   const host = useMemo(
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
             proactivityTenant: tenant ?? null,
-            onTransport: (status, error) =>
-              useShellStore.getState().setConnection(connectionFor(status, error)),
+            onTransport: (status, error, origin) => {
+              setLastTransport({ status, origin });
+              useShellStore.getState().setConnection(connectionFor(status, error));
+            },
           })
         : null,
     [mounted, tenant],
@@ -393,6 +405,26 @@ export function ChatPage({
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;
   }
 
+  // A null status means the request never landed, which describeOrigin reports
+  // differently from any answered status. Passing the observed origin is what
+  // turns "The data API is unreachable." into a sentence that also says which
+  // door, which host, and what came back.
+  const transportOrigin = lastTransport
+    ? {
+        door: lastTransport.origin?.door,
+        host: lastTransport.origin?.host,
+        status: lastTransport.status ?? undefined,
+      }
+    : undefined;
+
+  // Only the disconnected branch may carry that evidence. `connection` is
+  // derived from onTransport, so the last transport outcome is genuinely its
+  // outcome. `loadError` is not: it comes from the chat catalog and thread
+  // fetches, which are different requests. A healthy /api/objects/views probe
+  // followed by a 502 from /api/chat/projects would otherwise render a banner
+  // claiming the data API answered 200. Evidence about the wrong request is
+  // worse than no evidence, which is the failure this whole change exists to
+  // stop.
   const degradation = loadError
     ? degradationFor(
         loadError === 'workspace_object_scope_unenforced'
@@ -400,7 +432,7 @@ export function ChatPage({
           : 'console_data_api_unreachable',
       )
     : connection === 'disconnected'
-      ? degradationFor('console_data_api_unreachable')
+      ? degradationFor('console_data_api_unreachable', transportOrigin)
       : null;
 
   return (
@@ -431,11 +463,18 @@ export function ChatPage({
                     className="border-r border-ij-seam p-3 text-ij-ink-info"
                     style={{ width: 'var(--ij-chat-sidebar-w)' }}
                   >
-                    {needsSignIn
-                      ? 'Sign in with GitHub to connect the harness.'
-                      : degradation
-                        ? degradation.cause
-                        : 'Loading projects…'}
+                    {needsSignIn ? (
+                      'Sign in with GitHub to connect the harness.'
+                    ) : degradation ? (
+                      <>
+                        <p>{degradation.cause}</p>
+                        {degradation.detail ? (
+                          <p className="mt-1 text-ij-ink-disabled">{degradation.detail}</p>
+                        ) : null}
+                      </>
+                    ) : (
+                      'Loading projects…'
+                    )}
                   </aside>
                 )}
 
@@ -457,8 +496,14 @@ export function ChatPage({
                     </div>
                   ) : null}
                   {!needsSignIn && degradation && !thread ? (
-                    <div className="flex flex-1 items-center justify-center text-ij-ink-info" role="status">
-                      {degradation.cause}
+                    <div
+                      className="flex flex-1 flex-col items-center justify-center gap-1 text-center text-ij-ink-info"
+                      role="status"
+                    >
+                      <p>{degradation.cause}</p>
+                      {degradation.detail ? (
+                        <p className="text-ij-ink-disabled">{degradation.detail}</p>
+                      ) : null}
                     </div>
                   ) : null}
                   {!needsSignIn && thread ? (
