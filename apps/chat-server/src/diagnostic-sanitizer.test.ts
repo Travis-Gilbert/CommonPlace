@@ -39,7 +39,14 @@ describe("credential keys the exact-match rule missed", () => {
         headers: { Authorization: "Bearer live", "x-theorem-tenant": "Travis-Gilbert" },
         environment: { WEIRDLY_NAMED_CREDENTIAL: "live", ALSO_SECRET: "live" },
       },
-    }) as { theorem: Record<string, Record<string, unknown>> };
+    }) as {
+      theorem: {
+        type: unknown;
+        url: unknown;
+        headers: Record<string, unknown>;
+        environment: Record<string, unknown>;
+      };
+    };
 
     expect(sanitized.theorem.headers).toEqual({
       Authorization: REDACTED,

@@ -4,6 +4,7 @@ import { dirname, resolve, sep } from "node:path";
 import { ApiError } from "../errors.js";
 import type { EnvService } from "../env-file.js";
 import { externalFetch } from "../server-fetch.js";
+import { resolveSafeChildPath } from "../workspace-paths.js";
 import type { ServerConfig, WorkspaceInfo } from "../types.js";
 
 export const OPENAI_IMAGE_GENERATION_EXTENSION_ID = "openai-image-generation";
@@ -99,15 +100,6 @@ function workspaceForContext(config: ServerConfig, context: Record<string, unkno
   return { ...workspace, path: resolve(workspace.path) };
 }
 
-function resolveSafeChildPath(root: string, child: string): string {
-  const rootResolved = resolve(root);
-  const candidate = resolve(rootResolved, child);
-  if (candidate === rootResolved || !candidate.startsWith(`${rootResolved}${sep}`)) {
-    throw new ApiError(400, "invalid_path", "Path traversal is not allowed");
-  }
-  return candidate;
-}
-
 async function fetchOpenAiImage(input: { apiKey: string; prompt: string }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), OPENAI_IMAGE_API_TIMEOUT_MS);
@@ -164,7 +156,7 @@ async function generateOpenAiImageArtifact(config: ServerConfig, env: EnvService
   const workspace = workspaceForContext(config, context);
   const fileName = `${slugifyImageArtifactName(readStringField(args, "filename") || prompt)}.png`;
   const relativePath = `artifacts/${fileName}`;
-  const outputPath = resolveSafeChildPath(workspace.path, relativePath);
+  const outputPath = await resolveSafeChildPath(workspace.path, relativePath);
   const payload = await fetchOpenAiImage({ apiKey, prompt });
   const bytes = imageDataFromPayload(payload);
 

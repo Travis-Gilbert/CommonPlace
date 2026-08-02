@@ -484,6 +484,9 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
   });
 
   addRoute(routes, "POST", "/experimental/google-workspace/active-account", "client", async (ctx) => {
+    // Rewrites the account vault, so it is a write — same omission the
+    // disconnect route had.
+    ensureWritable(config);
     if (ctx.actor?.scope === "viewer") throw new ApiError(403, "forbidden", "Viewer tokens cannot update Google Workspace settings");
     const body = await readJsonBody(ctx.request);
     const accountId = typeof body.accountId === "string" && body.accountId.trim() ? body.accountId.trim() : "";

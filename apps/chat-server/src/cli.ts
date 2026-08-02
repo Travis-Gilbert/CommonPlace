@@ -1,5 +1,10 @@
 #!/usr/bin/env bun
 
+// SOURCING: none — vendored upstream entrypoint (provenance pinned in
+// apps/chat/UPSTREAM.md). The fork's additions are startup ordering and
+// operator diagnostics over this daemon's own config shape: pure logic against
+// local types, with no upstream component that models it.
+
 import { mkdir } from "node:fs/promises";
 
 import { parseCliArgs, printHelp, resolveServerConfig } from "./config.js";
@@ -107,11 +112,39 @@ if (!config.opencodeBaseUrl && process.env.OPENWORK_MANAGE_OPENCODE === "1") {
 const server = await startServer(config);
 const workerActivityHeartbeat = startWorkerActivityHeartbeat(config, logger);
 
-// The runtime config file above only covers workspaces[0]. Push every
-// workspace's runtime-DB MCPs into the engine so they aren't invisible
-// until a manual reload. Best-effort.
+// The runtime config file above only covers the workspace the managed engine
+// booted in. Push every workspace's runtime-DB MCPs into the engine so they
+// aren't invisible until a manual reload. Best-effort.
 if (managedOpencode) {
   void syncAllWorkspacesRuntimeMcpToEngine(config);
+}
+
+// OPENCODE_CONFIG is one file read by one engine process, so only the booted
+// workspace's providers, plugins, disabled providers, default agent, and
+// external-directory permissions actually reach the engine. Settings writes
+// for the other local workspaces succeed and then do nothing.
+//
+// Not repaired here on purpose: the remedies are a managed engine per
+// workspace or directory-scoped project config, and both are engine surgery
+// that SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW6 gates behind the seam audit.
+// What is repaired is the silence — an operator can see which workspaces are
+// configuration-inert instead of inferring it from behavior.
+if (managedOpencode) {
+  const managedWorkspace = findManagedEngineWorkspace(config.workspaces);
+  const inert = managedWorkspace
+    ? config.workspaces.filter(
+        (entry) => entry.id !== managedWorkspace.id && entry.workspaceType !== "remote",
+      )
+    : [];
+  if (managedWorkspace && inert.length > 0) {
+    logger.log(
+      "warn",
+      `Runtime configuration applies only to workspace ${managedWorkspace.name} (${managedWorkspace.id}). `
+        + "MCP servers are synchronized for every workspace, but providers, plugins, disabled providers, "
+        + "default agent, and external-directory permissions are ignored for: "
+        + inert.map((entry) => `${entry.name} (${entry.id})`).join(", "),
+    );
+  }
 }
 
 const url = `http://${config.host}:${server.port}`;

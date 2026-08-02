@@ -1,3 +1,7 @@
+// SOURCING: none — pure logic over WHATWG URL, which is a platform built-in.
+// Query-string assembly needs no dependency, and the OS sniffing below is
+// vendored upstream code this fork has not touched.
+
 const ENV_FEEDBACK_URL = String(import.meta.env.VITE_OPENWORK_FEEDBACK_URL ?? "").trim();
 const ENV_APP_VERSION = String(import.meta.env.VITE_OPENWORK_APP_VERSION ?? "").trim();
 
@@ -82,7 +86,40 @@ function parseClientOsContext(): ClientOsContext {
   return platform ? { platform } : {};
 }
 
-export function buildFeedbackUrl(options: FeedbackUrlOptions): string {
+/**
+ * True when this build has somewhere to send feedback.
+ *
+ * Callers check this before rendering a feedback action: OW1 removed the
+ * donor's endpoint and made the destination opt-in, so "unconfigured" is the
+ * default state of a CommonPlace build rather than an error.
+ */
+export const isFeedbackConfigured = DEFAULT_FEEDBACK_URL.length > 0;
+
+// OW1, named choice 4: every outbound destination the UI can send a user to
+// lives here, so a donor URL cannot reappear in a component without showing up
+// in this file. Upstream hardcoded three — a feedback form, a Discord invite,
+// and github.com/different-ai/openwork issues. All three pointed at the donor
+// project, which means a CommonPlace user's bug report reached maintainers who
+// cannot act on it.
+//
+// The issue tracker has a real CommonPlace home, so it is a default. The
+// community link has none, so it is opt-in and hidden when unset rather than
+// pointed somewhere plausible.
+export const ISSUE_TRACKER_URL = String(
+  import.meta.env.VITE_COMMONPLACE_ISSUES_URL ?? "https://github.com/Travis-Gilbert/CommonPlace/issues/new",
+).trim();
+
+export const COMMUNITY_URL = String(import.meta.env.VITE_COMMONPLACE_COMMUNITY_URL ?? "").trim();
+
+/**
+ * The feedback URL, or null when no destination is configured.
+ *
+ * Nullable rather than throwing. `new URL("")` raises a TypeError, so the
+ * unconfigured default turned every feedback click into an uncaught throw
+ * behind a button that still looked live.
+ */
+export function buildFeedbackUrl(options: FeedbackUrlOptions): string | null {
+  if (!isFeedbackConfigured) return null;
   const url = new URL(DEFAULT_FEEDBACK_URL);
   const osContext = parseClientOsContext();
 

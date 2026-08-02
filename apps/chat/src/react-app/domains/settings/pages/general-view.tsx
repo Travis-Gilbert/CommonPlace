@@ -22,9 +22,12 @@ import { Button } from "@/components/ui/button";
 export type GeneralSettingsViewProps = {
   onNavigateTab: (tab: SettingsTab) => void;
   developerMode: boolean;
-  onSendFeedback: () => void;
-  onJoinDiscord: () => void;
-  onReportIssue: () => void;
+  // Optional: OW1 severed the donor's feedback, community, and issue
+  // destinations, and CommonPlace equivalents are opt-in per deployment. An
+  // action with nowhere to go is hidden rather than rendered dead.
+  onSendFeedback?: () => void;
+  onJoinDiscord?: () => void;
+  onReportIssue?: () => void;
 };
 
 type SettingsCardDefinition = { tab: SettingsTab; icon: typeof Sparkles } & (
@@ -133,31 +136,37 @@ export function GeneralSettingsView(props: GeneralSettingsViewProps) {
               <div className="mt-1 max-w-[58ch] text-[11px] text-dls-secondary">{t("settings.feedback_desc")}</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={props.onSendFeedback}
-              >
-                <MessageCircle size={12} />
-                {t("settings.send_feedback")}
-                <ArrowUpRight size={11} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={props.onJoinDiscord}
-              >
-                {t("settings.join_discord")}
-                <ArrowUpRight size={11} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={props.onReportIssue}
-              >
-                {t("settings.report_issue")}
-                <ArrowUpRight size={11} />
-              </Button>
+              {props.onSendFeedback ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={props.onSendFeedback}
+                >
+                  <MessageCircle size={12} />
+                  {t("settings.send_feedback")}
+                  <ArrowUpRight size={11} />
+                </Button>
+              ) : null}
+              {props.onJoinDiscord ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={props.onJoinDiscord}
+                >
+                  {t("settings.join_discord")}
+                  <ArrowUpRight size={11} />
+                </Button>
+              ) : null}
+              {props.onReportIssue ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={props.onReportIssue}
+                >
+                  {t("settings.report_issue")}
+                  <ArrowUpRight size={11} />
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

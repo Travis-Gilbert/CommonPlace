@@ -1812,7 +1812,15 @@ function createRoutes(
       await readRuntimeOpencodeConfig(config, workspace.id),
     );
     const lastAudit = await readLastAudit(workspace.path, workspace.id);
-    return jsonResponse({ opencode, openwork, updatedAt: lastAudit?.timestamp ?? null });
+    // The merged config carries provider credentials and MCP Authorization
+    // headers. The raw-config route requires collaborator for exactly that
+    // reason, and this one is reached by the same viewer tokens. Redacted
+    // rather than gated, because the shell reads this route to render for
+    // every scope — a 403 here would blank the workspace for viewers, while a
+    // redacted value still says which providers and MCPs are configured.
+    const visibleOpencode =
+      ctx.actor?.scope === "viewer" ? sanitizeDiagnosticValue(opencode) : opencode;
+    return jsonResponse({ opencode: visibleOpencode, openwork, updatedAt: lastAudit?.timestamp ?? null });
   });
 
   addRoute(routes, "GET", "/workspace/:id/desktop-cloud-sync", "client", async (ctx) => {
@@ -2963,6 +2971,13 @@ function createRoutes(
   addRoute(routes, "GET", "/workspace/:id/export", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const sensitiveMode = parseWorkspaceExportSensitiveMode(ctx.url.searchParams.get("sensitive"));
+    // "include" turns off the exclusion sanitizer and returns secret-bearing
+    // MCP, provider, and portable-file config. Any client scope could select
+    // it, so the warning attached to "auto" was the only thing standing
+    // between a read-only token and a credential dump.
+    if (sensitiveMode === "include") {
+      requireClientScope(ctx, "collaborator");
+    }
     const exportPayload = await exportWorkspace(config, workspace, { sensitiveMode });
     return jsonResponse(exportPayload);
   });

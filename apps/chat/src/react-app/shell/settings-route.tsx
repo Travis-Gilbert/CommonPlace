@@ -172,7 +172,7 @@ import { useReloadCoordinator } from "./reload-coordinator";
 import { CommandPalette } from "./command-palette";
 import { buildCommandPaletteSessions } from "./command-palette-sessions";
 import { useCommandPaletteShortcut } from "./use-shell-shortcuts";
-import { buildFeedbackUrl } from "@/app/lib/feedback";
+import { buildFeedbackUrl, COMMUNITY_URL, isFeedbackConfigured, ISSUE_TRACKER_URL } from "@/app/lib/feedback";
 import { getDenInferenceUrl, type DenSettings } from "@/app/lib/den";
 import { readActiveWorkspaceId, writeActiveWorkspaceId } from "./session-memory";
 import {
@@ -2239,9 +2239,16 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
           <GeneralSettingsView
             onNavigateTab={(tab) => navigateSettingsPath(tab)}
             developerMode={developerMode}
-            onSendFeedback={() => platform.openLink(buildFeedbackUrl({ entrypoint: "settings" }))}
-            onJoinDiscord={() => platform.openLink("https://discord.gg/VEhNQXxYMB")}
-            onReportIssue={() => platform.openLink("https://github.com/different-ai/openwork/issues/new?template=bug.yml")}
+            onSendFeedback={
+              isFeedbackConfigured
+                ? () => {
+                    const url = buildFeedbackUrl({ entrypoint: "settings" });
+                    if (url) platform.openLink(url);
+                  }
+                : undefined
+            }
+            onJoinDiscord={COMMUNITY_URL ? () => platform.openLink(COMMUNITY_URL) : undefined}
+            onReportIssue={ISSUE_TRACKER_URL ? () => platform.openLink(ISSUE_TRACKER_URL) : undefined}
           />
         );
       case "permissions":

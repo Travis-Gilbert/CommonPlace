@@ -60,7 +60,7 @@ import type {
   WorkspaceDisplay,
   WorkspaceSessionGroup,
 } from "@/app/types";
-import { buildFeedbackUrl } from "@/app/lib/feedback";
+import { buildFeedbackUrl, isFeedbackConfigured } from "@/app/lib/feedback";
 import {
   getWorkspaceTaskLoadErrorDisplay,
   isDesktopRuntime,
@@ -2385,13 +2385,14 @@ export function SessionRoute() {
       hasUsableModel={hasUsableModel}
       providers={providers}
       mcpConnectedCount={mcpConnectedCount}
-      onSendFeedback={() => {
-        platform.openLink(
-          buildFeedbackUrl({
-            entrypoint: "status-bar",
-          }),
-        );
-      }}
+      onSendFeedback={
+        isFeedbackConfigured
+          ? () => {
+              const url = buildFeedbackUrl({ entrypoint: "status-bar" });
+              if (url) platform.openLink(url);
+            }
+          : undefined
+      }
       onOpenSettings={() => handleOpenSettings("/settings/general")}
       onOpenExtensions={() => handleOpenExtensions()}
       onOpenProviderAuth={handleOpenProviderAuth}

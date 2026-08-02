@@ -188,7 +188,9 @@ export type SessionPageProps = {
   hasUsableModel?: boolean;
   providers?: ProviderListItem[];
   mcpConnectedCount: number;
-  onSendFeedback: () => void;
+  // Absent when no feedback destination is configured; the status menu
+  // already hides the action in that case.
+  onSendFeedback?: () => void;
   onOpenSettings: () => void;
   onOpenExtensions: () => void;
   sidebar: SessionPageSidebarProps;
