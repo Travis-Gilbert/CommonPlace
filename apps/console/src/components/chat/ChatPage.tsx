@@ -257,8 +257,9 @@ export function ChatPage({
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
             proactivityTenant: tenant ?? null,
             onTransport: (status, error, origin) => {
-              setLastTransport({ status, origin });
-              useShellStore.getState().setConnection(connectionFor(status, error));
+              const nextConnection = connectionFor(status, error);
+              setLastTransport(nextConnection === 'disconnected' ? { status, origin } : null);
+              useShellStore.getState().setConnection(nextConnection);
             },
           })
         : null,
