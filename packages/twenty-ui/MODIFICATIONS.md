@@ -161,6 +161,19 @@ deferral:
 
 None of these is a hand-rolled component; all three are existing ledger rows.
 
+### The Monaco subpath
+
+Upstream exports `CodeEditor` from `input/index.ts`, beside `Checkbox`, `Button`,
+and every other control. That barrel is what a console imports to get a
+checkbox, so shipping Monaco through it puts `@monaco-editor/react` and
+`monaco-editor` in the module graph of every route that uses any input. A
+dynamic import at the call site cannot undo that; the bundler has already walked
+the barrel.
+
+The fork publishes them at `twenty-ui/code-editor` instead
+(`src/code-editor/index.ts`). TU7's "banned from initial route bundles" is a
+package boundary now, not a convention a future import can quietly break.
+
 ## Behavioral changes
 
 - Components are consumed from `dist`. The console adds `twenty-ui` as a

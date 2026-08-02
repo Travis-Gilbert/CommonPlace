@@ -1,5 +1,8 @@
 'use client';
 
+// The Monaco surface moved to the 'twenty-ui/code-editor' subpath so importing
+// a Checkbox from here does not pull monaco-editor into a route's graph (TU7).
+
 /*
  * _____                    _
  *|_   _|_      _____ _ __ | |_ _   _
@@ -33,11 +36,6 @@ export {
   CheckboxAccent,
   Checkbox,
 } from './Checkbox/Checkbox';
-export { CodeEditor } from './CodeEditor/CodeEditor';
-export { BASE_CODE_EDITOR_THEME_ID } from './CodeEditor/constants/BaseCodeEditorThemeId';
-export { getBaseCodeEditorTheme } from './CodeEditor/utils/getBaseCodeEditorTheme';
-export type { CoreEditorHeaderProps } from './CodeEditorHeader/CodeEditorHeader';
-export { CoreEditorHeader } from './CodeEditorHeader/CodeEditorHeader';
 export { ColorPickerButton } from './ColorPickerButton/ColorPickerButton';
 export type {
   ColorSchemeSegmentProps,

@@ -1,36 +1,36 @@
 'use client';
 
-// SOURCING: twenty-ui `CodeEditor` (packages/twenty-ui/src/input/CodeEditor,
-// hard fork) over @monaco-editor/react.
+// SOURCING: twenty-ui `CodeEditor` (packages/twenty-ui, hard fork) over
+// @monaco-editor/react, behind next/dynamic.
 // SPEC-COMMONPLACE-TWENTY-UI-FORK-1.0 TU7, named choice 5.
 //
 // The console's inline code component, and the only door to Monaco in this app.
-// Two rules it exists to enforce:
+// Import this module; never `twenty-ui/input`'s CodeEditor directly.
 //
-//   1. Monaco is never in an initial route bundle. `next/dynamic` with
-//      `ssr: false` puts the editor, @monaco-editor/react, and the monaco-editor
-//      core in a chunk that only loads when a code surface actually mounts.
-//      Import this module, never 'twenty-ui/input' CodeEditor directly.
-//   2. The Monaco theme comes from the same token generator as everything else.
-//      `getBaseCodeEditorTheme` reads the theme object, whose values are
-//      register references, and resolves them against this element (TU2/TU7).
+// This file deliberately imports nothing from `twenty-ui/input`. The editor,
+// its theme helpers, and Monaco all live in ./inline-code-editor-impl, reached
+// only through the `dynamic()` factory below. A static import here would put
+// the barrel back in every consuming route's compile graph, which is not a
+// theoretical cost: it took /records from 3s to 37s in `next dev` and tripped
+// the memory-threshold restart that timed out CI's Playwright warm-up.
 //
 // CodeMirror 6 remains the console's document-grade code surface per the
 // library ledger. This is the inline component: short snippets, tool payloads,
-// and the read-mostly code an object carries.
+// and the structured code an object carries.
 
 import dynamic from 'next/dynamic';
-import { useCallback, useRef } from 'react';
 import type { editor } from 'monaco-editor';
-import {
-  BASE_CODE_EDITOR_THEME_ID,
-  getBaseCodeEditorTheme,
-} from 'twenty-ui/input';
-import { useTheme } from 'twenty-ui/theme-constants';
-import { useAppearance } from '@/lib/appearance-store';
 
-const CodeEditor = dynamic(
-  () => import('twenty-ui/input').then((module) => module.CodeEditor),
+export interface InlineCodeEditorProps {
+  readonly value: string;
+  readonly language?: string;
+  readonly height?: number | string;
+  readonly onChange?: (value: string) => void;
+  readonly options?: editor.IStandaloneEditorConstructionOptions;
+}
+
+export const InlineCodeEditor = dynamic<InlineCodeEditorProps>(
+  () => import('@/components/inline-code-editor-impl'),
   {
     ssr: false,
     loading: () => (
@@ -42,50 +42,3 @@ const CodeEditor = dynamic(
     ),
   },
 );
-
-export interface InlineCodeEditorProps {
-  readonly value: string;
-  readonly language?: string;
-  readonly height?: number | string;
-  readonly onChange?: (value: string) => void;
-  readonly options?: editor.IStandaloneEditorConstructionOptions;
-}
-
-export function InlineCodeEditor({
-  value,
-  language = 'json',
-  height,
-  onChange,
-  options,
-}: InlineCodeEditorProps) {
-  const theme = useTheme();
-  const { resolvedMode } = useAppearance();
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // Monaco takes literal colors. The theme object holds register references, so
-  // the theme is registered at mount against this element, which is inside the
-  // register scope and therefore resolves light and dark correctly.
-  const onMount = useCallback(
-    (_editor: editor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => {
-      monaco.editor.defineTheme(
-        BASE_CODE_EDITOR_THEME_ID,
-        getBaseCodeEditorTheme(theme, resolvedMode, containerRef.current),
-      );
-      monaco.editor.setTheme(BASE_CODE_EDITOR_THEME_ID);
-    },
-    [resolvedMode, theme],
-  );
-
-  return (
-    <div ref={containerRef} data-inline-code-editor>
-      <CodeEditor
-        value={value}
-        language={language}
-        height={height}
-        onChange={onChange}
-        onMount={onMount}
-        options={options}
-      />
-    </div>
-  );
-}

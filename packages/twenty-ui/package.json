@@ -87,6 +87,11 @@
       "import": "./dist/assets.mjs",
       "require": "./dist/assets.cjs"
     },
+    "./code-editor": {
+      "types": "./dist/code-editor/index.d.ts",
+      "import": "./dist/code-editor.mjs",
+      "require": "./dist/code-editor.cjs"
+    },
     "./data-display": {
       "types": "./dist/data-display/index.d.ts",
       "import": "./dist/data-display.mjs",
@@ -207,6 +212,9 @@
       ],
       "utilities": [
         "dist/utilities/index.d.ts"
+      ],
+      "code-editor": [
+        "dist/code-editor/index.d.ts"
       ]
     }
   }
