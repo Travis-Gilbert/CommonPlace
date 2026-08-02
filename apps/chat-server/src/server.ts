@@ -1062,6 +1062,28 @@ function buildOpencodeProxyUrl(baseUrl: string, path: string, search: string) {
   return target.toString();
 }
 
+/**
+ * True when `candidate` is the directory itself or lives beneath it.
+ *
+ * resolve() collapses ".." before comparison, and the separator on the prefix
+ * check stops "/workspace/repo-other" matching "/workspace/repo". This does
+ * not resolve symlinks: a link inside the workspace pointing outside it still
+ * escapes, which is the same limitation the file routes carry and is tracked
+ * separately rather than half-solved here.
+ */
+export function isWithinDirectory(candidate: string, root: string): boolean {
+  let decoded = candidate;
+  try {
+    decoded = decodeURIComponent(candidate);
+  } catch {
+    // Not percent-encoded; compare the raw value.
+  }
+  const resolvedCandidate = resolve(decoded);
+  const resolvedRoot = resolve(root);
+  if (resolvedCandidate === resolvedRoot) return true;
+  return resolvedCandidate.startsWith(resolvedRoot + sep);
+}
+
 function buildOpencodeDirectoryHeader(directory: string) {
   return /[^\x00-\x7F]/.test(directory) ? encodeURIComponent(directory) : directory;
 }
@@ -1138,9 +1160,28 @@ async function proxyOpencodeRequest(input: {
   headers.delete("host");
   headers.delete("origin");
 
+  // Hop-by-hop headers do not survive a rebuilt request. The body is buffered
+  // below and handed to fetch, which rejects a caller-supplied
+  // transfer-encoding outright, so a chunked upload would 500 before reaching
+  // the engine.
+  for (const hop of ["transfer-encoding", "connection", "keep-alive", "upgrade", "te", "trailer", "proxy-authorization", "proxy-authenticate"]) {
+    headers.delete(hop);
+  }
+
+  // The engine treats x-opencode-directory as its working directory, so a
+  // caller-supplied value is a workspace escape: a header of /etc points the
+  // engine outside the authorized root. Upstream kept the caller's value when
+  // present. The resolved workspace directory now always wins unless the
+  // caller's value is canonically inside it, which preserves the legitimate
+  // case of naming a subdirectory of the workspace.
   const directory = workspace ? resolveOpencodeDirectory(workspace) : null;
-  if (directory && !headers.has("x-opencode-directory")) {
-    headers.set("x-opencode-directory", buildOpencodeDirectoryHeader(directory));
+  if (directory) {
+    const requested = headers.get("x-opencode-directory");
+    headers.set("x-opencode-directory", buildOpencodeDirectoryHeader(
+      requested && isWithinDirectory(requested, directory) ? requested : directory,
+    ));
+  } else {
+    headers.delete("x-opencode-directory");
   }
 
   const auth = workspace ? resolveWorkspaceOpencodeConnection(input.config, workspace).authHeader ?? null : null;
@@ -1260,6 +1301,18 @@ function consoleSessionActor(request: Request, config: ServerConfig): Actor | nu
     type: "console",
     scope: "owner",
     subject: claims.subject,
+    // File sessions bind to actor.tokenHash and refuse a request whose hash
+    // does not match the one that opened them (routes/files.ts). A console
+    // actor holds no bearer token, so it stored an empty hash and was then
+    // refused by its own session on every renew, read, write, and close.
+    //
+    // The identity is derived rather than absent: subject, tenant, and
+    // workspace are exactly what the console signed, so the value is stable
+    // across requests within a session and distinct between subjects. The
+    // "console:" prefix keeps it from colliding with a real token hash.
+    tokenHash: hashToken(
+      `console:${claims.subject}:${claims.tenant}:${claims.workspaceId}`,
+    ),
     workspaceId: claims.workspaceId,
     tenant: claims.tenant,
     workspaceSlug: claims.workspaceSlug,

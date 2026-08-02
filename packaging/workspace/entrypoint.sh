@@ -41,6 +41,19 @@ if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
     echo "workspace: cloning ${redacted_url} into ${WORKSPACE_DIR}"
     git clone --depth "${WORKSPACE_CLONE_DEPTH:-1}" "${WORKSPACE_REPO_URL}" "${WORKSPACE_DIR}"
     git -C "${WORKSPACE_DIR}" remote set-url origin "${redacted_url}"
+
+    # Sanitizing the remote alone would leave the checkout able to clone once
+    # and never fetch again: git does not read WORKSPACE_REPO_URL, and this
+    # image configures no credential helper. Supply the credential through a
+    # helper that reads the environment at call time, so it is never written
+    # to the volume while fetch, pull, and push keep working.
+    #
+    # The helper is per-repository rather than global, and the variable stays
+    # in the daemon's environment where WORKSPACE_TOKEN already lives.
+    if printf '%s' "${WORKSPACE_REPO_URL}" | grep -qE '://[^/@]+@'; then
+      git -C "${WORKSPACE_DIR}" config credential.helper \
+        '!f() { printf "%s\n" "url=${WORKSPACE_REPO_URL}"; }; f'
+    fi
   else
     echo "workspace: initializing an empty repository at ${WORKSPACE_DIR}"
     git init --quiet "${WORKSPACE_DIR}"
