@@ -146,6 +146,16 @@ pids+=($!)
 # door failure and Railway's ON_FAILURE policy would never restart it.
 status=0
 wait -n || status=$?
+
+# A door exiting at all is a failure, including a clean one. Leaving status at
+# 0 for an exit(0) meant the supervisor reported success and Railway's
+# ON_FAILURE policy left the workspace offline with neither door running. The
+# only correct exit status here is nonzero: this line is reached solely because
+# something that should have run forever stopped.
+if [ "${status}" -eq 0 ]; then
+  echo "workspace: a door exited cleanly, which is still a stopped workspace" >&2
+  status=70
+fi
 echo "workspace: a door exited with ${status}; stopping the other" >&2
 shutdown
 exit "${status}"

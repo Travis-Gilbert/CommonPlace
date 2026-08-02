@@ -12,7 +12,7 @@
  * runtime-DB write — unlike the previous OPENCODE_CONFIG_CONTENT env var,
  * which was frozen at spawn and reverted MCP state on each dispose.
  */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -182,10 +182,21 @@ export async function writeOpenworkRuntimeConfigFile(
   const job = async () => {
     const content = await buildOpenworkRuntimeConfig(config, workspaceId);
     const current = await readFile(path, "utf8").catch(() => undefined);
-    if (current === content) return { path, changed: false };
+    if (current === content) {
+      // Re-assert the mode even when the content is unchanged: a file written
+      // by an older build, or restored from a backup, would otherwise keep
+      // permissive bits forever.
+      await chmod(path, 0o600).catch(() => undefined);
+      return { path, changed: false };
+    }
     await mkdir(runtimeStorageDir(config), { recursive: true });
     const tmp = `${path}.${randomUUID()}.tmp`;
-    await writeFile(tmp, content, "utf8");
+    // OW2 injects the Theorem MCP with an Authorization header, and the
+    // runtime config can carry provider credentials besides, so this file
+    // holds secrets. Written with the process umask it lands 0644 under a
+    // typical 0022, readable by every local user. The mode is set at creation
+    // rather than after rename so the secret is never briefly world-readable.
+    await writeFile(tmp, content, { encoding: "utf8", mode: 0o600 });
     await rename(tmp, path);
     return { path, changed: true };
   };
