@@ -373,6 +373,115 @@ describe("workspace lifecycle registry", () => {
     expect(authorizedRootsFromConfig(persisted)).toEqual([]);
   });
 
+  // The local id for a remote OpenWork workspace is `rem_<remoteWorkspaceId>`,
+  // and it has to stay that way: four call sites recover the upstream id by
+  // slicing the prefix back off. That makes the id blind to the host, so two
+  // hosts that both name a workspace "ws_remote" collide. The list was rebuilt
+  // by filtering out the matching id, so registering the second reported
+  // success and deleted the first.
+  test("refuses a remote whose id is already registered from a different host", async () => {
+    const workspaceRoot = await createWorkspaceRoot();
+    const configPath = join(workspaceRoot, "server.json");
+    await writeFile(configPath, `${JSON.stringify({ workspaces: [], authorizedRoots: [] }, null, 2)}\n`, "utf8");
+    const first = startMockRemoteOpenwork();
+    const second = startMockRemoteOpenwork();
+    const openwork = await startOpenworkServerWithWorkspaces({
+      configPath,
+      workspaces: [],
+      authorizedRoots: [],
+    });
+
+    const base = `http://127.0.0.1:${openwork.server.port}`;
+    const register = (port: number) =>
+      fetch(`${base}/workspaces/remote`, {
+        method: "POST",
+        headers: { ...hostAuth(openwork.hostToken), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: `http://127.0.0.1:${port}`,
+          openworkHostUrl: `http://127.0.0.1:${port}`,
+          openworkToken: "remote_token",
+          directory: "/remote/project",
+          remoteType: "openwork",
+        }),
+      });
+
+    expect((await register(first.server.port)).status).toBe(201);
+
+    const conflict = await register(second.server.port);
+    expect(conflict.status).toBe(409);
+    expect((await conflict.json()).code).toBe("workspace_id_conflict");
+
+    // The first host's record survives, which is the whole point.
+    const workspaces = workspacesFromConfig(await readPersistedConfig(configPath));
+    expect(workspaces).toHaveLength(1);
+    expect(workspaces[0]?.openworkHostUrl).toBe(`http://127.0.0.1:${first.server.port}`);
+  });
+
+  // Re-registering the same host must still refresh in place rather than 409.
+  test("re-registering the same remote host refreshes the existing record", async () => {
+    const workspaceRoot = await createWorkspaceRoot();
+    const configPath = join(workspaceRoot, "server.json");
+    await writeFile(configPath, `${JSON.stringify({ workspaces: [], authorizedRoots: [] }, null, 2)}\n`, "utf8");
+    const remote = startMockRemoteOpenwork();
+    const openwork = await startOpenworkServerWithWorkspaces({
+      configPath,
+      workspaces: [],
+      authorizedRoots: [],
+    });
+
+    const base = `http://127.0.0.1:${openwork.server.port}`;
+    const register = (displayName: string) =>
+      fetch(`${base}/workspaces/remote`, {
+        method: "POST",
+        headers: { ...hostAuth(openwork.hostToken), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: `http://127.0.0.1:${remote.server.port}`,
+          openworkHostUrl: `http://127.0.0.1:${remote.server.port}`,
+          openworkToken: "remote_token",
+          directory: "/remote/project",
+          remoteType: "openwork",
+          displayName,
+        }),
+      });
+
+    expect((await register("First")).status).toBe(201);
+    expect((await register("Second")).status).toBe(201);
+
+    const workspaces = workspacesFromConfig(await readPersistedConfig(configPath));
+    expect(workspaces).toHaveLength(1);
+    expect(workspaces[0]?.displayName).toBe("Second");
+  });
+
+  test("rejects OpenWork remote creation carrying only a host token", async () => {
+    const workspaceRoot = await createWorkspaceRoot();
+    const configPath = join(workspaceRoot, "server.json");
+    await writeFile(configPath, `${JSON.stringify({ workspaces: [], authorizedRoots: [] }, null, 2)}\n`, "utf8");
+    const remote = startMockRemoteOpenwork();
+    const openwork = await startOpenworkServerWithWorkspaces({
+      configPath,
+      workspaces: [],
+      authorizedRoots: [],
+    });
+
+    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspaces/remote`, {
+      method: "POST",
+      headers: { ...hostAuth(openwork.hostToken), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: `http://127.0.0.1:${remote.server.port}`,
+        openworkHostUrl: `http://127.0.0.1:${remote.server.port}`,
+        openworkHostToken: "host_token_only",
+        directory: "/remote/project",
+        remoteType: "openwork",
+      }),
+    });
+
+    // Previously this returned 201 and persisted a workspace with no
+    // credential, which failed on the next call and after every restart.
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("openwork_token_required");
+    expect(workspacesFromConfig(await readPersistedConfig(configPath))).toHaveLength(0);
+  });
+
   test("renames activates and deletes remote records without authorized roots", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const configPath = join(workspaceRoot, "server.json");

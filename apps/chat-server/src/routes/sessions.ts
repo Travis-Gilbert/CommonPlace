@@ -117,6 +117,14 @@ export function registerSessionRoutes(options: RegisterSessionRoutesOptions): vo
         parts: [{ type: "text", text: input.prompt }],
       });
       if (result.error !== undefined) {
+        // The session was already created upstream. Returning 502 without
+        // removing it left an empty session behind, and since the error
+        // response carries no session id the client's only move is to retry —
+        // which creates another one. Best effort: a failed delete is not worth
+        // masking the prompt failure the caller actually needs to see.
+        await opencode.session
+          .delete({ sessionID: session.id })
+          .catch(() => undefined);
         throw new ApiError(502, "opencode_request_failed", "OpenCode request failed", {
           status: result.response.status,
           body: result.error,

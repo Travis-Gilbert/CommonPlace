@@ -1,3 +1,8 @@
+// SOURCING: none — vendored upstream route module (provenance pinned in
+// apps/chat/UPSTREAM.md). The fork's edits here are request validation and
+// identity derivation over this daemon's own workspace shape: pure logic
+// against local types, with no upstream component that models it.
+
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { recordAudit } from "../audit.js";
@@ -88,6 +93,17 @@ function stripOpenworkWorkspaceMount(input: string | null | undefined): string |
 
 function openworkRemoteWorkspaceId(hostUrl: string, workspaceId: string | null | undefined): string {
   const remoteWorkspaceId = workspaceId?.trim() || parseOpenworkWorkspaceIdFromUrl(hostUrl);
+  // `rem_<remoteWorkspaceId>` is a reversible encoding, not a label: four call
+  // sites recover the upstream id with id.slice("rem_".length) — this module's
+  // alias resolution, two in server.ts, and remoteWorkspaceId() in the chat
+  // register. Hashing the host in here (as workspaceIdForOpenwork does for the
+  // connection-level id) would make the local id one-way, and every remote
+  // call would then address a workspace the upstream host has never heard of.
+  //
+  // So the id cannot carry the host, and two hosts that both name a workspace
+  // "default" genuinely collide. That collision is handled where it does
+  // damage — the workspace-list replacement below — rather than by breaking
+  // the encoding everything else depends on.
   return remoteWorkspaceId ? `rem_${remoteWorkspaceId}` : workspaceIdForRemote(hostUrl, null);
 }
 
@@ -341,6 +357,23 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
       : rawOpenworkHostUrl;
     const openworkToken = readStringField(body, "openworkToken");
     const openworkHostToken = readStringField(body, "openworkHostToken");
+    // The host token authenticates discovery and nothing else: it is never
+    // persisted, and no later request reads it. Host-token-only creation
+    // therefore reported success and left a workspace with no credential at
+    // all, failing on the next call and on every call after a restart.
+    //
+    // Rejected rather than retained on purpose. X-OpenWork-Host-Token resolves
+    // to an owner-scope actor on the remote, while openworkToken is client
+    // scope, so persisting it would write an owner credential to disk for a
+    // workspace that only needs a client one — trading a visible failure for a
+    // silent privilege upgrade at rest.
+    if (remoteType === "openwork" && openworkHostToken && !openworkToken) {
+      throw new ApiError(
+        400,
+        "openwork_token_required",
+        "A workspace token is required. The host token can discover workspaces but is not stored, so the workspace would have no credential once created.",
+      );
+    }
     const sandboxBackend = readStringField(body, "sandboxBackend");
     const sandboxRunId = readStringField(body, "sandboxRunId");
     const sandboxContainerName = readStringField(body, "sandboxContainerName");
@@ -391,6 +424,24 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
       ...(sandboxRunId ? { sandboxRunId } : {}),
       ...(sandboxContainerName ? { sandboxContainerName } : {}),
     };
+
+    // Replacing by id is how re-adding the same remote refreshes it, and that
+    // is the intent. But two OpenWork hosts that both call a workspace
+    // "default" produce the same rem_ id (see openworkRemoteWorkspaceId), and
+    // the filter below would then drop the first host's record while
+    // reporting the second as created — a registration that silently
+    // unregisters something else. Refresh is only refresh when the record
+    // being replaced belongs to the same host.
+    const displaced = config.workspaces.find((entry) => entry.id === workspace.id);
+    const displacedHost = displaced?.openworkHostUrl ?? displaced?.baseUrl ?? "";
+    const incomingHost = workspace.openworkHostUrl ?? workspace.baseUrl ?? "";
+    if (displaced && displacedHost && incomingHost && displacedHost !== incomingHost) {
+      throw new ApiError(
+        409,
+        "workspace_id_conflict",
+        `Workspace "${openworkWorkspaceId || workspace.id}" is already registered from ${displacedHost}. Remove that workspace first, or give it a distinct id on one of the two hosts.`,
+      );
+    }
 
     config.workspaces = [workspace, ...config.workspaces.filter((entry) => entry.id !== workspace.id)];
     const persisted = await persistServerWorkspaceState(config);

@@ -14,7 +14,7 @@ import { ApprovalService } from "./approvals.js";
 import { addPlugin, listPlugins, normalizePluginSpec, removePlugin } from "./plugins.js";
 import { sanitizePortableOpencodeConfig } from "./portable-opencode.js";
 import { addMcp, listMcp, removeMcp, setMcpEnabled } from "./mcp.js";
-import { exportExtensions } from "./extensions-export.js";
+import { exportExtensions, redactMcpConfig } from "./extensions-export.js";
 import { deleteSkill, listSkills, upsertSkill } from "./skills.js";
 import { deleteCommand, listCommands, repairCommands, upsertCommand } from "./commands.js";
 import { ApiError, formatError } from "./errors.js";
@@ -1944,13 +1944,20 @@ function createRoutes(
     const ref = typeof body.ref === "string" && body.ref.trim() ? body.ref.trim() : undefined;
     const dryRun = body.dryRun === true;
 
+    // Authorize before resolving, not after. Bundle resolution walks a GitHub
+    // repository tree and downloads every skill, command, and agent file it
+    // finds; running that first meant a viewer token could spend the host's
+    // GitHub quota, bandwidth, and memory on repositories it was never
+    // permitted to install from. The dry run is a preview of an install, so it
+    // takes the install's scope.
+    requireClientScope(ctx, "collaborator");
+
     const bundle = await resolveClaudePluginBundle({ url, ref });
     if (dryRun) {
       return jsonResponse({ preview: bundle.preview });
     }
 
     ensureWritable(config);
-    requireClientScope(ctx, "collaborator");
     await requireApproval(ctx, {
       workspaceId: workspace.id,
       action: "cloud_plugins.install",
@@ -2290,6 +2297,13 @@ function createRoutes(
   });
 
   addRoute(routes, "GET", "/workspace/:id/opencode-config", "client", async (ctx) => {
+    // Raw config text, no redaction — an OpenCode config carries provider
+    // credentials and MCP Authorization headers verbatim, and ?scope=global
+    // reads the host-wide file, whose secrets belong to every workspace on the
+    // box rather than this one. The write side of the same file already
+    // requires collaborator; a read that hands the contents to a viewer token
+    // made the write gate decorative.
+    requireClientScope(ctx, "collaborator");
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const scope = normalizeOpencodeScope(ctx.url.searchParams.get("scope"));
     const configPath = resolveOpencodeConfigFilePath(scope, workspace.path);
@@ -2637,8 +2651,20 @@ function createRoutes(
   addRoute(routes, "GET", "/workspace/:id/mcp", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const items = await listMcp(config, workspace.id, workspace.path);
+    // Each item carries the MCP's raw config, headers and environment
+    // included, and this route admits viewer tokens. The export path next door
+    // redacts exactly these fields; the ordinary inventory did not, so the
+    // cheaper route leaked what the careful one protected. Same redactor, so
+    // the two cannot drift apart again.
     return jsonResponse({
-      items,
+      items: items.map((item) => {
+        const { config: redacted, redactedKeys } = redactMcpConfig(item.config ?? {});
+        return {
+          ...item,
+          config: redacted,
+          ...(redactedKeys.length ? { redactedKeys } : {}),
+        };
+      }),
       engineSync: engineMcpSyncStateInState(config, engineMcpServerState, workspace),
     });
   });

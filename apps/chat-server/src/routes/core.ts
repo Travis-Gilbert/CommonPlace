@@ -73,6 +73,43 @@ interface RegisterCoreRoutesOptions {
   };
 }
 
+// Ceilings for the unauthenticated dev-log sink. Generous for a browser
+// console batch, small enough that a hostile caller cannot make the process or
+// the disk the problem.
+const MAX_DEV_LOG_BYTES = 256 * 1024;
+const MAX_DEV_LOG_ENTRIES = 500;
+
+class PayloadTooLargeError extends Error {}
+
+/**
+ * Read a request body as text, giving up once it exceeds `limit` bytes.
+ *
+ * Deliberately not `request.text()` followed by a length check: that buffers
+ * the entire body before the check can run, which is the exact failure being
+ * prevented. Deliberately not a content-length check either — that header is
+ * caller-supplied and a chunked body need not carry one.
+ */
+async function readBoundedText(request: Request, limit: number): Promise<string> {
+  const body = request.body;
+  if (!body) return "";
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) throw new PayloadTooLargeError();
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
+  return text + decoder.decode();
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -189,13 +226,30 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
     if (!target) {
       return jsonResponse({ ok: false, reason: "dev_log_disabled" }, 404);
     }
+    // Unauthenticated by design, so it must be bounded by design too: without
+    // a cap any caller that can reach the port can stream an endless body into
+    // process memory and then onto the target filesystem. Read the stream with
+    // a running limit rather than buffering first and measuring after — a
+    // declared content-length is a claim, not a constraint.
+    let raw: string;
+    try {
+      raw = await readBoundedText(ctx.request, MAX_DEV_LOG_BYTES);
+    } catch (error) {
+      if (error instanceof PayloadTooLargeError) {
+        return jsonResponse({ ok: false, reason: "payload_too_large", limit: MAX_DEV_LOG_BYTES }, 413);
+      }
+      return jsonResponse({ ok: false, reason: "invalid_body" }, 400);
+    }
     let payload: unknown = null;
     try {
-      payload = await ctx.request.json();
+      payload = JSON.parse(raw);
     } catch {
       return jsonResponse({ ok: false, reason: "invalid_json" }, 400);
     }
     const entries = Array.isArray(payload) ? payload : [payload];
+    if (entries.length > MAX_DEV_LOG_ENTRIES) {
+      return jsonResponse({ ok: false, reason: "too_many_entries", limit: MAX_DEV_LOG_ENTRIES }, 413);
+    }
     try {
       await mkdir(dirname(target), { recursive: true });
       const lines = entries
@@ -418,6 +472,11 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
   });
 
   addRoute(routes, "POST", "/experimental/google-workspace/disconnect", "client", async (ctx) => {
+    // Disconnect revokes the Google OAuth token and rewrites the local account
+    // vault, so it is a write in every sense that matters — a read-only
+    // deployment could still lose its connected account because this route
+    // only ever checked for viewer scope.
+    ensureWritable(config);
     if (ctx.actor?.scope === "viewer") throw new ApiError(403, "forbidden", "Viewer tokens cannot disconnect Google Workspace");
     const body = await readOptionalJsonBody(ctx.request);
     const accountId = typeof body.accountId === "string" && body.accountId.trim() ? body.accountId.trim() : null;

@@ -545,6 +545,12 @@ export async function listMcpFromRuntimeSnapshot(
   // OpenCode and can supersede static project/global entries after startup.
   for (const [name, entry] of Object.entries(globalMcpMap)) {
     if (Object.prototype.hasOwnProperty.call(projectMcpMap, name)) continue;
+    // Runtime registration supersedes static config, which is why the project
+    // loop below skips runtime-shadowed names. The global loop did not, so a
+    // runtime MCP sharing a global's name produced two items under one name
+    // and every consumer that takes the first match — health checks, settings
+    // — inspected the definition that is not the live one.
+    if (Object.prototype.hasOwnProperty.call(runtimeMap, name)) continue;
     const toolDenies = diagnoseMcpToolDeniesFromConfigs({ projectConfig: config, globalConfig, name });
     items.push({
       name,
