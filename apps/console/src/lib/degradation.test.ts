@@ -119,6 +119,27 @@ describe('degradationFor origin evidence', () => {
     expect(result.detail).toContain('503');
   });
 
+  // The console's /api/chat/* routes are not the data API. ChatPage used to
+  // relabel every chat rejection as console_data_api_unreachable, so a 500
+  // from /api/chat/projects reported an outage on a service that was
+  // answering normally. A chat failure must describe the chat wire.
+  it('does not blame the data API for a chat-route failure', () => {
+    const chat = degradationFor('console_chat_wire_failed', {
+      door: '/api/chat/projects',
+      status: 500,
+    });
+    expect(chat.cause.toLowerCase()).not.toContain('data api');
+    expect(chat.cause.toLowerCase()).toContain('chat');
+    expect(chat.detail).toContain('/api/chat/projects');
+    expect(chat.detail).toContain('500');
+  });
+
+  it('names the chat wire when the caller supplies no door', () => {
+    const chat = degradationFor('console_chat_wire_failed', { status: 502 });
+    expect(chat.detail).toMatch(/chat wire/i);
+    expect(chat.detail).toContain('502');
+  });
+
   it('still keeps the wire code out of what the user sees', () => {
     const result = degradationFor('console_data_api_unreachable', {
       door: '/api/objects/views',

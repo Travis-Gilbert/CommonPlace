@@ -102,6 +102,7 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     level: 'unavailable',
     cause: 'The chat wire could not complete this turn.',
     actionLabel: 'Retry',
+    door: 'The chat wire',
   },
   web_search_unavailable: {
     level: 'reduced',

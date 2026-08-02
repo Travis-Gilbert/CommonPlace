@@ -27,6 +27,7 @@ import { ChatDropProvider } from '@/components/chat/ChatDropOverlay';
 import { useChatPageRuntime } from '@/components/chat/runtime';
 import type { ChatArtifactPayload, ChatCatalog, ChatThreadRecord } from '@/lib/chat/project-types';
 import {
+  ChatWireError,
   createChatThread,
   fetchChatCatalog,
   fetchChatThread,
@@ -46,6 +47,30 @@ import { cn } from '@/lib/cn';
 const emptySubscribe = () => () => {};
 const MESSAGE_PERSIST_DEBOUNCE_MS = 500;
 const EMPTY_CAPABILITIES: readonly CapabilityItem[] = [];
+
+/** A failed chat request, kept with the evidence needed to describe it. */
+type ChatFailure = { code: string; door?: string; status?: number };
+
+/**
+ * Classify a rejected chat request.
+ *
+ * `/api/chat/*` are the console's own routes. Before this, every rejection
+ * here was relabelled `console_data_api_unreachable`, so a 500 from
+ * /api/chat/projects told the reader the data API was down while it was
+ * answering normally. Report the code the route actually named, and when it
+ * named none, say the chat wire failed, because that is what happened.
+ */
+function chatFailure(error: unknown, door: string): ChatFailure {
+  if (error instanceof ChatWireError) {
+    return {
+      code: error.wireCode ?? 'console_chat_wire_failed',
+      door: error.door,
+      status: error.status ?? undefined,
+    };
+  }
+  // fetch itself rejected, so there is no status: the request never landed.
+  return { code: 'console_chat_wire_failed', door };
+}
 
 function connectionFor(status: number | null, error?: string | null): ConnectionState {
   if (status === 401 || error === 'principal_resolution=unauthenticated') return 'unauthenticated';
@@ -235,7 +260,7 @@ export function ChatPage({
   const connection = useShellStore((state) => state.connection);
   const [catalog, setCatalog] = useState<ChatCatalog | null>(null);
   const [thread, setThread] = useState<ChatThreadRecord | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<ChatFailure | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [wide, setWide] = useState(true);
   const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
@@ -293,7 +318,7 @@ export function ChatPage({
       })
       .catch((error: unknown) => {
         if (active) {
-          setLoadError(error instanceof Error ? error.message : 'catalog_unreachable');
+          setLoadError(chatFailure(error, '/api/chat/projects'));
         }
       });
     return () => {
@@ -340,7 +365,7 @@ export function ChatPage({
         router.replace(`/chat/${encodeURIComponent(created.id)}`);
       } catch (error) {
         if (active) {
-          setLoadError(error instanceof Error ? error.message : 'thread_unreachable');
+          setLoadError(chatFailure(error, '/api/chat/threads'));
         }
       }
     };
@@ -418,20 +443,23 @@ export function ChatPage({
       }
     : undefined;
 
-  // Only the disconnected branch may carry that evidence. `connection` is
-  // derived from onTransport, so the last transport outcome is genuinely its
-  // outcome. `loadError` is not: it comes from the chat catalog and thread
-  // fetches, which are different requests. A healthy /api/objects/views probe
-  // followed by a 502 from /api/chat/projects would otherwise render a banner
-  // claiming the data API answered 200. Evidence about the wrong request is
-  // worse than no evidence, which is the failure this whole change exists to
-  // stop.
+  // Each branch reports its own request, and only its own.
+  //
+  // `loadError` comes from /api/chat/*, the console's own routes. It used to be
+  // relabelled `console_data_api_unreachable`, so a 500 from
+  // /api/chat/projects announced that the data API was down while the data API
+  // was answering normally. It now carries the code the route named, plus the
+  // door and status of the request that actually failed.
+  //
+  // `connection` is derived from onTransport, so the last transport outcome is
+  // genuinely its outcome and may carry `transportOrigin`. Attaching that
+  // origin to a chat failure would describe the wrong request, which is worse
+  // than describing none.
   const degradation = loadError
-    ? degradationFor(
-        loadError === 'workspace_object_scope_unenforced'
-          ? 'workspace_object_scope_unenforced'
-          : 'console_data_api_unreachable',
-      )
+    ? degradationFor(loadError.code, {
+        door: loadError.door,
+        status: loadError.status,
+      })
     : connection === 'disconnected'
       ? degradationFor('console_data_api_unreachable', transportOrigin)
       : null;
