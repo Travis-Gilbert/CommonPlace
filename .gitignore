@@ -15,3 +15,6 @@ apps/desktop/src-tauri/target/
 .env
 .env.*
 !.env.example
+
+# Vendored chat register build output
+apps/chat/dist/
