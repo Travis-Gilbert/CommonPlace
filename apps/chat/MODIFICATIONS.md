@@ -135,9 +135,12 @@ accepted state:
 - `cdn.simpleicons.org` is fetched for provider favicons — a genuine third-party
   request the app makes on its own behalf, unlike the user-configured connector
   hosts (Google Workspace, OpenAI, GitHub Copilot, and the `mcp.*` quick-connect
-  catalog), which are only contacted when an operator configures them. The
-  favicon CDN should be self-hosted or dropped before the full-session
-  network-trace criterion is claimed without qualification. **OW1 residual.**
+  catalog), which are only contacted when an operator configures them.
+  **Disposition decided 2026-08-02: replaced by Noun Project icons**, which lands
+  the icon set locally and removes the CDN call as a side effect. Until that
+  lands, the full-session network-trace criterion is claimed with this one
+  qualification. Call site: `src/react-app/design-system/provider-logo-src.ts`.
+  **OW1 residual, closed by the Noun Project icon swap.**
 - Raw hex colors in `design-system/workspace-avatar-utils.ts` and `page.tsx`
   violate the one-token-truth rule and are the current failing check in
   `scripts/audit-openwork-fork.sh`. **OW3.**
