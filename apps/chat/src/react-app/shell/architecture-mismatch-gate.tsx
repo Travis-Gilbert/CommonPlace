@@ -98,7 +98,7 @@ export function ArchitectureMismatchGate({ children }: ArchitectureMismatchGateP
   if (!info?.mismatch) return <>{children}</>;
 
   return (
-    <main className="min-h-screen bg-[#05070c] text-white">
+    <main className="min-h-screen bg-[var(--ij-editor)] text-[var(--ij-ink)]">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-6 py-12">
         <section className="w-full overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40">
           <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">

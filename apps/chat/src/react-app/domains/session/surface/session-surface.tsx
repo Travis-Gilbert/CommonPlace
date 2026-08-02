@@ -48,7 +48,7 @@ import { parseSlashCommandInvocation } from "./composer/slash-command";
 import { connectSkillPrompt, parseConnectSkillToken } from "./composer/connect-skill-token";
 import { createPastedTextChip, resolvePastedTextPlaceholders } from "./composer/pasted-text";
 import { DevProfiler } from "@/react-app/shell/dev-profiler";
-import { PaperGrainGradient } from "@openwork/ui/react";
+import { GrainOrb, WORKING_ORB_TOKENS } from "../../../design-system/grain-orb";
 import { useShellConfig } from "@/react-app/shell/shell-config";
 import { useReactRenderWatchdog } from "@/react-app/shell/react-render-watchdog";
 import { SessionDebugPanel } from "./debug-panel";
@@ -449,16 +449,8 @@ function AssistantWaitingCard({ label = t("session.assistant_thinking") }: { lab
     <div className="flex justify-start" role="status" aria-live="polite">
       <div className="inline-flex items-center gap-1.5 px-1 py-1 text-[12px] text-dls-secondary">
         <div style={{ width: 20, height: 20, borderRadius: "50%", overflow: "hidden" }}>
-          <PaperGrainGradient
-            speed={12}
-            softness={0.1}
-            intensity={1}
-            noise={0.05}
-            shape="sphere"
-            colors={["#818cf8", "#fb7185", "#fbbf24", "#34d399"]}
-            colorBack="#ffffff00"
-            style={{ backgroundColor: "#818cf8", width: "100%", height: "100%", borderRadius: "50%" }}
-          />
+          {/* OW3 shader law: compositor orb, no WebGL context. */}
+          <GrainOrb tokens={WORKING_ORB_TOKENS} />
         </div>
         <span>{label}</span>
       </div>

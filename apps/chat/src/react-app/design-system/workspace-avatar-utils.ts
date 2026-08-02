@@ -1,15 +1,20 @@
-/** Strong solid markers for dark sidebars — hashed per workspace, no gradients. */
+/**
+ * Strong solid markers, hashed per workspace, no gradients.
+ *
+ * OW3: upstream held ten literal hex values here, which made this component
+ * file a second design authority and froze one mode's values. The ramp now
+ * lives in ../../styles/identity-register.css, bound to the console's hue
+ * families; these are the custom-property references that read it, so the
+ * marker re-tunes with the register in both schemes.
+ */
 export const WORKSPACE_AVATAR_COLORS = [
-  "#E23B4C",
-  "#D44A7A",
-  "#D9921A",
-  "#1F9A62",
-  "#3B6AE0",
-  "#E06A28",
-  "#A84FA0",
-  "#1A9A9C",
-  "#6B4FD4",
-  "#2A8FBF",
+  "var(--ow-identity-1)",
+  "var(--ow-identity-2)",
+  "var(--ow-identity-3)",
+  "var(--ow-identity-4)",
+  "var(--ow-identity-5)",
+  "var(--ow-identity-6)",
+  "var(--ow-identity-7)",
 ] as const;
 
 export type WorkspaceAvatarColor = (typeof WORKSPACE_AVATAR_COLORS)[number];

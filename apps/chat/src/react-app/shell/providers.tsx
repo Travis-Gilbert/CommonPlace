@@ -8,7 +8,6 @@ import { hydrateOpenworkServerSettingsFromEnv } from "@/app/lib/openwork-server"
 import { isDesktopRuntime } from "@/app/utils";
 import { ConnectLinkProvider } from "@/react-app/domains/cloud/connect-link-provider";
 import { DenAuthProvider } from "@/react-app/domains/cloud/den-auth-provider";
-import { BrandThemeProvider } from "@/react-app/domains/cloud/brand-theme";
 import { DesktopConfigProvider } from "@/react-app/domains/cloud/desktop-config-provider";
 import { RestrictionNoticeProvider } from "@/react-app/domains/cloud/restriction-notice-provider";
 import { LocalProvider } from "@/react-app/kernel/local-provider";
@@ -16,7 +15,6 @@ import { ServerProvider } from "@/react-app/kernel/server-provider";
 import { ArchitectureMismatchGate } from "./architecture-mismatch-gate";
 import { BootStateProvider } from "./boot-state";
 import { DesktopRuntimeBoot } from "./desktop-runtime-boot";
-import { useEnterpriseActivationRequired } from "@/react-app/domains/cloud/enterprise-activation-gate";
 import { startDebugLogger, stopDebugLogger } from "./debug-logger";
 import { resolveOpenworkConnection } from "./openwork-connection";
 import { ReloadCoordinatorProvider } from "./reload-coordinator";
@@ -47,24 +45,22 @@ type AppProvidersProps = {
   children: ReactNode;
 };
 
-function EnterpriseAwareAppProviders({ children }: AppProvidersProps) {
-  const activationRequired = useEnterpriseActivationRequired();
-  if (activationRequired) {
-    return <ConnectLinkProvider>{children}</ConnectLinkProvider>;
-  }
+// OW4: was AppProvidersTree. The enterprise activation gate is gone
+// with Den, and BrandThemeProvider with it: a per-organization accent that
+// overwrote --dls-accent at runtime is a second design authority, which named
+// choice 5 and the anti-scope line both forbid. The register is the authority.
+function AppProvidersTree({ children }: AppProvidersProps) {
   return (
     <>
       <DesktopRuntimeBoot />
       <ConnectLinkProvider>
         <DesktopConfigProvider>
-          <BrandThemeProvider>
-            <RestrictionNoticeProvider>
-              <LocalProvider>
-                <ReloadCoordinatorProvider>{children}</ReloadCoordinatorProvider>
-                <Toaster />
-              </LocalProvider>
-            </RestrictionNoticeProvider>
-          </BrandThemeProvider>
+          <RestrictionNoticeProvider>
+            <LocalProvider>
+              <ReloadCoordinatorProvider>{children}</ReloadCoordinatorProvider>
+              <Toaster />
+            </LocalProvider>
+          </RestrictionNoticeProvider>
         </DesktopConfigProvider>
       </ConnectLinkProvider>
     </>
@@ -92,7 +88,7 @@ export function AppProviders({ children }: AppProvidersProps) {
       <ServerProvider defaultUrl={defaultUrl}>
         <ArchitectureMismatchGate>
           <DenAuthProvider>
-            <EnterpriseAwareAppProviders>{children}</EnterpriseAwareAppProviders>
+            <AppProvidersTree>{children}</AppProvidersTree>
           </DenAuthProvider>
         </ArchitectureMismatchGate>
       </ServerProvider>

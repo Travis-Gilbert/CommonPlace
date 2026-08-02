@@ -42,7 +42,6 @@ import {
   isWindowsPlatform,
 } from "../../../../app/utils";
 import { t } from "../../../../i18n";
-import { useBrandLogoUrl } from "../../cloud/brand-theme";
 
 import {
   Sidebar,
@@ -149,9 +148,14 @@ import { useWorkbenchStore } from "../chat/workbench-store";
 import { SidebarDestination } from "./sidebar-destination";
 import { SessionTitle } from "./session-title";
 
-/** Paper Desktop: unread #2FBE54, needs-action #E8933A (14px artboard → ~8px app). */
-const OUTCOME_DOT_UNREAD = "#2FBE54";
-const OUTCOME_DOT_NEEDS_ACTION = "#E8933A";
+/**
+ * Outcome dots (14px artboard → ~8px app). OW3: these are status, not brand,
+ * so they read the console's status slots. Upstream's literals were a green
+ * and an amber chosen independently of any register; --ij-ok and --ij-warn are
+ * the same two meanings with values the register owns in both modes.
+ */
+const OUTCOME_DOT_UNREAD = "var(--ij-ok)";
+const OUTCOME_DOT_NEEDS_ACTION = "var(--ij-warn)";
 
 interface SessionLoadingIndicatorProps {
   status?: string;
@@ -1030,7 +1034,6 @@ export function AppSidebar(props: AppSidebarProps) {
     sessionNumberShortcutByTarget,
   };
 
-  const brandLogoUrl = useBrandLogoUrl();
   const pinnedIds = useSessionManagementStore((state) => state.pinnedIds);
   const pinnedSessions = React.useMemo(() => {
     const sessionsById = new Map<string, GlobalPinnedSessionEntry>();
@@ -1062,18 +1065,8 @@ export function AppSidebar(props: AppSidebarProps) {
         className="border-e-0 group-data-[side=left]:border-e-0 mac:**:data-[sidebar=sidebar]:bg-transparent"
       >
         <div className="hidden h-12 mac:block mac:titlebar-drag"/>
-        {brandLogoUrl ? (
-          <div
-            data-testid="brand-logo"
-            className="flex h-14 shrink-0 items-center px-3 pb-3 pt-2 mac:pt-0"
-          >
-            <img
-              src={brandLogoUrl}
-              alt="Organization logo"
-              className="max-h-9 w-auto max-w-[140px] object-contain object-left"
-            />
-          </div>
-        ) : null}
+        {/* OW4: the Den organization logo slot is gone with brand-theme. The
+            console owns identity above this register. */}
         {props.conversationHistory ? (
           <div
             className="flex shrink-0 items-center justify-end gap-0.5 px-2 pb-1 mac:absolute mac:right-1.5 mac:top-[7px] mac:z-50 mac:p-0 mac:titlebar-no-drag"

@@ -208,7 +208,14 @@ export const workspaceKindLabel = (workspace: WorkspaceInfo) =>
       : t("workspace.remote_badge")
     : t("workspace.local_badge");
 
-const WORKSPACE_SWATCHES = ["#2563eb", "#5a67d8", "#f97316", "#10b981"];
+// OW3: workspace swatches are object identity, so they read the identity ramp
+// (src/styles/identity-register.css) rather than restating four literals.
+const WORKSPACE_SWATCHES = [
+  "var(--ow-identity-6)",
+  "var(--ow-identity-7)",
+  "var(--ow-identity-2)",
+  "var(--ow-identity-4)",
+];
 
 export const workspaceSwatchColor = (seed: string) => {
   const value = seed.trim() || "workspace";

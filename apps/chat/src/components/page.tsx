@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Dithering } from "@paper-design/shaders-react";
 
 import { cn } from "@/lib/utils";
+import { useRegisterTokens } from "@/react-app/design-system/register-token";
 
 function Page({ className, ...props }: ComponentProps<"div">) {
   return (
@@ -15,13 +16,18 @@ function Page({ className, ...props }: ComponentProps<"div">) {
 
 /**
  * Paper first-load spec: subtle pixel-dither mosaic over the page ground.
- * `dark:invert` flips the black pixels to white so the texture survives
- * dark mode.
+ *
+ * OW3: the dither ink is the register's ink, read at runtime because a WebGL
+ * uniform cannot take a var(). Upstream froze it to black and recovered dark
+ * mode with `dark:invert`; the token is already correct in both modes, so the
+ * filter is gone with the literal.
  */
 function PageBackground({ className, ...props }: ComponentProps<"div">) {
+  const [ink] = useRegisterTokens(["--ij-ink"], "canvastext");
+
   return (
     <div
-      className={cn("pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-[0.1] dark:invert", className)}
+      className={cn("pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-[0.1]", className)}
       {...props}
     >
       <Dithering
@@ -33,7 +39,7 @@ function PageBackground({ className, ...props }: ComponentProps<"div">) {
         scale={1.19}
         frame={264559.21}
         colorBack="#00000000"
-        colorFront="#000000"
+        colorFront={ink}
       />
     </div>
   );

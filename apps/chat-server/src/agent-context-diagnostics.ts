@@ -28,7 +28,6 @@ import {
   probeOpenworkCloudCatalog,
   type CloudCatalogProbe,
 } from "./agent-context-cloud-probe.js";
-import { readActivatedEnterpriseDenOrigin } from "./enterprise-den-origin.js";
 import {
   isCloudEndpointCertificateVerificationFailure,
   probeCloudEndpointTransport,
@@ -1439,9 +1438,14 @@ export async function runAgentContextDiagnostics(input: {
   const engineReachableNow = engineInspectionStatus === "observed" || engineInspectionStatus === "invalid";
   // Local workspaces only: the activation record describes this installation,
   // so it must never authorize egress on behalf of a remote workspace shell.
+  // OW4: the default reader resolved an activated enterprise Den control-plane
+  // origin, and enterprise-den-origin.ts is deleted with Den. The injected
+  // dependency stays: tests still exercise the trusted-origin branch, and a
+  // future workspace-scoped origin source plugs in here rather than reviving
+  // a hardcoded control plane.
   const activatedEnterpriseOrigin = input.workspace.workspaceType === "local"
     ? await (input.dependencies?.readActivatedEnterpriseOrigin
-      ?? ((signal?: AbortSignal) => readActivatedEnterpriseDenOrigin({ signal })))(
+      ?? (async () => null))(
         input.dependencies?.signal,
       ).catch(() => null)
     : null;

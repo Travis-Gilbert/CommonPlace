@@ -1,3 +1,6 @@
+// SOURCING: vendored upstream — different-ai/openwork apps/server/src/routes/core.ts
+// @ 2f2dde65796428109a665f3b733843fe3896b933. CommonPlace edits are marked with
+// the deliverable that owns them (OW4 console session).
 import { appendFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
@@ -8,6 +11,7 @@ import {
   writeConnectState,
 } from "../connect-state.js";
 import type { CloudMcpLiveStatusObserver } from "../cloud-mcp-health.js";
+import { readConsoleSession, resolveConsoleSessionSecret } from "../console-session.js";
 import { readOpenWorkConnectSkillCatalog, renderOpenWorkConnectSkillInstruction } from "../connect-skill-catalog.js";
 import { EnvStoreReadError, InvalidEnvKeyError, isValidEnvKey, type EnvService } from "../env-file.js";
 import { syncManagedProviderAuth } from "../managed-provider-auth.js";
@@ -147,6 +151,34 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
   addRoute(routes, "GET", "/health", "none", async () => healthResponse());
 
   addRoute(routes, "GET", "/w/:id/health", "none", async () => healthResponse());
+
+  // OW4: who the console says this browser is.
+  //
+  // The session cookie is HttpOnly, so the page cannot read it and has no way
+  // to know whether it is signed in without asking. Auth is "none" because the
+  // answer for an unauthenticated caller is `authenticated: false`, not a 401:
+  // a 401 here would be indistinguishable from the daemon being unreachable,
+  // and the shell would show a sign-in prompt for a network error.
+  //
+  // Only identity is returned. The cookie, its signature, and its expiry stay
+  // server-side; nothing here lets a caller reconstruct a session.
+  addRoute(routes, "GET", "/session/console", "none", async (ctx) => {
+    // `configured` separates "this deployment has no console in front of it"
+    // from "the console is there and this browser is not signed in". Without
+    // it the shell cannot tell a standalone workspace, which authenticates
+    // with its own tokens and must render normally, from a signed-out console
+    // user, who has to go back to the console to sign in.
+    const configured = resolveConsoleSessionSecret() !== null;
+    const claims = readConsoleSession(ctx.request);
+    if (!claims) return jsonResponse({ authenticated: false, configured });
+    return jsonResponse({
+      authenticated: true,
+      configured,
+      subject: claims.subject,
+      tenant: claims.tenant,
+      workspaceSlug: claims.workspaceSlug,
+    });
+  });
 
   // Dev log sink: append browser console + error events to a file that an
   // operator (or an AI driver) can tail. Unauth on purpose because this is

@@ -40,7 +40,6 @@ import { writeActiveWorkspaceId, writeLastSessionFor, writeWorkspaceProjectDimen
 import { workspaceSessionRoute } from "./workspace-routes";
 import { ensureDesktopLocalOpenworkConnection } from "./desktop-local-openwork";
 import { saveControlPlaneUrl } from "../domains/settings/cloud/control-plane-url";
-import { shouldHoldWelcomeForDenSession } from "./welcome-den-session";
 
 function subscribeToDenSettings(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
@@ -145,18 +144,16 @@ export function WelcomeRoute() {
   const [organizationServerUrl, setOrganizationServerUrl] = useState(() => readDenSettings().baseUrl);
   const [organizationServerBusy, setOrganizationServerBusy] = useState(false);
   const [organizationServerError, setOrganizationServerError] = useState<string | null>(null);
-  const [joinOrganizationOpen, setJoinOrganizationOpen] = useState(false);
   const showOpenWorkModelsPromo = useOpenWorkModelsPromoEligibility();
   const denAuthTokenSnapshot = useSyncExternalStore(
     subscribeToDenSettings,
     readDenAuthTokenSnapshot,
     readDenAuthTokenSnapshot,
   );
-  const holdSignedOutSurface = shouldHoldWelcomeForDenSession({
-    authStatus: denAuth.status,
-    hasStoredAuthToken: Boolean(denAuthTokenSnapshot),
-    isSignedIn: denAuth.isSignedIn,
-  });
+  // OW4: upstream held the welcome surface blank while a stored Den token was
+  // revalidated, so a signed-in user never saw a signed-out screen flash. With
+  // Den severed there is no token to revalidate and nothing to hold for.
+  const holdSignedOutSurface = false;
 
   // If user already completed onboarding, redirect away immediately.
   useEffect(() => {
@@ -431,7 +428,6 @@ export function WelcomeRoute() {
         onUseManualFolder={handleUseManualFolder}
         showManualFolder={import.meta.env.DEV && isDesktopRuntime()}
         onTeamSignIn={handleTeamSignIn}
-        onJoinOrganization={() => setJoinOrganizationOpen(true)}
         organizationServerBusy={organizationServerBusy}
         organizationServerError={organizationServerError}
         organizationServerUrl={organizationServerUrl}

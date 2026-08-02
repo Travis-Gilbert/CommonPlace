@@ -1,12 +1,12 @@
 /** @jsxImportSource react */
 import { useEffect } from "react";
-import { Dithering } from "@paper-design/shaders-react";
 
 import { t } from "../../../i18n";
 import { useBootState } from "../../shell/boot-state";
 import { resolveExtensionIconSrc } from "@/react-app/design-system/extension-icon-src";
 import {
   Page,
+  PageBackground,
   PageTitlebarRegion,
 } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ type WelcomePageProps = {
   onUseManualFolder?: () => void;
   showManualFolder?: boolean;
   onTeamSignIn?: () => void;
-  onJoinOrganization: () => void;
   organizationServerBusy: boolean;
   organizationServerError: string | null;
   organizationServerUrl: string;
@@ -41,7 +40,6 @@ export function WelcomePage({
   onUseManualFolder,
   showManualFolder,
   onTeamSignIn,
-  onJoinOrganization,
   organizationServerBusy,
   organizationServerError,
   organizationServerUrl,
@@ -65,22 +63,10 @@ export function WelcomePage({
       <ScrollArea className="relative z-10">
         <ScrollAreaViewport>
           <div className="relative flex min-h-screen items-center justify-center px-6 py-16">
-            {/* Paper first-load spec: subtle black pixel-dither mosaic over a
-                near-white ground. `dark:invert` flips the pixels to white so
-                the texture survives dark mode. */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-[0.1] dark:invert">
-              <Dithering
-                className="size-full"
-                speed={0.01}
-                shape="warp"
-                type="2x2"
-                size={20.3}
-                scale={1.19}
-                frame={264559.21}
-                colorBack="#00000000"
-                colorFront="#000000"
-              />
-            </div>
+            {/* OW3: this page held a second, inline copy of PageBackground's
+                dither, so onboarding ran two WebGL contexts in one window. The
+                shared mount is the only one. */}
+            <PageBackground />
 
             <div className="relative z-10 w-full max-w-[720px] rounded-3xl border border-border bg-background px-8 pb-12 pt-10 sm:px-16 sm:pb-16 sm:pt-14">
               <div className="flex items-center gap-2.5">
@@ -134,21 +120,10 @@ export function WelcomePage({
                     : (getStartedLabel || t("welcome.use_without_cloud"))}
                 </Button>
 
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-                    onClick={onJoinOrganization}
-                    data-testid="welcome-join-org"
-                  >
-                    <span className="font-medium text-foreground/90">
-                      {t("welcome.join_org")}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {t("welcome.join_org_subtitle")}
-                    </span>
-                  </button>
-                </div>
+                {/* OW4: "Join an organization" opened the Den join dialog,
+                    deleted in OW1. Organization membership is the console's,
+                    and a console user is already in one by the time they
+                    reach this register. */}
 
                 <OrganizationServerAffordance
                   busy={organizationServerBusy}

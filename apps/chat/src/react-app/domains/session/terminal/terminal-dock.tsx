@@ -6,6 +6,7 @@ import "@xterm/xterm/css/xterm.css";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { readRegisterToken } from "../../../design-system/register-token";
 import { isElectronRuntime } from "../../../../app/utils";
 
 type TerminalDockProps = {
@@ -51,11 +52,17 @@ export function TerminalDock({ workspaceRoot, isRemoteWorkspace, onClose }: Term
       convertEol: true,
       fontFamily: "'SFMono-Regular', 'Cascadia Code', 'Liberation Mono', Menlo, monospace",
       fontSize: 12,
+      // OW3: xterm's ITheme takes literal colours, so the register is read
+      // through the cascade rather than restated here. The terminal is an
+      // editor-class surface, so it sits on the editor tier.
       theme: {
-        background: "#0b0d12",
-        foreground: "#d7dde8",
-        cursor: "#ffffff",
-        selectionBackground: "#334155",
+        // Fallbacks are CSS system colours, not literals: if the register is
+        // somehow absent the terminal still lands on the platform's own
+        // window colours instead of a hardcoded dark theme on a light page.
+        background: readRegisterToken("--ij-editor", "canvas"),
+        foreground: readRegisterToken("--ij-ink", "canvastext"),
+        cursor: readRegisterToken("--ij-ink-bright", "canvastext"),
+        selectionBackground: readRegisterToken("--ij-selection", "highlight"),
       },
     });
     terminal.loadAddon(fitAddon);
@@ -117,7 +124,7 @@ export function TerminalDock({ workspaceRoot, isRemoteWorkspace, onClose }: Term
   }, [isRemoteWorkspace, workspaceRoot]);
 
   return (
-    <section className="flex h-full min-h-0 flex-col border-t border-border bg-[#0b0d12] text-white" aria-label="Terminal">
+    <section className="flex h-full min-h-0 flex-col border-t border-border bg-[var(--ij-editor)] text-[var(--ij-ink)]" aria-label="Terminal">
       <header className="flex h-9 shrink-0 items-center justify-between border-b border-white/10 bg-black/35 px-3 text-xs">
         <div className="min-w-0 truncate text-white/75">Terminal · {status}</div>
         <Button variant="ghost" size="icon-sm" className="text-white/70 hover:bg-white/10 hover:text-white" onClick={onClose}>

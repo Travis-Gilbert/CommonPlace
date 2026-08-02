@@ -13,7 +13,6 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { t } from "@/i18n";
-import { SignInFallbackNotice } from "@/react-app/domains/cloud/signin-fallback-notice";
 import { CloudAccountSection } from "../cloud/cloud-account-section";
 import { useCloudSession } from "../cloud/cloud-session-provider";
 import { CloudDevMode } from "../cloud/dev-mode";
@@ -120,7 +119,7 @@ function DenSignedOutPanel({
           </Button>
         </div>
 
-        {signinFallbackUrl ? <SignInFallbackNotice url={signinFallbackUrl} /> : null}
+        {/* OW4: the Den sign-in fallback notice is deleted with Den. */}
 
         <Collapsible
           open={manualAuthOpen}

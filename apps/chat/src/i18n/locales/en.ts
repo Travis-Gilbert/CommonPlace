@@ -530,6 +530,10 @@ export default {
   "den.cloud_signed_in_desc": "You are signed in and ready to use OpenWork Cloud.",
   "den.open_dashboard": "Open Den dashboard",
   "den.cloud_unavailable_body": "Local work remains available. Reconnecting automatically.",
+  // OW4: the console owns sign-in; this register only says where it is.
+  "console.signin_required_title": "Sign in to CommonPlace",
+  "console.signin_required_body": "This workspace is served under the CommonPlace console. Sign in there and this chat register opens with the same session.",
+  "console.signin_required_action": "Go to the console",
   "den.cloud_unavailable_title": "OpenWork Cloud is temporarily unavailable.",
   "den.copy_signin_link": "Copy sign-in link",
   "den.create_account": "Create account",

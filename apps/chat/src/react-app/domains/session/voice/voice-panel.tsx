@@ -1,7 +1,7 @@
 /** @jsxImportSource react */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, ChevronRight, Loader2, Mic2, MicOff, Radio, SendHorizontal, Sparkles, Square, X } from "lucide-react";
-import { PaperGrainGradient } from "@openwork/ui/react";
+import { GrainOrb, VOICE_ORB_TOKENS, WORKING_ORB_TOKENS } from "../../../design-system/grain-orb";
 
 import { desktopFetch } from "@/app/lib/desktop";
 import type { OpenworkServerClient, OpenworkSessionMessage } from "@/app/lib/openwork-server";
@@ -276,25 +276,17 @@ async function executeOpenWorkTool(name: string, args: Record<string, unknown>) 
 
 function VoiceOrb(props: { status: VoiceStatus; muted: boolean }) {
   const active = props.status === "listening" || props.status === "speaking";
-  const colors = props.status === "speaking"
-    ? ["#fb7185", "#fbbf24", "#818cf8", "#111827"]
+  // OW3: state palettes come from the register, not four frozen Tailwind hues.
+  const tokens = props.status === "speaking"
+    ? VOICE_ORB_TOKENS.speaking
     : props.muted
-      ? ["#94a3b8", "#475569", "#cbd5e1", "#0f172a"]
-      : ["#8ddde7", "#4f8b7b", "#bfdfa4", "#102b24"];
+      ? VOICE_ORB_TOKENS.muted
+      : VOICE_ORB_TOKENS.idle;
 
   return (
     <div className="relative mx-auto flex size-34 items-center justify-center rounded-full border border-border bg-card shadow-[0_24px_80px_rgba(0,0,0,0.24)]">
       <div className="absolute inset-2 overflow-hidden rounded-full">
-        <PaperGrainGradient
-          speed={props.status === "speaking" ? 18 : active ? 12 : 4}
-          softness={0.16}
-          intensity={1}
-          noise={0.06}
-          shape="sphere"
-          colors={colors}
-          colorBack="#ffffff00"
-          style={{ width: "100%", height: "100%", borderRadius: "9999px" }}
-        />
+        <GrainOrb tokens={tokens} period={props.status === "speaking" ? 6 : active ? 10 : 26} />
       </div>
       <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_32%_20%,rgba(255,255,255,0.55),transparent_26%)]" />
       <div className={cn(
@@ -860,16 +852,8 @@ export function VoicePanel(props: VoicePanelProps) {
             <Card variant="outline" size="sm" className="overflow-hidden">
               <CardContent className="relative p-0">
                 <div className="absolute inset-x-0 top-0 h-1 overflow-hidden">
-                  <PaperGrainGradient
-                    speed={16}
-                    softness={0.14}
-                    intensity={1}
-                    noise={0.05}
-                    shape="wave"
-                    colors={["#818cf8", "#fb7185", "#fbbf24", "#34d399"]}
-                    colorBack="#ffffff00"
-                    style={{ width: "100%", height: "100%" }}
-                  />
+                  {/* OW3: a 1px progress rule does not need a shader. */}
+                  <GrainOrb tokens={WORKING_ORB_TOKENS} period={8} className="rounded-none" />
                 </div>
                 <div className="flex flex-col gap-2 px-3 pb-3 pt-4">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Rendering response</div>

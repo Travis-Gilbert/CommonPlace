@@ -23,15 +23,14 @@ import {
   clearCloudInventoryCache,
   prefetchCloudInventory,
 } from "../domains/connections/cloud-inventory-cache";
-import { ForcedSigninPage } from "../domains/cloud/forced-signin-page";
-import { EnterpriseActivationGate } from "../domains/cloud/enterprise-activation-gate";
-import { OrgOnboardingPage } from "../domains/cloud/org-onboarding-page";
+// OW4: forced-signin-page, enterprise-activation-gate, and org-onboarding-page
+// are deleted with Den. The console owns sign-in.
+import { ConsoleSessionGate } from "./console-session-gate";
 import { NewProvidersListener } from "./new-providers-listener";
 import { useDesktopFontZoomBehavior } from "./font-zoom";
 import { LoadingOverlay } from "./loading-overlay";
 import { DevProfiler, DevProfilerOverlay } from "./dev-profiler";
 import { ReactRenderWatchdogOverlay } from "./react-render-watchdog-overlay";
-import { CloudWorkspaceOverlay, CloudWorkspaceStatusProvider } from "./cloud-workspace-overlay";
 import { AppMenuProvider } from "./app-menu";
 import {
   OpenworkControlProvider,
@@ -45,146 +44,6 @@ import { SettingsRoute } from "./settings-route";
 import { ShellConfigProvider } from "./shell-config";
 import { WelcomeRoute } from "./welcome-route";
 
-
-type DenSigninGateProps = {
-  children: ReactNode;
-};
-
-const readDenBootstrapSnapshot = () => readDenBootstrapConfig();
-
-const subscribeToDenBootstrap = (onStoreChange: () => void) => {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener(denSettingsChangedEvent, onStoreChange);
-  return () => {
-    window.removeEventListener(denSettingsChangedEvent, onStoreChange);
-  };
-};
-
-/**
- * Forced-signin gate ported from the Solid shell.
- *
- * When the desktop bootstrap config has `requireSignin: true` (persisted by
- * the Tauri shell via `desktop-bootstrap.json`), the UI is held at `/signin`
- * until the user authenticates with Den. When sign-in is NOT required, we
- * never let users land on `/signin` — redirect them to `/session` instead.
- *
- * While we're still checking the Den session AND sign-in is required, we
- * render nothing so the transcript/settings never flash behind the gate.
- */
-function DenSigninGate({ children }: DenSigninGateProps) {
-  const denAuth = useDenAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const bootstrap = useSyncExternalStore(
-    subscribeToDenBootstrap,
-    readDenBootstrapSnapshot,
-    readDenBootstrapSnapshot,
-  );
-  const requireSignin = bootstrap.requireSignin;
-  const path = location.pathname.toLowerCase();
-  const onSignin = path === "/signin" || path.startsWith("/signin/");
-  const onOnboarding = path === "/onboarding" || path.startsWith("/onboarding/");
-  const hasPreparedBootstrap = Boolean(bootstrap.prepared);
-  const redirectingPreparedWorkspace =
-    denAuth.status !== "checking" &&
-    !requireSignin &&
-    !denAuth.isSignedIn &&
-    hasPreparedBootstrap &&
-    !onOnboarding;
-
-  useEffect(() => {
-    // Wait for the first auth check so we don't bounce the user between
-    // `/session` and `/signin` every navigation while we figure out if
-    // their cached token is still valid.
-    if (denAuth.status === "checking") return;
-
-    if (requireSignin) {
-      if (!denAuth.isSignedIn && !onSignin) {
-        navigate("/signin", { replace: true });
-      } else if (denAuth.isSignedIn && onSignin) {
-        // Signed in — route to onboarding so the user sees their org resources.
-        navigate("/onboarding", { replace: true });
-      }
-    } else if (onSignin) {
-      navigate("/session", { replace: true });
-    } else if (!denAuth.isSignedIn && hasPreparedBootstrap && !onOnboarding) {
-      navigate("/onboarding", { replace: true });
-    }
-
-    // If on /onboarding but not signed in, bounce to signin or session
-    if (onOnboarding && !denAuth.isSignedIn && !hasPreparedBootstrap) {
-      navigate(requireSignin ? "/signin" : "/session", { replace: true });
-    }
-  }, [
-    denAuth.isSignedIn,
-    denAuth.status,
-    hasPreparedBootstrap,
-    location,
-    navigate,
-    onOnboarding,
-    onSignin,
-    requireSignin,
-  ]);
-
-  // After a fresh sign-in, navigate to the onboarding page so the user sees
-  // their signed-in org state. Do not wait for an active org: first-run users
-  // may not belong to one yet, and must not remain on the signed-out welcome.
-  useEffect(() => {
-    const handler = (event: WindowEventMap[typeof denSessionUpdatedEvent]) => {
-      if (event.detail?.status !== "success") return;
-      let attempts = 0;
-      const check = () => {
-        attempts++;
-        const settings = readDenSettings();
-        if (settings.authToken?.trim()) {
-          navigate("/onboarding", { replace: true });
-        } else if (attempts < 10) {
-          // Session persistence should already be done, but retry briefly in
-          // case another consumer is still applying the handoff result.
-          setTimeout(check, 500);
-        }
-      };
-      // First check after a short delay for the auth to settle
-      setTimeout(check, 500);
-    };
-    window.addEventListener(denSessionUpdatedEvent, handler);
-    return () => window.removeEventListener(denSessionUpdatedEvent, handler);
-  }, [navigate]);
-
-  if (requireSignin && denAuth.status === "checking") {
-    return <ForcedSigninPage developerMode={false} />;
-  }
-
-  if (redirectingPreparedWorkspace) return <Navigate to="/onboarding" replace />;
-
-  return (
-    <>
-      {denAuth.status === "unavailable" ? (
-        <div className="pointer-events-none fixed inset-x-0 top-3 z-[100] flex justify-center px-4">
-          <div
-            role="status"
-            aria-live="polite"
-            className="pointer-events-auto flex max-w-xl items-center gap-3 rounded-2xl border border-amber-7/50 bg-popover/95 px-4 py-3 text-popover-foreground shadow-md backdrop-blur-sm"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{t("den.cloud_unavailable_title")}</p>
-              <p className="text-xs text-muted-foreground">{t("den.cloud_unavailable_body")}</p>
-            </div>
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={() => void denAuth.refresh()}
-            >
-              {t("den.refresh")}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      {children}
-    </>
-  );
-}
 
 /**
  * Control actions for cloud auth. Placed inside OpenworkControlProvider so
@@ -350,27 +209,8 @@ export function AppRoot() {
           <OpenworkRouteControlActions />
           <OpenworkContextPublisher />
           <DenAuthControlActions />
-          <BrandThemeControlActions />
-          <CloudWorkspaceStatusProvider>
-          <EnterpriseActivationGate>
-          <DenSigninGate>
+          <ConsoleSessionGate>
             <Routes>
-              <Route
-                path="/signin"
-                element={
-                  <DevProfiler id="SigninRoute">
-                    <ForcedSigninPage developerMode={false} />
-                  </DevProfiler>
-                }
-              />
-              <Route
-                path="/onboarding"
-                element={
-                  <DevProfiler id="OrgOnboarding">
-                    <OrgOnboardingPage />
-                  </DevProfiler>
-                }
-              />
               <Route
                 path="/welcome"
                 element={
@@ -449,11 +289,8 @@ export function AppRoot() {
               <Route path="/" element={<Navigate to="/session" replace />} />
               <Route path="*" element={<Navigate to="/session" replace />} />
             </Routes>
-          </DenSigninGate>
           <LoadingOverlay />
-          </EnterpriseActivationGate>
-          <CloudWorkspaceOverlay />
-          </CloudWorkspaceStatusProvider>
+          </ConsoleSessionGate>
         </OpenworkControlProvider>
         </AppMenuProvider>
         </ShellConfigProvider>

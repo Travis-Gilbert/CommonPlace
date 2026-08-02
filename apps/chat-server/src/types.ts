@@ -199,10 +199,18 @@ export interface CommandItem {
 }
 
 export interface Actor {
-  type: "remote" | "host";
+  /**
+   * OW4: "console" is a caller the console already authenticated, identified
+   * by its signed session cookie rather than by a token this daemon issued.
+   */
+  type: "remote" | "host" | "console";
   clientId?: string;
   tokenHash?: string;
   scope?: TokenScope;
+  /** Console session identity. Present only when type is "console". */
+  subject?: string;
+  tenant?: string;
+  workspaceSlug?: string;
 }
 
 export interface ApprovalRequest {

@@ -1,8 +1,12 @@
+// SOURCING: vendored upstream — different-ai/openwork apps/server/src/server.ts
+// @ 2f2dde65796428109a665f3b733843fe3896b933. CommonPlace edits are marked with
+// the deliverable that owns them (OW1 sever, OW4 console session).
 import { readFile, writeFile, rm, stat } from "node:fs/promises";
 import { homedir, hostname } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { resolveGlobalOpencodeConfigPath } from "@openwork/paths";
+import { readConsoleSession } from "./console-session.js";
 import type { ApprovalRequest, Capabilities, ServerConfig, WorkspaceInfo, Actor, ReloadReason, ReloadTrigger, TokenScope } from "./types.js";
 import { agentContextDiagnosticsRequestSchema } from "./agent-context-diagnostics-schema.js";
 import { ApprovalService } from "./approvals.js";
@@ -1219,7 +1223,32 @@ function withCors(response: Response, request: Request, config: ServerConfig) {
   return new Response(response.body, { status: response.status, headers });
 }
 
+/**
+ * OW4: the console session, as an Actor.
+ *
+ * Checked before bearer tokens everywhere, because when the register is served
+ * under the console origin the browser sends this cookie on its own and the
+ * page holds no token to send. Scope is "owner": the console already decided
+ * this subject may act on this workspace, and re-deciding it here with a
+ * narrower scope would silently break write paths for a user the console
+ * considers authorized.
+ */
+function consoleSessionActor(request: Request): Actor | null {
+  const claims = readConsoleSession(request);
+  if (!claims) return null;
+  return {
+    type: "console",
+    scope: "owner",
+    subject: claims.subject,
+    tenant: claims.tenant,
+    workspaceSlug: claims.workspaceSlug,
+  };
+}
+
 async function requireClient(request: Request, config: ServerConfig, tokens: TokenService): Promise<Actor> {
+  const consoleActor = consoleSessionActor(request);
+  if (consoleActor) return consoleActor;
+
   const header = request.headers.get("authorization") ?? "";
   const match = header.match(/^Bearer\s+(.+)$/i);
   const token = match?.[1];
@@ -1247,6 +1276,10 @@ async function requireHost(request: Request, config: ServerConfig, tokens: Token
   if (hostToken && hostToken === config.hostToken) {
     return { type: "host", tokenHash: hashToken(hostToken), scope: "owner" };
   }
+
+  // OW4: a console session carries owner scope, so it satisfies host routes.
+  const consoleActor = consoleSessionActor(request);
+  if (consoleActor) return consoleActor;
 
   const header = request.headers.get("authorization") ?? "";
   const match = header.match(/^Bearer\s+(.+)$/i);
