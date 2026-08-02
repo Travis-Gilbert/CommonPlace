@@ -70,7 +70,7 @@ export function BindingStationTray({
               <span className="flex items-center justify-between gap-2">
                 <span className="text-xs text-ij-ink">{preset.display_name}</span>
                 <span className="font-ij-mono text-xs text-ij-ink-info" data-mono-ok>
-                  {preset.topology}
+                  {preset.replication}
                 </span>
               </span>
               <span className="mt-1 block text-xs text-ij-ink-info">

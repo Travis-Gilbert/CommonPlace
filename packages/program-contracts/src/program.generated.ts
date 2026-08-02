@@ -89,13 +89,11 @@ export type ProgramStationHeadRole = "executor" | "verifier" | "peer_implementer
 
 export type ProgramBindingPresetHead = { head_id: string, provider: string, model: string, role: ProgramStationHeadRole, };
 
-export type ProgramBindingPreset = { preset_id: string, display_name: string, binding_ref: string, topology: ProgramStationTopology, capability_pack: Array<string>, budget_units: number, sealed: boolean, owner_principal_id?: string | null, roster?: Array<ProgramBindingPresetHead> | null, };
+export type ProgramBindingPreset = { preset_id: string, display_name: string, binding_ref: string, peer_binding_ref?: string | null, replication: ProgramStationReplication, capability_pack: Array<string>, budget_units: number, sealed: boolean, owner_principal_id?: string | null, roster?: Array<ProgramBindingPresetHead> | null, };
+export type ProgramStationReplication = "single" | "peer";
+export type ProgramStationFields = { preset_id: string, binding_ref: string, capability_pack: Array<string>, budget_units: number, peer_binding_ref?: string | null, replication: ProgramStationReplication, compiled_replication: ProgramStationReplication, sealed: boolean, };
 
-export type ProgramStationTopology = "solo" | "pair" | "peer";
-
-export type ProgramStationFields = { preset_id: string, binding_ref: string, capability_pack: Array<string>, budget_units: number, topology: ProgramStationTopology, compiled_topology: ProgramStationTopology, sealed: boolean, };
-
-export type StationDropRequest = { program_id: string, node_id: string, preset_id: string, requested_topology?: ProgramStationTopology | null, };
+export type StationDropRequest = { program_id: string, node_id: string, preset_id: string, requested_replication?: ProgramStationReplication | null, };
 
 export type StationDropReceipt = { program_id: string, node_id: string, station: ProgramStationFields, };
 
