@@ -1,0 +1,26 @@
+/* Object identity ramp for the chat register.
+   SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW3, named choice 5.
+
+   The console's hue discipline (SPEC-COMMONPLACE-CONSOLE-SHELL-1.0 CS5) says
+   object identity colour exists in exactly one place: a small square in that
+   object's own block header. Workspace avatars are that square for this
+   register, so the ramp is built from the console's own hue ramps rather than
+   minted here. Each slot is the saturated step of one console hue family
+   (the level the ramps use for foreground marks), so the ramp re-tunes with the
+   register in both modes instead of freezing a dark-mode value.
+
+   --ij-row-* was the other candidate and is wrong for this: those are the
+   FileColor background tints, which read as near-invisible when used as a
+   solid marker. Seven hues, from seven distinct families, no two adjacent. */
+
+:root,
+.dark,
+[data-theme="dark"] {
+  --ow-identity-1: var(--ij-red-7);
+  --ow-identity-2: var(--ij-orange-6);
+  --ow-identity-3: var(--ij-yellow-6);
+  --ow-identity-4: var(--ij-green-7);
+  --ow-identity-5: var(--ij-teal-7);
+  --ow-identity-6: var(--ij-blue-6);
+  --ow-identity-7: var(--ij-purple-7);
+}
