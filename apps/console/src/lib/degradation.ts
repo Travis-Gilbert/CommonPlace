@@ -29,6 +29,14 @@ export type DegradationOrigin = {
   host?: string;
   /** HTTP status, when the request was answered at all. Omit for no answer. */
   status?: number;
+  /**
+   * What the failing route said went wrong, when it said anything.
+   *
+   * A route that wraps an inner failure knows the reason and puts it in its
+   * body; dropping it leaves the reader with a category ("answered 502") and
+   * no cause. Rendered through `readableReason`, which keeps CS15 intact.
+   */
+  reason?: string;
 };
 
 type DegradationTemplate =
@@ -103,6 +111,86 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     cause: 'The chat wire could not complete this turn.',
     actionLabel: 'Retry',
     door: 'The chat wire',
+  },
+  // Every code the /api/chat/* routes can emit. Before these, all of them fell
+  // through to GENERIC_UNAVAILABLE, so a failed project read, a failed thread
+  // write and a missing attachment all said "This surface cannot render right
+  // now." An unmapped code is not a neutral default: it is a sentence that
+  // cannot be acted on.
+  project_catalog_failed: {
+    level: 'unavailable',
+    cause: 'The chat project list could not be read.',
+    actionLabel: 'Retry',
+    door: 'The chat project catalog',
+  },
+  project_write_failed: {
+    level: 'unavailable',
+    cause: 'That chat project could not be saved.',
+    actionLabel: 'Retry',
+    door: 'The chat project catalog',
+  },
+  project_select_failed: {
+    level: 'unavailable',
+    cause: 'That project could not be made active.',
+    actionLabel: 'Retry',
+    door: 'The chat project catalog',
+  },
+  thread_catalog_failed: {
+    level: 'unavailable',
+    cause: 'The thread list could not be read.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_read_failed: {
+    level: 'unavailable',
+    cause: 'That thread could not be read.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_create_failed: {
+    level: 'unavailable',
+    cause: 'That thread could not be created.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_update_failed: {
+    level: 'unavailable',
+    cause: 'That thread could not be saved.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_not_found: {
+    level: 'unavailable',
+    cause: 'That thread no longer exists.',
+    door: 'The chat thread catalog',
+  },
+  attachment_upload_failed: {
+    level: 'unavailable',
+    cause: 'That attachment could not be uploaded.',
+    actionLabel: 'Retry',
+    door: 'The chat attachment upload',
+  },
+  file_required: {
+    level: 'unavailable',
+    cause: 'That upload arrived without a file.',
+    door: 'The chat attachment upload',
+  },
+  invalid_body: {
+    level: 'unavailable',
+    cause: 'The console sent a request this route could not read.',
+    door: 'The chat wire',
+  },
+  tenant_connector_unavailable: {
+    level: 'unavailable',
+    cause: 'No connector is available for this tenant.',
+    actionLabel: 'Open Account',
+    door: 'The chat wire',
+  },
+  web_search_requires_principal: {
+    level: 'unavailable',
+    cause: 'Web search needs a signed-in principal.',
+    actionLabel: 'Open Account',
+    door: 'Web search',
   },
   web_search_unavailable: {
     level: 'reduced',
@@ -202,18 +290,47 @@ export function degradationFor(
  * credential problem rather than an outage. Returns undefined when there is
  * nothing concrete to say, so no caller is forced to show an empty line.
  */
+/**
+ * Render an upstream reason without leaking a wire code to the reader.
+ *
+ * Inner failures often surface as a bare code (`console_data_api_unreachable`)
+ * rather than prose. CS15 keeps codes off the screen, so a code is translated
+ * to its sentence; anything else is real prose already and passes through,
+ * bounded so a stack trace cannot become the banner.
+ */
+function readableReason(reason: string | undefined): string | undefined {
+  const trimmed = reason?.trim();
+  if (!trimmed) return undefined;
+  const rendered = /^[a-z][a-z0-9_]*$/.test(trimmed)
+    // An unmapped bare code has no sentence to show, and inventing one would
+    // hide the only identifier the reader could search for.
+    ? (WIRE_MAP[trimmed]?.cause ?? trimmed)
+    : trimmed;
+  // Bound at the exit, not inside one branch. The code-shaped test matches any
+  // run of lowercase, so a long token took the other path and escaped the cap.
+  return rendered.length > 160 ? `${rendered.slice(0, 157)}...` : rendered;
+}
+
 export function describeOrigin(origin: DegradationOrigin | undefined): string | undefined {
   if (!origin) return undefined;
   const { door, host, status } = origin;
-  if (!door && !host && status === undefined) return undefined;
+  const reason = readableReason(origin.reason);
+  if (!door && !host && status === undefined) return reason;
 
   const subject = [door ?? 'The request', host ? `at ${host}` : null].filter(Boolean).join(' ');
+  // The reason is the innermost thing known about the failure, so it goes last
+  // and never replaces the door and status a reader needs to locate it.
+  const withReason = (sentence: string) => (reason ? `${sentence} ${reason}` : sentence);
 
   if (status === undefined) {
-    return `${subject} did not answer. That is DNS, the network, or a blocked origin, not a status code.`;
+    return withReason(
+      `${subject} did not answer. That is DNS, the network, or a blocked origin, not a status code.`,
+    );
   }
   if (status === 401) {
-    return `${subject} answered 401. The request was not authenticated, which is a credential problem rather than an outage.`;
+    return withReason(
+      `${subject} answered 401. The request was not authenticated, which is a credential problem rather than an outage.`,
+    );
   }
   if (status === 403) {
     // Not the same failure as 401, and saying so matters. connectionFor maps
@@ -221,12 +338,16 @@ export function describeOrigin(origin: DegradationOrigin | undefined): string | 
     // active_workspace_claim_required and active_workspace_membership_refused.
     // In those cases the credential is fine and simply does not reach this
     // workspace, so "fix your credential" would send the reader the wrong way.
-    return `${subject} answered 403. The credential was accepted but refused for this workspace, which is not an outage.`;
+    return withReason(
+      `${subject} answered 403. The credential was accepted but refused for this workspace, which is not an outage.`,
+    );
   }
   if (status === 404) {
-    return `${subject} answered 404. Check the configured URL before assuming the service is down.`;
+    return withReason(
+      `${subject} answered 404. Check the configured URL before assuming the service is down.`,
+    );
   }
-  return `${subject} answered ${status}.`;
+  return withReason(`${subject} answered ${status}.`);
 }
 
 /** Collapse a list of missing capability codes into one reduced marker. */

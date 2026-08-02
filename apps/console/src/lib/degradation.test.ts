@@ -140,6 +140,59 @@ describe('degradationFor origin evidence', () => {
     expect(chat.detail).toContain('502');
   });
 
+  // The failing route knows why it failed and says so in its body. Dropping
+  // that left the reader with a category ("answered 502") and no cause, which
+  // is what turned a real 502 into another round trip.
+  it('surfaces the upstream reason alongside the door and status', () => {
+    const result = degradationFor('project_catalog_failed', {
+      door: '/api/chat/projects',
+      status: 502,
+      reason: 'objects/query failed: 502',
+    });
+    expect(result.cause).toBe('The chat project list could not be read.');
+    expect(result.detail).toContain('/api/chat/projects');
+    expect(result.detail).toContain('502');
+    expect(result.detail).toContain('objects/query failed');
+  });
+
+  // CS15 still holds: a bare wire code is not prose, so it renders as its
+  // sentence rather than as the identifier.
+  it('translates a wire-code reason into its sentence', () => {
+    const result = degradationFor('project_catalog_failed', {
+      door: '/api/chat/projects',
+      status: 502,
+      reason: 'console_data_api_unreachable',
+    });
+    expect(result.detail).toContain('The data API is unreachable.');
+    expect(result.detail).not.toContain('console_data_api_unreachable');
+  });
+
+  it('bounds a runaway reason so a stack trace cannot become the banner', () => {
+    const result = degradationFor('project_catalog_failed', {
+      door: '/api/chat/projects',
+      status: 502,
+      reason: 'x'.repeat(500),
+    });
+    expect(result.detail!.length).toBeLessThan(320);
+    expect(result.detail).toContain('...');
+  });
+
+  it('every chat route error code has a sentence of its own', () => {
+    const emitted = [
+      'project_catalog_failed', 'project_write_failed', 'project_select_failed',
+      'thread_catalog_failed', 'thread_read_failed', 'thread_create_failed',
+      'thread_update_failed', 'thread_not_found', 'attachment_upload_failed',
+      'file_required', 'invalid_body', 'tenant_connector_unavailable',
+      'web_search_requires_principal', 'console_chat_wire_failed',
+      'web_search_unavailable',
+    ];
+    const generic = degradationFor('a_code_that_is_not_mapped_at_all').cause;
+    for (const code of emitted) {
+      expect(degradationFor(code).cause, `${code} fell through to the generic sentence`)
+        .not.toBe(generic);
+    }
+  });
+
   it('still keeps the wire code out of what the user sees', () => {
     const result = degradationFor('console_data_api_unreachable', {
       door: '/api/objects/views',

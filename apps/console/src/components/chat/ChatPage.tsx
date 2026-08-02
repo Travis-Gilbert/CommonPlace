@@ -49,7 +49,7 @@ const MESSAGE_PERSIST_DEBOUNCE_MS = 500;
 const EMPTY_CAPABILITIES: readonly CapabilityItem[] = [];
 
 /** A failed chat request, kept with the evidence needed to describe it. */
-type ChatFailure = { code: string; door?: string; status?: number };
+type ChatFailure = { code: string; door?: string; status?: number; reason?: string };
 
 /**
  * Classify a rejected chat request.
@@ -62,14 +62,23 @@ type ChatFailure = { code: string; door?: string; status?: number };
  */
 function chatFailure(error: unknown, door: string): ChatFailure {
   if (error instanceof ChatWireError) {
+    const code = error.wireCode ?? 'console_chat_wire_failed';
     return {
-      code: error.wireCode ?? 'console_chat_wire_failed',
+      code,
       door: error.door,
       status: error.status ?? undefined,
+      // These routes wrap an inner failure and put its reason in `message`.
+      // That reason is the only part naming what actually broke, so keep it
+      // unless it just repeats the code the sentence already covers.
+      reason: error.message && error.message !== code ? error.message : undefined,
     };
   }
   // fetch itself rejected, so there is no status: the request never landed.
-  return { code: 'console_chat_wire_failed', door };
+  return {
+    code: 'console_chat_wire_failed',
+    door,
+    reason: error instanceof Error ? error.message : undefined,
+  };
 }
 
 function connectionFor(status: number | null, error?: string | null): ConnectionState {
@@ -459,6 +468,7 @@ export function ChatPage({
     ? degradationFor(loadError.code, {
         door: loadError.door,
         status: loadError.status,
+        reason: loadError.reason,
       })
     : connection === 'disconnected'
       ? degradationFor('console_data_api_unreachable', transportOrigin)
