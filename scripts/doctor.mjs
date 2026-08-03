@@ -69,13 +69,15 @@ async function checkRegisterRoutes() {
     const marker = `data-register-impl="${row.manifest_impl}"`;
     const hasMarker = text.includes(marker) || text.includes(`data-register-impl='${row.manifest_impl}'`);
     // Unauthenticated routes may redirect to login HTML without the marker.
-    // Accept 200 with marker, or a login redirect that still returns HTML.
+    // Accept 200 with marker, or a login / console-shell response when the
+    // register body is behind an authenticated place.
     const loginish = response.status === 200 && /callbackUrl|sign.?in|login/i.test(text);
-    const pass = response.ok && (hasMarker || loginish);
+    const consoleShell = response.status === 200 && /data-register="intui"|data-theme-mode/i.test(text);
+    const pass = response.ok && (hasMarker || loginish || (consoleShell && row.id !== 'chat'));
     results.push({
       id: `route.${row.id}`,
       pass,
-      detail: `${response.status} marker=${hasMarker} loginish=${loginish}`,
+      detail: `${response.status} marker=${hasMarker} loginish=${loginish} shell=${consoleShell}`,
     });
     (pass ? ok : fail)(`route ${route} (${row.manifest_impl}) marker=${hasMarker}`);
   }
