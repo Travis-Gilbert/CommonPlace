@@ -82,21 +82,7 @@
       "production_route": "/chat",
       "registry_entry": "chat.surface",
       "manifest_impl": "openwork.chat",
-      "superseded": [
-        {
-          "impl": "assistant-ui.ChatPage",
-          "paths": [
-            "apps/console/src/components/chat/ChatPage.tsx",
-            "apps/console/src/components/chat/Composer.tsx",
-            "apps/console/src/components/chat/RuntimeComposer.tsx",
-            "apps/console/src/components/chat/Transcript.tsx",
-            "apps/console/src/components/chat/runtime.ts",
-            "apps/console/src/views/ThreadView.tsx",
-            "apps/console/src/views/ThreadListView.tsx"
-          ],
-          "deletion_deadline": "2026-08-10"
-        }
-      ]
+      "superseded": []
     },
     {
       "id": "records",
@@ -166,7 +152,33 @@
       "superseded": []
     }
   ],
-  "retired": [],
+  "retired": [
+    {
+      "id": "assistant-ui.ChatPage",
+      "paths": [
+        "apps/console/src/components/chat/ChatPage.tsx",
+        "apps/console/src/components/chat/Composer.tsx",
+        "apps/console/src/components/chat/RuntimeComposer.tsx",
+        "apps/console/src/components/chat/Transcript.tsx",
+        "apps/console/src/components/chat/runtime.ts",
+        "apps/console/src/views/ThreadView.tsx",
+        "apps/console/src/views/ThreadListView.tsx"
+      ],
+      "retired_at": "2026-08-03",
+      "reason": "Openwork /chat live on v2 with data-register-impl=openwork.chat"
+    },
+    {
+      "id": "apps.web",
+      "paths": [
+        "apps/web/src/app/(dev)/reconstruction/[runId]/page.tsx",
+        "apps/web/src/components/commonplace/scene-host/ReconstructionViewer.tsx",
+        "apps/web/src/components/commonplace/scene-host/__tests__/reconstruction-viewer.test.ts",
+        "apps/web/src/components/commonplace/scene-host/reconstruction-viewer.ts"
+      ],
+      "retired_at": "2026-08-03",
+      "reason": "Legacy app.theoremharness.com surface; console is canonical"
+    }
+  ],
   "env_contract": [
     "THEOREM_GRAPHQL_URL",
     "THEOREM_API_KEY",
