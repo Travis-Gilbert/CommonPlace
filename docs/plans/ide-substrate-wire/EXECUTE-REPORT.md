@@ -17,7 +17,7 @@ Source: `docs/plans/ide-substrate-wire/PLAN.md`
 | IDE-008 | **done** | `.commonplace-canonical` notes + `CONSOLE_EDITOR_SUBSTRATE_URL` |
 
 ## Deferral
-D1 Studio `code serve-web` remains parked.
+D1 Studio `code serve-web` remains parked. Follow-up: [`FOLLOW-UP-CODE-SERVE-WEB.md`](./FOLLOW-UP-CODE-SERVE-WEB.md) (CS-000…CS-008).
 
 ## Live deploys
 - **console** `5b595fe5` SUCCESS — doctor substrate probes + `CONSOLE_EDITOR_SUBSTRATE_URL`

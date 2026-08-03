@@ -26,7 +26,7 @@ Make `/IDE` feel like Cursor wired to Theorem: extension + auth + live intellige
 - **Must not regress:** `/chat` two-door contract, `/workspace` CM6, console cookie secret never in workspace container.
 
 ## Explicit deferral (consent)
-**Defer replacing stock code-server with Commonplace Studio `code serve-web` (V7).** This plan ships the pack on the live code-server door; Studio remains parked until V7 smoke. Say if you want Studio in-scope instead.
+**Defer replacing stock code-server with Commonplace Studio `code serve-web` (V7).** This plan ships the pack on the live code-server door; Studio remains parked until V7 smoke. Follow-up checklist: [`FOLLOW-UP-CODE-SERVE-WEB.md`](./FOLLOW-UP-CODE-SERVE-WEB.md).
 
 ## Checklist
 
