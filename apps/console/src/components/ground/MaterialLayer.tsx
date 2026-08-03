@@ -61,8 +61,11 @@ void main(){
     float shadowReach = mix(gut * 1.35, gut * 2.4, clamp(minSide / 900., 0., 1.));
     float shadowK = 2.2 / max(shadowReach, 1.);
     float d = sdRound(uv - c - vec2(0., shadowReach * 0.35), isl[i].zw*0.5, rad[i]);
-    /* Zed-flat: the rim is a confirmation, not a painted drop shadow. */
-    if(d > 0.) col *= 1. - exp(-d * shadowK) * (0.10 + 0.04*(1.-dark));
+    /* Zed-flat: the rim is a confirmation, not a painted drop shadow. The
+       editor plane is exempt: it is the sunk centre, and a cast rim is the
+       one thing that makes a recess read as a card sitting on the ground.
+       Tool windows keep theirs, which is what carries sidebar-lifted. */
+    if(d > 0. && cls[i] < 0.5) col *= 1. - exp(-d * shadowK) * (0.10 + 0.04*(1.-dark));
   }
 
   for(int i=0;i<${MAX_ISLANDS};i++){
@@ -246,7 +249,15 @@ export function MaterialLayer() {
       gl.viewport(0, 0, width, height);
 
       const hostRect = (host ?? canvas).getBoundingClientRect();
-      const islands = [...document.querySelectorAll<HTMLElement>('[data-island]')];
+      /* An island inside an island is not a second island. The editor region
+         declares one (tab strip plus well) and the BlockShell it hosts
+         declares another, so the shader was drawing a rim inside a rim about
+         40px apart and the centre read as a card floating on a card. CS2's
+         concentric rule already says a child never repeats its parent's
+         radius; this is the same rule for the material. The parent owns the
+         plane. */
+      const islands = [...document.querySelectorAll<HTMLElement>('[data-island]')]
+        .filter((node) => node.parentElement?.closest('[data-island]') == null);
       const rects: number[] = [];
       const radii: number[] = [];
       const classes: number[] = [];

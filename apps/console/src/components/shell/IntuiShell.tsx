@@ -39,7 +39,6 @@ import { EditorTabs } from './EditorTabs';
 import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
-import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
 import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
@@ -303,9 +302,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const [compact, setCompact] = useState(false);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
-  const workspaceDegradation = useShellStore(
-    (state) => state.workspaceDegradation,
-  );
+  /* The readiness poll below still writes degradation into the shell store;
+     only the status-bar reader is gone. Whatever re-homes the reconnect
+     affordance binds to that atom rather than re-fetching. */
   const setWorkspaceDegradation = useShellStore(
     (state) => state.setWorkspaceDegradation,
   );
@@ -890,10 +889,12 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       </div>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
-      <StatusBar
-        host={host}
-        workspaceDegradation={workspaceDegradation}
-      />
+      {/* No bottom status strip. signatures.spec has asserted
+          [data-paint-region="status-bar"] and [data-connection-owner="status-bar"]
+          at count 0 since the signature round; the shell had grown one back.
+          Connection state and workspace degradation now have no page-frame
+          home, which is deliberate: they belong to an action, not to a
+          permanent band of small text under the work. */}
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />
