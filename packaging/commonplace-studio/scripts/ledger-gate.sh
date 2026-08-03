@@ -7,8 +7,10 @@
 # is a legal problem, not a style one.
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly ROOT_DIR
 readonly LEDGER="$ROOT_DIR/LEDGER.md"
 readonly OVERLAY="$ROOT_DIR/product.overlay.json"
 
@@ -88,6 +90,8 @@ check_built_tree() {
     fi
 
     local report
+    # shellcheck disable=SC2016  # The ${} here are JS template literals, and the
+    # single quotes are what keeps the shell out of them.
     report="$(BUILT="$built" node -e '
         const product = JSON.parse(require("fs").readFileSync(process.env.BUILT, "utf8"));
         const problems = [];

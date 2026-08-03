@@ -6,8 +6,10 @@
 # monthly cadence". This is the mechanical half; RUNBOOK.md is the rest.
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly ROOT_DIR
 readonly BUILD_DIR="$ROOT_DIR/build/vscode"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >&2; }

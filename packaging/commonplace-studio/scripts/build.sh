@@ -8,9 +8,12 @@
 # code-server's patch set, per the Verify-first decision recorded in README.md.
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-readonly REPO_DIR="$(cd "$ROOT_DIR/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly ROOT_DIR
+REPO_DIR="$(cd "$ROOT_DIR/../.." && pwd)"
+readonly REPO_DIR
 readonly BUILD_DIR="$ROOT_DIR/build/vscode"
 readonly PACK_DIR="$REPO_DIR/apps/theorem-vscode"
 readonly UPSTREAM_URL="https://github.com/microsoft/vscode.git"
@@ -114,6 +117,8 @@ apply_patches() {
 
 overlay_product() {
     log "overlaying product.json"
+    # shellcheck disable=SC2016  # The ${} here are JS template literals, and the
+    # single quotes are what keeps the shell out of them.
     UPSTREAM_PRODUCT="$BUILD_DIR/product.json" \
     OVERLAY_PATH="$ROOT_DIR/product.overlay.json" \
         node -e '
