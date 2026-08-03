@@ -9,6 +9,8 @@ import { githubTenantSlug } from '@/lib/account-identity';
 import { useShellStore, type ConnectionState } from '@/lib/shell-store';
 import type { ConsoleBlockHost } from '@/lib/console-host';
 import { ACCOUNT_SURFACE_ID } from '@/lib/workspace-seed';
+import type { WorkspaceDegradation } from '@commonplace/theorem-acp/workspace-state';
+import { reducedFromMissing } from '@/lib/degradation';
 
 const CONNECTION_LABEL: Record<ConnectionState, string> = {
   connected: 'Connected',
@@ -19,7 +21,13 @@ const CONNECTION_LABEL: Record<ConnectionState, string> = {
   unauthenticated: 'Sign in required',
 };
 
-export function StatusBar({ host }: { host: ConsoleBlockHost }) {
+export function StatusBar({
+  host,
+  workspaceDegradation,
+}: {
+  host: ConsoleBlockHost;
+  workspaceDegradation: WorkspaceDegradation | null;
+}) {
   const { data: session } = useSession();
   const connection = useShellStore((state) => state.connection);
   const setConnection = useShellStore((state) => state.setConnection);
@@ -30,6 +38,22 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
   const showPresence = connection === 'connected' && presenceCount !== null;
   // CS16: progress is an operation in flight, never a standing condition.
   const showProgress = Boolean(progressLabel) && connection === 'connecting';
+  const readinessState = workspaceDegradation === null
+    ? 'checking'
+    : workspaceDegradation.degraded
+      ? 'degraded'
+      : 'ready';
+  const readinessLabel = readinessState === 'checking'
+    ? 'Workspace checking'
+    : readinessState === 'degraded'
+      ? 'Workspace reduced'
+      : 'Workspace ready';
+  const readinessDetail = workspaceDegradation?.degraded
+    ? (
+        reducedFromMissing(workspaceDegradation.missingIndexes)?.cause
+        ?? workspaceDegradation.missingIndexes.join(', ')
+      ) || 'Required indexes are not ready'
+    : undefined;
   const action =
     connection === 'unauthenticated'
       ? { label: 'Sign in', run: () => void signIn('github', { redirectTo: '/' }) }
@@ -104,6 +128,17 @@ export function StatusBar({ host }: { host: ConsoleBlockHost }) {
       ) : (
         <span className="ml-auto min-w-0" />
       )}
+      <span
+        data-workspace-readiness={readinessState}
+        className="shrink-0 rounded-ij-arc-underline border border-ij-seam px-1"
+        style={{
+          color: readinessState === 'degraded' ? 'var(--ij-warn)' : undefined,
+        }}
+        title={readinessDetail}
+        aria-label={`${readinessLabel}${readinessDetail ? `: ${readinessDetail}` : ''}`}
+      >
+        {readinessLabel}
+      </span>
       <span className="min-w-0 shrink truncate font-ij-mono" title={tenant}>
         {tenant}
       </span>

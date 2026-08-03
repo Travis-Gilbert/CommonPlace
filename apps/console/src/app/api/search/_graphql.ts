@@ -42,6 +42,8 @@ export const SCATTER_FIELDS = `
   sceneRefusal
   expandedFrom
   scatterRef
+  degraded
+  missingIndexes
 `;
 
 export async function searchGraphql(

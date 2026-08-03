@@ -107,6 +107,9 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await freshLoad(page);
     await openSurface(page, 'console-workspace');
     await expect(page.locator('[data-workspace-substrate]')).toBeVisible();
+    await expect(page.locator('[data-workspace-readiness="degraded"]')).toContainText(
+      'Workspace reduced',
+    );
 
     await page.getByLabel('Project name').fill('CommonPlace V2');
     await page.getByLabel('Directory path').fill('/workspace/commonplace');
@@ -125,6 +128,9 @@ test.describe('V2 workspace substrate and Goal Stack', () => {
     await expect(page.getByText('inside project')).toBeVisible();
 
     await expect(page.locator('[data-readiness="ready"]')).toHaveText('Ready', { timeout: 4_000 });
+    await expect(page.locator('[data-workspace-readiness="ready"]')).toContainText(
+      'Workspace ready',
+    );
     await expect(page.locator('[data-find-degraded]')).toHaveCount(0);
 
     await page.getByLabel('Directory path').fill('/workspace/commonplace/packages');
