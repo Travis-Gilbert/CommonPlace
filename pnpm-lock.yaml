@@ -336,6 +336,9 @@ importers:
       '@commonplace/block-view':
         specifier: file:../../packages/block-view
         version: file:packages/block-view(react@19.2.3)
+      '@commonplace/block-view-contracts':
+        specifier: workspace:*
+        version: link:../../packages/block-view-contracts
       '@commonplace/canvas-substrate':
         specifier: workspace:*
         version: link:../../packages/canvas-substrate

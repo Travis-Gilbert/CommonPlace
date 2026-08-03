@@ -6,8 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./block-view": "./src/block-view-types.ts",
+    "./editor-content-hash": "./src/editor-content-hash.ts",
     "./editor-intelligence": "./src/editor-intelligence.ts",
     "./editor-intelligence-fixture": "./src/editor-intelligence-fixture.ts",
+    "./editor-offsets": "./src/editor-offsets.ts",
     "./rustyred-data": "./src/rustyred-data-contract.ts",
     "./scene": "./src/scene-package.ts",
     "./search-stack": "./src/search-stack.ts",

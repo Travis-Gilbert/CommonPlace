@@ -85,3 +85,4 @@ packages/block-view-contracts/src/editor-offsets.ts
 apps/theorem-vscode/test/offsets.test.ts
 packages/block-view-contracts/src/editor-content-hash.ts
 /Users/travisgilbert/.claude/projects/-Users-travisgilbert-Tech-Dev-Local-Creative-Website-CommonPlace/memory/editor-dx-wire-contract.md
+apps/console/package.json
