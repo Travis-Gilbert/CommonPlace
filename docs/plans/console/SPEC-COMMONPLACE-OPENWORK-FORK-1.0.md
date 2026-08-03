@@ -354,3 +354,90 @@ provider. The fork already carries it in its provider tables
 any provider through the `provider` block the runtime config already passes
 through. It is a configuration line whenever a live session is wanted, not a
 code change, and per A12 it was never what stood in the way.
+
+### A14. OW4's scope gap is closed: the console signs what a member may do
+
+OW4 shipped a console session that proved membership and nothing else. The
+daemon could not tell a read-only member from an admin, so it pinned every
+console actor to `collaborator`: a viewer could write, and an admin could not
+reach the owner-only routes at all. This was recorded as blocked on console
+work. Both halves are in this repository.
+
+The console now derives a scope from the role permissions it already verifies
+at mint time and signs that. The mapping lives on the console side on purpose:
+`workspace.manage`, `members.manage`, and `keys.manage` are the console's names
+for what the daemon gates behind owner, and a role added upstream would
+otherwise arrive at the daemon as an unrecognized string whose treatment nobody
+wrote down. The daemon reads its own three-value vocabulary and never learns
+the console's.
+
+A cookie minted before the field existed decodes as `collaborator`, which is
+exactly what it meant before, so the change can only move on an explicit
+signal. The pre-scope fixture in `console-session.test.ts` is kept deliberately:
+it is the only artifact in either app that proves that. An unrecognized scope is
+a rejection rather than a downgrade, because a console signing a vocabulary this
+daemon does not know is a deployment mismatch and should not be hidden behind a
+permissions bug report.
+
+### A15. The workspace credential is scoped to the workspace
+
+OW5 places a checkout and the head's graph credential on the same volume, and
+that credential was `THEOREM_API_KEY`, scoped to the whole tenant. A container
+that runs user code and publishes a terminal was holding a key to every
+workspace in the tenant.
+
+Recorded previously as blocked on Theorem issuing narrower keys. It was not:
+the identity service already mints them at `/v1/workspaces/{id}/api-keys`,
+which the console has proxied since the workspace settings page shipped. What
+was missing was this daemon asking for the narrow one.
+
+`THEOREM_WORKSPACE_API_KEY` is preferred, both variables may be set during a
+migration, and a deployment still on the tenant key keeps its graph door and
+gets a startup warning naming the variable to move to. Refusing the broad key
+outright would trade a scoping problem for an outage on every unmigrated
+deployment. Which variable a key arrived in is the signal, deliberately: a
+key's scope is a property of the record that issued it, not of its text, so
+sniffing a prefix would be a guess presented as a fact.
+
+### A16. The multi-workspace runtime config is not engine surgery
+
+`OPENCODE_CONFIG` is one file read by one engine process, so providers,
+plugins, disabled providers, default agent, and external-directory permissions
+reach only the booted workspace; settings writes for every other local
+workspace succeed and then do nothing. This was deferred behind OW6 on the
+reading that the remedies were engine surgery.
+
+That reading was wrong. The engine already reads a project config layer per
+directory: `mcp.ts` inspects `opencodeConfigPath(workspaceRoot)` as
+`config.project` alongside the global layer, and the runtime map merges over
+both. Materializing each workspace's runtime settings into its own project
+config is configuration, not a second transport and not a second client
+construction site, so it is inside A5's "stay on the opencode head" decision
+rather than gated by it. The audit's OW6 check stays clean either way, because
+that check looks for a new transport.
+
+Not yet built. What exists today is the honest warning naming which workspaces
+are configuration-inert, which is a smaller thing than the fix.
+
+### A17. What the A9 route costs, measured
+
+A9 recorded the entry decision as a route on the console origin,
+reverse-proxied to the workspace service. Nothing implements it, and the reason
+it is larger than "add a proxy" is worth recording rather than rediscovering.
+
+The chat register is built with Vite `base: "/"` and served by the daemon's own
+static handler, which SPA-falls-back from the root. Every asset it emits is an
+absolute `/assets/...`, and every call it makes is an absolute `/session/...`
+against its own origin. The register therefore assumes it owns the whole path
+space of whatever origin serves it.
+
+A proxy at `/workspace/<slug>/chat/` breaks both halves of that assumption. The
+route is not sufficient on its own: the register has to be *built* knowing its
+prefix (Vite `base`), and its client has to resolve its API base from that same
+prefix rather than from `window.location.origin`, which is what
+`gateway-runtime.ts` does today. That is three coordinated changes, not one, and
+the anti-scope line still holds across all three: the register stays a Vite
+bundle behind a proxy and is not ported into App Router.
+
+OW7 depends on this, since a fork the console cannot reach is a fork the seeded
+chat view cannot open.
