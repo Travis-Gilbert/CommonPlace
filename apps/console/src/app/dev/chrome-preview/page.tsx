@@ -9,6 +9,7 @@ import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import {
   CHAT_INSPECTOR_SECTIONS,
   InspectorRail,
+  InspectorRailReopen,
 } from '@/components/shell/InspectorRail';
 import { ConsoleBlockHost } from '@/lib/console-host';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
@@ -75,13 +76,19 @@ export default function ChromePreviewPage() {
               background ladder.
             </p>
           </main>
-          <InspectorRail
-            host={host}
-            open={inspectorOpen}
-            onOpenChange={setInspectorOpen}
-            sections={CHAT_INSPECTOR_SECTIONS}
-            workspaceName="Default project"
-          />
+          {/* The rail fills its container now: in the shell that container is
+              a collapsible Panel, and here it is this fixed column. Reopen is
+              the container's job in both places. */}
+          <div className="relative h-full w-ij-inspector-rail shrink-0">
+            <InspectorRail
+              host={host}
+              open={inspectorOpen}
+              onOpenChange={setInspectorOpen}
+              sections={CHAT_INSPECTOR_SECTIONS}
+              workspaceName="Default project"
+            />
+            {inspectorOpen ? null : <InspectorRailReopen onOpen={() => setInspectorOpen(true)} />}
+          </div>
         </div>
       </div>
     </SessionProvider>

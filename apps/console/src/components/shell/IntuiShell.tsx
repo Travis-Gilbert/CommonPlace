@@ -13,7 +13,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  type ImperativePanelHandle,
+} from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type {
   JsonValue,
@@ -41,6 +46,11 @@ import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
+import {
+  InspectorRail,
+  InspectorRailReopen,
+  CONSOLE_INSPECTOR_SECTIONS,
+} from './InspectorRail';
 import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
@@ -695,6 +705,20 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     persistSidebarCollapsed(next);
   }, [persistSidebarCollapsed]);
 
+  // The right rail is a collapsible Panel, so the library owns width, drag,
+  // the collapsed state, and its persistence (autoSaveId writes the layout to
+  // localStorage). This state is only the mirror the rail reads to decide
+  // whether to render its body; onCollapse / onExpand keep it true to the
+  // panel, and the edge control drives the panel, not the state.
+  const railPanel = useRef<ImperativePanelHandle>(null);
+  const [railOpen, setRailOpen] = useState(true);
+  const toggleRail = useCallback((next: boolean) => {
+    const panel = railPanel.current;
+    if (!panel) return;
+    if (next) panel.expand();
+    else panel.collapse();
+  }, []);
+
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
     // landmark while the surface tree is still resolving (Appearance, Account,
@@ -837,6 +861,18 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                   ) : null}
                 </>
               ) : (
+                // Outer group: the editor well against the inspector rail. It
+                // is deliberately a second group rather than another Panel in
+                // the surface group, because the surface group persists sizes
+                // by region id through the host, and the rail is chrome with
+                // no region of its own. autoSaveId keeps its width and its
+                // collapsed state in localStorage instead.
+                <PanelGroup
+                  direction="horizontal"
+                  autoSaveId="console.inspector-dock"
+                  className="h-full min-h-0"
+                >
+                  <Panel id="console-well" order={1} minSize={40} className="min-w-0">
                 <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
                   {visiblePanels.flatMap((panel, index) => {
                     const isEditor = panel.region === editor;
@@ -880,7 +916,40 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                     return nodes;
                   })}
                 </PanelGroup>
+                  </Panel>
+                  <PanelResizeHandle
+                    data-panel-seam
+                    data-inspector-seam
+                    className="relative w-ij-island-gutter bg-transparent"
+                  />
+                  <Panel
+                    id="console-inspector-rail"
+                    order={2}
+                    ref={railPanel}
+                    collapsible
+                    collapsedSize={0}
+                    minSize={14}
+                    defaultSize={22}
+                    onCollapse={() => setRailOpen(false)}
+                    onExpand={() => setRailOpen(true)}
+                    className="min-w-0"
+                  >
+                    <div data-shell-region="dock" data-dock-edge="right" className="h-full min-h-0">
+                      <InspectorRail
+                        host={host}
+                        open={railOpen}
+                        onOpenChange={toggleRail}
+                        sections={CONSOLE_INSPECTOR_SECTIONS}
+                      />
+                    </div>
+                  </Panel>
+                </PanelGroup>
               )}
+              {/* Exactly one rail toggle is on screen in either state: the
+                  rail carries collapse, the well carries reopen. */}
+              {!compact && !railOpen ? (
+                <InspectorRailReopen onOpen={() => toggleRail(true)} />
+              ) : null}
               {selectedRecordId ? (
                 <div className="absolute inset-y-0 right-0 z-40">
                   <RecordInspector host={host} />

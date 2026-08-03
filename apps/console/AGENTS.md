@@ -99,6 +99,7 @@ asks for inspiration, reference, mood, or direction.
 | Need | Source | Owns |
 |---|---|---|
 | Split layout, tool window panels | `react-resizable-panels` | split geometry, persisted sizes, 1px `--ij-divider` handles |
+| Inspector rail dock | `react-resizable-panels` collapsible `Panel` in a second group (`autoSaveId="console.inspector-dock"`) | the right rail's width, drag, collapsed state, keyboard resize, and persistence. A second group, not another Panel in the surface group: the surface group persists sizes by region id through the host, and the rail is chrome with no region of its own. Collapse is `collapsedSize={0}`, so the rail's own edge control (collapse) renders only while open and the well renders `InspectorRailReopen`; a Panel clips its overflow, so a control left inside a zero-width rail is unclickable and still in the accessibility tree |
 | Search everywhere, palettes | `cmdk` | command list, filtering, keyboard nav |
 | Approval dialog | `cmdk` Dialog | focus-managed, keyboard-selectable one-shot Plan approval and rejection |
 | Tabular lenses | tablecn structure on `@tanstack/react-table` plus blocks.so `table-01`..`table-05` anatomy | record.table sorting, filtering, column model |

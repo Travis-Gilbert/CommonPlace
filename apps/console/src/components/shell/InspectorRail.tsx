@@ -9,6 +9,12 @@
 // noun-layers PNG this rail first shipped with. A raster mark cannot take
 // currentColor, so the affordance could not follow ink through hover, theme,
 // or mode; the vector primitive is the same Noun figure and does.
+//
+// Width is the container's, never this component's. In the shell the rail is a
+// collapsible react-resizable-panels Panel, so drag-to-size, the collapsed
+// state, and persistence across reload are all the library's (the ledger's
+// split-geometry row), not a `panelWidth` prop animating to zero. `open` only
+// says whether to render the body; the Panel decides how wide that body is.
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -39,8 +45,6 @@ export interface InspectorRailProps {
   readonly sections?: InspectorRailSections;
   /** Fallback label before identity session resolves. */
   readonly workspaceName?: string;
-  /** Matches the published SidebarNav width (260). */
-  readonly panelWidth?: number;
   readonly className?: string;
   readonly footer?: ReactNode;
   readonly onNavSelect?: (id: string) => void;
@@ -48,6 +52,33 @@ export interface InspectorRailProps {
 
 function featureOn(sections: InspectorRailSections | undefined, key: InspectorRailSectionKey): boolean {
   return sections?.[key] !== false;
+}
+
+const RAIL_EDGE_CLASS =
+  'flex size-10 items-center justify-center rounded-(--radius-control) bg-transparent text-ij-ink-info transition-[transform,color] duration-(--ij-motion) ease-(--ij-ease) hover:-translate-y-1 hover:text-ij-ink';
+
+/**
+ * The reopen affordance, which cannot live inside the rail. A collapsed rail is
+ * a zero-width Panel that clips its own overflow, so a control in there is both
+ * unclickable and still in the accessibility tree: a dead button a screen
+ * reader would still offer. Whoever owns the collapsed state renders this
+ * beside the rail instead, inside a positioned ancestor.
+ */
+export function InspectorRailReopen({ onOpen }: { readonly onOpen: () => void }) {
+  return (
+    <div className="absolute right-2 top-1/2 z-40 -translate-y-1/2">
+      <button
+        type="button"
+        data-inspector-rail-reopen
+        aria-label="Open inspector rail"
+        aria-expanded={false}
+        className={RAIL_EDGE_CLASS}
+        onClick={onOpen}
+      >
+        <IconLayers size={20} aria-hidden />
+      </button>
+    </div>
+  );
 }
 
 /**
@@ -60,7 +91,6 @@ export function InspectorRail({
   onOpenChange,
   sections,
   workspaceName = 'CommonPlace',
-  panelWidth = 260,
   className,
   footer,
   onNavSelect,
@@ -72,14 +102,22 @@ export function InspectorRail({
     session?.user?.harnessIdentity
     ?? session?.user?.githubLogin
     ?? '';
-  const [activeId, setActiveId] = useState(pathname || '/chat');
+  const routeId = pathname || '/chat';
+  const [activeId, setActiveId] = useState(routeId);
+  const [seenRouteId, setSeenRouteId] = useState(routeId);
   const [workspaces, setWorkspaces] = useState<readonly IdentityWorkspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | undefined>();
   const [activeWorkspaceName, setActiveWorkspaceName] = useState(workspaceName);
 
-  useEffect(() => {
-    setActiveId(pathname || '/chat');
-  }, [pathname]);
+  // Selection is optimistic: a click highlights before the route settles, then
+  // the route reasserts. Adjusting during render is the shell's idiom for that
+  // (IntuiShell does the same with the sidebar's collapsed flag) and it is the
+  // reason react-hooks/set-state-in-effect rejects the effect form: an effect
+  // paints the stale row first and corrects it on a second pass.
+  if (routeId !== seenRouteId) {
+    setSeenRouteId(routeId);
+    setActiveId(routeId);
+  }
 
   useEffect(() => {
     let active = true;
@@ -136,42 +174,41 @@ export function InspectorRail({
     <div
       data-inspector-rail
       data-open={open ? 'true' : 'false'}
-      className={cn('relative flex h-full min-h-0 shrink-0 overflow-visible', className)}
-      style={{ width: open ? panelWidth : 0 }}
+      className={cn('relative flex h-full min-h-0 w-full overflow-hidden', className)}
     >
       {/* The centering translate lives on the wrapper so the button's own
           transform is free for the hover lift. A -translate-y-[calc(50%+3px)]
           that has to restate the centering is an arbitrary value the register
-          lint rejects, and it re-derives the same number in two places. */}
-      <div
-        className={cn(
-          'absolute top-1/2 z-40 -translate-y-1/2',
-          open ? 'left-0 -translate-x-1/2' : 'right-2 translate-x-0',
-        )}
-      >
-        <button
-          type="button"
-          data-inspector-rail-edge
-          aria-label={open ? 'Collapse inspector rail' : 'Open inspector rail'}
-          aria-expanded={open}
-          className="flex size-10 items-center justify-center rounded-(--radius-control) bg-transparent text-ij-ink-info transition-[transform,color] duration-(--ij-motion) ease-(--ij-ease) hover:-translate-y-1 hover:text-ij-ink"
-          onClick={() => onOpenChange(!open)}
-        >
-          <IconLayers size={20} aria-hidden />
-        </button>
-      </div>
+          lint rejects, and it re-derives the same number in two places.
+          It sits fully inside the rail's left edge rather than straddling it:
+          a Panel clips its own overflow, so half a control hanging outside
+          would be cut off rather than centered on the seam. Collapse only:
+          reopening is InspectorRailReopen's job, outside the rail. */}
+      {open ? (
+        <div className="absolute left-0 top-1/2 z-40 -translate-y-1/2">
+          <button
+            type="button"
+            data-inspector-rail-edge
+            aria-label="Collapse inspector rail"
+            aria-expanded
+            className={RAIL_EDGE_CLASS}
+            onClick={() => onOpenChange(false)}
+          >
+            <IconLayers size={20} aria-hidden />
+          </button>
+        </div>
+      ) : null}
 
       <aside
         data-inspector-rail-panel
         className={cn(
-          'ml-auto flex h-full min-h-0 flex-col overflow-hidden border-l border-border/50 bg-card transition-[width,opacity] duration-(--ij-motion) ease-(--ij-ease)',
+          'ml-auto flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-border/50 bg-card transition-opacity duration-(--ij-motion) ease-(--ij-ease)',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
-        style={{ width: open ? panelWidth : 0 }}
         aria-hidden={!open}
       >
         {open && showBody ? (
-          <div className="flex h-full min-h-0 w-full flex-col" style={{ width: panelWidth }}>
+          <div className="flex h-full min-h-0 w-full flex-col">
             <div className="min-h-0 flex-1 overflow-hidden" data-inspector-section="dashboard">
               <DashboardSidebar
                 host={host}
