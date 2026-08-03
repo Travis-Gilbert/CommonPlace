@@ -86,9 +86,13 @@ import {
 import { applyRunEvent } from './liveness';
 import { programNodeFromCatalog } from './catalogNode';
 import {
+  advanceProgramPin,
+  collapseProgramNode,
   dropBindingPreset,
+  expandProgramNode,
   fetchBindingPresets,
   fetchProgramCatalog,
+  fetchProgramInterior,
   fetchProgramContext,
   fetchProgramSpill,
   fetchStarterPrograms,
@@ -146,6 +150,7 @@ function emptyDraft(tenantId: string): ProgramDefinition {
     name: 'Untitled program',
     intent: '',
     authority: 'advisory',
+    environment: { bindings: [] },
     trigger: { kind: 'graph_change', labels: [], properties: [] },
     budget: { max_invocations: 10, window_seconds: 3600, max_cost_microunits: 1 },
     approval: { mode: 'preapproved_within_grants', grant_ids: [] },
@@ -287,6 +292,8 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const [widgetTweaks, setWidgetTweaks] = useState<Record<string, Record<string, unknown>>>({});
   const [pinnedByNode, setPinnedByNode] = useState<Record<string, PinnedNodeValue>>({});
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  /** Interior content ids waiting to become the Compound pin after an interior save. */
+  const [pendingPinByNode, setPendingPinByNode] = useState<Record<string, string>>({});
   const [proposal, setProposal] = useState<CompilerProposal | null>(null);
   const [proposalDiff, setProposalDiff] = useState<ProgramDiff | null>(null);
   /** Positions, collapse, advanced-port state, and reroute waypoints. */
@@ -375,6 +382,16 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
           if (id) {
             programIdRef.current = id;
             setProgramId(id);
+          }
+          const contentId = typeof result.content_id === 'string' ? result.content_id : null;
+          const expandedFrom = next.metadata?.expanded_from_node_id;
+          if (
+            contentId
+            && typeof expandedFrom === 'string'
+            && typeof next.parent_program_id === 'string'
+            && next.parent_program_id
+          ) {
+            setPendingPinByNode((current) => ({ ...current, [expandedFrom]: contentId }));
           }
           setNotice('Draft saved');
         })
@@ -704,6 +721,118 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     });
   }, [edges, layoutDoc, livenessByNode, patchLayout]);
 
+  function programIdentityForCompound(): string {
+    if (programId) return programId;
+    throw new Error('Save or open a program before compound mutations.');
+  }
+
+  async function applyCompoundExterior(
+    next: ProgramDefinition,
+    nextProgramId: string,
+    noticeText: string,
+  ): Promise<void> {
+    setDefinition(next);
+    setProgramId(nextProgramId);
+    const flow = definitionToFlow(next, catalogById, layoutRef.current, nodeHandlers, widgetTweaks);
+    setNodes(flow.nodes);
+    setEdges(flow.edges);
+    setNotice(noticeText);
+  }
+
+  async function expandSelectedNode(): Promise<void> {
+    if (!selectedNodeId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await expandProgramNode({
+        programId: programIdentityForCompound(),
+        nodeId: selectedNodeId,
+      });
+      await applyCompoundExterior(
+        result.program,
+        result.node_id || programIdentityForCompound(),
+        `Expanded ${selectedNodeId} into a Compound.`,
+      );
+    } catch (expandError) {
+      setError(expandError instanceof Error ? expandError.message : String(expandError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function collapseSelectedNode(): Promise<void> {
+    if (!selectedNodeId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await collapseProgramNode({
+        programId: programIdentityForCompound(),
+        nodeId: selectedNodeId,
+      });
+      setPendingPinByNode((current) => {
+        const next = { ...current };
+        delete next[selectedNodeId];
+        return next;
+      });
+      await applyCompoundExterior(
+        result.program,
+        result.node_id || programIdentityForCompound(),
+        `Collapsed ${selectedNodeId} to a Rule.`,
+      );
+    } catch (collapseError) {
+      setError(collapseError instanceof Error ? collapseError.message : String(collapseError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openSelectedInterior(): Promise<void> {
+    if (!selectedNodeId) return;
+    setError(null);
+    try {
+      const interior = await fetchProgramInterior({
+        programId: programIdentityForCompound(),
+        nodeId: selectedNodeId,
+      });
+      await openProgram(interior.pinned_content_id || interior.interior_program_id);
+      setNotice(`Opened interior for ${selectedNodeId}.`);
+    } catch (interiorError) {
+      setError(interiorError instanceof Error ? interiorError.message : String(interiorError));
+    }
+  }
+
+  async function advanceSelectedPin(): Promise<void> {
+    if (!selectedNodeId) return;
+    const toContentId = pendingPinByNode[selectedNodeId];
+    if (!toContentId) {
+      setNotice(`No newer interior content for ${selectedNodeId}; edit and save the interior first.`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await advanceProgramPin({
+        programId: programIdentityForCompound(),
+        nodeId: selectedNodeId,
+        toContentId,
+      });
+      setPendingPinByNode((current) => {
+        const next = { ...current };
+        delete next[selectedNodeId];
+        return next;
+      });
+      await applyCompoundExterior(
+        result.program,
+        result.node_id || programIdentityForCompound(),
+        `Advanced pin on ${selectedNodeId}.`,
+      );
+    } catch (advanceError) {
+      setError(advanceError instanceof Error ? advanceError.message : String(advanceError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openProgram(id: string): Promise<void> {
     draftGeneration.current += 1;
     const generation = draftGeneration.current;
@@ -901,6 +1030,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       tweaks,
       pinned_nodes: pinnedByNode,
       human_answers: humanAnswers,
+      environment_store: {},
     };
   }
 
@@ -1449,7 +1579,7 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             }}
           />
           {selectedNodeId ? (
-            <div className="absolute left-3 top-3 z-20 flex gap-1 rounded-ij-arc border border-ij-seam bg-ij-raised p-1">
+            <div className="absolute left-3 top-3 z-20 flex flex-wrap gap-1 rounded-ij-arc border border-ij-seam bg-ij-raised p-1">
               <button
                 type="button"
                 onClick={() => toggleNodeFlag(selectedNodeId, 'bypassed')}
@@ -1468,6 +1598,46 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
                   ? 'Unmute node'
                   : 'Mute node'}
               </button>
+              {definition.nodes.find((node) => node.id === selectedNodeId)?.kind === 'compound' ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void openSelectedInterior()}
+                    className="h-ij-control rounded-ij-arc px-2 text-xs hover:bg-ij-hover-surface disabled:opacity-50"
+                  >
+                    Open interior
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void collapseSelectedNode()}
+                    className="h-ij-control rounded-ij-arc px-2 text-xs hover:bg-ij-hover-surface disabled:opacity-50"
+                  >
+                    Collapse
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !pendingPinByNode[selectedNodeId]}
+                    onClick={() => void advanceSelectedPin()}
+                    className="h-ij-control rounded-ij-arc px-2 text-xs hover:bg-ij-hover-surface disabled:opacity-50"
+                    title={pendingPinByNode[selectedNodeId]
+                      ? `Advance pin to ${pendingPinByNode[selectedNodeId]}`
+                      : 'Edit and save the interior to enable Advance pin'}
+                  >
+                    Advance pin
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy || !programId}
+                  onClick={() => void expandSelectedNode()}
+                  className="h-ij-control rounded-ij-arc px-2 text-xs hover:bg-ij-hover-surface disabled:opacity-50"
+                >
+                  Expand
+                </button>
+              )}
             </div>
           ) : null}
           <ProposalOverlay

@@ -71,5 +71,9 @@ export function programNodeFromCatalog(entry: CatalogEntry, id: string): Program
           ? `program:${entry.published_program_id.replace(/^program:/, '')}`
           : entry.id,
       };
+    case 'compound':
+      throw new Error(
+        `Catalog entry ${entry.id} is Compound; expand an atom on the canvas instead of inserting from the catalog.`,
+      );
   }
 }
