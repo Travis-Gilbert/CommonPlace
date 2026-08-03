@@ -7,6 +7,7 @@ import {
   ACTIVE_WORKSPACE_TTL_SECONDS,
   encodeActiveWorkspaceClaims,
   resolveActiveWorkspaceSecret,
+  workspaceSessionScope,
 } from '@/lib/server/active-workspace';
 import {
   assertSameOriginIdentityMutation,
@@ -69,6 +70,11 @@ export async function POST(request: Request) {
           workspaceSlug: workspace.slug,
           tenant: workspace.tenant,
           scopeRef: workspace.scopeRef,
+          // Membership alone was all this cookie carried, so the daemon could
+          // not tell a read-only member from an admin and treated both as
+          // collaborators. The role is already verified above, on the same
+          // response that proved membership.
+          scope: workspaceSessionScope(workspace.role.permissions),
         },
         secret,
       ),

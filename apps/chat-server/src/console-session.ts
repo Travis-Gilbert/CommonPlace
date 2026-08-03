@@ -21,6 +21,33 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const ACTIVE_WORKSPACE_COOKIE = "cp_active_workspace";
 
+/**
+ * What a console session may do here.
+ *
+ * The same three values this daemon's token scopes use, because the console
+ * derives them from its own role permissions before signing. Keeping the
+ * mapping on that side means this file never has to know what a role named
+ * "editor" is allowed to do, and a role added there cannot mint a privilege
+ * here by arriving as a string this code guesses about.
+ */
+export type ConsoleSessionScope = "owner" | "collaborator" | "viewer";
+
+const SCOPES: ReadonlySet<string> = new Set<ConsoleSessionScope>([
+  "owner",
+  "collaborator",
+  "viewer",
+]);
+
+/**
+ * The scope assumed when the console signed no scope at all.
+ *
+ * Collaborator is what this daemon granted every console session before the
+ * field existed, so an in-flight cookie behaves exactly as it did. Owner would
+ * hand every cookie minted before this change the token-minting and
+ * workspace-deletion routes, which is the elevation the field exists to close.
+ */
+const SCOPE_WHEN_UNSIGNED: ConsoleSessionScope = "collaborator";
+
 /** The claim set the console signs. Field names and limits are its contract. */
 export type ConsoleSessionClaims = {
   readonly version: 1;
@@ -29,6 +56,7 @@ export type ConsoleSessionClaims = {
   readonly workspaceSlug: string;
   readonly tenant: string;
   readonly scopeRef: string;
+  readonly scope: ConsoleSessionScope;
   readonly expiresAt: number;
 };
 
@@ -107,6 +135,10 @@ export function decodeConsoleSessionClaims(
     || !admittedText(record.workspaceSlug, FIELD_LIMITS.workspaceSlug)
     || !admittedText(record.tenant, FIELD_LIMITS.tenant)
     || !admittedText(record.scopeRef, FIELD_LIMITS.scopeRef)
+    // An unrecognized scope is a rejection, not a fallback. Falling back would
+    // mean a typo, or a console signing a vocabulary this daemon has not
+    // learned yet, silently became a collaborator.
+    || (record.scope !== undefined && !SCOPES.has(record.scope as string))
     || !Number.isSafeInteger(record.expiresAt)
     || Number(record.expiresAt) <= Math.floor(nowMs / 1000)
   ) {
@@ -120,6 +152,7 @@ export function decodeConsoleSessionClaims(
     workspaceSlug: record.workspaceSlug,
     tenant: record.tenant,
     scopeRef: record.scopeRef,
+    scope: (record.scope ?? SCOPE_WHEN_UNSIGNED) as ConsoleSessionScope,
     expiresAt: Number(record.expiresAt),
   });
 }

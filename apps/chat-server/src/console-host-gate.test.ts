@@ -26,7 +26,7 @@ function consoleActor(scope: Actor["scope"]): Actor {
 }
 
 describe("console sessions on host-only routes", () => {
-  it("refuses a collaborator, which is what console sessions are today", () => {
+  it("refuses a collaborator, which is what a content-writing member signs as", () => {
     expect(consoleActorSatisfiesHost(consoleActor("collaborator"))).toBe(false);
   });
 
@@ -38,7 +38,7 @@ describe("console sessions on host-only routes", () => {
     expect(consoleActorSatisfiesHost(null)).toBe(false);
   });
 
-  it("admits owner, so a console that later signs a role needs no code change", () => {
+  it("admits owner, which the console now signs for a workspace admin", () => {
     expect(consoleActorSatisfiesHost(consoleActor("owner"))).toBe(true);
   });
 

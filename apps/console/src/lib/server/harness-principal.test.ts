@@ -61,6 +61,7 @@ beforeEach(() => {
       workspaceSlug: workspace.slug,
       tenant: workspace.tenant,
       scopeRef: workspace.scopeRef,
+      scope: 'collaborator',
     }, SECRET),
   });
   mocks.requestForkIdentity.mockResolvedValue({

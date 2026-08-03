@@ -1,3 +1,8 @@
+// SOURCING: none. The Claude Code plugin layout is a published format, not a
+// component: this file is the parser for it, and no package on npm reads it.
+// The GitHub reads are three plain REST calls against a base URL that must
+// stay overridable for tests (OPENWORK_GITHUB_API_BASE), which @octokit/rest
+// would carry a dependency and an auth model to do no better.
 /**
  * Claude Code plugin bundle compatibility.
  *
@@ -10,10 +15,48 @@
  *
  * Format reference: https://code.claude.com/docs/en/plugins-reference
  */
+import { ByteBudget, PayloadTooLargeError, readBoundedText } from "./bounded-body.js";
 import { ApiError } from "./errors.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import type { CloudPluginResolved } from "./cloud-plugins.js";
 import { externalFetch } from "./server-fetch.js";
+
+// Every limit below exists because this resolver walks a repository chosen by
+// the caller. Authorization now runs before resolution (server.ts), so the
+// caller is at least a collaborator, but a collaborator naming a pathological
+// repository is still a repository this process has to survive: a dry run is
+// an unwritten preview, and an unwritten preview that exhausts the host is
+// still an outage.
+//
+// The numbers are sized against real plugins rather than round figures. The
+// largest bundles in this ecosystem carry tens of components and SKILL.md
+// files in the low tens of kilobytes, so these leave roughly an order of
+// magnitude of headroom and still refuse a repository that is not a plugin.
+
+/** A tree listing large enough that the repository is not a plugin. */
+const MAX_TREE_ENTRIES = 20_000;
+/** The trees API response itself, which `recursive=1` can grow without bound. */
+const MAX_TREE_BYTES = 8 * 1024 * 1024;
+/** One manifest, MCP file, SKILL.md, command, or agent. */
+const MAX_FILE_BYTES = 512 * 1024;
+/** Every file one resolution downloads, summed. */
+const MAX_BUNDLE_BYTES = 16 * 1024 * 1024;
+/** Installable components in one bundle. */
+const MAX_COMPONENTS = 500;
+
+/**
+ * Turn a byte-limit refusal into the API's own error shape.
+ *
+ * 413 rather than 502: the far end behaved correctly and this server declined
+ * the size, which is a different fact from GitHub failing, and the two were
+ * worth telling apart in an operator's logs.
+ */
+function asApiError(error: unknown): unknown {
+  if (error instanceof PayloadTooLargeError) {
+    return new ApiError(413, "plugin_too_large", `${error.subject} is too large to install (limit ${error.limit} bytes).`);
+  }
+  return error;
+}
 
 export type ClaudePluginSource = {
   owner: string;
@@ -97,36 +140,53 @@ export function parseClaudePluginSource(input: string): ClaudePluginSource {
   return { owner, repo, ref, dir, treeSegments };
 }
 
-async function fetchGithubJson(url: string): Promise<unknown> {
+async function fetchGithubJson(url: string, limit: number, subject: string): Promise<unknown> {
   const response = await externalFetch(url, {
     headers: { Accept: "application/vnd.github+json", "User-Agent": "openwork-server" },
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
+    // The error body is attacker-influenced too, so it is read under the same
+    // ceiling as a success body rather than with response.text().
+    const text = await readBoundedText(response, 8 * 1024, subject).catch(() => "");
     throw new ApiError(502, "plugin_fetch_failed", `Failed to fetch plugin data (${response.status}): ${text || url}`);
   }
-  return response.json();
+  const text = await readBoundedText(response, limit, subject);
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new ApiError(502, "plugin_fetch_failed", `${subject} is not valid JSON`);
+  }
 }
 
-async function fetchGithubText(url: string): Promise<string> {
+async function fetchGithubText(url: string, subject: string, budget?: ByteBudget): Promise<string> {
   const response = await externalFetch(url, {
     headers: { Accept: "text/plain", "User-Agent": "openwork-server" },
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
+    const text = await readBoundedText(response, 8 * 1024, subject).catch(() => "");
     throw new ApiError(502, "plugin_fetch_failed", `Failed to fetch plugin file (${response.status}): ${text || url}`);
   }
-  return response.text();
+  return readBoundedText(response, MAX_FILE_BYTES, subject, budget);
 }
 
 type TreeEntry = { path: string; sha: string };
 
 async function fetchRepoTree(source: ClaudePluginSource, ref: string): Promise<TreeEntry[]> {
   const url = `${githubApiBase()}/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
-  const tree = await fetchGithubJson(url);
+  const tree = await fetchGithubJson(url, MAX_TREE_BYTES, `The tree of ${source.owner}/${source.repo}`);
   const entries = isRecord(tree) && Array.isArray(tree.tree) ? tree.tree : [];
+  // Counted before filtering to blobs. The cost being bounded is the walk over
+  // every entry and the Map built from it, which a repository of directories
+  // pays just as surely as one of files.
+  if (entries.length > MAX_TREE_ENTRIES) {
+    throw new ApiError(
+      413,
+      "plugin_too_large",
+      `${source.owner}/${source.repo} lists ${entries.length} paths, past the ${MAX_TREE_ENTRIES} this can resolve. Point the URL at the plugin directory: /tree/<ref>/<dir>.`,
+    );
+  }
   return entries.flatMap((entry) => {
     if (!isRecord(entry) || entry.type !== "blob") return [];
     if (typeof entry.path !== "string" || typeof entry.sha !== "string") return [];
@@ -137,7 +197,7 @@ async function fetchRepoTree(source: ClaudePluginSource, ref: string): Promise<T
 async function resolveDefaultBranch(source: ClaudePluginSource): Promise<string> {
   const url = `${githubApiBase()}/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}`;
   try {
-    const info = await fetchGithubJson(url);
+    const info = await fetchGithubJson(url, 256 * 1024, `The repository record for ${source.owner}/${source.repo}`);
     if (isRecord(info) && typeof info.default_branch === "string" && info.default_branch.trim()) {
       return info.default_branch.trim();
     }
@@ -265,15 +325,37 @@ function mcpConfigReferencesPluginRoot(config: unknown): boolean {
   return false;
 }
 
+/**
+ * Resolve a Claude Code plugin repository into an installable bundle.
+ *
+ * The byte ceilings live inside the reader, so they surface as
+ * PayloadTooLargeError from wherever the limit was reached. Translating here
+ * rather than at each of the six call sites keeps one answer for "too large"
+ * and stops a limit refusal from reaching the route handler as an untyped
+ * error, which would have become a 500 that reads like a server fault.
+ */
 export async function resolveClaudePluginBundle(input: { url: string; ref?: string }): Promise<ClaudePluginBundle> {
+  try {
+    return await resolveBundle(input);
+  } catch (error) {
+    throw asApiError(error);
+  }
+}
+
+async function resolveBundle(input: { url: string; ref?: string }): Promise<ClaudePluginBundle> {
   const source = parseClaudePluginSource(input.url);
   const { ref, dir, tree } = await resolveRefAndTree(source, input.ref?.trim() || undefined);
   const root = locatePluginRoot(tree, dir);
   const treeByPath = new Map(tree.map((entry) => [entry.path, entry]));
   const warnings: string[] = [];
 
+  // One allowance for every file this resolution downloads. Per-file limits
+  // alone would let a repository of ten thousand small files pass every
+  // individual check and still exhaust the host.
+  const budget = new ByteBudget(MAX_BUNDLE_BYTES, `This plugin's files`);
+
   const manifestPath = `${root}.claude-plugin/plugin.json`;
-  const manifestText = await fetchGithubText(rawFileUrl(source, ref, manifestPath));
+  const manifestText = await fetchGithubText(rawFileUrl(source, ref, manifestPath), manifestPath, budget);
   let manifest: Record<string, unknown>;
   try {
     const parsed: unknown = JSON.parse(manifestText);
@@ -354,7 +436,7 @@ export async function resolveClaudePluginBundle(input: { url: string; ref?: stri
   if (typeof declaredMcp === "string") {
     const mcpPath = normalizeRelative(root, declaredMcp);
     if (mcpPath && inTree(mcpPath)) {
-      const text = await fetchGithubText(rawFileUrl(source, ref, mcpPath));
+      const text = await fetchGithubText(rawFileUrl(source, ref, mcpPath), mcpPath, budget);
       try {
         addMcpServers(JSON.parse(text));
       } catch {
@@ -366,7 +448,7 @@ export async function resolveClaudePluginBundle(input: { url: string; ref?: stri
   }
   const dotMcpPath = `${root}.mcp.json`;
   if (inTree(dotMcpPath)) {
-    const text = await fetchGithubText(rawFileUrl(source, ref, dotMcpPath));
+    const text = await fetchGithubText(rawFileUrl(source, ref, dotMcpPath), dotMcpPath, budget);
     try {
       addMcpServers(JSON.parse(text));
     } catch {
@@ -389,8 +471,20 @@ export async function resolveClaudePluginBundle(input: { url: string; ref?: stri
     ...agentPaths.map((path) => ({ type: "agent" as const, path })),
   ];
 
+  // Refused before the first download rather than during it. A manifest whose
+  // `commands` points at the repository root collects every .md file in the
+  // tree, and finding that out after six hundred round trips is finding it out
+  // too late.
+  if (componentInputs.length > MAX_COMPONENTS) {
+    throw new ApiError(
+      413,
+      "plugin_too_large",
+      `This plugin declares ${componentInputs.length} components, past the ${MAX_COMPONENTS} that can be installed at once.`,
+    );
+  }
+
   const fetched = await mapWithConcurrency(componentInputs, 6, async (item): Promise<FetchedComponent> => {
-    const content = await fetchGithubText(rawFileUrl(source, ref, item.path));
+    const content = await fetchGithubText(rawFileUrl(source, ref, item.path), item.path, budget);
     const { data } = parseFrontmatter(content);
     const fallbackTitle = item.type === "skill"
       ? item.path.split("/").at(-2) ?? "skill"

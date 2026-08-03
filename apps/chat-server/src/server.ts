@@ -1294,10 +1294,9 @@ function withCors(response: Response, request: Request, config: ServerConfig) {
  *
  * Checked before bearer tokens everywhere, because when the register is served
  * under the console origin the browser sends this cookie on its own and the
- * page holds no token to send. Scope is "owner": the console already decided
- * this subject may act on this workspace, and re-deciding it here with a
- * narrower scope would silently break write paths for a user the console
- * considers authorized.
+ * page holds no token to send. Scope comes from the claim: the console derives
+ * it from the membership role it verified at mint time, which is the only
+ * place either app knows what a role is permitted to do.
  */
 function consoleSessionActor(request: Request, config: ServerConfig): Actor | null {
   const claims = readConsoleSession(request);
@@ -1324,17 +1323,22 @@ function consoleSessionActor(request: Request, config: ServerConfig): Actor | nu
 
   return {
     type: "console",
-    // Not owner. The console issues this cookie after checking membership
-    // only: its workspace contract carries a role, but the signed claim does
-    // not, so this daemon cannot tell a read-only member from an admin. Minting
-    // owner for everyone let any member reach token management, approvals,
-    // workspace deletion, and runtime upgrades.
+    // The console signs this, derived from the membership role it verified
+    // when it minted the cookie.
     //
-    // Collaborator is what the chat register actually needs. Owner-only
-    // operations are deliberately unreachable by console session until the
-    // console signs a role and this derives the scope from it, which is the
-    // same missing piece as the console-origin route in A9.
-    scope: "collaborator",
+    // It used to be pinned to "collaborator" here, because the claim carried
+    // membership and nothing else: this daemon could not tell a read-only
+    // member from an admin, and minting owner for everyone had let any member
+    // reach token management, approvals, workspace deletion, and runtime
+    // upgrades. Pinning closed that, at the cost of making owner-only
+    // operations unreachable by console session at all.
+    //
+    // Now the console signs the scope, so a viewer reads, a collaborator runs
+    // turns, and an admin reaches the owner routes. A cookie minted before the
+    // field existed decodes as collaborator (console-session.ts), which is the
+    // behaviour it had, so this can only narrow or widen on an explicit signal
+    // and never on a missing one.
+    scope: claims.scope,
     subject: claims.subject,
     // File sessions bind to actor.tokenHash and refuse a request whose hash
     // does not match the one that opened them (routes/files.ts). A console
@@ -1406,9 +1410,10 @@ async function requireHost(request: Request, config: ServerConfig, tokens: Token
   // reached token minting, workspace deletion, and runtime upgrades. The
   // bearer path below has always made the same check explicitly.
   //
-  // Console actors are collaborator today, so this rejects them all. The gate
-  // is written against the scope rather than the actor type so that a console
-  // that later signs an owner role works without touching this code.
+  // Written against the scope rather than the actor type, which is what let
+  // the console start signing owner without this code changing at all: a
+  // console admin now passes here, and every other console member still does
+  // not.
   const consoleActor = consoleSessionActor(request, config);
   if (consoleActorSatisfiesHost(consoleActor)) return consoleActor;
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { createHmac } from "node:crypto";
 
 import {
   ACTIVE_WORKSPACE_COOKIE,
@@ -8,13 +9,22 @@ import {
   resolveConsoleSessionSecret,
 } from "./console-session.js";
 
-// A cookie produced by the console's own encoder
+// Cookies produced by the console's own encoder
 // (apps/console/src/lib/server/active-workspace.ts, encodeActiveWorkspaceClaims)
-// with expiresAt pinned to 2100-01-01 so the fixture does not rot.
+// with expiresAt pinned to 2100-01-01 so the fixtures do not rot.
 const FIXTURE_SECRET = "commonplace-openwork-fork-ow4-contract-fixture-secret";
+
+// Minted before the scope field existed, and deliberately kept that way: it is
+// the only artifact in either app that proves what an in-flight cookie does
+// after the field is added.
 const FIXTURE_COOKIE =
   "eyJ2ZXJzaW9uIjoxLCJzdWJqZWN0IjoidXNlcjp0cmF2aXMiLCJ3b3Jrc3BhY2VJZCI6IndzXzAxIiwid29ya3NwYWNlU2x1ZyI6ImNvbW1vbnBsYWNlIiwidGVuYW50IjoiVHJhdmlzLUdpbGJlcnQiLCJzY29wZVJlZiI6IndvcmtzcGFjZTp3c18wMSIsImV4cGlyZXNBdCI6NDEwMjQ0NDgwMH0"
   + ".3UzwRaS_obhgQ-N_eyGlfNDYJh91DeZNbCWmyzZE3sA";
+
+// The current shape, carrying an owner scope.
+const FIXTURE_COOKIE_OWNER =
+  "eyJ2ZXJzaW9uIjoxLCJzdWJqZWN0IjoidXNlcjphZG1pbiIsIndvcmtzcGFjZUlkIjoid3NfMDEiLCJ3b3Jrc3BhY2VTbHVnIjoiY29tbW9ucGxhY2UiLCJ0ZW5hbnQiOiJUcmF2aXMtR2lsYmVydCIsInNjb3BlUmVmIjoid29ya3NwYWNlOndzXzAxIiwic2NvcGUiOiJvd25lciIsImV4cGlyZXNBdCI6NDEwMjQ0NDgwMH0"
+  + ".VR3P4yim79U-WYkj_h2qoYk7TBAAgdOTv7qbW_UAD-g";
 
 function requestWithCookie(cookie: string | null): Request {
   return new Request("http://workspace.local/session", {
@@ -27,16 +37,50 @@ describe("console session wire contract", () => {
   // the console changes its payload shape, its domain separator, or its digest
   // encoding, nothing else in this package would fail.
   it("accepts a cookie minted by the console encoder", () => {
-    const claims = decodeConsoleSessionClaims(FIXTURE_COOKIE, FIXTURE_SECRET);
+    const claims = decodeConsoleSessionClaims(FIXTURE_COOKIE_OWNER, FIXTURE_SECRET);
     expect(claims).toEqual({
       version: 1,
-      subject: "user:travis",
+      subject: "user:admin",
       workspaceId: "ws_01",
       workspaceSlug: "commonplace",
       tenant: "Travis-Gilbert",
       scopeRef: "workspace:ws_01",
+      scope: "owner",
       expiresAt: 4102444800,
     });
+  });
+
+  it("reads a cookie minted before scopes as a collaborator", () => {
+    // The migration boundary, held by an artifact that cannot be regenerated
+    // into agreement with the new code: this cookie was signed by the encoder
+    // as it stood before the field existed. Collaborator is what the daemon
+    // granted every console session then. Reading it as owner would hand the
+    // token-minting and workspace-deletion routes to every cookie already in
+    // a browser when this deployed.
+    const claims = decodeConsoleSessionClaims(FIXTURE_COOKIE, FIXTURE_SECRET);
+    expect(claims?.subject).toBe("user:travis");
+    expect(claims?.scope).toBe("collaborator");
+  });
+
+  it("rejects a scope outside the daemon vocabulary", () => {
+    // Signed correctly, with a value this side does not know. That is a
+    // deployment mismatch, and quietly reading it as the lowest scope would
+    // hide it behind a permissions bug report.
+    const payload = Buffer.from(JSON.stringify({
+      version: 1,
+      subject: "user:admin",
+      workspaceId: "ws_01",
+      workspaceSlug: "commonplace",
+      tenant: "Travis-Gilbert",
+      scopeRef: "workspace:ws_01",
+      scope: "superuser",
+      expiresAt: 4102444800,
+    })).toString("base64url");
+    const signature = createHmac("sha256", FIXTURE_SECRET)
+      .update("commonplace-active-workspace-v1\0")
+      .update(payload)
+      .digest("base64url");
+    expect(decodeConsoleSessionClaims(`${payload}.${signature}`, FIXTURE_SECRET)).toBeNull();
   });
 
   it("round-trips against the console's live encoder", async () => {
@@ -64,12 +108,16 @@ describe("console session wire contract", () => {
         workspaceSlug: "live",
         tenant: "Travis-Gilbert",
         scopeRef: "workspace:ws_live",
+        scope: "viewer",
       },
       FIXTURE_SECRET,
     );
     const claims = decodeConsoleSessionClaims(cookie, FIXTURE_SECRET);
     expect(claims?.subject).toBe("user:live");
     expect(claims?.tenant).toBe("Travis-Gilbert");
+    // The live half of the alarm now covers the scope too, which is the field
+    // that decides what this session may do.
+    expect(claims?.scope).toBe("viewer");
   });
 });
 

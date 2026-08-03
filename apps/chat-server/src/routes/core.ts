@@ -10,8 +10,10 @@ import {
   googleWorkspaceStatusConnectExtra,
   writeConnectState,
 } from "../connect-state.js";
+import { PayloadTooLargeError, readBoundedText } from "../bounded-body.js";
 import type { CloudMcpLiveStatusObserver } from "../cloud-mcp-health.js";
 import { readConsoleSession, resolveConsoleSessionSecret } from "../console-session.js";
+import { DEV_LOG_ALLOW_REMOTE_VAR, devLogSinkAllowedOnBind } from "../dev-log-sink.js";
 import { readOpenWorkConnectSkillCatalog, renderOpenWorkConnectSkillInstruction } from "../connect-skill-catalog.js";
 import { EnvStoreReadError, InvalidEnvKeyError, isValidEnvKey, type EnvService } from "../env-file.js";
 import { syncManagedProviderAuth } from "../managed-provider-auth.js";
@@ -79,36 +81,9 @@ interface RegisterCoreRoutesOptions {
 const MAX_DEV_LOG_BYTES = 256 * 1024;
 const MAX_DEV_LOG_ENTRIES = 500;
 
-class PayloadTooLargeError extends Error {}
-
-/**
- * Read a request body as text, giving up once it exceeds `limit` bytes.
- *
- * Deliberately not `request.text()` followed by a length check: that buffers
- * the entire body before the check can run, which is the exact failure being
- * prevented. Deliberately not a content-length check either — that header is
- * caller-supplied and a chunked body need not carry one.
- */
-async function readBoundedText(request: Request, limit: number): Promise<string> {
-  const body = request.body;
-  if (!body) return "";
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let size = 0;
-  let text = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > limit) throw new PayloadTooLargeError();
-      text += decoder.decode(value, { stream: true });
-    }
-  } finally {
-    reader.cancel().catch(() => undefined);
-  }
-  return text + decoder.decode();
-}
+// The bounded reader moved to bounded-body.ts when the plugin resolver needed
+// the same primitive. Two private copies of "stop reading at N bytes" is one
+// copy too many for a rule that only works if it is applied everywhere.
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -226,6 +201,20 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
     if (!target) {
       return jsonResponse({ ok: false, reason: "dev_log_disabled" }, 404);
     }
+    // An unauthenticated writer to the workspace filesystem is a development
+    // affordance, and it stops being one the moment the bind is routable.
+    // Checked before the body is read so a refused caller cannot spend this
+    // process's time streaming into a sink that will not accept it.
+    if (!devLogSinkAllowedOnBind(config.host)) {
+      return jsonResponse(
+        {
+          ok: false,
+          reason: "dev_log_not_loopback",
+          detail: `The dev log sink is unauthenticated and this server is bound to ${config.host}. Set ${DEV_LOG_ALLOW_REMOTE_VAR}=1 to accept it anyway.`,
+        },
+        403,
+      );
+    }
     // Unauthenticated by design, so it must be bounded by design too: without
     // a cap any caller that can reach the port can stream an endless body into
     // process memory and then onto the target filesystem. Read the stream with
@@ -277,6 +266,13 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
     const target = resolveDevLogPath();
     if (!target) {
       return jsonResponse({ ok: false, reason: "dev_log_disabled" });
+    }
+    // The probe answers the same refusal the POST would, so a client learns
+    // the sink is unusable without first sending a batch to find out. The path
+    // is withheld here: a caller that may not write to the sink has no reason
+    // to learn where on the volume it writes.
+    if (!devLogSinkAllowedOnBind(config.host)) {
+      return jsonResponse({ ok: false, reason: "dev_log_not_loopback" });
     }
     return jsonResponse({ ok: true, path: target });
   });
