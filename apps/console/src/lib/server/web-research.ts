@@ -51,7 +51,7 @@ const RUSTY_WEB_SEARCH_QUERY = `
 export async function loadWebResearch(
   query: string,
   principal: HarnessPrincipal,
-  _request: Request,
+  request: Request,
   options: LoadWebResearchOptions = {},
 ): Promise<WebResearchResult> {
   const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_CHAT_LIMIT, 20));
@@ -97,9 +97,10 @@ export async function loadWebResearch(
         },
       }),
       cache: 'no-store',
-      signal: timeout.signal,
+      signal: AbortSignal.any([request.signal, timeout.signal]),
     });
-  } catch {
+  } catch (error) {
+    if (request.signal.aborted) throw error;
     return {
       ok: false,
       response: Response.json(

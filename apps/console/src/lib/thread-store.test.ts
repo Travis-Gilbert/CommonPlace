@@ -22,7 +22,7 @@ function sseResponse(events: string[]): Response {
 
 describe('thread store', () => {
   beforeEach(() => {
-    useThreadStore.setState({ messages: [], isRunning: false, error: null, abort: null, endpoint: 'http://fixture/chat', mode: 'theorem' });
+    useThreadStore.setState({ messages: [], isRunning: false, error: null, abort: null, endpoint: 'http://fixture/chat', mode: 'auto' });
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 0;
@@ -82,6 +82,21 @@ describe('thread store', () => {
     await useThreadStore.getState().send('Research this change');
     const payloads = fetchSpy.mock.calls.map(([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>);
     expect(payloads).toContainEqual(expect.objectContaining({ capability: { kind: 'web' } }));
+  });
+
+  it('leaves auto unrouted and sends an explicit Theorem destination', async () => {
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => sseResponse([]));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await useThreadStore.getState().send('Choose the route');
+    useThreadStore.getState().setMode('theorem');
+    await useThreadStore.getState().send('Use the graph');
+
+    const payloads = fetchSpy.mock.calls
+      .map(([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>)
+      .filter((payload) => Array.isArray(payload.content));
+    expect(payloads[0]).not.toHaveProperty('capability');
+    expect(payloads[1]).toEqual(expect.objectContaining({ capability: { kind: 'theorem' } }));
   });
 
   it('projects stable transcript message ids without becoming a second store', () => {

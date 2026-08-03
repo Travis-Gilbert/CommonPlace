@@ -53,8 +53,13 @@ export function proactivityCompilationStream(
       };
       const complete = async (state: TheoremAgentState, text: string) => {
         if (closed) return;
-        if (state.turnStatus === 'refused' || state.turnStatus === 'failed' || state.pendingPermission) {
-          const error = state.blockedReason ?? 'Proactivity compilation did not complete.';
+        if (
+          state.turnStatus === 'refused' ||
+          state.turnStatus === 'failed' ||
+          state.turnStatus === 'cancelled' ||
+          state.pendingPermission
+        ) {
+          const error = state.blockedReason ?? state.error ?? 'Proactivity compilation did not complete.';
           controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error })}\n\n`));
           controller.enqueue(encoder.encode('event: done\ndata: {}\n\n'));
           close();
