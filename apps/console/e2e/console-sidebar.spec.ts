@@ -60,6 +60,7 @@ test.describe('Console sidebar', () => {
     await expect(rail.getByRole('radio', { name: 'Index view' })).toContainText('Index');
     await expect(rail.getByRole('radio', { name: 'Editor view' })).toContainText('Editor');
     await expect(rail.getByRole('radio', { name: 'Models view' })).toContainText('Models');
+    await expect(rail.getByRole('radio', { name: 'IDE view' })).toContainText('IDE');
     await expect(page.getByRole('region', { name: 'Pins' })).toHaveCount(1);
   });
 
@@ -72,13 +73,14 @@ test.describe('Console sidebar', () => {
     await expect(nav).toHaveAttribute('data-sidebar-collapsed', 'false');
   });
 
-  test('Cmd or Ctrl 1 through 5 reach all five views', async ({ page }) => {
+  test('Cmd or Ctrl 1 through 6 reach all six views', async ({ page }) => {
     const targets = [
       ['1', 'console-chat', '/chat'],
       ['2', 'console-survey', '/indexer'],
       ['3', 'console-index', '/filing'],
       ['4', 'console-workspace', '/workspace'],
       ['5', 'console-models', '/Data-model'],
+      ['6', 'console-ide', '/IDE'],
     ] as const;
 
     for (const [key, id, path] of targets) {

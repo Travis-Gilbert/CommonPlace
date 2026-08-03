@@ -45,7 +45,7 @@ export function readLastConsoleViewPath(): string {
 export function writeLastConsoleViewPath(path: string): void {
   if (typeof window === 'undefined') return;
   const normalized = normalizeConsolePagePath(path);
-  if (normalized.startsWith('/chat')) return;
+  if (normalized.startsWith('/chat') || normalized.startsWith('/IDE')) return;
   try {
     // persistence-preference: key=commonplace.console.last-view.v1; preference=last console view; reason=returns from Chat to the person's prior view
     window.localStorage.setItem(LAST_CONSOLE_VIEW_KEY, normalized);

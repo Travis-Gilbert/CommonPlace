@@ -18,6 +18,9 @@
   "scripts": {
     "check": "npx --yes -p typescript@5.7.3 tsc --noEmit"
   },
+  "dependencies": {
+    "@noble/hashes": "^1.8.0"
+  },
   "devDependencies": {
     "typescript": "^5.7.3"
   }

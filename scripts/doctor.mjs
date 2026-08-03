@@ -73,7 +73,7 @@ async function checkRegisterRoutes() {
     // register body is behind an authenticated place.
     const loginish = response.status === 200 && /callbackUrl|sign.?in|login/i.test(text);
     const consoleShell = response.status === 200 && /data-register="intui"|data-theme-mode/i.test(text);
-    const pass = response.ok && (hasMarker || loginish || (consoleShell && row.id !== 'chat'));
+    const pass = response.ok && (hasMarker || loginish || (consoleShell && row.id !== 'chat' && row.id !== 'ide'));
     results.push({
       id: `route.${row.id}`,
       pass,
@@ -122,6 +122,28 @@ async function checkDoctorApi() {
       results.push({ id: `resurrection.${row.id}`, pass: passResurrection, detail: JSON.stringify(row) });
       (passResurrection ? ok : fail)(`resurrection ${row.id} absent=${row.absent}`);
     }
+  }
+
+  // IDE-007: substrate beyond HTML stamp (healthz + readiness GraphQL).
+  if (body?.substrate) {
+    const sub = body.substrate;
+    const healthPass = sub.healthz?.ok === true;
+    const readyPass = sub.readiness?.ok === true;
+    results.push({
+      id: 'substrate.healthz',
+      pass: healthPass,
+      detail: `${sub.url ?? 'none'} ${sub.healthz?.status} ${sub.healthz?.body ?? ''}`,
+    });
+    (healthPass ? ok : fail)(`substrate healthz ${sub.healthz?.status}`);
+    results.push({
+      id: 'substrate.readiness',
+      pass: readyPass,
+      detail: `${sub.readiness?.status} ${sub.readiness?.detail ?? ''}`,
+    });
+    (readyPass ? ok : fail)(`substrate readiness ${sub.readiness?.detail ?? ''}`);
+  } else {
+    results.push({ id: 'substrate', pass: false, detail: 'doctor api missing substrate field' });
+    fail('doctor api missing substrate field');
   }
 
   // Production /api/doctor skips source-tree resurrection (standalone has no

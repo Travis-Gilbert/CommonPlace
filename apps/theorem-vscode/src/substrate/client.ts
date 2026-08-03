@@ -1,5 +1,4 @@
-// SOURCING: none. Transport glue over fetch and EventSource, both platform
-// APIs available in the extension host; no upstream client library applies.
+// SOURCING: none. Transport glue over fetch and optional EventSource.
 /**
  * V1. The standing-query client for the extension host.
  *
@@ -8,25 +7,12 @@
  * Degradation travel intact, stale generations are discarded client-side, and
  * LSP appears nowhere. Every provider in V2 through V6 consumes this one client.
  *
- * Four properties are load-bearing and each is asserted in `substrate.test.ts`:
+ * Auth: commonplace-api admits GraphQL and `/v1/editor/invalidations` through
+ * `x-api-key` (Theorem PR #436 / EDITOR-DX). Bearer alone is not enough.
  *
- * - **No polling.** Freshness comes from the editor invalidation door at
- *   `/v1/editor/invalidations`: one SSE connection, and a subscription
- *   re-queries authoritatively rather than patching rows in place. This mirrors
- *   `packages/block-view/src/host/changefeed.ts`, which already made this choice
- *   for block bodies. `EventSource` reconnects on its own, so there is no timer
- *   here to lose track of.
- * - **An invalidation names its file.** The event carries `path`, so a change to
- *   one file re-queries that file's standing queries and leaves the rest alone.
- *   The earlier shape had no path and had to refresh everything; with twenty
- *   open editors that was twenty times the work per keystroke elsewhere.
- * - **Stale answers are dropped.** Each subscription key carries the highest
- *   generation it has seen; a response stamped below it is discarded and logged
- *   rather than rendered. Two in-flight queries returning out of order is the
- *   normal case, not the exceptional one.
- * - **A dead endpoint is a value.** Failures resolve to `{ ok: false,
- *   degradation }` carrying the door, status, and reason. Nothing here returns
- *   an empty result set for a request that never landed.
+ * Changefeed: prefer an injected EventSourceImpl (tests). In the Node
+ * extension host, fall back to authenticated fetch streaming when a token is
+ * present — native EventSource cannot attach headers.
  */
 
 import type { UnavailableSurface } from '@commonplace/block-view-contracts/editor-intelligence';
@@ -47,7 +33,7 @@ export interface SubstrateEndpoint {
   readonly invalidationsUrl?: string;
   /** Scopes the invalidation stream to one project when the server knows it. */
   readonly projectId?: string;
-  /** Console session token. Sent as a bearer header when present. */
+  /** commonplace-api key. Sent as `x-api-key` (and Bearer for dual-door hosts). */
   readonly token?: string;
 }
 
@@ -105,9 +91,8 @@ const NO_GENERATION = -1;
 /**
  * Derive the invalidation door from the GraphQL door.
  *
- * Both are served by the same `commonplace-api` process, so one configured URL
- * is enough in the common case; an explicit `invalidationsUrl` still wins when
- * they are split behind different routes.
+ * Server query param is `project_id` (snake_case) per commonplace-api
+ * `EditorInvalidationQuery` on Theorem main (#436).
  */
 export function invalidationsUrlFrom(graphqlUrl: string, projectId?: string): string | undefined {
   let base: URL;
@@ -117,8 +102,17 @@ export function invalidationsUrlFrom(graphqlUrl: string, projectId?: string): st
     return undefined;
   }
   base.pathname = EDITOR_INVALIDATIONS_PATH;
-  base.search = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  base.search = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
   return base.toString();
+}
+
+/** Headers for GraphQL and authenticated SSE. */
+export function substrateAuthHeaders(token?: string): Record<string, string> {
+  if (!token) return {};
+  return {
+    'x-api-key': token,
+    authorization: `Bearer ${token}`,
+  };
 }
 
 export class SubstrateClient {
@@ -127,6 +121,7 @@ export class SubstrateClient {
   private readonly subscriptions = new Map<string, Subscription<unknown>>();
   private source: EventSourceLike | null = null;
   private disposed = false;
+  private fetchAbort: AbortController | null = null;
 
   constructor(options: SubstrateClientOptions) {
     this.options = options;
@@ -136,10 +131,6 @@ export class SubstrateClient {
   /**
    * One GraphQL round trip. Never throws for transport or protocol failure:
    * the honest degraded state is the return value.
-   *
-   * `readGeneration` pulls the stamp out of whatever the document selected;
-   * a document with no generation field reports NO_GENERATION, which never
-   * looks stale and never suppresses a later answer.
    */
   async query<T>(
     document: string,
@@ -152,9 +143,7 @@ export class SubstrateClient {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...(this.options.endpoint.token
-            ? { authorization: `Bearer ${this.options.endpoint.token}` }
-            : {}),
+          ...substrateAuthHeaders(this.options.endpoint.token),
         },
         body: JSON.stringify({ query: document, variables }),
       });
@@ -212,11 +201,6 @@ export class SubstrateClient {
     };
   }
 
-  /**
-   * Register a standing query. Runs immediately, then again on every
-   * invalidation that names its path, delivering only answers at or above the
-   * highest generation this key has already seen.
-   */
   subscribe<T>(
     key: string,
     run: () => Promise<SubstrateResult<T>>,
@@ -238,12 +222,11 @@ export class SubstrateClient {
     };
   }
 
-  /** Re-run one subscription. Exposed for the invalidation path and for tests. */
   async refresh(key: string): Promise<void> {
     const subscription = this.subscriptions.get(key);
     if (!subscription) return;
     const result = await subscription.run();
-    if (!this.subscriptions.has(key)) return; // unsubscribed while in flight
+    if (!this.subscriptions.has(key)) return;
 
     if (result.ok) {
       if (isStaleGeneration(subscription.seen, result.generation)) {
@@ -257,11 +240,6 @@ export class SubstrateClient {
     subscription.deliver(result);
   }
 
-  /**
-   * Re-run the standing queries an invalidation touches: those bound to the
-   * named path, plus every workspace-wide query, which has no narrower signal
-   * to wait for.
-   */
   async refreshPath(path: string): Promise<void> {
     const keys = [...this.subscriptions.entries()]
       .filter(([, subscription]) => subscription.path === undefined || subscription.path === path)
@@ -269,7 +247,6 @@ export class SubstrateClient {
     await Promise.all(keys.map((key) => this.refresh(key)));
   }
 
-  /** Re-run every standing query. The fallback when an event says nothing usable. */
   async refreshAll(): Promise<void> {
     await Promise.all([...this.subscriptions.keys()].map((key) => this.refresh(key)));
   }
@@ -281,45 +258,112 @@ export class SubstrateClient {
   }
 
   private ensureChangefeed(): void {
-    if (this.disposed || this.source) return;
+    if (this.disposed || this.source || this.fetchAbort) return;
     const url = this.options.endpoint.invalidationsUrl
       ?? invalidationsUrlFrom(this.options.endpoint.graphqlUrl, this.options.endpoint.projectId);
-    const Impl = this.options.EventSourceImpl;
-    if (!url || !Impl) {
-      // No push door configured. Subscriptions still answer once; freshness
-      // then depends on explicit refresh, and the status says so rather than
-      // a timer quietly appearing here.
+    if (!url) {
       this.options.onChangefeedStatus?.('idle');
       return;
     }
 
+    const Impl = this.options.EventSourceImpl;
+    if (Impl) {
+      this.options.onChangefeedStatus?.('connecting');
+      const source = new Impl(url);
+      this.source = source;
+      source.onopen = () => this.options.onChangefeedStatus?.('live');
+      source.onerror = () => this.options.onChangefeedStatus?.('stale');
+      source.addEventListener('message', (event) => this.onInvalidationFrame(event.data));
+      return;
+    }
+
+    // Node / code-server: no header-capable EventSource. Stream with fetch.
+    if (!this.options.endpoint.token) {
+      this.options.onChangefeedStatus?.('idle');
+      this.log('invalidations: idle (no token for authenticated SSE; EventSource unavailable)');
+      return;
+    }
+    void this.openFetchChangefeed(url);
+  }
+
+  private async openFetchChangefeed(url: string): Promise<void> {
+    if (this.disposed || this.fetchAbort) return;
+    const abort = new AbortController();
+    this.fetchAbort = abort;
     this.options.onChangefeedStatus?.('connecting');
-    const source = new Impl(url);
-    this.source = source;
-    source.onopen = () => this.options.onChangefeedStatus?.('live');
-    source.onerror = () => this.options.onChangefeedStatus?.('stale');
-    source.addEventListener('message', (event) => {
-      const invalidation = parseEditorInvalidation(event.data);
-      if (!invalidation) {
-        // The stream opens with a comment and may carry frames this version
-        // does not model. Something changed and the client cannot tell what,
-        // so it re-reads everything rather than silently going stale.
-        this.log('invalidation frame not understood; refreshing every standing query');
-        void this.refreshAll();
+    try {
+      const response = await this.fetchImpl(url, {
+        method: 'GET',
+        headers: {
+          accept: 'text/event-stream',
+          ...substrateAuthHeaders(this.options.endpoint.token),
+        },
+        signal: abort.signal,
+      });
+      if (!response.ok || !response.body) {
+        this.options.onChangefeedStatus?.('stale');
+        this.log(`invalidations: fetch SSE answered ${response.status}`);
+        this.fetchAbort = null;
         return;
       }
-      void this.refreshPath(invalidation.path);
-    });
+      this.options.onChangefeedStatus?.('live');
+      await consumeSse(response.body, (data) => this.onInvalidationFrame(data), abort.signal);
+    } catch (error) {
+      if (!abort.signal.aborted) {
+        this.options.onChangefeedStatus?.('stale');
+        this.log(`invalidations: ${describe(error)}`);
+      }
+    } finally {
+      if (this.fetchAbort === abort) this.fetchAbort = null;
+    }
+  }
+
+  private onInvalidationFrame(data: string): void {
+    const invalidation = parseEditorInvalidation(data);
+    if (!invalidation) {
+      this.log('invalidation frame not understood; refreshing every standing query');
+      void this.refreshAll();
+      return;
+    }
+    void this.refreshPath(invalidation.path);
   }
 
   private closeChangefeed(): void {
     this.source?.close();
     this.source = null;
+    this.fetchAbort?.abort();
+    this.fetchAbort = null;
     this.options.onChangefeedStatus?.('idle');
   }
 
   private log(message: string): void {
     this.options.log?.(message);
+  }
+}
+
+async function consumeSse(
+  body: ReadableStream<Uint8Array>,
+  onData: (data: string) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (!signal.aborted) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let split = buffer.indexOf('\n\n');
+    while (split !== -1) {
+      const frame = buffer.slice(0, split);
+      buffer = buffer.slice(split + 2);
+      const dataLines = frame
+        .split('\n')
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart());
+      if (dataLines.length > 0) onData(dataLines.join('\n'));
+      split = buffer.indexOf('\n\n');
+    }
   }
 }
 

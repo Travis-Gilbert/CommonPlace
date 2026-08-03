@@ -2,15 +2,18 @@
 # SOURCING: none. Pure process supervision, no upstream component applies.
 #
 # SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW5: two doors, one checkout, one token.
+# IDE-006 adds a third process: co-located commonplace-api over the same
+# ${WORKSPACE_DIR} so theorem-vscode can query live diagnostics.
 #
 # Both processes are started against the same ${WORKSPACE_DIR}. That is the
 # whole mechanism: the chat register's file engine and the IDE register's
 # explorer are reading the same inodes, so an edit through one is visible to
 # the other with no sync step because there is no second copy to sync.
 #
-# Both also authenticate against ${WORKSPACE_TOKEN}. One secret, so revoking
-# access closes both doors at once. Two secrets would mean a workspace whose
-# IDE is still reachable after its chat access is withdrawn.
+# Chat authenticates against ${WORKSPACE_TOKEN}. The IDE door runs --auth none
+# on the private network; the console /IDE edge checks cp_active_workspace and
+# is the only public path to :8080. Revoking WORKSPACE_TOKEN still closes chat;
+# revoking the active-workspace cookie closes the IDE edge.
 
 set -euo pipefail
 
@@ -66,15 +69,11 @@ if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
   fi
 fi
 
-# The IDE door. --auth password reads PASSWORD from the environment, so the
-# shared workspace token is what it checks.
-export PASSWORD="${WORKSPACE_TOKEN}"
-
-# The chat door. Both credentials are seeded, not just the host one: ordinary
-# API routes authenticate bearer tokens against OPENWORK_TOKEN, and the web
-# client deliberately withholds the host token from non-loopback servers. With
-# only the host credential set, WORKSPACE_TOKEN opened the IDE and then got 401
-# from every chat route.
+# The IDE door is reached only through the console's /IDE edge proxy on the
+# private network (Railway does not publish :8080). Console authenticates the
+# user via cp_active_workspace, then strips /IDE and forwards. --auth none here
+# avoids a second login with WORKSPACE_TOKEN in the browser; chat still uses
+# the shared token over bearer.
 export OPENWORK_TOKEN="${WORKSPACE_TOKEN}"
 export OPENWORK_HOST_TOKEN="${WORKSPACE_TOKEN}"
 
@@ -109,12 +108,112 @@ trap shutdown TERM INT
 
 echo "workspace: chat door on :${OPENWORK_PORT}, IDE door on :${CODE_SERVER_PORT}, both over ${WORKSPACE_DIR}"
 
+# --- IDE-006: co-located editor substrate ---------------------------------
+# Remote commonplace-api cannot see these inodes. When the binary is in the
+# image, run it against the same volume and point the pack at loopback.
+EDITOR_SUBSTRATE_PORT="${EDITOR_SUBSTRATE_PORT:-50090}"
+EDITOR_SUBSTRATE_STATE_DIR="${EDITOR_SUBSTRATE_STATE_DIR:-/workspace/state/editor-substrate}"
+EDITOR_SUBSTRATE_ENV_FILE="${EDITOR_SUBSTRATE_ENV_FILE:-${EDITOR_SUBSTRATE_STATE_DIR}/editor.env}"
+mkdir -p "${EDITOR_SUBSTRATE_STATE_DIR}/data"
+
+if [ -x /usr/local/bin/commonplace-api ]; then
+  export COMMONPLACE_API_KEY="${COMMONPLACE_API_KEY:-${WORKSPACE_TOKEN}}"
+  export COMMONPLACE_DATA_DIR="${COMMONPLACE_DATA_DIR:-${EDITOR_SUBSTRATE_STATE_DIR}/data}"
+  export COMMONPLACE_INSTANCE_ID="${COMMONPLACE_INSTANCE_ID:-workspace-editor}"
+  export COMMONPLACE_SERVICE_ALLOWED_TENANTS="${COMMONPLACE_SERVICE_ALLOWED_TENANTS:-Travis-Gilbert}"
+  # Local service-key registry only. Never pull console cookie secrets or the
+  # shared control-plane pepper into this container.
+  unset THEOREM_CONTROL_DATABASE_URL THEOREM_API_KEY_PEPPER || true
+
+  echo "workspace: editor substrate on :${EDITOR_SUBSTRATE_PORT} over ${WORKSPACE_DIR}"
+  # Bind [::]:PORT like the hosted API so private-network doctor probes reach it.
+  # Do not leak this PORT into chat or code-server children.
+  env PORT="${EDITOR_SUBSTRATE_PORT}" \
+    COMMONPLACE_API_KEY="${COMMONPLACE_API_KEY}" \
+    COMMONPLACE_DATA_DIR="${COMMONPLACE_DATA_DIR}" \
+    COMMONPLACE_INSTANCE_ID="${COMMONPLACE_INSTANCE_ID}" \
+    COMMONPLACE_SERVICE_ALLOWED_TENANTS="${COMMONPLACE_SERVICE_ALLOWED_TENANTS}" \
+    setsid commonplace-api &
+  pids+=($!)
+
+  EDITOR_SUBSTRATE_URL="http://127.0.0.1:${EDITOR_SUBSTRATE_PORT}" \
+  EDITOR_SUBSTRATE_STATE_DIR="${EDITOR_SUBSTRATE_STATE_DIR}" \
+  EDITOR_SUBSTRATE_ENV_FILE="${EDITOR_SUBSTRATE_ENV_FILE}" \
+  THEOREM_EDITOR_API_KEY="${COMMONPLACE_API_KEY}" \
+  WORKSPACE_DIR="${WORKSPACE_DIR}" \
+    node /usr/local/bin/bootstrap-editor-substrate.mjs \
+    || echo "workspace: editor substrate bootstrap failed; starting doors without project_id" >&2
+
+  if [ -f "${EDITOR_SUBSTRATE_ENV_FILE}" ]; then
+    # shellcheck disable=SC1090
+    set -a
+    # shellcheck source=/dev/null
+    . "${EDITOR_SUBSTRATE_ENV_FILE}"
+    set +a
+  fi
+else
+  echo "workspace: commonplace-api binary absent; pack will use THEOREM_EDITOR_* from Railway env if set" >&2
+fi
+
+CODE_SERVER_USER_DATA_DIR="${CODE_SERVER_USER_DATA_DIR:-/workspace/state/code-server/user-data}"
+CODE_SERVER_EXTENSIONS_DIR="${CODE_SERVER_EXTENSIONS_DIR:-/workspace/state/code-server/extensions}"
+mkdir -p "${CODE_SERVER_USER_DATA_DIR}/User" "${CODE_SERVER_EXTENSIONS_DIR}"
+
+# Seed the immutable image pack into the volume-backed extensions dir so
+# upgrades replace the pack without requiring users to reinstall manually.
+PACK_SRC="/opt/commonplace/extensions/theorem-vscode"
+PACK_DST="${CODE_SERVER_EXTENSIONS_DIR}/commonplace.theorem-vscode-0.1.0"
+if [ -d "${PACK_SRC}" ]; then
+  rm -rf "${PACK_DST}"
+  mkdir -p "${PACK_DST}"
+  cp -R "${PACK_SRC}/." "${PACK_DST}/"
+  echo "workspace: seeded theorem-vscode into ${PACK_DST}"
+fi
+
+# Merge non-secret theorem.* settings from env. Secrets may also ride env
+# (THEOREM_EDITOR_API_KEY) so the pack reads them without requiring settings.json.
+SETTINGS_PATH="${CODE_SERVER_USER_DATA_DIR}/User/settings.json"
+node - <<'NODE' "${SETTINGS_PATH}"
+const fs = require('node:fs');
+const path = process.argv[1];
+let current = {};
+try {
+  current = JSON.parse(fs.readFileSync(path, 'utf8'));
+} catch {
+  current = {};
+}
+const set = (key, value) => {
+  if (typeof value === 'string' && value.trim().length > 0) current[key] = value.trim();
+};
+set('theorem.graphqlUrl', process.env.THEOREM_EDITOR_GRAPHQL_URL);
+set('theorem.invalidationsUrl', process.env.THEOREM_EDITOR_INVALIDATIONS_URL);
+set('theorem.projectId', process.env.THEOREM_EDITOR_PROJECT_ID);
+set('theorem.consoleOrigin', process.env.THEOREM_CONSOLE_ORIGIN);
+set('theorem.agentUrl', process.env.THEOREM_ACP_WS_URL);
+// Prefer env for the key at runtime; only write settings when explicitly asked.
+if (process.env.THEOREM_EDITOR_WRITE_TOKEN_TO_SETTINGS === '1') {
+  set('theorem.token', process.env.THEOREM_EDITOR_API_KEY);
+}
+fs.writeFileSync(path, `${JSON.stringify(current, null, 2)}\n`);
+NODE
+
 # PORT must not reach code-server: it overrides --bind-addr and steals the chat port.
-env -u PORT setsid code-server \
+env -u PORT \
+  THEOREM_EDITOR_GRAPHQL_URL="${THEOREM_EDITOR_GRAPHQL_URL:-}" \
+  THEOREM_EDITOR_INVALIDATIONS_URL="${THEOREM_EDITOR_INVALIDATIONS_URL:-}" \
+  THEOREM_EDITOR_PROJECT_ID="${THEOREM_EDITOR_PROJECT_ID:-}" \
+  THEOREM_EDITOR_API_KEY="${THEOREM_EDITOR_API_KEY:-}" \
+  THEOREM_ACP_WS_URL="${THEOREM_ACP_WS_URL:-}" \
+  THEOREM_ACP_TOKEN="${THEOREM_ACP_TOKEN:-}" \
+  THEOREM_CONSOLE_ORIGIN="${THEOREM_CONSOLE_ORIGIN:-}" \
+  setsid code-server \
   --bind-addr "0.0.0.0:${CODE_SERVER_PORT}" \
-  --auth password \
+  --auth none \
   --disable-telemetry \
   --disable-update-check \
+  --user-data-dir "${CODE_SERVER_USER_DATA_DIR}" \
+  --extensions-dir "${CODE_SERVER_EXTENSIONS_DIR}" \
+  --enable-proposed-api commonplace.theorem-vscode \
   "${WORKSPACE_DIR}" &
 pids+=($!)
 

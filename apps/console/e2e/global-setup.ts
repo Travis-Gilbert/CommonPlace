@@ -25,6 +25,7 @@ const ROUTES = [
   '/records',
   '/threads',
   '/Data-model',
+  '/IDE',
   '/appearance',
   '/login',
   '/onboarding',
