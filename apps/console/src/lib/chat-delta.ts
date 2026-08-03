@@ -13,7 +13,7 @@ export interface ConsoleChatBody {
 
 export type ConsoleChatCapability =
   | { readonly kind: 'plugin' | 'skill'; readonly id: string; readonly name: string }
-  | { readonly kind: 'web' | 'object' };
+  | { readonly kind: 'web' | 'object' | 'theorem' };
 
 export type ConsoleChatRequest = {
   readonly displayText: string;
@@ -27,7 +27,11 @@ function readCapability(value: unknown): ConsoleChatCapability | undefined {
     throw new BridgeCommandError('Expected a valid chat capability.', 400);
   }
   const candidate = value as Partial<ConsoleChatCapability>;
-  if (candidate.kind === 'web' || candidate.kind === 'object') return { kind: candidate.kind };
+  if (
+    candidate.kind === 'web' ||
+    candidate.kind === 'object' ||
+    candidate.kind === 'theorem'
+  ) return { kind: candidate.kind };
   if (
     (candidate.kind === 'plugin' || candidate.kind === 'skill')
     && typeof candidate.id === 'string'
@@ -54,6 +58,9 @@ function capabilityInstruction(capability: ConsoleChatCapability): string {
   }
   if (capability.kind === 'web') {
     return 'For this turn, answer from the supplied live web research evidence and cite its exact source URLs. Refuse explicitly if that evidence is unavailable.';
+  }
+  if (capability.kind === 'theorem') {
+    return 'Use the composed Theorem agent for this turn without external web acquisition.';
   }
   return 'Treat CommonPlace object mentions in the user request as required grounding. Refuse explicitly if a referenced object cannot be resolved.';
 }
@@ -105,6 +112,7 @@ export function deltaStream(
       let closed = false;
       let unsubscribe = () => {};
       let sent = '';
+      let activity: TheoremAgentState['activityStatus'] = null;
       const close = () => {
         if (closed) return;
         closed = true;
@@ -125,6 +133,14 @@ export function deltaStream(
         if (closed) return;
         const assistant = [...state.messages].reverse().find((message) => message.role === 'assistant');
         const text = assistant?.text ?? '';
+        if (state.activityStatus && state.activityStatus !== activity) {
+          controller.enqueue(
+            encoder.encode(
+              `event: activity\ndata: ${JSON.stringify({ status: state.activityStatus })}\n\n`,
+            ),
+          );
+          activity = state.activityStatus;
+        }
         if (text.startsWith(sent) && text.length > sent.length) {
           const delta = text.slice(sent.length);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`));
@@ -135,7 +151,7 @@ export function deltaStream(
           sent = text;
         }
         if (state.turnStatus === 'refused' || state.turnStatus === 'failed') {
-          const reason = state.blockedReason ?? `turn ${state.turnStatus}`;
+          const reason = state.error ?? state.blockedReason ?? `turn ${state.turnStatus}`;
           controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: reason })}\n\n`));
         }
         if (state.pendingPermission || state.turnStatus !== 'running') complete();

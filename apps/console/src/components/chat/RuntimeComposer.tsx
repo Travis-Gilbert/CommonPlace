@@ -39,7 +39,7 @@ import {
 import { objectAddress } from '@/lib/object-address';
 import { useShellStore } from '@/lib/shell-store';
 import { actionInstructionFromThreadText } from '@/lib/thread-submit';
-import { useThreadStore } from '@/lib/thread-store';
+import { useThreadStore, type ComposerMode } from '@/lib/thread-store';
 
 const MAX_CHARACTERS = 2000;
 /** The counter is not ambient furniture: a live digit readout on every
@@ -507,10 +507,11 @@ export function Composer({
                   aria-label="Chat destination"
                   data-web-search-state={webSearchAvailable ? 'available' : 'unavailable'}
                   value={mode}
-                  onChange={(event) => setMode(event.target.value as 'theorem' | 'web')}
+                  onChange={(event) => setMode(event.target.value as ComposerMode)}
                   className="composer-mode-select font-ij-mono"
                   style={{ fontSize: 'var(--ij-composer-meta-font-size)' }}
                 >
+                  <option value="auto">Auto</option>
                   <option value="theorem">Theorem</option>
                   <option value="web" disabled={!webSearchAvailable}>
                     Web search

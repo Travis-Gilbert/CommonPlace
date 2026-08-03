@@ -7,6 +7,7 @@ import {
 import {
   applySessionUpdate,
   beginTurn,
+  cancelTurn,
   completeTurn,
   createTheoremAgentState,
   failTurn,
@@ -16,6 +17,7 @@ import {
   type AgentProcessKey,
   type PendingPermission,
   type TheoremAgentState,
+  type TurnContext,
 } from './state';
 import {
   createEndpointBootProvider,
@@ -28,7 +30,12 @@ export type AcquiredAcpSession = {
   sessionId: string;
   getState(): TheoremAgentState;
   subscribe(listener: (state: TheoremAgentState) => void): () => void;
-  prompt(text: string, options?: { displayText?: string }): Promise<void>;
+  prepareTurn(displayText: string, turnContext: TurnContext): void;
+  prompt(
+    text: string,
+    options?: { displayText?: string; turnContext?: TurnContext; prepared?: boolean },
+  ): Promise<void>;
+  failPreparedTurn(error: string): void;
   respondPermission(callId: string, decision: 'allow' | 'reject'): boolean;
   cancel(): Promise<void>;
 };
@@ -54,6 +61,7 @@ class ManagedAcpSession implements AcquiredAcpSession {
   #state: TheoremAgentState;
   #listeners = new Set<(state: TheoremAgentState) => void>();
   #permissions = new Map<string, PendingDecision>();
+  #promptGeneration = 0;
 
   constructor(
     readonly client: AcpTransport,
@@ -72,18 +80,47 @@ class ManagedAcpSession implements AcquiredAcpSession {
     return () => this.#listeners.delete(listener);
   }
 
-  async prompt(text: string, options?: { displayText?: string }): Promise<void> {
-    this.#setState(beginTurn(this.#state, options?.displayText ?? text));
+  prepareTurn(displayText: string, turnContext: TurnContext): void {
+    this.#setState(beginTurn(this.#state, displayText, turnContext));
+  }
+
+  async prompt(
+    text: string,
+    options?: { displayText?: string; turnContext?: TurnContext; prepared?: boolean },
+  ): Promise<void> {
+    if (options?.prepared && this.#state.turnStatus !== 'running') return;
+    const generation = ++this.#promptGeneration;
+    if (!options?.prepared) {
+      this.#setState(
+        beginTurn(this.#state, options?.displayText ?? text, options?.turnContext),
+      );
+    }
     try {
-      const response = await this.client.prompt(this.sessionId, text);
+      const response = await this.client.prompt(
+        this.sessionId,
+        text,
+        options?.turnContext,
+      );
+      if (generation !== this.#promptGeneration) return;
       this.#setState(completeTurn(this.#state, response.stopReason));
-    } catch {
-      this.#setState(failTurn(this.#state));
+    } catch (error) {
+      if (generation !== this.#promptGeneration) return;
+      this.#setState(
+        failTurn(
+          this.#state,
+          error instanceof Error ? error.message : String(error),
+        ),
+      );
     }
   }
 
   async cancel(): Promise<void> {
+    this.#setState(cancelTurn(this.#state));
     await this.client.cancel(this.sessionId);
+  }
+
+  failPreparedTurn(error: string): void {
+    this.#setState(failTurn(this.#state, error));
   }
 
   onUpdate(notification: AcpSessionNotification): void {

@@ -11,6 +11,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useMessage,
+  type DataMessagePartProps,
   type ToolCallMessagePartProps,
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
@@ -39,6 +40,33 @@ function formatTime(value: unknown): string | undefined {
 
 function MarkdownText() {
   return <MarkdownTextPrimitive />;
+}
+
+function TurnAcknowledgement(props: DataMessagePartProps<{ text?: unknown }>) {
+  const text = typeof props.data.text === 'string' ? props.data.text : null;
+  if (!text) return null;
+  return (
+    <p
+      data-turn-acknowledgement
+      className="mb-1 text-ij-island-meta text-ij-ink-info"
+      style={{ fontFamily: 'var(--cp-font-human)' }}
+    >
+      {text}
+    </p>
+  );
+}
+
+function TurnActivity(props: DataMessagePartProps<{ status?: unknown }>) {
+  if (props.data.status !== 'running') return null;
+  return (
+    <p
+      data-turn-activity
+      className="mb-1 animate-pulse text-ij-island-meta text-ij-ink-info"
+      style={{ fontFamily: 'var(--cp-font-human)' }}
+    >
+      Working through the routed turn.
+    </p>
+  );
 }
 
 function ToolCallExcerpt(props: ToolCallMessagePartProps) {
@@ -203,6 +231,12 @@ function AssistantMessage({ host }: { host: BlockHost }) {
           <MessagePrimitive.Parts
             components={{
               Text: MarkdownText,
+              data: {
+                by_name: {
+                  'theorem-acknowledgement': TurnAcknowledgement,
+                  'theorem-activity': TurnActivity,
+                },
+              },
               tools: { Fallback: ToolCallExcerpt },
             }}
           />

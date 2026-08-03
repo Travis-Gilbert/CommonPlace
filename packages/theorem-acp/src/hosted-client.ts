@@ -1,4 +1,4 @@
-// SOURCING: none — pure logic, no upstream component applies
+// SOURCING: none, pure logic, no upstream component applies
 /**
  * Hosted ACP transport: CommonPlace BFF attaches to Theorem's Railway ACP host
  * over `/v1/commonplace/acp/ws` instead of spawning a local `theorem acp`.
@@ -14,6 +14,7 @@ import type {
   PromptResponse,
   RequestPermissionRequest,
 } from './client';
+import type { TurnContext } from './state';
 
 export type HostedAcpClientOptions = {
   agentId: string;
@@ -96,7 +97,11 @@ export class HostedAcpClient {
     });
   }
 
-  prompt(sessionId: string, text: string): Promise<PromptResponse> {
+  prompt(
+    sessionId: string,
+    text: string,
+    turnContext?: TurnContext,
+  ): Promise<PromptResponse> {
     if (this.#disposed) return Promise.reject(new Error('Hosted ACP client was disposed'));
     if (this.#pendingPrompts.has(sessionId)) {
       return Promise.reject(new Error(`Hosted ACP prompt already in flight for ${sessionId}`));
@@ -108,11 +113,7 @@ export class HostedAcpClient {
       }, promptTimeoutMs());
       this.#pendingPrompts.set(sessionId, { sessionId, resolve, reject, timeout });
       try {
-        this.#send({
-          type: 'prompt',
-          session_id: sessionId,
-          text,
-        });
+        this.#send(hostedPromptEnvelope(sessionId, text, turnContext));
       } catch (error) {
         clearTimeout(timeout);
         this.#pendingPrompts.delete(sessionId);
@@ -125,9 +126,16 @@ export class HostedAcpClient {
     if (this.#disposed) return;
     const pending = this.#pendingPrompts.get(sessionId);
     if (!pending) return;
+    let sendError: unknown;
+    try {
+      this.#send(hostedCancelEnvelope(sessionId));
+    } catch (error) {
+      sendError = error;
+    }
     clearTimeout(pending.timeout);
     this.#pendingPrompts.delete(sessionId);
     pending.reject(new Error('Hosted ACP prompt was cancelled'));
+    if (sendError) throw sendError;
   }
 
   onSessionUpdate(handler: (notification: AcpSessionNotification) => void): () => void {
@@ -343,6 +351,23 @@ export function resolveAcpTransport(): 'hosted' | 'local' {
   // Local desktop / opt-in: prefer spawn when a binary path is configured.
   if (process.env.THEOREM_ACP_BIN?.trim()) return 'local';
   return 'hosted';
+}
+
+export function hostedPromptEnvelope(
+  sessionId: string,
+  text: string,
+  turnContext?: TurnContext,
+): Record<string, unknown> {
+  return {
+    type: 'prompt',
+    session_id: sessionId,
+    text,
+    ...(turnContext ? { turn_context: turnContext } : {}),
+  };
+}
+
+export function hostedCancelEnvelope(sessionId: string): Record<string, unknown> {
+  return { type: 'cancel_prompt', session_id: sessionId };
 }
 
 export function resolveHostedAcpWsUrl(authRequest?: Request): string {

@@ -97,12 +97,15 @@ function snapshot(text: string, turnStatus: TheoremAgentState['turnStatus']): Th
     mode: 'composed',
     bindingId: 'agent:theorem',
     turnStatus,
+    activityStatus: turnStatus === 'running' ? 'running' : null,
     messages: [
-      { id: 'm1', role: 'user', text: 'hello', contributions: [], toolCalls: [] },
-      { id: 'm2', role: 'assistant', text, contributions: [], toolCalls: [] },
+      { id: 'm1', role: 'user', text: 'hello', acknowledgement: null, contributions: [], toolCalls: [] },
+      { id: 'm2', role: 'assistant', text, acknowledgement: null, contributions: [], toolCalls: [] },
     ],
     pendingPermission: null,
     blockedReason: null,
+    error: null,
+    appliedUpdateKeys: [],
     bootBrief: null,
   };
 }

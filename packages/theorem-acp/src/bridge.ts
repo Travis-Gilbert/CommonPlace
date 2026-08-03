@@ -1,5 +1,10 @@
 import { AcpSessionManager, type AcquiredAcpSession } from './session-manager';
-import type { AgentProcessKey, TheoremAgentState } from './state';
+import {
+  isTurnContext,
+  type AgentProcessKey,
+  type TheoremAgentState,
+  type TurnContext,
+} from './state';
 
 export type BridgeCommand =
   | {
@@ -9,6 +14,8 @@ export type BridgeCommand =
       sourceId: string | null;
       /** Original user text when the agent prompt was inquiry-grounded. */
       displayText?: string;
+      /** Router prelude already published to the person and continued by Theorem. */
+      turnContext?: TurnContext;
     }
   | { type: 'permission-response'; callId: string; decision: 'allow' | 'reject' }
   | { type: 'cancel' };
@@ -43,6 +50,7 @@ export async function resolveBridgeSession(body: Record<string, unknown>): Promi
 export async function dispatchBridgeCommands(
   session: AcquiredAcpSession,
   commands: unknown,
+  options: { preparedTurn?: boolean } = {},
 ): Promise<void> {
   for (const command of validateBridgeCommands(commands)) {
     if (command.type === 'add-message') {
@@ -52,6 +60,8 @@ export async function dispatchBridgeCommands(
         .join('\n');
       void session.prompt(text, {
         displayText: command.displayText ?? text,
+        turnContext: command.turnContext,
+        prepared: options.preparedTurn,
       });
       continue;
     }
@@ -95,11 +105,16 @@ export function createStateStream(
         if (closed) return;
         closed = true;
         unsubscribe();
-        signal.removeEventListener('abort', close);
+        signal.removeEventListener('abort', cancel);
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       };
+      const cancel = () => {
+        void session.cancel();
+        close();
+      };
       if (signal.aborted) {
+        void session.cancel();
         controller.close();
         return;
       }
@@ -109,7 +124,7 @@ export function createStateStream(
         if (state.pendingPermission || state.turnStatus !== 'running') close();
       };
       unsubscribe = session.subscribe(write);
-      signal.addEventListener('abort', close, { once: true });
+      signal.addEventListener('abort', cancel, { once: true });
       write(session.getState());
     },
   });
@@ -157,6 +172,7 @@ function isCommand(value: unknown): value is BridgeCommand {
     decision?: unknown;
     parentId?: unknown;
     sourceId?: unknown;
+    turnContext?: unknown;
   };
   if (command.type === 'cancel') return true;
   if (command.type === 'permission-response') {
@@ -170,6 +186,7 @@ function isCommand(value: unknown): value is BridgeCommand {
     message.parts.length > 0 &&
     (command.parentId === null || typeof command.parentId === 'string') &&
     (command.sourceId === null || typeof command.sourceId === 'string') &&
+    (command.turnContext === undefined || isTurnContext(command.turnContext)) &&
     message.parts.every(
       (part) =>
         !!part &&
