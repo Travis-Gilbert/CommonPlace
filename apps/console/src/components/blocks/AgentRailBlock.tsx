@@ -206,12 +206,11 @@ export function AgentRailBlock({
             onSubmit={(event) => {
               event.preventDefault();
               const form = event.currentTarget;
-              const field = form.elements.namedItem('agent-rail-input');
-              const value =
-                field && 'value' in field ? String((field as HTMLInputElement).value).trim() : '';
+              const data = new FormData(form);
+              const value = String(data.get('agent-rail-input') ?? '').trim();
               if (!value) return;
               void submitThreadText(value);
-              if (field && 'value' in field) (field as HTMLInputElement).value = '';
+              form.reset();
             }}
           >
             <input
