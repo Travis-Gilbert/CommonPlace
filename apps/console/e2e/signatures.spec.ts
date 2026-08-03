@@ -207,7 +207,9 @@ for (const { theme, preset } of THEMES) {
     test('account chrome holds without a run widget or bottom status metadata', async ({ page }) => {
       await expect(page.locator('[data-run-widget]')).toHaveCount(0);
       await expect(page.locator('[data-account-trigger]')).toBeVisible();
-      await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '28px');
+      // 32, not the Int UI 28: --ij-control-h resolves to Twenty's
+      // --t-spacing-8 since the register inverted onto Twenty's proportions.
+      await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '32px');
       await expect(page.locator('[data-paint-region="status-bar"]')).toHaveCount(0);
       await expect(page.locator('[data-connection-owner="status-bar"]')).toHaveCount(0);
       await expect(page.locator('[data-shell-sidebar-seam]')).toBeVisible();

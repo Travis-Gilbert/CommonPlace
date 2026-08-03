@@ -58,8 +58,11 @@ import {
 } from '@commonplace/theorem-acp/workspace-state';
 
 /** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
-const SIDEBAR_WIDTH_PX = 180;
-const SIDEBAR_COLLAPSED_PX = 48;
+/* The sidebar is now the shared 21st two-level shell: a 64px icon rail that
+   never collapses, plus a 320px detail panel that does. Collapsed still shows
+   the panel's own 64px expand strip, so the aside is 384 open and 128 shut. */
+const SIDEBAR_WIDTH_PX = 384;
+const SIDEBAR_COLLAPSED_PX = 128;
 const OVERLAY_BREAKPOINT = 1100;
 const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
 const READINESS_POLL_MS = 1_500;

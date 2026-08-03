@@ -602,10 +602,12 @@ function IconNavButton({
   children,
   isActive = false,
   onClick,
+  buttonProps,
 }: {
   children: React.ReactNode;
   isActive?: boolean;
   onClick?: () => void;
+  buttonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }) {
   return (
     <button
@@ -613,6 +615,7 @@ function IconNavButton({
       className={`flex items-center justify-center rounded-ij-arc size-10 min-w-10 transition-colors duration-(--ij-motion) ease-(--ij-ease)
         ${isActive ? "bg-ij-raised text-ij-ink" : "hover:bg-ij-raised text-ij-ink-disabled hover:text-ij-ink-info"}`}
       onClick={onClick}
+      {...buttonProps}
     >
       {children}
     </button>
@@ -623,6 +626,13 @@ export type TwoLevelSidebarItem = {
   readonly id: string;
   readonly label: string;
   readonly icon: ReactNode;
+  /**
+   * Spread onto the rail button. The console shell's stripe carries radio
+   * semantics, keyboard shortcuts, and the data-* selectors its tests and
+   * paint gates assert, none of which the published rail models; this is the
+   * seam that lets the shell keep them without forking the rail.
+   */
+  readonly buttonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 };
 
 function IconNavigation({
@@ -631,12 +641,14 @@ function IconNavigation({
   items,
   brand,
   footer,
+  railProps,
 }: {
   activeSection: string;
   onSectionChange: (section: string) => void;
   items?: readonly TwoLevelSidebarItem[];
   brand?: ReactNode;
   footer?: ReactNode;
+  railProps?: React.HTMLAttributes<HTMLElement>;
 }) {
   const navItems: readonly TwoLevelSidebarItem[] = items ?? [
     { id: 'dashboard', icon: <Dashboard size={16} />, label: 'Dashboard' },
@@ -652,6 +664,7 @@ function IconNavigation({
     <aside
       data-jshguo-icon-rail
       className="bg-ij-chrome flex h-full min-h-0 w-16 flex-col items-center gap-2 rounded-l-ij-island border-r border-ij-seam p-4"
+      {...railProps}
     >
       <div className="mb-2 flex size-10 items-center justify-center">
         {brand ?? (
@@ -667,6 +680,7 @@ function IconNavigation({
             key={item.id}
             isActive={activeSection === item.id}
             onClick={() => onSectionChange(item.id)}
+            buttonProps={item.buttonProps}
           >
             <span className="sr-only">{item.label}</span>
             {item.icon}
@@ -800,9 +814,18 @@ function DetailSidebar({
       <SectionTitle title={resolvedTitle} onToggleCollapse={toggleCollapse} isCollapsed={isCollapsed} />
 
       {panel ? (
-        !isCollapsed ? (
-          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">{panel}</div>
-        ) : null
+        /* Collapsed narrows the panel to nothing rather than unmounting it.
+           Unmounting drops the injected content out of the accessibility tree,
+           and the console's rail keeps its Pins region reachable while
+           collapsed. Width and overflow do the hiding; no `hidden`, which
+           would take it out of the tree just the same. */
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-all duration-(--ij-motion) ease-(--ij-ease) ${
+            isCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'
+          }`}
+        >
+          {panel}
+        </div>
       ) : (
         <>
           <SearchContainer isCollapsed={isCollapsed} />
@@ -1012,9 +1035,17 @@ export type TwoLevelSidebarShellProps = {
   /** Mark plus wordmark for the detail panel's brand row. */
   readonly panelBrand?: ReactNode;
   readonly footer?: ReactNode;
+  /** Spread onto the icon rail element, for the same reason as buttonProps. */
+  readonly railProps?: React.HTMLAttributes<HTMLElement>;
   readonly className?: string;
-  readonly 'data-testid'?: string;
-};
+  /**
+   * Anything else lands on the root element. The console shell needs
+   * data-paint-region, data-shell-region, and data-sidebar-collapsed on the
+   * same node the gates and e2e specs already look for, and a fixed prop list
+   * cannot carry them.
+   */
+} & Omit<React.HTMLAttributes<HTMLDivElement>, 'title' | 'className' | 'children'>
+  & { readonly [attribute: `data-${string}`]: string | undefined };
 
 /**
  * Product mount of the published jshguo TwoLevelSidebar: icon rail always on,
@@ -1031,15 +1062,16 @@ export function TwoLevelSidebarShell({
   brand,
   panelBrand,
   footer,
+  railProps,
   className = '',
-  'data-testid': testId,
+  ...rest
 }: TwoLevelSidebarShellProps) {
   return (
     <div
       data-jshguo-sidebar
-      data-testid={testId}
       data-panel-open={panelOpen ? 'true' : 'false'}
       className={`flex h-full min-h-0 flex-row ${className}`}
+      {...rest}
     >
       <IconNavigation
         activeSection={activeSection}
@@ -1050,6 +1082,7 @@ export function TwoLevelSidebarShell({
         items={items}
         brand={brand}
         footer={footer}
+        railProps={railProps}
       />
       <DetailSidebar
         activeSection={activeSection}
