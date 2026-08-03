@@ -98,6 +98,14 @@
       "production_route": "/Data-model",
       "registry_entry": "model.studio",
       "manifest_impl": "model-canvas.owox",
+      "engine_contracts": [
+        {
+          "id": "theorem.commonplace-meta-model.v1",
+          "source": "Travis-Gilbert/Theorem#457",
+          "owner": "Theorem",
+          "consumer": "CommonPlace model.studio"
+        }
+      ],
       "superseded": [],
       "notes": "Page body is ModelCanvasShell via ForkDiagramCanvas. ModelView is the registry adapter (load/pin/OKF/layout) with floating actions only — plan-id BlockShell chrome removed 2026-08-03."
     },
