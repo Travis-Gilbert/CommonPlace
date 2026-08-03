@@ -15,9 +15,13 @@
 set -euo pipefail
 
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace/repo}"
-# Railway healthchecks probe $PORT. Prefer OPENWORK_PORT, then PORT, then 8787.
+# Railway healthchecks and public routing use $PORT. The chat door owns that
+# port. code-server also reads $PORT and will ignore --bind-addr when it is set,
+# so it must be started with PORT unset (GL7 collision 2026-08-03).
 OPENWORK_PORT="${OPENWORK_PORT:-${PORT:-8787}}"
 CODE_SERVER_PORT="${CODE_SERVER_PORT:-8080}"
+# Keep PORT aligned with the chat door for Railway probes without leaking it
+# into the IDE child.
 export PORT="${OPENWORK_PORT}"
 
 if [ -z "${WORKSPACE_TOKEN:-}" ]; then
@@ -105,7 +109,8 @@ trap shutdown TERM INT
 
 echo "workspace: chat door on :${OPENWORK_PORT}, IDE door on :${CODE_SERVER_PORT}, both over ${WORKSPACE_DIR}"
 
-setsid code-server \
+# PORT must not reach code-server: it overrides --bind-addr and steals the chat port.
+env -u PORT setsid code-server \
   --bind-addr "0.0.0.0:${CODE_SERVER_PORT}" \
   --auth password \
   --disable-telemetry \
