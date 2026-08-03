@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,10 +32,27 @@ async function main() {
     resolve(packageRoot, "bin/openwork-server.mjs"),
     resolve(outputRoot, "bin/openwork-server.mjs")
   );
-  await cp(
-    resolve(packageRoot, "dist/bin/openwork-server"),
-    resolve(outputRoot, "dist/bin/openwork-server")
-  );
+
+  // Every compiled binary, not just the publishing machine's. Copying the one
+  // unsuffixed binary produced a package that claimed to be platform-neutral
+  // and handed an incompatible executable to every other CPU and OS.
+  await cp(resolve(packageRoot, "dist/bin"), resolve(outputRoot, "dist/bin"), {
+    recursive: true
+  });
+
+  // The JavaScript the bin wrapper falls back to when no binary matches. It
+  // needs Bun on the host, which is a real requirement, but it is a working
+  // path rather than a wrong-architecture crash.
+  for (const entry of ["cli.js", "opencode-plugins"]) {
+    const source = resolve(packageRoot, "dist", entry);
+    if (!existsSync(source)) {
+      throw new Error(
+        `Missing dist/${entry}. Run \`pnpm build\` before publishing: the package needs a portable fallback for platforms without a matching binary.`
+      );
+    }
+    await cp(source, resolve(outputRoot, "dist", entry), { recursive: true });
+  }
+
   await cp(resolve(packageRoot, "README.md"), resolve(outputRoot, "README.md"));
   await writeFile(
     resolve(outputRoot, "package.json"),

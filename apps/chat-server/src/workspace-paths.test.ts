@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { ApiError } from "./errors.js";
-import { resolveSafeChildPath } from "./workspace-paths.js";
+import { isRealPathWithinDirectory, resolveSafeChildPath } from "./workspace-paths.js";
 
 // A workspace with an escaping symlink in it, which is the shape a checkout
 // takes after cloning a repository that contains one.
@@ -79,5 +79,50 @@ describe("paths that must keep working", () => {
 
     const resolved = await resolveSafeChildPath(workspace, "sub/alias.txt");
     expect(resolved.endsWith("ok.txt")).toBe(true);
+  });
+});
+
+describe("absolute-path containment for the engine proxy", () => {
+  it("rejects a symlinked directory supplied as x-opencode-directory", async () => {
+    // The escalation: the engine treats this header as its working directory,
+    // so accepting a symlink pointed the engine at /etc for every subsequent
+    // proxied operation.
+    const { workspace, outside } = await makeWorkspace();
+    await symlink(outside, join(workspace, "host"));
+
+    expect(await isRealPathWithinDirectory(join(workspace, "host"), workspace)).toBe(false);
+  });
+
+  it("accepts a real subdirectory, which is the legitimate case", async () => {
+    const { workspace } = await makeWorkspace();
+    await mkdir(join(workspace, "packages", "api"), { recursive: true });
+
+    expect(await isRealPathWithinDirectory(join(workspace, "packages", "api"), workspace)).toBe(true);
+  });
+
+  it("accepts the workspace root itself", async () => {
+    const { workspace } = await makeWorkspace();
+    expect(await isRealPathWithinDirectory(workspace, workspace)).toBe(true);
+  });
+
+  it("rejects a sibling whose path merely shares a prefix", async () => {
+    const { workspace } = await makeWorkspace();
+    const sibling = `${workspace}-other`;
+    await mkdir(sibling, { recursive: true });
+    roots.push(sibling);
+
+    expect(await isRealPathWithinDirectory(sibling, workspace)).toBe(false);
+  });
+
+  it("rejects a directory that does not exist", async () => {
+    const { workspace } = await makeWorkspace();
+    expect(await isRealPathWithinDirectory(join(workspace, "nope"), workspace)).toBe(false);
+  });
+
+  it("decodes a percent-encoded header value before judging it", async () => {
+    const { workspace } = await makeWorkspace();
+    await mkdir(join(workspace, "sub dir"), { recursive: true });
+
+    expect(await isRealPathWithinDirectory(encodeURIComponent(join(workspace, "sub dir")), workspace)).toBe(true);
   });
 });

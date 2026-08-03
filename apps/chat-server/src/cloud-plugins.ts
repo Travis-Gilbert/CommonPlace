@@ -527,7 +527,7 @@ async function removePluginWorkspaceFile(workspaceRoot: string, path: string): P
   await rm(absolutePath, { force: true });
 }
 
-function cloudPluginMcpNameFromPath(path: string): string | null {
+export function cloudPluginMcpNameFromPath(path: string): string | null {
   if (!path.startsWith(OPENCODE_MCP_IMPORT_PATH_PREFIX)) return null;
   const name = path.slice(OPENCODE_MCP_IMPORT_PATH_PREFIX.length).trim();
   return OPENCODE_MCP_NAME_RE.test(name) ? name : null;
@@ -600,10 +600,22 @@ export async function installCloudPlugin(input: {
 
   const nextPaths = new Set(files.map((file) => file.path));
   const removedMcpNames = (existing?.files ?? []).flatMap((file) => {
+    // Every path the new version no longer declares has to go, not just the
+    // MCP entries. A skill, agent, or command left behind keeps being loaded
+    // by OpenCode, and because the registry is replaced with the new file
+    // list, a later uninstall cannot remove it either — it is no longer
+    // tracked as belonging to the plugin.
     const name = file.objectType === "mcp" && !nextPaths.has(file.path) ? cloudPluginMcpNameFromPath(file.path) : null;
     return name ? [name] : [];
   });
-  await Promise.all(removedMcpNames.map((name) => removeMcp(input.serverConfig, input.workspaceId, name)));
+  const removedFilePaths = (existing?.files ?? [])
+    .filter((file) => file.objectType !== "mcp" && !nextPaths.has(file.path))
+    .map((file) => file.path);
+
+  await Promise.all([
+    ...removedMcpNames.map((name) => removeMcp(input.serverConfig, input.workspaceId, name)),
+    ...removedFilePaths.map((path) => removePluginWorkspaceFile(input.workspaceRoot, path)),
+  ]);
 
   const imported: CloudImportedPlugin = {
     pluginId: input.resolved.plugin.id,

@@ -15,6 +15,7 @@ import type { ApprovalRequest, ServerConfig, TokenScope, WorkspaceInfo } from ".
 import { ensureDir, exists, shortId } from "../utils.js";
 import { addRoute, type RequestContext, type Route } from "./registry.js";
 import { resolveSafeChildPath } from "../workspace-paths.js";
+import { canReadWorkspacePath } from "../credential-files.js";
 
 const FILE_SESSION_DEFAULT_TTL_MS = 15 * 60 * 1000;
 const FILE_SESSION_MIN_TTL_MS = 30 * 1000;
@@ -43,6 +44,18 @@ interface RegisterFileRoutesOptions {
   resolveOutboxEnabled: () => boolean;
   resolveInboxMaxBytes: () => number;
   scopeRank: (scope: TokenScope) => number;
+}
+
+/**
+ * Refuse a viewer's read of a credential-bearing path.
+ *
+ * Applied at every surface that returns file *contents*, because gating the
+ * config routes one at a time kept leaving another door to the same bytes.
+ */
+function assertReadableByActor(scope: string | undefined, relativePath: string): void {
+  if (!canReadWorkspacePath(scope, relativePath)) {
+    throw new ApiError(403, "forbidden", "Viewer tokens cannot read credential files");
+  }
 }
 
 function resolveInboxDir(workspaceRoot: string): string {
@@ -756,7 +769,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
   });
 
   addRoute(routes, "POST", "/files/sessions/:sessionId/read-batch", "client", async (ctx) => {
-    const { workspace } = resolveFileSession(ctx, ctx.params.sessionId);
+    const { session, workspace } = resolveFileSession(ctx, ctx.params.sessionId);
     const body = await readJsonBody(ctx.request);
     const paths = parseBatchPathList(body.paths);
     const items: Array<Record<string, unknown>> = [];
@@ -764,6 +777,15 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
 
     for (const relativePath of paths) {
       try {
+        if (!canReadWorkspacePath(session.actorScope, relativePath)) {
+          items.push({
+            ok: false,
+            path: relativePath,
+            code: "forbidden",
+            message: "Viewer tokens cannot read credential files",
+          });
+          continue;
+        }
         const absPath = await resolveSafeChildPath(workspace.path, relativePath);
         if (!(await exists(absPath))) {
           items.push({ ok: false, path: relativePath, code: "file_not_found", message: "File not found" });
@@ -1057,6 +1079,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     if (!isSupportedWorkspaceTextFilePath(relativePath)) {
       throw new ApiError(400, "invalid_path", "Only supported text artifact files can be read inline");
     }
+    assertReadableByActor(ctx.actor?.scope, relativePath);
 
     const absPath = await resolveSafeChildPath(workspace.path, relativePath);
     if (!(await exists(absPath))) {
@@ -1099,6 +1122,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const requested = (ctx.url.searchParams.get("path") ?? "").trim();
     const relativePath = normalizeWorkspaceRelativePath(requested, { allowSubdirs: true });
+    assertReadableByActor(ctx.actor?.scope, relativePath);
     const absPath = await resolveSafeChildPath(workspace.path, relativePath);
     if (!(await exists(absPath))) {
       throw new ApiError(404, "file_not_found", "File not found");

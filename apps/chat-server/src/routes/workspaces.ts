@@ -30,7 +30,7 @@ interface RegisterWorkspaceRoutesOptions {
   parseOptionalBoolean: ParseOptionalBoolean;
   ensureWritable: (config: ServerConfig) => void;
   resolveWorkspace: (config: ServerConfig, id: string) => Promise<WorkspaceInfo>;
-  serializeWorkspace: (workspace: ServerConfig["workspaces"][number]) => unknown;
+  serializeWorkspace: (workspace: ServerConfig["workspaces"][number], scope?: string) => unknown;
   reloadOpencodeEngine: (config: ServerConfig, workspace: WorkspaceInfo) => Promise<void>;
 }
 
@@ -332,7 +332,7 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
 
     return jsonResponse({
       activeId: workspace.id,
-      workspaces: config.workspaces.map(serializeWorkspace),
+      workspaces: config.workspaces.map((entry) => serializeWorkspace(entry, ctx.actor?.scope)),
       persisted,
     }, 201);
   });
@@ -459,7 +459,7 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
 
     return jsonResponse({
       activeId: workspace.id,
-      workspaces: config.workspaces.map(serializeWorkspace),
+      workspaces: config.workspaces.map((entry) => serializeWorkspace(entry, ctx.actor?.scope)),
       persisted,
     }, 201);
   });
@@ -497,7 +497,7 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
 
     return jsonResponse({
       activeId: config.workspaces[0]?.id ?? null,
-      workspaces: config.workspaces.map(serializeWorkspace),
+      workspaces: config.workspaces.map((entry) => serializeWorkspace(entry, ctx.actor?.scope)),
       persisted,
     });
   });
@@ -528,7 +528,7 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
     if (!wasActive && workspace.workspaceType === "local" && resolveWorkspaceOpencodeConnection(config, workspace).baseUrl?.trim()) {
       await reloadOpencodeEngine(config, workspace);
     }
-    return jsonResponse({ activeId: workspace.id, workspace: serializeWorkspace(workspace), persisted });
+    return jsonResponse({ activeId: workspace.id, workspace: serializeWorkspace(workspace, ctx.actor?.scope), persisted });
   });
 
   addRoute(routes, "DELETE", "/workspaces/:id", "host", async (ctx) => {
@@ -563,8 +563,8 @@ export function registerWorkspaceRoutes(options: RegisterWorkspaceRoutesOptions)
       deleted,
       persisted,
       activeId: active?.id ?? null,
-      items: config.workspaces.map(serializeWorkspace),
-      workspaces: config.workspaces.map(serializeWorkspace),
+      items: config.workspaces.map((entry) => serializeWorkspace(entry, ctx.actor?.scope)),
+      workspaces: config.workspaces.map((entry) => serializeWorkspace(entry, ctx.actor?.scope)),
     });
   });
 }

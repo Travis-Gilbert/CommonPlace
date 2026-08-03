@@ -673,21 +673,31 @@ export async function addMcp(
 ): Promise<{ action: "added" | "updated" }> {
   validateMcpName(name);
   validateMcpConfig(config);
-  const runtimeConfig = await readRuntimeOpencodeConfig(serverConfig, workspaceId);
-  const mcpMap = { ...runtimeMcpMap(runtimeConfig) };
-  const existed = Object.prototype.hasOwnProperty.call(mcpMap, name);
-  mcpMap[name] = config;
-  await writeRuntimeOpencodeConfig(serverConfig, workspaceId, (current) => ({ ...current, mcp: mcpMap }));
+  // The map is rebuilt from `current` inside the updater, not from a snapshot
+  // read beforehand. Building it outside meant two collaborators adding
+  // different MCPs each wrote a complete replacement map derived from the same
+  // starting point, so the second write dropped the first one's entry while
+  // both requests reported success.
+  let existed = false;
+  await writeRuntimeOpencodeConfig(serverConfig, workspaceId, (current) => {
+    const mcpMap = { ...runtimeMcpMap(current) };
+    existed = Object.prototype.hasOwnProperty.call(mcpMap, name);
+    mcpMap[name] = config;
+    return { ...current, mcp: mcpMap };
+  });
   return { action: existed ? "updated" : "added" };
 }
 
 export async function removeMcp(serverConfig: ServerConfig, workspaceId: string, name: string): Promise<boolean> {
-  const runtimeConfig = await readRuntimeOpencodeConfig(serverConfig, workspaceId);
-  const mcpMap = { ...runtimeMcpMap(runtimeConfig) };
-  if (!Object.prototype.hasOwnProperty.call(mcpMap, name)) return false;
-  delete mcpMap[name];
-  await writeRuntimeOpencodeConfig(serverConfig, workspaceId, (current) => ({ ...current, mcp: mcpMap }));
-  return true;
+  let removed = false;
+  await writeRuntimeOpencodeConfig(serverConfig, workspaceId, (current) => {
+    const mcpMap = { ...runtimeMcpMap(current) };
+    if (!Object.prototype.hasOwnProperty.call(mcpMap, name)) return current;
+    delete mcpMap[name];
+    removed = true;
+    return { ...current, mcp: mcpMap };
+  });
+  return removed;
 }
 
 // Flips `enabled` on a workspace MCP entry. Returns false for "toggle does

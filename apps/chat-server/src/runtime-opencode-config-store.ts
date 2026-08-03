@@ -1,3 +1,11 @@
+// SOURCING: none — vendored upstream store (provenance pinned in
+// apps/chat/UPSTREAM.md). The fork adds per-workspace serialization of the
+// read-modify-write below. A mutex library (async-mutex) was considered and
+// rejected: the queue is a three-line promise chain over an in-process Map,
+// the same shape openwork-runtime-config.ts already uses for its file writes,
+// and a second concurrency idiom would be harder to reason about than one
+// repeated one. Nothing here needs timeouts, reentrancy, or fairness.
+
 import { existsSync } from "node:fs";
 import { runtimeDbPath } from "./runtime-db.js";
 import type { ServerConfig } from "./types.js";
@@ -365,22 +373,43 @@ export async function inspectRuntimeOpencodeConfig(
   return (await inspectRuntimeOpencodeConfigState(config, workspaceId, options)).config;
 }
 
+// One in-flight read-modify-write per workspace.
+//
+// The body below awaits between reading the row and writing it back, so two
+// concurrent callers could both read the same snapshot and the second write
+// would silently drop the first one's change. That is a lost update, not a
+// conflict: both requests return success. Every mutation of this config goes
+// through here, so serializing at this level fixes the whole class instead of
+// one caller at a time.
+const runtimeConfigWriteQueue = new Map<string, Promise<unknown>>();
+
 export async function writeRuntimeOpencodeConfig(
   config: ServerConfig,
   workspaceId: string,
   updater: (current: RuntimeOpencodeConfig) => RuntimeOpencodeConfig,
 ): Promise<{ config: RuntimeOpencodeConfig; changed: boolean }> {
-  const row = await runtimeOpencodeConfigStore.getRow(config, workspaceId);
-  const current = row ? row.value : {};
-  const next = normalizeRuntimeOpencodeConfig(updater(current));
-  const now = Date.now();
-  const configJson = runtimeOpencodeConfigStore.serialize(next);
-  if (row?.valueJson === configJson) {
-    return { config: next, changed: false };
-  }
-  await runtimeOpencodeConfigStore.setSerialized(config, workspaceId, configJson, now);
-  for (const listener of writeListeners) listener(config, workspaceId);
-  return { config: next, changed: true };
+  const job = async (): Promise<{ config: RuntimeOpencodeConfig; changed: boolean }> => {
+    // Read inside the queued job, so `current` is what the previous write in
+    // this queue actually left behind rather than a pre-queue snapshot.
+    const row = await runtimeOpencodeConfigStore.getRow(config, workspaceId);
+    const current = row ? row.value : {};
+    const next = normalizeRuntimeOpencodeConfig(updater(current));
+    const now = Date.now();
+    const configJson = runtimeOpencodeConfigStore.serialize(next);
+    if (row?.valueJson === configJson) {
+      return { config: next, changed: false };
+    }
+    await runtimeOpencodeConfigStore.setSerialized(config, workspaceId, configJson, now);
+    for (const listener of writeListeners) listener(config, workspaceId);
+    return { config: next, changed: true };
+  };
+
+  const previous = runtimeConfigWriteQueue.get(workspaceId) ?? Promise.resolve();
+  const next = previous.then(job, job);
+  // The stored link must not reject, or a single failed write would poison
+  // every later write for that workspace.
+  runtimeConfigWriteQueue.set(workspaceId, next.catch(() => undefined));
+  return await next;
 }
 
 export function mergeOpencodeConfigs(

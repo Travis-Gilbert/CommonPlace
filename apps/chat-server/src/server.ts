@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { resolveGlobalOpencodeConfigPath } from "@openwork/paths";
 import { readConsoleSession } from "./console-session.js";
+import { isRealPathWithinDirectory } from "./workspace-paths.js";
 import { sanitizeDiagnosticValue } from "./diagnostic-sanitizer.js";
 import type { ApprovalRequest, Capabilities, ServerConfig, WorkspaceInfo, Actor, ReloadReason, ReloadTrigger, TokenScope } from "./types.js";
 import { agentContextDiagnosticsRequestSchema } from "./agent-context-diagnostics-schema.js";
@@ -36,7 +37,7 @@ import {
   readWorkspaceCloudImports,
   syncDesktopCloudResources,
 } from "./desktop-cloud-sync.js";
-import { installCloudPlugin, readCloudPluginResolved, readInstalledCloudPlugins, removeCloudPlugin } from "./cloud-plugins.js";
+import { cloudPluginMcpNameFromPath, installCloudPlugin, readCloudPluginResolved, readInstalledCloudPlugins, removeCloudPlugin } from "./cloud-plugins.js";
 import { resolveClaudePluginBundle } from "./claude-plugin-bundle.js";
 import {
   applyMaterializedBlueprintSessions,
@@ -816,12 +817,30 @@ function normalizeOpencodeProxyPath(proxyPath: string): string {
   return normalized || "/";
 }
 
+// Engine GET paths that return the effective configuration, which carries
+// provider API keys and MCP authorization headers. The daemon's own config
+// routes redact or gate these for viewers; the proxy handed the same bytes
+// over untouched, so the gate was decorative. A viewer that needs to know what
+// is configured has GET /workspace/:id/config, which is redacted.
+const VIEWER_DENIED_PROXY_PATHS = new Set(["/config", "/config/providers", "/mcp"]);
+
+function isViewerDeniedProxyRead(proxyPath: string): boolean {
+  const normalized = normalizeOpencodeProxyPath(proxyPath);
+  if (VIEWER_DENIED_PROXY_PATHS.has(normalized)) return true;
+  // /mcp/<name> and /config/<anything> are the same class of response.
+  return normalized.startsWith("/mcp/") || normalized.startsWith("/config/");
+}
+
 export function assertOpencodeProxyAllowed(actor: Actor, method: string, proxyPath: string) {
   const m = method.toUpperCase();
   const scope = actor.scope ?? "viewer";
 
   if (scope === "viewer" && m !== "GET" && m !== "HEAD") {
     throw new ApiError(403, "forbidden", "Viewer tokens are read-only");
+  }
+
+  if (scope === "viewer" && (m === "GET" || m === "HEAD") && isViewerDeniedProxyRead(proxyPath)) {
+    throw new ApiError(403, "forbidden", "Viewer tokens cannot read the engine configuration");
   }
 
   // Prevent viewers from self-approving OpenCode permission requests via the
@@ -1178,9 +1197,14 @@ async function proxyOpencodeRequest(input: {
   const directory = workspace ? resolveOpencodeDirectory(workspace) : null;
   if (directory) {
     const requested = headers.get("x-opencode-directory");
-    headers.set("x-opencode-directory", buildOpencodeDirectoryHeader(
-      requested && isWithinDirectory(requested, directory) ? requested : directory,
-    ));
+    // Containment is decided on real paths. The lexical check accepted
+    // /workspace/repo/host when host is a symlink to /etc, and the engine
+    // then ran every proxied operation there. Falls back to the workspace
+    // directory whenever the caller's value is not provably inside it.
+    const accepted = requested && (await isRealPathWithinDirectory(requested, directory))
+      ? requested
+      : directory;
+    headers.set("x-opencode-directory", buildOpencodeDirectoryHeader(accepted));
   } else {
     headers.delete("x-opencode-directory");
   }
@@ -1644,20 +1668,45 @@ function buildAuthorizedFoldersResponse(workspace: WorkspaceInfo, config: Author
   };
 }
 
-function serializeWorkspace(workspace: ServerConfig["workspaces"][number]) {
+/**
+ * Public shape of a workspace record.
+ *
+ * `scope` decides whether downstream credentials survive. Both the OpenCode
+ * password and openworkToken authenticate against a *different* server, and a
+ * remote workspace token can hold collaborator rights there — so handing them
+ * to a viewer let that viewer step around this server's restrictions entirely
+ * by talking to the owning host directly. Viewers get a flag saying a
+ * credential exists, which is all the UI needs to render connection state.
+ */
+function serializeWorkspace(
+  workspace: ServerConfig["workspaces"][number],
+  scope?: string,
+) {
   const { opencodeUsername, opencodePassword, ...rest } = workspace;
   const opencodeDirectory = resolveOpencodeDirectory(workspace);
+  const redactCredentials = scope === "viewer";
+
   const opencode =
     workspace.baseUrl || opencodeDirectory || opencodeUsername || opencodePassword
       ? {
           baseUrl: workspace.baseUrl,
           directory: opencodeDirectory ?? undefined,
-          username: opencodeUsername,
-          password: opencodePassword,
+          username: redactCredentials ? undefined : opencodeUsername,
+          password: redactCredentials ? undefined : opencodePassword,
+          ...(redactCredentials && (opencodeUsername || opencodePassword)
+            ? { credentialConfigured: true }
+            : {}),
         }
       : undefined;
+
+  if (!redactCredentials) {
+    return { ...rest, opencode };
+  }
+
+  const { openworkToken, ...viewerSafe } = rest;
   return {
-    ...rest,
+    ...viewerSafe,
+    ...(openworkToken ? { openworkTokenConfigured: true } : {}),
     opencode,
   };
 }
@@ -2031,6 +2080,18 @@ function createRoutes(
       workspaceRoot: workspace.path,
       pluginId,
     });
+
+    // Removing the runtime config is not enough: the engine is already
+    // running with these servers registered and keeps offering their tools
+    // until it restarts. The dedicated MCP delete route does both halves; this
+    // one only did the config half and then emitted a reload event, which
+    // notifies clients and not the engine.
+    for (const file of removed.files) {
+      const mcpName = file.objectType === "mcp" ? cloudPluginMcpNameFromPath(file.path) : null;
+      if (!mcpName) continue;
+      deleteEngineMcpRegistration(config, engineMcpServerState, workspace, mcpName);
+      await disconnectMcpFromOpencodeEngine(config, workspace, mcpName).catch(() => undefined);
+    }
 
     await recordAudit(workspace.path, {
       id: shortId(),

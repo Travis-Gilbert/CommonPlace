@@ -63,7 +63,7 @@ interface RegisterCoreRoutesOptions {
   resolveOpencodeDirectory: (workspace: WorkspaceInfo) => string | null;
   createWorkspaceOpencodeClient: (config: ServerConfig, workspace: WorkspaceInfo) => WorkspaceOpencodeClient;
   refreshRegistrationFromLiveStatus?: CloudMcpLiveStatusObserver;
-  serializeWorkspace: (workspace: ServerConfig["workspaces"][number]) => unknown;
+  serializeWorkspace: (workspace: ServerConfig["workspaces"][number], scope?: string) => unknown;
   resolveToyUiEnabled: () => boolean;
   resolveDevLogPath: () => string | null;
   createOpenAiRealtimeVoiceSession: (env: EnvService, input: unknown) => Promise<unknown>;
@@ -328,7 +328,7 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
       corsOrigins: config.corsOrigins,
       workspaceCount: 1,
       activeWorkspaceId: workspace.id,
-      workspace: serializeWorkspace(workspace),
+      workspace: serializeWorkspace(workspace, ctx.actor?.scope),
       authorizedRoots: config.authorizedRoots,
       server: {
         host: config.host,
@@ -348,10 +348,10 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
 
   addRoute(routes, "GET", "/w/:id/workspaces", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
-    return jsonResponse({ items: [serializeWorkspace(workspace)], activeId: workspace.id });
+    return jsonResponse({ items: [serializeWorkspace(workspace, ctx.actor?.scope)], activeId: workspace.id });
   });
 
-  addRoute(routes, "GET", "/status", "client", async () => {
+  addRoute(routes, "GET", "/status", "client", async (ctx) => {
     const active = config.workspaces[0];
     return jsonResponse({
       ok: true,
@@ -363,7 +363,7 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
       corsOrigins: config.corsOrigins,
       workspaceCount: config.workspaces.length,
       activeWorkspaceId: active?.id ?? null,
-      workspace: active ? serializeWorkspace(active) : null,
+      workspace: active ? serializeWorkspace(active, ctx.actor?.scope) : null,
       authorizedRoots: config.authorizedRoots,
       server: {
         host: config.host,
@@ -460,6 +460,10 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
   });
 
   addRoute(routes, "POST", "/experimental/google-workspace/connect/start", "client", async (ctx) => {
+    // The flow this starts ends in upsertGoogleWorkspaceAccount, which writes
+    // the encrypted account vault, so a read-only server must not be able to
+    // acquire and persist a new credential.
+    ensureWritable(config);
     if (ctx.actor?.scope === "viewer") throw new ApiError(403, "forbidden", "Viewer tokens cannot connect Google Workspace");
     const body = await readOptionalJsonBody(ctx.request);
     const featuresValue = body.features;
@@ -498,13 +502,20 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
     return jsonResponse(await googleWorkspaceTestConnection(config));
   });
 
-  addRoute(routes, "POST", "/experimental/google-workspace/smoke-test", "client", async () => {
+  addRoute(routes, "POST", "/experimental/google-workspace/smoke-test", "client", async (ctx) => {
+    // Not a read: this creates a file in the connected Drive account and a
+    // Gmail draft. It was reachable by any viewer token and ran in read-only
+    // mode, while the equivalent extension actions were gated.
+    ensureWritable(config);
+    if (ctx.actor?.scope === "viewer") {
+      throw new ApiError(403, "forbidden", "Viewer tokens cannot run the Google Workspace smoke test");
+    }
     return jsonResponse(await googleWorkspaceRunScopeSmokeTest(config));
   });
 
-  addRoute(routes, "GET", "/workspaces", "client", async () => {
+  addRoute(routes, "GET", "/workspaces", "client", async (ctx) => {
     const active = config.workspaces[0] ?? null;
-    const items = config.workspaces.map(serializeWorkspace);
+    const items = config.workspaces.map((entry) => serializeWorkspace(entry, ctx.actor?.scope));
     return jsonResponse({ items, workspaces: items, activeId: active?.id ?? null });
   });
 

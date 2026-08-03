@@ -13,7 +13,7 @@
     "build": "tsc -p tsconfig.json && bun build src/opencode-plugins/openwork-extensions-preview.ts src/opencode-plugins/openwork-office-attachments.ts src/opencode-plugins/openwork-anthropic-adaptive-thinking.ts src/opencode-plugins/openwork-anthropic-tool-schema.ts --outdir dist/opencode-plugins --target node --format esm",
     "build:bin": "bun build --compile src/cli.ts --outfile dist/bin/openwork-server",
     "build:bin:all": "bun ./script/build.ts --outdir dist/bin --target bun-darwin-arm64 --target bun-darwin-x64 --target bun-linux-x64 --target bun-linux-arm64 --target bun-windows-x64 --target bun-windows-arm64",
-    "publish:npm": "pnpm build:bin && node scripts/publish-npm.mjs",
+    "publish:npm": "pnpm build && pnpm build:bin:all && node scripts/publish-npm.mjs",
     "start": "bun dist/cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "pnpm build:bin"
@@ -25,12 +25,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/different-ai/openwork.git",
-    "directory": "apps/server"
+    "url": "git+https://github.com/Travis-Gilbert/CommonPlace.git",
+    "directory": "apps/chat-server"
   },
-  "homepage": "https://github.com/different-ai/openwork/tree/dev/apps/server",
+  "homepage": "https://github.com/Travis-Gilbert/CommonPlace/tree/main/apps/chat-server",
   "bugs": {
-    "url": "https://github.com/different-ai/openwork/issues"
+    "url": "https://github.com/Travis-Gilbert/CommonPlace/issues"
   },
   "keywords": [
     "openwork",

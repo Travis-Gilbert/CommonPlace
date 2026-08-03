@@ -29,6 +29,39 @@ import { ApiError } from "./errors.js";
  * Returns the real path, so callers open what was actually checked rather than
  * re-resolving the link a second time.
  */
+/**
+ * True when `candidate` is `root` or lies inside it, judged on real paths.
+ *
+ * For callers that hold an absolute path rather than a workspace-relative one:
+ * the engine proxy's x-opencode-directory header is the case that matters,
+ * where a symlink inside the checkout would otherwise become the engine's
+ * working directory. Percent-decoded first because that header arrives
+ * encoded for non-ASCII paths.
+ */
+export async function isRealPathWithinDirectory(candidate: string, root: string): Promise<boolean> {
+  let decoded = candidate;
+  try {
+    decoded = decodeURIComponent(candidate);
+  } catch {
+    // Not percent-encoded; compare the raw value.
+  }
+
+  const resolvedCandidate = resolve(decoded);
+  const resolvedRoot = resolve(root);
+  // Lexical first: a value that fails here never reaches the filesystem.
+  if (resolvedCandidate !== resolvedRoot && !resolvedCandidate.startsWith(resolvedRoot + sep)) {
+    return false;
+  }
+
+  const realRoot = await realpath(resolvedRoot).catch(() => null);
+  if (realRoot === null) return false;
+  const realCandidate = await realpath(resolvedCandidate).catch(() => null);
+  // A directory that does not exist is not a directory the engine may use.
+  if (realCandidate === null) return false;
+
+  return realCandidate === realRoot || realCandidate.startsWith(realRoot + sep);
+}
+
 export async function resolveSafeChildPath(root: string, child: string): Promise<string> {
   const rootResolved = resolve(root);
   const candidate = resolve(rootResolved, child);

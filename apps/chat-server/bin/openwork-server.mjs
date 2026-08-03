@@ -8,8 +8,31 @@ import { fileURLToPath } from "node:url";
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
 
-const binaryName = process.platform === "win32" ? "openwork-server.exe" : "openwork-server";
-const compiledBinary = fileURLToPath(new URL(`./dist/bin/${binaryName}`, `${new URL("../", import.meta.url)}`));
+// Binaries are published one per platform, named by the bun target they were
+// compiled for. The unsuffixed name is only what a local `build:bin` produces,
+// and preferring it meant a package built on one machine handed every other
+// platform an executable it cannot run — the wrapper "found" a binary and the
+// JS fallbacks below never got a chance.
+const BUN_PLATFORMS = { darwin: "darwin", linux: "linux", win32: "windows" };
+const BUN_ARCHS = { arm64: "arm64", x64: "x64" };
+
+function platformBinaryNames() {
+  const platform = BUN_PLATFORMS[process.platform];
+  const arch = BUN_ARCHS[process.arch];
+  const exe = process.platform === "win32" ? ".exe" : "";
+  const names = [];
+  if (platform && arch) {
+    names.push(`openwork-server-bun-${platform}-${arch}${exe}`);
+  }
+  // A single-platform build, which is correct when it is this platform.
+  names.push(`openwork-server${exe}`);
+  return names;
+}
+
+const binRoot = new URL("../dist/bin/", import.meta.url);
+const compiledBinary = platformBinaryNames()
+  .map((name) => fileURLToPath(new URL(name, binRoot)))
+  .find((candidate) => existsSync(candidate));
 const builtCli = fileURLToPath(new URL("./dist/cli.js", `${new URL("../", import.meta.url)}`));
 const sourceCli = fileURLToPath(new URL("./src/cli.ts", `${new URL("../", import.meta.url)}`));
 
@@ -25,7 +48,7 @@ function run(command, commandArgs) {
   process.exit(result.status ?? 1);
 }
 
-if (existsSync(compiledBinary)) {
+if (compiledBinary) {
   run(compiledBinary, args);
 }
 
