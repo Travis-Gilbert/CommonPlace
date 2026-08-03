@@ -119,6 +119,7 @@ async function authHarness() {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
         authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
