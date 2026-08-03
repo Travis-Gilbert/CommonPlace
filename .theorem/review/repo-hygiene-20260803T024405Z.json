@@ -1,0 +1,85 @@
+{
+  "kind": "repo_hygiene_receipt",
+  "timestamp": "2026-08-03T02:44:05Z",
+  "repo_root": "/Volumes/SSD Samsung/var-18/CommonPlace/theorems-harness-planning-execution-fdbb3e",
+  "branch": "claude/theorems-harness-planning-execution-fdbb3e",
+  "commit_sha": "522920c3c431ba673323f1d72c5f8860ecb67d62",
+  "mode": "advisory",
+  "failed_count": 0,
+  "warning_count": 0,
+  "hard_axis_failed": false,
+  "reports": [
+    {
+      "checker": "git_status",
+      "status": "passed",
+      "severity": "info",
+      "message": "Worktree is clean outside hook-local state.",
+      "command": "git status --short --branch",
+      "exit_code": 0,
+      "output": "## claude/theorems-harness-planning-execution-fdbb3e...origin/claude/theorems-harness-planning-execution-fdbb3e"
+    },
+    {
+      "checker": "diff_check_unstaged",
+      "status": "passed",
+      "severity": "error",
+      "message": "No whitespace or patch hygiene errors in unstaged changes.",
+      "command": "git diff --check -- . ':!.theorem' ':!.harness'",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "diff_check_staged",
+      "status": "passed",
+      "severity": "error",
+      "message": "No whitespace or patch hygiene errors in staged changes.",
+      "command": "git diff --cached --check -- . ':!.theorem' ':!.harness'",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "conflict_markers",
+      "status": "passed",
+      "severity": "info",
+      "message": "No conflict markers found.",
+      "command": "git grep --untracked conflict markers",
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "checker": "untracked_secrets",
+      "status": "passed",
+      "severity": "info",
+      "message": "No untracked secret-like files found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "untracked_artifacts",
+      "status": "passed",
+      "severity": "info",
+      "message": "No suspicious untracked artifacts found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "large_untracked_files",
+      "status": "passed",
+      "severity": "info",
+      "message": "No large untracked files found.",
+      "command": "git ls-files --others --exclude-standard",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "checker": "tracked_sensitive_artifacts",
+      "status": "passed",
+      "severity": "info",
+      "message": "No tracked secret-like, database, or log artifacts found.",
+      "command": "git ls-files",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

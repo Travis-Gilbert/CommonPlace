@@ -50,4 +50,9 @@ describe('programNodeFromCatalog', () => {
     expect(() => programNodeFromCatalog(entry({ contract: undefined }), 'node:bad'))
       .toThrow('has no authoring contract');
   });
+
+  it('refuses Compound catalog inserts', () => {
+    expect(() => programNodeFromCatalog(entry({ node_kind: 'compound' }), 'node:compound'))
+      .toThrow('expand an atom');
+  });
 });

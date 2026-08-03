@@ -139,6 +139,10 @@ export interface ScatterResponse {
   /** Present on an `expand` response: which aspect was re-scattered. */
   readonly expandedFrom?: AspectId;
   readonly scatterRef: string;
+  /** True while a workspace index required by scatter is not ready. */
+  readonly degraded: boolean;
+  /** Stable index identifiers that explain the degraded response. */
+  readonly missingIndexes: readonly string[];
 }
 
 // ---------------------------------------------------------------------------

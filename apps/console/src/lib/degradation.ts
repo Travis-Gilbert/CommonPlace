@@ -5,17 +5,50 @@
 
 export type Degradation =
   | { level: 'reduced'; cause: string; detail?: string }
-  | { level: 'unavailable'; cause: string; action?: { label: string; run: () => void } };
+  | {
+      level: 'unavailable';
+      cause: string;
+      detail?: string;
+      action?: { label: string; run: () => void };
+    };
+
+/**
+ * What was dialed, and what came back.
+ *
+ * CS15 keeps wire codes out of the cause sentence. This keeps the *evidence*
+ * beside it, so a reader can tell a 401 from a 404 from a request that never
+ * landed. On 2026-08-01 the console showed 'The data API is unreachable.' while
+ * that API answered 200 on /healthz: one sentence covered CORS, 404, 401, DNS
+ * and a dead dependency, so it named none of them and the healthy service read
+ * as dark.
+ */
+export type DegradationOrigin = {
+  /** The endpoint dialed, e.g. '/api/objects/views'. */
+  door?: string;
+  /** The host that answered, when the caller knows it. */
+  host?: string;
+  /** HTTP status, when the request was answered at all. Omit for no answer. */
+  status?: number;
+  /**
+   * What the failing route said went wrong, when it said anything.
+   *
+   * A route that wraps an inner failure knows the reason and puts it in its
+   * body; dropping it leaves the reader with a category ("answered 502") and
+   * no cause. Rendered through `readableReason`, which keeps CS15 intact.
+   */
+  reason?: string;
+};
 
 type DegradationTemplate =
   | { level: 'reduced'; cause: string; detail?: string }
-  | { level: 'unavailable'; cause: string; actionLabel?: string };
+  | { level: 'unavailable'; cause: string; actionLabel?: string; door?: string };
 
 const WIRE_MAP: Record<string, DegradationTemplate> = {
   console_data_api_unreachable: {
     level: 'unavailable',
     cause: 'The data API is unreachable.',
     actionLabel: 'Reconnect',
+    door: 'The data API',
   },
   workspace_object_scope_unenforced: {
     level: 'unavailable',
@@ -41,6 +74,7 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     level: 'unavailable',
     cause: 'The Harness service is unreachable.',
     actionLabel: 'Retry',
+    door: 'The Harness GraphQL door',
   },
   observed_model_graphql_failed: {
     level: 'unavailable',
@@ -76,6 +110,87 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
     level: 'unavailable',
     cause: 'The chat wire could not complete this turn.',
     actionLabel: 'Retry',
+    door: 'The chat wire',
+  },
+  // Every code the /api/chat/* routes can emit. Before these, all of them fell
+  // through to GENERIC_UNAVAILABLE, so a failed project read, a failed thread
+  // write and a missing attachment all said "This surface cannot render right
+  // now." An unmapped code is not a neutral default: it is a sentence that
+  // cannot be acted on.
+  project_catalog_failed: {
+    level: 'unavailable',
+    cause: 'The chat project list could not be read.',
+    actionLabel: 'Retry',
+    door: 'The chat project catalog',
+  },
+  project_write_failed: {
+    level: 'unavailable',
+    cause: 'That chat project could not be saved.',
+    actionLabel: 'Retry',
+    door: 'The chat project catalog',
+  },
+  project_select_failed: {
+    level: 'unavailable',
+    cause: 'That project could not be made active.',
+    actionLabel: 'Retry',
+    door: 'The chat project catalog',
+  },
+  thread_catalog_failed: {
+    level: 'unavailable',
+    cause: 'The thread list could not be read.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_read_failed: {
+    level: 'unavailable',
+    cause: 'That thread could not be read.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_create_failed: {
+    level: 'unavailable',
+    cause: 'That thread could not be created.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_update_failed: {
+    level: 'unavailable',
+    cause: 'That thread could not be saved.',
+    actionLabel: 'Retry',
+    door: 'The chat thread catalog',
+  },
+  thread_not_found: {
+    level: 'unavailable',
+    cause: 'That thread no longer exists.',
+    door: 'The chat thread catalog',
+  },
+  attachment_upload_failed: {
+    level: 'unavailable',
+    cause: 'That attachment could not be uploaded.',
+    actionLabel: 'Retry',
+    door: 'The chat attachment upload',
+  },
+  file_required: {
+    level: 'unavailable',
+    cause: 'That upload arrived without a file.',
+    door: 'The chat attachment upload',
+  },
+  invalid_body: {
+    level: 'unavailable',
+    cause: 'The console sent a request this route could not read.',
+    door: 'The chat wire',
+  },
+  tenant_connector_unavailable: {
+    level: 'unavailable',
+    cause: 'No connector is available for this tenant.',
+    actionLabel: 'Open Account',
+    door: 'The chat wire',
+  },
+  web_search_requires_principal: {
+    level: 'unavailable',
+    cause: 'Web search needs a signed-in principal.',
+    actionLabel: 'Open Account',
+    door: 'Web search',
   },
   web_search_unavailable: {
     level: 'reduced',
@@ -136,9 +251,19 @@ export function sentenceForCode(code: string): string {
  * Wire code to sentence. An unmapped code renders its generic sentence and
  * reports itself in dev, so a new code is visible without shipping the code.
  */
-export function degradationFor(code: string, status?: number): Degradation {
+export function degradationFor(
+  code: string,
+  statusOrOrigin?: number | DegradationOrigin,
+): Degradation {
   const normalized = code.trim();
   const mapped = WIRE_MAP[normalized];
+  // A bare number is a template hint, not an observation: several callers pass
+  // a synthetic 400/500 to steer the generic branch for a failure that never
+  // made an HTTP request. Only an explicit origin object is evidence, so only
+  // that renders a detail line. Inventing "answered 400" would be a new lie in
+  // place of the one this change removes.
+  const origin = typeof statusOrOrigin === 'object' ? statusOrOrigin : undefined;
+  const status = typeof statusOrOrigin === 'number' ? statusOrOrigin : origin?.status;
 
   if (!mapped) {
     if (process.env.NODE_ENV !== 'production') {
@@ -151,10 +276,78 @@ export function degradationFor(code: string, status?: number): Degradation {
         : /fail|timeout|unreach|unavail|refus|unauth|unconfig/i.test(normalized)
           ? GENERIC_UNAVAILABLE
           : GENERIC_REDUCED;
-    return fromTemplate(template);
+    return fromTemplate(template, origin);
   }
 
-  return fromTemplate(mapped);
+  return fromTemplate(mapped, origin);
+}
+
+/**
+ * Render the evidence line: which door, which host, what came back.
+ *
+ * The distinctions that matter to whoever is debugging: a request that was
+ * answered is a different failure from one that never landed, and a 401 is a
+ * credential problem rather than an outage. Returns undefined when there is
+ * nothing concrete to say, so no caller is forced to show an empty line.
+ */
+/**
+ * Render an upstream reason without leaking a wire code to the reader.
+ *
+ * Inner failures often surface as a bare code (`console_data_api_unreachable`)
+ * rather than prose. CS15 keeps codes off the screen, so a code is translated
+ * to its sentence; anything else is real prose already and passes through,
+ * bounded so a stack trace cannot become the banner.
+ */
+function readableReason(reason: string | undefined): string | undefined {
+  const trimmed = reason?.trim();
+  if (!trimmed) return undefined;
+  const rendered = /^[a-z][a-z0-9_]*$/.test(trimmed)
+    // An unmapped bare code has no sentence to show, and inventing one would
+    // hide the only identifier the reader could search for.
+    ? (WIRE_MAP[trimmed]?.cause ?? trimmed)
+    : trimmed;
+  // Bound at the exit, not inside one branch. The code-shaped test matches any
+  // run of lowercase, so a long token took the other path and escaped the cap.
+  return rendered.length > 160 ? `${rendered.slice(0, 157)}...` : rendered;
+}
+
+export function describeOrigin(origin: DegradationOrigin | undefined): string | undefined {
+  if (!origin) return undefined;
+  const { door, host, status } = origin;
+  const reason = readableReason(origin.reason);
+  if (!door && !host && status === undefined) return reason;
+
+  const subject = [door ?? 'The request', host ? `at ${host}` : null].filter(Boolean).join(' ');
+  // The reason is the innermost thing known about the failure, so it goes last
+  // and never replaces the door and status a reader needs to locate it.
+  const withReason = (sentence: string) => (reason ? `${sentence} ${reason}` : sentence);
+
+  if (status === undefined) {
+    return withReason(
+      `${subject} did not answer. That is DNS, the network, or a blocked origin, not a status code.`,
+    );
+  }
+  if (status === 401) {
+    return withReason(
+      `${subject} answered 401. The request was not authenticated, which is a credential problem rather than an outage.`,
+    );
+  }
+  if (status === 403) {
+    // Not the same failure as 401, and saying so matters. connectionFor maps
+    // 403 to 'identity-refused', and the objects proxy returns it for
+    // active_workspace_claim_required and active_workspace_membership_refused.
+    // In those cases the credential is fine and simply does not reach this
+    // workspace, so "fix your credential" would send the reader the wrong way.
+    return withReason(
+      `${subject} answered 403. The credential was accepted but refused for this workspace, which is not an outage.`,
+    );
+  }
+  if (status === 404) {
+    return withReason(
+      `${subject} answered 404. Check the configured URL before assuming the service is down.`,
+    );
+  }
+  return withReason(`${subject} answered ${status}.`);
 }
 
 /** Collapse a list of missing capability codes into one reduced marker. */
@@ -168,13 +361,22 @@ export function reducedFromMissing(missing: readonly string[]): Degradation | nu
   };
 }
 
-function fromTemplate(template: DegradationTemplate): Degradation {
+function fromTemplate(
+  template: DegradationTemplate,
+  origin?: DegradationOrigin,
+): Degradation {
   if (template.level === 'reduced') {
     return { level: 'reduced', cause: template.cause, detail: template.detail };
   }
+  // The wire code knows its own door; the caller supplies host and status. A
+  // caller-supplied door wins, since it saw the actual request.
+  const resolved = origin
+    ? { ...origin, door: origin.door ?? template.door }
+    : undefined;
   return {
     level: 'unavailable',
     cause: template.cause,
+    detail: describeOrigin(resolved),
     action: template.actionLabel
       ? { label: template.actionLabel, run: () => undefined }
       : undefined,

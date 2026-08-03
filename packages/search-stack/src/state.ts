@@ -393,6 +393,8 @@ export function spliceExpansion(
     lambda: expansion.lambda,
     expandedFrom: aspect,
     scatterRef: expansion.scatterRef,
+    degraded: expansion.degraded,
+    missingIndexes: expansion.missingIndexes,
   };
 }
 

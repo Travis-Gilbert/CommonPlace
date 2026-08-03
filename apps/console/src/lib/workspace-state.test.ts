@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   fetchWorkspaceSurface,
   readinessIsBuilding,
+  workspaceDegradationOf,
   workspaceTreeRows,
   type ProjectTree,
 } from '@commonplace/theorem-acp/workspace-state';
@@ -59,5 +60,19 @@ describe('workspace substrate projection', () => {
     expect(readinessIsBuilding(surface.readiness)).toBe(true);
     expect(String(fetchImpl.mock.calls[0][1]?.body)).toContain('projectTree');
     expect(String(fetchImpl.mock.calls[0][1]?.body)).toContain('readiness');
+  });
+
+  it('projects workspace readiness into the scatter degradation envelope', () => {
+    expect(workspaceDegradationOf({
+      generation: 3,
+      capabilities: [
+        { capability: 'find', state: 'building', missing: ['trigram'] },
+        { capability: 'scatter', state: 'building', missing: ['trigram', 'vector'] },
+        { capability: 'history', state: 'ready', missing: [] },
+      ],
+    })).toEqual({
+      degraded: true,
+      missingIndexes: ['trigram', 'vector'],
+    });
   });
 });

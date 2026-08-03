@@ -3,7 +3,7 @@
 // SOURCING: @commonplace/search-stack controller and projections. This is a
 // greenfield console renderer with no legacy application imports or copied styles.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   constellationPayloadOf,
   constellationStateOf,
@@ -27,6 +27,7 @@ import {
 } from './search-client';
 import { openSearchPageInWebEdition } from './search-host';
 import { useSearchStack } from './use-search-stack';
+import { useShellStore } from '@/lib/shell-store';
 
 export interface SearchStackViewProps {
   readonly controller?: SearchStackController;
@@ -52,11 +53,22 @@ export function SearchStackView({
   const state = useSearchStack(controller);
   const [draft, setDraft] = useState('');
   const scatter = scatterOf(state);
+  const setWorkspaceDegradation = useShellStore(
+    (shell) => shell.setWorkspaceDegradation,
+  );
   const find = selectedFindOf(state);
   const constellation = constellationStateOf(state);
   const aspectLabel = state.selectedAspect
     ? scatter?.aspects.find((aspect) => aspect.id === state.selectedAspect)?.label
     : null;
+
+  useEffect(() => {
+    if (!scatter) return;
+    setWorkspaceDegradation({
+      degraded: scatter.degraded,
+      missingIndexes: [...scatter.missingIndexes],
+    });
+  }, [scatter, setWorkspaceDegradation]);
 
   const openNode = useCallback(
     (node: ConstellationNode) => {

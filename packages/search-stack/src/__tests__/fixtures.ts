@@ -104,6 +104,8 @@ export function scatter(
     scene: { sceneId: 'scene-1', package: {} },
     sceneRefusal: null,
     scatterRef: 'scatter-1',
+    degraded: false,
+    missingIndexes: [],
   };
 }
 

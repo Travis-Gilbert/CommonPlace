@@ -1,0 +1,193 @@
+#!/usr/bin/env bun
+
+// SOURCING: none — vendored upstream entrypoint (provenance pinned in
+// apps/chat/UPSTREAM.md). The fork's additions are startup ordering and
+// operator diagnostics over this daemon's own config shape: pure logic against
+// local types, with no upstream component that models it.
+
+import { mkdir } from "node:fs/promises";
+
+import { parseCliArgs, printHelp, resolveServerConfig } from "./config.js";
+import { createManagedOpencodeServer, type ManagedOpencodeServer } from "./managed-opencode.js";
+import {
+  clearTrustedOpencodeProcess,
+  createServerLogger,
+  registerTrustedOpencodeProcess,
+  startServer,
+  syncAllWorkspacesRuntimeMcpToEngine,
+} from "./server.js";
+import { ensureLocalWorkspaceFiles } from "./workspace-init.js";
+import { findManagedEngineWorkspace } from "./workspaces.js";
+import { keepOpenworkRuntimeConfigFileFresh, writeOpenworkRuntimeConfigFile } from "./openwork-runtime-config.js";
+import { sweepLegacyOpenCodeConfig } from "./legacy-config-sweep.js";
+import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
+import { startWorkerActivityHeartbeat } from "./worker-activity-heartbeat.js";
+import pkg from "../package.json" with { type: "json" };
+
+const args = parseCliArgs(process.argv.slice(2));
+
+if (args.help) {
+  printHelp();
+  process.exit(0);
+}
+
+if (args.version) {
+  console.log(pkg.version);
+  process.exit(0);
+}
+
+const config = await resolveServerConfig(args);
+const logger = createServerLogger(config);
+const serverUrl = `http://${config.host === "0.0.0.0" ? "127.0.0.1" : config.host}:${config.port}`;
+let managedOpencode: ManagedOpencodeServer | null = null;
+let managedOpencodeIdentity: string | null = null;
+
+if (!config.readOnly) {
+  await ensureLocalWorkspaceFiles(config.workspaces);
+}
+
+if (!config.opencodeBaseUrl && process.env.OPENWORK_MANAGE_OPENCODE === "1") {
+  const workspace = findManagedEngineWorkspace(config.workspaces);
+  if (workspace) {
+    // Server-managed config file: the engine re-reads it from disk on every
+    // instance rebuild, and keepOpenworkRuntimeConfigFileFresh synchronizes it
+    // on every runtime-DB write — so disposes always pick up current state.
+    const { path: runtimeConfigPath } = await writeOpenworkRuntimeConfigFile(config, workspace.id);
+    keepOpenworkRuntimeConfigFileFresh(config, workspace.id);
+    const managedOpencodeCwd = process.env.OPENWORK_MANAGED_OPENCODE_CWD?.trim() || workspace.path;
+    await mkdir(managedOpencodeCwd, { recursive: true });
+    await sweepLegacyOpenCodeConfig(config).catch(() => undefined);
+    const opencodeModelsUrl = await resolveOpencodeModelsUrl();
+    managedOpencode = await createManagedOpencodeServer({
+      bin: process.env.OPENWORK_OPENCODE_BIN,
+      cwd: managedOpencodeCwd,
+      excludedPorts: [config.port],
+      env: {
+        ...(process.env.OPENWORK_DEV_MODE ? { OPENWORK_DEV_MODE: process.env.OPENWORK_DEV_MODE } : {}),
+        ...(process.env.OPENWORK_UI_CONTROL_DISCOVERY ? { OPENWORK_UI_CONTROL_DISCOVERY: process.env.OPENWORK_UI_CONTROL_DISCOVERY } : {}),
+        OPENWORK_SERVER_URL: serverUrl,
+        OPENWORK_SERVER_TOKEN: config.token,
+        OPENCODE_CONFIG: runtimeConfigPath,
+        ...(opencodeModelsUrl ? { OPENCODE_MODELS_URL: opencodeModelsUrl } : {}),
+      },
+    });
+    // OW5: when the managed engine dies the daemon stays up and /health keeps
+    // answering ok, so a container healthcheck sees a healthy service whose
+    // every session operation has lost its engine, and the restart policy
+    // never fires. Exit instead, and let the supervisor restart the pair.
+    // Only armed for a managed engine: an externally supplied opencode is
+    // somebody else's lifecycle.
+    const engineWatchdogMs = Number(process.env.OPENWORK_ENGINE_WATCHDOG_MS ?? "") || 5_000;
+    const engineWatchdog = setInterval(() => {
+      if (managedOpencode?.isAlive()) return;
+      logger.log("error", "Managed opencode engine exited; stopping the daemon so it can be restarted");
+      clearInterval(engineWatchdog);
+      process.exit(70);
+    }, engineWatchdogMs);
+    engineWatchdog.unref?.();
+
+    config.opencodeBaseUrl = managedOpencode.url;
+    config.opencodeUsername = managedOpencode.username;
+    config.opencodePassword = managedOpencode.password;
+    for (const entry of config.workspaces) {
+      entry.baseUrl ??= managedOpencode.url;
+      entry.opencodeUsername ??= managedOpencode.username;
+      entry.opencodePassword ??= managedOpencode.password;
+      entry.directory ??= entry.path;
+    }
+    managedOpencodeIdentity = [
+      managedOpencode.pid ?? "unknown",
+      managedOpencode.username,
+      managedOpencode.password,
+    ].join(":");
+    registerTrustedOpencodeProcess(config, {
+      baseUrl: managedOpencode.url,
+      identity: managedOpencodeIdentity,
+      isAlive: managedOpencode.isAlive,
+    });
+    logger.log("info", `Managed OpenCode listening on ${managedOpencode.url}`);
+  }
+}
+
+const server = await startServer(config);
+const workerActivityHeartbeat = startWorkerActivityHeartbeat(config, logger);
+
+// The runtime config file above only covers the workspace the managed engine
+// booted in. Push every workspace's runtime-DB MCPs into the engine so they
+// aren't invisible until a manual reload. Best-effort.
+if (managedOpencode) {
+  void syncAllWorkspacesRuntimeMcpToEngine(config);
+}
+
+// OPENCODE_CONFIG is one file read by one engine process, so only the booted
+// workspace's providers, plugins, disabled providers, default agent, and
+// external-directory permissions actually reach the engine. Settings writes
+// for the other local workspaces succeed and then do nothing.
+//
+// Not repaired here on purpose: the remedies are a managed engine per
+// workspace or directory-scoped project config, and both are engine surgery
+// that SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW6 gates behind the seam audit.
+// What is repaired is the silence — an operator can see which workspaces are
+// configuration-inert instead of inferring it from behavior.
+if (managedOpencode) {
+  const managedWorkspace = findManagedEngineWorkspace(config.workspaces);
+  const inert = managedWorkspace
+    ? config.workspaces.filter(
+        (entry) => entry.id !== managedWorkspace.id && entry.workspaceType !== "remote",
+      )
+    : [];
+  if (managedWorkspace && inert.length > 0) {
+    logger.log(
+      "warn",
+      `Runtime configuration applies only to workspace ${managedWorkspace.name} (${managedWorkspace.id}). `
+        + "MCP servers are synchronized for every workspace, but providers, plugins, disabled providers, "
+        + "default agent, and external-directory permissions are ignored for: "
+        + inert.map((entry) => `${entry.name} (${entry.id})`).join(", "),
+    );
+  }
+}
+
+const url = `http://${config.host}:${server.port}`;
+logger.log("info", `OpenWork server listening on ${url}`);
+
+if (config.tokenSource === "generated") {
+  logger.log("info", `Client token: ${config.token}`);
+}
+
+if (config.hostTokenSource === "generated") {
+  logger.log("info", `Host token: ${config.hostToken}`);
+}
+
+if (config.workspaces.length === 0) {
+  logger.log("info", "No workspaces configured. Add --workspace or update server.json.");
+} else {
+  logger.log("info", `Workspaces: ${config.workspaces.length}`);
+}
+
+if (args.verbose) {
+  logger.log("info", `Config path: ${config.configPath ?? "unknown"}`);
+  logger.log("info", `Read-only: ${config.readOnly ? "true" : "false"}`);
+  logger.log("info", `Approval: ${config.approval.mode} (${config.approval.timeoutMs}ms)`);
+  logger.log("info", `CORS origins: ${config.corsOrigins.join(", ")}`);
+  logger.log("info", `Authorized roots: ${config.authorizedRoots.join(", ")}`);
+  logger.log("info", `Token source: ${config.tokenSource}`);
+  logger.log("info", `Host token source: ${config.hostTokenSource}`);
+}
+
+const shutdown = () => {
+  workerActivityHeartbeat?.stop();
+  if (managedOpencodeIdentity) {
+    clearTrustedOpencodeProcess(config, managedOpencodeIdentity);
+  }
+  void managedOpencode?.close();
+  (server as { stop?: (closeActiveConnections?: boolean) => void }).stop?.(true);
+};
+
+process.once("SIGINT", () => {
+  shutdown();
+  process.exit(0);
+});
+process.once("SIGTERM", () => {
+  shutdown();
+  process.exit(0);
+});

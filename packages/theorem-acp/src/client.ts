@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-import type { AcpSessionUpdate } from './state';
+import type { AcpSessionUpdate, TurnContext } from './state';
 
 export type AcpClientOptions = {
   bin: string;
@@ -104,10 +104,14 @@ export class AcpClient {
     return response.sessionId;
   }
 
-  prompt(sessionId: string, text: string): Promise<PromptResponse> {
+  prompt(
+    sessionId: string,
+    text: string,
+    turnContext?: TurnContext,
+  ): Promise<PromptResponse> {
     return this.#request('session/prompt', {
       sessionId,
-      prompt: [{ type: 'text', text }],
+      prompt: [{ type: 'text', text: localPromptText(text, turnContext) }],
     }) as Promise<PromptResponse>;
   }
 
@@ -260,4 +264,14 @@ export class AcpClient {
     for (const pending of this.#pending.values()) pending.reject(error);
     this.#pending.clear();
   }
+}
+
+export function localPromptText(text: string, turnContext?: TurnContext): string {
+  if (!turnContext) return text;
+  return [
+    'CommonPlace published the following routed turn context. Continue the same turn under this contract:',
+    JSON.stringify(turnContext),
+    '',
+    text,
+  ].join('\n');
 }

@@ -52,12 +52,17 @@ import type { BlockPaletteItem } from '@/lib/rail/rail-model';
 import { FindOverlay } from '@/views/search/FindOverlay';
 import { highlightPageTarget } from '@/views/search/page-find';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
+import {
+  fetchWorkspaceReadiness,
+  workspaceDegradationOf,
+} from '@commonplace/theorem-acp/workspace-state';
 
 /** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
 const SIDEBAR_WIDTH_PX = 180;
 const SIDEBAR_COLLAPSED_PX = 48;
 const OVERLAY_BREAKPOINT = 1100;
 const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
+const READINESS_POLL_MS = 1_500;
 const HOST_BLOCK_DESCRIPTORS: Readonly<Record<string, string>> = {
   browser: 'browser.pane',
   note: 'markdown.doc',
@@ -295,6 +300,12 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const [compact, setCompact] = useState(false);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
+  const workspaceDegradation = useShellStore(
+    (state) => state.workspaceDegradation,
+  );
+  const setWorkspaceDegradation = useShellStore(
+    (state) => state.setWorkspaceDegradation,
+  );
 
   // The arrangement is live data: query the surface object and subscribe.
   const layoutStore = useMemo(() => createLayoutStore(host), [host]);
@@ -329,6 +340,39 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const readiness = await fetchWorkspaceReadiness({
+          signal: controller.signal,
+        });
+        if (!stopped) {
+          setWorkspaceDegradation(workspaceDegradationOf(readiness));
+        }
+      } catch {
+        if (!stopped && !controller.signal.aborted) {
+          setWorkspaceDegradation({
+            degraded: true,
+            missingIndexes: ['status_graphql'],
+          });
+        }
+      } finally {
+        if (!stopped) {
+          timer = setTimeout(() => void poll(), READINESS_POLL_MS);
+        }
+      }
+    };
+    void poll();
+    return () => {
+      stopped = true;
+      controller.abort();
+      if (timer) clearTimeout(timer);
+    };
+  }, [setWorkspaceDegradation]);
 
   // The active surface: the one carrying the active flag, the launch Chat
   // view otherwise. Switching layouts flips flags on surface objects;
@@ -843,7 +887,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       </div>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
-      <StatusBar host={host} />
+      <StatusBar
+        host={host}
+        workspaceDegradation={workspaceDegradation}
+      />
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />

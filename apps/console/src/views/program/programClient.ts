@@ -10,7 +10,7 @@ import type {
   ProgramPort,
   ProgramRunOptions,
   ProgramRunReceipt,
-  ProgramStationTopology,
+  ProgramStationReplication,
   StationDropReceipt,
 } from '@commonplace/program-contracts';
 import {
@@ -77,7 +77,7 @@ export async function dropBindingPreset(input: {
   readonly programId: string;
   readonly nodeId: string;
   readonly presetId: string;
-  readonly requestedTopology?: ProgramStationTopology;
+  readonly requestedReplication?: ProgramStationReplication;
 }): Promise<StationDropReceipt> {
   const data = await callProgramGraph(
     'drop_binding_preset',
@@ -86,8 +86,8 @@ export async function dropBindingPreset(input: {
         program_id: input.programId,
         node_id: input.nodeId,
         preset_id: input.presetId,
-        ...(input.requestedTopology
-          ? { requested_topology: input.requestedTopology }
+        ...(input.requestedReplication
+          ? { requested_replication: input.requestedReplication }
           : {}),
       },
     },
@@ -372,4 +372,130 @@ export async function forkProgramDefinition(
     intent,
   });
   return (data as unknown as ProgramDefinition);
+}
+
+export type CompoundMutationResult = {
+  readonly node_id: string;
+  readonly content_id: string;
+  readonly exterior_program_id: string;
+  readonly program: ProgramDefinition;
+  readonly event: Record<string, unknown>;
+  readonly persisted_interiors: ReadonlyArray<{ readonly node_id: string; readonly content_id: string }>;
+};
+
+export type ProgramEnvironmentResult = {
+  readonly node_id: string;
+  readonly program_id: string;
+  readonly environment: Record<string, unknown>;
+  readonly palette: ReadonlyArray<Record<string, unknown>>;
+};
+
+export type ProgramInteriorResult = {
+  readonly exterior_node_id: string;
+  readonly node_id: string;
+  readonly interior_program_id: string;
+  readonly pinned_content_id: string;
+  readonly program: ProgramDefinition;
+};
+
+function asCompoundMutationResult(data: Record<string, unknown>): CompoundMutationResult {
+  if (!data.program || typeof data.program !== 'object' || Array.isArray(data.program)) {
+    throw new Error('compound_mutation_missing_program');
+  }
+  const persisted = Array.isArray(data.persisted_interiors)
+    ? data.persisted_interiors.flatMap((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+        const row = item as Record<string, unknown>;
+        if (typeof row.node_id !== 'string' || typeof row.content_id !== 'string') return [];
+        return [{ node_id: row.node_id, content_id: row.content_id }];
+      })
+    : [];
+  return {
+    node_id: typeof data.node_id === 'string' ? data.node_id : '',
+    content_id: typeof data.content_id === 'string' ? data.content_id : '',
+    exterior_program_id: typeof data.exterior_program_id === 'string' ? data.exterior_program_id : '',
+    program: data.program as ProgramDefinition,
+    event: data.event && typeof data.event === 'object' && !Array.isArray(data.event)
+      ? data.event as Record<string, unknown>
+      : {},
+    persisted_interiors: persisted,
+  };
+}
+
+/** Expand an atom node into a Compound (SPEC-THEOREM-COMPOUND-NODES-1.0 D3/D6). */
+export async function expandProgramNode(input: {
+  readonly programId: string;
+  readonly nodeId: string;
+}): Promise<CompoundMutationResult> {
+  const data = await callProgramGraph(
+    'expand_node',
+    { program_id: input.programId, node_id: input.nodeId },
+    'programmable_graph_apply',
+  );
+  return asCompoundMutationResult(data);
+}
+
+/** Collapse a Compound back to a Rule atom. */
+export async function collapseProgramNode(input: {
+  readonly programId: string;
+  readonly nodeId: string;
+}): Promise<CompoundMutationResult> {
+  const data = await callProgramGraph(
+    'collapse_node',
+    { program_id: input.programId, node_id: input.nodeId },
+    'programmable_graph_apply',
+  );
+  return asCompoundMutationResult(data);
+}
+
+/** Advance the Compound pin to a newer interior content id. */
+export async function advanceProgramPin(input: {
+  readonly programId: string;
+  readonly nodeId: string;
+  readonly toContentId: string;
+}): Promise<CompoundMutationResult> {
+  const data = await callProgramGraph(
+    'advance_pin',
+    {
+      program_id: input.programId,
+      node_id: input.nodeId,
+      to_content_id: input.toContentId,
+    },
+    'programmable_graph_apply',
+  );
+  return asCompoundMutationResult(data);
+}
+
+/** Resolve the lexical engine environment for a program. */
+export async function fetchProgramEnvironment(programId: string): Promise<ProgramEnvironmentResult> {
+  const data = await callProgramGraph('environment', { program_id: programId });
+  return {
+    node_id: typeof data.node_id === 'string' ? data.node_id : '',
+    program_id: typeof data.program_id === 'string' ? data.program_id : programId,
+    environment: data.environment && typeof data.environment === 'object' && !Array.isArray(data.environment)
+      ? data.environment as Record<string, unknown>
+      : { bindings: [] },
+    palette: Array.isArray(data.palette) ? data.palette as Array<Record<string, unknown>> : [],
+  };
+}
+
+/** Load the pinned interior program for a Compound node. */
+export async function fetchProgramInterior(input: {
+  readonly programId: string;
+  readonly nodeId: string;
+}): Promise<ProgramInteriorResult> {
+  const data = await callProgramGraph('interior', {
+    program_id: input.programId,
+    node_id: input.nodeId,
+  });
+  if (!data.program || typeof data.program !== 'object' || Array.isArray(data.program)) {
+    throw new Error('interior_missing_program');
+  }
+  return {
+    exterior_node_id: typeof data.exterior_node_id === 'string' ? data.exterior_node_id : '',
+    node_id: typeof data.node_id === 'string' ? data.node_id : input.nodeId,
+    interior_program_id: typeof data.interior_program_id === 'string' ? data.interior_program_id : '',
+    pinned_content_id: typeof data.pinned_content_id === 'string' ? data.pinned_content_id : '',
+    program: data.program as ProgramDefinition,
+  };
 }

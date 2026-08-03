@@ -11,7 +11,6 @@ import {
   Compartment,
   EditorSelection,
   EditorState,
-  type ChangeSet,
 } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
@@ -25,40 +24,36 @@ import type {
   ViewRenderProps,
 } from '@commonplace/block-view/types';
 import { useAppearance } from '@/lib/appearance-store';
+import {
+  EDITOR_MODEL_TOOL,
+  closeEditorModelArgs,
+  collectEditsFromChanges,
+  editEditorModelArgs,
+  historyEditorModelArgs,
+  noteText,
+  openEditorModelArgs,
+  parseEditorModelReceipt,
+  seedEditorFile,
+  type EditorFileSeed,
+  type EditorModelEdit,
+  type EditorModelState,
+} from '@/editor-model';
 import { intuiEditorExtensions } from './cm-register-theme';
 import { ViewState } from './ViewStates';
 
-const EDITOR_MODEL_TOOL = 'editor.model';
 const SKIP_MODEL_ROUND_TRIP = Annotation.define<boolean>();
 
-export interface EditorModelEdit {
-  readonly start_utf16: number;
-  readonly end_utf16: number;
-  readonly insert: string;
-}
-
-export interface EditorModelState {
-  readonly available: boolean;
-  readonly id: string;
-  readonly document?: string;
-  readonly revision: number;
-  readonly can_undo: boolean;
-  readonly can_redo: boolean;
-  readonly reason?: string;
-}
-
-export interface EditorFileSeed {
-  readonly id: string;
-  readonly document: string;
-}
-
-export function seedEditorFile(
-  current: EditorFileSeed | null,
-  id: string,
-  document: string,
-): EditorFileSeed {
-  return current?.id === id ? current : { id, document };
-}
+export {
+  closeEditorModelArgs,
+  collectEditsFromChanges,
+  editEditorModelArgs,
+  historyEditorModelArgs,
+  noteText,
+  openEditorModelArgs,
+  parseEditorModelReceipt,
+  seedEditorFile,
+};
+export type { EditorFileSeed, EditorModelEdit, EditorModelState };
 
 function languageFor(name: string) {
   if (name === 'json') return json();
@@ -71,105 +66,6 @@ function languageFor(name: string) {
 
 function editableExtensions(editable: boolean) {
   return [EditorState.readOnly.of(!editable), EditorView.editable.of(editable)];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function invalidReceiptState(id: string): EditorModelState {
-  return {
-    available: false,
-    id,
-    revision: 0,
-    can_undo: false,
-    can_redo: false,
-    reason: 'editor_model_invalid_receipt',
-  };
-}
-
-export function noteText(reason?: string | null): string | null {
-  if (!reason) return null;
-  return reason.replaceAll('_', ' ');
-}
-
-export function parseEditorModelReceipt(
-  receipt: ObjectActionReceipt | undefined,
-  fallbackId: string,
-): EditorModelState | null {
-  if (!receipt?.note) return null;
-  try {
-    const value: unknown = JSON.parse(receipt.note);
-    if (
-      !isRecord(value)
-      || typeof value.available !== 'boolean'
-      || typeof value.id !== 'string'
-      || !Number.isSafeInteger(value.revision)
-      || (value.revision as number) < 0
-      || typeof value.can_undo !== 'boolean'
-      || typeof value.can_redo !== 'boolean'
-      || (value.document !== undefined && typeof value.document !== 'string')
-      || (value.reason !== undefined && typeof value.reason !== 'string')
-      || (value.available && typeof value.document !== 'string')
-    ) {
-      return invalidReceiptState(fallbackId);
-    }
-    return value as unknown as EditorModelState;
-  } catch {
-    return invalidReceiptState(fallbackId);
-  }
-}
-
-export function collectEditsFromChanges(changes: ChangeSet): EditorModelEdit[] {
-  const edits: EditorModelEdit[] = [];
-  changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-    edits.push({
-      start_utf16: fromA,
-      end_utf16: toA,
-      insert: inserted.toString(),
-    });
-  });
-  return edits;
-}
-
-export function openEditorModelArgs(id: string, text: string): Record<string, JsonValue> {
-  return {
-    action: 'open',
-    id,
-    text,
-  };
-}
-
-export function editEditorModelArgs(
-  id: string,
-  baseRevision: number,
-  edits: readonly EditorModelEdit[],
-): Record<string, JsonValue> {
-  return {
-    action: 'edit',
-    id,
-    base_revision: baseRevision,
-    edits: edits as unknown as readonly JsonValue[],
-  };
-}
-
-export function historyEditorModelArgs(
-  action: 'undo' | 'redo',
-  id: string,
-  baseRevision: number,
-): Record<string, JsonValue> {
-  return {
-    action,
-    id,
-    base_revision: baseRevision,
-  };
-}
-
-export function closeEditorModelArgs(id: string): Record<string, JsonValue> {
-  return {
-    action: 'close',
-    id,
-  };
 }
 
 interface CodeFileSurfaceProps {

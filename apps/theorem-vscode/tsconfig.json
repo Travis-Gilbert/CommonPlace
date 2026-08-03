@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node", "vscode"],
+    "baseUrl": ".",
+    "paths": {
+      "@commonplace/block-view-contracts/*": ["../../packages/block-view-contracts/src/*"],
+      "@commonplace/theorem-acp/*": ["../../packages/theorem-acp/src/*"],
+      "@commonplace/console-editor/*": ["../console/src/lib/editor-intelligence/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

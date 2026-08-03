@@ -27,6 +27,7 @@ import { ChatDropProvider } from '@/components/chat/ChatDropOverlay';
 import { useChatPageRuntime } from '@/components/chat/runtime';
 import type { ChatArtifactPayload, ChatCatalog, ChatThreadRecord } from '@/lib/chat/project-types';
 import {
+  ChatWireError,
   createChatThread,
   fetchChatCatalog,
   fetchChatThread,
@@ -46,6 +47,39 @@ import { cn } from '@/lib/cn';
 const emptySubscribe = () => () => {};
 const MESSAGE_PERSIST_DEBOUNCE_MS = 500;
 const EMPTY_CAPABILITIES: readonly CapabilityItem[] = [];
+
+/** A failed chat request, kept with the evidence needed to describe it. */
+type ChatFailure = { code: string; door?: string; status?: number; reason?: string };
+
+/**
+ * Classify a rejected chat request.
+ *
+ * `/api/chat/*` are the console's own routes. Before this, every rejection
+ * here was relabelled `console_data_api_unreachable`, so a 500 from
+ * /api/chat/projects told the reader the data API was down while it was
+ * answering normally. Report the code the route actually named, and when it
+ * named none, say the chat wire failed, because that is what happened.
+ */
+function chatFailure(error: unknown, door: string): ChatFailure {
+  if (error instanceof ChatWireError) {
+    const code = error.wireCode ?? 'console_chat_wire_failed';
+    return {
+      code,
+      door: error.door,
+      status: error.status ?? undefined,
+      // These routes wrap an inner failure and put its reason in `message`.
+      // That reason is the only part naming what actually broke, so keep it
+      // unless it just repeats the code the sentence already covers.
+      reason: error.message && error.message !== code ? error.message : undefined,
+    };
+  }
+  // fetch itself rejected, so there is no status: the request never landed.
+  return {
+    code: 'console_chat_wire_failed',
+    door,
+    reason: error instanceof Error ? error.message : undefined,
+  };
+}
 
 function connectionFor(status: number | null, error?: string | null): ConnectionState {
   if (status === 401 || error === 'principal_resolution=unauthenticated') return 'unauthenticated';
@@ -235,19 +269,32 @@ export function ChatPage({
   const connection = useShellStore((state) => state.connection);
   const [catalog, setCatalog] = useState<ChatCatalog | null>(null);
   const [thread, setThread] = useState<ChatThreadRecord | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<ChatFailure | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [wide, setWide] = useState(true);
   const [includeOverrides, setIncludeOverrides] = useState<Map<string, boolean>>(() => new Map());
   const attachments = useChatAttachments();
+
+  // connectionFor collapses the wire outcome into a ConnectionState, which is
+  // right for the status bar and useless for a degraded state: it discards the
+  // status code and the host. Keep the raw outcome so the banner can name what
+  // actually happened. setState identities are stable, so this does not
+  // re-create the host.
+  const [lastTransport, setLastTransport] = useState<{
+    status: number | null;
+    origin?: { door?: string; host?: string };
+  } | null>(null);
 
   const host = useMemo(
     () =>
       mounted
         ? new ConsoleBlockHost(CONSOLE_VIEW_REGISTRY, {
             proactivityTenant: tenant ?? null,
-            onTransport: (status, error) =>
-              useShellStore.getState().setConnection(connectionFor(status, error)),
+            onTransport: (status, error, origin) => {
+              const nextConnection = connectionFor(status, error);
+              setLastTransport(nextConnection === 'disconnected' ? { status, origin } : null);
+              useShellStore.getState().setConnection(nextConnection);
+            },
           })
         : null,
     [mounted, tenant],
@@ -280,7 +327,7 @@ export function ChatPage({
       })
       .catch((error: unknown) => {
         if (active) {
-          setLoadError(error instanceof Error ? error.message : 'catalog_unreachable');
+          setLoadError(chatFailure(error, '/api/chat/projects'));
         }
       });
     return () => {
@@ -327,7 +374,7 @@ export function ChatPage({
         router.replace(`/chat/${encodeURIComponent(created.id)}`);
       } catch (error) {
         if (active) {
-          setLoadError(error instanceof Error ? error.message : 'thread_unreachable');
+          setLoadError(chatFailure(error, '/api/chat/threads'));
         }
       }
     };
@@ -393,14 +440,38 @@ export function ChatPage({
     return <div className="h-dvh w-full bg-ij-frame" aria-busy="true" />;
   }
 
+  // A null status means the request never landed, which describeOrigin reports
+  // differently from any answered status. Passing the observed origin is what
+  // turns "The data API is unreachable." into a sentence that also says which
+  // door, which host, and what came back.
+  const transportOrigin = lastTransport
+    ? {
+        door: lastTransport.origin?.door,
+        host: lastTransport.origin?.host,
+        status: lastTransport.status ?? undefined,
+      }
+    : undefined;
+
+  // Each branch reports its own request, and only its own.
+  //
+  // `loadError` comes from /api/chat/*, the console's own routes. It used to be
+  // relabelled `console_data_api_unreachable`, so a 500 from
+  // /api/chat/projects announced that the data API was down while the data API
+  // was answering normally. It now carries the code the route named, plus the
+  // door and status of the request that actually failed.
+  //
+  // `connection` is derived from onTransport, so the last transport outcome is
+  // genuinely its outcome and may carry `transportOrigin`. Attaching that
+  // origin to a chat failure would describe the wrong request, which is worse
+  // than describing none.
   const degradation = loadError
-    ? degradationFor(
-        loadError === 'workspace_object_scope_unenforced'
-          ? 'workspace_object_scope_unenforced'
-          : 'console_data_api_unreachable',
-      )
+    ? degradationFor(loadError.code, {
+        door: loadError.door,
+        status: loadError.status,
+        reason: loadError.reason,
+      })
     : connection === 'disconnected'
-      ? degradationFor('console_data_api_unreachable')
+      ? degradationFor('console_data_api_unreachable', transportOrigin)
       : null;
 
   return (
@@ -431,11 +502,18 @@ export function ChatPage({
                     className="border-r border-ij-seam p-3 text-ij-ink-info"
                     style={{ width: 'var(--ij-chat-sidebar-w)' }}
                   >
-                    {needsSignIn
-                      ? 'Sign in with GitHub to connect the harness.'
-                      : degradation
-                        ? degradation.cause
-                        : 'Loading projects…'}
+                    {needsSignIn ? (
+                      'Sign in with GitHub to connect the harness.'
+                    ) : degradation ? (
+                      <>
+                        <p>{degradation.cause}</p>
+                        {degradation.detail ? (
+                          <p className="mt-1 text-ij-ink-disabled">{degradation.detail}</p>
+                        ) : null}
+                      </>
+                    ) : (
+                      'Loading projects…'
+                    )}
                   </aside>
                 )}
 
@@ -457,8 +535,14 @@ export function ChatPage({
                     </div>
                   ) : null}
                   {!needsSignIn && degradation && !thread ? (
-                    <div className="flex flex-1 items-center justify-center text-ij-ink-info" role="status">
-                      {degradation.cause}
+                    <div
+                      className="flex flex-1 flex-col items-center justify-center gap-1 text-center text-ij-ink-info"
+                      role="status"
+                    >
+                      <p>{degradation.cause}</p>
+                      {degradation.detail ? (
+                        <p className="text-ij-ink-disabled">{degradation.detail}</p>
+                      ) : null}
                     </div>
                   ) : null}
                   {!needsSignIn && thread ? (

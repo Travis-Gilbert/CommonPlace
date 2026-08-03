@@ -1,0 +1,72 @@
+name: VS Code surface CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/theorem-vscode/**"
+      - "apps/console/src/lib/editor-intelligence/**"
+      - "packages/block-view-contracts/**"
+      - "packaging/commonplace-studio/**"
+      - ".github/workflows/vscode-surface-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack typecheck, tests, and the parity fixture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter theorem-vscode
+
+      - name: Typecheck
+        run: pnpm --filter theorem-vscode run check
+
+      # V8. One store, two fronts. This is the drift gate: the console CM6
+      # adapter and the pack must render the fixture identically at the same
+      # generation, and the suite fails when they do not.
+      - name: Tests, including the V8 parity fixture
+        run: pnpm --filter theorem-vscode run test
+
+      # V1 acceptance: "a grep of the pack shows no interval timers".
+      - name: No-timers gate
+        run: pnpm --filter theorem-vscode run gate:no-timers
+
+      - name: Build both extension hosts
+        run: pnpm --filter theorem-vscode run build
+
+  pipeline:
+    name: Commonplace Studio ledger and identity gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # V7: every patch has a ledger entry, the reported patch count is real,
+      # telemetry is off, the registry is Open VSX, and no Microsoft mark or
+      # endpoint ships in product.json.
+      - name: Ledger and identity gate
+        run: ./packaging/commonplace-studio/scripts/ledger-gate.sh
+
+      - name: Shell lint
+        run: shellcheck packaging/commonplace-studio/scripts/*.sh

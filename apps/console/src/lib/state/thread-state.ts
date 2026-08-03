@@ -57,7 +57,7 @@ export interface StagedThreadRef {
 /** The actual destination of the next turn. These values map directly to the
  * hosted chat request, unlike the former presentational Agent/Plan/Model
  * labels. */
-export type ComposerMode = 'theorem' | 'web';
+export type ComposerMode = 'auto' | 'theorem' | 'web';
 
 export interface ThreadState {
   messages: ThreadMessage[];
@@ -168,7 +168,7 @@ export const threadIsRunningAtom = atom(false);
 export const threadErrorAtom = atom<string | null>(null);
 export const threadAbortAtom = atom<AbortController | null>(null);
 export const threadEndpointAtom = atom<string | null>(chatEndpoint());
-export const threadModeAtom = atom<ComposerMode>('theorem');
+export const threadModeAtom = atom<ComposerMode>('auto');
 export const threadPlanAtom = atom<AgentPlanStep[]>([]);
 const serverSessionStorage: Storage = {
   length: 0,
@@ -282,12 +282,13 @@ const threadActions: ThreadActions = {
     };
 
     try {
+      const mode = threadStore.get(threadModeAtom);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: [{ type: 'text', text }],
-          ...(threadStore.get(threadModeAtom) === 'web' ? { capability: { kind: 'web' } } : {}),
+          ...(mode === 'auto' ? {} : { capability: { kind: mode } }),
         }),
         signal: abort.signal,
       });

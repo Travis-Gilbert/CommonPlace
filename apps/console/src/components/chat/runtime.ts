@@ -12,10 +12,12 @@ import {
 } from '@assistant-ui/react';
 import { fromThreadMessageLike } from '@assistant-ui/core/internal';
 import type { TheoremAgentState } from '@commonplace/theorem-acp/state';
-import { getDefaultStore } from 'jotai';
+import { getDefaultStore, useAtomValue } from 'jotai';
 import {
   threadIsRunningAtom,
+  threadErrorAtom,
   threadMessagesAtom,
+  threadModeAtom,
   threadPlanAtom,
   type AgentPlanStep,
   type ThreadMessage,
@@ -33,13 +35,16 @@ function messageStatus(
   turnStatus: TheoremAgentState['turnStatus'],
 ): 'running' | 'complete' | 'incomplete' {
   if (turnStatus === 'running') return 'running';
-  if (turnStatus === 'failed' || turnStatus === 'refused') return 'incomplete';
+  if (turnStatus === 'failed' || turnStatus === 'refused' || turnStatus === 'cancelled') {
+    return 'incomplete';
+  }
   return 'complete';
 }
 
 function toThreadMessage(
   message: TheoremAgentState['messages'][number],
   turnStatus: TheoremAgentState['turnStatus'],
+  activityStatus: TheoremAgentState['activityStatus'],
   isLatestAssistant: boolean,
 ): ThreadMessageLike {
   if (message.role === 'user') {
@@ -57,11 +62,30 @@ function toThreadMessage(
     ...(toolCall.rawOutput === undefined ? {} : { result: toolCall.rawOutput }),
   }));
   const textParts = message.text ? [{ type: 'text' as const, text: message.text }] : [];
+  const acknowledgementParts = message.acknowledgement
+    ? [{
+        type: 'data' as const,
+        name: 'theorem-acknowledgement',
+        data: { text: message.acknowledgement },
+      }]
+    : [];
+  const activityParts = isLatestAssistant && activityStatus === 'running'
+    ? [{
+        type: 'data' as const,
+        name: 'theorem-activity',
+        data: { status: activityStatus },
+      }]
+    : [];
   const status = messageStatus(isLatestAssistant ? turnStatus : 'complete');
   return {
     id: message.id,
     role: 'assistant',
-    content: [...toolParts, ...textParts] as ThreadMessageLike['content'],
+    content: [
+      ...acknowledgementParts,
+      ...activityParts,
+      ...toolParts,
+      ...textParts,
+    ] as ThreadMessageLike['content'],
     status:
       status === 'running'
         ? { type: 'running' }
@@ -109,9 +133,16 @@ function syncHarnessState(state: TheoremAgentState): void {
   store.set(threadMessagesAtom, toStoreMessages(state));
   store.set(threadIsRunningAtom, state.turnStatus === 'running');
   store.set(threadPlanAtom, planFromState(state));
+  store.set(
+    threadErrorAtom,
+    state.turnStatus === 'failed' || state.turnStatus === 'refused'
+      ? state.error ?? state.blockedReason ?? `turn ${state.turnStatus}`
+      : null,
+  );
 }
 
 export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntime {
+  const composerMode = useAtomValue(threadModeAtom);
   const pendingSyncState = useRef<TheoremAgentState | null>(null);
   const syncQueued = useRef(false);
   const seedMessages = useMemo((): TheoremAgentState['messages'] => {
@@ -126,6 +157,7 @@ export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntim
         id: typeof message.id === 'string' ? message.id : `restored-${index}`,
         role: message.role === 'user' ? 'user' as const : 'assistant' as const,
         text,
+        acknowledgement: null,
         contributions: [],
         toolCalls: [],
       };
@@ -146,7 +178,12 @@ export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntim
       }
       const activeAssistantIndex = lastAssistantIndex(state);
       const likes = state.messages.map((message, index) =>
-        toThreadMessage(message, state.turnStatus, index === activeAssistantIndex),
+        toThreadMessage(
+          message,
+          state.turnStatus,
+          state.activityStatus,
+          index === activeAssistantIndex,
+        ),
       );
       return {
         messages: likes.map((like, index) => {
@@ -172,10 +209,13 @@ export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntim
       mode: 'composed',
       bindingId: 'agent:theorem',
       turnStatus: 'idle',
+      activityStatus: null,
       messages: seedMessages,
       pendingPermission: null,
       blockedReason: null,
       bootBrief: null,
+      error: null,
+      appliedUpdateKeys: [],
     },
     api: '/api/chat/transport',
     protocol: 'assistant-transport',
@@ -184,6 +224,13 @@ export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntim
       mode: 'composed',
       bindingId: 'agent:theorem',
       threadId: options.threadId,
+      turnRoute: options.capability
+        ? 'agent'
+        : composerMode === 'theorem'
+          ? 'chat'
+          : composerMode === 'web'
+            ? 'research'
+            : 'auto',
       ...(options.capability
         ? {
             capability: options.capability,
@@ -200,10 +247,13 @@ export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntim
       mode: 'composed',
       bindingId: 'agent:theorem',
       turnStatus: 'idle',
+      activityStatus: null,
       messages: seedMessages,
       pendingPermission: null,
       blockedReason: null,
       bootBrief: null,
+      error: null,
+      appliedUpdateKeys: [],
     });
   }, [seedMessages, options.sessionId]);
 

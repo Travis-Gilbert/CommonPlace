@@ -79,6 +79,11 @@ describe('search same-origin routes', () => {
     }));
     expect(response.status).toBe(200);
     expect(upstream.forward).toHaveBeenCalledTimes(1);
+    const operation = JSON.parse(String(
+      upstream.forward.mock.calls[0][1].body,
+    )) as { query: string };
+    expect(operation.query).toContain('degraded');
+    expect(operation.query).toContain('missingIndexes');
   });
 
   it('requires an aspect for expand', async () => {

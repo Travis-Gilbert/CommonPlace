@@ -45,4 +45,30 @@ describe('proactivity compilation stream', () => {
     expect(output).toContain('"id":"compilation-1"');
     expect(output).toContain('event: done');
   });
+
+  it('refuses to finalize a cancelled compilation', async () => {
+    const cancelled: TheoremAgentState = {
+      ...beginTurn(
+        createTheoremAgentState({ mode: 'composed', bindingId: 'agent:theorem' }),
+        'compile',
+      ),
+      turnStatus: 'cancelled',
+      activityStatus: 'cancelled',
+    };
+    const finalize = async () => {
+      throw new Error('finalizer must not run');
+    };
+    const stream = proactivityCompilationStream(
+      () => () => {},
+      cancelled,
+      new AbortController().signal,
+      finalize,
+    );
+
+    const output = await new Response(stream).text();
+
+    expect(output).toContain('event: error');
+    expect(output).toContain('event: done');
+    expect(output).not.toContain('event: compilation');
+  });
 });

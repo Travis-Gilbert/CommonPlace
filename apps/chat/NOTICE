@@ -1,0 +1,27 @@
+CommonPlace chat register
+=========================
+
+This product includes software developed by Different AI, Inc.
+
+  OpenWork — https://github.com/different-ai/openwork
+  Copyright (c) 2026 Different AI
+  Licensed under the MIT License. See LICENSE in this directory.
+
+The vendored subset is drawn entirely from the MIT-licensed portion of the
+upstream repository. No content from the upstream `/ee` directory, which is
+licensed under the Functional Source License 1.1 with an MIT future grant
+(FSL-1.1-MIT), is included in this distribution or in any CommonPlace build.
+
+Vendored at upstream commit 2f2dde65796428109a665f3b733843fe3896b933
+(branch `dev`, 2026-08-02). Provenance is recorded in UPSTREAM.md and every
+divergence from upstream is recorded in MODIFICATIONS.md, both in this
+directory.
+
+The following CommonPlace paths carry vendored OpenWork code and are covered by
+this notice:
+
+  apps/chat
+  apps/chat-server
+  packages/openwork-ui
+  packages/openwork-types
+  packages/openwork-paths
