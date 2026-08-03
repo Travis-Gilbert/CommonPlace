@@ -26,7 +26,7 @@ import { useThreadStore, type ThreadMessage } from '@/lib/thread-store';
 import { useShellStore } from '@/lib/shell-store';
 import type { ConnectionState } from '@/lib/state/shell-state';
 import { submitThreadText } from '@/lib/thread-submit';
-import { ThreadRuntimeAvailable } from '@/views/ThreadView';
+import { ThreadRuntimeAvailable } from '@/lib/thread-runtime-available';
 import { MaterialLayer } from '@/components/ground/MaterialLayer';
 import { IntuiShell } from '@/components/shell/IntuiShell';
 import { startAppearanceStore } from '@/lib/appearance-store';

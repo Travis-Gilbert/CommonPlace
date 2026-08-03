@@ -1,88 +1,47 @@
-// SOURCING: none. Thread chat routes mount ChatPage only with an active graph scope.
+// SOURCING: none. Thread chat routes fall back to openwork register when proxy absent.
 
-import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactElement } from 'react';
 
-const mocks = vi.hoisted(() => ({
-  resolveHarnessPrincipal: vi.fn(),
+const { redirect } = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
-    throw new Error(`NEXT_REDIRECT:${url}`);
+    throw new Error(`REDIRECT:${url}`);
   }),
 }));
 
-vi.mock('@/lib/server/harness-principal', () => ({
-  resolveHarnessPrincipal: mocks.resolveHarnessPrincipal,
-}));
-
 vi.mock('next/navigation', () => ({
-  redirect: mocks.redirect,
+  redirect,
 }));
 
-vi.mock('@/components/chat/ChatPage', () => ({
-  ChatPage: (props: { threadId?: string; tenant?: string | null }) => (
-    <div data-chat-page data-thread-id={props.threadId ?? ''} data-tenant={props.tenant ?? ''} />
-  ),
+vi.mock('@/lib/server/harness-principal', () => ({
+  resolveHarnessPrincipal: vi.fn(),
 }));
 
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import ChatThreadPage from './page';
 
-describe('thread chat route', () => {
+describe('ChatThreadPage', () => {
   beforeEach(() => {
-    mocks.resolveHarnessPrincipal.mockReset();
-    mocks.redirect.mockClear();
+    redirect.mockClear();
+    vi.mocked(resolveHarnessPrincipal).mockReset();
   });
 
-  it('sends unresolved principals to login', async () => {
-    mocks.resolveHarnessPrincipal.mockResolvedValue({
-      ok: false,
-      response: new Response(null, { status: 403 }),
-    });
-
-    await expect(
-      ChatThreadPage({ params: Promise.resolve({ threadId: 'thread-1' }) }),
-    ).rejects.toThrow('NEXT_REDIRECT:/login?callbackUrl=/chat/thread-1');
-  });
-
-  it('refuses to mount chat without an active graph scope', async () => {
-    mocks.resolveHarnessPrincipal.mockResolvedValue({
+  it('renders openwork register for a workspace-scoped principal', async () => {
+    vi.mocked(resolveHarnessPrincipal).mockResolvedValue({
       ok: true,
       principal: {
         tenant: 'Travis-Gilbert',
-        githubLogin: 'Travis-Gilbert',
-        harnessIdentity: 'github:1',
-        workspaceId: null,
-        workspaceSlug: null,
-        scopeRef: null,
+        workspaceId: 'ws-1',
+        scopeRef: 'scope-1',
       },
+    } as never);
+
+    const element = await ChatThreadPage({
+      params: Promise.resolve({ threadId: 'thread-1' }),
     });
-
-    const markup = renderToStaticMarkup(
-      await ChatThreadPage({ params: Promise.resolve({ threadId: 'thread-1' }) }),
-    );
-
-    expect(markup).toContain('Select a workspace');
-    expect(markup).not.toContain('data-chat-page');
-  });
-
-  it('mounts ChatPage for a workspace-scoped principal', async () => {
-    mocks.resolveHarnessPrincipal.mockResolvedValue({
-      ok: true,
-      principal: {
-        tenant: 'Travis-Gilbert',
-        githubLogin: 'Travis-Gilbert',
-        harnessIdentity: 'github:1',
-        workspaceId: 'workspace-1',
-        workspaceSlug: 'research',
-        scopeRef: 'workspace:workspace-1',
-      },
-    });
-
-    const markup = renderToStaticMarkup(
-      await ChatThreadPage({ params: Promise.resolve({ threadId: 'thread-1' }) }),
-    );
-
-    expect(markup).toContain('data-chat-page');
-    expect(markup).toContain('data-thread-id="thread-1"');
-    expect(markup).toContain('data-tenant="Travis-Gilbert"');
+    const html = renderToStaticMarkup(element as ReactElement);
+    expect(html).toContain('data-register-impl="openwork.chat"');
+    expect(html).toContain('thread-1');
   });
 });

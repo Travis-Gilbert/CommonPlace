@@ -17,6 +17,7 @@ import { resolveBlockSurfaceClass } from '@commonplace/block-view';
 import { kindGlyphNode } from '@/components/blocks/kind-glyph';
 import { IconHide } from '@/components/shell/icons';
 import { sizesFailingHeaderFit } from '@/lib/block-geometry';
+import { registerImplForDescriptor } from '@/lib/register-impl';
 import { ViewState, viewStateFooterSummary, type ViewStateKind } from '@/views/ViewStates';
 
 export interface BlockShellProps {
@@ -171,6 +172,8 @@ export function BlockShell({
       />
     );
 
+  const registerImpl = registerImplForDescriptor(descriptor.id);
+
   return (
     <section
       data-island={surfaceClass}
@@ -180,6 +183,7 @@ export function BlockShell({
       data-block-chrome={showHeader ? 'header' : 'bare'}
       data-view-instance={viewInstanceId}
       data-descriptor={descriptor.id}
+      data-register-impl={registerImpl}
       data-paint-region="island-shell"
       aria-label={headerTitle}
       className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"

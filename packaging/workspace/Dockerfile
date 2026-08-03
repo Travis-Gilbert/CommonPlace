@@ -13,7 +13,9 @@
 # --- Stage 1: build the chat register -------------------------------------
 # apps/chat/dist is gitignored, so it is never in the build context. Copying it
 # was a straight defect: the image could not build at all.
-FROM oven/bun:1.3.10-debian AS web
+# Node (not Bun) owns this stage: the Vite chat register is a pnpm workspace
+# package and oven/bun images ship without corepack/node.
+FROM node:22-bookworm-slim AS web
 
 WORKDIR /build
 RUN apt-get update \
@@ -52,6 +54,16 @@ RUN apt-get update \
     openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
+# pnpm workspace install for chat-server needs Node/corepack. Bun alone does
+# not provide them on this base image (GL7 cutover build failure 2026-08-03).
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+  && ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+  && corepack enable \
+  && corepack prepare pnpm@10.30.1 --activate
+
 # --- The IDE door ---------------------------------------------------------
 # code-server is installed from its own release channel rather than rebuilt.
 # Pinned: an unpinned install script is a different image every build, which
@@ -76,9 +88,7 @@ COPY apps/chat-server/package.json apps/chat-server/
 COPY packages/openwork-types/package.json packages/openwork-types/
 COPY packages/openwork-paths/package.json packages/openwork-paths/
 
-RUN corepack enable \
-  && corepack prepare pnpm@10.30.1 --activate \
-  && pnpm install --filter @commonplace/chat-server... --frozen-lockfile --prod=false
+RUN pnpm install --filter @commonplace/chat-server... --frozen-lockfile --prod=false
 
 COPY apps/chat-server apps/chat-server
 COPY packages/openwork-types packages/openwork-types
@@ -116,7 +126,8 @@ ENV XDG_CONFIG_HOME=/workspace/state/config
 # /workspace/:id/audit was still discarded on every redeploy.
 ENV OPENWORK_DATA_DIR=/workspace/state/openwork
 RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${OPENWORK_DATA_DIR}"
-VOLUME ["/workspace"]
+# Railway rejects Dockerfile VOLUME. Persist /workspace with a Railway Volume
+# mount on the commonplace-workspace service instead (OW5 / cutover GL7).
 
 EXPOSE 8787 8080
 

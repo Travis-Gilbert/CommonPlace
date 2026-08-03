@@ -5,6 +5,8 @@ through TU7. Upstream `twentyhq/twenty` `packages/twenty-ui` at
 `b754e15331c6472d772b1bbe448469f811b28afd`, MIT, vendored as
 `packages/twenty-ui`.
 
+Amendment (SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL9): the final deliverable of this surface is its `.commonplace-canonical` manifest row flipped and its production smoke green at a named URL; any superseded primitive layer carries that deletion as a deliverable with its own acceptance.
+
 ## What changed about the verdict
 
 The spec was written expecting Emotion. At the pinned SHA there is none.

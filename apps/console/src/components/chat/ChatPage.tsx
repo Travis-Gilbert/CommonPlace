@@ -475,7 +475,7 @@ export function ChatPage({
       : null;
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-ij-frame" data-chat-page>
+    <div className="relative h-dvh w-full overflow-hidden bg-ij-frame" data-chat-page data-register-impl="assistant-ui.ChatPage">
       <MaterialLayer />
       <div className="relative z-10 h-full">
         <HostProvider queryObjects={queryObjects}>
