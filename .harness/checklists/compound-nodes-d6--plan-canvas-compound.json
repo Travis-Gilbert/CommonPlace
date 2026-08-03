@@ -1,0 +1,30 @@
+{
+  "plan_id": "commonplace-compound-nodes-d6",
+  "plan_slug": "compound-nodes-d6",
+  "source_spec_id": "SPEC-THEOREM-COMPOUND-NODES-1.0",
+  "theorem_pr": "https://github.com/Travis-Gilbert/Theorem/pull/437",
+  "objective": "CommonPlace D6: canvas.compound client + expand/collapse/advancePin UX",
+  "items": [
+    {
+      "id": "d6-contracts",
+      "content": "Regenerate program-contracts with Compound, environment, collapsed_from",
+      "status": "completed"
+    },
+    {
+      "id": "d6-client",
+      "content": "programClient expand/collapse/advancePin/environment/interior + tests",
+      "status": "completed"
+    },
+    {
+      "id": "d6-ui",
+      "content": "Program canvas chrome for compound expand/collapse/pin",
+      "status": "completed"
+    },
+    {
+      "id": "d6-validate",
+      "content": "Focused vitest for programClient compound actions",
+      "status": "completed",
+      "evidence": "vitest programClient.test.ts + catalogNode.test.ts (10 passed); console tsc --noEmit clean"
+    }
+  ]
+}

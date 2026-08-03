@@ -19,6 +19,7 @@ import {
   LayersIcon,
   LightningBoltIcon,
   QuestionMarkCircledIcon,
+  StackIcon,
 } from '@radix-ui/react-icons';
 import type {
   NodeBadge,
@@ -98,6 +99,8 @@ function KindIcon({ kind }: { readonly kind: ProgramNodeKindContract['kind'] }) 
       return <ExitIcon />;
     case 'human_input':
       return <QuestionMarkCircledIcon />;
+    case 'compound':
+      return <StackIcon />;
   }
 }
 
