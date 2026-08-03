@@ -128,6 +128,11 @@ export function applySessionUpdate(
   update: AcpSessionUpdate,
 ): TheoremAgentState {
   if (isSettled(state.turnStatus)) return state;
+  if (
+    update.sessionUpdate === 'theorem_turn_activity' &&
+    !update.eventId &&
+    update.status === state.activityStatus
+  ) return state;
   const updateKey = sessionUpdateKey(update);
   if (updateKey && state.appliedUpdateKeys.includes(updateKey)) return state;
   const withUpdateKey = updateKey
@@ -349,9 +354,6 @@ function applyActivityStatus(
 
 function sessionUpdateKey(update: AcpSessionUpdate): string | null {
   if (update.eventId) return `event:${update.eventId}`;
-  if (update.sessionUpdate === 'theorem_turn_activity') {
-    return `activity:${update.status ?? 'unknown'}`;
-  }
   return null;
 }
 

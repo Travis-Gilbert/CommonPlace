@@ -105,8 +105,10 @@ export function deltaStream(
   subscribe: (listener: (state: TheoremAgentState) => void) => () => void,
   initial: TheoremAgentState,
   signal: AbortSignal,
+  onCancel?: () => void,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
+  let cancelStream: (() => void) | null = null;
   return new ReadableStream<Uint8Array>({
     start(controller) {
       let closed = false;
@@ -117,13 +119,21 @@ export function deltaStream(
         if (closed) return;
         closed = true;
         unsubscribe();
-        signal.removeEventListener('abort', close);
+        signal.removeEventListener('abort', cancel);
         try {
           controller.close();
         } catch {
           // Already closed by the runtime.
         }
       };
+      const cancel = () => {
+        try {
+          onCancel?.();
+        } finally {
+          close();
+        }
+      };
+      cancelStream = cancel;
       const complete = () => {
         if (closed) return;
         controller.enqueue(encoder.encode('event: done\ndata: {}\n\n'));
@@ -133,7 +143,7 @@ export function deltaStream(
         if (closed) return;
         const assistant = [...state.messages].reverse().find((message) => message.role === 'assistant');
         const text = assistant?.text ?? '';
-        if (state.activityStatus && state.activityStatus !== activity) {
+        if (state.activityStatus !== activity) {
           controller.enqueue(
             encoder.encode(
               `event: activity\ndata: ${JSON.stringify({ status: state.activityStatus })}\n\n`,
@@ -157,12 +167,15 @@ export function deltaStream(
         if (state.pendingPermission || state.turnStatus !== 'running') complete();
       };
       if (signal.aborted) {
-        close();
+        cancel();
         return;
       }
       unsubscribe = subscribe(write);
-      signal.addEventListener('abort', close, { once: true });
+      signal.addEventListener('abort', cancel, { once: true });
       write(initial);
+    },
+    cancel() {
+      cancelStream?.();
     },
   });
 }

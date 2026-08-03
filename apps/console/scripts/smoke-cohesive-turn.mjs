@@ -279,15 +279,15 @@ async function main() {
   }
   const baseUrl = process.env.THEOREM_LIVE_TURN_URL?.trim() || DEFAULT_BASE_URL;
   const cookie = requiredEnvironment('THEOREM_LIVE_TURN_COOKIE');
-  const expectedTenant = requiredEnvironment('THEOREM_LIVE_TURN_TENANT');
+  const expectedGithubLogin = requiredEnvironment('THEOREM_LIVE_TURN_TENANT');
   const session = await authenticatedSession(baseUrl, cookie);
   const githubLogin = session?.user?.githubLogin;
-  if (githubLogin !== expectedTenant) {
+  if (githubLogin !== expectedGithubLogin) {
     throw new Error(
-      `Authenticated GitHub identity resolved to ${githubLogin ?? 'none'}, expected ${expectedTenant}.`,
+      `Authenticated GitHub identity resolved to ${githubLogin ?? 'none'}, expected ${expectedGithubLogin}.`,
     );
   }
-  if (expectedTenant.toLowerCase() === 'default') {
+  if (expectedGithubLogin.toLowerCase() === 'default') {
     throw new Error('The live smoke refuses the default tenant sentinel.');
   }
 
@@ -323,11 +323,13 @@ async function main() {
   process.stdout.write(`${JSON.stringify({
     schema_version: 'commonplace-live-turn-smoke/1',
     base_url: baseUrl,
-    authenticated_tenant: expectedTenant,
-    direct_default_tenant_refused: true,
+    authenticated_github_login: expectedGithubLogin,
     receipts,
     assistant_transport_receipt: assistantTransportReceipt,
   }, null, 2)}\n`);
 }
 
-await main();
+await main().catch((error) => {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
+});

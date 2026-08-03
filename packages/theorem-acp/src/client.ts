@@ -107,11 +107,11 @@ export class AcpClient {
   prompt(
     sessionId: string,
     text: string,
-    _turnContext?: TurnContext,
+    turnContext?: TurnContext,
   ): Promise<PromptResponse> {
     return this.#request('session/prompt', {
       sessionId,
-      prompt: [{ type: 'text', text }],
+      prompt: [{ type: 'text', text: localPromptText(text, turnContext) }],
     }) as Promise<PromptResponse>;
   }
 
@@ -264,4 +264,14 @@ export class AcpClient {
     for (const pending of this.#pending.values()) pending.reject(error);
     this.#pending.clear();
   }
+}
+
+export function localPromptText(text: string, turnContext?: TurnContext): string {
+  if (!turnContext) return text;
+  return [
+    'CommonPlace published the following routed turn context. Continue the same turn under this contract:',
+    JSON.stringify(turnContext),
+    '',
+    text,
+  ].join('\n');
 }

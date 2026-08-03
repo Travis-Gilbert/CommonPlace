@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
 import { BridgeCommandError, validateBridgeCommands } from './bridge.js';
+import { localPromptText } from './client.js';
 import {
   hostedCancelEnvelope,
   hostedPromptEnvelope,
@@ -24,6 +25,15 @@ const turnContext: TurnContext = {
   context_anchors: ['latency path'],
   required_capabilities: ['web_search'],
 };
+
+test('local ACP prompt carries the published routed turn context', () => {
+  const prompt = localPromptText('hello', turnContext);
+
+  assert.match(prompt, /Continue the same turn/);
+  assert.match(prompt, /"schema_version":"turn-context\/1"/);
+  assert.match(prompt, /"route":"research"/);
+  assert.match(prompt, /\n\nhello$/);
+});
 
 function runningState() {
   return beginTurn(
@@ -116,6 +126,23 @@ test('deduplicates delivered updates and settles once after out of order activit
   assert.equal(state.turnStatus, 'complete');
   assert.equal(state.activityStatus, 'completed');
   assert.equal(state.error, null);
+});
+
+test('allows activity phases to return to running without an occurrence id', () => {
+  let state = applySessionUpdate(runningState(), {
+    sessionUpdate: 'theorem_turn_activity',
+    status: 'running',
+  });
+  state = applySessionUpdate(state, {
+    sessionUpdate: 'theorem_turn_activity',
+    status: 'completed',
+  });
+  state = applySessionUpdate(state, {
+    sessionUpdate: 'theorem_turn_activity',
+    status: 'running',
+  });
+
+  assert.equal(state.activityStatus, 'running');
 });
 
 test('server occurrence IDs deduplicate replay without collapsing equal chunks', () => {

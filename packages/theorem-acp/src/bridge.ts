@@ -97,6 +97,10 @@ export function createStateStream(
   signal: AbortSignal,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
+  const settleCancellation = () => {
+    void session.cancel().catch(() => {});
+  };
+  let cancelStream: (() => void) | null = null;
   return new ReadableStream<Uint8Array>({
     start(controller) {
       let closed = false;
@@ -106,15 +110,20 @@ export function createStateStream(
         closed = true;
         unsubscribe();
         signal.removeEventListener('abort', cancel);
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        controller.close();
+        try {
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch {
+          // The response consumer already cancelled the body.
+        }
       };
       const cancel = () => {
-        void session.cancel();
+        settleCancellation();
         close();
       };
+      cancelStream = cancel;
       if (signal.aborted) {
-        void session.cancel();
+        settleCancellation();
         controller.close();
         return;
       }
@@ -126,6 +135,9 @@ export function createStateStream(
       unsubscribe = session.subscribe(write);
       signal.addEventListener('abort', cancel, { once: true });
       write(session.getState());
+    },
+    cancel() {
+      cancelStream?.();
     },
   });
 }

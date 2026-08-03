@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('server-only', () => ({}));
+
 import {
+  cohesiveTurnRoutingEnabled,
   explicitRouteForCapability,
   routeTurn,
   toTurnContext,
@@ -99,6 +102,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.clearAllMocks();
@@ -172,6 +176,26 @@ describe('cohesive turn routing', () => {
     abort.abort();
   });
 
+  it('keeps a valid mobile API key on the direct ACP path without browser identity', async () => {
+    vi.stubEnv('CONSOLE_MOBILE_API_KEY', 'mobile-test-key');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { POST } = await import('./route');
+    const abort = new AbortController();
+    const response = await POST(new Request('https://console.test/api/chat/stream', {
+      method: 'POST',
+      headers: { 'x-api-key': 'mobile-test-key' },
+      body: JSON.stringify({ content: [{ type: 'text', text: 'Use the mobile path' }] }),
+      signal: abort.signal,
+    }));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-commonplace-turn-mode')).toBe('direct');
+    expect(routeMocks.resolvePrincipal).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    abort.abort();
+  });
+
   it('does not enable routing for a different tenant in the rollout list', async () => {
     vi.stubEnv('CONSOLE_COHESIVE_TURN_ROUTING', 'another-tenant');
     const fetchMock = vi.fn();
@@ -187,6 +211,12 @@ describe('cohesive turn routing', () => {
     expect(response.status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
     abort.abort();
+  });
+
+  it('treats off as a hard kill switch inside a rollout list', () => {
+    vi.stubEnv('CONSOLE_COHESIVE_TURN_ROUTING', 'identity-tenant,off');
+
+    expect(cohesiveTurnRoutingEnabled('identity-tenant')).toBe(false);
   });
 
   it('preserves explicit Web research on the direct rollback path', async () => {
@@ -285,6 +315,30 @@ describe('cohesive turn routing', () => {
     expect(prelude.route).toBe('agent');
     expect(prelude.acknowledgement).toBeNull();
     expect(prelude.fallback_reason).toBe('router_unreachable');
+  });
+
+  it('bounds a stalled router request with the shared harness timeout', async () => {
+    vi.useFakeTimers();
+    vi.stubEnv('CONSOLE_HARNESS_TIMEOUT_MS', '1000');
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          'abort',
+          () => reject(new DOMException('The operation was aborted', 'AbortError')),
+          { once: true },
+        );
+      })));
+    const pending = routeTurn(
+      'hello',
+      principal,
+      new Request('https://console.test/api/chat/stream'),
+    );
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect(pending).resolves.toEqual(
+      expect.objectContaining({ fallback_reason: 'router_unreachable' }),
+    );
   });
 
   it('uses the typed no-ack fallback for malformed router output', async () => {
@@ -441,6 +495,22 @@ describe('cohesive turn routing', () => {
       })],
     );
     abort.abort();
+    await vi.waitFor(() => expect(routeMocks.cancel).toHaveBeenCalledOnce());
+  });
+
+  it('cancels the hosted ACP prompt when the response body is cancelled', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => routerResponse('chat')));
+    const { POST } = await import('./route');
+    const response = await POST(new Request('https://console.test/api/chat/stream', {
+      method: 'POST',
+      body: JSON.stringify({ content: [{ type: 'text', text: 'Explain this' }] }),
+    }));
+    const reader = response.body!.getReader();
+    await reader.read();
+    await vi.waitFor(() => expect(routeMocks.dispatch).toHaveBeenCalledOnce());
+
+    await reader.cancel();
+
     await vi.waitFor(() => expect(routeMocks.cancel).toHaveBeenCalledOnce());
   });
 

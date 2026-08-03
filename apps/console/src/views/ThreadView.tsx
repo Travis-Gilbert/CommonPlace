@@ -59,13 +59,14 @@ function TurnAcknowledgement(props: DataMessagePartProps<{ text?: unknown }>) {
 function TurnActivity(props: DataMessagePartProps<{ status?: unknown }>) {
   if (props.data.status !== 'running') return null;
   return (
-    <p
+    <div
       data-turn-activity
-      className="mb-1 animate-pulse text-ij-island-meta text-ij-ink-info"
+      className="mb-1 flex items-center gap-1.5 text-ij-island-meta text-ij-ink-info"
       style={{ fontFamily: 'var(--cp-font-human)' }}
     >
-      Working through the routed turn.
-    </p>
+      <PresenceMark state="composing" size={18} />
+      <span>Working through the routed turn.</span>
+    </div>
   );
 }
 

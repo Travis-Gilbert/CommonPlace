@@ -1,9 +1,12 @@
 // SOURCING: Theorem /v1/theorem/turn/route contract. This server-only client
 // forwards admitted tenant identity and never calls a model provider directly.
 
+import 'server-only';
+
 import { forwardAuthHeaders, localInquiryUrl } from '@commonplace/theorem-acp/node-upstream';
 import type { TurnContext, TurnRoute } from '@commonplace/theorem-acp/state';
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
+import { startHarnessRequestTimeout } from '@/lib/server/harness-timeout';
 
 export type TurnPrelude = {
   readonly schema_version: 'turn-prelude/1';
@@ -20,11 +23,12 @@ export type RouteOverride = TurnRoute | undefined;
 
 export function cohesiveTurnRoutingEnabled(tenant: string): boolean {
   const configured = process.env.CONSOLE_COHESIVE_TURN_ROUTING?.trim();
-  if (!configured || configured === 'off') return false;
+  if (!configured) return false;
   const admittedTenants = configured
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
+  if (admittedTenants.includes('off')) return false;
   return admittedTenants.includes('all') || admittedTenants.includes(tenant);
 }
 
@@ -43,6 +47,7 @@ export async function routeTurn(
   request: Request,
   explicitRoute?: RouteOverride,
 ): Promise<TurnPrelude> {
+  const timeout = startHarnessRequestTimeout();
   let response: Response;
   try {
     response = await fetch(localInquiryUrl('/v1/theorem/turn/route'), {
@@ -60,11 +65,13 @@ export async function routeTurn(
         ...(explicitRoute ? { explicit_route: explicitRoute } : {}),
       }),
       cache: 'no-store',
-      signal: request.signal,
+      signal: AbortSignal.any([request.signal, timeout.signal]),
     });
   } catch (error) {
     if (request.signal.aborted) throw error;
     return fallbackPrelude('router_unreachable', explicitRoute);
+  } finally {
+    timeout.clear();
   }
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {

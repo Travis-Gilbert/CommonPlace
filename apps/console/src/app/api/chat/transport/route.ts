@@ -41,6 +41,18 @@ export async function POST(request: Request): Promise<Response> {
   const turnId = crypto.randomUUID();
   try {
     const body = await readBody(request);
+    const principalResolution = await resolveHarnessPrincipal();
+    if (!principalResolution.ok) return principalResolution.response;
+    const principal = principalResolution.principal;
+    if (!configuredServiceTenantMatches(principal)) {
+      return Response.json(
+        {
+          error: 'tenant_connector_unavailable',
+          message: 'This signed-in tenant does not yet have a matching hosted ACP credential.',
+        },
+        { status: 403 },
+      );
+    }
     const threadId = typeof body.threadId === 'string' ? body.threadId : null;
     if (threadId) {
       const thread = await getThread(threadId);
@@ -61,19 +73,6 @@ export async function POST(request: Request): Promise<Response> {
       await dispatchBridgeCommands(session, commands);
       await rememberSession(threadId, session);
       return stateResponse(session, request, turnId, 'direct');
-    }
-
-    const principalResolution = await resolveHarnessPrincipal();
-    if (!principalResolution.ok) return principalResolution.response;
-    const principal = principalResolution.principal;
-    if (!configuredServiceTenantMatches(principal)) {
-      return Response.json(
-        {
-          error: 'tenant_connector_unavailable',
-          message: 'This signed-in tenant does not yet have a matching hosted ACP credential.',
-        },
-        { status: 403 },
-      );
     }
 
     const displayText = commandText(addMessage, true);
@@ -153,12 +152,16 @@ async function continueCohesiveTurn(
     await dispatchBridgeCommands(session, routed, { preparedTurn: true });
   } catch (error) {
     if (request.signal.aborted) {
-      await session.cancel();
+      await session.cancel().catch(() => {});
       return;
     }
-    session.failPreparedTurn(
-      error instanceof Error ? error.message : 'The cohesive turn could not continue.',
-    );
+    try {
+      session.failPreparedTurn(
+        error instanceof Error ? error.message : 'The cohesive turn could not continue.',
+      );
+    } catch {
+      // The stream already owns the failure response. Cleanup must not reject.
+    }
   }
 }
 

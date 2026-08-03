@@ -82,8 +82,16 @@ export async function POST(request: Request): Promise<Response> {
   const turnId = crypto.randomUUID();
   const requestStarted = performance.now();
   try {
+    const configuredMobileKey = process.env.CONSOLE_MOBILE_API_KEY?.trim();
+    const mobileCredential = configuredMobileKey
+      ? request.headers.get('x-api-key') === configuredMobileKey
+      : false;
     if (request.headers.has('x-api-key')) {
       requireMobileApiKey(request, process.env.CONSOLE_MOBILE_API_KEY);
+    }
+    const chat = readChatRequest(await request.json().catch(() => null));
+    if (mobileCredential) {
+      return directHostedTurn(request, null, chat, turnId);
     }
     const resolution = await resolveHarnessPrincipal();
     if (!resolution.ok) {
@@ -109,7 +117,6 @@ export async function POST(request: Request): Promise<Response> {
         { status: 403 },
       );
     }
-    const chat = readChatRequest(await request.json().catch(() => null));
     if (!cohesiveTurnRoutingEnabled(principal.tenant)) {
       return directHostedTurn(request, principal, chat, turnId);
     }
@@ -163,7 +170,7 @@ export async function POST(request: Request): Promise<Response> {
 
 async function directHostedTurn(
   request: Request,
-  principal: HarnessPrincipal,
+  principal: HarnessPrincipal | null,
   chat: ReturnType<typeof readChatRequest>,
   turnId: string,
 ): Promise<Response> {
@@ -178,6 +185,15 @@ async function directHostedTurn(
           message: 'Web search is unavailable on this connected CommonPlace backend.',
         },
         { status: 409 },
+      );
+    }
+    if (!principal) {
+      return Response.json(
+        {
+          error: 'web_search_requires_principal',
+          message: 'Web search requires an authenticated tenant identity.',
+        },
+        { status: 401 },
       );
     }
     const research = await loadWebResearch(chat.displayText, principal, request);
@@ -197,7 +213,12 @@ async function directHostedTurn(
   headers.set('x-commonplace-turn-id', turnId);
   headers.set('x-commonplace-turn-mode', 'direct');
   return new Response(
-    deltaStream((listener) => session.subscribe(listener), session.getState(), request.signal),
+    deltaStream(
+      (listener) => session.subscribe(listener),
+      session.getState(),
+      request.signal,
+      () => { void session.cancel().catch(() => {}); },
+    ),
     { status: 200, headers },
   );
 }
@@ -211,12 +232,15 @@ function orchestratedTurnStream(
   requestStarted: number,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
+  let cancelStream: (() => void) | null = null;
   return new ReadableStream<Uint8Array>({
     start(controller) {
       let session: AcquiredAcpSession | null = null;
+      let streamReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       let closed = false;
       let terminalRecorded = false;
       let firstSubstantiveTokenRecorded = false;
+      let completionReceiptRecorded = false;
       const recordTerminal = (outcome: TurnOutcome) => {
         if (terminalRecorded) return;
         terminalRecorded = true;
@@ -229,22 +253,34 @@ function orchestratedTurnStream(
       const close = () => {
         if (closed) return;
         closed = true;
+        request.signal.removeEventListener('abort', cancel);
         try { controller.close(); } catch { /* already closed */ }
       };
       const write = (event: string, data: unknown) => {
-        if (!closed) controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-        );
+        if (closed) return;
+        try {
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+          );
+        } catch {
+          cancel();
+        }
       };
       const cancel = () => {
+        if (closed) return;
+        closed = true;
+        request.signal.removeEventListener('abort', cancel);
         recordTurnTelemetry(turnId, 'turn_cancelled', {
           route: prelude.route,
           duration_ms: elapsedMs(requestStarted),
           outcome: 'cancelled',
         });
         recordTerminal('cancelled');
-        void session?.cancel();
+        void streamReader?.cancel().catch(() => {});
+        void session?.cancel().catch(() => {});
+        try { controller.close(); } catch { /* cancelled by the runtime */ }
       };
+      cancelStream = cancel;
       request.signal.addEventListener('abort', cancel, { once: true });
       write('turn_prelude', prelude);
       write('turn_receipt', {
@@ -312,6 +348,9 @@ function orchestratedTurnStream(
             });
             promptText = appendWebResearch(chat.promptText, research.sources);
           }
+          if (request.signal.aborted) {
+            throw new DOMException('Turn cancelled', 'AbortError');
+          }
           session = await resolveBridgeSession({});
           if (request.signal.aborted) throw new DOMException('Turn cancelled', 'AbortError');
           const command: BridgeCommand = {
@@ -337,13 +376,14 @@ function orchestratedTurnStream(
             session.getState(),
             request.signal,
           );
-          const reader = stream.getReader();
+          streamReader = stream.getReader();
           const streamDecoder = new TextDecoder();
-          for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const frame = streamDecoder.decode(value, { stream: true });
-            if (!firstSubstantiveTokenRecorded && frame.startsWith('data:')) {
+          let frameBuffer = '';
+          const inspectFrame = (frame: string) => {
+            const lines = frame.split('\n');
+            const event = lines.find((line) => line.startsWith('event: '))?.slice(7);
+            const hasData = lines.some((line) => line.startsWith('data: '));
+            if (!firstSubstantiveTokenRecorded && !event && hasData) {
               firstSubstantiveTokenRecorded = true;
               recordTurnTelemetry(turnId, 'first_substantive_token', {
                 route: prelude.route,
@@ -355,15 +395,41 @@ function orchestratedTurnStream(
                 route: prelude.route,
               });
             }
-            if (frame.startsWith('event: done')) {
+            if (event === 'done' && !completionReceiptRecorded) {
+              completionReceiptRecorded = true;
               write('turn_receipt', {
                 turn_id: turnId,
                 stage: 'completion',
                 route: prelude.route,
               });
             }
-            if (!closed) controller.enqueue(value);
+          };
+          const inspectFrames = (text: string, flush = false) => {
+            frameBuffer += text;
+            let boundary = frameBuffer.indexOf('\n\n');
+            while (boundary >= 0) {
+              inspectFrame(frameBuffer.slice(0, boundary));
+              frameBuffer = frameBuffer.slice(boundary + 2);
+              boundary = frameBuffer.indexOf('\n\n');
+            }
+            if (flush && frameBuffer.trim()) {
+              inspectFrame(frameBuffer);
+              frameBuffer = '';
+            }
+          };
+          for (;;) {
+            const { done, value } = await streamReader.read();
+            if (done) break;
+            inspectFrames(streamDecoder.decode(value, { stream: true }));
+            if (closed) break;
+            try {
+              controller.enqueue(value);
+            } catch {
+              cancel();
+              break;
+            }
           }
+          inspectFrames(streamDecoder.decode(), true);
           const status = session.getState().turnStatus;
           recordTerminal(
             status === 'failed'
@@ -375,7 +441,7 @@ function orchestratedTurnStream(
                   : 'completed',
           );
         } catch (error) {
-          if (!request.signal.aborted) {
+          if (!request.signal.aborted && !closed) {
             write('error', { error: error instanceof Error ? error.message : 'Turn failed.' });
             write('done', {});
             recordTerminal('failed');
@@ -385,6 +451,9 @@ function orchestratedTurnStream(
           close();
         }
       })();
+    },
+    cancel() {
+      cancelStream?.();
     },
   });
 }

@@ -126,16 +126,15 @@ export class HostedAcpClient {
     if (this.#disposed) return;
     const pending = this.#pendingPrompts.get(sessionId);
     if (!pending) return;
-    let sendError: unknown;
     try {
       this.#send(hostedCancelEnvelope(sessionId));
-    } catch (error) {
-      sendError = error;
+    } catch {
+      // Local prompt cleanup is authoritative once cancellation starts. The
+      // hosted transport may already be gone, so its send failure is nonfatal.
     }
     clearTimeout(pending.timeout);
     this.#pendingPrompts.delete(sessionId);
     pending.reject(new Error('Hosted ACP prompt was cancelled'));
-    if (sendError) throw sendError;
   }
 
   onSessionUpdate(handler: (notification: AcpSessionNotification) => void): () => void {

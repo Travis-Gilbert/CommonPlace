@@ -6,7 +6,7 @@
 // asserted so any drift fails here first). The chat fixture mirrors the
 // bridge's TheoremAgentState snapshot frames from packages/theorem-acp.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import type { TheoremAgentState } from '@commonplace/theorem-acp/state';
 import { deltaStream, readChatRequest, requireMobileApiKey } from './chat-delta';
@@ -195,6 +195,29 @@ describe('chat wire contract (R2.2)', () => {
     // update-state envelope and no [DONE] sentinel may leak through.
     expect(frames).not.toContain('update-state');
     expect(frames).not.toContain('[DONE]');
+  });
+
+  it('emits an activity frame when an active phase clears', async () => {
+    const running = snapshot('', 'running');
+    const cleared = { ...snapshot('', 'running'), activityStatus: null };
+    const frames = await collectFrames([running, cleared, snapshot('', 'complete')]);
+
+    expect(frames).toContain('event: activity\ndata: {"status":"running"}');
+    expect(frames).toContain('event: activity\ndata: {"status":null}');
+  });
+
+  it('runs domain cleanup when the response consumer cancels', async () => {
+    const onCancel = vi.fn();
+    const stream = deltaStream(
+      () => () => {},
+      snapshot('', 'running'),
+      new AbortController().signal,
+      onCancel,
+    );
+
+    await stream.cancel();
+
+    expect(onCancel).toHaveBeenCalledOnce();
   });
 
   it('surfaces refused turns as named error events, never fake replies', async () => {

@@ -15,6 +15,7 @@ import type { TheoremAgentState } from '@commonplace/theorem-acp/state';
 import { getDefaultStore, useAtomValue } from 'jotai';
 import {
   threadIsRunningAtom,
+  threadErrorAtom,
   threadMessagesAtom,
   threadModeAtom,
   threadPlanAtom,
@@ -132,6 +133,12 @@ function syncHarnessState(state: TheoremAgentState): void {
   store.set(threadMessagesAtom, toStoreMessages(state));
   store.set(threadIsRunningAtom, state.turnStatus === 'running');
   store.set(threadPlanAtom, planFromState(state));
+  store.set(
+    threadErrorAtom,
+    state.turnStatus === 'failed' || state.turnStatus === 'refused'
+      ? state.error ?? state.blockedReason ?? `turn ${state.turnStatus}`
+      : null,
+  );
 }
 
 export function useChatPageRuntime(options: ChatRuntimeOptions): AssistantRuntime {

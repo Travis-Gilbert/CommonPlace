@@ -9,6 +9,7 @@ const transportMocks = vi.hoisted(() => {
   };
   return {
     session,
+    resolveSession: vi.fn(async () => session),
     dispatch: vi.fn(async () => {}),
     routingEnabled: vi.fn(() => true),
     routeTurn: vi.fn(async (): Promise<{
@@ -18,11 +19,15 @@ const transportMocks = vi.hoisted(() => {
       route: 'chat' as const,
       acknowledgement: 'I will use the connected graph.',
     })),
-    toTurnContext: vi.fn((prelude: { route: 'chat' | 'research' | 'agent'; acknowledgement: string }) => ({
-      schemaVersion: 'commonplace.turn-context/1',
-      route: prelude.route,
-      acknowledgement: prelude.acknowledgement,
-    })),
+    toTurnContext: vi.fn(
+      (prelude: { route: 'chat' | 'research' | 'agent'; acknowledgement: string }) => ({
+        schema_version: 'turn-context/1',
+        route: prelude.route,
+        published_acknowledgement: prelude.acknowledgement,
+        context_anchors: [],
+        required_capabilities: [],
+      }),
+    ),
     resolvePrincipal: vi.fn(),
     loadWebResearch: vi.fn(),
   };
@@ -42,7 +47,7 @@ vi.mock('@commonplace/theorem-acp/bridge', () => {
       },
     }),
     dispatchBridgeCommands: transportMocks.dispatch,
-    resolveBridgeSession: async () => transportMocks.session,
+    resolveBridgeSession: transportMocks.resolveSession,
     streamHeaders: () => new Headers({ 'Content-Type': 'text/event-stream' }),
     validateBridgeCommands: (commands: unknown) => commands,
     validateBridgePayload: (body: unknown) => body,
@@ -180,7 +185,28 @@ describe('AssistantTransport cohesive turn routing', () => {
     const response = await POST(request());
 
     expect(response.status).toBe(401);
+    expect(transportMocks.resolveSession).not.toHaveBeenCalled();
     expect(transportMocks.session.prepareTurn).not.toHaveBeenCalled();
+    expect(transportMocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('authenticates cancel commands before resolving a session', async () => {
+    transportMocks.resolvePrincipal.mockResolvedValueOnce({
+      ok: false,
+      response: Response.json({ error: 'unauthenticated' }, { status: 401 }),
+    });
+    const { POST } = await import('./route');
+    const response = await POST(new Request('https://console.test/api/chat/transport', {
+      method: 'POST',
+      body: JSON.stringify({
+        mode: 'composed',
+        bindingId: 'agent:theorem',
+        commands: [{ type: 'cancel' }],
+      }),
+    }));
+
+    expect(response.status).toBe(401);
+    expect(transportMocks.resolveSession).not.toHaveBeenCalled();
     expect(transportMocks.dispatch).not.toHaveBeenCalled();
   });
 

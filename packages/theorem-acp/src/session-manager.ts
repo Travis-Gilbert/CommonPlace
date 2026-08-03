@@ -61,7 +61,8 @@ class ManagedAcpSession implements AcquiredAcpSession {
   #state: TheoremAgentState;
   #listeners = new Set<(state: TheoremAgentState) => void>();
   #permissions = new Map<string, PendingDecision>();
-  #promptGeneration = 0;
+  #turnGeneration = 0;
+  #promptOwner: number | null = null;
 
   constructor(
     readonly client: AcpTransport,
@@ -81,6 +82,10 @@ class ManagedAcpSession implements AcquiredAcpSession {
   }
 
   prepareTurn(displayText: string, turnContext: TurnContext): void {
+    if (this.#state.turnStatus === 'running') {
+      throw new Error('An ACP turn is already running for this session');
+    }
+    this.#turnGeneration += 1;
     this.#setState(beginTurn(this.#state, displayText, turnContext));
   }
 
@@ -88,42 +93,58 @@ class ManagedAcpSession implements AcquiredAcpSession {
     text: string,
     options?: { displayText?: string; turnContext?: TurnContext; prepared?: boolean },
   ): Promise<void> {
-    if (options?.prepared && this.#state.turnStatus !== 'running') return;
-    const generation = ++this.#promptGeneration;
-    if (!options?.prepared) {
+    let generation: number;
+    if (options?.prepared) {
+      if (this.#state.turnStatus !== 'running' || this.#promptOwner !== null) return;
+      generation = this.#turnGeneration;
+    } else {
+      if (this.#state.turnStatus === 'running') return;
+      generation = ++this.#turnGeneration;
       this.#setState(
         beginTurn(this.#state, options?.displayText ?? text, options?.turnContext),
       );
     }
+    this.#promptOwner = generation;
     try {
       const response = await this.client.prompt(
         this.sessionId,
         text,
         options?.turnContext,
       );
-      if (generation !== this.#promptGeneration) return;
+      if (generation !== this.#turnGeneration || this.#promptOwner !== generation) return;
       this.#setState(completeTurn(this.#state, response.stopReason));
     } catch (error) {
-      if (generation !== this.#promptGeneration) return;
+      if (generation !== this.#turnGeneration || this.#promptOwner !== generation) return;
       this.#setState(
         failTurn(
           this.#state,
           error instanceof Error ? error.message : String(error),
         ),
       );
+    } finally {
+      if (this.#promptOwner === generation) this.#promptOwner = null;
     }
   }
 
   async cancel(): Promise<void> {
+    this.#turnGeneration += 1;
+    this.#promptOwner = null;
     this.#setState(cancelTurn(this.#state));
     await this.client.cancel(this.sessionId);
   }
 
   failPreparedTurn(error: string): void {
+    this.#turnGeneration += 1;
+    this.#promptOwner = null;
     this.#setState(failTurn(this.#state, error));
   }
 
   onUpdate(notification: AcpSessionNotification): void {
+    if (
+      this.#promptOwner === null ||
+      this.#promptOwner !== this.#turnGeneration ||
+      this.#state.turnStatus !== 'running'
+    ) return;
     this.#setState(applySessionUpdate(this.#state, notification.update));
   }
 
