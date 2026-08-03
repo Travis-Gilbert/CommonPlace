@@ -639,7 +639,7 @@ export function Sidebar({
                 onDragEnd={(event) => onLandmarkDragEnd(event, landmark)}
                 data-rail-tier="pin"
                 data-sidebar-landmark={landmark.id}
-                className="group flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
+                className="group relative flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
                 title={`${label}. Drag to the active grid.`}
                 style={{
                   paddingInline: 'var(--ij-sidebar-pad)',
@@ -654,7 +654,11 @@ export function Sidebar({
                   <Icon size={16} />
                 </SidebarRowIcon>
                 <span className="min-w-0 flex-1 truncate">{label}</span>
-                <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                {/* Overlaid, not laid out: at rest these two words cost the
+                    label about 80px, which truncated pin names the panel is
+                    otherwise wide enough to show. They only exist on hover, so
+                    they should only take room on hover. */}
+                <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-ij-sidebar-row bg-ij-hover-surface px-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
                   <button
                     type="button"
                     className="text-ij-ink-info hover:text-ij-ink"

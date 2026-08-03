@@ -806,7 +806,9 @@ function DetailSidebar({
       data-jshguo-detail-panel
       data-collapsed={isCollapsed ? 'true' : 'false'}
       className={`bg-ij-frame flex h-full min-h-0 flex-col items-start gap-4 rounded-r-ij-island p-4 transition-all duration-(--ij-motion) ease-(--ij-ease) ${
-        isCollapsed ? 'w-16 min-w-16 !px-0 justify-center' : 'w-80'
+        isCollapsed
+          ? 'w-16 min-w-16 !px-0 justify-center'
+          : 'w-ij-sidebar-expanded min-w-ij-sidebar-expanded'
       }`}
     >
       {!isCollapsed && (brand ?? <BrandBadge />)}
