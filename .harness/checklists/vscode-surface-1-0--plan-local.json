@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "tenant_slug": "Travis-Gilbert",
+  "room_id": "room:ungrouped",
+  "workstream": "commonplace-vscode-surface-1.0",
+  "sources": [
+    "/Users/travisgilbert/Downloads/SPEC-COMMONPLACE-VSCODE-SURFACE-1.0.md"
+  ],
+  "created_at": "2026-08-02",
+  "planning_skill": "theorems-harness-product:planning-theorem",
+  "execution_skill": "theorems-harness-product:execute",
+  "verify_first_findings": [
+    {
+      "id": "VF1",
+      "question": "Are TextSearchProvider / FileSearchProvider finalized?",
+      "finding": "No. src/vscode-dts/vscode.proposed.textSearchProvider2.d.ts and vscode.proposed.fileSearchProvider2.d.ts both answer HTTP 200 at microsoft/vscode main (fetched 2026-08-02). The 2024 rename moved New -> current and Old -> *Old, which is why the finalization threads read as done; they are not. Marketplace forbids publishing extensions that declare proposed API.",
+      "consequence": "V4 is gated. The providers ship inside the pack and register only where the proposal is granted, detected at runtime by the presence of workspace.registerFileSearchProvider / registerTextSearchProvider. Elsewhere the pack registers nothing and VS Code's ripgrep search stands.",
+      "status": "recorded"
+    },
+    {
+      "id": "VF2",
+      "question": "Web output: code serve-web from the fork tree, or carry code-server's patch set?",
+      "finding": "code serve-web from the fork tree.",
+      "reason": "One patch queue against upstream instead of two, and no second auth/TLS layer duplicating the console session auth the pack already speaks. TLS and auth terminate at the edge as the console deploy does.",
+      "oracle": "The V7 web smoke run serving the OW5 workspace container. NOT YET RUN.",
+      "status": "decided, unverified"
+    },
+    {
+      "id": "VF3",
+      "question": "ACP: adopt an existing client extension, or ship thin?",
+      "finding": "Ship thin. packages/theorem-acp already holds client, hosted-client, session-manager, session-boot, bridge, identity, and workspace-state; the pack is only the IDE end. No third-party ACP extension adopted, so no configuration surface or identity path we do not own.",
+      "status": "recorded"
+    },
+    {
+      "id": "VF4",
+      "question": "Product identity for the fork.",
+      "finding": "Commonplace Studio. applicationName commonplace-studio, dataFolderName .commonplace-studio, urlProtocol commonplace-studio, darwinBundleIdentifier dev.commonplace.studio, Open VSX as the registry, telemetry off, updateUrl null. No Microsoft or VS Code marks; enforced by scripts/ledger-gate.sh, which was verified to fail on a planted update.code.visualstudio.com endpoint.",
+      "reversible": true,
+      "status": "recorded"
+    },
+    {
+      "id": "VF5",
+      "question": "Patch queue vs long-lived branch.",
+      "finding": "Patch queue, VSCodium shape. build.sh hard-resets the upstream tag before applying, so the patch count means something. Queue is empty at 0 patches.",
+      "status": "recorded"
+    },
+    {
+      "id": "VF6",
+      "question": "Live commonplace-api intelligence surface for the pack (per EDITOR-DX).",
+      "finding": "ABSENT at HEAD. apps/commonplace-api/src/schema/mod.rs builds with EmptySubscription and exposes no diagnostics, semantic-token, inlay-hint, intention, or readiness query. find/scatter (V4) and the workspace revision routes (V3) do exist.",
+      "consequence": "V2 ships against the typed EDITOR-DX contract and its fixture, which is the oracle this spec names. Against the live store the client returns the honest degradation per V1. The surface itself remains EDITOR-DX's deliverable and is not built here.",
+      "status": "recorded"
+    },
+    {
+      "id": "VF7",
+      "question": "Is TimelineProvider stable API?",
+      "finding": "No, and the spec assumed otherwise. src/vscode-dts/vscode.proposed.timeline.d.ts answers HTTP 200 at main and TimelineProvider appears nowhere in stable vscode.d.ts (grep count 0, 2026-08-02). The Timeline view has been in stable VS Code for years; the extension-facing provider never finalized.",
+      "consequence": "V3 takes V4's shape: registerTimeline() registers only where the proposal is granted, timeline is added to extensionEnabledApiProposals, and everywhere else the same revisions are reachable through the theorem.showHistory quick pick so the capability still exists on stable API. Found by the typecheck, not by the plan.",
+      "status": "recorded, spec deviation"
+    }
+  ],
+  "layout": {
+    "pack": "apps/theorem-vscode",
+    "shared_contract": "packages/block-view-contracts/src/editor-intelligence.ts",
+    "console_front": "apps/console/src/lib/editor-intelligence/cm6-adapter.ts",
+    "fork_pipeline": "packaging/commonplace-studio",
+    "ci": ".github/workflows/vscode-surface-ci.yml"
+  },
+  "validation": {
+    "commands": [
+      "pnpm --filter theorem-vscode run check",
+      "pnpm --filter theorem-vscode run test",
+      "pnpm --filter theorem-vscode run gate:no-timers",
+      "pnpm --filter theorem-vscode run build",
+      "./packaging/commonplace-studio/scripts/ledger-gate.sh"
+    ],
+    "results": "tsc clean; 30/30 vitest passing; no-timers gate passing; both bundles built (dist/extension.cjs 48.6kb, dist/extension.web.js 47.0kb); ledger gate passing and verified to fail on a planted Microsoft endpoint."
+  },
+  "items": [
+    {
+      "id": "V1",
+      "title": "The substrate client",
+      "status": "verified",
+      "acceptance": [
+        "A background store mutation updates a subscribed provider without editor interaction.",
+        "A response carrying an older generation than the client has seen is discarded and logged.",
+        "A grep of the pack shows no interval timers.",
+        "A dead endpoint yields the honest degraded state, never a silent empty result."
+      ],
+      "verification_evidence": [
+        "apps/theorem-vscode/src/substrate/client.ts: SSE changefeed fans invalidations to every standing query; subscriptions re-query authoritatively.",
+        "test/substrate.test.ts 'repaints a subscriber from a changefeed event' passes: emitting one changefeed message delivers generation 2 with no editor call.",
+        "test/substrate.test.ts 'discards an answer stamped below the highest generation seen' passes, and asserts the log line.",
+        "test/substrate.test.ts 'delivers an equal generation' passes: equal is not stale.",
+        "scripts/check-no-timers.mjs passes over src/**: zero setInterval/setTimeout.",
+        "test/substrate.test.ts dead-endpoint and 503 cases return level unavailable with the door and status in detail."
+      ]
+    },
+    {
+      "id": "V2",
+      "title": "Intelligence providers",
+      "status": "verified against the fixture; live-store half blocked on EDITOR-DX (VF6)",
+      "acceptance": [
+        "The EDITOR-DX fixture file shows identical findings through the pack and through the GraphQL query.",
+        "A cold-index state renders the named degradation in the editor and clears on readiness.",
+        "An applied fix round-trips preview-equals-applied and the buffer updates on the file change event, not the command response.",
+        "Send-to-composer carries the selection into the chat register."
+      ],
+      "verification_evidence": [
+        "src/intelligence/surface.ts: DiagnosticCollection, semantic tokens with a legend, inlay hints, code actions, language status item, status bar chip.",
+        "test/providers.test.ts 'renders the fixture findings the store returned, one for one' passes against the same GraphQL document the contract exports.",
+        "test/providers.test.ts cold-index case asserts the sentence 'Theorem is still building its indexes. Missing: theorem.inference, theorem.shapes.' and that it clears on refresh.",
+        "test/providers.test.ts applyFix case asserts applied edits equal FIXTURE_FIX_PREVIEW.edits and that no workspace.applyEdit exists to have been called.",
+        "test/providers.test.ts block-intention case asserts theorem.sendSelectionToComposer and theorem.saveSelectionToGraph carry uri and range.",
+        "Not verified against a live store: commonplace-api exposes no fileIntelligence query yet (VF6). The client's degraded path is what runs there today, and is tested."
+      ]
+    },
+    {
+      "id": "V3",
+      "title": "Timeline and local history",
+      "status": "implemented and unit-verified; gated by VF7; restore-to-exact-bytes needs the live substrate",
+      "acceptance": [
+        "Scripted edits to a fixture file appear as timeline entries in order with labels placed between them.",
+        "Restore produces the exact prior bytes and itself appears as a new revision.",
+        "History is correct with no git repository present."
+      ],
+      "verification_evidence": [
+        "src/timeline/history.ts: provider, revision content provider for the diff left side, restore through restoreRevision, plus the showHistory quick pick for hosts without the timeline proposal.",
+        "test/providers.test.ts asserts newest-first ordering with labels, the compare command on every revision, and that an unreachable substrate yields 'Local history unavailable' rather than an empty history.",
+        "test/providers.test.ts asserts registerTimeline returns [] without the proposal and that showHistoryQuickPick still reaches theorem.diffRevision with the picked revision.",
+        "Nothing in this deliverable reads git, so the no-git clause holds by construction.",
+        "NOT VERIFIED: restore producing exact prior bytes and appearing as a new revision. That is the substrate's behaviour behind restoreRevision and needs a live workspace substrate to assert."
+      ]
+    },
+    {
+      "id": "V4",
+      "title": "Search over the spine, gated",
+      "status": "implemented; gate verified closed; the granted-build half needs a fork build",
+      "acceptance": [
+        "At Project scope an inside-project fixture hit ranks above an equally scored outside hit and the outside hit remains present.",
+        "Degraded search is visibly labeled.",
+        "In a build without the API grant the pack degrades to ripgrep silently-correctly and the gate finding is recorded."
+      ],
+      "verification_evidence": [
+        "src/search/spine.ts: membrane weighting (MEMBRANE_BONUS 0.15) as a tie-breaker, never a filter; degraded lanes surfaced through the degradation channel.",
+        "test/providers.test.ts asserts the equal-score ordering with the outside hit still present, that a genuinely better outside hit still wins, and that a sibling directory sharing a prefix is not inside.",
+        "test/providers.test.ts asserts searchProposalGranted is false in a host without the proposal and that registerSpineSearch registers nothing, leaving ripgrep untouched.",
+        "Gate finding recorded in VF1, in the module header, and in packaging/commonplace-studio/product.overlay.json.",
+        "NOT VERIFIED: behaviour inside a build that grants the proposal. Needs V7's desktop build."
+      ]
+    },
+    {
+      "id": "V5",
+      "title": "theorem:// documents",
+      "status": "implemented and unit-verified; harness receipt retrieval unverified",
+      "acceptance": [
+        "A fixture record opens, edits, saves, and re-opens to identity with a receipt retrievable through the harness.",
+        "A severed seam renders the honest state rather than a writable buffer over a dead store."
+      ],
+      "verification_evidence": [
+        "src/fs/theorem-fs.ts: FileSystemProvider over the object seam, receipts kept per object, readDirectory and delete and rename refused rather than faked.",
+        "test/providers.test.ts asserts the save round-trip keeps receipt rcpt-1 and that re-read returns the stored body.",
+        "test/providers.test.ts asserts a severed seam rejects with FileSystemError.Unavailable and stores no receipt, so VS Code keeps the buffer dirty.",
+        "NOT VERIFIED: retrieving that receipt through the harness. The write mutation writeObjectDocument does not exist in commonplace-api yet."
+      ]
+    },
+    {
+      "id": "V6",
+      "title": "Agent presence",
+      "status": "implemented; ACP round-trip unit-verified; live session unverified",
+      "acceptance": [
+        "A session started in the IDE lands context in the graph with receipts retrievable through the harness.",
+        "A permission prompt round-trips inside the IDE.",
+        "The deep link opens the run in the console."
+      ],
+      "verification_evidence": [
+        "src/agent/presence.ts and src/agent/session-opener.ts wrap packages/theorem-acp's hosted client; the pack carries no protocol code.",
+        "test/providers.test.ts asserts the permission prompt returns the picked option, and that a dismissed modal returns the refusal option rather than assuming consent.",
+        "test/providers.test.ts asserts runLink builds https://console.test/runs/run-7.",
+        "NOT VERIFIED: a live session landing context in the graph with retrievable receipts. Needs a running agent door."
+      ]
+    },
+    {
+      "id": "V7",
+      "title": "The product pipeline",
+      "status": "pipeline authored and gated; no build has been run",
+      "acceptance": [
+        "Desktop and web builds boot with the pack active, OpenVSX as the registry, no Microsoft marks, telemetry off.",
+        "The patch count is reported and every patch has a ledger entry.",
+        "One upstream monthly tag has been rebased with the ledger updated.",
+        "The web output serves the OW5 workspace container in a smoke run; the OW5 amendment is drafted but not landed until this passes."
+      ],
+      "verification_evidence": [
+        "packaging/commonplace-studio: README, product.overlay.json, UPSTREAM_TAG pinned to 1.131.0 (microsoft/vscode latest release, published 2026-07-29), LEDGER.md, RUNBOOK.md, patches/ (empty), scripts/build.sh, scripts/rebase.sh, scripts/ledger-gate.sh.",
+        "ledger-gate.sh passes: 0 patches, count reported truthfully, telemetry off, Open VSX present, no Microsoft mark in the effective overlay. Verified to FAIL when update.code.visualstudio.com is planted, then restored.",
+        "bash -n clean on all three scripts. shellcheck not installed locally; it runs in CI.",
+        "NOT RUN: any actual build. No desktop app, no web workbench, no boot, no OpenVSX check in a running build, no rebase of an upstream tag, no OW5 smoke run. This needs a machine that can clone and build microsoft/vscode; per its own acceptance the OW5 amendment stays undrafted-and-unlanded until the web smoke passes.",
+        "Also not done: publishing the pack to OpenVSX."
+      ]
+    },
+    {
+      "id": "V8",
+      "title": "Parity fixture",
+      "status": "verified",
+      "acceptance": [
+        "The automated comparison passes with divergences enumerated or zero.",
+        "The fixture runs in CI and fails on drift."
+      ],
+      "verification_evidence": [
+        "apps/console/src/lib/editor-intelligence/cm6-adapter.ts is the console front: line/character to CM6 absolute offsets for diagnostics and token decoration ranges.",
+        "test/parity.test.ts decodes each front's output back to line/character with arithmetic local to the test, so the comparison cannot agree with itself.",
+        "Both parity tests pass with an empty divergence list at generation 41.",
+        "The drift probe passes: a prepended line makes the console front resolve different text and the comparison reports divergences, proving the gate fails on drift.",
+        ".github/workflows/vscode-surface-ci.yml runs the suite on any change to the pack, the console adapter, the contracts, or the pipeline."
+      ]
+    }
+  ]
+}

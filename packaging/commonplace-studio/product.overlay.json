@@ -1,0 +1,42 @@
+{
+  "nameShort": "Commonplace Studio",
+  "nameLong": "Commonplace Studio",
+  "applicationName": "commonplace-studio",
+  "dataFolderName": ".commonplace-studio",
+  "serverApplicationName": "commonplace-studio-server",
+  "serverDataFolderName": ".commonplace-studio-server",
+  "urlProtocol": "commonplace-studio",
+  "darwinBundleIdentifier": "dev.commonplace.studio",
+  "linuxIconName": "commonplace-studio",
+  "win32AppUserModelId": "Commonplace.Studio",
+  "win32DirName": "Commonplace Studio",
+  "win32NameVersion": "Commonplace Studio",
+  "win32MutexName": "commonplacestudio",
+  "win32RegValueName": "CommonplaceStudio",
+  "reportIssueUrl": "https://github.com/Travis-Gilbert/CommonPlace/issues/new",
+  "licenseUrl": "https://github.com/Travis-Gilbert/CommonPlace/blob/main/LICENSE",
+  "enableTelemetry": false,
+  "telemetryOptOut": true,
+
+  "extensionsGallery": {
+    "serviceUrl": "https://open-vsx.org/vscode/gallery",
+    "itemUrl": "https://open-vsx.org/vscode/item",
+    "resourceUrlTemplate": "https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}/Microsoft.VisualStudio.Code.WebResources/{path}"
+  },
+
+  "extensionEnabledApiProposals": {
+    "commonplace.theorem-vscode": ["fileSearchProvider2", "textSearchProvider2", "timeline"]
+  },
+
+  "builtInExtensions": [],
+
+  "configurationSync.store": null,
+  "updateUrl": null,
+
+  "_notes": [
+    "extensionEnabledApiProposals is the whole reason V4 can bind search to the index spine: both provider shapes are still under vscode.proposed.* at microsoft/vscode main as of 2026-08-02. In any build without this grant the pack registers no search providers and VS Code's ripgrep search stands, which is named choice 8.",
+    "updateUrl is null until an updater endpoint exists that is ours. A fork pointing at Microsoft's update service is both a trademark problem and a way to overwrite this build with theirs.",
+    "configurationSync.store is null because Settings Sync is Microsoft's service and requires their accounts.",
+    "builtInExtensions stays empty: the Theorem pack is staged into the build as a preinstalled extension by scripts/build.sh, not fetched from a gallery at build time."
+  ]
+}
