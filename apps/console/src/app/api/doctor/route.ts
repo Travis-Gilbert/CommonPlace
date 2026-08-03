@@ -107,9 +107,13 @@ export async function GET() {
     try {
       const probed = await probeRoute(base, row.production_route);
       const loginish = /callbackUrl|sign.?in|\/login/i.test(probed.body);
+      const consoleShell = /data-register="intui"|data-theme-mode/i.test(probed.body);
       const ok =
         (probed.status >= 200 && probed.status < 400 && probed.impl === row.manifest_impl) ||
-        (probed.status >= 200 && probed.status < 400 && loginish && probed.impl === null);
+        (probed.status >= 200 &&
+          probed.status < 400 &&
+          probed.impl === null &&
+          (loginish || (consoleShell && row.id !== 'chat')));
       routes.push({
         id: row.id,
         route: row.production_route,
@@ -131,29 +135,38 @@ export async function GET() {
     }
   }
 
+  // Source-path resurrection only works against a full checkout. In the Railway
+  // standalone image those paths are always absent, which would falsely green
+  // retirements that still exist in git. Skip filesystem resurrection when the
+  // marker sits next to server.js without an apps/console/src tree.
+  const sourceTree = path.join(resolveRepoRoot(), 'apps/console/src');
+  const canCheckResurrection = existsSync(sourceTree);
+
   const resurrections: ResurrectionRow[] = [];
-  for (const row of manifest.registers ?? []) {
-    for (const item of row.superseded ?? []) {
-      for (const filePath of item.paths ?? []) {
-        const abs = path.join(resolveRepoRoot(), filePath);
-        resurrections.push({
-          id: item.impl,
-          path: filePath,
-          absent: !existsSync(abs),
-          pending_retirement: true,
-        });
+  if (canCheckResurrection) {
+    for (const row of manifest.registers ?? []) {
+      for (const item of row.superseded ?? []) {
+        for (const filePath of item.paths ?? []) {
+          const abs = path.join(resolveRepoRoot(), filePath);
+          resurrections.push({
+            id: item.impl,
+            path: filePath,
+            absent: !existsSync(abs),
+            pending_retirement: true,
+          });
+        }
       }
     }
-  }
-  for (const row of manifest.retired ?? []) {
-    for (const filePath of row.paths ?? []) {
-      const abs = path.join(resolveRepoRoot(), filePath);
-      resurrections.push({
-        id: row.id,
-        path: filePath,
-        absent: !existsSync(abs),
-        pending_retirement: false,
-      });
+    for (const row of manifest.retired ?? []) {
+      for (const filePath of row.paths ?? []) {
+        const abs = path.join(resolveRepoRoot(), filePath);
+        resurrections.push({
+          id: row.id,
+          path: filePath,
+          absent: !existsSync(abs),
+          pending_retirement: false,
+        });
+      }
     }
   }
 
