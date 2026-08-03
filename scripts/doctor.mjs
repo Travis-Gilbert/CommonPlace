@@ -123,6 +123,21 @@ async function checkDoctorApi() {
       (passResurrection ? ok : fail)(`resurrection ${row.id} absent=${row.absent}`);
     }
   }
+
+  // Production /api/doctor skips source-tree resurrection (standalone has no
+  // apps/console/src). The CLI checkout still proves retired corpses are gone.
+  for (const row of manifest.retired ?? []) {
+    for (const filePath of row.paths ?? []) {
+      const abs = path.join(repoRoot, filePath);
+      const absent = !existsSync(abs);
+      results.push({
+        id: `resurrection.local.${row.id}`,
+        pass: absent,
+        detail: `${filePath} absent=${absent}`,
+      });
+      (absent ? ok : fail)(`local resurrection ${row.id} ${filePath} absent=${absent}`);
+    }
+  }
 }
 
 async function checkUpstreams() {
