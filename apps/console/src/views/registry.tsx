@@ -15,8 +15,7 @@ import type { ConsoleViewDescriptor } from '@/lib/rail/rail-model';
 import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
-import { ThreadView } from './ThreadView';
-import { ThreadListView } from './ThreadListView';
+import { OpenworkChatRegister } from './OpenworkChatRegister';
 import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
 import { IndexStreamView } from './IndexStreamView';
@@ -53,12 +52,22 @@ import { ConsoleDataView } from './ConsoleDataView';
 
 import { ProgramView } from './program/ProgramView';
 
-function ThreadRender(props: ViewRenderProps) {
-  return <ThreadView host={props.host} density="compact" />;
+function ThreadRender(_props: ViewRenderProps) {
+  return (
+    <OpenworkChatRegister reason="Thread place routes through the openwork chat register at /chat." />
+  );
 }
 
-function ChatSurfaceRender(props: ViewRenderProps) {
-  return <ThreadView host={props.host} density="full" />;
+function ChatSurfaceRender(_props: ViewRenderProps) {
+  return (
+    <OpenworkChatRegister reason="Chat surface register body is openwork.chat at /chat." />
+  );
+}
+
+function ThreadListRender(_props: ViewRenderProps) {
+  return (
+    <OpenworkChatRegister reason="Thread list is owned by the openwork chat door at /chat." />
+  );
 }
 
 function FilesRender(props: ViewRenderProps) {
@@ -196,10 +205,10 @@ const CHAT_THREAD: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.thread',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    package: '@commonplace/chat',
+    component: 'OpenworkChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -220,10 +229,10 @@ const CHAT_SURFACE: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.surface',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/Composer' },
+  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'Composer',
+    package: '@commonplace/chat',
+    component: 'OpenworkChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -244,10 +253,10 @@ const THREAD_LIST: ViewDescriptor = {
   accepts: {},
   emits: ['open'],
   renderer: 'thread.list',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    package: '@commonplace/chat',
+    component: 'OpenworkChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -259,7 +268,7 @@ const THREAD_LIST: ViewDescriptor = {
     surfaceClass: 'tool',
     kindGlyph: 'thread',
   },
-  render: ThreadListView,
+  render: ThreadListRender,
 };
 
 const FILES_TREE: ConsoleViewDescriptor = {
@@ -885,10 +894,10 @@ const AGENT_RAIL: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'agent.rail',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  sourcing: { mode: 'wrap', upstream: 'console.agent.rail' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    package: 'apps/console',
+    component: 'AgentRailBlock',
     mode: 'wrap',
     regime: 'css-vars',
   },

@@ -4,6 +4,8 @@ SPEC-COMMONPLACE-VSCODE-SURFACE-1.0, deliverables V1 through V8, wired onto the
 EDITOR-DX surface that landed after the first round. Plan and evidence live in
 `.harness/checklists/vscode-surface-1-0--plan-local.json`.
 
+Amendment (SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL9): the final deliverable of this surface is its `.commonplace-canonical` manifest row flipped and its production smoke green at a named URL; superseding a prior editor surface carries that deletion as a deliverable with its own acceptance.
+
 ## What shipped
 
 | | Deliverable | Status |

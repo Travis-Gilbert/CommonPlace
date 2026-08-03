@@ -1,12 +1,7 @@
-// SOURCING: mode=fork; repository=Mintplex-Labs/anything-llm;
-// commit=633fc1960914298009134b40c25007cb422c7884;
-// path=frontend/src/pages/WorkspaceChat/index.jsx. The page owns the route and
-// mounts ChatPage only when the active membership matches this workspace.
+// SOURCING: none. Workspace-scoped chat URL collapses onto /chat so the OW4
+// console-origin proxy owns the register body (SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL6).
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChatPage } from '@/components/chat/ChatPage';
-import { ForkNotice, ForkPageFrame } from '@/components/fork/ForkPageFrame';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
 export default async function WorkspaceChatRoute({
@@ -28,17 +23,7 @@ export default async function WorkspaceChatRoute({
     || !resolution.principal.workspaceId
     || !resolution.principal.scopeRef
   ) {
-    return (
-      <ForkPageFrame
-        eyebrow="Workspace"
-        title="Select this workspace"
-        description="Graph access follows an active, server-verified workspace membership."
-      >
-        <ForkNotice>
-          Open <Link className="text-ij-link" href={`/workspace/${encodeURIComponent(workspaceRef)}/settings`}>workspace settings</Link> and select this workspace for chat.
-        </ForkNotice>
-      </ForkPageFrame>
-    );
+    redirect(`/workspace/${encodeURIComponent(workspaceRef)}/settings`);
   }
-  return <ChatPage tenant={resolution.principal.tenant} />;
+  redirect('/chat');
 }

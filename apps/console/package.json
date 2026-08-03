@@ -25,10 +25,11 @@
     "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:twenty && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:sourcing && npm run gate:tokens && npm run gate:blocks && npm run gate:paper-shader-colors && npm run gate:persistence && npm run gate:canonical-root",
+    "gates": "npm run gate:fence && npm run gate:twenty && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:sourcing && npm run gate:tokens && npm run gate:blocks && npm run gate:paper-shader-colors && npm run gate:persistence && npm run gate:canonical-root && npm run gate:register-manifest",
     "test:e2e": "playwright test",
     "gate:radius": "node scripts/check-radius-lint.mjs",
     "gate:canonical-root": "node ../../scripts/assert-canonical-root.mjs",
+    "gate:register-manifest": "node ../../scripts/check-register-manifest.mjs",
     "gate:twenty": "node scripts/check-twenty-fence.mjs"
   },
   "dependencies": {

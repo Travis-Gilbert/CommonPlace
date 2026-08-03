@@ -16,7 +16,7 @@
 
 The verdict on different-ai/openwork: hard fork, adopted as the chat register, replacing the current assistant-ui chat view. Stage one runs opencode as a Theorem head with no engine surgery; stage two, Theorem-native sessions through the SDK seam, is gated on a seam audit, not assumed. The register-per-donor map extends: Twenty for records primitives, OWOX for the model canvas, code-server for the IDE layer, openwork for the chat register.
 
-`CONVENTIONS.md` applies.
+`CONVENTIONS.md` applies. Amendment (SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL9): the final deliverable of this surface is its `.commonplace-canonical` manifest row flipped and its production smoke green at a named URL; superseding the assistant-ui chat view carries that deletion as a deliverable with its own acceptance.
 
 ## Frame
 

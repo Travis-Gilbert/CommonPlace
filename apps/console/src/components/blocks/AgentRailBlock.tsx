@@ -9,9 +9,9 @@ import type { ChatArtifactPayload } from '@/lib/chat/project-types';
 import type { ContextEntry } from '@/lib/chat/context-types';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { BlockShell } from '@/components/block/BlockShell';
-import { Composer } from '@/components/chat/RuntimeComposer';
 import { useEffect, useRef, useState } from 'react';
 import { useThreadStore, type AgentPlanStep } from '@/lib/thread-store';
+import { submitThreadText } from '@/lib/thread-submit';
 
 type StepTone = AgentPlanStep['status'] | 'awaiting' | 'failed' | 'done';
 
@@ -201,9 +201,32 @@ export function AgentRailBlock({
           </section>
         </div>
         {showComposer ? (
-          <div className="shrink-0 border-t border-ij-seam p-2">
-            <Composer host={host} compact />
-          </div>
+          <form
+            className="flex shrink-0 gap-2 border-t border-ij-seam p-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = event.currentTarget;
+              const field = form.elements.namedItem('agent-rail-input');
+              const value =
+                field && 'value' in field ? String((field as HTMLInputElement).value).trim() : '';
+              if (!value) return;
+              void submitThreadText(value);
+              if (field && 'value' in field) (field as HTMLInputElement).value = '';
+            }}
+          >
+            <input
+              name="agent-rail-input"
+              aria-label="Agent rail message"
+              className="h-ij-control min-w-0 flex-1 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+              placeholder="Ask…"
+            />
+            <button
+              type="submit"
+              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-ij-ink hover:bg-ij-hover-surface"
+            >
+              Send
+            </button>
+          </form>
         ) : null}
         <footer
           data-agent-ledger

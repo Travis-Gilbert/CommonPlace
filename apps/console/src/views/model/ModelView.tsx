@@ -857,7 +857,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
       : null;
 
   return (
-    <div className="h-full min-h-0" data-model-studio>
+    <div className="h-full min-h-0" data-model-studio data-register-impl="model-canvas.owox">
       <BlockShell
         material="sunken"
         title="Data model"

@@ -1,7 +1,9 @@
-// SOURCING: none. Thread chat mounts only after an active graph scope exists.
+// SOURCING: none. Thread URLs under /chat/* are owned by the OW4 workspace
+// proxy when CONSOLE_WORKSPACE_URL is set. This page is the fallback body for
+// deploys where the proxy is absent.
 
 import { redirect } from 'next/navigation';
-import { ChatPage } from '@/components/chat/ChatPage';
+import { OpenworkChatRegister } from '@/views/OpenworkChatRegister';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import { ChatUnavailable } from '../chat-unavailable';
 
@@ -21,9 +23,8 @@ export default async function ChatThreadPage({
     return <ChatUnavailable settingsHref={null} />;
   }
   return (
-    <ChatPage
-      threadId={threadId}
-      tenant={resolution.principal.tenant}
+    <OpenworkChatRegister
+      reason={`Thread ${threadId} would open on the openwork door once CONSOLE_WORKSPACE_URL is set and the console proxies /chat.`}
     />
   );
 }

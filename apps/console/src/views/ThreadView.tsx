@@ -4,7 +4,7 @@
 // multibuffer model. Bubbles retired: turns, tools, and objects are excerpts.
 // Composer unavailable notice lives only in the composer status slot.
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import type { BlockHost, ObjectRef } from '@commonplace/block-view/types';
 import { extractTheoremAddress, theoremUri } from '@commonplace/block-view/addressing';
 import {
@@ -28,8 +28,9 @@ import { ThreadExcerpt } from './thread/ThreadExcerpt';
 
 import { Composer, NEW_LINE_HINT } from '@/components/chat/RuntimeComposer';
 import { reducedFromMissing } from '@/lib/degradation';
+import { ThreadRuntimeAvailable } from '@/lib/thread-runtime-available';
 
-export const ThreadRuntimeAvailable = createContext(false);
+export { ThreadRuntimeAvailable };
 
 function formatTime(value: unknown): string | undefined {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;

@@ -15,8 +15,10 @@
 set -euo pipefail
 
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace/repo}"
-OPENWORK_PORT="${OPENWORK_PORT:-8787}"
+# Railway healthchecks probe $PORT. Prefer OPENWORK_PORT, then PORT, then 8787.
+OPENWORK_PORT="${OPENWORK_PORT:-${PORT:-8787}}"
 CODE_SERVER_PORT="${CODE_SERVER_PORT:-8080}"
+export PORT="${OPENWORK_PORT}"
 
 if [ -z "${WORKSPACE_TOKEN:-}" ]; then
   echo "workspace: WORKSPACE_TOKEN is required. Both doors authenticate against it." >&2

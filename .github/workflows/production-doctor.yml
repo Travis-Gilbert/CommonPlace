@@ -1,0 +1,97 @@
+name: Production doctor
+
+# SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL4 / GL2.
+# Staging reds run on every push. Live doctor + authenticated upstream smokes
+# run on main and workflow_dispatch; they fail the job when production is red.
+# Railway deploy of commonplace-console should wait on this workflow via the
+# GitHub check named "Live production doctor".
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".commonplace-canonical"
+      - "scripts/doctor.mjs"
+      - "scripts/doctor.sh"
+      - "scripts/doctor-staging-reds.mjs"
+      - "scripts/doctor-upstream-smokes.mjs"
+      - "scripts/check-register-manifest.mjs"
+      - "apps/console/src/app/doctor/**"
+      - "apps/console/src/app/api/doctor/**"
+      - "apps/console/src/middleware.ts"
+      - ".github/workflows/production-doctor.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".commonplace-canonical"
+      - "scripts/doctor.mjs"
+      - "scripts/doctor.sh"
+      - "scripts/doctor-staging-reds.mjs"
+      - "scripts/doctor-upstream-smokes.mjs"
+      - "scripts/check-register-manifest.mjs"
+      - "apps/console/src/app/doctor/**"
+      - "apps/console/src/app/api/doctor/**"
+      - "apps/console/src/middleware.ts"
+      - ".github/workflows/production-doctor.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  staging-reds:
+    name: Doctor staging reds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Assert register manifest
+        run: node scripts/check-register-manifest.mjs
+
+      - name: Prove doctor staging reds
+        run: node scripts/doctor-staging-reds.mjs
+
+  doctor:
+    name: Live production doctor
+    runs-on: ubuntu-latest
+    needs: staging-reds
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Wait for console health
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -sS -o /tmp/healthz.json -w '%{http_code}' https://v2.theoremharness.com/api/healthz || true)
+            if [ "$code" = "200" ]; then
+              cat /tmp/healthz.json
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "console health did not become ready"
+          exit 1
+
+      - name: Run doctor.sh against production
+        run: bash scripts/doctor.sh
+        env:
+          DOCTOR_BASE_URL: https://v2.theoremharness.com
+
+      - name: Authenticated upstream smokes
+        run: node scripts/doctor-upstream-smokes.mjs
+        env:
+          THEOREM_API_KEY: ${{ secrets.THEOREM_API_KEY }}
+          CONSOLE_DATA_API_KEY: ${{ secrets.CONSOLE_DATA_API_KEY }}
+          CONSOLE_HARNESS_TOKEN: ${{ secrets.CONSOLE_HARNESS_TOKEN }}
+          THEOREM_API_TOKEN: ${{ secrets.THEOREM_API_TOKEN }}
