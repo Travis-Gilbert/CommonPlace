@@ -10,11 +10,12 @@ import {
 } from '@commonplace/theorem-acp/bridge';
 import { parseProactivityCompilation } from '@/lib/proactivity/compilation';
 import { proactivityCompilationStream } from '@/lib/proactivity/compilation-stream';
-import {
-  configuredServiceTenantMatches,
-  resolveHarnessPrincipal,
-} from '@/lib/server/harness-principal';
+import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import { stageProactivityCompilation } from '@/lib/server/proactivity-harness';
+import {
+  credentialRefusalResponse,
+  resolveUpstreamCredential,
+} from '@/lib/server/upstream-credential';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -28,14 +29,9 @@ export async function POST(request: Request): Promise<Response> {
   }
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) return resolution.response;
-  if (!configuredServiceTenantMatches(resolution.principal)) {
-    return Response.json(
-      {
-        error: 'tenant_connector_unavailable',
-        message: 'This signed-in tenant does not yet have a matching hosted ACP credential.',
-      },
-      { status: 403 },
-    );
+  const resolvedCredential = await resolveUpstreamCredential(resolution.principal);
+  if (!resolvedCredential.ok) {
+    return credentialRefusalResponse(resolvedCredential.refusal);
   }
   try {
     const command: BridgeCommand = {
@@ -58,7 +54,13 @@ export async function POST(request: Request): Promise<Response> {
       sourceId: null,
       displayText: parsed.data.intent,
     };
-    const session = await resolveBridgeSession({});
+    const session = await resolveBridgeSession({
+      tenant: resolution.principal.tenant,
+      authToken:
+        resolvedCredential.credential.kind === 'service_key'
+          ? resolvedCredential.credential.key
+          : resolvedCredential.credential.token,
+    });
     await dispatchBridgeCommands(session, [command]);
     return new Response(
       proactivityCompilationStream(

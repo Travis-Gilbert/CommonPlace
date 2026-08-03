@@ -161,18 +161,21 @@ for (const { theme, preset } of THEMES) {
       await expect(selected).not.toHaveCSS('background-color', accent);
       await expect(selected).toHaveCSS('color', ink);
 
-      // The sidebar is frame chrome (flush activity bar), not an island.
+      // Left chrome: published 21st/@jshguo TwoLevelSidebar (w-16 rail + w-80 panel).
+      const iconRail = page.locator('[data-jshguo-icon-rail]');
+      const railShell = page.locator('[data-jshguo-sidebar]');
+      await expect(iconRail).toHaveCSS('width', '64px');
+      await expect(railShell).toHaveAttribute('data-panel-open', 'true');
       const stripe = page.locator('[data-paint-region="stripe"]');
-      await expect(stripe).toHaveCSS('width', '180px');
       await expect(stripe).toHaveAttribute('data-frame-resident', 'stripe');
-      await expect(stripe).toHaveAttribute('data-sidebar-collapsed', 'false');
       await expect(stripe).not.toHaveAttribute('data-island');
       const glyph = selected.locator('svg');
       await expect(glyph).toHaveAttribute('width', '16');
       await page.keyboard.press('Meta+b');
-      await expect(stripe).toHaveAttribute('data-sidebar-collapsed', 'true');
-      await expect(stripe).toHaveCSS('width', '48px');
+      await expect(railShell).toHaveAttribute('data-panel-open', 'false');
+      await expect(iconRail).toHaveCSS('width', '64px');
       await page.keyboard.press('Meta+b');
+      await expect(railShell).toHaveAttribute('data-panel-open', 'true');
 
       // Companions stay dock panels (Alt+Shift), not rail destinations.
       await page.keyboard.press('Alt+Shift+1');
@@ -200,18 +203,13 @@ for (const { theme, preset } of THEMES) {
     });
 
     // Signature 4. Account chrome stays in the toolbar; the run widget is gone.
-    // The consolidated shell restores the Int UI status bar as the single
-    // transport claim instead of deleting that frame region.
-    test('account chrome and the consolidated status bar hold without a run widget', async ({ page }) => {
+    // Bottom status / presence metadata is removed from the page frame.
+    test('account chrome holds without a run widget or bottom status metadata', async ({ page }) => {
       await expect(page.locator('[data-run-widget]')).toHaveCount(0);
       await expect(page.locator('[data-account-trigger]')).toBeVisible();
       await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '28px');
-      const status = page.locator('[data-paint-region="status-bar"]');
-      await expect(status).toBeVisible();
-      await expect(status).toHaveAttribute('data-frame-resident', 'status-bar');
-      await expect(status).toHaveAttribute('data-connection-owner', 'status-bar');
-      await expect(status).toHaveCSS('height', '28px');
-      await expect(status.locator('[data-connection]')).toHaveCount(1);
+      await expect(page.locator('[data-paint-region="status-bar"]')).toHaveCount(0);
+      await expect(page.locator('[data-connection-owner="status-bar"]')).toHaveCount(0);
       await expect(page.locator('[data-shell-sidebar-seam]')).toBeVisible();
     });
 
@@ -399,7 +397,7 @@ for (const { theme, preset } of THEMES.filter((entry) => entry.theme === 'dark')
             scrollWidth: document.documentElement.scrollWidth,
           },
           shell: rect('[data-shell]'),
-          sidebar: rect('[data-shell-sidebar]'),
+          sidebar: rect('[data-jshguo-sidebar]'),
           ground: rect('[data-shell-region="ground"]'),
           status: rect('[data-paint-region="status-bar"]'),
         };
@@ -417,11 +415,11 @@ for (const { theme, preset } of THEMES.filter((entry) => entry.theme === 'dark')
         height: viewport.height,
         bottom: viewport.height,
       });
-      expect(geometry.sidebar?.width).toBe(180);
+      // Published jshguo: icon rail (w-16=64) + expanded detail (w-80=320).
+      expect(geometry.sidebar?.width).toBe(384);
       expect(geometry.ground?.width ?? 0).toBeGreaterThan(viewport.width / 3);
       expect(geometry.ground?.height ?? 0).toBeGreaterThan(viewport.height / 2);
-      expect(geometry.status?.height).toBe(28);
-      expect(geometry.status?.bottom).toBe(viewport.height);
+      expect(geometry.status).toBeNull();
     });
   }
 }

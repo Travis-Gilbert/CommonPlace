@@ -3,11 +3,12 @@
 
 import { redirect } from 'next/navigation';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+import { redirectForFailedPrincipal } from '@/lib/server/principal-redirect';
 
 export default async function RootPage() {
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) {
-    redirect('/login');
+    return redirectForFailedPrincipal(resolution, '/');
   }
   if (resolution.principal.workspaceId && resolution.principal.scopeRef) {
     redirect(

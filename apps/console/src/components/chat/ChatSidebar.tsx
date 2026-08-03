@@ -1,8 +1,8 @@
 'use client';
 
-// SOURCING: none. SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH5/SH6: one sidebar, four
-// bands (brand, search, dock, panel). Dock is the sole surface switcher.
-// Chat panel: Current, Pinned, Context. No second icon rail.
+// SOURCING: 21st/@jshguo/sidebar-component (TwoLevelSidebarShell).
+// SPEC-COMMONPLACE-CHAT-SHELL-1.2 SH5/SH6: brand, search, panel. Dock removed;
+// surface icons live on the outer rail. Main content flex-resizes with panel.
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -18,9 +18,8 @@ import {
 } from '@/lib/chat/catalog-client';
 import { readLastConsoleViewPath } from '@/lib/chat/last-console-view';
 import { ContextTree } from '@/components/chat/ContextTree';
-import { Dock, DockIcon, DockItem, DockLabel } from '@/components/ui/dock';
+import { TwoLevelSidebarShell } from '@/components/ui/sidebar-component';
 import {
-  IconAccount,
   IconChat,
   IconIndex,
   IconModel,
@@ -29,7 +28,6 @@ import {
   IconWorkspace,
 } from '@/components/shell/icons';
 import type { ContextEntry, ContextFolder } from '@/lib/chat/context-types';
-import { cn } from '@/lib/cn';
 
 export type ChatDockSurface = 'home' | 'chat' | 'runs' | 'graph' | 'models';
 
@@ -77,10 +75,20 @@ function writePinned(ids: string[]): void {
   }
 }
 
+/* Icons ledger row: every product glyph is a Noun Project mark from the one
+   icon file, normalized to currentColor so the rail's active state paints it.
+   The vendored 21st rail only supplies the geometry. */
+const RAIL_ITEMS = [
+  { id: 'home' as const, label: 'Home', icon: <IconWorkspace size={16} /> },
+  { id: 'chat' as const, label: 'Chat', icon: <IconChat size={16} /> },
+  { id: 'runs' as const, label: 'Runs', icon: <IconRun size={16} /> },
+  { id: 'graph' as const, label: 'Graph', icon: <IconIndex size={16} /> },
+  { id: 'models' as const, label: 'Models', icon: <IconModel size={16} /> },
+];
 export function ChatSidebar({
   catalog,
   activeThreadId,
-  capabilities: _capabilities,
+  capabilities,
   unreachable = false,
   onCatalogChange,
   onOpenThread,
@@ -89,36 +97,14 @@ export function ChatSidebar({
   surface: surfaceProp,
   onSurfaceChange,
 }: ChatSidebarProps) {
-  const router = useRouter();
+  const [panelOpen, setPanelOpen] = useState(true);
   const [surfaceState, setSurfaceState] = useState<ChatDockSurface>('chat');
   const surface = surfaceProp ?? surfaceState;
   const setSurface = (next: ChatDockSurface) => {
     onSurfaceChange?.(next);
     if (surfaceProp === undefined) setSurfaceState(next);
   };
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-  const [query, setQuery] = useState('');
-  const activeProject = catalog.projects.find((project) => project.id === catalog.activeProjectId) ?? null;
-  const activeThread = catalog.threads.find((thread) => thread.id === activeThreadId) ?? null;
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setPinnedIds(readPinned()));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  const pinnedThreads = useMemo(() => {
-    const byId = new Map(catalog.threads.map((thread) => [thread.id, thread]));
-    return pinnedIds
-      .map((id) => byId.get(id))
-      .filter((thread): thread is ChatThreadRecord => Boolean(thread))
-      .filter((thread) => thread.id !== activeThreadId);
-  }, [catalog.threads, pinnedIds, activeThreadId]);
-
-  const filteredPinned = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return pinnedThreads;
-    return pinnedThreads.filter((thread) => thread.title.toLowerCase().includes(needle));
-  }, [pinnedThreads, query]);
+  const router = useRouter();
 
   const goSurface = (next: ChatDockSurface) => {
     setSurface(next);
@@ -143,6 +129,86 @@ export function ChatSidebar({
       router.push('/Data-model');
     }
   };
+
+  return (
+    <TwoLevelSidebarShell
+      data-testid="chat-sidebar"
+      items={RAIL_ITEMS}
+      brand={<IconWorkspace size={20} className="text-ij-ink" />}
+      panelBrand={
+        <div className="flex w-full items-center gap-2 px-2 py-1">
+          <IconWorkspace size={20} className="shrink-0 text-ij-ink" />
+          <span className="font-ij-ui font-semibold text-ij-island-title text-ij-ink">
+            CommonPlace
+          </span>
+        </div>
+      }
+      activeSection={surface}
+      onSectionChange={(id) => goSurface(id as ChatDockSurface)}
+      panelOpen={panelOpen}
+      onPanelOpenChange={setPanelOpen}
+      title={surface === 'chat' ? 'Chat' : surface.charAt(0).toUpperCase() + surface.slice(1)}
+      panel={
+        <ChatSidebarPanel
+          catalog={catalog}
+          activeThreadId={activeThreadId}
+          capabilities={capabilities}
+          unreachable={unreachable}
+          onCatalogChange={onCatalogChange}
+          onOpenThread={onOpenThread}
+          contextFolders={contextFolders}
+          onToggleContextInclude={onToggleContextInclude}
+          surface={surface}
+        />
+      }
+    />
+  );
+}
+
+function ChatSidebarPanel({
+  catalog,
+  activeThreadId,
+  capabilities,
+  unreachable,
+  onCatalogChange,
+  onOpenThread,
+  contextFolders,
+  onToggleContextInclude,
+  surface,
+}: {
+  catalog: ChatCatalog;
+  activeThreadId: string | null;
+  capabilities: readonly CapabilityItem[];
+  unreachable: boolean;
+  onCatalogChange: (catalog: ChatCatalog) => void;
+  onOpenThread: (threadId: string) => void;
+  contextFolders: readonly ContextFolder[];
+  onToggleContextInclude?: (entryId: string) => void;
+  surface: ChatDockSurface;
+}) {
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const activeProject = catalog.projects.find((project) => project.id === catalog.activeProjectId) ?? null;
+  const activeThread = catalog.threads.find((thread) => thread.id === activeThreadId) ?? null;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setPinnedIds(readPinned()));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const pinnedThreads = useMemo(() => {
+    const byId = new Map(catalog.threads.map((thread) => [thread.id, thread]));
+    return pinnedIds
+      .map((id) => byId.get(id))
+      .filter((thread): thread is ChatThreadRecord => Boolean(thread))
+      .filter((thread) => thread.id !== activeThreadId);
+  }, [catalog.threads, pinnedIds, activeThreadId]);
+
+  const filteredPinned = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return pinnedThreads;
+    return pinnedThreads.filter((thread) => thread.title.toLowerCase().includes(needle));
+  }, [pinnedThreads, query]);
 
   const newThread = async () => {
     if (unreachable) return;
@@ -172,14 +238,8 @@ export function ChatSidebar({
   };
 
   return (
-    <aside
-      data-chat-sidebar
-      className="flex h-full shrink-0 flex-col border-r border-ij-seam bg-ij-frame"
-      style={{ width: 'var(--ij-chat-sidebar-w)' }}
-    >
-      {/* Band 1: brand and account */}
-      <div className="flex items-center gap-2 border-b border-ij-seam px-3 py-2" data-sidebar-brand>
-        <IconWorkspace size={16} className="text-ij-ink" />
+    <div className="flex h-full min-h-0 w-full flex-col" data-chat-sidebar>
+      <div className="flex items-center gap-2 border-b border-[color:var(--paper-seam,var(--ij-seam))] px-1 py-2" data-sidebar-brand>
         <div className="min-w-0 flex-1">
           <p className="truncate text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
             {activeProject?.name ?? 'CommonPlace'}
@@ -188,12 +248,10 @@ export function ChatSidebar({
             Workspace
           </p>
         </div>
-        <IconAccount size={16} className="text-ij-ink-info" aria-hidden />
       </div>
 
-      {/* Band 2: search */}
-      <div className="border-b border-ij-seam px-2 py-2" data-sidebar-search>
-        <label className="flex h-ij-control items-center gap-2 rounded-[var(--radius-control)] border border-ij-control-border bg-ij-editor px-2">
+      <div className="border-b border-[color:var(--paper-seam,var(--ij-seam))] px-1 py-2" data-sidebar-search>
+        <label className="flex h-ij-control items-center gap-2 rounded-[var(--radius-control)] border border-ij-control-border bg-[color:var(--paper-lifted,var(--ij-editor))] px-2">
           <IconSearch size={14} className="text-ij-ink-info" />
           <input
             className="min-w-0 flex-1 bg-transparent text-ij-ink outline-none placeholder:text-ij-ink-disabled"
@@ -219,71 +277,27 @@ export function ChatSidebar({
         </label>
       </div>
 
-      {/* Band 3: dock (sole navigation control) */}
-      <div className="border-b border-ij-seam px-1 py-2" data-sidebar-dock>
-        <Dock panelHeight={36} magnification={44} distance={100}>
-          <DockItem
-            aria-label="Home"
-            aria-current={surface === 'home' ? 'page' : undefined}
-            onClick={() => goSurface('home')}
-            className={cn(surface === 'home' && 'text-ij-ink')}
-          >
-            <DockLabel>Home</DockLabel>
-            <DockIcon>
-              <IconWorkspace size={16} className={surface === 'home' ? 'opacity-100' : 'opacity-60'} />
-            </DockIcon>
-          </DockItem>
-          <DockItem
-            aria-label="Chat"
-            aria-current={surface === 'chat' ? 'page' : undefined}
-            onClick={() => goSurface('chat')}
-          >
-            <DockLabel>Chat</DockLabel>
-            <DockIcon>
-              <IconChat size={16} className={surface === 'chat' ? 'opacity-100' : 'opacity-60'} />
-            </DockIcon>
-          </DockItem>
-          <DockItem
-            aria-label="Runs"
-            aria-current={surface === 'runs' ? 'page' : undefined}
-            onClick={() => goSurface('runs')}
-          >
-            <DockLabel>Runs</DockLabel>
-            <DockIcon>
-              <IconRun size={16} className={surface === 'runs' ? 'opacity-100' : 'opacity-60'} />
-            </DockIcon>
-          </DockItem>
-          <DockItem
-            aria-label="Graph"
-            aria-current={surface === 'graph' ? 'page' : undefined}
-            onClick={() => goSurface('graph')}
-          >
-            <DockLabel>Graph</DockLabel>
-            <DockIcon>
-              <IconIndex size={16} className={surface === 'graph' ? 'opacity-100' : 'opacity-60'} />
-            </DockIcon>
-          </DockItem>
-          <DockItem
-            aria-label="Models"
-            aria-current={surface === 'models' ? 'page' : undefined}
-            onClick={() => goSurface('models')}
-          >
-            <DockLabel>Models</DockLabel>
-            <DockIcon>
-              <IconModel size={16} className={surface === 'models' ? 'opacity-100' : 'opacity-60'} />
-            </DockIcon>
-          </DockItem>
-        </Dock>
-      </div>
+      {capabilities.length > 0 ? (
+        <div className="flex flex-wrap gap-1 border-b border-[color:var(--paper-seam,var(--ij-seam))] px-1 py-2" data-sidebar-capabilities>
+          {capabilities.map((capability) => (
+            <span
+              key={capability.id}
+              className="rounded-[var(--radius-control)] border border-ij-control-border px-2 py-0.5 text-ij-ink-info"
+              style={{ fontSize: 'var(--ij-composer-meta-font-size)' }}
+            >
+              {capability.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {unreachable ? (
-        <p className="mx-2 mt-2 rounded-[var(--radius-control)] border border-ij-control-border px-2 py-2 text-ij-ink-info" role="status">
+        <p className="mx-1 mt-2 rounded-[var(--radius-control)] border border-ij-control-border px-2 py-2 text-ij-ink-info" role="status">
           Harness unreachable. Project edits and new threads are paused.
         </p>
       ) : null}
 
-      {/* Band 4: panel (Chat: Current / Pinned / Context) */}
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3" aria-label="Chat panel">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-1 py-3" aria-label="Chat panel">
         {surface === 'chat' ? (
           <>
             <div className="mb-3">
@@ -305,7 +319,7 @@ export function ChatSidebar({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    className="min-w-0 flex-1 truncate rounded-[var(--radius-control)] bg-ij-raised px-2 py-1.5 text-left text-ij-ink"
+                    className="min-w-0 flex-1 truncate rounded-[var(--radius-control)] bg-[color:var(--paper-sunken,var(--ij-editor))] px-2 py-1.5 text-left text-ij-ink ring-1 ring-inset ring-ij-seam"
                     onClick={() => onOpenThread(activeThread.id)}
                   >
                     {activeThread.title}
@@ -393,10 +407,9 @@ export function ChatSidebar({
           </p>
         )}
       </nav>
-    </aside>
+    </div>
   );
 }
-
 function ProjectEditorInline({
   project,
   projects,
@@ -415,7 +428,7 @@ function ProjectEditorInline({
   const [description, setDescription] = useState(project.description);
 
   return (
-    <div className="mt-4 border-t border-ij-seam pt-3" data-project-panel>
+    <div className="mt-4 border-t border-[color:var(--paper-seam,var(--ij-seam))] pt-3" data-project-panel>
       <button
         type="button"
         className="mb-2 w-full text-left text-ij-ink-info hover:text-ij-ink"
@@ -429,7 +442,7 @@ function ProjectEditorInline({
           <label className="grid gap-1 text-ij-ink-info">
             Active project
             <select
-              className="h-ij-control rounded-[var(--radius-control)] border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+              className="h-ij-control rounded-[var(--radius-control)] border border-ij-control-border bg-[color:var(--paper-lifted,var(--ij-editor))] px-2 text-ij-ink"
               value={project.id}
               disabled={unreachable}
               onChange={(event) => void onSelect(event.target.value)}
@@ -444,7 +457,7 @@ function ProjectEditorInline({
           <label className="grid gap-1 text-ij-ink-info">
             Name
             <input
-              className="h-ij-control rounded-[var(--radius-control)] border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
+              className="h-ij-control rounded-[var(--radius-control)] border border-ij-control-border bg-[color:var(--paper-lifted,var(--ij-editor))] px-2 text-ij-ink"
               value={name}
               disabled={unreachable}
               onChange={(event) => setName(event.target.value)}
@@ -453,7 +466,7 @@ function ProjectEditorInline({
           <label className="grid gap-1 text-ij-ink-info">
             Description
             <textarea
-              className="min-h-16 rounded-[var(--radius-control)] border border-ij-control-border bg-ij-editor px-2 py-1 text-ij-ink"
+              className="min-h-16 rounded-[var(--radius-control)] border border-ij-control-border bg-[color:var(--paper-lifted,var(--ij-editor))] px-2 py-1 text-ij-ink"
               value={description}
               disabled={unreachable}
               onChange={(event) => setDescription(event.target.value)}
@@ -479,5 +492,4 @@ function ProjectEditorInline({
   );
 }
 
-// Re-export for callers that still expect ContextEntry at the sidebar boundary.
 export type { ContextEntry };

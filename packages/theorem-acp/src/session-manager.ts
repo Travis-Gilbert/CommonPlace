@@ -201,7 +201,7 @@ export class AcpSessionManager {
   constructor(readonly options: AcpSessionManagerOptions = {}) {}
 
   async acquire(key: AgentProcessKey): Promise<AcquiredAcpSession> {
-    const processKey = serializeKey(key);
+    const processKey = agentProcessCacheKey(key);
     let process = this.#processes.get(processKey);
     if (!process) {
       process = this.#spawnProcess(processKey, key);
@@ -226,7 +226,7 @@ export class AcpSessionManager {
   }
 
   async get(key: AgentProcessKey, sessionId: string): Promise<AcquiredAcpSession | null> {
-    const entry = await this.#processes.get(serializeKey(key));
+    const entry = await this.#processes.get(agentProcessCacheKey(key));
     return entry?.sessions.get(sessionId) ?? null;
   }
 
@@ -260,6 +260,11 @@ export class AcpSessionManager {
           agentId: hostedAgentIdForKey(key.mode, key.bindingId),
           cwd: key.mount,
           bindingId: key.bindingId,
+          authRequest: key.authToken
+            ? new Request('http://localhost', {
+                headers: { Authorization: `Bearer ${key.authToken}` },
+              })
+            : undefined,
         });
       } else {
         client = await AcpClient.spawn({
@@ -301,10 +306,24 @@ export class AcpSessionManager {
   }
 }
 
-function serializeKey(key: AgentProcessKey): string {
-  return JSON.stringify(key);
+export function agentProcessCacheKey(key: AgentProcessKey): string {
+  return JSON.stringify({
+    mount: key.mount,
+    mode: key.mode,
+    bindingId: key.bindingId,
+    tenant: key.tenant ?? null,
+    credential: key.authToken ? credentialFingerprint(key.authToken) : null,
+  });
 }
 
+function credentialFingerprint(token: string): string {
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of new TextEncoder().encode(token)) {
+    hash ^= BigInt(byte);
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return hash.toString(16).padStart(16, '0');
+}
 function permissionTimeoutMs(): number {
   const configured = Number(process.env.THEOREM_ACP_PERMISSION_TIMEOUT_MS ?? 300_000);
   return Number.isFinite(configured) && configured > 0 ? configured : 300_000;

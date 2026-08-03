@@ -135,6 +135,32 @@ const RECORD_TABLE: ConsoleViewDescriptor = {
   render: RecordTableView,
 };
 
+/** Generated palette entry for a declared object type (SPEC RT1). */
+export function declaredRecordPaletteDescriptor(
+  objectTypeKey: string,
+  label: string,
+): ConsoleViewDescriptor {
+  const key = objectTypeKey.trim() || 'record';
+  return {
+    ...RECORD_TABLE,
+    id: `record.table.${key}`,
+    name: label || key,
+    paletteVisible: true,
+    palette: {
+      id: `records-${key}`,
+      label: label || key,
+      kind: 'records',
+      material: 'sunken',
+      query: {
+        types: [key],
+        page: { limit: 100 },
+        live: true,
+      },
+    },
+    renderer: 'record.table',
+    render: RecordTableView,
+  };
+}
 const MARKDOWN_DOC: ConsoleViewDescriptor = {
   id: 'markdown.doc',
   name: 'Document',

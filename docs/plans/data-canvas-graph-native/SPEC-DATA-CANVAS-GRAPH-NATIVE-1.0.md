@@ -123,18 +123,30 @@ and preserved round-trip on the objects that carried them, and presets are what 
 
 ### 4. The canvas is a block with a block contract
 
-The canvas registers as a `ViewDescriptor` with a `BlockPresentation`, so it mounts in a pane and in
-the collapsible companion rail. Using the confirmed default-branch vocabulary:
+The canvas registers as a `ViewDescriptor` with a `BlockPresentation`, so it mounts as a full pane
+(and other block placements the registry declares). Using the confirmed default-branch vocabulary:
 
-- `mounts`: `["surface", "companion"]`. `surface` is the full-pane form. `companion` is the
-  collapsible rail-adjacent form. If the target branch carries the dimensionality vocabulary
-  instead, declare `rail` and `full` per AMENDMENT-02 and record which vocabulary shipped.
-- `sizes`: include `v` (the vertical 3x5 span) for the rail form and `full` for the pane form.
+- `mounts` / `placements`: include `full` (and `ground` where the shell uses that vocabulary) for
+  the pane form of `CanvasView`.
+- `sizes`: include `full` for the pane form.
 - `surfaceClass`: `editor`.
 - `kindGlyph`: `canvas`. This value is not in the `IslandKindGlyph` union today, so D6 adds it.
 - `bodyBleed`: `flush`, so the canvas reaches the block edge.
 - `accepts`: a broad `ObjectShapeMatch` admitting spatial-capable object sets (any object the user
   can place). `emits`: `["create", "update", "move", "link", "unlink", "delete", "open", "select"]`.
+
+#### Amendment: chrome-owned inspector rail canvas (2026-07-29)
+
+Named choice locked in product: the right-rail Obsidian JSON Canvas is **chrome-owned**, not the
+block companion mount of `CanvasView`.
+
+- Stable id: `canvas.inspector.rail`.
+- Host: `DashboardSidebar` / `InspectorRail` Z-layer (`JsonCanvasLayer`), over `@arunjdass/dashboard-sidebar`.
+- Persistence: same `CanvasStore` / object-seam `graph` document as other canvases; interchange is
+  JSON Canvas 1.0 via `canvas.apply_json`.
+- `CanvasView` remains the pane/claim-card block surface and does **not** own the inspector layer.
+- D3 companion-rail acceptance for the block descriptor does **not** apply to `canvas.inspector.rail`.
+  A later spec may reunify them; until then the two paths must not silently share UI chrome.
 
 ### 5. The renderer is React Flow, already in the tree, wrapped as a view source
 
@@ -209,8 +221,9 @@ named choice 4. Reads and writes go through `BlockHost.query` and `BlockHost.emi
 
 Acceptance: the canvas renders referenced graph objects as cards; dragging a card persists its
 position through a receipted `move` or `update`; drawing a connection persists a receipted `link`;
-the block mounts as `companion` at size `v` in the rail and as `surface` at `full` in a pane; the
-canvas contents are a graph query, not a file read.
+the block mounts as `surface` / `full` in a pane (inspector rail uses chrome-owned
+`canvas.inspector.rail` per named-choice-4 amendment); the canvas contents are a graph query, not a
+file read.
 
 ### D4. Agent authorship path
 Files: the D2 package plus the console action seam.
@@ -253,8 +266,9 @@ Report status as a scannable list leading with what is not done.
   arrangement is returned by a graph query with no file involved.
 - Export produces a spec-valid JSON Canvas document that opens in Obsidian; import of an Obsidian
   `.canvas` produces graph objects and placements, and a round-trip is stable on ids and topology.
-- The canvas is a block that mounts in the collapsible companion rail at a vertical size and in a
-  full pane, resolving the `canvas` glyph.
+- The canvas block mounts in a full pane, resolving the `canvas` glyph. The inspector Obsidian
+  layer is the separate chrome-owned `canvas.inspector.rail` (see Amendment under named choice 4),
+  not the block companion mount.
 - An agent authors an arrangement by emitting `ObjectAction`s or a validated JSON Canvas document,
   never by writing a foreign format, and every write carries a receipt.
 - The programmable DAG is untouched and remains its own descriptor.

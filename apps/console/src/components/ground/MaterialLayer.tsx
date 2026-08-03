@@ -141,7 +141,7 @@ function p3ToSrgb(rgb: number[]): [number, number, number] {
 
 /* The probe lets the browser do the parsing, which is right, but the readback
    has to respect the colour space it hands back. Computed colour preserves the
-   space rather than normalising to rgb(), so once the register started
+   space rather than normalising to an sRGB triple, so once the register started
    resolving to Twenty's `color(display-p3 r g b)` a bare digit scan read the
    "3" of "display-p3" as the red channel: every surface came back near black,
    every caller fell through to its dark fallback, and the light ground rendered

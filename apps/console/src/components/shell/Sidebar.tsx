@@ -389,17 +389,6 @@ export function Sidebar({
     }
   }, [router]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
-      if (event.key.toLowerCase() !== 'b') return;
-      event.preventDefault();
-      toggleCollapse();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [toggleCollapse]);
-
   const navigateTo = useCallback((surfaceId: string, path: string) => {
     // Routed Places let the pathname effect activate the surface. Flipping
     // layout state first can remount the shell before router.push commits.

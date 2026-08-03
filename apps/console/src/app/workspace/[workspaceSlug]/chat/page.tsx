@@ -4,10 +4,10 @@
 // mounts ChatPage only when the active membership matches this workspace.
 
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { ChatPage } from '@/components/chat/ChatPage';
 import { ForkNotice, ForkPageFrame } from '@/components/fork/ForkPageFrame';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
+import { redirectForFailedPrincipal } from '@/lib/server/principal-redirect';
 
 export default async function WorkspaceChatRoute({
   params,
@@ -19,8 +19,9 @@ export default async function WorkspaceChatRoute({
     resolveHarnessPrincipal(),
   ]);
   if (!resolution.ok) {
-    redirect(
-      `/login?callbackUrl=/workspace/${encodeURIComponent(workspaceRef)}/chat`,
+    return redirectForFailedPrincipal(
+      resolution,
+      `/workspace/${encodeURIComponent(workspaceRef)}/chat`,
     );
   }
   if (

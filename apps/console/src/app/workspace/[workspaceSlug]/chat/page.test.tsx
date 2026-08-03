@@ -79,9 +79,10 @@ describe('workspace chat route', () => {
   it('sends unresolved principals to login', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: false,
-      status: 401,
-      code: 'missing_harness_identity',
-      message: 'Sign in to continue.',
+      response: Response.json(
+        { error: 'principal_resolution=unauthenticated' },
+        { status: 401 },
+      ),
     });
 
     await expect(
@@ -89,7 +90,7 @@ describe('workspace chat route', () => {
         params: Promise.resolve({ workspaceSlug: 'research' }),
       }),
     ).rejects.toThrow(
-      'NEXT_REDIRECT:/login?callbackUrl=/workspace/research/chat',
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fworkspace%2Fresearch%2Fchat',
     );
     expect(mocks.resolveHarnessPrincipal).toHaveBeenCalledOnce();
   });

@@ -46,10 +46,28 @@ describe('ordinary chat route', () => {
   it('sends unresolved principals to login', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: false,
-      response: new Response(null, { status: 401 }),
+      response: Response.json(
+        { error: 'principal_resolution=unauthenticated' },
+        { status: 401 },
+      ),
     });
 
-    await expect(ChatIndexPage()).rejects.toThrow('NEXT_REDIRECT:/login?callbackUrl=/chat');
-    expect(mocks.redirect).toHaveBeenCalledWith('/login?callbackUrl=/chat');
+    await expect(ChatIndexPage()).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fchat',
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith('/login?callbackUrl=%2Fchat');
+  });
+
+  it('sends signed-in users missing an active workspace to onboarding', async () => {
+    mocks.resolveHarnessPrincipal.mockResolvedValue({
+      ok: false,
+      response: Response.json(
+        { error: 'active_workspace_claim_required' },
+        { status: 403 },
+      ),
+    });
+
+    await expect(ChatIndexPage()).rejects.toThrow('NEXT_REDIRECT:/onboarding');
+    expect(mocks.redirect).toHaveBeenCalledWith('/onboarding');
   });
 });
