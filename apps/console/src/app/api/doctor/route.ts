@@ -19,8 +19,14 @@ type RouteRow = {
 };
 type ResurrectionRow = { id: string; path: string; absent: boolean; pending_retirement?: boolean };
 
-function repoRoot(): string {
-  return path.resolve(process.cwd(), '../..');
+function repoRootCandidates(): string[] {
+  const cwd = process.cwd();
+  return [
+    path.resolve(cwd, '../..'),
+    cwd,
+    path.resolve(cwd, '..'),
+    path.resolve(cwd, '../../..'),
+  ];
 }
 
 function readManifest(): {
@@ -33,11 +39,20 @@ function readManifest(): {
   env_contract: string[];
   retired?: Array<{ id: string; paths?: string[] }>;
 } {
-  const marker = path.join(repoRoot(), '.commonplace-canonical');
-  if (!existsSync(marker)) {
-    throw new Error('missing .commonplace-canonical');
+  for (const root of repoRootCandidates()) {
+    const marker = path.join(root, '.commonplace-canonical');
+    if (existsSync(marker)) {
+      return JSON.parse(readFileSync(marker, 'utf8'));
+    }
   }
-  return JSON.parse(readFileSync(marker, 'utf8'));
+  throw new Error('missing .commonplace-canonical');
+}
+
+function resolveRepoRoot(): string {
+  for (const root of repoRootCandidates()) {
+    if (existsSync(path.join(root, '.commonplace-canonical'))) return root;
+  }
+  return process.cwd();
 }
 
 function envLit(key: string): boolean {
@@ -120,7 +135,7 @@ export async function GET() {
   for (const row of manifest.registers ?? []) {
     for (const item of row.superseded ?? []) {
       for (const filePath of item.paths ?? []) {
-        const abs = path.join(repoRoot(), filePath);
+        const abs = path.join(resolveRepoRoot(), filePath);
         resurrections.push({
           id: item.impl,
           path: filePath,
@@ -132,7 +147,7 @@ export async function GET() {
   }
   for (const row of manifest.retired ?? []) {
     for (const filePath of row.paths ?? []) {
-      const abs = path.join(repoRoot(), filePath);
+      const abs = path.join(resolveRepoRoot(), filePath);
       resurrections.push({
         id: row.id,
         path: filePath,
