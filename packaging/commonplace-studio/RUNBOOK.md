@@ -2,6 +2,22 @@
 
 Upstream ships monthly. This is what happens when it does.
 
+## 0. Disk, before anything else
+
+`build.sh` checks two volumes and refuses with a figure rather than filling
+either: the one holding `build/`, and the one holding the npm cache, which is
+usually the boot volume. A build that runs the boot volume to zero takes the
+machine's tooling down with it, which is a worse failure than not starting.
+
+| Step | Build volume | npm cache volume |
+| --- | --- | --- |
+| `prepare` | 3GiB | 1GiB |
+| `web` | 15GiB | 8GiB |
+| `desktop` | 25GiB | 8GiB |
+
+The shallow checkout at 1.131.0 measures about 800MiB before `npm ci`. If the
+cache volume is the binding constraint, `npm_config_cache` moves it.
+
 ## 1. Read what changed before touching anything
 
 - The release notes, for anything that moves the extension API surface the pack
@@ -35,12 +51,23 @@ patch that no longer applies gets one of two outcomes, written down:
 
 Then `./scripts/ledger-gate.sh` must pass. CI runs it too.
 
+Run it *after* `prepare`, not before: with a build tree present it also checks
+the `product.json` that actually ships, which is the only thing that proves the
+overlay merged rather than silently no-opping. Verified 2026-08-03 to fail on a
+planted `nameShort` and a surviving `update.code.visualstudio.com`.
+
 ## 4. Build both outputs
 
 ```bash
+./scripts/build.sh prepare   # clone, patch queue, overlay, stage the pack
 ./scripts/build.sh desktop
 ./scripts/build.sh web
 ```
+
+`prepare` is idempotent and hard-resets the checkout before applying the queue,
+so the patch count means something. Verified end to end against upstream 1.131.0
+on 2026-08-03: 0 patches, overlay merged, pack staged at
+`extensions/theorem-vscode`.
 
 ## 5. Smoke the outputs
 

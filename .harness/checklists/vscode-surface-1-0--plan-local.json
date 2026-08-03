@@ -214,5 +214,88 @@
         ".github/workflows/vscode-surface-ci.yml runs the suite on any change to the pack, the console adapter, the contracts, or the pipeline."
       ]
     }
+  ],
+  "rounds": [
+    {
+      "id": "W",
+      "name": "Live wire onto EDITOR-DX",
+      "date": "2026-08-03",
+      "source": "Theorem feat/four-spec-open-closure editor surface, plus docs/plans/editor-dx-wire/CONSUMER-FEEDBACK.md",
+      "note": "The first round guessed the contract while EDITOR-DX was being built. This round replaces every guess with the landed wire.",
+      "items": [
+        {
+          "id": "W1",
+          "title": "Contract to the real wire",
+          "status": "verified",
+          "evidence": "packages/block-view-contracts/src/editor-intelligence.ts rewritten on byte spans, contentHash, published enums, and the three refusal unions. tsc clean."
+        },
+        {
+          "id": "W2",
+          "title": "UTF-8 byte to UTF-16, with a content-identity gate",
+          "status": "verified",
+          "evidence": "packages/block-view-contracts/src/editor-offsets.ts plus test/offsets.test.ts (17 assertions). The fixture is non-ASCII; the raw byte slice is asserted NOT to equal the token text, which is what proves conversion runs."
+        },
+        {
+          "id": "W3",
+          "title": "V2 onto the four live queries and readiness",
+          "status": "verified",
+          "evidence": "One GraphQL operation for the three position-free surfaces; previewFix before applyFix; block actions matched on published ids; degraded:true renders Information with a spinner, not Warning with a slashed circle."
+        },
+        {
+          "id": "W4",
+          "title": "V1 onto /v1/editor/invalidations",
+          "status": "verified",
+          "evidence": "Per-path refresh with a documented event shape, an unparseable frame falling back to refreshAll, and gate:no-timers still passing."
+        },
+        {
+          "id": "W5",
+          "title": "V3 onto fileHistory and restoreRevision",
+          "status": "verified",
+          "evidence": "Generation-keyed throughout. Revision bodies come from fileHistory pinned to the wanted generation, so there is no second addressing scheme."
+        },
+        {
+          "id": "W6",
+          "title": "V5 onto writeItemBody and writeFile",
+          "status": "verified",
+          "evidence": "Reads item, declares the base hash it read, surfaces EditorConcurrencyRefusalGql as FileExists with a re-read instruction. Creating from a selection goes through putNote."
+        },
+        {
+          "id": "W7",
+          "title": "V6 session rooted at the workspace",
+          "status": "verified",
+          "evidence": "The workspace root was computed and then dropped before reaching openIdeSession. Fixed and asserted."
+        },
+        {
+          "id": "W8",
+          "title": "V8 parity on real shapes, against an oracle",
+          "status": "verified",
+          "evidence": "Both fronts now share one conversion, so front-versus-front alone would let a shared bug cancel. The test compares both against an encode/decode oracle, and proves the identity gate stops a drifted payload before anything renders."
+        },
+        {
+          "id": "W9",
+          "title": "V7 fork pipeline, actually run",
+          "status": "partial",
+          "evidence": "scripts/build.sh prepare succeeded against real upstream 1.131.0: 0 patches, product.json merged to the fork identity, pack staged at extensions/theorem-vscode. ledger-gate now checks the shipped product.json and was verified to fail on a planted nameShort and updateUrl.",
+          "blocked": "npm ci plus compile-web needs 15GiB on the build volume and 8GiB on the npm cache volume; this machine has 8GiB and 11GiB. build.sh refuses with the figure rather than filling either volume. No desktop app, web workbench, OpenVSX check in a running build, or OW5 smoke has run."
+        }
+      ]
+    }
+  ],
+  "open_gaps": [
+    {
+      "id": "G-ITEM-HASH",
+      "surface": "apps/commonplace-api ItemGql",
+      "finding": "ItemGql publishes bodyText and blobHash but no content hash for an inline body, while writeItemBody compares baseContentHash against ContentHash::of(text).",
+      "consequence": "A consumer cannot obtain the base hash for exactly the graph documents V5 opens without implementing blake3.",
+      "taken": "The pack computes blake3:<hex> with @noble/hashes, already in the workspace. Verified byte-identical to the Rust format on the empty string.",
+      "ask": "Add bodyContentHash to ItemGql, matching what contentHash already did for files, and the client-side hash goes away."
+    },
+    {
+      "id": "G-INT32",
+      "surface": "FileRevisionGql.timestampMs",
+      "finding": "Typed Int, which GraphQL defines as signed 32-bit, while epoch milliseconds are about 1.78e12.",
+      "consequence": "Unaffected here because the pack reads plain JSON numbers; anything generated from the SDL is not.",
+      "ask": "Confirm against a spec-compliant client and move to a 64-bit-safe scalar if it holds."
+    }
   ]
 }

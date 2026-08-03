@@ -1,8 +1,8 @@
 {
   "kind": "repo_hygiene_receipt",
-  "timestamp": "2026-08-03T02:50:48Z",
+  "timestamp": "2026-08-03T02:44:05Z",
   "repo_root": "/Volumes/SSD Samsung/var-18/CommonPlace/theorems-harness-planning-execution-fdbb3e",
-  "branch": "claude/vscode-surface-editor-dx-wire",
+  "branch": "claude/theorems-harness-planning-execution-fdbb3e",
   "commit_sha": "522920c3c431ba673323f1d72c5f8860ecb67d62",
   "mode": "advisory",
   "failed_count": 0,
@@ -16,7 +16,7 @@
       "message": "Worktree is clean outside hook-local state.",
       "command": "git status --short --branch",
       "exit_code": 0,
-      "output": "## claude/vscode-surface-editor-dx-wire"
+      "output": "## claude/theorems-harness-planning-execution-fdbb3e...origin/claude/theorems-harness-planning-execution-fdbb3e"
     },
     {
       "checker": "diff_check_unstaged",
