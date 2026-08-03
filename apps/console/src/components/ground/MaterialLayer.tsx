@@ -119,12 +119,51 @@ function compile(gl: WebGLRenderingContext, type: number, source: string): WebGL
   return shader;
 }
 
+/* Display P3 to sRGB, both gamma encoded, because the shader is fed encoded
+   values (a hex channel over 255) and has to keep being fed them. */
+const P3_TO_SRGB_LINEAR = [
+  [1.2249401762, -0.2249401762, 0],
+  [-0.0420569547, 1.0420569547, 0],
+  [-0.0196375546, -0.0786360454, 1.0982736],
+];
+const decode = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const encode = (c: number) => {
+  const clamped = Math.min(1, Math.max(0, c));
+  return clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * clamped ** (1 / 2.4) - 0.055;
+};
+
+function p3ToSrgb(rgb: number[]): [number, number, number] {
+  const linear = rgb.map(decode);
+  return P3_TO_SRGB_LINEAR.map((row) =>
+    encode(row[0] * linear[0] + row[1] * linear[1] + row[2] * linear[2]),
+  ) as [number, number, number];
+}
+
+/* The probe lets the browser do the parsing, which is right, but the readback
+   has to respect the colour space it hands back. Computed colour preserves the
+   space rather than normalising to rgb(), so once the register started
+   resolving to Twenty's `color(display-p3 r g b)` a bare digit scan read the
+   "3" of "display-p3" as the red channel: every surface came back near black,
+   every caller fell through to its dark fallback, and the light ground rendered
+   as a dark wash. Nothing threw, because the fallbacks are `??`. */
 function cssToRgb(css: string): [number, number, number] | null {
   const probe = document.createElement('div');
   probe.style.color = css.length > 0 ? css : 'transparent';
   document.body.append(probe);
   const computed = getComputedStyle(probe).color;
   probe.remove();
+
+  const spaced = computed.match(
+    /^color\(\s*(display-p3|srgb)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)/i,
+  );
+  if (spaced) {
+    const channels = [Number(spaced[2]), Number(spaced[3]), Number(spaced[4])];
+    if (channels.some((n) => !Number.isFinite(n))) return null;
+    return spaced[1].toLowerCase() === 'srgb'
+      ? (channels.map((c) => Math.min(1, Math.max(0, c))) as [number, number, number])
+      : p3ToSrgb(channels);
+  }
+
   const parts = computed.match(/[\d.]+/g);
   if (!parts || parts.length < 3) return null;
   return [Number(parts[0]) / 255, Number(parts[1]) / 255, Number(parts[2]) / 255];
