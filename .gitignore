@@ -18,3 +18,9 @@ apps/desktop/src-tauri/target/
 
 # Vendored chat register build output
 apps/chat/dist/
+
+# The VS Code pack's bundles, and the fork pipeline's upstream checkout. The
+# checkout is a clone of microsoft/vscode plus the patch queue; it is rebuilt by
+# scripts/build.sh and must never be committed.
+apps/theorem-vscode/dist/
+packaging/commonplace-studio/build/

@@ -1,0 +1,107 @@
+{
+  "name": "theorem-vscode",
+  "displayName": "Theorem",
+  "description": "The Theorem substrate inside the VS Code family: intelligence, local history, graph documents, spine search, and the agent.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "publisher": "commonplace",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": ["Other"],
+  "main": "./dist/extension.cjs",
+  "browser": "./dist/extension.web.js",
+  "activationEvents": ["onStartupFinished"],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": false },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Theorem",
+      "properties": {
+        "theorem.graphqlUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8787/graphql",
+          "description": "The commonplace-api GraphQL door."
+        },
+        "theorem.changefeedUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Changefeed SSE door. Empty disables push; standing queries then answer once per explicit refresh."
+        },
+        "theorem.consoleOrigin": {
+          "type": "string",
+          "default": "http://127.0.0.1:3000",
+          "description": "Console origin used for run and receipt deep links."
+        },
+        "theorem.agentUrl": {
+          "type": "string",
+          "default": "",
+          "description": "ACP agent door. Empty falls back to the console origin."
+        },
+        "theorem.token": {
+          "type": "string",
+          "default": "",
+          "description": "Console session token. Prefer a secret store entry over settings.json in shared workspaces."
+        }
+      }
+    },
+    "commands": [
+      { "command": "theorem.startSession", "title": "Theorem: Start Session", "category": "Theorem" },
+      { "command": "theorem.applyFix", "title": "Theorem: Apply Fix", "category": "Theorem" },
+      {
+        "command": "theorem.sendSelectionToComposer",
+        "title": "Theorem: Send Selection to Composer",
+        "category": "Theorem"
+      },
+      {
+        "command": "theorem.saveSelectionToGraph",
+        "title": "Theorem: Save Selection to the Graph",
+        "category": "Theorem"
+      },
+      { "command": "theorem.openRun", "title": "Theorem: Open Run in Console", "category": "Theorem" },
+      { "command": "theorem.showHistory", "title": "Theorem: Show History", "category": "Theorem" },
+      {
+        "command": "theorem.diffRevision",
+        "title": "Theorem: Compare Revision with Current",
+        "category": "Theorem"
+      },
+      {
+        "command": "theorem.restoreRevision",
+        "title": "Theorem: Restore Revision",
+        "category": "Theorem"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "theorem.applyFix", "when": "false" },
+        { "command": "theorem.diffRevision", "when": "false" },
+        { "command": "theorem.restoreRevision", "when": "false" },
+        { "command": "theorem.openRun", "when": "false" }
+      ],
+      "timeline/item/context": [
+        {
+          "command": "theorem.restoreRevision",
+          "when": "timelineItem == theorem.revision",
+          "group": "1_actions"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "npx --yes -p typescript@5.7.3 tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "gate:no-timers": "node scripts/check-no-timers.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.96.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.6"
+  }
+}
