@@ -8,14 +8,18 @@
  * Degradation travel intact, stale generations are discarded client-side, and
  * LSP appears nowhere. Every provider in V2 through V6 consumes this one client.
  *
- * Three properties are load-bearing and each is asserted in client.test.ts:
+ * Four properties are load-bearing and each is asserted in `substrate.test.ts`:
  *
- * - **No polling.** Freshness comes from the changefeed: one SSE connection
- *   fans invalidations out to every subscription, and a subscription re-queries
- *   authoritatively rather than patching rows in place. This mirrors
+ * - **No polling.** Freshness comes from the editor invalidation door at
+ *   `/v1/editor/invalidations`: one SSE connection, and a subscription
+ *   re-queries authoritatively rather than patching rows in place. This mirrors
  *   `packages/block-view/src/host/changefeed.ts`, which already made this choice
  *   for block bodies. `EventSource` reconnects on its own, so there is no timer
  *   here to lose track of.
+ * - **An invalidation names its file.** The event carries `path`, so a change to
+ *   one file re-queries that file's standing queries and leaves the rest alone.
+ *   The earlier shape had no path and had to refresh everything; with twenty
+ *   open editors that was twenty times the work per keystroke elsewhere.
  * - **Stale answers are dropped.** Each subscription key carries the highest
  *   generation it has seen; a response stamped below it is discarded and logged
  *   rather than rendered. Two in-flight queries returning out of order is the
@@ -25,21 +29,31 @@
  *   an empty result set for a request that never landed.
  */
 
-import type { IntelligenceDegradation } from '@commonplace/block-view-contracts/editor-intelligence';
-import { isStaleGeneration } from '@commonplace/block-view-contracts/editor-intelligence';
+import type { UnavailableSurface } from '@commonplace/block-view-contracts/editor-intelligence';
+import {
+  EDITOR_INVALIDATIONS_PATH,
+  isStaleGeneration,
+  parseEditorInvalidation,
+} from '@commonplace/block-view-contracts/editor-intelligence';
 
 export interface SubstrateEndpoint {
   /** GraphQL door, e.g. https://api.example/graphql. */
   readonly graphqlUrl: string;
-  /** Changefeed SSE door. Absent disables push; subscriptions still query once. */
-  readonly changefeedUrl?: string;
+  /**
+   * Editor invalidation SSE door. Absent disables push; subscriptions still
+   * query once and the status callback says `idle` rather than a timer
+   * quietly appearing.
+   */
+  readonly invalidationsUrl?: string;
+  /** Scopes the invalidation stream to one project when the server knows it. */
+  readonly projectId?: string;
   /** Console session token. Sent as a bearer header when present. */
   readonly token?: string;
 }
 
 export type SubstrateResult<T> =
   | { readonly ok: true; readonly data: T; readonly generation: number }
-  | { readonly ok: false; readonly degradation: IntelligenceDegradation };
+  | { readonly ok: false; readonly degradation: UnavailableSurface };
 
 export type Unsubscribe = () => void;
 
@@ -62,9 +76,20 @@ export interface SubstrateClientOptions {
   readonly onChangefeedStatus?: (status: ChangefeedStatus) => void;
 }
 
+export interface SubscribeOptions {
+  /**
+   * Absolute file path this query answers about. An invalidation naming a
+   * different path leaves this subscription alone. Omit for workspace-wide
+   * queries such as readiness, which refresh on any invalidation because
+   * nothing narrower is on offer.
+   */
+  readonly path?: string;
+}
+
 interface Subscription<T> {
   readonly run: () => Promise<SubstrateResult<T>>;
   readonly deliver: (result: SubstrateResult<T>) => void;
+  readonly path?: string;
   /** Highest generation delivered on this key. */
   seen: number;
 }
@@ -76,6 +101,25 @@ interface GraphQlEnvelope<T> {
 }
 
 const NO_GENERATION = -1;
+
+/**
+ * Derive the invalidation door from the GraphQL door.
+ *
+ * Both are served by the same `commonplace-api` process, so one configured URL
+ * is enough in the common case; an explicit `invalidationsUrl` still wins when
+ * they are split behind different routes.
+ */
+export function invalidationsUrlFrom(graphqlUrl: string, projectId?: string): string | undefined {
+  let base: URL;
+  try {
+    base = new URL(graphqlUrl);
+  } catch {
+    return undefined;
+  }
+  base.pathname = EDITOR_INVALIDATIONS_PATH;
+  base.search = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  return base.toString();
+}
 
 export class SubstrateClient {
   private readonly options: SubstrateClientOptions;
@@ -170,15 +214,21 @@ export class SubstrateClient {
 
   /**
    * Register a standing query. Runs immediately, then again on every
-   * changefeed invalidation, delivering only answers at or above the highest
-   * generation this key has already seen.
+   * invalidation that names its path, delivering only answers at or above the
+   * highest generation this key has already seen.
    */
   subscribe<T>(
     key: string,
     run: () => Promise<SubstrateResult<T>>,
     deliver: (result: SubstrateResult<T>) => void,
+    options: SubscribeOptions = {},
   ): Unsubscribe {
-    const subscription: Subscription<T> = { run, deliver, seen: NO_GENERATION };
+    const subscription: Subscription<T> = {
+      run,
+      deliver,
+      seen: NO_GENERATION,
+      ...(options.path ? { path: options.path } : {}),
+    };
     this.subscriptions.set(key, subscription as Subscription<unknown>);
     this.ensureChangefeed();
     void this.refresh(key);
@@ -207,7 +257,19 @@ export class SubstrateClient {
     subscription.deliver(result);
   }
 
-  /** Re-run every standing query. The changefeed's only job. */
+  /**
+   * Re-run the standing queries an invalidation touches: those bound to the
+   * named path, plus every workspace-wide query, which has no narrower signal
+   * to wait for.
+   */
+  async refreshPath(path: string): Promise<void> {
+    const keys = [...this.subscriptions.entries()]
+      .filter(([, subscription]) => subscription.path === undefined || subscription.path === path)
+      .map(([key]) => key);
+    await Promise.all(keys.map((key) => this.refresh(key)));
+  }
+
+  /** Re-run every standing query. The fallback when an event says nothing usable. */
   async refreshAll(): Promise<void> {
     await Promise.all([...this.subscriptions.keys()].map((key) => this.refresh(key)));
   }
@@ -220,7 +282,8 @@ export class SubstrateClient {
 
   private ensureChangefeed(): void {
     if (this.disposed || this.source) return;
-    const url = this.options.endpoint.changefeedUrl;
+    const url = this.options.endpoint.invalidationsUrl
+      ?? invalidationsUrlFrom(this.options.endpoint.graphqlUrl, this.options.endpoint.projectId);
     const Impl = this.options.EventSourceImpl;
     if (!url || !Impl) {
       // No push door configured. Subscriptions still answer once; freshness
@@ -235,8 +298,17 @@ export class SubstrateClient {
     this.source = source;
     source.onopen = () => this.options.onChangefeedStatus?.('live');
     source.onerror = () => this.options.onChangefeedStatus?.('stale');
-    source.addEventListener('message', () => {
-      void this.refreshAll();
+    source.addEventListener('message', (event) => {
+      const invalidation = parseEditorInvalidation(event.data);
+      if (!invalidation) {
+        // The stream opens with a comment and may carry frames this version
+        // does not model. Something changed and the client cannot tell what,
+        // so it re-reads everything rather than silently going stale.
+        this.log('invalidation frame not understood; refreshing every standing query');
+        void this.refreshAll();
+        return;
+      }
+      void this.refreshPath(invalidation.path);
     });
   }
 

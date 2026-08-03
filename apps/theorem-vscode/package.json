@@ -27,10 +27,15 @@
           "default": "http://127.0.0.1:8787/graphql",
           "description": "The commonplace-api GraphQL door."
         },
-        "theorem.changefeedUrl": {
+        "theorem.invalidationsUrl": {
           "type": "string",
           "default": "",
-          "description": "Changefeed SSE door. Empty disables push; standing queries then answer once per explicit refresh."
+          "description": "Editor invalidation SSE door. Empty derives it from graphqlUrl (/v1/editor/invalidations); push is disabled only when neither resolves."
+        },
+        "theorem.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "Scopes the invalidation stream to one project. Empty receives every project the session can see."
         },
         "theorem.consoleOrigin": {
           "type": "string",
@@ -96,6 +101,9 @@
     "check": "npx --yes -p typescript@5.7.3 tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "gate:no-timers": "node scripts/check-no-timers.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

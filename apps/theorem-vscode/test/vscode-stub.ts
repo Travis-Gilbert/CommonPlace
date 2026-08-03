@@ -185,6 +185,11 @@ export class SemanticTokensBuilder {
   }
 }
 
+export enum InlayHintKind {
+  Type = 1,
+  Parameter = 2,
+}
+
 export class InlayHint {
   tooltip?: string;
   constructor(
@@ -247,6 +252,10 @@ export class FileSystemError extends Error {
   static Unavailable(message?: string): FileSystemError {
     return new FileSystemError(message ?? '', 'Unavailable');
   }
+
+  static FileExists(message?: string): FileSystemError {
+    return new FileSystemError(message ?? '', 'FileExists');
+  }
 }
 
 export enum LanguageStatusSeverity {
@@ -306,6 +315,7 @@ export function setQuickPickAnswer(answer: unknown): void {
 
 export const window = {
   activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
+  onDidChangeTextEditorSelection: () => new Disposable(() => undefined),
   showQuickPick: async (items: unknown[]) => {
     quickPickItems.push(items);
     return quickPickAnswer;
@@ -332,6 +342,7 @@ export const workspace = {
   onDidOpenTextDocument: () => new Disposable(() => undefined),
   onDidCloseTextDocument: () => new Disposable(() => undefined),
   textDocuments: [] as unknown[],
+  asRelativePath: (target: unknown) => String((target as { path?: string }).path ?? target),
 };
 
 /** Commands executed, so the quick pick's hand-off is assertable. */

@@ -80,3 +80,7 @@ packaging/commonplace-studio/patches/README.md
 .gitignore
 docs/records/013-vscode-surface.md
 apps/theorem-vscode/README.md
+docs/plans/editor-dx-wire/CONSUMER-FEEDBACK.md
+packages/block-view-contracts/src/editor-offsets.ts
+apps/theorem-vscode/test/offsets.test.ts
+packages/block-view-contracts/src/editor-content-hash.ts

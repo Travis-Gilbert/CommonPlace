@@ -25,7 +25,18 @@
 
 import * as vscode from 'vscode';
 import type { FindResponse, FindResult } from '@commonplace/block-view-contracts/search-stack';
-import type { IntelligenceDegradation } from '@commonplace/block-view-contracts/editor-intelligence';
+import type { UnavailableSurface } from '@commonplace/block-view-contracts/editor-intelligence';
+
+/**
+ * Search reports both states this surface distinguishes.
+ *
+ * A query answered from part of the spine is `reduced`: there are results, and
+ * some lanes were not consulted. A query that did not answer is `unavailable`.
+ * Collapsing them would either hide a partial answer or alarm on a working one.
+ */
+export type SearchDegradation =
+  | { readonly level: 'reduced'; readonly missingIndexes: readonly string[] }
+  | UnavailableSurface;
 import type { SubstrateClient } from '../substrate/client';
 
 export const FIND_QUERY = `query Find($query: String!, $k: Int!) {
@@ -102,7 +113,7 @@ export function searchProposalGranted(api: typeof vscode = vscode): boolean {
 export interface SpineSearchDeps {
   readonly client: SubstrateClient;
   readonly roots: readonly string[];
-  readonly onDegradation: (degradation: IntelligenceDegradation) => void;
+  readonly onDegradation: (degradation: SearchDegradation) => void;
 }
 
 /**
@@ -130,8 +141,7 @@ export async function findRanked(
   if (degraded.length) {
     deps.onDegradation({
       level: 'reduced',
-      code: 'editor_search_degraded',
-      missing: degraded,
+      missingIndexes: degraded,
     });
   }
 

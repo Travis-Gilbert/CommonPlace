@@ -18,7 +18,18 @@ interface HostedSession {
   close?(): void;
 }
 
-export async function openIdeSession(config: WorkspaceConfiguration): Promise<AcpSession> {
+/**
+ * Open the window's session.
+ *
+ * `workspaceRoot` is the cwd the agent runs relative to. `AgentPresence`
+ * computes it from the first workspace folder and hands it down; an earlier
+ * wiring dropped it here, which left every session rooted wherever the agent
+ * process happened to start and made relative paths in a prompt meaningless.
+ */
+export async function openIdeSession(
+  config: WorkspaceConfiguration,
+  workspaceRoot?: string,
+): Promise<AcpSession> {
   // Through `unknown`: the hosted client's exported surface is wider and older
   // than the four calls the IDE end makes, and pinning its full type here would
   // couple the pack to changes it does not consume.
@@ -36,7 +47,7 @@ export async function openIdeSession(config: WorkspaceConfiguration): Promise<Ac
     token: config.get<string>('token') || undefined,
   });
 
-  const session = await client.openSession();
+  const session = await client.openSession(workspaceRoot);
   return {
     sessionId: session.sessionId,
     prompt: (text) => session.prompt(text),

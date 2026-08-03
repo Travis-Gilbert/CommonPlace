@@ -13,6 +13,22 @@ packaging, not a place capabilities live.
 | V5 `theorem://` documents | `src/fs/theorem-fs.ts` |
 | V6 agent presence | `src/agent/presence.ts`, `src/agent/session-opener.ts` |
 
+## The two things most likely to bite
+
+**Offsets cross an encoding boundary.** The surface measures every span as a
+UTF-8 byte offset into the bytes it indexed; VS Code positions are UTF-16 code
+units. The conversion lives in
+`@commonplace/block-view-contracts/editor-offsets` and is shared with the console
+front, so there is one implementation to keep correct. It converts only against
+text whose identity is confirmed: a payload carries `content`, and when that does
+not equal the buffer the findings are dropped and the drift is named. Drawing
+them anyway is the silent failure the whole path exists to prevent.
+
+**Reduced is not an alarm.** `degraded: true` with `missingIndexes:
+["compute_code"]` is the steady state for a freshly mounted project, and the
+surface still answers. It renders as an Information status with a spinner. Only
+an unreachable surface is loud. See `src/degradation.ts`.
+
 ## Two gated capabilities
 
 Both are proposed API at microsoft/vscode main, checked 2026-08-02, and both
@@ -40,7 +56,10 @@ never called.
 
 ## Configuration
 
-`theorem.graphqlUrl`, `theorem.changefeedUrl`, `theorem.consoleOrigin`,
-`theorem.agentUrl`, `theorem.token`. An empty `changefeedUrl` disables push, and
+`theorem.graphqlUrl`, `theorem.invalidationsUrl`, `theorem.projectId`,
+`theorem.consoleOrigin`, `theorem.agentUrl`, `theorem.token`.
+
+`invalidationsUrl` defaults to `/v1/editor/invalidations` on the GraphQL origin,
+since one process serves both. Push is disabled only when neither resolves, and
 the client says so through its status callback rather than quietly starting to
-poll.
+poll. `projectId` scopes the stream when the server knows it.

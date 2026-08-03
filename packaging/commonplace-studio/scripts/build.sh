@@ -40,6 +40,42 @@ require() {
     fi
 }
 
+# Free space on the volume holding a path, in GiB.
+free_gib() {
+    local target=$1
+    while [[ ! -d "$target" ]]; do
+        target="$(dirname "$target")"
+    done
+    df -g "$target" | awk 'NR==2 {print $4}'
+}
+
+# Refuse rather than fill a volume.
+#
+# `npm ci` on the upstream tree unpacks several GiB into the checkout and
+# several more into the npm cache, which usually sits on the boot volume. A
+# build that runs the boot volume to zero takes the machine's tooling with it,
+# so both volumes are checked before either is written to.
+require_disk() {
+    local need_build=$1
+    local need_cache=$2
+    local build_free cache_free cache_dir
+
+    build_free="$(free_gib "$BUILD_DIR")"
+    cache_dir="$(npm config get cache)"
+    cache_free="$(free_gib "$cache_dir")"
+
+    if (( build_free < need_build )); then
+        echo "Error: ${build_free}GiB free at $BUILD_DIR; this step needs ${need_build}GiB" >&2
+        exit 1
+    fi
+    if (( cache_free < need_cache )); then
+        echo "Error: ${cache_free}GiB free at $cache_dir; this step needs ${need_cache}GiB" >&2
+        echo "Hint: npm cache clean --force, or set npm_config_cache to a roomier volume" >&2
+        exit 1
+    fi
+    log "disk: ${build_free}GiB at the build tree, ${cache_free}GiB at the npm cache"
+}
+
 checkout_upstream() {
     local tag=$1
 
@@ -79,12 +115,12 @@ apply_patches() {
 overlay_product() {
     log "overlaying product.json"
     UPSTREAM_PRODUCT="$BUILD_DIR/product.json" \
-    OVERLAY="$ROOT_DIR/product.overlay.json" \
+    OVERLAY_PATH="$ROOT_DIR/product.overlay.json" \
         node -e '
             const fs = require("fs");
             const target = process.env.UPSTREAM_PRODUCT;
             const base = JSON.parse(fs.readFileSync(target, "utf8"));
-            const overlay = JSON.parse(fs.readFileSync(process.env.OVERLAY, "utf8"));
+            const overlay = JSON.parse(fs.readFileSync(process.env.OVERLAY_PATH, "utf8"));
             for (const key of Object.keys(overlay)) {
                 if (key.startsWith("_")) continue;
                 base[key] = overlay[key];
@@ -115,6 +151,8 @@ prepare() {
     require node
     require npm
 
+    # The shallow checkout plus the staged pack. Measured at 1.131.0.
+    require_disk 3 1
     checkout_upstream "$tag"
     apply_patches
     overlay_product
@@ -124,12 +162,14 @@ prepare() {
 
 build_desktop() {
     prepare
+    require_disk 25 8
     log "building the desktop application"
     (cd "$BUILD_DIR" && npm ci && npm run gulp -- vscode-darwin-arm64-min)
 }
 
 build_web() {
     prepare
+    require_disk 15 8
     log "building the web workbench"
     # `code serve-web` is served from the compiled web target; compile-web is the
     # step that produces it.
