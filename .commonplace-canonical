@@ -59,11 +59,11 @@
     "workspace": {
       "railway_service": "commonplace-workspace",
       "railway_config": "packaging/workspace/railway.toml",
-      "status": "deploying",
+      "status": "live",
       "env_keys": [
         "WORKSPACE_TOKEN"
       ],
-      "notes": "OW5 go-ahead granted by this cutover spec. One image, chat-server and code-server doors. Dockerfile VOLUME removed; Railway Volume at /workspace; Node 22 for pnpm; PORT=8787 for healthchecks. Public probe: https://commonplace-workspace-production.up.railway.app/health",
+      "notes": "OW5 live. Dockerfile VOLUME removed; Railway Volume at /workspace; Node 22 for pnpm; code-server started with env -u PORT; OpenWork on :8787. Health 200 at public URL.",
       "internal_url": "http://commonplace-workspace.railway.internal:8787",
       "public_url": "https://commonplace-workspace-production.up.railway.app",
       "health": "https://commonplace-workspace-production.up.railway.app/health"
