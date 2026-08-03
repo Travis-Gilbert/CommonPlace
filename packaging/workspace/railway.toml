@@ -20,8 +20,19 @@
 #                          the volume is initialized as an empty repository.
 #   THEOREM_MCP_URL        The head's graph door (OW2). Absent, the head runs
 #                          without the graph and says so.
-#   THEOREM_API_KEY        Bearer credential for the above.
-#   THEOREM_TENANT_ID      Tenant scope for the above.
+#   THEOREM_WORKSPACE_API_KEY
+#                          Bearer credential for the above, scoped to this
+#                          workspace. Preferred. Mint it from the identity
+#                          service (/v1/workspaces/{id}/api-keys, which the
+#                          console proxies) so the credential sitting on this
+#                          volume reaches only the workspace the volume is.
+#   THEOREM_API_KEY        The tenant-wide credential. Still honoured, so an
+#                          existing deployment keeps its graph door, but the
+#                          daemon warns at startup: a container that runs user
+#                          code and publishes a terminal is holding a key to
+#                          every workspace in the tenant. Set both during a
+#                          migration; the workspace-scoped key wins.
+#   THEOREM_TENANT_ID      Tenant scope header for the above.
 # Deliberately NOT set here:
 #   COMMONPLACE_ACTIVE_WORKSPACE_SECRET
 #                          The console's cookie signing key is symmetric, so a

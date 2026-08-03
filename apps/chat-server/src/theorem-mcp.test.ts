@@ -1,7 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
 
 import { buildOpenworkRuntimeConfigObjectFromSnapshot } from "./openwork-runtime-config.js";
-import { THEOREM_MCP_NAME, resolveTheoremMcpConfig, withTheoremMcp } from "./theorem-mcp.js";
+import {
+  THEOREM_MCP_NAME,
+  resolveTheoremMcpConfig,
+  theoremCredentialScope,
+  theoremCredentialWarning,
+  withTheoremMcp,
+} from "./theorem-mcp.js";
 
 const URL_ONLY = { THEOREM_MCP_URL: "https://api.theoremharness.com/mcp" };
 const FULL = {
@@ -99,5 +105,44 @@ describe("engine config", () => {
     expect(agent.openwork.prompt).not.toContain("search_capabilities");
     expect(agent.openwork.prompt).not.toContain("postMemory");
     expect(agent.openwork.prompt).toContain(THEOREM_MCP_NAME);
+  });
+});
+
+describe("credential scoping", () => {
+  const URL_ONLY_ENV = { THEOREM_MCP_URL: "https://api.theoremharness.com/mcp" };
+
+  test("prefers the workspace-scoped key over the tenant key", () => {
+    // Both present is the migration window. The narrower credential is the one
+    // that should be on the wire while the broad variable is being removed.
+    const config = resolveTheoremMcpConfig({
+      ...URL_ONLY_ENV,
+      THEOREM_API_KEY: "tenant-wide-value",
+      THEOREM_WORKSPACE_API_KEY: "workspace-scoped-value",
+    });
+    expect(config?.headers?.Authorization).toBe("Bearer workspace-scoped-value");
+  });
+
+  test("still authenticates with a tenant key alone", () => {
+    // Refusing it would take the graph door down on every deployment that has
+    // not migrated, which trades a scoping problem for an outage.
+    const config = resolveTheoremMcpConfig({ ...URL_ONLY_ENV, THEOREM_API_KEY: "tenant-wide-value" });
+    expect(config?.headers?.Authorization).toBe("Bearer tenant-wide-value");
+  });
+
+  test("reports which scope the credential actually has", () => {
+    expect(theoremCredentialScope({ THEOREM_WORKSPACE_API_KEY: "k" })).toBe("workspace");
+    expect(theoremCredentialScope({ THEOREM_API_KEY: "k" })).toBe("tenant");
+    expect(theoremCredentialScope({})).toBe("none");
+    expect(theoremCredentialScope({ THEOREM_API_KEY: "   " })).toBe("none");
+  });
+
+  test("warns only when a tenant-wide key is actually in use", () => {
+    // A warning that fires on the healthy case teaches operators to skip
+    // warnings, so it stays silent when the key is narrow, when there is no
+    // key, and when there is no graph door to authenticate against at all.
+    expect(theoremCredentialWarning({ ...URL_ONLY_ENV, THEOREM_API_KEY: "k" })).toContain("THEOREM_WORKSPACE_API_KEY");
+    expect(theoremCredentialWarning({ ...URL_ONLY_ENV, THEOREM_WORKSPACE_API_KEY: "k" })).toBeNull();
+    expect(theoremCredentialWarning({ ...URL_ONLY_ENV })).toBeNull();
+    expect(theoremCredentialWarning({ THEOREM_API_KEY: "k" })).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ import { findManagedEngineWorkspace } from "./workspaces.js";
 import { keepOpenworkRuntimeConfigFileFresh, writeOpenworkRuntimeConfigFile } from "./openwork-runtime-config.js";
 import { sweepLegacyOpenCodeConfig } from "./legacy-config-sweep.js";
 import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
+import { theoremCredentialWarning } from "./theorem-mcp.js";
 import { startWorkerActivityHeartbeat } from "./worker-activity-heartbeat.js";
 import pkg from "../package.json" with { type: "json" };
 
@@ -111,6 +112,15 @@ if (!config.opencodeBaseUrl && process.env.OPENWORK_MANAGE_OPENCODE === "1") {
 
 const server = await startServer(config);
 const workerActivityHeartbeat = startWorkerActivityHeartbeat(config, logger);
+
+// OW5 puts the checkout and the head's graph credential on the same volume, so
+// how narrow that credential is decides what a compromised container reaches.
+// Said once at startup rather than per request: it is a deployment property,
+// and a per-request warning would be noise an operator learns to skip.
+{
+  const credentialWarning = theoremCredentialWarning();
+  if (credentialWarning) logger.log("warn", credentialWarning);
+}
 
 // The runtime config file above only covers the workspace the managed engine
 // booted in. Push every workspace's runtime-DB MCPs into the engine so they
