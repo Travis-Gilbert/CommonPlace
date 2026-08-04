@@ -260,6 +260,7 @@ stage_pack() {
         rm -rf "$target"
         mkdir -p "$(dirname "$target")"
         cp -R "$STUDIO_PACK_DIR" "$target"
+        write_ship_pack_manifest "$target"
         return
     fi
 
@@ -273,6 +274,36 @@ stage_pack() {
     if [[ -f "$REPO_DIR/LICENSE" ]]; then
         cp "$REPO_DIR/LICENSE" "$target/LICENSE"
     fi
+    write_ship_pack_manifest "$target"
+}
+
+# dist/extension.{cjs,web.js} are already esbuild-bundled (vscode external only).
+# Upstream packages local extensions via vsce.listFiles → `npm list --production`,
+# which fails on pnpm `workspace:*` deps (deploy b1baa84f after the mangler skip).
+# Mirror what vscode's fromLocal() does for bundled extensions: drop scripts and
+# dependency blocks from the shipped manifest.
+write_ship_pack_manifest() {
+    local extension_dir=$1
+    local manifest="$extension_dir/package.json"
+    [[ -f "$manifest" ]] || {
+        echo "Error: missing $manifest" >&2
+        exit 1
+    }
+    log "writing ship package.json (no workspace deps) for $(basename "$extension_dir")"
+    node -e '
+        const fs = require("fs");
+        const path = process.argv[1];
+        const data = JSON.parse(fs.readFileSync(path, "utf8"));
+        delete data.scripts;
+        delete data.dependencies;
+        delete data.devDependencies;
+        delete data.private;
+        fs.writeFileSync(path, `${JSON.stringify(data, null, "\t")}\n`);
+    ' "$manifest"
+    [[ -f "$extension_dir/dist/extension.cjs" ]] || {
+        echo "Error: ship pack missing dist/extension.cjs under $extension_dir" >&2
+        exit 1
+    }
 }
 
 prepare() {
