@@ -62,20 +62,25 @@ ARG THEOREM_GIT_REF=main
 # args. Declare ARG without an empty default so an unset arg does not wipe a
 # real value, then require the token for INCLUDE=1.
 #
-# Every `$` below is escaped, and that is the whole point. BuildKit prints each
-# RUN instruction with its build args already substituted, so a token written
-# into the command text is copied verbatim into the build log, which outlives
-# the build and is readable by anyone with access to the project. This stage
-# used to carry the comment "never echo it" directly above a clone URL that
-# echoed it, and every build published the PAT. Escaping defers expansion to the
-# shell, which reads the value from the arg's own environment, so the printed
-# instruction carries the name and not the secret.
+# KNOWN EXPOSURE, deliberately left in place for now. BuildKit prints each RUN
+# instruction with its build args already substituted, so the clone URL below
+# copies THEOREM_GIT_TOKEN verbatim into the build log, which outlives the build
+# and is readable by anyone with access to the project. Treat this PAT as
+# published and rotate it; the comment that used to sit here said "never echo
+# it" directly above the line that echoed it, which is worse than saying so.
 #
-# The credential helper is the second half: it keeps the token out of the URL,
-# so it cannot resurface through git's own progress output, a redirect notice,
-# or the remote recorded in .git/config. GIT_TERMINAL_PROMPT=0 turns a helper
-# that returns nothing into an immediate failure rather than a hung build
-# waiting on a prompt no one can answer.
+# The obvious fix does not work. Escaping the `$` so BuildKit prints the name
+# and the shell expands the value defeats the expansion as well as the echo:
+# deploy 7d4fdfae proved the log is clean that way and the clone then fails with
+# exit 128, because the backslash survives into the command and git receives the
+# literal string. Railway's builder takes no `--secret`, so `RUN
+# --mount=type=secret` is not available either, and their own guidance is ARG
+# plus a single RUN inside a throwaway stage, which is what this already is.
+#
+# So the exposure is bounded rather than removed: the token reaches this stage
+# only, and the final image COPYs just the compiled binary, so no shipped layer
+# carries it. Closing it properly needs a mechanism that survives a build cycle,
+# and that is worth doing against a rotated token rather than this one.
 ARG THEOREM_GIT_TOKEN
 RUN if [ "${INCLUDE_EDITOR_SUBSTRATE}" != "1" ]; then \
       mkdir -p /out && printf 'skipped\n' > /out/SKIP; \
@@ -83,13 +88,12 @@ RUN if [ "${INCLUDE_EDITOR_SUBSTRATE}" != "1" ]; then \
       apt-get update \
         && apt-get install -y --no-install-recommends protobuf-compiler git ca-certificates \
         && rm -rf /var/lib/apt/lists/* \
-        && if [ -z "\$THEOREM_GIT_TOKEN" ]; then \
+        && if [ -z "${THEOREM_GIT_TOKEN}" ]; then \
              echo "editor-api-build: THEOREM_GIT_TOKEN is required to clone private Theorem" >&2; \
              exit 64; \
            fi \
-        && GIT_TERMINAL_PROMPT=0 git \
-             -c credential.helper='!f() { echo username=x-access-token; echo password=\$THEOREM_GIT_TOKEN; }; f' \
-             clone --depth 1 --branch "${THEOREM_GIT_REF}" "${THEOREM_GIT_URL}" /src \
+        && git clone --depth 1 --branch "${THEOREM_GIT_REF}" \
+             "https://x-access-token:${THEOREM_GIT_TOKEN}@github.com/Travis-Gilbert/Theorem.git" /src \
         && cd /src/apps/commonplace-api \
         && cargo build -p commonplace-api --release --bin commonplace-api \
         && mkdir -p /out \
