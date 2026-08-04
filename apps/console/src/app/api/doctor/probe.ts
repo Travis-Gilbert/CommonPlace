@@ -1,3 +1,9 @@
+// SOURCING: none. Pure logic behind the doctor route: reads the
+// data-register-impl stamp out of a fetched document and decides whether a
+// redirect is the same route canonicalizing itself (trailing slash, same host)
+// or a real hop somewhere else. No component renders here, and an HTML parser
+// would be a dependency for one attribute the register writes itself.
+
 function extractImpl(html: string): string | null {
   const match =
     html.match(/data-register-impl="([^"]+)"/) ??
