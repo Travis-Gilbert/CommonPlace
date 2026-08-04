@@ -4,8 +4,16 @@
 # sequence expressed against our own tree.
 #
 # SPEC-COMMONPLACE-VSCODE-SURFACE-1.0 V7. Two outputs from one tree: the desktop
-# app and the web workbench. The web path is `code serve-web` from this tree, not
-# code-server's patch set, per the Verify-first decision recorded in README.md.
+# app and the web workbench, ours rather than code-server's patch set, per the
+# Verify-first decision recorded in README.md.
+#
+# The web workbench has two targets and only one of them ships. `compile-web`
+# emits a development tree that runs only under scripts/code-server.sh with
+# VSCODE_DEV=1, so the `web` target here is a local smoke and nothing else. The
+# deployable artifact is upstream's reh-web target (remote extension host, web),
+# named at build/gulpfile.reh.ts:676 and built by the `server` target below. The
+# `code serve-web` command is a NATIVE_CLI_COMMANDS entry handled by the Rust
+# CLI, not this build, which is why it does not appear anywhere in these steps.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -86,11 +94,24 @@ free_gib() {
 require_disk() {
     local need_build=$1
     local need_cache=$2
-    local build_free cache_free cache_dir
+    local build_free cache_free cache_dir installed
 
     build_free="$(free_gib "$BUILD_DIR")"
     cache_dir="$(npm config get cache)"
     cache_free="$(free_gib "$cache_dir")"
+
+    # The floors are cold-tree figures: they assume `npm ci` still has to unpack
+    # everything. On a re-run the tree already holds node_modules, so demanding
+    # the full figure again refuses a build that would have fit. Credit what is
+    # already on disk against what is still needed.
+    if [[ -d "$BUILD_DIR/node_modules" ]]; then
+        installed="$(du -sg "$BUILD_DIR/node_modules" 2>/dev/null | awk '{print $1}')"
+        if [[ -n "$installed" ]] && (( installed > 0 )); then
+            need_build=$(( need_build - installed ))
+            (( need_build < 1 )) && need_build=1
+            log "disk: crediting ${installed}GiB of installed node_modules; need ${need_build}GiB more"
+        fi
+    fi
 
     if (( build_free < need_build )); then
         echo "Error: ${build_free}GiB free at $BUILD_DIR; this step needs ${need_build}GiB" >&2
@@ -290,10 +311,11 @@ build_server() {
     local out="$BUILD_ROOT/vscode-reh-web-${platform}-${arch}"
 
     prepare
-    # 15 is the measured `web` figure from RUNBOOK.md, which shares this compile.
-    # The packaging step on top of it has not been measured yet; when it has,
-    # replace this with the observed peak rather than another guess.
-    require_disk 15 8
+    # PROVISIONAL. RUNBOOK's 15 is a cold-tree figure for `web`, and inheriting
+    # it here refused a warm tree that had the room. 10 is the number this build
+    # was actually observed to need; see the measurement note in RUNBOOK.md.
+    # Raise it if a run is ever seen to exceed it, but do not guess it upward.
+    require_disk 10 8
     log "building the server: $target"
     (cd "$BUILD_DIR" && npm ci && npm run gulp -- "$target")
 

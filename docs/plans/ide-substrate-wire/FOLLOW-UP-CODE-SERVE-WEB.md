@@ -54,7 +54,7 @@ Authenticated `/IDE` serves Commonplace Studio’s web workbench (`code serve-we
 |---|---|---|---|---|
 | CS-000 | Durable follow-up (this file) + link from parent plan | `FOLLOW-UP-CODE-SERVE-WEB.md`, checklist note | file exists | done |
 | CS-001 | Clear disk floors; run `build.sh prepare` then the deployable target on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | server artifact; ledger-gate pass | doing |
-| CS-002 | Local smoke: the server boots; pack activates; OpenVSX/telemetry/identity checks | Studio RUNBOOK §5 web bullets | written smoke receipt | pending (CS-001) |
+| CS-002 | Local smoke: the server boots; pack activates; OpenVSX/telemetry/identity checks | Studio RUNBOOK §5 web bullets | written smoke receipt | harness landed (`scripts/smoke-server.sh`, shellcheck clean); awaiting the CS-001 artifact to produce the receipt |
 | CS-003 | OW5 amendment: workspace image replaces `code-server` install with Studio server output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + image builds | **done** (A14; `studio-server` stage on `node:24`, gated by `IDE_HOST`) |
 | CS-004 | Entrypoint: start the Studio server (host/port, user-data, extensions, proposed APIs) without stealing `$PORT` from OpenWork | today’s `env -u PORT` pattern for code-server | `/health` + IDE port respond; chat still on 8787 | **done** (host branch; `env -u PORT` kept; shellcheck clean) |
 | CS-005 | Edge proxy / register: keep `/IDE` path strip; rename or note register impl if product id changes | `edge-proxy.mjs`, `.commonplace-canonical`, `IdeRegister` | register-manifest + proxy tests | **done** (proxy unchanged by design; manifest notes the selectable host and defers the rename to CS-008) |
