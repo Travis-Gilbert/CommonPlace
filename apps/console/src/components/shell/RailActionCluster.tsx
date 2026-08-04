@@ -73,12 +73,17 @@ export function RailActionCluster({
             onClick={onOpenPalette}
           />
         ) : null}
-        <span className="ml-1 truncate text-ij-island-meta text-ij-ink-info">
-          Open the canvas
-        </span>
       </div>
 
-      <div data-rail-meta className="flex items-center gap-2">
+      {/* The hint sits under the buttons, not beside them. The rail is about
+          250px wide and the reference's cluster has a whole window to spread
+          across; inline, the label pushed past the rail's edge and collided
+          with the canvas's own add-note affordances. Stacking is what the
+          narrower column actually affords. */}
+      <div data-rail-meta className="flex items-center justify-between gap-2">
+        <span className="truncate text-ij-island-meta text-ij-ink-info">
+          Open the canvas
+        </span>
         <Pill label={isRunning ? 'Run in flight' : 'Idle'} />
       </div>
     </div>
