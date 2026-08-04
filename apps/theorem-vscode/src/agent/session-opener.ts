@@ -7,16 +7,8 @@
  * activation cheap in the web workbench where every byte is fetched.
  */
 
-import type { WorkspaceConfiguration } from 'vscode';
+import type { TheoremPackConfig } from '../config';
 import type { AcpSession, PermissionOutcome, PermissionRequest } from './presence';
-
-/** The hosted client's session handle, narrowed to what the IDE end drives. */
-interface HostedSession {
-  readonly sessionId: string;
-  prompt(text: string): Promise<void>;
-  onPermissionRequest?(handler: (request: PermissionRequest) => Promise<PermissionOutcome>): void;
-  close?(): void;
-}
 
 /**
  * Open the window's session.
@@ -27,31 +19,81 @@ interface HostedSession {
  * process happened to start and made relative paths in a prompt meaningless.
  */
 export async function openIdeSession(
-  config: WorkspaceConfiguration,
+  pack: TheoremPackConfig,
   workspaceRoot?: string,
 ): Promise<AcpSession> {
-  // Through `unknown`: the hosted client's exported surface is wider and older
-  // than the four calls the IDE end makes, and pinning its full type here would
-  // couple the pack to changes it does not consume.
-  const { createHostedAcpClient } = (await import(
-    '@commonplace/theorem-acp/hosted-client'
-  )) as unknown as {
-    createHostedAcpClient(options: {
-      baseUrl: string;
-      token?: string;
-    }): { openSession(cwd?: string): Promise<HostedSession> };
-  };
+  const { HostedAcpClient } = await import('@commonplace/theorem-acp/hosted-client');
 
-  const client = createHostedAcpClient({
-    baseUrl: config.get<string>('agentUrl', config.get<string>('consoleOrigin', 'http://127.0.0.1:3000')),
-    token: config.get<string>('token') || undefined,
+  const agentUrl = pack.agentUrl || pack.consoleOrigin;
+  const token = pack.token;
+  const cwd = workspaceRoot && workspaceRoot.length > 0 ? workspaceRoot : '/workspace/repo';
+
+  const client = await HostedAcpClient.connect({
+    agentId: 'theorem',
+    cwd,
+    url: toAcpWsUrl(agentUrl),
+    token,
+    ...(token
+      ? {
+          authRequest: new Request('http://localhost', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        }
+      : {}),
   });
 
-  const session = await client.openSession(workspaceRoot);
+  await client.initialize(1);
+  const sessionId = await client.newSession();
+
   return {
-    sessionId: session.sessionId,
-    prompt: (text) => session.prompt(text),
-    onPermissionRequest: (handler) => session.onPermissionRequest?.(handler),
-    dispose: () => session.close?.(),
+    sessionId,
+    prompt: async (text) => {
+      await client.prompt(sessionId, text);
+    },
+    onPermissionRequest: (handler) => {
+      client.onRequestPermission(async (request) => {
+        const outcome = await handler(toIdePermission(request));
+        return outcome.optionId === 'allow' || outcome.optionId === 'allow-once'
+          ? 'allow'
+          : 'reject';
+      });
+    },
+    dispose: () => {
+      void client.dispose();
+    },
   };
 }
+
+function toAcpWsUrl(configured: string): string {
+  const trimmed = configured.trim().replace(/\/$/, '');
+  if (trimmed.startsWith('ws://') || trimmed.startsWith('wss://')) {
+    return trimmed.includes('/v1/commonplace/acp/ws')
+      ? trimmed
+      : `${trimmed}/v1/commonplace/acp/ws`;
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    const ws = trimmed.replace(/^http/, 'ws');
+    return ws.includes('/v1/commonplace/acp/ws')
+      ? ws
+      : `${ws}/v1/commonplace/acp/ws`;
+  }
+  return trimmed;
+}
+
+function toIdePermission(request: {
+  sessionId: string;
+  toolCall: { toolCallId: string; title?: string };
+}): PermissionRequest {
+  return {
+    requestId: request.toolCall.toolCallId,
+    title: request.toolCall.title ?? 'Agent permission',
+    detail: request.sessionId,
+    options: [
+      { id: 'allow', label: 'Allow' },
+      { id: 'reject', label: 'Reject' },
+    ],
+  };
+}
+
+// Silence unused-import lint when PermissionOutcome is only used in types above.
+export type { PermissionOutcome };

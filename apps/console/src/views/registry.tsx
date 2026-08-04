@@ -16,6 +16,7 @@ import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
 import { OpenworkChatRegister } from './OpenworkChatRegister';
+import { IdeRegister } from './IdeRegister';
 import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
 import { IndexStreamView } from './IndexStreamView';
@@ -61,6 +62,12 @@ function ThreadRender(_props: ViewRenderProps) {
 function ChatSurfaceRender(_props: ViewRenderProps) {
   return (
     <OpenworkChatRegister reason="Chat surface register body is openwork.chat at /chat." />
+  );
+}
+
+function IdeSurfaceRender(_props: ViewRenderProps) {
+  return (
+    <IdeRegister reason="IDE surface register body is code-server.ide at /IDE." />
   );
 }
 
@@ -245,6 +252,31 @@ const CHAT_SURFACE: ViewDescriptor = {
     kindGlyph: 'thread',
   },
   render: ChatSurfaceRender,
+};
+
+const IDE_SURFACE: ViewDescriptor = {
+  id: 'ide.surface',
+  name: 'IDE',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'ide.surface',
+  sourcing: { mode: 'wrap', upstream: 'code-server.ide' },
+  source: {
+    package: 'code-server',
+    component: 'Workbench',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'edit the workspace checkout in VS Code',
+    placements: ['full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'terminal',
+    bodyBleed: 'flush',
+  },
+  render: IdeSurfaceRender,
 };
 
 const THREAD_LIST: ViewDescriptor = {
@@ -561,10 +593,10 @@ const MODEL_STUDIO: ViewDescriptor = {
   accepts: { required_types: ['model-scope'] },
   emits: ['select', 'create', 'update', 'delete'],
   renderer: 'model.studio',
-  sourcing: { mode: 'wrap', upstream: '@xyflow/react/ReactFlow' },
+  sourcing: { mode: 'wrap', upstream: '@commonplace/model-canvas/ModelCanvasShell' },
   source: {
-    package: '@xyflow/react',
-    component: 'ReactFlow',
+    package: '@commonplace/model-canvas',
+    component: 'ModelCanvasShell',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -978,6 +1010,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   CODE_FILE,
   CHAT_THREAD,
   CHAT_SURFACE,
+  IDE_SURFACE,
   THREAD_LIST,
   FILES_TREE,
   CONTEXT_GRAPH,

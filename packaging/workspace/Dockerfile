@@ -38,8 +38,134 @@ COPY packages/openwork-paths packages/openwork-paths
 COPY apps/console/src/styles apps/console/src/styles
 RUN pnpm --filter @commonplace/chat build:web
 
+# --- Stage 1a: co-located editor substrate (commonplace-api) --------------
+# Remote Railway commonplace-api cannot see /workspace/repo inodes. IDE-006
+# runs the same binary beside the volume so createProject(rootPath) indexes
+# the checkout both doors edit.
+#
+# Prefer a digest-pinned prebuilt image (fast):
+#   --build-arg EDITOR_API_IMAGE=ghcr.io/.../commonplace-api@sha256:...
+# Otherwise clone Theorem and build (slow, default when INCLUDE_EDITOR_SUBSTRATE=1).
+ARG INCLUDE_EDITOR_SUBSTRATE=1
+ARG EDITOR_API_IMAGE=
+ARG THEOREM_GIT_URL=https://github.com/Travis-Gilbert/Theorem.git
+ARG THEOREM_GIT_REF=main
+
+FROM rust:1.96.1-bookworm AS editor-api-build
+# Re-declare with default inside the stage. A bare `ARG NAME` does not inherit
+# the pre-FROM default when Railway does not pass --build-arg, which left
+# INCLUDE empty and shipped SKIP (binary absent at runtime).
+ARG INCLUDE_EDITOR_SUBSTRATE=1
+ARG THEOREM_GIT_URL=https://github.com/Travis-Gilbert/Theorem.git
+ARG THEOREM_GIT_REF=main
+# Private Theorem checkout: Railway service var THEOREM_GIT_TOKEN (PAT) is
+# mounted as a build-arg. Never echo it.
+# Private Theorem: Railway auto-passes matching service vars as Docker build
+# args. Declare ARG without an empty default so an unset arg does not wipe a
+# real value, then require the token for INCLUDE=1.
+ARG THEOREM_GIT_TOKEN
+RUN if [ "${INCLUDE_EDITOR_SUBSTRATE}" != "1" ]; then \
+      mkdir -p /out && printf 'skipped\n' > /out/SKIP; \
+    else \
+      apt-get update \
+        && apt-get install -y --no-install-recommends protobuf-compiler git ca-certificates \
+        && rm -rf /var/lib/apt/lists/* \
+        && if [ -z "${THEOREM_GIT_TOKEN}" ]; then \
+             echo "editor-api-build: THEOREM_GIT_TOKEN is required to clone private Theorem" >&2; \
+             exit 64; \
+           fi \
+        && git clone --depth 1 --branch "${THEOREM_GIT_REF}" \
+             "https://x-access-token:${THEOREM_GIT_TOKEN}@github.com/Travis-Gilbert/Theorem.git" /src \
+        && cd /src/apps/commonplace-api \
+        && cargo build -p commonplace-api --release --bin commonplace-api \
+        && mkdir -p /out \
+        && cp /src/apps/commonplace-api/target/release/commonplace-api /out/commonplace-api \
+        && test -x /out/commonplace-api; \
+    fi
+# Token is substituted into this stage's RUN only; final image COPYs the binary.
+
+# Optional prebuilt override: when EDITOR_API_IMAGE is non-empty, final stage
+# copies from it instead of editor-api-build. BuildKit cannot conditionally
+# FROM an empty ARG, so the default path is the build stage above.
+
+# --- Stage 1b: build the Theorem VS Code pack -----------------------------
+# Staged into the workspace image so /IDE code-server activates substrate
+# providers (PR #436 GraphQL / invalidations / ACP), not bare filesystem only.
+FROM node:22-bookworm-slim AS vscode-pack
+
+WORKDIR /build
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/theorem-vscode/package.json apps/theorem-vscode/
+COPY packages/theorem-acp/package.json packages/theorem-acp/
+COPY packages/block-view-contracts/package.json packages/block-view-contracts/
+RUN pnpm install --filter theorem-vscode... --frozen-lockfile
+
+COPY apps/theorem-vscode apps/theorem-vscode
+COPY packages/theorem-acp packages/theorem-acp
+COPY packages/block-view-contracts packages/block-view-contracts
+RUN pnpm --filter theorem-vscode run build \
+  && mkdir -p /opt/extension/theorem-vscode \
+  && cp apps/theorem-vscode/package.json /opt/extension/theorem-vscode/ \
+  && cp -R apps/theorem-vscode/dist /opt/extension/theorem-vscode/
+
+# --- Stage 1c: Commonplace Studio reh-web server (CS-003) ------------------
+# The IDE door's host. Studio is the fork's own web workbench; code-server is
+# the thing it replaces. Carrying both long term means two patch queues against
+# the same upstream plus a second auth layer duplicating console session auth,
+# which is why the follow-up exists.
+#
+# Gated by IDE_HOST so the rollback in FOLLOW-UP-CODE-SERVE-WEB.md is a build
+# arg and not a revert:
+#   --build-arg IDE_HOST=code-server
+#
+# `server`, not `web`: build.sh's web target is a development compile that only
+# scripts/code-server.sh can run. `server` emits upstream's reh-web target, a
+# self-contained server directory with its own node and bin entrypoint.
+ARG IDE_HOST=studio
+
+# node:24, not node:22 like the stages above. Upstream 1.131.0 pins .nvmrc to
+# 24.18.0 and build/npm/preinstall.ts throws on any other major, so a node:22
+# base fails this stage before a single file compiles.
+FROM node:24-bookworm AS studio-server
+ARG IDE_HOST=studio
+RUN if [ "${IDE_HOST}" != "studio" ]; then \
+      mkdir -p /out && printf 'skipped\n' > /out/SKIP; \
+    else \
+      apt-get update \
+        && apt-get install -y --no-install-recommends \
+             build-essential python3 git ca-certificates pkg-config \
+             libx11-dev libxkbfile-dev libsecret-1-dev libkrb5-dev \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+WORKDIR /studio
+COPY packaging/commonplace-studio /studio/packaging/commonplace-studio
+COPY LICENSE /studio/LICENSE
+# The pack is already compiled one stage up; STUDIO_PACK_DIR skips rebuilding it
+# here, where there is no pnpm workspace to rebuild it from.
+COPY --from=vscode-pack /opt/extension/theorem-vscode /studio/pack/theorem-vscode
+RUN if [ "${IDE_HOST}" != "studio" ]; then \
+      echo "studio-server: IDE_HOST=${IDE_HOST}, skipping the Studio build"; \
+    else \
+      cd /studio/packaging/commonplace-studio \
+        && STUDIO_BUILD_DIR=/studio/build \
+           STUDIO_PACK_DIR=/studio/pack/theorem-vscode \
+           STUDIO_SERVER_PLATFORM=linux \
+           STUDIO_SERVER_ARCH="$(dpkg --print-architecture | sed 's/^amd64$/x64/;s/^arm64$/arm64/')" \
+           ./scripts/build.sh server \
+        && mkdir -p /out \
+        && cp -R /studio/build/vscode-reh-web-linux-*/. /out/ \
+        && test -x /out/bin/commonplace-studio-server; \
+    fi
+
 # --- Stage 2: the workspace image -----------------------------------------
 FROM oven/bun:1.3.10-debian AS base
+ARG IDE_HOST=studio
 
 # git: the workspace is a checkout, and both doors expect real VCS state.
 # ca-certificates: the head reaches the Theorem MCP over TLS.
@@ -71,6 +197,21 @@ RUN ln -sf /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/
 ARG CODE_SERVER_VERSION=4.108.1
 RUN curl -fsSL https://code-server.dev/install.sh \
   | sh -s -- --version "${CODE_SERVER_VERSION}" --method standalone --prefix /usr/local
+
+# Stage the Theorem pack + grant proposed APIs on the stock code-server product.
+COPY --from=vscode-pack /opt/extension/theorem-vscode /opt/commonplace/extensions/theorem-vscode
+COPY packaging/workspace/patch-code-server-product.mjs /usr/local/bin/patch-code-server-product.mjs
+RUN node /usr/local/bin/patch-code-server-product.mjs
+
+# Co-located editor substrate binary (IDE-006). Absent when INCLUDE_EDITOR_SUBSTRATE=0.
+COPY --from=editor-api-build /out/ /opt/commonplace/editor-api/
+RUN if [ -f /opt/commonplace/editor-api/commonplace-api ]; then \
+      cp /opt/commonplace/editor-api/commonplace-api /usr/local/bin/commonplace-api \
+      && chmod +x /usr/local/bin/commonplace-api; \
+    else \
+      echo "workspace: editor substrate binary not bundled (INCLUDE_EDITOR_SUBSTRATE=0)"; \
+    fi
+COPY packaging/workspace/bootstrap-editor-substrate.mjs /usr/local/bin/bootstrap-editor-substrate.mjs
 
 # --- The chat door --------------------------------------------------------
 # opencode is the engine the head runs on (OW6: stay on the opencode head).
@@ -107,6 +248,13 @@ RUN chmod +x /usr/local/bin/workspace-entrypoint
 ENV WORKSPACE_DIR=/workspace/repo
 ENV OPENWORK_PORT=8787
 ENV CODE_SERVER_PORT=8080
+ENV EDITOR_SUBSTRATE_PORT=50090
+# Durable local editor graph beside the checkout volume (not the remote API).
+ENV COMMONPLACE_INSTANCE_ID=workspace-editor
+ENV COMMONPLACE_SERVICE_ALLOWED_TENANTS=Travis-Gilbert
+# JSON map tenant → absolute roots the co-located API may mount (createProject).
+ENV COMMONPLACE_WORKSPACE_TENANT_ALLOWED_ROOTS={"Travis-Gilbert":["/workspace/repo"]}
+ENV THEOREM_CONSOLE_ORIGIN=https://v2.theoremharness.com
 # Without this the daemon starts with no engine and sessions cannot run
 # (apps/chat-server/src/cli.ts gates the managed engine on exactly "1").
 ENV OPENWORK_MANAGE_OPENCODE=1
@@ -129,7 +277,7 @@ RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${OPENW
 # Railway rejects Dockerfile VOLUME. Persist /workspace with a Railway Volume
 # mount on the commonplace-workspace service instead (OW5 / cutover GL7).
 
-EXPOSE 8787 8080
+EXPOSE 8787 8080 50090
 
 # The chat door is the healthcheck: it is the one the console proxies to, so
 # an image that answers here is an image the console can actually use.

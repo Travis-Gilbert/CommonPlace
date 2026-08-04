@@ -19,6 +19,10 @@ export function OpenworkChatRegister({
     >
       <p style={{ fontWeight: 'var(--rec-weight-cap)' }}>Openwork chat register</p>
       <p className="max-w-md text-center text-sm text-ij-ink-info">{reason}</p>
+      {/* A full document navigation on purpose. `app/chat/page.tsx` renders this
+          same register, so next/link would client-route straight back here. The
+          reload is what gives the OW4 middleware a chance to proxy the door. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a
         className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 leading-ij-control text-ij-link"
         href="/chat"

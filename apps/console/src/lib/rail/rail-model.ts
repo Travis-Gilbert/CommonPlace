@@ -1,5 +1,5 @@
 // SOURCING: none. Pure logic, no upstream component applies.
-// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11: launch rail is five destinations.
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11: launch rail is six destinations.
 // PLACE_ENTRIES drives rail rows, Cmd/Ctrl digit bindings, Alt digit bindings,
 // and route prefetch. Collections leave the rail; they stay reachable through
 // the layout switcher and the Blocks palette.
@@ -101,9 +101,10 @@ export type KindRailPolicy =
     };
 
 /**
- * Launch set: Chat, Researcher, Index, Editor, Models.
- * Digits one through five. Surfaces are the durable IA places so the rail
+ * Launch set: Chat, Researcher, Index, Editor, Models, IDE.
+ * Digits one through six. Surfaces are the durable IA places so the rail
  * opens companions and multi-region wells, not a single full-bleed panel.
+ * /IDE is the code-server workbench door; /workspace keeps graph-native CM6.
  */
 export const PLACE_ENTRIES: readonly RailPlace[] = [
   {
@@ -150,6 +151,15 @@ export const PLACE_ENTRIES: readonly RailPlace[] = [
     path: '/Data-model',
     surfaceId: 'console-models',
     stripeOrder: 4,
+  },
+  {
+    tier: 'place',
+    id: 'place-ide',
+    kind: 'ide',
+    label: 'IDE',
+    path: '/IDE',
+    surfaceId: 'console-ide',
+    stripeOrder: 5,
   },
 ] as const;
 

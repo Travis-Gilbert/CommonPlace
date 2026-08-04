@@ -145,11 +145,16 @@ describe('DocumentStore', () => {
       available: true,
     });
 
+    // Override emit on the real stub rather than casting a one-method object
+    // to BlockHost. The cast stopped compiling once BlockHost grew members the
+    // literal does not have, and it was hiding the fact that DocumentStore is
+    // free to reach for query, viewsFor, or tokens at any point.
     const unavailable = new DocumentStore({
+      ...modelHost(),
       async emit() {
         return { ok: false, error: 'editor_model_unavailable' };
       },
-    } as BlockHost);
+    });
     expect(await unavailable.open('file:offline', 'visible snapshot')).toMatchObject({
       document: 'visible snapshot',
       available: false,

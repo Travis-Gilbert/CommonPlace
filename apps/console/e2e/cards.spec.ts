@@ -125,11 +125,11 @@ test.describe('cards, actions, mentions', () => {
     await freshLoad(page);
   });
 
-  test('the surface rail exposes the five launch places and switches screens', async ({ page }) => {
+  test('the surface rail exposes the six launch places and switches screens', async ({ page }) => {
     const rail = page.locator('[data-surface-rail]');
     await expect(rail).toBeVisible();
     // The routed Places form an APG radio group.
-    await expect(rail.locator('[data-surface-nav]')).toHaveCount(5);
+    await expect(rail.locator('[data-surface-nav]')).toHaveCount(6);
     await expect(rail.locator('[data-surface-nav="console-workspace"]')).toHaveAttribute(
       'aria-checked',
       'true',

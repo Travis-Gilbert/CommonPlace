@@ -69,7 +69,7 @@ describe('V1 substrate client', () => {
       'http://store.test/v1/editor/invalidations',
     );
     expect(invalidationsUrlFrom('http://store.test/graphql', 'proj-1')).toBe(
-      'http://store.test/v1/editor/invalidations?projectId=proj-1',
+      'http://store.test/v1/editor/invalidations?project_id=proj-1',
     );
     expect(invalidationsUrlFrom('not a url')).toBeUndefined();
   });
@@ -212,6 +212,26 @@ describe('V1 substrate client', () => {
     await vi.waitFor(() => expect(FakeEventSource.last).toBeDefined());
     unsubscribe();
     expect(FakeEventSource.last?.closed).toBe(true);
+    client.dispose();
+  });
+
+  it('sends x-api-key on GraphQL requests when a token is configured', async () => {
+    const headers: string[] = [];
+    const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+      const h = new Headers(init?.headers);
+      headers.push(h.get('x-api-key') ?? '');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { probe: { generation: 1 } } }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const client = new SubstrateClient({
+      endpoint: { graphqlUrl: 'http://store.test/graphql', token: 'editor-key' },
+      fetchImpl,
+    });
+    await client.query(PROBE, {}, (data) => (data as { probe: Answer }).probe.generation);
+    expect(headers).toEqual(['editor-key']);
     client.dispose();
   });
 });

@@ -4,8 +4,16 @@
 # sequence expressed against our own tree.
 #
 # SPEC-COMMONPLACE-VSCODE-SURFACE-1.0 V7. Two outputs from one tree: the desktop
-# app and the web workbench. The web path is `code serve-web` from this tree, not
-# code-server's patch set, per the Verify-first decision recorded in README.md.
+# app and the web workbench, ours rather than code-server's patch set, per the
+# Verify-first decision recorded in README.md.
+#
+# The web workbench has two targets and only one of them ships. `compile-web`
+# emits a development tree that runs only under scripts/code-server.sh with
+# VSCODE_DEV=1, so the `web` target here is a local smoke and nothing else. The
+# deployable artifact is upstream's reh-web target (remote extension host, web),
+# named at build/gulpfile.reh.ts:676 and built by the `server` target below. The
+# `code serve-web` command is a NATIVE_CLI_COMMANDS entry handled by the Rust
+# CLI, not this build, which is why it does not appear anywhere in these steps.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,23 +22,48 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly ROOT_DIR
 REPO_DIR="$(cd "$ROOT_DIR/../.." && pwd)"
 readonly REPO_DIR
-readonly BUILD_DIR="$ROOT_DIR/build/vscode"
+# The upstream tree and the npm cache are the two things that make this build
+# refuse to start. Both default to the repo, which normally sits on the boot
+# volume, and `npm ci` plus `compile-web` wants ~15GiB of tree and ~8GiB of
+# cache. Point STUDIO_BUILD_DIR at a roomier volume and the cache follows it,
+# so clearing the floor is a variable rather than a machine cleanup. Artifacts
+# outside the repo also stay out of git status.
+BUILD_DIR="${STUDIO_BUILD_DIR:-$ROOT_DIR/build}/vscode"
+readonly BUILD_DIR
 readonly PACK_DIR="$REPO_DIR/apps/theorem-vscode"
 readonly UPSTREAM_URL="https://github.com/microsoft/vscode.git"
+
+# Keep patch-count and other build receipts beside the tree they describe.
+BUILD_ROOT="$(dirname "$BUILD_DIR")"
+readonly BUILD_ROOT
+
+# npm's cache is the second floor. When the build tree has been relocated and
+# the caller has not chosen a cache, put the cache on the same volume: a build
+# volume with room and a cache volume without it still refuses.
+if [[ -n "${STUDIO_BUILD_DIR:-}" && -z "${npm_config_cache:-}" ]]; then
+    export npm_config_cache="$BUILD_ROOT/npm-cache"
+fi
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >&2; }
 
 usage() {
     cat >&2 <<'EOF'
-Usage: build.sh <desktop|web|prepare>
+Usage: build.sh <desktop|web|server|prepare>
 
   prepare   Check out the pinned upstream tag, apply the patch queue, overlay
             product.json, and stage the Theorem pack. Idempotent.
   desktop   prepare, then build the desktop application.
-  web       prepare, then build the web workbench (`code serve-web`).
+  web       prepare, then compile the web workbench for a local dev smoke.
+  server    prepare, then build the deployable reh-web server. This is what
+            the workspace image installs; `web` is a smoke target only.
 
 Environment:
-  UPSTREAM_TAG   Override the pinned tag in ../UPSTREAM_TAG.
+  UPSTREAM_TAG             Override the pinned tag in ../UPSTREAM_TAG.
+  STUDIO_BUILD_DIR         Where the upstream tree is built. Must not contain
+                           whitespace: node-gyp passes include paths to clang++
+                           unquoted. Defaults to ./build beside this script.
+  STUDIO_SERVER_PLATFORM   Server target platform (default linux).
+  STUDIO_SERVER_ARCH       Server target arch (default x64).
 EOF
     exit 1
 }
@@ -61,11 +94,24 @@ free_gib() {
 require_disk() {
     local need_build=$1
     local need_cache=$2
-    local build_free cache_free cache_dir
+    local build_free cache_free cache_dir installed
 
     build_free="$(free_gib "$BUILD_DIR")"
     cache_dir="$(npm config get cache)"
     cache_free="$(free_gib "$cache_dir")"
+
+    # The floors are cold-tree figures: they assume `npm ci` still has to unpack
+    # everything. On a re-run the tree already holds node_modules, so demanding
+    # the full figure again refuses a build that would have fit. Credit what is
+    # already on disk against what is still needed.
+    if [[ -d "$BUILD_DIR/node_modules" ]]; then
+        installed="$(du -sg "$BUILD_DIR/node_modules" 2>/dev/null | awk '{print $1}')"
+        if [[ -n "$installed" ]] && (( installed > 0 )); then
+            need_build=$(( need_build - installed ))
+            (( need_build < 1 )) && need_build=1
+            log "disk: crediting ${installed}GiB of installed node_modules; need ${need_build}GiB more"
+        fi
+    fi
 
     if (( build_free < need_build )); then
         echo "Error: ${build_free}GiB free at $BUILD_DIR; this step needs ${need_build}GiB" >&2
@@ -77,6 +123,32 @@ require_disk() {
         exit 1
     fi
     log "disk: ${build_free}GiB at the build tree, ${cache_free}GiB at the npm cache"
+}
+
+# Refuse a build path containing whitespace.
+#
+# Upstream's native modules build through node-gyp, which writes include paths
+# into a Makefile unquoted and hands them to clang++ as-is. A single space in
+# the tree path splits one argument into two, and the failure surfaces twenty
+# minutes into `npm ci` as a missing directory named after the second half:
+#
+#   clang++: error: no such file or directory:
+#     'Samsung/commonplace-studio-build/vscode/node_modules/@vscode/fs-copyfile/...'
+#
+# from a tree under "/Volumes/SSD Samsung". Nothing in the fork can fix that, so
+# check it before the clone rather than after the compile. The npm cache is not
+# subject to this: its path never reaches a compiler argument.
+require_pathspace() {
+    if [[ "$BUILD_DIR" =~ [[:space:]] ]]; then
+        cat >&2 <<EOF
+Error: the build tree path contains whitespace:
+  $BUILD_DIR
+node-gyp passes include paths to clang++ unquoted, so upstream's native modules
+fail to compile from any path with a space in it.
+Hint: STUDIO_BUILD_DIR=/some/space-free/path ./scripts/build.sh $1
+EOF
+        exit 1
+    fi
 }
 
 checkout_upstream() {
@@ -98,6 +170,28 @@ checkout_upstream() {
     git -C "$BUILD_DIR" clean -fdx -e node_modules
 }
 
+# Upstream pins the toolchain node in .nvmrc and build/npm/preinstall.ts throws
+# on a mismatched major. That throw lands inside `npm ci`, minutes after
+# `prepare` has already reported success, so check it here where the tree is on
+# disk and nothing expensive has started.
+require_node_version() {
+    local want_file="$BUILD_DIR/.nvmrc"
+    [[ -f "$want_file" ]] || return 0
+
+    local want have
+    want="$(tr -d 'v \t\n' < "$want_file")"
+    have="$(node -p 'process.versions.node')"
+
+    if [[ "${want%%.*}" != "${have%%.*}" ]]; then
+        cat >&2 <<EOF
+Error: upstream $(cat "$ROOT_DIR/UPSTREAM_TAG") wants node ${want}, this shell has ${have}.
+build/npm/preinstall.ts rejects a different major, so \`npm ci\` will fail.
+Hint: nvm install ${want} && nvm use ${want}
+EOF
+        exit 1
+    fi
+}
+
 apply_patches() {
     local patch_dir="$ROOT_DIR/patches"
     local applied=0
@@ -112,7 +206,8 @@ apply_patches() {
     shopt -u nullglob
 
     log "patch count: $applied"
-    echo "$applied" > "$ROOT_DIR/build/patch-count.txt"
+    mkdir -p "$BUILD_ROOT"
+    echo "$applied" > "$BUILD_ROOT/patch-count.txt"
 }
 
 overlay_product() {
@@ -137,6 +232,17 @@ overlay_product() {
 stage_pack() {
     local target="$BUILD_DIR/extensions/theorem-vscode"
 
+    # A Docker stage has already built the pack and has no pnpm workspace to
+    # rebuild it from, so accept a prebuilt directory instead of running the
+    # pack's own build. Same bytes either way; this only skips the compile.
+    if [[ -n "${STUDIO_PACK_DIR:-}" ]]; then
+        log "staging the prebuilt Theorem pack from $STUDIO_PACK_DIR"
+        rm -rf "$target"
+        mkdir -p "$(dirname "$target")"
+        cp -R "$STUDIO_PACK_DIR" "$target"
+        return
+    fi
+
     log "staging the Theorem pack as a preinstalled extension"
     (cd "$PACK_DIR" && npm run build)
 
@@ -155,10 +261,12 @@ prepare() {
     require git
     require node
     require npm
+    require_pathspace prepare
 
     # The shallow checkout plus the staged pack. Measured at 1.131.0.
     require_disk 3 1
     checkout_upstream "$tag"
+    require_node_version
     apply_patches
     overlay_product
     stage_pack
@@ -182,11 +290,50 @@ build_web() {
     log "run it with: (cd $BUILD_DIR && ./scripts/code-server.sh --launch)"
 }
 
+# The deployable server, which `web` alone does not produce.
+#
+# `compile-web` emits a development tree: scripts/code-server.sh runs it with
+# VSCODE_DEV=1 and NODE_ENV=development against out/ and node_modules. That is a
+# smoke target, not something to put in a container.
+#
+# What ships is upstream's reh-web target ("remote extension host, web"): a
+# self-contained server directory with its own node, bin/${serverApplicationName},
+# and the minified workbench. It is the same artifact code-server wraps, minus
+# code-server's patch set, which is the whole point of the fork.
+#
+# Note the platform: the workspace image is linux, so a darwin host must pass
+# STUDIO_SERVER_PLATFORM/ARCH or produce an artifact the container cannot run.
+build_server() {
+    local platform="${STUDIO_SERVER_PLATFORM:-linux}"
+    local arch="${STUDIO_SERVER_ARCH:-x64}"
+    local target="vscode-reh-web-${platform}-${arch}-min"
+    # gulpfile.reh.ts emits into the parent of the source tree.
+    local out="$BUILD_ROOT/vscode-reh-web-${platform}-${arch}"
+
+    prepare
+    # PROVISIONAL. RUNBOOK's 15 is a cold-tree figure for `web`, and inheriting
+    # it here refused a warm tree that had the room. 10 is the number this build
+    # was actually observed to need; see the measurement note in RUNBOOK.md.
+    # Raise it if a run is ever seen to exceed it, but do not guess it upward.
+    require_disk 10 8
+    log "building the server: $target"
+    (cd "$BUILD_DIR" && npm ci && npm run gulp -- "$target")
+
+    if [[ ! -x "$out/bin/commonplace-studio-server" ]]; then
+        echo "Error: $out/bin/commonplace-studio-server is missing or not executable" >&2
+        echo "The fork's serverApplicationName drives that filename; check product.overlay.json" >&2
+        exit 1
+    fi
+    log "server at $out"
+    log "smoke it with: $out/bin/commonplace-studio-server --host 127.0.0.1 --port 8080 --without-connection-token --accept-server-license-terms"
+}
+
 main() {
     case "${1:-}" in
         prepare) prepare ;;
         desktop) build_desktop ;;
         web) build_web ;;
+        server) build_server ;;
         *) usage ;;
     esac
 }

@@ -5,6 +5,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 
+import { probeRoute } from './probe';
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -60,20 +62,6 @@ function envLit(key: string): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function extractImpl(html: string): string | null {
-  const match =
-    html.match(/data-register-impl="([^"]+)"/) ??
-    html.match(/data-register-impl='([^']+)'/);
-  return match?.[1] ?? null;
-}
-
-async function probeRoute(base: string, route: string): Promise<{ status: number; impl: string | null; body: string }> {
-  const url = route === '/' ? base : `${base}${route}`;
-  const response = await fetch(url, { redirect: 'manual' });
-  const body = await response.text();
-  return { status: response.status, impl: extractImpl(body), body };
-}
-
 export async function GET() {
   const base = (
     process.env.DOCTOR_PUBLIC_BASE_URL ||
@@ -92,7 +80,21 @@ export async function GET() {
     );
   }
 
-  const optionalEnv = new Set(['CONSOLE_MOBILE_API_KEY', 'THEOREM_API_TOKEN']);
+  const optionalEnv = new Set([
+    'CONSOLE_MOBILE_API_KEY',
+    'THEOREM_API_TOKEN',
+    // Derived from CONSOLE_WORKSPACE_URL:8080 when unset.
+    'CONSOLE_IDE_WORKSPACE_URL',
+    // Workspace door vars — required for live /chat and /IDE, but remain
+    // optional in the doctor so a partial env does not false-fail unrelated
+    // register probes during rollout.
+    'CONSOLE_WORKSPACE_URL',
+    'CONSOLE_WORKSPACE_TOKEN',
+    'COMMONPLACE_ACTIVE_WORKSPACE_SECRET',
+    // Co-located editor substrate (IDE-006/007). Derived from workspace URL
+    // when unset; optional so doctor stays usable before workspace redeploy.
+    'CONSOLE_EDITOR_SUBSTRATE_URL',
+  ]);
   const env: EnvRow[] = (manifest.env_contract ?? []).map((key) => ({
     key,
     lit: envLit(key),
@@ -108,12 +110,13 @@ export async function GET() {
       const probed = await probeRoute(base, row.production_route);
       const loginish = /callbackUrl|sign.?in|\/login/i.test(probed.body);
       const consoleShell = /data-register="intui"|data-theme-mode/i.test(probed.body);
+      const exactRegister = row.id === 'chat' || row.id === 'ide';
       const ok =
         (probed.status >= 200 && probed.status < 400 && probed.impl === row.manifest_impl) ||
         (probed.status >= 200 &&
           probed.status < 400 &&
           probed.impl === null &&
-          (loginish || (consoleShell && row.id !== 'chat')));
+          (loginish || (consoleShell && !exactRegister)));
       routes.push({
         id: row.id,
         route: row.production_route,
@@ -170,10 +173,17 @@ export async function GET() {
     }
   }
 
+  // IDE-007: probe co-located editor substrate beyond the /IDE HTML stamp.
+  const substrate = await probeEditorSubstrate();
+
   // Until retirements land, superseded paths still exist. Doctor reports them
   // without failing the overall cutover while deletion_deadline has not passed.
   const routesOk = routes.every((row) => row.ok);
-  const ok = envOk && routesOk;
+  // Substrate is required only when the workspace URL is configured — otherwise
+  // this console has no IDE door to wire.
+  const substrateRequired = envLit('CONSOLE_WORKSPACE_URL');
+  const substrateOk = !substrateRequired || substrate.ok;
+  const ok = envOk && routesOk && substrateOk;
 
   return NextResponse.json({
     ok,
@@ -181,6 +191,110 @@ export async function GET() {
     env,
     routes,
     resurrections,
+    substrate,
     ow4_route_versus_zone: 'route',
   });
+}
+
+type SubstrateProbe = {
+  url: string | null;
+  healthz: { ok: boolean; status: number | null; body: string };
+  readiness: { ok: boolean; status: number | null; detail: string };
+  ok: boolean;
+};
+
+function editorSubstrateBase(): string | null {
+  const explicit = process.env.CONSOLE_EDITOR_SUBSTRATE_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const workspace = process.env.CONSOLE_WORKSPACE_URL?.trim();
+  if (!workspace) return null;
+  try {
+    const url = new URL(workspace);
+    url.port = process.env.CONSOLE_EDITOR_SUBSTRATE_PORT?.trim() || '50090';
+    url.pathname = '';
+    url.search = '';
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+async function probeEditorSubstrate(): Promise<SubstrateProbe> {
+  const baseUrl = editorSubstrateBase();
+  if (!baseUrl) {
+    return {
+      url: null,
+      healthz: { ok: false, status: null, body: 'CONSOLE_WORKSPACE_URL unset' },
+      readiness: { ok: false, status: null, detail: 'skipped' },
+      ok: false,
+    };
+  }
+
+  let healthz: SubstrateProbe['healthz'] = { ok: false, status: null, body: '' };
+  try {
+    const response = await fetch(`${baseUrl}/healthz`, { redirect: 'manual' });
+    const body = await response.text();
+    healthz = { ok: response.ok, status: response.status, body: body.slice(0, 120) };
+  } catch (error) {
+    healthz = {
+      ok: false,
+      status: null,
+      body: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  const apiKey =
+    process.env.CONSOLE_WORKSPACE_TOKEN?.trim() ||
+    process.env.CONSOLE_DATA_API_KEY?.trim() ||
+    process.env.THEOREM_API_KEY?.trim() ||
+    '';
+
+  let readiness: SubstrateProbe['readiness'] = {
+    ok: false,
+    status: null,
+    detail: apiKey ? '' : 'no api key for GraphQL probe',
+  };
+  if (apiKey && healthz.ok) {
+    try {
+      const response = await fetch(`${baseUrl}/graphql`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({ query: 'query { readiness { generation } }' }),
+        redirect: 'manual',
+      });
+      const text = await response.text();
+      let generation: unknown;
+      try {
+        const json = JSON.parse(text) as {
+          data?: { readiness?: { generation?: unknown } };
+          errors?: unknown[];
+        };
+        generation = json.data?.readiness?.generation;
+        readiness = {
+          ok: response.ok && generation !== undefined && !json.errors?.length,
+          status: response.status,
+          detail: generation !== undefined ? `generation=${String(generation)}` : text.slice(0, 160),
+        };
+      } catch {
+        readiness = { ok: false, status: response.status, detail: text.slice(0, 160) };
+      }
+    } catch (error) {
+      readiness = {
+        ok: false,
+        status: null,
+        detail: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  return {
+    url: baseUrl,
+    healthz,
+    readiness,
+    ok: healthz.ok && readiness.ok,
+  };
 }

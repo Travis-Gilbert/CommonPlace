@@ -22,6 +22,10 @@ export type HostedAcpClientOptions = {
   bindingId?: string | null;
   /** Optional request whose Authorization is forwarded to the hosted node. */
   authRequest?: Request;
+  /** Explicit WebSocket URL; when set, skips env-based URL resolution. */
+  url?: string;
+  /** Bearer token for `?token=` when authRequest does not already carry one. */
+  token?: string;
 };
 
 type PendingPrompt = {
@@ -59,7 +63,9 @@ export class HostedAcpClient {
   }
 
   static async connect(options: HostedAcpClientOptions): Promise<HostedAcpClient> {
-    const url = resolveHostedAcpWsUrl(options.authRequest);
+    const url = options.url?.trim()
+      ? appendToken(options.url.trim(), options.authRequest, options.token)
+      : resolveHostedAcpWsUrl(options.authRequest, options.token);
     const socket = new WebSocket(url);
     await waitForOpen(socket);
     return new HostedAcpClient(socket, options.agentId, options.cwd);
@@ -369,16 +375,16 @@ export function hostedCancelEnvelope(sessionId: string): Record<string, unknown>
   return { type: 'cancel_prompt', session_id: sessionId };
 }
 
-export function resolveHostedAcpWsUrl(authRequest?: Request): string {
+export function resolveHostedAcpWsUrl(authRequest?: Request, token?: string): string {
   const configured =
     process.env.THEOREM_ACP_WS_URL?.trim() ||
     process.env.NEXT_PUBLIC_COMMONPLACE_ACP_WS_URL?.trim();
   if (configured) {
-    return appendToken(configured, authRequest);
+    return appendToken(configured, authRequest, token);
   }
   const httpBase = localInquiryUrl('').replace(/\/+$/, '');
   const wsBase = httpBase.replace(/^http/, 'ws');
-  return appendToken(`${wsBase}/v1/commonplace/acp/ws`, authRequest);
+  return appendToken(`${wsBase}/v1/commonplace/acp/ws`, authRequest, token);
 }
 
 export function hostedAgentIdForKey(mode: 'single' | 'composed', bindingId: string | null): string {
@@ -386,7 +392,7 @@ export function hostedAgentIdForKey(mode: 'single' | 'composed', bindingId: stri
   return bindingId?.replace(/^agent:/, '') || 'theorem';
 }
 
-function appendToken(url: string, authRequest?: Request): string {
+function appendToken(url: string, authRequest?: Request, explicitToken?: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.searchParams.has('token') || parsed.searchParams.has('access_token')) {
@@ -397,7 +403,10 @@ function appendToken(url: string, authRequest?: Request): string {
       typeof (headers as Record<string, string>).Authorization === 'string'
         ? (headers as Record<string, string>).Authorization
         : undefined;
-    const token = authorization?.replace(/^Bearer\s+/i, '').trim() || process.env.THEOREM_API_KEY?.trim();
+    const token =
+      explicitToken?.trim()
+      || authorization?.replace(/^Bearer\s+/i, '').trim()
+      || process.env.THEOREM_API_KEY?.trim();
     if (token) parsed.searchParams.set('token', token);
     return parsed.toString();
   } catch {

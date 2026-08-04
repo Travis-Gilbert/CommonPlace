@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
-// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11/CS12: Views (launch five), Blocks,
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11/CS12: Views (launch six), Blocks,
 // Objects, Pins. Layout switcher lives in the sidebar header. Selection is a
 // sunken well plus full-strength ink, not a saturated fill.
 
@@ -60,6 +60,7 @@ const PLACE_ICONS: Record<string, typeof IconRecords> = {
   index: IconIndex,
   editor: IconWorkspace,
   model: IconModel,
+  ide: IconFiles,
 };
 
 const LANDMARK_ICONS: Record<string, typeof IconRecords> = {

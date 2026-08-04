@@ -12,6 +12,7 @@
 
 import * as vscode from 'vscode';
 import { SubstrateClient } from './substrate/client';
+import { resolveTheoremPackConfig } from './config';
 import {
   IntelligenceSurface,
   SEMANTIC_LEGEND,
@@ -36,19 +37,25 @@ import { AgentPresence } from './agent/presence';
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Theorem');
   const config = vscode.workspace.getConfiguration('theorem');
+  const resolved = resolveTheoremPackConfig(config);
 
   const client = new SubstrateClient({
     endpoint: {
-      graphqlUrl: config.get<string>('graphqlUrl', 'http://127.0.0.1:8787/graphql'),
-      invalidationsUrl: config.get<string>('invalidationsUrl') || undefined,
-      projectId: config.get<string>('projectId') || undefined,
-      token: config.get<string>('token') || undefined,
+      graphqlUrl: resolved.graphqlUrl,
+      invalidationsUrl: resolved.invalidationsUrl,
+      projectId: resolved.projectId,
+      token: resolved.token,
     },
-    EventSourceImpl: globalThis.EventSource as never,
+    // Prefer native EventSource when present (browser). Node/code-server uses
+    // authenticated fetch streaming inside SubstrateClient when token is set.
+    EventSourceImpl: typeof globalThis.EventSource === 'function'
+      ? (globalThis.EventSource as never)
+      : undefined,
     log: (message) => output.appendLine(message),
     onChangefeedStatus: (status) => output.appendLine(`invalidations: ${status}`),
   });
   context.subscriptions.push({ dispose: () => client.dispose() });
+  output.appendLine(`substrate: ${resolved.graphqlUrl}`);
 
   // V2.
   const surface = new IntelligenceSurface(client);
@@ -58,6 +65,13 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument((document) => surface.watch(document.uri)),
     vscode.workspace.onDidCloseTextDocument((document) => surface.unwatch(document.uri)),
+    // code-server saves rewrite the same inodes the co-located substrate reads,
+    // but GraphQL invalidations only fire on graph writes. Refresh standing
+    // queries from the filesystem change so diagnostics track the buffer
+    // without inventing a timer (IDE-006).
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      void client.refreshPath(document.uri.fsPath);
+    }),
     // Intentions are the one caret-local surface, so they refresh when the
     // caret moves rather than riding the standing query and re-querying the
     // whole file on every cursor keystroke.
@@ -98,13 +112,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // V6.
   const presence = new AgentPresence(
-    { consoleOrigin: config.get<string>('consoleOrigin', 'http://127.0.0.1:3000') },
+    { consoleOrigin: resolved.consoleOrigin },
     {
-      // The session opener is injected so the pack can be driven by the hosted
-      // client or the local one without this file knowing which.
       open: async (workspaceRoot) => {
         const { openIdeSession } = await import('./agent/session-opener');
-        return openIdeSession(config, workspaceRoot);
+        return openIdeSession(resolved, workspaceRoot);
       },
     },
   );
