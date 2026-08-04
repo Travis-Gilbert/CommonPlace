@@ -274,10 +274,16 @@ function NavItem({
   return (
     <div className="flex flex-col w-full">
       <div 
-        className={`group pointer-events-auto flex items-center justify-between px-2.5 py-[7px] rounded-[6px] cursor-pointer transition-all duration-200 select-none
-          ${isActive 
-            ? 'bg-card/90 dark:bg-white/10 text-foreground font-medium backdrop-blur-[1px]' 
-            : 'bg-card/55 text-muted-foreground hover:bg-card/80 hover:text-foreground/90 backdrop-blur-[1px]'
+        // Register ink and surfaces, not the vendor's neutrals. As published
+        // these rows were bg-card/55 and bg-card/90 with dark:bg-white/10, so
+        // every row painted a pale filled pill over the rail's dark canvas and
+        // the whole nav read as white blocks. The raw white utility is banned
+        // here besides. This is the same row language the left stripe already
+        // uses: rest is ink alone, hover and active earn the raised surface.
+        className={`group pointer-events-auto flex items-center justify-between px-2.5 py-[7px] rounded-ij-arc cursor-pointer transition-colors duration-(--ij-motion) ease-(--ij-ease) select-none
+          ${isActive
+            ? 'bg-ij-raised text-ij-ink font-medium'
+            : 'text-ij-ink-disabled hover:bg-ij-raised hover:text-ij-ink-info'
           }
         `}
         style={{ paddingLeft: `${level * 12 + 10}px` }}
@@ -286,8 +292,8 @@ function NavItem({
         <div className="flex items-center gap-2.5">
           <item.icon 
             className={`w-[16px] h-[16px] transition-colors
-              ${isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover:text-foreground/70'}
-            `} 
+              ${isActive ? 'text-ij-ink' : 'text-ij-ink-disabled group-hover:text-ij-ink-info'}
+            `}
             strokeWidth={1.5} 
           />
           <span className="text-[13px] tracking-wide truncate">

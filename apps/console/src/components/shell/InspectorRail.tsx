@@ -201,19 +201,18 @@ export function InspectorRail({
         </div>
       ) : null}
 
-      {/* A card lying on the ground, not a wall welded to the window edge.
-          The reference rail is inset on all four sides with its own radius, so
-          the MaterialLayer runs behind and around it and the panel reads as an
-          object; a full-bleed aside with a single left hairline reads as the
-          window getting narrower. The inset is what makes the collapse legible
-          too: a card can leave, an edge can only shrink. Radius and surface
-          come from the register rather than restated values, so the fork's
-          Card and this frame stay the same material. */}
+      {/* A drawer out of the right edge, not a card floating near it. The rail
+          meets the window on its right and along both its long sides, and only
+          its left corners are round, so the curve reads as the edge it emerged
+          from rather than as a rectangle set down on the ground. It was inset
+          on all four sides first; against a shell that now runs full bleed,
+          that read as a card someone had left lying on the surface. Radius and
+          surface come from the register rather than restated values. */}
       <aside
         data-inspector-rail-panel
         className={cn(
-          'my-ij-island-gutter mr-ij-island-gutter ml-auto flex min-h-0 w-full flex-col overflow-hidden',
-          'rounded-(--radius-ij-island) bg-card transition-opacity duration-(--ij-motion) ease-(--ij-ease)',
+          'ml-auto flex h-full min-h-0 w-full flex-col overflow-hidden',
+          'rounded-l-ij-island bg-card transition-opacity duration-(--ij-motion) ease-(--ij-ease)',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         aria-hidden={!open}
