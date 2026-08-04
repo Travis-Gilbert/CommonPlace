@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  rewriteOpenworkChatHtml,
+  rewriteOpenworkLocation,
+} from '@/lib/chat-openwork-proxy';
 
 // SOURCING: none. SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL6 / OW4.
 // When CONSOLE_WORKSPACE_URL is set, /chat is reverse-proxied to the workspace
 // chat door with the /chat prefix stripped. Cookie stays on the console origin.
 // NextResponse.rewrite cannot target an arbitrary external origin here, so this
-// is an explicit fetch proxy.
+// is an explicit fetch proxy. HTML root-absolute asset URLs are rewritten under
+// /chat so Vite bundles do not 404 on the console origin (blank OpenWork page).
 
 const WORKSPACE = process.env.CONSOLE_WORKSPACE_URL?.replace(/\/$/, '') ?? '';
 
@@ -60,14 +65,16 @@ export async function middleware(request: NextRequest) {
   const responseHeaders = new Headers(upstream.headers);
   responseHeaders.set('x-register-impl', 'openwork.chat');
 
+  const location = upstream.headers.get('location');
+  if (location) {
+    responseHeaders.set('location', rewriteOpenworkLocation(location) ?? location);
+  }
+
   if (upstreamContentType.includes('text/html')) {
     const html = await upstream.text();
-    const stamped = html.includes('data-register-impl=')
-      ? html
-      : html.replace(
-          /<html([^>]*)>/i,
-          '<html$1 data-register-impl="openwork.chat">',
-        );
+    const stamped = rewriteOpenworkChatHtml(html);
+    // Content-Length from upstream is stale after rewrite.
+    responseHeaders.delete('content-length');
     return new NextResponse(stamped, {
       status: upstream.status,
       headers: responseHeaders,
