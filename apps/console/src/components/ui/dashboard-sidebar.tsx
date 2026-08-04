@@ -45,7 +45,7 @@ import {
   IconThread,
   IconWorkspace,
 } from '@/components/shell/icons';
-import { JsonCanvasLayer } from '@/components/ui/json-canvas-layer';
+import { RailModelCanvas } from '@/components/shell/RailModelCanvas';
 import { cn } from '@/lib/cn';
 import { PLACE_ENTRIES } from '@/lib/rail/rail-model';
 import {
@@ -426,8 +426,14 @@ export function SidebarNav({
 
 export type DashboardSidebarProps = {
   readonly host: BlockHost;
-  /** When false, only the published 21st nav chrome renders (no JSON Canvas layer). */
+  /** When false, only the published 21st nav chrome renders (no canvas layer). */
   readonly jsonCanvas?: boolean;
+  /**
+   * Scope for the rail's OWOX canvas. The rail is chrome and owns no scope, so
+   * the shell supplies one; empty renders the canvas empty rather than guessing
+   * at a topic.
+   */
+  readonly canvasTopicId?: string;
   readonly className?: string;
   readonly activeId?: string;
   readonly onSelect?: (id: string) => void;
@@ -445,6 +451,7 @@ export type DashboardSidebarProps = {
 export function DashboardSidebar({
   host,
   jsonCanvas = true,
+  canvasTopicId = '',
   className = '',
   activeId,
   onSelect,
@@ -504,7 +511,7 @@ export function DashboardSidebar({
     >
       {jsonCanvas ? (
         <div className="absolute inset-0 z-0 overflow-hidden">
-          <JsonCanvasLayer host={host} />
+          <RailModelCanvas topicId={canvasTopicId} />
         </div>
       ) : null}
 
