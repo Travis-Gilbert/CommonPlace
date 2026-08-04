@@ -642,6 +642,8 @@ function IconNavigation({
   brand,
   footer,
   railProps,
+  panelOpen,
+  onTogglePanel,
 }: {
   activeSection: string;
   onSectionChange: (section: string) => void;
@@ -649,6 +651,15 @@ function IconNavigation({
   brand?: ReactNode;
   footer?: ReactNode;
   railProps?: React.HTMLAttributes<HTMLElement>;
+  /** Open state of the detail panel, for the brand toggle's aria-expanded. */
+  panelOpen?: boolean;
+  /**
+   * Opens and closes the detail panel. It lives here rather than in the panel
+   * because the panel now collapses to zero width: a control inside it would
+   * close itself out of reach. The rail is the one part of the sidebar that is
+   * always on screen, so it is the only place the reopen can live.
+   */
+  onTogglePanel?: () => void;
 }) {
   const navItems: readonly TwoLevelSidebarItem[] = items ?? [
     { id: 'dashboard', icon: <Dashboard size={16} />, label: 'Dashboard' },
@@ -666,6 +677,23 @@ function IconNavigation({
       className="bg-ij-chrome flex h-full min-h-0 w-16 flex-col items-center gap-2 border-r border-ij-seam p-4"
       {...railProps}
     >
+      {onTogglePanel ? (
+        <button
+          type="button"
+          data-sidebar-panel-toggle
+          onClick={onTogglePanel}
+          aria-expanded={panelOpen ?? true}
+          aria-label={panelOpen ?? true ? 'Collapse sidebar' : 'Expand sidebar'}
+          title={panelOpen ?? true ? 'Collapse sidebar' : 'Expand sidebar'}
+          className="mb-2 flex size-10 items-center justify-center rounded-ij-arc text-ij-ink-info transition-colors duration-(--ij-motion) ease-(--ij-ease) hover:bg-ij-raised hover:text-ij-ink"
+        >
+          {brand ?? (
+            <div className="size-7">
+              <InterfacesLogoSquare />
+            </div>
+          )}
+        </button>
+      ) : (
       <div className="mb-2 flex size-10 items-center justify-center">
         {brand ?? (
           <div className="size-7">
@@ -673,6 +701,7 @@ function IconNavigation({
           </div>
         )}
       </div>
+      )}
 
       <div className="flex w-full flex-col items-center gap-2">
         {navItems.map((item) => (
@@ -720,22 +749,10 @@ function SectionTitle({
   onToggleCollapse: () => void;
   isCollapsed: boolean;
 }) {
-  if (isCollapsed) {
-    return (
-      <div className="w-full flex justify-center transition-all duration-(--ij-motion) ease-(--ij-ease)">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="flex items-center justify-center rounded-ij-arc size-10 min-w-10 transition-all duration-(--ij-motion) ease-(--ij-ease) hover:bg-ij-raised text-ij-ink-disabled hover:text-ij-ink-info"
-            aria-label="Expand sidebar"
-        >
-          <span className="inline-block rotate-180">
-            <ChevronDownIcon size={16} />
-          </span>
-        </button>
-      </div>
-    );
-  }
+  // Collapsed renders no title row at all. The panel is zero width now, so a
+  // reopen control in here would be clipped and unclickable while still sitting
+  // in the accessibility tree. The rail's brand mark carries the toggle.
+  if (isCollapsed) return null;
 
   return (
     <div className="w-full overflow-hidden transition-all duration-(--ij-motion) ease-(--ij-ease)">
@@ -805,9 +822,15 @@ function DetailSidebar({
     <aside
       data-jshguo-detail-panel
       data-collapsed={isCollapsed ? 'true' : 'false'}
+      // Zero width clips the panel's controls but leaves them focusable and
+      // announced: fifteen buttons a keyboard reaches and a screen reader
+      // offers, none of them on screen. `inert` takes the whole subtree out of
+      // the tab order and the accessibility tree in one attribute, which is
+      // what collapsed should have meant all along.
+      inert={isCollapsed}
       className={`bg-ij-frame flex h-full min-h-0 flex-col items-start gap-4 p-4 transition-all duration-(--ij-motion) ease-(--ij-ease) ${
         isCollapsed
-          ? 'w-16 min-w-16 !px-0 justify-center'
+          ? 'w-0 min-w-0 !p-0 overflow-hidden'
           : 'w-ij-sidebar-expanded min-w-ij-sidebar-expanded'
       }`}
     >
@@ -1085,6 +1108,8 @@ export function TwoLevelSidebarShell({
         brand={brand}
         footer={footer}
         railProps={railProps}
+        panelOpen={panelOpen}
+        onTogglePanel={() => onPanelOpenChange?.(!panelOpen)}
       />
       <DetailSidebar
         activeSection={activeSection}
