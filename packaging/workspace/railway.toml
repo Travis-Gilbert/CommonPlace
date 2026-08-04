@@ -1,14 +1,15 @@
 # Railway deploy config for the CommonPlace workspace service.
 # SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW5.
 #
-# Deploy with this file explicitly:
-#   railway up --config packaging/workspace/railway.toml
-#
-# The explicit --config matters. `railway up` from the repository root picks up
-# the root railway.toml, which belongs to the legacy web service, and deploys
-# that instead with no error (the same trap apps/console documents for
-# railway.console.toml). Build context is the repository root because the image
-# needs the pnpm workspace manifests.
+# This service deploys from its GitHub source on push to main, not by upload.
+# `railway up --config <path>` is written in older notes and no longer parses:
+# the CLI dropped --config, and 5.30.4 answers with
+#   error: unexpected argument '--config' found
+# Uploading without it is worse than failing, because `railway up` from the
+# repository root picks up the root railway.toml, which belongs to the legacy
+# web service, and deploys that instead with no error (the same trap
+# apps/console documents for railway.console.toml). Build context is the
+# repository root because the image needs the pnpm workspace manifests.
 #
 # Required environment:
 #   WORKSPACE_TOKEN   The one secret the chat door authenticates against. The
@@ -50,6 +51,12 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "packaging/workspace/Dockerfile"
+# One rule: every path the Dockerfile COPYs from the build context belongs
+# here. A path the image is built from but nobody watches produces a SKIPPED
+# deploy, which reads exactly like a successful no-op. Deploy 6ddb18cd was
+# skipped for a commit that changed how the Studio server is built, because
+# packaging/commonplace-studio was missing below while line 155 of the
+# Dockerfile copies that whole directory into the studio-server stage.
 watchPatterns = [
   "apps/chat-server/**",
   "apps/chat/**",
@@ -60,6 +67,15 @@ watchPatterns = [
   "packages/theorem-acp/**",
   "packages/block-view-contracts/**",
   "packaging/workspace/**",
+  # The Studio fork pipeline: patch queue, product overlay, and build.sh. The
+  # studio-server stage builds the IDE door out of this directory.
+  "packaging/commonplace-studio/**",
+  # Copied beside the fork tree so the built artifact carries the licence.
+  "LICENSE",
+  # The chat door's web stage copies the console's stylesheets.
+  "apps/console/src/styles/**",
+  # Every pnpm stage copies all three manifests, not only the two below.
+  "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml"
 ]
