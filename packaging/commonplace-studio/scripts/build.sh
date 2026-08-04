@@ -77,12 +77,29 @@ require() {
 }
 
 # Free space on the volume holding a path, in GiB.
+#
+# `df -Pk`, not `df -g`: -g is a BSD flag and this script's real target is a
+# linux builder, where GNU coreutils rejects it outright. The failure was silent
+# and total: df wrote nothing to stdout, the empty string read as 0 in the
+# arithmetic below, and every disk floor refused a builder with hundreds of GiB
+# free. -P is the POSIX output format, which also stops long device names from
+# wrapping onto a second line and shifting the column. -k is POSIX 1024-byte
+# blocks, so the division is the same arithmetic on both platforms.
+#
+# An unreadable volume is fatal rather than 0. A probe that cannot answer is not
+# the same as an answer of "full", and conflating them is what made this refuse
+# with a figure nobody believed.
 free_gib() {
-    local target=$1
+    local target=$1 blocks
     while [[ ! -d "$target" ]]; do
         target="$(dirname "$target")"
     done
-    df -g "$target" | awk 'NR==2 {print $4}'
+    blocks="$(df -Pk "$target" | awk 'NR==2 {print $4}')"
+    if [[ ! "$blocks" =~ ^[0-9]+$ ]]; then
+        echo "Error: cannot read free space at $target (df -Pk gave '${blocks}')" >&2
+        exit 1
+    fi
+    echo $(( blocks / 1048576 ))
 }
 
 # Refuse rather than fill a volume.
@@ -105,8 +122,11 @@ require_disk() {
     # the full figure again refuses a build that would have fit. Credit what is
     # already on disk against what is still needed.
     if [[ -d "$BUILD_DIR/node_modules" ]]; then
-        installed="$(du -sg "$BUILD_DIR/node_modules" 2>/dev/null | awk '{print $1}')"
-        if [[ -n "$installed" ]] && (( installed > 0 )); then
+        # `du -sk`, not `du -sg`, for the same reason as free_gib: -g is BSD.
+        # This one degrades quietly rather than refusing, because failing to
+        # credit an existing tree only makes the floor stricter.
+        installed="$(du -sk "$BUILD_DIR/node_modules" 2>/dev/null | awk '{print int($1/1048576)}')"
+        if [[ "$installed" =~ ^[0-9]+$ ]] && (( installed > 0 )); then
             need_build=$(( need_build - installed ))
             (( need_build < 1 )) && need_build=1
             log "disk: crediting ${installed}GiB of installed node_modules; need ${need_build}GiB more"
