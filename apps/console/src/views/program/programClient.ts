@@ -208,9 +208,21 @@ export async function materializeProgram(
 }
 
 /** Server-authored run events (PG7). Console must not invent ProcessLiveness. */
+/** Run options plus the View-selection bag Theorem accepts on `run`. */
+export type ProgramRunOptionsWithView = ProgramRunOptions & {
+  readonly view_selections?: Readonly<Record<string, unknown>>;
+};
+
+/** Explicit selection payload posted to a View node's output port. */
+export type ExplicitViewSelection = {
+  readonly entity_path: string;
+  readonly expr_id: string;
+  readonly part_name?: string;
+};
+
 export async function runProgramDefinition(
   definition: ProgramDefinition,
-  options: ProgramRunOptions,
+  options: ProgramRunOptionsWithView,
 ): Promise<ProgramRunReceipt> {
   const data = await callProgramGraph(
     'run',
@@ -218,6 +230,31 @@ export async function runProgramDefinition(
     'programmable_graph_apply',
   );
   return data as unknown as ProgramRunReceipt;
+}
+
+/**
+ * Post an explicit ViewSelectionEvent through programmable_graph `run`
+ * options.view_selections (SPEC-THEOREM-PROTOTYPE-PIPELINE-1.0 C1).
+ */
+export async function postViewSelection(input: {
+  readonly definition: ProgramDefinition;
+  readonly viewNodeId: string;
+  readonly selection: ExplicitViewSelection;
+  readonly programId?: string | null;
+  readonly invocationId?: string;
+}): Promise<ProgramRunReceipt> {
+  const options: ProgramRunOptionsWithView = {
+    invocation_id: input.invocationId ?? `view-select-${Date.now()}`,
+    inputs: {},
+    tweaks: {},
+    pinned_nodes: {},
+    human_answers: {},
+    environment_store: {},
+    view_selections: {
+      [input.viewNodeId]: input.selection,
+    },
+  };
+  return runProgramDefinition(input.definition, options);
 }
 
 export async function resumeProgramDefinition(
