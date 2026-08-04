@@ -354,3 +354,47 @@ provider. The fork already carries it in its provider tables
 any provider through the `provider` block the runtime config already passes
 through. It is a configuration line whenever a live session is wanted, not a
 code change, and per A12 it was never what stood in the way.
+
+### A14. OW5's IDE door hosts Commonplace Studio, not stock code-server
+
+OW5 describes the workspace container as two doors over one checkout and names
+code-server as the IDE door's host. That was always a placeholder: `docs/records/
+013-vscode-surface.md` records "serve-web, not code-server" as the decision, and
+`FOLLOW-UP-CODE-SERVE-WEB.md` carries CS-001..CS-008 as the cutover. This
+amendment records what the image now does (CS-003, CS-004).
+
+**The host is selectable at build time.** `packaging/workspace/Dockerfile` gains a
+`studio-server` stage gated on `--build-arg IDE_HOST`. At `studio`, the default,
+it builds Commonplace Studio's reh-web server from `packaging/commonplace-studio`
+and the final image installs it. At `code-server`, the stage is skipped and the
+pinned code-server install is the host, exactly as before. The entrypoint prefers
+the Studio binary when the image carries it and falls back otherwise, so the
+Rollback section of the follow-up is one build arg rather than a revert.
+
+**Two doors is unchanged, and so is everything the console depends on.** Same
+`CODE_SERVER_PORT`, same `--auth none` posture expressed as
+`--without-connection-token`, same `--user-data-dir` and `--extensions-dir` so an
+existing volume keeps its profile across the swap in either direction, same
+`env -u PORT` guard against the GL7 collision, same `theorem-vscode` seeding and
+`THEOREM_EDITOR_*` / `THEOREM_ACP_*` passthrough (CS-006). The console edge proxy
+and its `/IDE` path strip are untouched.
+
+**Three findings that contradict the follow-up's own plan text, all measured:**
+
+1. `build.sh web` does not produce anything deployable. `compile-web` emits a
+   development tree that only `scripts/code-server.sh` runs, under `VSCODE_DEV=1`
+   and `NODE_ENV=development`. The deployable artifact is upstream's reh-web
+   target, so `build.sh` gains a `server` command. `web` remains a local smoke.
+2. Upstream 1.131.0 pins `.nvmrc` to node 24.18.0 and `build/npm/preinstall.ts`
+   throws on a different major. The `studio-server` stage is `node:24-bookworm`;
+   the other stages in that Dockerfile are `node:22` and must not be copied.
+3. The build cannot run from a path containing whitespace. node-gyp writes
+   include paths into its Makefile unquoted, so a tree under, for example,
+   `/Volumes/SSD Samsung` fails inside `npm ci` with a missing directory named
+   after the fragment past the space. `build.sh` refuses such a path up front and
+   `STUDIO_BUILD_DIR` relocates the tree off the boot volume.
+
+**`manifest_impl` stays `code-server.ide` while both hosts ship.** It names the
+door the console proxies to, not the binary behind it, and the live doctor route
+expectation reads it. It becomes `commonplace-studio.ide` at CS-008, when stock
+code-server leaves the image, together with `edge-proxy.mjs`'s `REGISTER_IMPL`.

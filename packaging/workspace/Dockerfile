@@ -113,8 +113,59 @@ RUN pnpm --filter theorem-vscode run build \
   && cp apps/theorem-vscode/package.json /opt/extension/theorem-vscode/ \
   && cp -R apps/theorem-vscode/dist /opt/extension/theorem-vscode/
 
+# --- Stage 1c: Commonplace Studio reh-web server (CS-003) ------------------
+# The IDE door's host. Studio is the fork's own web workbench; code-server is
+# the thing it replaces. Carrying both long term means two patch queues against
+# the same upstream plus a second auth layer duplicating console session auth,
+# which is why the follow-up exists.
+#
+# Gated by IDE_HOST so the rollback in FOLLOW-UP-CODE-SERVE-WEB.md is a build
+# arg and not a revert:
+#   --build-arg IDE_HOST=code-server
+#
+# `server`, not `web`: build.sh's web target is a development compile that only
+# scripts/code-server.sh can run. `server` emits upstream's reh-web target, a
+# self-contained server directory with its own node and bin entrypoint.
+ARG IDE_HOST=studio
+
+# node:24, not node:22 like the stages above. Upstream 1.131.0 pins .nvmrc to
+# 24.18.0 and build/npm/preinstall.ts throws on any other major, so a node:22
+# base fails this stage before a single file compiles.
+FROM node:24-bookworm AS studio-server
+ARG IDE_HOST=studio
+RUN if [ "${IDE_HOST}" != "studio" ]; then \
+      mkdir -p /out && printf 'skipped\n' > /out/SKIP; \
+    else \
+      apt-get update \
+        && apt-get install -y --no-install-recommends \
+             build-essential python3 git ca-certificates pkg-config \
+             libx11-dev libxkbfile-dev libsecret-1-dev libkrb5-dev \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+WORKDIR /studio
+COPY packaging/commonplace-studio /studio/packaging/commonplace-studio
+COPY LICENSE /studio/LICENSE
+# The pack is already compiled one stage up; STUDIO_PACK_DIR skips rebuilding it
+# here, where there is no pnpm workspace to rebuild it from.
+COPY --from=vscode-pack /opt/extension/theorem-vscode /studio/pack/theorem-vscode
+RUN if [ "${IDE_HOST}" != "studio" ]; then \
+      echo "studio-server: IDE_HOST=${IDE_HOST}, skipping the Studio build"; \
+    else \
+      cd /studio/packaging/commonplace-studio \
+        && STUDIO_BUILD_DIR=/studio/build \
+           STUDIO_PACK_DIR=/studio/pack/theorem-vscode \
+           STUDIO_SERVER_PLATFORM=linux \
+           STUDIO_SERVER_ARCH="$(dpkg --print-architecture | sed 's/^amd64$/x64/;s/^arm64$/arm64/')" \
+           ./scripts/build.sh server \
+        && mkdir -p /out \
+        && cp -R /studio/build/vscode-reh-web-linux-*/. /out/ \
+        && test -x /out/bin/commonplace-studio-server; \
+    fi
+
 # --- Stage 2: the workspace image -----------------------------------------
 FROM oven/bun:1.3.10-debian AS base
+ARG IDE_HOST=studio
 
 # git: the workspace is a checkout, and both doors expect real VCS state.
 # ca-certificates: the head reaches the Theorem MCP over TLS.

@@ -197,25 +197,89 @@ if (process.env.THEOREM_EDITOR_WRITE_TOKEN_TO_SETTINGS === '1') {
 fs.writeFileSync(path, `${JSON.stringify(current, null, 2)}\n`);
 NODE
 
-# PORT must not reach code-server: it overrides --bind-addr and steals the chat port.
-env -u PORT \
-  THEOREM_EDITOR_GRAPHQL_URL="${THEOREM_EDITOR_GRAPHQL_URL:-}" \
-  THEOREM_EDITOR_INVALIDATIONS_URL="${THEOREM_EDITOR_INVALIDATIONS_URL:-}" \
-  THEOREM_EDITOR_PROJECT_ID="${THEOREM_EDITOR_PROJECT_ID:-}" \
-  THEOREM_EDITOR_API_KEY="${THEOREM_EDITOR_API_KEY:-}" \
-  THEOREM_ACP_WS_URL="${THEOREM_ACP_WS_URL:-}" \
-  THEOREM_ACP_TOKEN="${THEOREM_ACP_TOKEN:-}" \
-  THEOREM_CONSOLE_ORIGIN="${THEOREM_CONSOLE_ORIGIN:-}" \
-  setsid code-server \
-  --bind-addr "0.0.0.0:${CODE_SERVER_PORT}" \
-  --auth none \
-  --disable-telemetry \
-  --disable-update-check \
-  --user-data-dir "${CODE_SERVER_USER_DATA_DIR}" \
-  --extensions-dir "${CODE_SERVER_EXTENSIONS_DIR}" \
-  --enable-proposed-api commonplace.theorem-vscode \
-  "${WORKSPACE_DIR}" &
-pids+=($!)
+# --- CS-004: which binary hosts the IDE door -------------------------------
+# Commonplace Studio's reh-web server when the image carries it, stock
+# code-server otherwise. Same port, same user-data and extensions dirs, so the
+# volume's state survives the swap in either direction and rollback is a build
+# arg rather than a migration.
+#
+# The dirs keep their CODE_SERVER_* names on purpose: they are already set in
+# Railway and already populated on the live volume, and renaming them would
+# silently hand every existing workspace an empty profile.
+STUDIO_SERVER_BIN="${STUDIO_SERVER_BIN:-/opt/commonplace/studio-server/bin/commonplace-studio-server}"
+if [ -z "${IDE_HOST:-}" ]; then
+  if [ -x "${STUDIO_SERVER_BIN}" ]; then IDE_HOST=studio; else IDE_HOST=code-server; fi
+fi
+
+# CS-006: the pack reads these at runtime rather than from settings.json, so
+# both hosts get the identical substrate environment. Losing one of these is
+# how the IDE opens with honest-but-dead providers.
+ide_env=(
+  THEOREM_EDITOR_GRAPHQL_URL="${THEOREM_EDITOR_GRAPHQL_URL:-}"
+  THEOREM_EDITOR_INVALIDATIONS_URL="${THEOREM_EDITOR_INVALIDATIONS_URL:-}"
+  THEOREM_EDITOR_PROJECT_ID="${THEOREM_EDITOR_PROJECT_ID:-}"
+  THEOREM_EDITOR_API_KEY="${THEOREM_EDITOR_API_KEY:-}"
+  THEOREM_ACP_WS_URL="${THEOREM_ACP_WS_URL:-}"
+  THEOREM_ACP_TOKEN="${THEOREM_ACP_TOKEN:-}"
+  THEOREM_CONSOLE_ORIGIN="${THEOREM_CONSOLE_ORIGIN:-}"
+)
+
+case "${IDE_HOST}" in
+  studio)
+    if [ ! -x "${STUDIO_SERVER_BIN}" ]; then
+      echo "workspace: IDE_HOST=studio but ${STUDIO_SERVER_BIN} is missing or not executable." >&2
+      echo "workspace: build the image with IDE_HOST=studio, or set IDE_HOST=code-server." >&2
+      exit 65
+    fi
+    echo "workspace: IDE host is Commonplace Studio (${STUDIO_SERVER_BIN})"
+    # Flag translation from the code-server invocation below:
+    #   --bind-addr host:port      -> --host + --port
+    #   --auth none                -> --without-connection-token
+    #   --disable-update-check     -> dropped; the fork ships no update server
+    #   positional folder          -> --default-folder
+    # --accept-server-license-terms is required or the server prompts on a tty
+    # that no container has and never binds. --disable-workspace-trust keeps
+    # parity with code-server, which does not gate the checkout behind a modal.
+    # No --server-base-path: the console edge strips /IDE before forwarding, so
+    # the server correctly believes it is at the root.
+    #
+    # PORT must not reach it. Upstream's server reads PORT and would take the
+    # chat door's port, the same collision code-server caused (GL7 2026-08-03).
+    env -u PORT "${ide_env[@]}" \
+      setsid "${STUDIO_SERVER_BIN}" \
+      --host 0.0.0.0 \
+      --port "${CODE_SERVER_PORT}" \
+      --without-connection-token \
+      --accept-server-license-terms \
+      --disable-telemetry \
+      --disable-workspace-trust \
+      --server-data-dir "${CODE_SERVER_USER_DATA_DIR}/server" \
+      --user-data-dir "${CODE_SERVER_USER_DATA_DIR}" \
+      --extensions-dir "${CODE_SERVER_EXTENSIONS_DIR}" \
+      --enable-proposed-api commonplace.theorem-vscode \
+      --default-folder "${WORKSPACE_DIR}" &
+    pids+=($!)
+    ;;
+  code-server)
+    echo "workspace: IDE host is stock code-server (Studio server not in this image)"
+    # PORT must not reach code-server: it overrides --bind-addr and steals the chat port.
+    env -u PORT "${ide_env[@]}" \
+      setsid code-server \
+      --bind-addr "0.0.0.0:${CODE_SERVER_PORT}" \
+      --auth none \
+      --disable-telemetry \
+      --disable-update-check \
+      --user-data-dir "${CODE_SERVER_USER_DATA_DIR}" \
+      --extensions-dir "${CODE_SERVER_EXTENSIONS_DIR}" \
+      --enable-proposed-api commonplace.theorem-vscode \
+      "${WORKSPACE_DIR}" &
+    pids+=($!)
+    ;;
+  *)
+    echo "workspace: IDE_HOST=${IDE_HOST} is not a host. Use studio or code-server." >&2
+    exit 64
+    ;;
+esac
 
 # Invoked as an explicit path, not through PATH.
 #

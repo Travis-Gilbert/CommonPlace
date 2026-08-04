@@ -5,8 +5,24 @@ Canonical decision: [`docs/records/013-vscode-surface.md`](../../records/013-vsc
 
 ## Status
 
-**Parked.** Stock code-server still hosts the product door at `/IDE`.  
-D1 from `plan-ide-substrate-wire-20260803a` is not “missing IDE” — the door and pack are live; this follow-up swaps the **workbench binary** after V7 web smoke.
+**Unparked, building.** The image and entrypoint now carry Studio as the default
+IDE host (CS-003..CS-006, spec amendment A14). Stock code-server remains the
+rollback behind `--build-arg IDE_HOST=code-server` and is still what the live
+deploy runs until CS-007. The door and pack were always live; this follow-up
+swaps the **workbench binary**.
+
+Three blockers the plan did not anticipate, all now fixed in `build.sh`:
+
+1. **`web` is not a deployable target.** `compile-web` emits a development tree
+   that only `scripts/code-server.sh` runs (`VSCODE_DEV=1`). The artifact a
+   container needs is upstream's reh-web server, so `build.sh` gained `server`.
+2. **Node 24.** Upstream 1.131.0 pins `.nvmrc` to `24.18.0` and
+   `build/npm/preinstall.ts` throws on another major. `build.sh` checks this
+   right after checkout instead of letting `npm ci` discover it minutes later.
+3. **No whitespace in the build path.** node-gyp writes include paths unquoted,
+   so a tree under `/Volumes/SSD Samsung` dies inside `npm ci` with a missing
+   directory named `Samsung/...`. `build.sh` refuses such a path up front;
+   `STUDIO_BUILD_DIR` relocates the tree off the boot volume.
 
 | What is already true | What this follow-up changes |
 |---|---|
@@ -37,14 +53,14 @@ Authenticated `/IDE` serves Commonplace Studio’s web workbench (`code serve-we
 | ID | Task | Grounding | Proof | Status |
 |---|---|---|---|---|
 | CS-000 | Durable follow-up (this file) + link from parent plan | `FOLLOW-UP-CODE-SERVE-WEB.md`, checklist note | file exists | done |
-| CS-001 | Clear disk floors; run `build.sh prepare` then `web` on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | web build artifact; ledger-gate pass | pending |
-| CS-002 | Local smoke: `code serve-web` boots; pack activates; OpenVSX/telemetry/identity checks | Studio RUNBOOK §5 web bullets | written smoke receipt | pending |
-| CS-003 | Draft OW5 amendment: workspace image replaces `code-server` install with Studio web output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + image builds | pending |
-| CS-004 | Entrypoint: start `code serve-web` (bind-addr, user-data, extensions, proposed APIs) without stealing `$PORT` from OpenWork | today’s `env -u PORT` pattern for code-server | `/health` + IDE port respond; chat still on 8787 | pending |
-| CS-005 | Edge proxy / register: keep `/IDE` path strip; rename or note register impl if product id changes | `edge-proxy.mjs`, `.commonplace-canonical`, `IdeRegister` | register-manifest + proxy tests | pending |
-| CS-006 | Preserve substrate env: bootstrap `editor.env`, `CONSOLE_EDITOR_SUBSTRATE_URL`, ACP vars | `bootstrap-editor-substrate.mjs`, Railway vars | doctor substrate green; pack GraphQL + SSE | pending |
-| CS-007 | Live cutover + authenticated `/IDE` smoke (session cookie) | Railway workspace + console | pack providers + one ACP prompt | pending |
-| CS-008 | Retire stock code-server from workspace image once Studio is proven; update EXECUTE-REPORT | Dockerfile, EXECUTE-REPORT | image no longer ships code-server binary as host | pending |
+| CS-001 | Clear disk floors; run `build.sh prepare` then the deployable target on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | server artifact; ledger-gate pass | doing |
+| CS-002 | Local smoke: the server boots; pack activates; OpenVSX/telemetry/identity checks | Studio RUNBOOK §5 web bullets | written smoke receipt | pending (CS-001) |
+| CS-003 | OW5 amendment: workspace image replaces `code-server` install with Studio server output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + image builds | **done** (A14; `studio-server` stage on `node:24`, gated by `IDE_HOST`) |
+| CS-004 | Entrypoint: start the Studio server (host/port, user-data, extensions, proposed APIs) without stealing `$PORT` from OpenWork | today’s `env -u PORT` pattern for code-server | `/health` + IDE port respond; chat still on 8787 | **done** (host branch; `env -u PORT` kept; shellcheck clean) |
+| CS-005 | Edge proxy / register: keep `/IDE` path strip; rename or note register impl if product id changes | `edge-proxy.mjs`, `.commonplace-canonical`, `IdeRegister` | register-manifest + proxy tests | **done** (proxy unchanged by design; manifest notes the selectable host and defers the rename to CS-008) |
+| CS-006 | Preserve substrate env: bootstrap `editor.env`, `CONSOLE_EDITOR_SUBSTRATE_URL`, ACP vars | `bootstrap-editor-substrate.mjs`, Railway vars | doctor substrate green; pack GraphQL + SSE | **done** (one `ide_env` array both hosts pass identically) |
+| CS-007 | Live cutover + authenticated `/IDE` smoke (session cookie) | Railway workspace + console | pack providers + one ACP prompt | pending (CS-002) |
+| CS-008 | Retire stock code-server from workspace image once Studio is proven; update EXECUTE-REPORT; rename `manifest_impl` and `REGISTER_IMPL` to `commonplace-studio.ide` | Dockerfile, EXECUTE-REPORT, `.commonplace-canonical`, `edge-proxy.mjs` | image no longer ships code-server binary as host | pending (CS-007) |
 
 ## Sequence
 

@@ -111,16 +111,16 @@
     },
     {
       "id": "ide",
-      "canonical_package": "packaging/workspace code-server door (+ apps/theorem-vscode pack when live)",
+      "canonical_package": "packaging/workspace IDE door (+ apps/theorem-vscode pack when live)",
       "production_route": "/IDE",
       "registry_entry": "ide.surface",
       "manifest_impl": "code-server.ide",
       "superseded": [],
-      "notes": "Full-page WebSocket edge proxy to workspace :8080. Console authenticates cp_active_workspace; code-server runs --auth none on the private network with theorem-vscode seeded (x-api-key GraphQL + SSE + ACP). Co-located commonplace-api on :50090 indexes /workspace/repo (IDE-006). Commonplace Studio (code serve-web) remains parked until V7 smoke.",
+      "notes": "Full-page WebSocket edge proxy to workspace :8080. Console authenticates cp_active_workspace; the host runs without a connection token on the private network with theorem-vscode seeded (x-api-key GraphQL + SSE + ACP). Co-located commonplace-api on :50090 indexes /workspace/repo (IDE-006). CS-004: the host binary is selectable. The image builds Commonplace Studio's reh-web server by default and the entrypoint prefers it; --build-arg IDE_HOST=code-server is the rollback. Port, user-data dir, and extensions dir are identical across both hosts so the volume's profile survives either direction. manifest_impl stays code-server.ide while both hosts ship, because it names the door the console proxies to and not the binary behind it; rename it to commonplace-studio.ide at CS-008, when stock code-server leaves the image, together with the doctor route expectation and edge-proxy REGISTER_IMPL.",
       "parked": [
         {
           "impl": "commonplace-studio.ide",
-          "reason": "V7 desktop/web workbench smoke still pending before flipping off stock code-server."
+          "reason": "Server target builds (CS-001). Awaiting the authenticated live /IDE smoke (CS-007) before code-server is dropped from the image (CS-008)."
         }
       ]
     },
