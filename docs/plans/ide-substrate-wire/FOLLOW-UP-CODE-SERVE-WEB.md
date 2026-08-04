@@ -5,11 +5,33 @@ Canonical decision: [`docs/records/013-vscode-surface.md`](../../records/013-vsc
 
 ## Status
 
-**Unparked, building.** The image and entrypoint now carry Studio as the default
-IDE host (CS-003..CS-006, spec amendment A14). Stock code-server remains the
-rollback behind `--build-arg IDE_HOST=code-server` and is still what the live
-deploy runs until CS-007. The door and pack were always live; this follow-up
-swaps the **workbench binary**.
+**Unparked, building.** The entrypoint carries Studio as the default IDE host
+(CS-004..CS-006, spec amendment A14). Stock code-server remains the rollback
+behind `--build-arg BUILD_STUDIO_SERVER=0` and is still what the live deploy
+runs until CS-007. The door and pack were always live; this follow-up swaps the
+**workbench binary**.
+
+CS-003 was marked done on 2026-08-03 and reopened on 2026-08-04, because the
+image never carried Studio at all. Deploy `4e33d620` built green off `01143ad5`
+and `/opt/commonplace/studio-server` was absent from the running container. Two
+independent defects, either one fatal on its own:
+
+1. **No `COPY --from=studio-server`.** The stage wrote `/out` and the final image
+   never took it. BuildKit prunes a stage nothing copies from, so the fork was
+   not merely uncopied, it was never compiled. That is why the build finished
+   without ever hitting the mangler patch the LEDGER exists for.
+2. **The gate shared a name with the runtime switch.** Railway injects every
+   service variable into whatever `ARG` a stage declares
+   ([docs](https://docs.railway.com/builds/dockerfiles)), so `IDE_HOST=code-server`,
+   pinned on the service to keep the *runtime* host on code-server during
+   cutover, would have switched the *build* off too. The safe-cutover shape this
+   plan is built on, ship both binaries and flip a variable, was unreachable:
+   pinning the variable deleted the binary from the next image.
+
+Both fixed: the stage is gated on `BUILD_STUDIO_SERVER`, `IDE_HOST` is runtime
+only, and the COPY exists. The general lesson is the second one: on a platform
+that injects service variables into build args, a build-time gate and a runtime
+selector must not share a name.
 
 Three blockers the plan did not anticipate, all now fixed in `build.sh`:
 
@@ -53,9 +75,9 @@ Authenticated `/IDE` serves Commonplace Studio’s web workbench (`code serve-we
 | ID | Task | Grounding | Proof | Status |
 |---|---|---|---|---|
 | CS-000 | Durable follow-up (this file) + link from parent plan | `FOLLOW-UP-CODE-SERVE-WEB.md`, checklist note | file exists | done |
-| CS-001 | Clear disk floors; run `build.sh prepare` then the deployable target on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | server artifact; ledger-gate pass | doing |
+| CS-001 | Clear disk floors; run `build.sh prepare` then the deployable target on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | server artifact; ledger-gate pass | doing. Not buildable on the mac: three runs, three kernel SIGKILLs of the whole process tree at the same gulp stage after `compile-src`, 32GiB against node at `--max-old-space-size=8192`. The `studio-server` stage is the linux builder and Railway is the only machine that runs it |
 | CS-002 | Local smoke: the server boots; pack activates; OpenVSX/telemetry/identity checks | Studio RUNBOOK §5 web bullets | written smoke receipt | harness landed (`scripts/smoke-server.sh`, shellcheck clean); awaiting the CS-001 artifact to produce the receipt |
-| CS-003 | OW5 amendment: workspace image replaces `code-server` install with Studio server output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + image builds | **done** (A14; `studio-server` stage on `node:24`, gated by `IDE_HOST`) |
+| CS-003 | OW5 amendment: workspace image replaces `code-server` install with Studio server output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + `/opt/commonplace/studio-server/bin/commonplace-studio-server` present in the running container | reopened 2026-08-04. Amendment text landed and the stage exists, but nothing copied it into the image and the gate shared a name with the runtime switch, so deploy `4e33d620` shipped no Studio. Stage now gated on `BUILD_STUDIO_SERVER`, `COPY --from=studio-server` added. Proof is the container, not the Dockerfile: the previous "done" was read off the source |
 | CS-004 | Entrypoint: start the Studio server (host/port, user-data, extensions, proposed APIs) without stealing `$PORT` from OpenWork | today’s `env -u PORT` pattern for code-server | `/health` + IDE port respond; chat still on 8787 | **done** (host branch; `env -u PORT` kept; shellcheck clean) |
 | CS-005 | Edge proxy / register: keep `/IDE` path strip; rename or note register impl if product id changes | `edge-proxy.mjs`, `.commonplace-canonical`, `IdeRegister` | register-manifest + proxy tests | **done** (proxy unchanged by design; manifest notes the selectable host and defers the rename to CS-008) |
 | CS-006 | Preserve substrate env: bootstrap `editor.env`, `CONSOLE_EDITOR_SUBSTRATE_URL`, ACP vars | `bootstrap-editor-substrate.mjs`, Railway vars | doctor substrate green; pack GraphQL + SSE | **done** (one `ide_env` array both hosts pass identically) |
