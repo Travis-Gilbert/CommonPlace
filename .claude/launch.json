@@ -16,6 +16,16 @@
       "autoPort": true
     },
     {
+      "name": "console-signed-in",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/console && STUB_DATA_API_PORT=40999 node e2e/stub-data-api.mjs & sleep 3; cd apps/console && AUTH_SECRET=console-local-not-for-production CONSOLE_DATA_API_URL=http://localhost:40999 CONSOLE_DATA_API_KEY=dev-key CONSOLE_HARNESS_URL=http://localhost:40999 CONSOLE_HARNESS_TOKEN=dev-key CONSOLE_HARNESS_TENANT=Travis-Gilbert CONSOLE_E2E_GITHUB_LOGIN=Travis-Gilbert CONSOLE_E2E_HARNESS_IDENTITY=github:e2e-owner CONSOLE_PRINCIPAL_TOKENS_JSON='{\"Travis-Gilbert\":\"dev-key\"}' CONSOLE_E2E_PROACTIVITY_FIXTURE=1 CONSOLE_E2E_FILING_FIXTURE=1 THEOREM_GRAPHQL_URL=http://localhost:40999/graphql THEOREM_API_KEY=dev-key pnpm exec next dev --webpack --port 3010"
+      ],
+      "port": 3010,
+      "autoPort": true
+    },
+    {
       "name": "api",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "api:dev"],

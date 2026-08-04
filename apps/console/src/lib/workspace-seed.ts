@@ -185,8 +185,8 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('chat'),
 
     layoutObject(WORKSPACE_SURFACE_ID, 'surface', {
-      name: 'Editor', kind: 'workspace', role: 'place', stripe_order: 3, active: false, seed_revision: 7,
-    }, ['region-editor', ...companionIds('workspace')]),
+      name: 'Editor', kind: 'workspace', role: 'place', stripe_order: 3, active: false, seed_revision: 8,
+    }, ['region-editor', ...companionIds('workspace', ['thread'])]),
     layoutObject('region-editor', 'region', {
       kind: 'editor', size: 72, active_tab: 'workspace.vi-substrate', seed_revision: 3,
     }, ['workspace.vi-substrate', 'vi-brief', 'vi-code']),
@@ -202,7 +202,10 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'code.file', title: 'surface-tree.ts',
       query: { types: ['code-file'], where: { kind: 'eq', field: 'path', value: 'packages/block-view/src/surface-tree.ts' } } as unknown as JsonValue,
     }),
-    ...companionSeeds('workspace', true),
+    // ponytail: Editor drops the Thread companion. It was the only surface
+    // seeding it open, and the same exclusion the Files surface already uses
+    // covers it. seed_revision bumped so persisted layouts re-seed.
+    ...companionSeeds('workspace', false, ['thread']),
 
     layoutObject('console-goals', 'surface', {
       name: 'Goal Stack', kind: 'goals', role: 'surface', active: false, seed_revision: 4,

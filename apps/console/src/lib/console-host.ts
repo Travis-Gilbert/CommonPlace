@@ -440,6 +440,19 @@ export class ConsoleBlockHost implements BlockHost {
         workspaceSurface.properties.seed_revision = 4;
         added = true;
       }
+      // Editor drops the Thread companion. The seed stopped emitting it, but a
+      // layout persisted before that keeps its own copy, so the panel survives
+      // the seed change until this removes it. The view instance goes too;
+      // leaving it orphans a view-instance object no surface can reach.
+      if (workspaceSurface && workspaceSurface.children.includes('workspace.region-thread')) {
+        workspaceSurface.children = workspaceSurface.children.filter(
+          (child) => child !== 'workspace.region-thread',
+        );
+        workspaceSurface.properties.seed_revision = 8;
+        this.layout.delete('workspace.region-thread');
+        this.layout.delete('workspace.region-thread.view');
+        added = true;
+      }
       // B10: Cards surface migrates to a kind=grid region with records island.
       const cardsEditor = this.layout.get('cards.region-editor');
       if (cardsEditor && cardsEditor.properties.kind !== 'grid') {

@@ -44,7 +44,7 @@ export function EditorTabs({ region, instances, host }: EditorTabsProps) {
       data-editor-island
       data-island="editor"
       data-block-size={bare ? 'full' : 'w'}
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
       {bare ? null : <div
         role="tablist"

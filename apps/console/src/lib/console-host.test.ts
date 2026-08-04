@@ -89,14 +89,14 @@ describe('ConsoleBlockHost', () => {
       .map((surface) => surface.properties.name)).toEqual([
         'Chat', 'Researcher', 'Index', 'Editor', 'Models',
       ]);
+    // Editor excludes the Thread companion, the way Files excludes its own.
     const workspace = buildSurfaceTree('console-workspace', set.objects);
     expect(workspace!.children.map((child) => child.object.id)).toEqual([
       'region-editor',
       'workspace.region-files',
       'workspace.region-context',
-      'workspace.region-thread',
     ]);
-    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(3);
+    expect(workspace!.children.filter((child) => child.object.properties.role === 'companion')).toHaveLength(2);
     // The Index carries a third surface-role region, the urgent lane, whose
     // empty state is its designed norm (SPEC-COMMONPLACE-FILING-AND-INDEX-1.0
     // F5). It is a region rather than a companion because it belongs to this
@@ -375,11 +375,14 @@ describe('ConsoleBlockHost', () => {
       .toEqual(['console-workspace']);
     expect(notified).toBe(1);
 
+    // Files and context, because Editor no longer seeds a thread companion.
+    // What this proves is unchanged: opening one region with an exclusion list
+    // closes the regions it names.
     await host.setRegionOpen('workspace.region-context', true);
-    await host.setRegionOpen('workspace.region-thread', true, ['workspace.region-context']);
+    await host.setRegionOpen('workspace.region-files', true, ['workspace.region-context']);
     current = host.queryLayout(surfaceQuery()).objects;
     expect(current.find((object) => object.id === 'workspace.region-context')?.properties.open).toBe(false);
-    expect(current.find((object) => object.id === 'workspace.region-thread')?.properties.open).toBe(true);
+    expect(current.find((object) => object.id === 'workspace.region-files')?.properties.open).toBe(true);
     unsubscribe();
   });
 

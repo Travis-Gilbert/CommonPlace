@@ -831,7 +831,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
         <div id="console-editor-well" className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             data-shell-region="ground"
-            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
+            // ponytail: no ground padding. The editor is the base of the
+            // screen, not a card lying on it. gap stays so stacked regions
+            // still separate from each other.
+            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter"
           >
             <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
               {compact ? (

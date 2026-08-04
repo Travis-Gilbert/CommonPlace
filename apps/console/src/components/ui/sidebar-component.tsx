@@ -663,7 +663,7 @@ function IconNavigation({
   return (
     <aside
       data-jshguo-icon-rail
-      className="bg-ij-chrome flex h-full min-h-0 w-16 flex-col items-center gap-2 rounded-l-ij-island border-r border-ij-seam p-4"
+      className="bg-ij-chrome flex h-full min-h-0 w-16 flex-col items-center gap-2 border-r border-ij-seam p-4"
       {...railProps}
     >
       <div className="mb-2 flex size-10 items-center justify-center">
@@ -805,7 +805,7 @@ function DetailSidebar({
     <aside
       data-jshguo-detail-panel
       data-collapsed={isCollapsed ? 'true' : 'false'}
-      className={`bg-ij-frame flex h-full min-h-0 flex-col items-start gap-4 rounded-r-ij-island p-4 transition-all duration-(--ij-motion) ease-(--ij-ease) ${
+      className={`bg-ij-frame flex h-full min-h-0 flex-col items-start gap-4 p-4 transition-all duration-(--ij-motion) ease-(--ij-ease) ${
         isCollapsed
           ? 'w-16 min-w-16 !px-0 justify-center'
           : 'w-ij-sidebar-expanded min-w-ij-sidebar-expanded'
