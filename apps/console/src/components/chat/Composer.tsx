@@ -482,7 +482,7 @@ export function ChatComposer({
       </div>
       {unreachable ? (
         <p className="mt-2 text-ij-ink-info" role="status">
-          The harness is unreachable. Sending is paused until reconnect.
+          The harness is unreachable. Sending is paused until it is back.
         </p>
       ) : null}
     </form>

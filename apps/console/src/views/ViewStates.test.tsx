@@ -24,7 +24,11 @@ describe('ViewState', () => {
     expect(markup).toContain('Not connected.');
     expect(markup).toContain('the harness chat endpoint');
     expect(markup).toContain('data-empty-cause="not-connected"');
-    expect(markup).toContain('Reconnect');
+    // Retry, and never Reconnect: connecting is a property of being signed in,
+    // not an affordance. This asserts the absence too, so reintroducing the
+    // control fails here rather than in review.
+    expect(markup).toContain('Retry');
+    expect(markup).not.toContain('Reconnect');
   });
 
   it('renders error with retry in standalone mode', () => {

@@ -172,7 +172,7 @@ export function Transcript({
         className="flex h-full min-h-0 flex-1 items-center justify-center text-ij-ink-info"
         role="status"
       >
-        The harness is unreachable. Reconnect to continue this thread.
+        The harness is unreachable. This thread continues when it is back.
       </div>
     );
   }
