@@ -53,7 +53,7 @@ bash scripts/doctor.sh → 23/23 green
 
 ## Remaining honesty
 
-- `ModelView.tsx` remains as the plan-id studio chrome wrapping OWOX; still listed under data-model `superseded` until a follow-up deletes the plan-id shell after longer live parity.
+- `ModelView.tsx` is the registry adapter only (load/pin/OKF/layout + floating strip); plan-id BlockShell / inspector / fields-records lenses removed in `feat/modelview-fullbleed-owox`.
 - `CONSOLE_MOBILE_API_KEY` optional and unlit.
 - Authenticated proactivity public URL returned 404 in smoke (internal changefeed URL is what console uses).
 - OpenWork `/chat` UI may require workspace token/session for full interactive use; register stamp is observed without it.

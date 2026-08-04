@@ -123,7 +123,9 @@ test.describe('Console sidebar', () => {
     await expect(page.getByTestId('model-canvas-shell')).toBeVisible({
       timeout: 120_000,
     });
-    await expect(page.locator('[data-model-inspector]')).toHaveCSS('width', '320px');
+    // Full-bleed OWOX body: no plan-id inspector rail; canvas fills the well.
+    await expect(page.locator('[data-model-inspector]')).toHaveCount(0);
+    await expect(page.locator('[data-model-canvas-page]')).toBeVisible();
   });
 
   test('Program route mounts the canonical Program Canvas surface', async ({ page }) => {

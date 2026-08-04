@@ -1,6 +1,6 @@
 // SOURCING: none. Canonical App Router segment for the Data model surface.
-// Server-stamp the register impl so the cutover doctor can observe it without
-// waiting for client hydration of ModelView / ForkDiagramCanvas.
+// Server-stamp the register impl for the cutover doctor. The page body is the
+// console surface with model.studio → ModelCanvasShell (OWOX) full-bleed.
 
 import ConsoleSurfacePage from '@/lib/console-surface-page';
 
