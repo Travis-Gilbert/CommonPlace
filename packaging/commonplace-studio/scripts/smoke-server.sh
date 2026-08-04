@@ -9,7 +9,16 @@
 # records it as a separate line, filled in from a real page load.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The container is the real target, and the way in is
+#   railway ssh 'bash -s' < scripts/smoke-server.sh
+# which leaves BASH_SOURCE empty, so under `set -u` deriving the root from it
+# aborted before a single check ran. The default is only a convenience for a
+# local build tree anyway: STUDIO_SERVER_DIR names the artifact directly, and
+# that is the form the image uses.
+SCRIPT_DIR=$PWD
+if [[ -n ${BASH_SOURCE[0]:-} ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 readonly SCRIPT_DIR
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly ROOT_DIR
