@@ -21,6 +21,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import type { BlockHost } from '@commonplace/block-view/types';
 import { DashboardSidebar } from '@/components/ui/dashboard-sidebar';
+import { RailInsights } from '@/components/shell/RailInsights';
+import { RailActionCluster } from '@/components/shell/RailActionCluster';
 import { IconLayers } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
 import { softNavigate } from '@/lib/soft-navigate';
@@ -218,6 +220,13 @@ export function InspectorRail({
       >
         {open && showBody ? (
           <div className="flex h-full min-h-0 w-full flex-col">
+            {/* The reference's reading order: what the agent is doing, then the
+                thing it is doing it to, then what you can do about it. The
+                insights list shrinks to nothing when it has nothing true to
+                show, so the canvas keeps the height rather than the rail
+                reserving space for an empty heading. */}
+            <RailInsights className="max-h-1/3 px-1 pt-2" />
+
             <div className="min-h-0 flex-1 overflow-hidden" data-inspector-section="dashboard">
               <DashboardSidebar
                 host={host}
@@ -234,6 +243,11 @@ export function InspectorRail({
                 viewerUserId={viewerUserId}
               />
             </div>
+
+            <RailActionCluster
+              onOpenCanvas={() => void softNavigate(router, '/Data-model')}
+              onCollapse={() => onOpenChange(false)}
+            />
 
             {footer ? (
               <footer className="shrink-0 border-t border-border/50 px-3 py-2 text-ij-island-meta text-muted-foreground">
