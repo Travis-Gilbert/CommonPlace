@@ -1,6 +1,12 @@
 # Patch queue
 
-Empty, and that is the target state.
+**Patch count: 2** (build-only; see `LEDGER.md`). Target state remains zero
+capability patches.
+
+| Patch | Why |
+| --- | --- |
+| `0001-mangler-keep-session-changes-overrides-protected.patch` | `-min` mangler refuses public overrides of protected methods |
+| `0002-reh-web-unminified-skip-mangler.patch` | Unminified reh-web still ran mangling and OOM'd the Railway builder |
 
 Patches are applied in filename order by `scripts/build.sh`, named
 `NNNN-short-name.patch`, and each one must have a `LEDGER.md` entry naming its
