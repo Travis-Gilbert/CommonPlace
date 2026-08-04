@@ -326,19 +326,17 @@ build_web() {
 build_server() {
     local platform="${STUDIO_SERVER_PLATFORM:-linux}"
     local arch="${STUDIO_SERVER_ARCH:-x64}"
-    # Unminified by default. The mangle step is the only part of this build that
-    # ever ran out of memory, and it is not a ceiling that can be tuned: the
-    # builder aborts at about 3.0GB of heap, and upstream's minifier wants
-    # something closer to 8. Three heap settings were tried against it (default,
-    # 12288, 6144) and the abort just moved between MarkCompactCollector and
-    # NewSpace; the number was never the problem, the machine was.
+    # Unminified by default, AND mangling skipped for that path (patch 0002).
+    # Dropping `-min` alone is not enough: gulpfile.reh.ts still starts every
+    # vscode-reh-web-* task with compileBuildWithManglingTask, so deploy
+    # 7c2690ab OOM'd in [mangler] on vscode-reh-web-linux-x64 after #185.
+    # compileBuildWithoutManglingTask is upstream's local/PR compile; we only
+    # route the unminified reh-web series onto it.
     #
     # What -min buys is smaller assets over the wire. What it costs here is the
-    # whole artifact, because without it there is no IDE door at all. Larger
-    # assets behind an authenticated same-origin proxy is the cheaper side of
-    # that trade, and it is reversible: STUDIO_MINIFY=1 restores the -min target
-    # for any builder that can back it, and the mangler patch in the ledger stays
-    # in place for exactly that case.
+    # whole artifact on a ~3–4GiB Railway builder. STUDIO_MINIFY=1 restores the
+    # -min target (and mangling) for a builder that can back it; patch 0001
+    # stays required for that path.
     local target="vscode-reh-web-${platform}-${arch}"
     if [[ "${STUDIO_MINIFY:-0}" == "1" ]]; then
         target="${target}-min"
