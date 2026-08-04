@@ -347,10 +347,21 @@ build_server() {
     # produced the second, which is why it is not the machine for this.
     #
     # Overridable because the right number is a property of the builder rather
-    # than of this repository. Set it below the builder's memory: a ceiling
-    # above what the host can back converts this clean abort into a kernel kill,
-    # which is harder to read and loses the stack.
-    local heap_mb="${STUDIO_NODE_HEAP_MB:-12288}"
+    # than of this repository, and it must sit BELOW the builder's memory.
+    #
+    # 12288 was tried first and was worse than the default. The abort moved from
+    # MarkCompactCollector to NewSpace::EnsureCurrentCapacity, which is not V8
+    # declining at its own ceiling but V8 asking the OS for memory and being
+    # refused: the ceiling was above what the machine could back, so instead of
+    # collecting harder it grew until the container said no. Raising this is
+    # therefore not a monotonic improvement, and the direction to move on an
+    # out-of-memory abort depends on which of the two messages appears.
+    #
+    # 6144 is chosen to leave headroom inside a builder that could not back 12G.
+    # It remains a measurement, not a derivation: the builder does not report its
+    # size, so this is the largest value that is comfortably under the smallest
+    # plausible host.
+    local heap_mb="${STUDIO_NODE_HEAP_MB:-6144}"
     log "building the server: $target (node heap ceiling ${heap_mb}MiB)"
     (
         cd "$BUILD_DIR" \
