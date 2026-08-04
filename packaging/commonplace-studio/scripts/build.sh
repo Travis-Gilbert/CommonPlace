@@ -326,7 +326,23 @@ build_web() {
 build_server() {
     local platform="${STUDIO_SERVER_PLATFORM:-linux}"
     local arch="${STUDIO_SERVER_ARCH:-x64}"
-    local target="vscode-reh-web-${platform}-${arch}-min"
+    # Unminified by default. The mangle step is the only part of this build that
+    # ever ran out of memory, and it is not a ceiling that can be tuned: the
+    # builder aborts at about 3.0GB of heap, and upstream's minifier wants
+    # something closer to 8. Three heap settings were tried against it (default,
+    # 12288, 6144) and the abort just moved between MarkCompactCollector and
+    # NewSpace; the number was never the problem, the machine was.
+    #
+    # What -min buys is smaller assets over the wire. What it costs here is the
+    # whole artifact, because without it there is no IDE door at all. Larger
+    # assets behind an authenticated same-origin proxy is the cheaper side of
+    # that trade, and it is reversible: STUDIO_MINIFY=1 restores the -min target
+    # for any builder that can back it, and the mangler patch in the ledger stays
+    # in place for exactly that case.
+    local target="vscode-reh-web-${platform}-${arch}"
+    if [[ "${STUDIO_MINIFY:-0}" == "1" ]]; then
+        target="${target}-min"
+    fi
     # gulpfile.reh.ts emits into the parent of the source tree.
     local out="$BUILD_ROOT/vscode-reh-web-${platform}-${arch}"
 
@@ -337,31 +353,16 @@ build_server() {
     # Raise it if a run is ever seen to exceed it, but do not guess it upward.
     require_disk 10 8
 
-    # The mangle step is the memory peak, and what it hits is node's own
-    # ceiling, not the machine's:
-    #   FATAL ERROR: MarkCompactCollector: young object promotion failed
-    #   Allocation failed - JavaScript heap out of memory
-    # exit 134, seven minutes in, on the linux builder. V8 refusing at its
-    # configured limit is a different failure from the kernel reclaiming the
-    # process, and only the first one is fixed by raising the limit. The mac
-    # produced the second, which is why it is not the machine for this.
+    # A ceiling, not a fix. The builder aborts around 3.0GB whatever this
+    # says, so it exists to keep V8 collecting inside the machine rather than
+    # growing until the container refuses. Two aborts look different and mean
+    # different things: MarkCompactCollector is V8 declining at its own limit,
+    # NewSpace::EnsureCurrentCapacity is the OS declining. Only the first is
+    # fixed by raising this, which is why raising it is not monotonic and why
+    # minification moved out of the default path instead.
     #
-    # Overridable because the right number is a property of the builder rather
-    # than of this repository, and it must sit BELOW the builder's memory.
-    #
-    # 12288 was tried first and was worse than the default. The abort moved from
-    # MarkCompactCollector to NewSpace::EnsureCurrentCapacity, which is not V8
-    # declining at its own ceiling but V8 asking the OS for memory and being
-    # refused: the ceiling was above what the machine could back, so instead of
-    # collecting harder it grew until the container said no. Raising this is
-    # therefore not a monotonic improvement, and the direction to move on an
-    # out-of-memory abort depends on which of the two messages appears.
-    #
-    # 6144 is chosen to leave headroom inside a builder that could not back 12G.
-    # It remains a measurement, not a derivation: the builder does not report its
-    # size, so this is the largest value that is comfortably under the smallest
-    # plausible host.
-    local heap_mb="${STUDIO_NODE_HEAP_MB:-6144}"
+    # Overridable, and it belongs below the builder's memory.
+    local heap_mb="${STUDIO_NODE_HEAP_MB:-3072}"
     log "building the server: $target (node heap ceiling ${heap_mb}MiB)"
     (
         cd "$BUILD_DIR" \
