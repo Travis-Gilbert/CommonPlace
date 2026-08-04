@@ -52,6 +52,7 @@ import { RecordPage } from '@/components/blocks/RecordPage';
 import { ConsoleDataView } from './ConsoleDataView';
 
 import { ProgramView } from './program/ProgramView';
+import { PrototypeStageView } from './prototype/PrototypeStageView';
 
 function ThreadRender(_props: ViewRenderProps) {
   return (
@@ -695,6 +696,35 @@ const BROWSER_PANE: ConsoleViewDescriptor = {
   render: BrowserPaneRender,
 };
 
+const PROTOTYPE_STAGE: ConsoleViewDescriptor = {
+  id: 'prototype.stage',
+  name: 'Prototype Stage',
+  paletteVisible: false,
+  accepts: {},
+  emits: ['select', 'invoke_tool'],
+  renderer: 'prototype.stage',
+  sourcing: {
+    mode: 'wrap',
+    upstream: '@rerun-io/web-viewer',
+  },
+  source: {
+    package: '@rerun-io/web-viewer',
+    component: 'WebViewer',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'scrub and select prototype recordings',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'browser',
+    bodyBleed: 'flush',
+  },
+  render: PrototypeStageView,
+};
+
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',
@@ -1041,6 +1071,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   PROGRAM_CANVAS,
   SEARCH_STACK,
   BROWSER_PANE,
+  PROTOTYPE_STAGE,
   COMMONPLACE_CONSOLE,
 ] as const;
 
