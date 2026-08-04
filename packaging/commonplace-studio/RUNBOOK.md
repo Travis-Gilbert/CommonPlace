@@ -74,8 +74,39 @@ on 2026-08-03: 0 patches, overlay merged, pack staged at
 - Desktop boots, `Help > About` shows Commonplace Studio and no Microsoft marks,
   the extensions view reaches Open VSX, telemetry settings read off, and the
   Theorem pack is present without being installed by hand.
-- Web boots through `code serve-web`, the pack activates in the browser host, and
-  the OW5 workspace container loads. Until this passes on a given tag, OW5 stays
+- Web is `scripts/smoke-server.sh`, run against the `server` target's output. It
+  asserts the checkable half of this bullet: the artifact and its launcher exist,
+  product.json carries the fork identity with telemetry off and Open VSX as the
+  gallery and no Microsoft service URL anywhere in it, the Theorem pack ships as
+  a built-in with its proposed API grant and a web entry point, and the server
+  boots and serves a workbench that names Commonplace Studio and carries no
+  Visual Studio Code branding. The script skips the boot when the host platform
+  is not the target platform (building linux on a mac is the normal case), so on
+  a mac the boot half belongs to the image.
+
+  Not `code serve-web`: that is a NATIVE_CLI_COMMANDS entry handled by the Rust
+  CLI. The deployable artifact is upstream's reh-web target, whose launcher is
+  `bin/commonplace-studio-server`. The `web` target is `compile-web`, a
+  development tree that runs only under `scripts/code-server.sh`, and it is a
+  local smoke rather than anything shippable.
+
+  Since a mac cannot build the linux artifact, the real target is the image, and
+  the way in is stdin:
+
+  ```bash
+  railway ssh --service commonplace-workspace \
+    'STUDIO_SERVER_DIR=/opt/commonplace/studio-server bash -s' \
+    < packaging/commonplace-studio/scripts/smoke-server.sh
+  ```
+
+  The script takes no arguments for exactly this reason: piped through `bash -s`
+  there is no `BASH_SOURCE`, so everything it needs to locate arrives through
+  the environment. Run it against a container and the boot half runs too, since
+  host platform and target platform finally agree.
+
+- Activation inside the browser extension host is the one bullet no shell can
+  prove. Load the served workbench and read the extension host log for the pack.
+  Until that and the OW5 workspace container both pass on a given tag, OW5 stays
   on stock code-server; the amendment is drafted and does not land.
 - Quick open in the desktop build ranks an inside-project fixture hit above an
   equal outside one. If it does not, the proposal grant did not take, and the

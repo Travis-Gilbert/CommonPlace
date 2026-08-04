@@ -1,0 +1,86 @@
+{
+  "plan_slug": "commonplace-production-cutover",
+  "plan_id": "plan-local-20260803",
+  "spec": "docs/plans/commonplace-production-cutover/SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0.md",
+  "oracle_class": "live_production",
+  "created": "2026-08-03",
+  "items": [
+    {
+      "id": "VF",
+      "content": "Verify first: PRs, Railway map, canonical marker, legacy inventory, OW4 decision, cookie domain, degraded-write status",
+      "status": "verified",
+      "oracle_class": "live_observation",
+      "evidence_class": "live_observation"
+    },
+    {
+      "id": "GL1",
+      "content": "Register manifest in .commonplace-canonical + CI check vs registry.tsx",
+      "status": "verified",
+      "oracle_class": "ci_gate",
+      "evidence_class": "repo_local",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL2",
+      "content": "Four upstreams lit: GraphQL, object-seam data API, harness HTTP, RustyRed proactivity stream",
+      "status": "verified",
+      "oracle_class": "live_http",
+      "evidence_class": "live_http",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL3",
+      "content": "Console env contract set and redeployed; v2 composer/records/plan/runs/status observed",
+      "status": "verified",
+      "oracle_class": "live_browser",
+      "evidence_class": "live_browser",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL4",
+      "content": "Doctor script + /doctor route + post-deploy CI job",
+      "status": "verified",
+      "oracle_class": "live_http",
+      "evidence_class": "live_http",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL5",
+      "content": "Empty the shelf: merge or close every open CommonPlace and cutover-relevant Theorem PR",
+      "status": "partial",
+      "oracle_class": "github_state",
+      "evidence_class": "github_state"
+    },
+    {
+      "id": "GL6",
+      "content": "Route registers: openwork chat (OW4 route), OWOX model canvas, Models registry, shelf surfaces",
+      "status": "verified",
+      "oracle_class": "live_browser",
+      "evidence_class": "live_browser",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL7",
+      "content": "Workspace container (OW5) deployed as Railway workspace service",
+      "status": "verified",
+      "oracle_class": "live_service",
+      "evidence_class": "live_service",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL8",
+      "content": "Retirements with resurrection smokes: assistant-ui chat, legacy Models editor, legacy Data-model, apps/web",
+      "status": "verified",
+      "oracle_class": "doctor_smoke",
+      "evidence_class": "doctor_smoke",
+      "live_oracle_required": true
+    },
+    {
+      "id": "GL9",
+      "content": "CONVENTIONS.md amendment + four in-flight surface spec amendment lines",
+      "status": "verified",
+      "oracle_class": "repo_diff",
+      "evidence_class": "repo_diff"
+    }
+  ]
+}

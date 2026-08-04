@@ -1,5 +1,7 @@
-// SOURCING: none. Ordinary chat redirects into scoped workspace chat once an
-// active membership exists.
+// SOURCING: none. Ordinary chat stays on /chat for an admitted principal so the
+// OW4 middleware can reverse-proxy the workspace openwork door. The old
+// redirect into /workspace/*/chat is retired: page.tsx forbids it by name
+// because that path misses the proxy matcher and remounts assistant-ui.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +21,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import ChatIndexPage from './page';
+import { OpenworkChatRegister } from '@/views/OpenworkChatRegister';
 
 describe('ordinary chat route', () => {
   beforeEach(() => {
@@ -26,7 +29,7 @@ describe('ordinary chat route', () => {
     mocks.redirect.mockClear();
   });
 
-  it('redirects an admitted workspace principal into scoped chat', async () => {
+  it('keeps an admitted workspace principal on /chat for the proxy', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -39,8 +42,10 @@ describe('ordinary chat route', () => {
       },
     });
 
-    await expect(ChatIndexPage()).rejects.toThrow('NEXT_REDIRECT:/workspace/workspace-1/chat');
-    expect(mocks.redirect).toHaveBeenCalledWith('/workspace/workspace-1/chat');
+    const rendered = await ChatIndexPage();
+
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(rendered.type).toBe(OpenworkChatRegister);
   });
 
   it('sends unresolved principals to login', async () => {

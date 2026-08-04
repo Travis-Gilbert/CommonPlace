@@ -64,6 +64,7 @@ const PLACE_ICONS: Record<string, typeof IconRecords> = {
   index: IconIndex,
   editor: IconWorkspace,
   model: IconModel,
+  ide: IconFiles,
 };
 
 const LANDMARK_ICONS: Record<string, typeof IconRecords> = {

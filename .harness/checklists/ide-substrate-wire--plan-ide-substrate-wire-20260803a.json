@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "plan_id": "plan-ide-substrate-wire-20260803a",
+  "tenant_slug": "Travis-Gilbert",
+  "room_id": "room:ungrouped",
+  "workstream": "ide-substrate-wire",
+  "created_at": "2026-08-03",
+  "planning_skill": "theorems-harness:planning-theorem",
+  "execution_skill": "theorems-harness:execute",
+  "substrate_status": "local_projection_only",
+  "substrate_note": "Harness MCP plan create unavailable at planning time; import with plan import when MCP recovers.",
+  "sources": [
+    "docs/plans/ide-substrate-wire/PLAN.md",
+    "https://github.com/Travis-Gilbert/Theorem/pull/436",
+    "docs/records/013-vscode-surface.md",
+    "docs/plans/editor-dx-wire/CONSUMER-FEEDBACK.md"
+  ],
+  "deferrals": [
+    {
+      "id": "D1",
+      "title": "Commonplace Studio code serve-web replaces stock code-server",
+      "reason": "V7 web smoke still pending; this plan wires the pack onto the live code-server /IDE door first.",
+      "consent": "surfaced_in_plan_20260803"
+    }
+  ],
+  "items": [
+    {
+      "id": "IDE-000",
+      "title": "Durable plan + checklist projection",
+      "status": "done",
+      "acceptance": [
+        "PLAN.md and checklist projection exist and name IDE-001..008"
+      ],
+      "proof_command": "test -f docs/plans/ide-substrate-wire/PLAN.md && test -f .harness/checklists/ide-substrate-wire--plan-ide-substrate-wire-20260803a.json"
+    },
+    {
+      "id": "IDE-001",
+      "title": "Pack GraphQL auth uses x-api-key; config/env split",
+      "status": "done",
+      "grounding": [
+        "apps/theorem-vscode/src/substrate/client.ts",
+        "apps/theorem-vscode/src/extension.ts",
+        "apps/theorem-vscode/package.json"
+      ],
+      "acceptance": [
+        "GraphQL requests send x-api-key when token configured",
+        "Default graphqlUrl is not OpenWork :8787",
+        "Env THEOREM_EDITOR_* overrides settings when present"
+      ],
+      "proof_command": "pnpm --filter theorem-vscode run test"
+    },
+    {
+      "id": "IDE-002",
+      "title": "Authenticated SSE + project_id query param",
+      "status": "done",
+      "grounding": [
+        "apps/theorem-vscode/src/substrate/client.ts",
+        "Theorem origin/main apps/commonplace-api/src/serve.rs editor_invalidations_sse"
+      ],
+      "acceptance": [
+        "invalidationsUrlFrom uses project_id",
+        "Changefeed works without globalThis.EventSource when token+fetch present",
+        "No setInterval/setTimeout in pack src"
+      ],
+      "proof_command": "pnpm --filter theorem-vscode run test && pnpm --filter theorem-vscode run gate:no-timers"
+    },
+    {
+      "id": "IDE-003",
+      "title": "ACP HostedAcpClient.connect + explicit url/token",
+      "status": "done",
+      "grounding": [
+        "apps/theorem-vscode/src/agent/session-opener.ts",
+        "packages/theorem-acp/src/hosted-client.ts"
+      ],
+      "acceptance": [
+        "session-opener imports HostedAcpClient.connect",
+        "Explicit ws url and bearer token options work without process env"
+      ],
+      "proof_command": "pnpm --filter theorem-vscode run check"
+    },
+    {
+      "id": "IDE-004",
+      "title": "Stage theorem-vscode into workspace Docker image",
+      "status": "done",
+      "grounding": [
+        "packaging/workspace/Dockerfile",
+        "apps/theorem-vscode"
+      ],
+      "acceptance": [
+        "Image contains /opt/commonplace/extensions/theorem-vscode with dist + package.json",
+        "product.json grants commonplace.theorem-vscode proposed APIs"
+      ],
+      "proof_command": "docker build -f packaging/workspace/Dockerfile -t commonplace-workspace:ide-wire ."
+    },
+    {
+      "id": "IDE-005",
+      "title": "Entrypoint seeds extension + generates code-server settings",
+      "status": "done",
+      "grounding": [
+        "packaging/workspace/entrypoint.sh",
+        "packaging/workspace/railway.toml"
+      ],
+      "acceptance": [
+        "code-server --extensions-dir --user-data-dir --enable-proposed-api",
+        "settings.json gets theorem.graphqlUrl / token from THEOREM_EDITOR_* env"
+      ],
+      "proof_command": "bash -n packaging/workspace/entrypoint.sh"
+    },
+    {
+      "id": "IDE-006",
+      "title": "Substrate reachability for /workspace/repo",
+      "status": "done",
+      "grounding": [
+        "packaging/workspace/Dockerfile editor-api-build",
+        "packaging/workspace/bootstrap-editor-substrate.mjs",
+        "packaging/workspace/entrypoint.sh",
+        "apps/theorem-vscode/src/extension.ts"
+      ],
+      "acceptance": [
+        "Co-located commonplace-api binds EDITOR_SUBSTRATE_PORT (50090)",
+        "bootstrap createProject(rootPath=/workspace/repo) writes editor.env",
+        "onDidSaveTextDocument refreshes standing queries without timers"
+      ],
+      "proof_command": "bash -n packaging/workspace/entrypoint.sh && test -f packaging/workspace/bootstrap-editor-substrate.mjs && pnpm --filter theorem-vscode test"
+    },
+    {
+      "id": "IDE-007",
+      "title": "Doctor observes substrate-wired IDE",
+      "status": "done",
+      "grounding": [
+        "scripts/doctor.mjs",
+        "apps/console/src/app/api/doctor/route.ts"
+      ],
+      "acceptance": [
+        "/api/doctor returns substrate.healthz + substrate.readiness",
+        "doctor.mjs fails closed when substrate probes are red"
+      ],
+      "proof_command": "node scripts/doctor.mjs"
+    },
+    {
+      "id": "IDE-008",
+      "title": "Manifest notes pack on code-server.ide; Studio parked",
+      "status": "done",
+      "grounding": [
+        ".commonplace-canonical"
+      ],
+      "acceptance": [
+        "ide register notes pack install; commonplace-studio.ide remains parked"
+      ],
+      "proof_command": "node scripts/check-register-manifest.mjs"
+    }
+  ]
+}

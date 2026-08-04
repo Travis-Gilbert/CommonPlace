@@ -82,7 +82,8 @@ check_telemetry_off() {
 # link domains. Grepping the whole file would fail on those and teach the reader
 # to ignore the gate.
 check_built_tree() {
-    local built="$ROOT_DIR/build/vscode/product.json"
+    # Same relocation seam as build.sh: the tree may live off the boot volume.
+    local built="${STUDIO_BUILD_DIR:-$ROOT_DIR/build}/vscode/product.json"
 
     if [[ ! -f "$built" ]]; then
         echo "ledger-gate: no built tree; run scripts/build.sh prepare to check the shipped product.json"

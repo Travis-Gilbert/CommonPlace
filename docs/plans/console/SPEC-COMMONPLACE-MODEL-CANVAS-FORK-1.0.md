@@ -4,7 +4,7 @@
 
 The verdict on OWOX/models: hard fork, adopted as the model-canvas surface, with the registry as the only model truth and the fork's own package boundaries as the cut lines. Supersedes the from-scratch model-canvas construction in `SPEC-MODEL-CANVAS-RECORDS-1.0` (MC1); carries that spec's MC2 through MC5 forward as the customization list. The records surface RT1 through RT7 is untouched. Dispositions for every other candidate library are recorded here so none of them reopens unlabeled.
 
-`CONVENTIONS.md` applies.
+`CONVENTIONS.md` applies. Amendment (SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL9): the final deliverable of this surface is its `.commonplace-canonical` manifest row flipped and its production smoke green at a named URL; superseding the prior model-canvas construction carries that deletion as a deliverable with its own acceptance.
 
 ## Frame
 

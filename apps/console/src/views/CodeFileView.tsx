@@ -3,7 +3,9 @@
 // SOURCING: codemirror (@codemirror/view, @codemirror/lang-javascript). The
 // code.file descriptor is a CodeMirror 6 view over the Rust text-model seam.
 // Edits use the existing ObjectAction::InvokeTool contract and authoritative
-// model state returns in the existing action receipt note.
+// model state returns in the existing action receipt note. Full-repo VS Code
+// work lives at /IDE (code-server). This CM6 surface stays graph-native and
+// may later specialize as the markdown/writing editor.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {

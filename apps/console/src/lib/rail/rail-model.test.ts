@@ -14,13 +14,14 @@ import {
 import { KIND_GLYPH_ORDER } from '@/lib/material/kind-hues';
 
 describe('rail-model', () => {
-  it('places are the launch set of five', () => {
+  it('places are the launch set of six', () => {
     expect(PLACE_ENTRIES.map((place) => place.label)).toEqual([
       'Chat',
       'Researcher',
       'Index',
       'Editor',
       'Models',
+      'IDE',
     ]);
     expect(PLACE_ENTRIES.map((place) => place.path)).toEqual([
       '/chat',
@@ -28,6 +29,7 @@ describe('rail-model', () => {
       '/filing',
       '/workspace',
       '/Data-model',
+      '/IDE',
     ]);
     expect(PLACE_ENTRIES.map((place) => place.surfaceId)).toEqual([
       'console-chat',
@@ -35,11 +37,12 @@ describe('rail-model', () => {
       'console-index',
       'console-workspace',
       'console-models',
+      'console-ide',
     ]);
-    expect(PLACE_ENTRIES).toHaveLength(5);
+    expect(PLACE_ENTRIES).toHaveLength(6);
   });
 
-  it('keeps glyphs unique across the five launch kinds', () => {
+  it('keeps glyphs unique across the six launch kinds', () => {
     const kinds = PLACE_ENTRIES.map((place) => place.kind);
     expect(new Set(kinds).size).toBe(kinds.length);
   });

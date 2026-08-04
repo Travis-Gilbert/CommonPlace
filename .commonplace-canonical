@@ -1,3 +1,209 @@
-commonplace-canonical=1
-canonical_path_hint=/Users/travisgilbert/Tech Dev Local/Creative/Website/CommonPlace
-sentinel=apps/console/src/components/ground/MaterialLayer.tsx
+{
+  "schema": "commonplace-canonical/v1",
+  "commonplace_canonical": 1,
+  "canonical_path_hint": "/Users/travisgilbert/Tech Dev Local/Creative/Website/CommonPlace",
+  "sentinel": "apps/console/src/components/ground/MaterialLayer.tsx",
+  "production_host": "https://v2.theoremharness.com",
+  "named_choices": {
+    "ow4_route_versus_zone": "route",
+    "ow4_rationale": "HttpOnly cp_active_workspace cookie stays same-origin; reverse-proxy the Vite chat register under /chat on the console origin. Not a Next zone and not a subdomain. Recorded in SPEC-COMMONPLACE-OPENWORK-FORK-1.0 A9; granted go-ahead for OW5 by SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0."
+  },
+  "services": {
+    "console": {
+      "railway_service": "commonplace-console",
+      "railway_config": "railway.console.toml",
+      "public_url": "https://v2.theoremharness.com",
+      "health": "https://v2.theoremharness.com/api/healthz",
+      "notes": "Canonical product host. Root railway.toml is equivalent Console build input."
+    },
+    "consumer_graphql": {
+      "railway_service": "commonplace-api",
+      "railway_config": "apps/commonplace-api/railway.toml",
+      "public_url": "https://commonplace-api-production.up.railway.app/graphql",
+      "env_keys": [
+        "THEOREM_GRAPHQL_URL",
+        "THEOREM_API_KEY"
+      ],
+      "health": "https://commonplace-api-production.up.railway.app/healthz"
+    },
+    "object_seam_data_api": {
+      "railway_service": "commonplace-api",
+      "internal_url": "http://commonplace-api.railway.internal:8080",
+      "public_url": "https://commonplace-api-production.up.railway.app",
+      "env_keys": [
+        "CONSOLE_DATA_API_URL",
+        "CONSOLE_DATA_API_KEY"
+      ],
+      "notes": "Object seam required by the Railway launcher. data.theoremharness.com currently points at commonplace-data, a second Console deploy, and is NOT this seam."
+    },
+    "harness_http": {
+      "railway_service": "theorem",
+      "public_url": "https://api.theoremharness.com",
+      "env_keys": [
+        "CONSOLE_HARNESS_URL",
+        "CONSOLE_HARNESS_TOKEN",
+        "CONSOLE_HARNESS_TENANT",
+        "CONSOLE_HARNESS_ROOM"
+      ],
+      "health": "https://api.theoremharness.com/healthz"
+    },
+    "proactivity_stream": {
+      "railway_service": "theorem",
+      "internal_url": "http://rustyredcore---theorem.railway.internal:8080/v1/proactivity/stream",
+      "public_url": "https://api.theoremharness.com/v1/proactivity/stream",
+      "env_keys": [
+        "THEOREM_PROACTIVITY_CHANGEFEED_URL"
+      ],
+      "notes": "RustyRed stream. Must never point at the GraphQL host."
+    },
+    "workspace": {
+      "railway_service": "commonplace-workspace",
+      "railway_config": "packaging/workspace/railway.toml",
+      "status": "live",
+      "env_keys": [
+        "WORKSPACE_TOKEN"
+      ],
+      "notes": "OW5 live. Dockerfile VOLUME removed; Railway Volume at /workspace; Node 22 for pnpm; code-server started with env -u PORT and --auth none on :8080; OpenWork on :8787. Console /IDE edge proxies the IDE door. Health 200 at public URL.",
+      "internal_url": "http://commonplace-workspace.railway.internal:8787",
+      "public_url": "https://commonplace-workspace-production.up.railway.app",
+      "health": "https://commonplace-workspace-production.up.railway.app/health"
+    },
+    "commonplace_data_hostname": {
+      "railway_service": "commonplace-data",
+      "public_url": "https://data.theoremharness.com",
+      "status": "misnamed_console_duplicate",
+      "notes": "Healthz identifies as commonplace-console. Do not treat as the object seam."
+    }
+  },
+  "registers": [
+    {
+      "id": "chat",
+      "canonical_package": "apps/chat (@commonplace/chat) + packages/openwork-ui",
+      "production_route": "/chat",
+      "registry_entry": "chat.surface",
+      "manifest_impl": "openwork.chat",
+      "superseded": []
+    },
+    {
+      "id": "records",
+      "canonical_package": "apps/console RecordTableView + twenty-ui / tnks-data-table",
+      "production_route": "/records",
+      "registry_entry": "record.table",
+      "manifest_impl": "console.record.table",
+      "superseded": []
+    },
+    {
+      "id": "data-model",
+      "canonical_package": "packages/model-canvas (@commonplace/model-canvas)",
+      "production_route": "/Data-model",
+      "registry_entry": "model.studio",
+      "manifest_impl": "model-canvas.owox",
+      "engine_contracts": [
+        {
+          "id": "theorem.commonplace-meta-model.v1",
+          "source": "Travis-Gilbert/Theorem#457",
+          "owner": "Theorem",
+          "consumer": "CommonPlace model.studio"
+        }
+      ],
+      "superseded": [],
+      "notes": "Page body is ModelCanvasShell via ForkDiagramCanvas. ModelView is the registry adapter (load/pin/OKF/layout) with floating actions only — plan-id BlockShell chrome removed 2026-08-03."
+    },
+    {
+      "id": "ide",
+      "canonical_package": "packaging/workspace IDE door (+ apps/theorem-vscode pack when live)",
+      "production_route": "/IDE",
+      "registry_entry": "ide.surface",
+      "manifest_impl": "code-server.ide",
+      "superseded": [],
+      "notes": "Full-page WebSocket edge proxy to workspace :8080. Console authenticates cp_active_workspace; the host runs without a connection token on the private network with theorem-vscode seeded (x-api-key GraphQL + SSE + ACP). Co-located commonplace-api on :50090 indexes /workspace/repo (IDE-006). CS-004: the host binary is selectable. The image builds Commonplace Studio's reh-web server by default and the entrypoint prefers it; --build-arg BUILD_STUDIO_SERVER=0 is the rollback. The build gate is deliberately not named IDE_HOST: Railway injects service variables into declared build args, so the runtime host selector would otherwise switch the build off and ship an image with nothing to cut over to, which is what deploy 4e33d620 did. Port, user-data dir, and extensions dir are identical across both hosts so the volume's profile survives either direction. manifest_impl stays code-server.ide while both hosts ship, because it names the door the console proxies to and not the binary behind it; rename it to commonplace-studio.ide at CS-008, when stock code-server leaves the image, together with the doctor route expectation and edge-proxy REGISTER_IMPL.",
+      "parked": [
+        {
+          "impl": "commonplace-studio.ide",
+          "reason": "Server target builds (CS-001). Awaiting the authenticated live /IDE smoke (CS-007) before code-server is dropped from the image (CS-008)."
+        }
+      ]
+    },
+    {
+      "id": "documents",
+      "canonical_package": "apps/console GalleyDocView + @travis-gilbert/markdown-theory",
+      "production_route": "/documents",
+      "registry_entry": "markdown.doc",
+      "manifest_impl": "console.markdown.doc",
+      "superseded": []
+    },
+    {
+      "id": "editor",
+      "canonical_package": "apps/console CodeFileView + editor-model seam",
+      "production_route": "/workspace",
+      "registry_entry": "code.file",
+      "manifest_impl": "console.code.file",
+      "superseded": [],
+      "notes": "Graph-native CM6 over the Rust text-model seam. Full VS Code workbench is /IDE. CM6 may later specialize as the markdown/writing editor."
+    },
+    {
+      "id": "plan",
+      "canonical_package": "apps/console GoalStackView",
+      "production_route": "/workspace",
+      "registry_entry": "goal.stack",
+      "manifest_impl": "console.goal.stack",
+      "superseded": []
+    },
+    {
+      "id": "runs",
+      "canonical_package": "apps/console harness-ux StatusPanel + CONSOLE_HARNESS_*",
+      "production_route": "/",
+      "registry_entry": "harness.status",
+      "manifest_impl": "console.harness.status",
+      "superseded": []
+    }
+  ],
+  "retired": [
+    {
+      "id": "assistant-ui.ChatPage",
+      "paths": [
+        "apps/console/src/components/chat/ChatPage.tsx",
+        "apps/console/src/components/chat/Composer.tsx",
+        "apps/console/src/components/chat/RuntimeComposer.tsx",
+        "apps/console/src/components/chat/Transcript.tsx",
+        "apps/console/src/components/chat/runtime.ts",
+        "apps/console/src/views/ThreadView.tsx",
+        "apps/console/src/views/ThreadListView.tsx"
+      ],
+      "retired_at": "2026-08-03",
+      "reason": "Openwork /chat live on v2 with data-register-impl=openwork.chat"
+    },
+    {
+      "id": "apps.web",
+      "paths": [
+        "apps/web/src/app/(dev)/reconstruction/[runId]/page.tsx",
+        "apps/web/src/components/commonplace/scene-host/ReconstructionViewer.tsx",
+        "apps/web/src/components/commonplace/scene-host/__tests__/reconstruction-viewer.test.ts",
+        "apps/web/src/components/commonplace/scene-host/reconstruction-viewer.ts"
+      ],
+      "retired_at": "2026-08-03",
+      "reason": "Legacy app.theoremharness.com surface; console is canonical"
+    }
+  ],
+  "env_contract": [
+    "THEOREM_GRAPHQL_URL",
+    "THEOREM_API_KEY",
+    "CONSOLE_DATA_API_URL",
+    "CONSOLE_DATA_API_KEY",
+    "CONSOLE_HARNESS_URL",
+    "CONSOLE_HARNESS_TOKEN",
+    "CONSOLE_HARNESS_TENANT",
+    "CONSOLE_HARNESS_ROOM",
+    "NEXT_PUBLIC_CONSOLE_CHAT_URL",
+    "THEOREM_NODE_URL",
+    "THEOREM_ACP_WS_URL",
+    "THEOREM_API_TOKEN",
+    "CONSOLE_MOBILE_API_KEY",
+    "THEOREM_PROACTIVITY_CHANGEFEED_URL",
+    "CONSOLE_WORKSPACE_URL",
+    "CONSOLE_WORKSPACE_TOKEN",
+    "CONSOLE_IDE_WORKSPACE_URL",
+    "CONSOLE_EDITOR_SUBSTRATE_URL",
+    "COMMONPLACE_ACTIVE_WORKSPACE_SECRET"
+  ]
+}

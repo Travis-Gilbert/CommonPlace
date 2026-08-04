@@ -15,8 +15,8 @@ import type { ConsoleViewDescriptor } from '@/lib/rail/rail-model';
 import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
-import { ThreadView } from './ThreadView';
-import { ThreadListView } from './ThreadListView';
+import { OpenworkChatRegister } from './OpenworkChatRegister';
+import { IdeRegister } from './IdeRegister';
 import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
 import { IndexStreamView } from './IndexStreamView';
@@ -52,15 +52,31 @@ import { RecordPage } from '@/components/blocks/RecordPage';
 import { ConsoleDataView } from './ConsoleDataView';
 
 import { ProgramView } from './program/ProgramView';
+import { PrototypeStageView } from './prototype/PrototypeStageView';
 
-function ThreadRender(props: ViewRenderProps) {
-  return <ThreadView host={props.host} density="compact" />;
+function ThreadRender(_props: ViewRenderProps) {
+  return (
+    <OpenworkChatRegister reason="Thread place routes through the openwork chat register at /chat." />
+  );
 }
 
-function ChatSurfaceRender(props: ViewRenderProps) {
-  return <ThreadView host={props.host} density="full" />;
+function ChatSurfaceRender(_props: ViewRenderProps) {
+  return (
+    <OpenworkChatRegister reason="Chat surface register body is openwork.chat at /chat." />
+  );
 }
 
+function IdeSurfaceRender(_props: ViewRenderProps) {
+  return (
+    <IdeRegister reason="IDE surface register body is code-server.ide at /IDE." />
+  );
+}
+
+function ThreadListRender(_props: ViewRenderProps) {
+  return (
+    <OpenworkChatRegister reason="Thread list is owned by the openwork chat door at /chat." />
+  );
+}
 function FilesRender(props: ViewRenderProps) {
   return <FilesView host={props.host} />;
 }
@@ -222,10 +238,10 @@ const CHAT_THREAD: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.thread',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    package: '@commonplace/chat',
+    component: 'OpenworkChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -246,10 +262,10 @@ const CHAT_SURFACE: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.surface',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/Composer' },
+  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'Composer',
+    package: '@commonplace/chat',
+    component: 'OpenworkChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -264,16 +280,40 @@ const CHAT_SURFACE: ViewDescriptor = {
   render: ChatSurfaceRender,
 };
 
+const IDE_SURFACE: ViewDescriptor = {
+  id: 'ide.surface',
+  name: 'IDE',
+  accepts: {},
+  emits: ['open'],
+  renderer: 'ide.surface',
+  sourcing: { mode: 'wrap', upstream: 'code-server.ide' },
+  source: {
+    package: 'code-server',
+    component: 'Workbench',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'edit the workspace checkout in VS Code',
+    placements: ['full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'terminal',
+    bodyBleed: 'flush',
+  },
+  render: IdeSurfaceRender,
+};
 const THREAD_LIST: ViewDescriptor = {
   id: 'thread.list',
   name: 'Threads',
   accepts: {},
   emits: ['open'],
   renderer: 'thread.list',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    package: '@commonplace/chat',
+    component: 'OpenworkChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -285,7 +325,7 @@ const THREAD_LIST: ViewDescriptor = {
     surfaceClass: 'tool',
     kindGlyph: 'thread',
   },
-  render: ThreadListView,
+  render: ThreadListRender,
 };
 
 const FILES_TREE: ConsoleViewDescriptor = {
@@ -578,10 +618,10 @@ const MODEL_STUDIO: ViewDescriptor = {
   accepts: { required_types: ['model-scope'] },
   emits: ['select', 'create', 'update', 'delete'],
   renderer: 'model.studio',
-  sourcing: { mode: 'wrap', upstream: '@xyflow/react/ReactFlow' },
+  sourcing: { mode: 'wrap', upstream: '@commonplace/model-canvas/ModelCanvasShell' },
   source: {
-    package: '@xyflow/react',
-    component: 'ReactFlow',
+    package: '@commonplace/model-canvas',
+    component: 'ModelCanvasShell',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -680,6 +720,34 @@ const BROWSER_PANE: ConsoleViewDescriptor = {
   render: BrowserPaneRender,
 };
 
+const PROTOTYPE_STAGE: ConsoleViewDescriptor = {
+  id: 'prototype.stage',
+  name: 'Prototype Stage',
+  paletteVisible: false,
+  accepts: {},
+  emits: ['select', 'invoke_tool'],
+  renderer: 'prototype.stage',
+  sourcing: {
+    mode: 'wrap',
+    upstream: '@rerun-io/web-viewer',
+  },
+  source: {
+    package: '@rerun-io/web-viewer',
+    component: 'WebViewer',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'scrub and select prototype recordings',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'browser',
+    bodyBleed: 'flush',
+  },
+  render: PrototypeStageView,
+};
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',
@@ -911,10 +979,10 @@ const AGENT_RAIL: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'agent.rail',
-  sourcing: { mode: 'wrap', upstream: '@assistant-ui/react/ThreadPrimitive' },
+  sourcing: { mode: 'wrap', upstream: 'console.agent.rail' },
   source: {
-    package: '@assistant-ui/react',
-    component: 'ThreadPrimitive',
+    package: 'apps/console',
+    component: 'AgentRailBlock',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -995,6 +1063,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   CODE_FILE,
   CHAT_THREAD,
   CHAT_SURFACE,
+  IDE_SURFACE,
   THREAD_LIST,
   FILES_TREE,
   CONTEXT_GRAPH,
@@ -1025,6 +1094,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   PROGRAM_CANVAS,
   SEARCH_STACK,
   BROWSER_PANE,
+  PROTOTYPE_STAGE,
   COMMONPLACE_CONSOLE,
 ] as const;
 
