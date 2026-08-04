@@ -90,6 +90,20 @@ on 2026-08-03: 0 patches, overlay merged, pack staged at
   development tree that runs only under `scripts/code-server.sh`, and it is a
   local smoke rather than anything shippable.
 
+  Since a mac cannot build the linux artifact, the real target is the image, and
+  the way in is stdin:
+
+  ```bash
+  railway ssh --service commonplace-workspace \
+    'STUDIO_SERVER_DIR=/opt/commonplace/studio-server bash -s' \
+    < packaging/commonplace-studio/scripts/smoke-server.sh
+  ```
+
+  The script takes no arguments for exactly this reason: piped through `bash -s`
+  there is no `BASH_SOURCE`, so everything it needs to locate arrives through
+  the environment. Run it against a container and the boot half runs too, since
+  host platform and target platform finally agree.
+
 - Activation inside the browser extension host is the one bullet no shell can
   prove. Load the served workbench and read the extension host log for the pack.
   Until that and the OW5 workspace container both pass on a given tag, OW5 stays
