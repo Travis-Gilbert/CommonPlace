@@ -108,6 +108,13 @@ import {
   validateEdgeSchema,
   type ProgramListItem,
 } from './programClient';
+import {
+  buildPrototypeStageProps,
+  fallingBoxesPathToExpr,
+  findViewNodeIds,
+  recordingIdFromReceipt,
+  shouldOpenPrototypeStageForInterior,
+} from './prototypeStageHandoff';
 
 function diffPrograms(left: ProgramDefinition, right: ProgramDefinition): ProgramDiff {
   const leftNodes = new Set(left.nodes.map((node) => node.id));
@@ -794,8 +801,33 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
         programId: programIdentityForCompound(),
         nodeId: selectedNodeId,
       });
-      await openProgram(interior.pinned_content_id || interior.interior_program_id);
-      setNotice(`Opened interior for ${selectedNodeId}.`);
+      const interiorId = interior.pinned_content_id || interior.interior_program_id;
+      await openProgram(interiorId);
+      const loaded = await loadProgram(interiorId);
+      const decision = shouldOpenPrototypeStageForInterior(loaded.definition);
+      if (decision.open) {
+        const stageId = `proto-stage:interior:${decision.viewNodeId}`;
+        await host.emit({
+          kind: 'create',
+          type: 'view-instance',
+          props: {
+            id: stageId,
+            descriptor_id: 'prototype.stage',
+            ...buildPrototypeStageProps({
+              recordingId: '',
+              viewNodeId: decision.viewNodeId,
+              definition: loaded.definition,
+              programId: interiorId,
+            }),
+          },
+        });
+        await host.emit({ kind: 'open', id: stageId, view: 'prototype.stage' });
+        setNotice(
+          `Opened interior for ${selectedNodeId} and prototype.stage (${decision.viewNodeId}).`,
+        );
+      } else {
+        setNotice(`Opened interior for ${selectedNodeId}.`);
+      }
     } catch (interiorError) {
       setError(interiorError instanceof Error ? interiorError.message : String(interiorError));
     }
@@ -1060,6 +1092,43 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
         },
       };
     }));
+    const recordingId = recordingIdFromReceipt(receipt);
+    const viewIds = findViewNodeIds(definition);
+    if (recordingId && viewIds.length > 0) {
+      const stageId = `proto-stage:${recordingId}`;
+      void host
+        .emit({
+          kind: 'create',
+          type: 'view-instance',
+          props: {
+            id: stageId,
+            descriptor_id: 'prototype.stage',
+            ...buildPrototypeStageProps({
+              recordingId,
+              viewNodeId: viewIds[0],
+              definition,
+              programId,
+              gatewayBase:
+                process.env.NEXT_PUBLIC_THEOREM_GATEWAY_URL?.trim() || null,
+              pathToExpr: fallingBoxesPathToExpr('simulate'),
+            }),
+          },
+        })
+        .then(() => host.emit({ kind: 'open', id: stageId, view: 'prototype.stage' }))
+        .then(() => {
+          setNotice(
+            `Run ${receipt.run_id}: opened prototype.stage for ${recordingId}.`,
+          );
+        })
+        .catch((openError: unknown) => {
+          setNotice(
+            `Run ${receipt.run_id}: recording ${recordingId} ready; stage open failed (${
+              openError instanceof Error ? openError.message : String(openError)
+            }).`,
+          );
+        });
+      return;
+    }
     setNotice(`Run ${receipt.run_id}: ${receipt.events.length} server events.`);
   }
 
