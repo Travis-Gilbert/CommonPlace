@@ -290,6 +290,7 @@ write_ship_pack_manifest() {
         exit 1
     }
     log "writing ship package.json (no workspace deps) for $(basename "$extension_dir")"
+    # shellcheck disable=SC2016  # The ${} in the node script are JS template literals.
     node -e '
         const fs = require("fs");
         const path = process.argv[1];
