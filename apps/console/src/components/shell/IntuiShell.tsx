@@ -873,9 +873,16 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                 <PanelGroup
                   direction="horizontal"
                   autoSaveId="console.inspector-dock"
-                  className="h-full min-h-0"
+                  className="relative h-full min-h-0"
                 >
                   <Panel id="console-well" order={1} minSize={40} className="min-w-0">
+                {/* The rail floats over the well rather than taking a column
+                    out of it. The Panel keeps its width, so drag, collapse and
+                    the persisted size stay the library's; what changes is what
+                    the editor measures itself against. Absolute to the group,
+                    so the surface spans the whole width and the rail paints on
+                    top of it. */}
+                <div className="absolute inset-0">
                 <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
                   {visiblePanels.flatMap((panel, index) => {
                     const isEditor = panel.region === editor;
@@ -919,11 +926,12 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                     return nodes;
                   })}
                 </PanelGroup>
+                </div>
                   </Panel>
                   <PanelResizeHandle
                     data-panel-seam
                     data-inspector-seam
-                    className="relative w-ij-island-gutter bg-transparent"
+                    className="relative z-20 w-ij-island-gutter bg-transparent"
                   />
                   <Panel
                     id="console-inspector-rail"
@@ -935,7 +943,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                     defaultSize={22}
                     onCollapse={() => setRailOpen(false)}
                     onExpand={() => setRailOpen(true)}
-                    className="min-w-0"
+                    className="relative z-20 min-w-0"
                   >
                     <div data-shell-region="dock" data-dock-edge="right" className="h-full min-h-0">
                       <InspectorRail
