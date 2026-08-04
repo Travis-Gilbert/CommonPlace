@@ -364,12 +364,24 @@ code-server as the IDE door's host. That was always a placeholder: `docs/records
 amendment records what the image now does (CS-003, CS-004).
 
 **The host is selectable at build time.** `packaging/workspace/Dockerfile` gains a
-`studio-server` stage gated on `--build-arg IDE_HOST`. At `studio`, the default,
-it builds Commonplace Studio's reh-web server from `packaging/commonplace-studio`
-and the final image installs it. At `code-server`, the stage is skipped and the
-pinned code-server install is the host, exactly as before. The entrypoint prefers
-the Studio binary when the image carries it and falls back otherwise, so the
-Rollback section of the follow-up is one build arg rather than a revert.
+`studio-server` stage gated on `--build-arg BUILD_STUDIO_SERVER`. At `1`, the
+default, it builds Commonplace Studio's reh-web server from
+`packaging/commonplace-studio` and the final image installs it through
+`COPY --from=studio-server`. At `0`, the stage emits only a marker, the same COPY
+lands a directory with no launcher, and the pinned code-server install is the
+host, exactly as before. The entrypoint prefers the Studio binary when the image
+carries it and falls back otherwise, so the Rollback section of the follow-up is
+one build arg rather than a revert.
+
+Corrected 2026-08-04, twice, after the first image that was supposed to carry
+Studio carried nothing. As first written this stage was gated on
+`--build-arg IDE_HOST` and no `COPY --from=studio-server` existed anywhere. Both
+halves were wrong and either alone was fatal. A stage nothing copies from is a
+stage BuildKit prunes, so the fork compiled nowhere; and Railway injects every
+service variable into whatever ARG a stage declares, so the `IDE_HOST=code-server`
+set on the service to pick the *runtime* host would also have switched the
+*build* off. The runtime switch and the build switch cannot share a name on a
+platform that fuses them. `IDE_HOST` is runtime only now.
 
 **Two doors is unchanged, and so is everything the console depends on.** Same
 `CODE_SERVER_PORT`, same `--auth none` posture expressed as

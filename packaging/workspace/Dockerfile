@@ -119,21 +119,29 @@ RUN pnpm --filter theorem-vscode run build \
 # the same upstream plus a second auth layer duplicating console session auth,
 # which is why the follow-up exists.
 #
-# Gated by IDE_HOST so the rollback in FOLLOW-UP-CODE-SERVE-WEB.md is a build
-# arg and not a revert:
-#   --build-arg IDE_HOST=code-server
+# Gated by BUILD_STUDIO_SERVER, deliberately not by IDE_HOST. Railway injects
+# every service variable into whatever ARG a stage declares, so while this stage
+# read `ARG IDE_HOST`, setting IDE_HOST=code-server on the service to choose the
+# runtime host also switched the build off, and the next image shipped no Studio
+# to cut over to. One name cannot be both the runtime switch and the build
+# switch. IDE_HOST is runtime only now, read by entrypoint.sh; the rollback here
+# is a build arg and not a revert:
+#   --build-arg BUILD_STUDIO_SERVER=0
+# which still writes /out, so the COPY into the runtime image stays valid. What
+# it omits is the launcher, which is exactly what entrypoint.sh probes with -x
+# before choosing a host, so a skipped build falls back to code-server on its
+# own rather than starting a door that is not there.
 #
 # `server`, not `web`: build.sh's web target is a development compile that only
 # scripts/code-server.sh can run. `server` emits upstream's reh-web target, a
 # self-contained server directory with its own node and bin entrypoint.
-ARG IDE_HOST=studio
 
 # node:24, not node:22 like the stages above. Upstream 1.131.0 pins .nvmrc to
 # 24.18.0 and build/npm/preinstall.ts throws on any other major, so a node:22
 # base fails this stage before a single file compiles.
 FROM node:24-bookworm AS studio-server
-ARG IDE_HOST=studio
-RUN if [ "${IDE_HOST}" != "studio" ]; then \
+ARG BUILD_STUDIO_SERVER=1
+RUN if [ "${BUILD_STUDIO_SERVER}" != "1" ]; then \
       mkdir -p /out && printf 'skipped\n' > /out/SKIP; \
     else \
       apt-get update \
@@ -149,8 +157,8 @@ COPY LICENSE /studio/LICENSE
 # The pack is already compiled one stage up; STUDIO_PACK_DIR skips rebuilding it
 # here, where there is no pnpm workspace to rebuild it from.
 COPY --from=vscode-pack /opt/extension/theorem-vscode /studio/pack/theorem-vscode
-RUN if [ "${IDE_HOST}" != "studio" ]; then \
-      echo "studio-server: IDE_HOST=${IDE_HOST}, skipping the Studio build"; \
+RUN if [ "${BUILD_STUDIO_SERVER}" != "1" ]; then \
+      echo "studio-server: BUILD_STUDIO_SERVER=${BUILD_STUDIO_SERVER}, skipping the Studio build"; \
     else \
       cd /studio/packaging/commonplace-studio \
         && STUDIO_BUILD_DIR=/studio/build \
@@ -165,7 +173,6 @@ RUN if [ "${IDE_HOST}" != "studio" ]; then \
 
 # --- Stage 2: the workspace image -----------------------------------------
 FROM oven/bun:1.3.10-debian AS base
-ARG IDE_HOST=studio
 
 # git: the workspace is a checkout, and both doors expect real VCS state.
 # ca-certificates: the head reaches the Theorem MCP over TLS.
@@ -202,6 +209,14 @@ RUN curl -fsSL https://code-server.dev/install.sh \
 COPY --from=vscode-pack /opt/extension/theorem-vscode /opt/commonplace/extensions/theorem-vscode
 COPY packaging/workspace/patch-code-server-product.mjs /usr/local/bin/patch-code-server-product.mjs
 RUN node /usr/local/bin/patch-code-server-product.mjs
+
+# The other IDE host. This COPY is what makes the studio-server stage part of
+# the image: a stage nothing copies from is a stage BuildKit never runs, so
+# without this line the fork compiled nowhere and entrypoint.sh's -x probe found
+# nothing to select, which is how an image that was supposed to ship both hosts
+# quietly shipped one. The stage asserts its own launcher with `test -x`, so a
+# broken Studio build fails the image here rather than at container start.
+COPY --from=studio-server /out/ /opt/commonplace/studio-server/
 
 # Co-located editor substrate binary (IDE-006). Absent when INCLUDE_EDITOR_SUBSTRATE=0.
 COPY --from=editor-api-build /out/ /opt/commonplace/editor-api/
