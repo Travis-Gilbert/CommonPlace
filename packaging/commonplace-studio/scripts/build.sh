@@ -336,8 +336,28 @@ build_server() {
     # was actually observed to need; see the measurement note in RUNBOOK.md.
     # Raise it if a run is ever seen to exceed it, but do not guess it upward.
     require_disk 10 8
-    log "building the server: $target"
-    (cd "$BUILD_DIR" && npm ci && npm run gulp -- "$target")
+
+    # The mangle step is the memory peak, and what it hits is node's own
+    # ceiling, not the machine's:
+    #   FATAL ERROR: MarkCompactCollector: young object promotion failed
+    #   Allocation failed - JavaScript heap out of memory
+    # exit 134, seven minutes in, on the linux builder. V8 refusing at its
+    # configured limit is a different failure from the kernel reclaiming the
+    # process, and only the first one is fixed by raising the limit. The mac
+    # produced the second, which is why it is not the machine for this.
+    #
+    # Overridable because the right number is a property of the builder rather
+    # than of this repository. Set it below the builder's memory: a ceiling
+    # above what the host can back converts this clean abort into a kernel kill,
+    # which is harder to read and loses the stack.
+    local heap_mb="${STUDIO_NODE_HEAP_MB:-12288}"
+    log "building the server: $target (node heap ceiling ${heap_mb}MiB)"
+    (
+        cd "$BUILD_DIR" \
+            && npm ci \
+            && NODE_OPTIONS="--max-old-space-size=${heap_mb}${NODE_OPTIONS:+ $NODE_OPTIONS}" \
+               npm run gulp -- "$target"
+    )
 
     if [[ ! -x "$out/bin/commonplace-studio-server" ]]; then
         echo "Error: $out/bin/commonplace-studio-server is missing or not executable" >&2

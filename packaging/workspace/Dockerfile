@@ -58,11 +58,24 @@ FROM rust:1.96.1-bookworm AS editor-api-build
 ARG INCLUDE_EDITOR_SUBSTRATE=1
 ARG THEOREM_GIT_URL=https://github.com/Travis-Gilbert/Theorem.git
 ARG THEOREM_GIT_REF=main
-# Private Theorem checkout: Railway service var THEOREM_GIT_TOKEN (PAT) is
-# mounted as a build-arg. Never echo it.
 # Private Theorem: Railway auto-passes matching service vars as Docker build
 # args. Declare ARG without an empty default so an unset arg does not wipe a
 # real value, then require the token for INCLUDE=1.
+#
+# Every `$` below is escaped, and that is the whole point. BuildKit prints each
+# RUN instruction with its build args already substituted, so a token written
+# into the command text is copied verbatim into the build log, which outlives
+# the build and is readable by anyone with access to the project. This stage
+# used to carry the comment "never echo it" directly above a clone URL that
+# echoed it, and every build published the PAT. Escaping defers expansion to the
+# shell, which reads the value from the arg's own environment, so the printed
+# instruction carries the name and not the secret.
+#
+# The credential helper is the second half: it keeps the token out of the URL,
+# so it cannot resurface through git's own progress output, a redirect notice,
+# or the remote recorded in .git/config. GIT_TERMINAL_PROMPT=0 turns a helper
+# that returns nothing into an immediate failure rather than a hung build
+# waiting on a prompt no one can answer.
 ARG THEOREM_GIT_TOKEN
 RUN if [ "${INCLUDE_EDITOR_SUBSTRATE}" != "1" ]; then \
       mkdir -p /out && printf 'skipped\n' > /out/SKIP; \
@@ -70,19 +83,23 @@ RUN if [ "${INCLUDE_EDITOR_SUBSTRATE}" != "1" ]; then \
       apt-get update \
         && apt-get install -y --no-install-recommends protobuf-compiler git ca-certificates \
         && rm -rf /var/lib/apt/lists/* \
-        && if [ -z "${THEOREM_GIT_TOKEN}" ]; then \
+        && if [ -z "\$THEOREM_GIT_TOKEN" ]; then \
              echo "editor-api-build: THEOREM_GIT_TOKEN is required to clone private Theorem" >&2; \
              exit 64; \
            fi \
-        && git clone --depth 1 --branch "${THEOREM_GIT_REF}" \
-             "https://x-access-token:${THEOREM_GIT_TOKEN}@github.com/Travis-Gilbert/Theorem.git" /src \
+        && GIT_TERMINAL_PROMPT=0 git \
+             -c credential.helper='!f() { echo username=x-access-token; echo password=\$THEOREM_GIT_TOKEN; }; f' \
+             clone --depth 1 --branch "${THEOREM_GIT_REF}" "${THEOREM_GIT_URL}" /src \
         && cd /src/apps/commonplace-api \
         && cargo build -p commonplace-api --release --bin commonplace-api \
         && mkdir -p /out \
         && cp /src/apps/commonplace-api/target/release/commonplace-api /out/commonplace-api \
         && test -x /out/commonplace-api; \
     fi
-# Token is substituted into this stage's RUN only; final image COPYs the binary.
+# The token reaches this stage's RUN only; the final image COPYs just the
+# binary, so no layer that ships carries it. THEOREM_GIT_URL is now the clone
+# source it was always declared to be, rather than a parameter beside a
+# hardcoded URL that ignored it.
 
 # Optional prebuilt override: when EDITOR_API_IMAGE is non-empty, final stage
 # copies from it instead of editor-api-build. BuildKit cannot conditionally
