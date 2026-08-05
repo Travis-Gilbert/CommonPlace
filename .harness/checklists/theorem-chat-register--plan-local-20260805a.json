@@ -49,11 +49,11 @@
     {
       "id": "CR-001",
       "title": "Land Copilot retirement + redeploy Studio image",
-      "status": "verifying",
+      "status": "done",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "artifact",
-      "evidence_note": "PR #190 merged as 644d1ba8; Railway deploy 23822b99 BUILDING that commit. Live product.json proof pending SUCCESS.",
+      "evidence_class": "live",
+      "evidence_note": "PR #190/#191; deploy 4e69fb85 SUCCESS (9363e542). Live /opt/commonplace/studio-server/product.json: no defaultChatAgent/voiceWsUrl; copilot_names []; nls has Setup Commonplace Studio.",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -73,11 +73,11 @@
     {
       "id": "CR-002",
       "title": "Repair sticky empty /workspace/repo",
-      "status": "verifying",
+      "status": "done",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "artifact",
-      "evidence_note": "entrypoint repair on main; WORKSPACE_REPO=Travis-Gilbert/CommonPlace set. Live HEAD/package.json proof pending new image boot.",
+      "evidence_class": "live",
+      "evidence_note": "Live /workspace/repo has package.json; HEAD 9363e542; WORKSPACE_REPO=Travis-Gilbert/CommonPlace. Sticky empty repaired on 4e69fb85 boot.",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
