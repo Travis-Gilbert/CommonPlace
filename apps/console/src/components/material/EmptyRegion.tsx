@@ -16,10 +16,16 @@ const CAUSE_COPY: Record<EmptyCause, { title: string; detail: string; actionLabe
     detail: 'Cause: content has not been fetched or selected yet.',
     actionLabel: 'Retry',
   },
+  // The action is 'Retry', not 'Reconnect'. Connecting is a property of being
+  // signed in, not a button the reader presses: no product asks a logged-in
+  // person to establish their own session. Naming the cause is still right, so
+  // the title and detail stay. What is offered is another attempt at the read
+  // that failed, which is the same thing 'not-loaded' offers and is why they
+  // now read the same.
   'not-connected': {
     title: 'Not connected.',
     detail: 'Cause: the backing service is unreachable or not configured.',
-    actionLabel: 'Reconnect',
+    actionLabel: 'Retry',
   },
 };
 

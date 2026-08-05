@@ -81,6 +81,15 @@ for (const root of importRoots) {
         });
         continue;
       }
+      /* A relative specifier is a file on disk, not a package, so judge it by
+         where it lands rather than by what it is called. './twenty-register.css'
+         is a console stylesheet named after the source it aliases and never
+         leaves the app; '../../packages/twenty-front/x' really does cross the
+         line and is still caught, because the test is on the resolved path. */
+      if (spec.startsWith('.')) {
+        const resolved = path.resolve(path.dirname(file), spec);
+        if (!/[\\/]packages[\\/]twenty-/.test(resolved)) continue;
+      }
       // Anything else naming twenty must resolve to the vendored fork.
       if (
         /(^|\/)twenty[-/]/.test(spec) &&

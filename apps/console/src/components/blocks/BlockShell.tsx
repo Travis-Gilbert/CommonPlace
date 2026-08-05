@@ -186,7 +186,7 @@ export function BlockShell({
       data-register-impl={registerImpl}
       data-paint-region="island-shell"
       aria-label={headerTitle}
-      className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-ij-island bg-transparent"
+      className="group relative flex h-full min-h-0 flex-col overflow-hidden bg-transparent"
     >
       {showHeader ? (
         <header

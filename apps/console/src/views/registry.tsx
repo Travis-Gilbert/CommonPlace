@@ -77,7 +77,6 @@ function ThreadListRender(_props: ViewRenderProps) {
     <OpenworkChatRegister reason="Thread list is owned by the openwork chat door at /chat." />
   );
 }
-
 function FilesRender(props: ViewRenderProps) {
   return <FilesView host={props.host} />;
 }
@@ -152,6 +151,32 @@ const RECORD_TABLE: ConsoleViewDescriptor = {
   render: RecordTableView,
 };
 
+/** Generated palette entry for a declared object type (SPEC RT1). */
+export function declaredRecordPaletteDescriptor(
+  objectTypeKey: string,
+  label: string,
+): ConsoleViewDescriptor {
+  const key = objectTypeKey.trim() || 'record';
+  return {
+    ...RECORD_TABLE,
+    id: `record.table.${key}`,
+    name: label || key,
+    paletteVisible: true,
+    palette: {
+      id: `records-${key}`,
+      label: label || key,
+      kind: 'records',
+      material: 'sunken',
+      query: {
+        types: [key],
+        page: { limit: 100 },
+        live: true,
+      },
+    },
+    renderer: 'record.table',
+    render: RecordTableView,
+  };
+}
 const MARKDOWN_DOC: ConsoleViewDescriptor = {
   id: 'markdown.doc',
   name: 'Document',
@@ -279,7 +304,6 @@ const IDE_SURFACE: ViewDescriptor = {
   },
   render: IdeSurfaceRender,
 };
-
 const THREAD_LIST: ViewDescriptor = {
   id: 'thread.list',
   name: 'Threads',
@@ -724,7 +748,6 @@ const PROTOTYPE_STAGE: ConsoleViewDescriptor = {
   },
   render: PrototypeStageView,
 };
-
 const WORKSPACE_SUBSTRATE: ViewDescriptor = {
   id: 'workspace.substrate',
   name: 'Workspace',

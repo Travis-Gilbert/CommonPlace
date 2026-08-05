@@ -115,6 +115,9 @@
   --spacing-ij-sidebar-footer: var(--ij-sidebar-footer-h);
   --spacing-ij-sidebar-avatar: var(--ij-sidebar-avatar);
   --spacing-ij-stripe-icon: var(--ij-stripe-icon);
+  --spacing-ij-stage: var(--ij-stage-min-h);
+  --spacing-ij-stage-body: var(--ij-stage-body-min-h);
+  --spacing-ij-measure: var(--ij-measure-w);
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);
@@ -300,20 +303,30 @@
   --ij-island-border: var(--ij-chrome);
   /* Header band: island base raised one elevation step within the sunken side.
      ToolWindow.Header.background analog. Material Layer consumes these. */
-  --ij-island-header-tool: #22252A;
-  --ij-island-header-editor: #181A1D;
+  /* Header bands moved to twenty-register.css, which sources them from
+     Twenty's background ladder in both modes. The literals that stood here (and
+     the Zed paper pair in the light block below) were picked against the Int UI
+     surfaces and no longer clear the elevation step against Twenty's. */
   /* Ground terracotta for the Material Layer shader (proof islands-material-v2).
      Dark: warm pool ~#4C271D. Light re-anchors on the paper family below. */
   --ij-ground-terra: #4C271D;
   /* Quieter ground; islands take a hint via --ij-island-terra-tint. */
   --ij-material-glow: 0.32;
-  --ij-material-grain: 0.014;
+  /* Texture pass (owner direction): the grain reads too strong. Two systems
+     carry it and they stack, so they come down by different amounts. The
+     shader grain is the ground, under everything, and drops hard. The body
+     tile (--paper-grain-opacity) lies over the whole viewport including the
+     islands, so it only eases: it is the texture on a lifted surface, and
+     losing it entirely would flatten the islands into plain fills. Ground
+     therefore takes both reductions and reads much quieter than the blocks. */
+  --ij-material-grain: 0.005;
+  --paper-grain-opacity: 0.075;
   --ij-island-terra-tint: 0.055;
   /* Dialog inset used by cmdk overlays (Goal Stack promotion). */
   --ij-dialog-inset-top: 12%;
   --ij-dialog-width: 40rem;
-  --ij-gold: var(--ij-yellow-6);
-  --ij-gold-tint: var(--ij-yellow-1);
+  /* Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index
+     override that stood here belonged to the Int UI ramp. */
   --ij-editor-line: var(--ij-hover-overlay);
   --ij-search-match: var(--ij-selection-inactive);
   --ij-text-selection: var(--ij-selection);
@@ -330,17 +343,11 @@
      to the app.css tile so the two grains do not stack. */
   --ij-ground-terra: #F0EBE2;
   --ij-material-glow: 0.22;
-  --ij-material-grain: 0.010;
+  /* Same pass, light. The light tile ran hotter (0.16) because paper wants
+     more tooth than a dark ground; it keeps that relationship after the cut. */
+  --ij-material-grain: 0.004;
+  --paper-grain-opacity: 0.12;
   --ij-island-terra-tint: 0;
-  /* Header bands on the warm ladder, one visible step from their island
-     base (both clear the 1.05 gate at ~1.10): tool #F4F2EF -> #EAE7E1,
-     editor #FBFAF8 -> #F1EFEA. Cool Int UI grays read clinical against
-     the Zed paper and are retired here. */
-  --ij-island-header-tool: #EAE7E1;
-  --ij-island-header-editor: #F1EFEA;
-  /* Gold clamp for the light tool body; passes 4.5 on #F4F2EF at 5.27. */
-  --ij-gold: #8F5800;
-  --ij-gold-tint: #FFF5DB;
 }
 
 /* Header band paint (AMENDMENT-01 A3). Token path only for the header strip;
@@ -415,18 +422,16 @@
   --ij-island-radius: var(--ij-radius-xl);
 }
 
-/* Contrast-gate resolution (G2): the shipped Int UI value for secondary ink
-   (gray-7 #6F737A) computes to 2.90:1 on chrome, under the 3.0 apparatus
-   floor markdown-theory's ink3 role requires. The register file stays
-   verbatim; this bridge re-points info one ramp step up to gray-8 #868A91
-   (3.98:1 on chrome), the same override pattern the gold pair uses. */
-[data-register="intui"] {
-  --ij-ink-info: var(--ij-gray-8);
-}
-
-[data-register="intui"][data-theme="light"] {
-  --ij-ink-info: var(--ij-gray-6);
-}
+/* Secondary ink is Twenty's own semantic slot, not a ladder index.
+   This block used to re-point --ij-ink-info at gray-8 (dark) and gray-6
+   (light), because the Int UI value one step down computed to 2.90:1 and
+   missed the 3.0 floor. Those indexes named Int UI greys. Under the register
+   inversion they name Twenty's, whose ladder is numbered background to
+   foreground, so light gray-6 resolves to 0.8: near-white secondary ink at
+   1.54:1. twenty-register.css already aliases --ij-ink-info onto
+   --t-font-color-secondary, which is the value Twenty designed to carry
+   exactly this role and clears the floor in both modes. An index-based
+   override cannot survive a change of ladder; a semantic one can. */
 
 /* Self-hosted font bridge: next/font variables from fonts.ts re-point the
    register faces at the self-hosted IBM Plex Sans and JetBrains Mono families

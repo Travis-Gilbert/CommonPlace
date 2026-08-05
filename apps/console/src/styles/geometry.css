@@ -25,19 +25,25 @@
   --radius-lifted: var(--ij-radius-lg);   /* floating blocks: one scale with the SDF */
   --radius-docked: var(--ij-radius-lg);   /* free corners; docked edge is 0 */
 
-  /* CS3 depth budget. Blur never exceeds 6px, y-offset never exceeds 1px.
-     IDE chrome gets depth from tone difference; shadow only confirms a
-     boundary that tone already made. --ij-floating-shadow is the register's
-     popup shadow and is deliberately not used here. */
-  --shadow-lifted:
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 1px 6px rgb(0 0 0 / 0.03);
+  /* CS3 depth budget, cut for the Twenty pass (owner direction: reduce the
+     island and block shadow).
+
+     The rule was always that tone makes the boundary and shadow only confirms
+     it. Under the register inversion tone now makes it explicitly: the sidebar
+     sits on Twenty's lifted background and the editor on its sunken one, with
+     the frame measured between them. Two layers of shadow on top of a boundary
+     that is already stated twice reads as grime, not depth, so lifted drops to
+     a single hairline pass and docked halves its spread. Blur never exceeds
+     4px, y-offset never exceeds 1px. --ij-floating-shadow is the register's
+     popup shadow and is still deliberately not used here: a docked pane is not
+     a popup. */
+  --shadow-lifted: 0 1px 4px rgb(0 0 0 / 0.03);
 
   /* Docked casts on its free side only. */
-  --shadow-docked-right: -1px 0 3px rgb(0 0 0 / 0.04);
-  --shadow-docked-left: 1px 0 3px rgb(0 0 0 / 0.04);
-  --shadow-docked-top: 0 1px 3px rgb(0 0 0 / 0.04);
-  --shadow-docked-bottom: 0 -1px 3px rgb(0 0 0 / 0.04);
+  --shadow-docked-right: -1px 0 2px rgb(0 0 0 / 0.025);
+  --shadow-docked-left: 1px 0 2px rgb(0 0 0 / 0.025);
+  --shadow-docked-top: 0 1px 2px rgb(0 0 0 / 0.025);
+  --shadow-docked-bottom: 0 -1px 2px rgb(0 0 0 / 0.025);
 
   /* Translucent material fills. Shader grain reads through; the tone delta
      survives. Alpha is the tuning knob: raise for separation, lower for

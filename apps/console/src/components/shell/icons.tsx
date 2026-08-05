@@ -257,3 +257,14 @@ export function IconModel(props: IconProps) {
     </svg>
   );
 }
+
+/** Layers stack control: right inspector / data-canvas rail affordance. */
+export function IconLayers(props: IconProps) {
+  return (
+    <svg {...controlBase(props)}>
+      <path d="M8 1.75 1.75 5.25 8 8.75l6.25-3.5L8 1.75Z" />
+      <path d="M1.75 8.25 8 11.75l6.25-3.5" />
+      <path d="M1.75 11.25 8 14.75l6.25-3.5" />
+    </svg>
+  );
+}

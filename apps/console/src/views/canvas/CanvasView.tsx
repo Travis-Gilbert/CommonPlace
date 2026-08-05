@@ -62,7 +62,11 @@ function useCanvasObjectSet(host: BlockHost): ObjectSet {
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 }
 
-export function CanvasView({ host }: ViewRenderProps) {
+export function CanvasView({
+  host,
+  /** Hide Import/Export chrome — used when the canvas is a capability inside another shell. */
+  embedded = false,
+}: Pick<ViewRenderProps, 'host'> & { embedded?: boolean; set?: ObjectSet }) {
   const set = useCanvasObjectSet(host);
   const [message, setMessage] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -134,6 +138,49 @@ export function CanvasView({ host }: ViewRenderProps) {
     setMessage('Canvas exported.');
   }, [set.objects]);
 
+  const hasCards = flow.nodes.some((node) => node.type === 'canvasCard');
+
+  const flowSurface = (
+    <div className="relative h-full min-h-0 w-full" aria-label="JSON Canvas">
+      {!embedded ? <CanvasPaperGround className="pointer-events-none absolute inset-0 z-0" /> : null}
+      <div className={embedded ? 'h-full min-h-0' : 'relative z-10 h-full min-h-0'}>
+        {embedded || hasCards ? (
+          <ReactFlow
+            nodes={flow.nodes}
+            edges={flow.edges}
+            nodeTypes={NODE_TYPES}
+            onInit={(instance) => {
+              flowInstanceRef.current = instance;
+            }}
+            fitView={hasCards}
+            nodesConnectable
+            onNodeDragStop={onNodeDragStop}
+            onConnect={onConnect}
+            isValidConnection={isValidConnection}
+            proOptions={{ hideAttribution: true }}
+            style={{ background: 'transparent' }}
+          >
+            {embedded ? null : <Controls showInteractive={false} />}
+          </ReactFlow>
+        ) : (
+          <div className="flex h-full items-center justify-center px-4 text-center text-muted-foreground">
+            Drop or place objects on the canvas.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    // Capability surface for shells that own their own chrome (no Import/Export,
+    // no empty-state copy). Empty = transparent React Flow pane.
+    return (
+      <div className="h-full min-h-0 w-full" data-canvas-view data-canvas-embedded="true">
+        {flowSurface}
+      </div>
+    );
+  }
+
   return (
     <section className="flex h-full min-h-0 flex-col bg-ij-editor text-ij-ink" data-canvas-view>
       <header className="flex shrink-0 items-center gap-2 border-b border-ij-seam bg-ij-chrome px-3 py-2">
@@ -150,32 +197,7 @@ export function CanvasView({ host }: ViewRenderProps) {
       </header>
       {message ? <p className="shrink-0 border-b border-ij-seam px-3 py-1 text-ij-ink-info" role="status">{message}</p> : null}
       <main className="relative min-h-0 flex-1" aria-label="Canvas graph">
-        <CanvasPaperGround className="pointer-events-none absolute inset-0 z-0" />
-        <div className="relative z-10 h-full min-h-0">
-          {flow.nodes.some((node) => node.type === 'canvasCard') ? (
-            <ReactFlow
-              nodes={flow.nodes}
-              edges={flow.edges}
-              nodeTypes={NODE_TYPES}
-              onInit={(instance) => {
-                flowInstanceRef.current = instance;
-              }}
-              fitView
-              nodesConnectable
-              onNodeDragStop={onNodeDragStop}
-              onConnect={onConnect}
-              isValidConnection={isValidConnection}
-              proOptions={{ hideAttribution: true }}
-              style={{ background: 'transparent' }}
-            >
-              <Controls showInteractive={false} />
-            </ReactFlow>
-          ) : (
-            <div className="flex h-full items-center justify-center px-4 text-center text-ij-ink-info">
-              No cards on this canvas. Import a .canvas file or place graph objects.
-            </div>
-          )}
-        </div>
+        {flowSurface}
       </main>
     </section>
   );

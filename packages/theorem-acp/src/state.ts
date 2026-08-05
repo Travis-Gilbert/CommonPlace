@@ -2,6 +2,8 @@ export type AgentProcessKey = {
   mount: string;
   mode: 'single' | 'composed';
   bindingId: string | null;
+  tenant?: string;
+  authToken?: string;
 };
 
 export type HeadContribution = {

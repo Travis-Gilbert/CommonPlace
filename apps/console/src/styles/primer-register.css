@@ -7,6 +7,14 @@
   --ij-frame: #262C36;
   --ij-editor: #0D1117;
   --ij-chrome: #151B23;
+  /* Primer owns its own header band. These used to fall through to the base
+     register, which happened to clear the elevation floor against GitHub's
+     surfaces; once the base register became Twenty's, it stopped. A preset that
+     pins its surfaces has to pin every step built on them. Both are Primer's
+     own scale: neutral.muted over canvas.subtle, canvas.overlay over
+     canvas.default. */
+  --ij-island-header-tool: #212830;
+  --ij-island-header-editor: #151B23;
   --ij-raised: #212830;
   --ij-seam: #010409;
   --ij-seam-raised: #3D444D;
@@ -46,6 +54,9 @@
   --ij-frame: #D0D7DE;
   --ij-editor: #FFFFFF;
   --ij-chrome: #F6F8FA;
+  /* Primer light header band, same rule as dark. */
+  --ij-island-header-tool: #EAEEF2;
+  --ij-island-header-editor: #F6F8FA;
   --ij-raised: #FFFFFF;
   --ij-seam: #D1D9E0;
   --ij-seam-raised: #818B98;

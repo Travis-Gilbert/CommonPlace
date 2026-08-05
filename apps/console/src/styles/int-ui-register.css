@@ -131,6 +131,12 @@
   --ij-underline-h: 4px;
   --ij-stripe-w: 40px;
   --ij-toolbar-h: 40px;
+  /* An embedded viewer needs a real box before it mounts: a 0-height flex slot
+     paints a blank canvas, so the stage and its body carry floors. The measure
+     is the readable line length for a monospace URL beside them. */
+  --ij-stage-min-h: 480px;
+  --ij-stage-body-min-h: 420px;
+  --ij-measure-w: 40ch;
   --ij-statusbar-h: 28px;
   --ij-tree-inset: 4px 12px;
 

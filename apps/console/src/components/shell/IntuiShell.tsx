@@ -13,7 +13,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  type ImperativePanelHandle,
+} from 'react-resizable-panels';
 import { motion } from 'motion/react';
 import type {
   JsonValue,
@@ -39,9 +44,13 @@ import { EditorTabs } from './EditorTabs';
 import { BlockArrangementHost } from '@/components/blocks/BlockArrangementHost';
 import { SearchPanel } from './SearchField';
 import { ActionSheet } from './ActionSheet';
-import { StatusBar } from './StatusBar';
 import { RecordInspector } from '@/views/RecordInspector';
 import { Sidebar, type SidebarRegion } from './Sidebar';
+import {
+  InspectorRail,
+  InspectorRailReopen,
+  CONSOLE_INSPECTOR_SECTIONS,
+} from './InspectorRail';
 import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
@@ -58,8 +67,14 @@ import {
 } from '@commonplace/theorem-acp/workspace-state';
 
 /** Fixed sidebar content width (CS11). Collapsed width matches collapsedSize pip. */
-const SIDEBAR_WIDTH_PX = 180;
-const SIDEBAR_COLLAPSED_PX = 48;
+/* The sidebar is the shared 21st two-level shell: a 64px icon rail that never
+   collapses, plus a detail panel that does. The panel is the register's own
+   --ij-sidebar-expanded-w (240), not the vendor's 320: the widest thing it
+   holds measures about 197px, so 320 was a third of the panel in empty margin.
+   Collapsed still shows the panel's 64px expand strip, so the aside is 304
+   open and 128 shut. */
+const SIDEBAR_WIDTH_PX = 304;
+const SIDEBAR_COLLAPSED_PX = 128;
 const OVERLAY_BREAKPOINT = 1100;
 const LAYOUT_READY_EVENT = 'commonplace:layout-ready';
 const READINESS_POLL_MS = 1_500;
@@ -300,9 +315,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   const [compact, setCompact] = useState(false);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const selectedRecordId = useShellStore((state) => state.selectedRecordId);
-  const workspaceDegradation = useShellStore(
-    (state) => state.workspaceDegradation,
-  );
+  /* The readiness poll below still writes degradation into the shell store;
+     only the status-bar reader is gone. Whatever re-homes the reconnect
+     affordance binds to that atom rather than re-fetching. */
   const setWorkspaceDegradation = useShellStore(
     (state) => state.setWorkspaceDegradation,
   );
@@ -690,6 +705,20 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     persistSidebarCollapsed(next);
   }, [persistSidebarCollapsed]);
 
+  // The right rail is a collapsible Panel, so the library owns width, drag,
+  // the collapsed state, and its persistence (autoSaveId writes the layout to
+  // localStorage). This state is only the mirror the rail reads to decide
+  // whether to render its body; onCollapse / onExpand keep it true to the
+  // panel, and the edge control drives the panel, not the state.
+  const railPanel = useRef<ImperativePanelHandle>(null);
+  const [railOpen, setRailOpen] = useState(true);
+  const toggleRail = useCallback((next: boolean) => {
+    const panel = railPanel.current;
+    if (!panel) return;
+    if (next) panel.expand();
+    else panel.collapse();
+  }, []);
+
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
     // landmark while the surface tree is still resolving (Appearance, Account,
@@ -802,7 +831,10 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
         <div id="console-editor-well" className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             data-shell-region="ground"
-            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter p-ij-island-gutter"
+            // ponytail: no ground padding. The editor is the base of the
+            // screen, not a card lying on it. gap stays so stacked regions
+            // still separate from each other.
+            className="flex h-full min-h-0 min-w-0 flex-col gap-ij-island-gutter"
           >
             <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
               {compact ? (
@@ -832,6 +864,25 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                   ) : null}
                 </>
               ) : (
+                // Outer group: the editor well against the inspector rail. It
+                // is deliberately a second group rather than another Panel in
+                // the surface group, because the surface group persists sizes
+                // by region id through the host, and the rail is chrome with
+                // no region of its own. autoSaveId keeps its width and its
+                // collapsed state in localStorage instead.
+                <PanelGroup
+                  direction="horizontal"
+                  autoSaveId="console.inspector-dock"
+                  className="relative h-full min-h-0"
+                >
+                  <Panel id="console-well" order={1} minSize={40} className="min-w-0">
+                {/* The rail floats over the well rather than taking a column
+                    out of it. The Panel keeps its width, so drag, collapse and
+                    the persisted size stay the library's; what changes is what
+                    the editor measures itself against. Absolute to the group,
+                    so the surface spans the whole width and the rail paints on
+                    top of it. */}
+                <div className="absolute inset-0">
                 <PanelGroup key={groupKey} direction="horizontal" onLayout={onLayout}>
                   {visiblePanels.flatMap((panel, index) => {
                     const isEditor = panel.region === editor;
@@ -875,7 +926,41 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                     return nodes;
                   })}
                 </PanelGroup>
+                </div>
+                  </Panel>
+                  <PanelResizeHandle
+                    data-panel-seam
+                    data-inspector-seam
+                    className="relative z-20 w-ij-island-gutter bg-transparent"
+                  />
+                  <Panel
+                    id="console-inspector-rail"
+                    order={2}
+                    ref={railPanel}
+                    collapsible
+                    collapsedSize={0}
+                    minSize={14}
+                    defaultSize={22}
+                    onCollapse={() => setRailOpen(false)}
+                    onExpand={() => setRailOpen(true)}
+                    className="relative z-20 min-w-0"
+                  >
+                    <div data-shell-region="dock" data-dock-edge="right" className="h-full min-h-0">
+                      <InspectorRail
+                        host={host}
+                        open={railOpen}
+                        onOpenChange={toggleRail}
+                        sections={CONSOLE_INSPECTOR_SECTIONS}
+                      />
+                    </div>
+                  </Panel>
+                </PanelGroup>
               )}
+              {/* Exactly one rail toggle is on screen in either state: the
+                  rail carries collapse, the well carries reopen. */}
+              {!compact && !railOpen ? (
+                <InspectorRailReopen onOpen={() => toggleRail(true)} />
+              ) : null}
               {selectedRecordId ? (
                 <div className="absolute inset-y-0 right-0 z-40">
                   <RecordInspector host={host} />
@@ -887,10 +972,12 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       </div>
       <SearchPanel host={host} />
       <ActionSheet host={host} />
-      <StatusBar
-        host={host}
-        workspaceDegradation={workspaceDegradation}
-      />
+      {/* No bottom status strip. signatures.spec has asserted
+          [data-paint-region="status-bar"] and [data-connection-owner="status-bar"]
+          at count 0 since the signature round; the shell had grown one back.
+          Connection state and workspace degradation now have no page-frame
+          home, which is deliberate: they belong to an action, not to a
+          permanent band of small text under the work. */}
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />

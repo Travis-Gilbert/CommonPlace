@@ -118,7 +118,6 @@ export function PrototypeStageView(props: ViewRenderProps) {
   const [lastExprId, setLastExprId] = useState<string | null>(null);
 
   const attrs = readProps(props.instance);
-  pathToExprRef.current = attrs.pathToExpr;
 
   const rrdUrl = prototypeRecordingUrl({
     recordingId: attrs.recordingId,
@@ -126,26 +125,38 @@ export function PrototypeStageView(props: ViewRenderProps) {
     gatewayBase: attrs.gatewayBase,
   });
 
+  // Writing a ref during render is a render side effect: React may render
+  // without committing, and the selection handler would then read a mapping
+  // for a tree that never mounted. The write belongs in an effect.
+  useEffect(() => {
+    pathToExprRef.current = attrs.pathToExpr;
+  }, [attrs.pathToExpr]);
+
+  // Missing configuration is derived, not stored. Setting it from inside the
+  // effect was a synchronous setState in the effect body, which cascades a
+  // second render; it is a property of the props, so it can just be read.
+  const missingUrl = !rrdUrl;
+  const shownStatus = missingUrl ? 'Unavailable' : status;
+  const shownError = missingUrl
+    ? 'prototype.stage needs recording_url or recording_id plus NEXT_PUBLIC_THEOREM_GATEWAY_URL / gateway_base.'
+    : error;
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    if (!rrdUrl) {
-      setError(
-        'prototype.stage needs recording_url or recording_id plus NEXT_PUBLIC_THEOREM_GATEWAY_URL / gateway_base.',
-      );
-      setStatus('Unavailable');
-      return;
-    }
+    if (!rrdUrl) return;
 
     const signal = { disposed: false };
     let resizeObserver: ResizeObserver | null = null;
 
-    setError(null);
-    setStatus('Loading recording…');
-
     void import('@rerun-io/web-viewer')
       .then(async ({ WebViewer }) => {
         if (signal.disposed) return;
+        // Inside the callback rather than the effect body: a synchronous
+        // setState there cascades a second render. The label now appears when
+        // the viewer module resolves, which is also when loading truly starts.
+        setError(null);
+        setStatus('Loading recording…');
         const viewer = new WebViewer() as WebViewerHandle;
         viewerRef.current = viewer;
 
@@ -236,15 +247,15 @@ export function PrototypeStageView(props: ViewRenderProps) {
 
   return (
     <div
-      className="relative flex h-full min-h-[480px] flex-col bg-ij-editor text-ij-ink"
+      className="relative flex h-full min-h-ij-stage flex-col bg-ij-editor text-ij-ink"
       data-prototype-stage
-      data-prototype-status={status}
+      data-prototype-status={shownStatus}
       data-prototype-expr-id={lastExprId ?? ''}
     >
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-ij-seam-raised px-3 py-2 text-ij-ink-info">
-        <span className="font-ij-mono text-xs" data-prototype-status-label>{status}</span>
+        <span className="font-ij-mono text-xs" data-prototype-status-label>{shownStatus}</span>
         {rrdUrl ? (
-          <span className="max-w-[40ch] truncate font-ij-mono text-[10px] text-ij-ink-info" title={rrdUrl}>
+          <span className="max-w-ij-measure truncate font-ij-mono text-ij-island-meta text-ij-ink-info" title={rrdUrl}>
             {rrdUrl}
           </span>
         ) : null}
@@ -253,11 +264,11 @@ export function PrototypeStageView(props: ViewRenderProps) {
             expr_id={lastExprId}
           </span>
         ) : null}
-        {error ? <span className="text-xs text-ij-error" data-prototype-error>{error}</span> : null}
+        {shownError ? <span className="text-xs text-ij-error" data-prototype-error>{shownError}</span> : null}
       </div>
       <div
         ref={containerRef}
-        className="relative min-h-[420px] w-full flex-1 overflow-hidden"
+        className="relative min-h-ij-stage-body w-full flex-1 overflow-hidden"
         data-prototype-viewer
       />
     </div>

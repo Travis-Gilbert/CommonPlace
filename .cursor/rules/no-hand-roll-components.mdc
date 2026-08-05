@@ -1,0 +1,36 @@
+---
+description: Never hand-roll UI when a catalog/library component exists — install and mount it.
+alwaysApply: true
+---
+
+# No hand-rolled components
+
+If a visual or behavioral need already exists as a component (21st.dev, shadcn registry, jalco, blocks.so, ledger source, npm library), **install that component and mount it**. Do not approximate it with a local rewrite.
+
+## Required sequence
+
+1. **Search first** — `21st search …`, shadcn/registry, and the console library ledger in `apps/console/CLAUDE.md`.
+2. **Install** — `npx @21st-dev/cli add author/slug` or `npx shadcn@latest add …` into `apps/console`. Auth via `~/.config/21st/auth.json` / `API_KEY_21ST` when the registry requires it.
+3. **Mount the installed file** — product code imports from `components/ui/<slug>.tsx` (or the package). Keep the published structure and visual DNA.
+4. **Adapt in place** — add props/slots/retokens inside the installed file or a thin wrapper that still renders it. Do not recreate the layout in a parallel hand-rolled file.
+
+## Forbidden
+
+```tsx
+// ❌ BAD — "inspired by" / pattern copy while the real component exists
+// components/ui/icon-rail-sidebar.tsx  (hand-rolled stand-in for jshguo)
+
+// ✅ GOOD — installed source + product shell export
+// components/ui/sidebar-component.tsx  (21st/@jshguo/sidebar-component)
+import { TwoLevelSidebarShell } from '@/components/ui/sidebar-component';
+```
+
+- No second implementation that “looks similar” to a named upstream.
+- No deleting an installed component and replacing it with divs + Tailwind that mimic it.
+- If nothing in the catalog fits, say so, add a ledger row with the named gap, then build — never skip the search.
+
+## Evidence of compliance
+
+- `// SOURCING: 21st/@author/slug` (or registry/package) on the file.
+- The installed path exists under `components/ui/` or `node_modules`.
+- Call sites import that path, not a local lookalike.

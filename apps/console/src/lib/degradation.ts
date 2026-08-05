@@ -47,7 +47,11 @@ const WIRE_MAP: Record<string, DegradationTemplate> = {
   console_data_api_unreachable: {
     level: 'unavailable',
     cause: 'The data API is unreachable.',
-    actionLabel: 'Reconnect',
+    // 'Retry', like every sibling in this map. This row was the only one
+    // offering to reconnect, and connecting is a property of being signed in
+    // rather than something a reader is asked to do. The cause still names the
+    // door; what is offered is another attempt at the read.
+    actionLabel: 'Retry',
     door: 'The data API',
   },
   workspace_object_scope_unenforced: {

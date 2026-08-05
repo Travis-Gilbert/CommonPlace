@@ -154,7 +154,8 @@ test.describe('appearance surface', () => {
     });
     expect(running).toBe('rgb(31, 117, 54)');
     await expect(page.locator('[data-run-widget]')).toHaveCount(0);
-    await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '28px');
+    // Twenty proportions: --ij-control-h is --t-spacing-8.
+    await expect(page.locator('[data-account-trigger]')).toHaveCSS('height', '32px');
     await expect(page.locator('html')).toHaveCSS('font-size', '13px');
     await page.keyboard.press('Alt+Shift+1');
     await expect(page.locator('[data-tool-window="files"]')).toBeVisible();

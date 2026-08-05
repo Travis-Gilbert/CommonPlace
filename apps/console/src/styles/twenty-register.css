@@ -1,0 +1,296 @@
+/* The register, sourced from Twenty.
+   SOURCING: twenty-ui (packages/twenty-ui, hard fork) --t-* layer.
+
+   This file inverts SPEC-COMMONPLACE-TWENTY-UI-FORK-1.0's token law. That law
+   said CommonPlace tokens were the only styling truth and the fork's theme was
+   generated from them, which made the fork deliberately invisible. The law is
+   killed on purpose: Twenty's design language is now the console's, and --ij-*
+   aliases --t-* rather than the reverse.
+
+   Why an alias layer rather than a regenerated palette: every component in this
+   app already consumes --ij-*, and the Tailwind bridge already emits its
+   utilities from --ij-*. Changing what --ij-* resolves to moves the whole
+   console at once, with no component edits and no second palette to keep in
+   sync. One source of truth, which is what the original law was protecting.
+
+   THREE BLOCKS, AND WHY. int-ui-register-light.css scopes its whole body under
+   [data-register="intui"][data-theme="light"], which is two attribute
+   selectors. A one-attribute block here loses to it in light mode no matter how
+   much later it is imported, because specificity outranks order. The first
+   round of this file was a single one-attribute block, so light mode silently
+   kept the Int UI palette while dark mode followed Twenty. The fix is to name
+   both modes explicitly at matching weight:
+
+     1. Semantic aliases, which do not vary by mode because --t-* already does.
+        The selector lists dark and light arms so it carries weight 2 in both.
+     2. The dark ladder.
+     3. The light ladder.
+
+   Blocks 2 and 3 carry every token whose *direction* flips with mode. Twenty
+   numbers both its greys and its background ladder background-to-foreground, so
+   dark runs 0.09 -> 0.92 and light runs 1.0 -> 0.2. This register always runs
+   dark-to-light. The reversal is the whole reason those blocks are split.
+
+   Scope: colour and radius move, IDE chrome metrics stay in geometry.css. */
+
+[data-register="intui"],
+[data-register="intui"][data-theme="dark"],
+[data-register="intui"][data-theme="light"] {
+  /* Hue ramps. The console names seven; Twenty carries twelve shades of each. */
+  --ij-blue-1: var(--t-color-blue1);
+  --ij-blue-2: var(--t-color-blue2);
+  --ij-blue-3: var(--t-color-blue3);
+  --ij-blue-4: var(--t-color-blue4);
+  --ij-blue-5: var(--t-color-blue5);
+  --ij-blue-6: var(--t-color-blue6);
+  --ij-blue-7: var(--t-color-blue7);
+  --ij-blue-8: var(--t-color-blue8);
+  --ij-blue-9: var(--t-color-blue9);
+  --ij-blue-10: var(--t-color-blue10);
+  --ij-blue-11: var(--t-color-blue11);
+  --ij-blue-12: var(--t-color-blue12);
+  --ij-blue-13: var(--t-color-blue12);
+  --ij-green-1: var(--t-color-green1);
+  --ij-green-2: var(--t-color-green2);
+  --ij-green-3: var(--t-color-green3);
+  --ij-green-5: var(--t-color-green5);
+  --ij-green-6: var(--t-color-green6);
+  --ij-green-7: var(--t-color-green7);
+  --ij-yellow-1: var(--t-color-yellow1);
+  --ij-yellow-2: var(--t-color-yellow2);
+  --ij-yellow-4: var(--t-color-yellow4);
+  --ij-yellow-5: var(--t-color-yellow5);
+  --ij-yellow-6: var(--t-color-yellow6);
+  --ij-red-1: var(--t-color-red1);
+  --ij-red-3: var(--t-color-red3);
+  --ij-red-5: var(--t-color-red5);
+  --ij-red-6: var(--t-color-red6);
+  --ij-red-7: var(--t-color-red7);
+  --ij-orange-1: var(--t-color-orange1);
+  --ij-orange-6: var(--t-color-orange6);
+  --ij-purple-2: var(--t-color-purple2);
+  --ij-purple-7: var(--t-color-purple7);
+  --ij-purple-9: var(--t-color-purple9);
+  --ij-teal-2: var(--t-color-turquoise2);
+  --ij-teal-7: var(--t-color-turquoise7);
+
+  /* Seams. Twenty's borders run light-on-dark, the ordinary direction. The Int
+     UI inversion (seams darker than surfaces, no light hairline) retires with
+     the law that required it. */
+  --ij-seam: var(--t-border-color-medium);
+  --ij-seam-raised: var(--t-border-color-strong);
+  --ij-divider: var(--t-border-color-medium);
+  --ij-control-border: var(--t-border-color-strong);
+  --ij-keyline: var(--t-border-color-strong);
+  --ij-keyline-decorative: var(--t-border-color-light);
+
+  /* Ink. */
+  --ij-ink: var(--t-font-color-primary);
+  --ij-ink-info: var(--t-font-color-secondary);
+  --ij-ink-disabled: var(--t-font-color-light);
+  --ij-ink-faint: var(--t-font-color-extra-light);
+  --ij-ink-bright: var(--t-font-color-on-accent);
+
+  /* Accent. Twenty splits a role this register merges: --t-accent-* is a fill
+     family (a selected row's background), while --t-color-blue* is the ink
+     ramp. --ij-accent has to work both ways, because the gate asks it to read
+     as type on chrome AND to carry white type on top of itself. blue10 is the
+     one step that clears both floors in both modes; accent-primary fails the
+     first and blue11 fails the second. */
+  --ij-accent: var(--t-color-blue10);
+  --ij-accent-hover: var(--t-color-blue11);
+  --ij-keyline-focus: var(--t-color-blue10);
+  --ij-link: var(--t-color-blue10);
+  --ij-modified: var(--t-color-blue10);
+  --ij-focus-ring: 2px solid var(--t-color-blue10);
+  --ij-selection: var(--t-accent-primary);
+  --ij-selection-inactive: var(--t-accent-tertiary);
+
+  /* State overlays. */
+  --ij-hover-overlay: var(--t-background-transparent-light);
+  --ij-pressed-overlay: var(--t-background-transparent-medium);
+  --ij-hover-surface: var(--t-background-transparent-light);
+
+  /* Status. */
+  --ij-error: var(--t-snack-bar-error-color);
+  --ij-error-bg: var(--t-snack-bar-error-background-color);
+  --ij-warn: var(--t-snack-bar-warning-color);
+  --ij-warn-bg: var(--t-snack-bar-warning-background-color);
+  --ij-ok: var(--t-snack-bar-success-color);
+  --ij-ok-bg: var(--t-snack-bar-success-background-color);
+  --ij-running: var(--t-snack-bar-success-color);
+
+  /* Harness domain accents, kept semantically: memory green, agent amber,
+     rooms purple, graph turquoise, learned gold. Now Twenty's hues. */
+  --ij-memory: var(--t-tag-text-green);
+  --ij-memory-tint: var(--t-tag-background-green);
+  --ij-agent: var(--t-tag-text-amber);
+  --ij-agent-tint: var(--t-tag-background-amber);
+  --ij-room: var(--t-tag-text-purple);
+  --ij-room-tint: var(--t-tag-background-purple);
+  --ij-graph: var(--t-tag-text-turquoise);
+  --ij-graph-tint: var(--t-tag-background-turquoise);
+  --ij-gold: var(--t-tag-text-gold);
+  --ij-gold-tint: var(--t-tag-background-gold);
+
+  /* Row tints for record lists. */
+  --ij-row-yellow: var(--t-tag-background-yellow);
+  --ij-row-green: var(--t-tag-background-green);
+  --ij-row-orange: var(--t-tag-background-orange);
+  --ij-row-rose: var(--t-tag-background-pink);
+  --ij-row-violet: var(--t-tag-background-violet);
+  --ij-row-blue: var(--t-tag-background-blue);
+  --ij-row-gray: var(--t-tag-background-gray);
+
+  /* Progress. */
+  --ij-progress: var(--t-color-blue10);
+  --ij-progress-a: var(--t-color-blue10);
+  --ij-progress-b: var(--t-color-blue11);
+  --ij-progress-track: var(--t-background-quaternary);
+
+  /* Editor surfaces. */
+  --ij-editor-line: var(--t-background-transparent-light);
+  --ij-search-match: var(--t-tag-background-yellow);
+  --ij-text-selection: var(--t-accent-tertiary);
+
+  /* Program Canvas wire hues encode data shape, not execution state. */
+  --ij-program-shape-graph: var(--t-color-blue);
+  --ij-program-shape-tabular: var(--t-color-green);
+  --ij-program-shape-tensor: var(--t-color-purple);
+  --ij-program-shape-scalar: var(--t-color-yellow);
+  --ij-program-shape-artifact: var(--t-color-orange);
+
+  /* Corner radius is design language, so it moves with the palette. */
+  --ij-arc: var(--t-border-radius-sm);
+  --ij-arc-underline: var(--t-border-radius-xs);
+  --ij-radius-xs: var(--t-border-radius-xs);
+  --ij-radius-sm: var(--t-border-radius-sm);
+  --ij-radius-md: var(--t-border-radius-md);
+  --ij-radius-lg: var(--t-border-radius-lg);
+  --ij-radius-xl: var(--t-border-radius-xl);
+
+  /* Faces. Twenty ships Inter for UI; the console keeps its own mono. */
+  --ij-font-ui: var(--t-font-family);
+
+  /* PROPORTIONS, on Twenty's grid.
+
+     Owner decision: base everything on Twenty proportions. What made this
+     available is that the VS Code fork (Commonplace Studio, pull request 163)
+     is now the IDE. The metric layer justified itself as "what makes this read
+     as an IDE rather than a CRM" -- 28px controls, 24px rows -- and that
+     argument retires with the job. The console is the graph, records, and
+     thread surface, which is the shape Twenty's proportions were drawn for.
+
+     Every metric now resolves through --t-spacing-*, so Twenty's 4px grid is
+     the single dimensional source exactly as its palette is the single colour
+     source. This is structural, not cosmetic: a future metric that does not
+     land on a Twenty step has no token to be written in.
+
+     Two values actually move. Controls go 28 -> 32 and rows go 24 -> 32,
+     Twenty's medium button and record row. Both were legal on the grid
+     already (Twenty carries a 28 step, and uses it for FloatingIconButton), so
+     this is a density choice rather than a grid correction: IntelliJ-dense
+     becomes Twenty-comfortable. The rest were already Twenty steps and only
+     change how they are spelled. Stripe width is deliberately absent: the
+     shell drives it from --ij-sidebar-*-w and this must not fight that. */
+  --ij-control-h: var(--t-spacing-8);
+  --ij-control-min-w: var(--t-spacing-18);
+  --ij-row-h: var(--t-spacing-8);
+  --ij-tab-h: var(--t-spacing-10);
+  --ij-underline-h: var(--t-spacing-1);
+  --ij-toolbar-h: var(--t-spacing-10);
+  --ij-statusbar-h: var(--t-spacing-7);
+  --ij-tree-inset: var(--t-spacing-1) var(--t-spacing-3);
+}
+
+/* ELEVATION, and the constraint that set it.
+
+   Owner direction: the sidebar lifts, the centre sinks. Lifted is lighter and
+   sunken is darker in both modes, so the reading is stable; what flips is which
+   of Twenty's four background roles carries each plane, because the ladder is
+   numbered background-to-foreground.
+
+   Twenty gives four backgrounds, but only about three perceptually distinct
+   planes per mode: light primary and secondary sit 1.2% apart, which is a 1.026
+   contrast step, under the 1.05 the gate asks of an elevation boundary. Frame
+   therefore has to land in a narrow window: far enough below chrome to clear
+   1.05 and far enough above editor to clear 1.08. In dark, background-tertiary
+   sits inside that window. In light, nothing in the background ladder does:
+   secondary is too close to primary and tertiary is too close to quaternary, so
+   frame borrows gray3, which is the step Twenty's own ladder skips.
+
+   This is the honest version of "Twenty's four backgrounds cannot carry five
+   IDE tiers". They carry three planes plus a header band, which is what this
+   shell actually needs now that Commonplace Studio is the IDE. */
+
+[data-register="intui"],
+[data-register="intui"][data-theme="dark"] {
+  /* Grey ladder maps straight through: both run dark to light. */
+  --ij-gray-1: var(--t-gray-scale-gray1);
+  --ij-gray-2: var(--t-gray-scale-gray2);
+  --ij-gray-3: var(--t-gray-scale-gray3);
+  --ij-gray-4: var(--t-gray-scale-gray4);
+  --ij-gray-5: var(--t-gray-scale-gray5);
+  --ij-gray-6: var(--t-gray-scale-gray6);
+  --ij-gray-7: var(--t-gray-scale-gray7);
+  --ij-gray-8: var(--t-gray-scale-gray8);
+  --ij-gray-9: var(--t-gray-scale-gray9);
+  --ij-gray-10: var(--t-gray-scale-gray10);
+  --ij-gray-11: var(--t-gray-scale-gray11);
+  --ij-gray-12: var(--t-gray-scale-gray12);
+  --ij-gray-13: var(--t-gray-scale-gray12);
+  --ij-gray-14: var(--t-font-color-on-accent);
+
+  --ij-frame: var(--t-background-tertiary);
+  --ij-editor: var(--t-background-primary);
+  --ij-chrome: var(--t-background-quaternary);
+  --ij-raised: var(--t-background-quaternary);
+  --ij-island-header-tool: var(--t-background-tertiary);
+  --ij-island-header-editor: var(--t-background-tertiary);
+
+  --ij-tier-sunken: var(--t-background-primary);
+  --ij-tier-ground: var(--t-background-tertiary);
+  --ij-tier-frame: var(--t-background-tertiary);
+  --ij-tier-raised: var(--t-background-quaternary);
+  --ij-tier-floating: var(--t-background-quaternary);
+  --ij-tier-scrim: var(--t-background-overlay-primary);
+}
+
+[data-register="intui"][data-theme="light"] {
+  /* Grey ladder reverses: Twenty light runs gray1 lightest to gray12 darkest,
+     and this register always runs darkest to lightest. */
+  --ij-gray-1: var(--t-gray-scale-gray12);
+  --ij-gray-2: var(--t-gray-scale-gray11);
+  --ij-gray-3: var(--t-gray-scale-gray10);
+  --ij-gray-4: var(--t-gray-scale-gray9);
+  --ij-gray-5: var(--t-gray-scale-gray8);
+  --ij-gray-6: var(--t-gray-scale-gray7);
+  --ij-gray-7: var(--t-gray-scale-gray6);
+  --ij-gray-8: var(--t-gray-scale-gray5);
+  --ij-gray-9: var(--t-gray-scale-gray4);
+  --ij-gray-10: var(--t-gray-scale-gray3);
+  --ij-gray-11: var(--t-gray-scale-gray2);
+  --ij-gray-12: var(--t-gray-scale-gray1);
+  --ij-gray-13: var(--t-gray-scale-gray1);
+  --ij-gray-14: var(--t-font-color-on-accent);
+
+  /* Lifted is lighter here too, so the roles invert with the ladder. */
+  --ij-frame: var(--t-gray-scale-gray3);
+  --ij-editor: var(--t-background-quaternary);
+  --ij-chrome: var(--t-background-primary);
+  --ij-raised: var(--t-background-primary);
+  /* Light headers cannot share one token the way the dark pair does: chrome
+     sits at the top of the ladder, so the tool header has to step down, while
+     the editor sits at the bottom, so its header has to step up. */
+  --ij-island-header-tool: var(--t-background-tertiary);
+  --ij-island-header-editor: var(--t-background-secondary);
+
+  --ij-tier-sunken: var(--t-background-quaternary);
+  --ij-tier-ground: var(--t-gray-scale-gray3);
+  --ij-tier-frame: var(--t-gray-scale-gray3);
+  --ij-tier-raised: var(--t-background-primary);
+  --ij-tier-floating: var(--t-background-primary);
+  --ij-tier-scrim: var(--t-background-overlay-primary);
+
+  color-scheme: light;
+}

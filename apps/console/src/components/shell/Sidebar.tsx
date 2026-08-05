@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: @commonplace/block-view for host and layout object semantics.
-// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11/CS12: Views (launch six), Blocks,
+// SPEC-COMMONPLACE-CONSOLE-SHELL-1.1 CS11/CS12: Views (launch five), Blocks,
 // Objects, Pins. Layout switcher lives in the sidebar header. Selection is a
 // sunken well plus full-strength ink, not a saturated fill.
 
@@ -31,6 +31,10 @@ import {
 } from '@/lib/navigationRegistry';
 import { useMotionDurations } from '@/motion/motion-tokens';
 import { CONSOLE_VIEW_REGISTRY } from '@/views/registry';
+import {
+  TwoLevelSidebarShell,
+  type TwoLevelSidebarItem,
+} from '@/components/ui/sidebar-component';
 import { LayoutSwitcher } from './LayoutSwitcher';
 import {
   IconAccount,
@@ -216,10 +220,6 @@ function shortcutLabel(index: number): string {
   return `Cmd or Ctrl ${index + 1}`;
 }
 
-function shortcutGlyph(index: number): string {
-  return `⌘${index + 1}`;
-}
-
 function SidebarDivider() {
   return (
     <div
@@ -390,17 +390,6 @@ export function Sidebar({
     }
   }, [router]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
-      if (event.key.toLowerCase() !== 'b') return;
-      event.preventDefault();
-      toggleCollapse();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [toggleCollapse]);
-
   const navigateTo = useCallback((surfaceId: string, path: string) => {
     // Routed Places let the pathname effect activate the surface. Flipping
     // layout state first can remount the shell before router.push commits.
@@ -534,109 +523,44 @@ export function Sidebar({
     }));
   }, [navigationObjects, objectTypes]);
 
-  return (
-    <nav
-      aria-label="Views, blocks, objects, and pins"
-      data-paint-region="stripe"
-      data-frame-resident="stripe"
-      data-shell-region="rail"
-      data-sidebar-collapsed={visuallyCollapsed}
-      className="flex h-full w-full shrink-0 flex-col bg-transparent font-ij-ui"
-      style={{
-        padding: 'var(--ij-sidebar-pad)',
-        gap: 'var(--ij-sidebar-zone-gap)',
-        transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)',
-      }}
+  /* The five Places are the icon rail. Radio semantics, the keyboard
+     shortcuts, and the data-* selectors the e2e specs assert ride along in
+     buttonProps, so the published rail carries the console's contract without
+     being forked. The label goes in as the accessible name and as sr-only text
+     inside the button, which is what `radio ... toContainText` reads. */
+  const railItems: readonly TwoLevelSidebarItem[] = PLACE_ENTRIES.map((place, index) => {
+    const Icon = PLACE_ICONS[place.kind] ?? IconWorkspace;
+    const active = place.surfaceId === activeSurfaceId;
+    return {
+      id: place.surfaceId,
+      label: place.label,
+      icon: <Icon size={16} />,
+      buttonProps: {
+        role: 'radio',
+        'aria-checked': active,
+        'aria-label': `${place.label} view`,
+        'aria-keyshortcuts': `Control+${index + 1} Meta+${index + 1}`,
+        title: `${place.label} (${shortcutLabel(index)})`,
+        'data-rail-tier': 'place',
+        'data-surface-nav': place.surfaceId,
+        'data-selected': active ? 'true' : undefined,
+        style: active ? SELECTION_STYLE : undefined,
+      } as React.ButtonHTMLAttributes<HTMLButtonElement>,
+    };
+  });
+
+  const activePlace = PLACE_ENTRIES.find((place) => place.surfaceId === activeSurfaceId);
+
+  const panelBody = (
+    <div
+      className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto"
+      style={{ gap: 'var(--ij-sidebar-zone-gap)' }}
     >
-      {!visuallyCollapsed ? (
-        <div className="shrink-0">
-          <LayoutSwitcher
-            host={host}
-            surfaces={surfaces}
-            activeSurfaceId={activeSurfaceId}
-            showActiveName={false}
-          />
-        </div>
-      ) : null}
-
-      <div
-        data-surface-rail
-        data-rail-tier="place"
-        role="radiogroup"
-        aria-label="Views"
-        className="flex flex-col"
-        style={{ gap: 'var(--ij-sidebar-row-gap)' }}
-      >
-        <SidebarGroupLabel hidden={visuallyCollapsed}>Views</SidebarGroupLabel>
-        {PLACE_ENTRIES.map((place, index) => {
-          const Icon = PLACE_ICONS[place.kind] ?? IconWorkspace;
-          const active = place.surfaceId === activeSurfaceId;
-          return (
-            <button
-              key={place.id}
-              type="button"
-              role="radio"
-              data-rail-tier="place"
-              data-surface-nav={place.surfaceId}
-              title={`${place.label} (${shortcutLabel(index)})`}
-              aria-label={`${place.label} view`}
-              aria-checked={active}
-              aria-keyshortcuts={`Control+${index + 1} Meta+${index + 1}`}
-              onClick={() => navigateTo(place.surfaceId, place.path)}
-              className="group relative flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row text-left hover:bg-ij-hover-surface"
-              data-selected={active ? 'true' : undefined}
-              style={{
-                paddingInline: 'var(--ij-sidebar-pad)',
-                gap: 'var(--ij-sidebar-icon-gap)',
-                color: 'var(--ij-ink)',
-                background: active ? SELECTION_STYLE.background : 'transparent',
-                boxShadow: active ? SELECTION_STYLE.boxShadow : undefined,
-                fontWeight: active ? 700 : 600,
-                fontSize: 'var(--ij-sidebar-label-size)',
-                lineHeight: 'var(--ij-sidebar-label-line)',
-              }}
-            >
-              {visuallyCollapsed && active ? (
-                <span aria-hidden className="absolute left-0 h-ij-sidebar-pip w-ij-sidebar-pip" style={{ background: 'var(--ij-ink)' }} />
-              ) : null}
-              <SidebarRowIcon muted={!active}>
-                <Icon size={16} />
-              </SidebarRowIcon>
-              <span
-                className="min-w-0 flex-1 truncate"
-                style={{
-                  opacity: visuallyCollapsed ? 0 : 1,
-                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                }}
-              >
-                {place.label}
-              </span>
-              <span
-                className="shrink-0 tabular-nums"
-                style={{
-                  opacity: visuallyCollapsed ? 0 : 1,
-                  transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                  color: 'var(--ij-ink-info)',
-                  fontSize: 'var(--ij-sidebar-shortcut-size)',
-                  lineHeight: '16px',
-                  fontWeight: 400,
-                  fontFamily: 'var(--cp-font-human)',
-                }}
-              >
-                {shortcutGlyph(index)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <SidebarDivider />
-
       {onAddBlock ? (
         <>
           <SidebarBlocksGroup
             items={blockPalette}
-            visuallyCollapsed={visuallyCollapsed}
+            visuallyCollapsed={false}
             onAddBlock={addBlock}
           />
           <SidebarDivider />
@@ -649,8 +573,8 @@ export function Sidebar({
         className="flex flex-col"
         style={{ gap: 'var(--ij-sidebar-row-gap)' }}
       >
-        <SidebarGroupLabel hidden={visuallyCollapsed}>Objects</SidebarGroupLabel>
-        {objectTypeRows.length === 0 && !visuallyCollapsed ? (
+        <SidebarGroupLabel>Objects</SidebarGroupLabel>
+        {objectTypeRows.length === 0 ? (
           <p
             className="text-ij-ink-info"
             style={{
@@ -681,10 +605,7 @@ export function Sidebar({
               <SidebarRowIcon muted>
                 <IconRecords size={16} />
               </SidebarRowIcon>
-              <span
-                className="min-w-0 flex-1 truncate"
-                style={{ opacity: visuallyCollapsed ? 0 : 1 }}
-              >
+              <span className="min-w-0 flex-1 truncate">
                 {type.name}
                 {'count' in type && type.count > 0 ? ` (${type.count})` : ''}
               </span>
@@ -701,7 +622,7 @@ export function Sidebar({
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         style={{ gap: '4px' }}
       >
-        <SidebarGroupLabel hidden={visuallyCollapsed}>Pins</SidebarGroupLabel>
+        <SidebarGroupLabel>Pins</SidebarGroupLabel>
         <div className="flex flex-col" style={{ gap: 'var(--ij-sidebar-row-gap)' }}>
           {landmarks.map((landmark) => {
             const descriptorId = String(landmark.properties.descriptor_id ?? '');
@@ -719,7 +640,7 @@ export function Sidebar({
                 onDragEnd={(event) => onLandmarkDragEnd(event, landmark)}
                 data-rail-tier="pin"
                 data-sidebar-landmark={landmark.id}
-                className="group flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
+                className="group relative flex h-ij-nav-row w-full items-center rounded-ij-sidebar-row hover:bg-ij-hover-surface"
                 title={`${label}. Drag to the active grid.`}
                 style={{
                   paddingInline: 'var(--ij-sidebar-pad)',
@@ -733,44 +654,35 @@ export function Sidebar({
                 <SidebarRowIcon muted>
                   <Icon size={16} />
                 </SidebarRowIcon>
-                <span
-                  className="min-w-0 flex-1"
-                  style={{
-                    opacity: visuallyCollapsed ? 0 : 1,
-                    transition: 'opacity var(--ij-motion) var(--ij-ease)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {label}
-                </span>
-                {!visuallyCollapsed ? (
-                  <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {/* Overlaid, not laid out: at rest these two words cost the
+                    label about 80px, which truncated pin names the panel is
+                    otherwise wide enough to show. They only exist on hover, so
+                    they should only take room on hover. */}
+                <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-ij-sidebar-row bg-ij-hover-surface px-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+                  <button
+                    type="button"
+                    className="text-ij-ink-info hover:text-ij-ink"
+                    onClick={() => pinLandmark(landmark)}
+                    aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}
+                  >
+                    {landmark.properties.pinned === true ? 'Unpin' : 'Pin'}
+                  </button>
+                  {removable ? (
                     <button
                       type="button"
                       className="text-ij-ink-info hover:text-ij-ink"
-                      onClick={() => pinLandmark(landmark)}
-                      aria-label={`${landmark.properties.pinned === true ? 'Unpin' : 'Pin'} ${label}`}
+                      onClick={() => removeLandmark(landmark)}
+                      aria-label={`Remove ${label}`}
                     >
-                      {landmark.properties.pinned === true ? 'Unpin' : 'Pin'}
+                      Remove
                     </button>
-                    {removable ? (
-                      <button
-                        type="button"
-                        className="text-ij-ink-info hover:text-ij-ink"
-                        onClick={() => removeLandmark(landmark)}
-                        aria-label={`Remove ${label}`}
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </span>
-                ) : null}
+                  ) : null}
+                </span>
               </div>
             );
           })}
-          {landmarks.length === 0 && !visuallyCollapsed ? (
+          {landmarks.length === 0 ? (
             <p
               className="text-ij-ink-info"
               style={{
@@ -791,31 +703,8 @@ export function Sidebar({
           height: 'var(--ij-sidebar-footer-h)',
           gap: '8px',
           paddingTop: 'var(--ij-sidebar-pad)',
-          paddingRight: '4px',
         }}
       >
-        <button
-          type="button"
-          onClick={toggleCollapse}
-          disabled={compact}
-          className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink disabled:opacity-50"
-          title={
-            compact
-              ? 'Sidebar stays collapsed at this width'
-              : collapsed
-                ? 'Expand sidebar (Cmd or Ctrl B)'
-                : 'Collapse sidebar (Cmd or Ctrl B)'
-          }
-          aria-label={
-            compact
-              ? 'Sidebar collapsed for narrow width'
-              : collapsed
-                ? 'Expand sidebar'
-                : 'Collapse sidebar'
-          }
-        >
-          <span aria-hidden>{visuallyCollapsed ? '›' : '‹'}</span>
-        </button>
         <span
           className="flex shrink-0 items-center justify-center rounded-full bg-ij-chrome font-semibold text-ij-ink"
           style={{
@@ -827,26 +716,9 @@ export function Sidebar({
         >
           {initials}
         </span>
-        <button
-          type="button"
-          data-account-trigger
-          aria-label="Account"
-          aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
-          onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
-          className="flex size-ij-control shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
-          style={{
-            transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)',
-            ...(activeSurfaceId === ACCOUNT_SURFACE_ID ? SELECTION_STYLE : {}),
-          }}
-          title="Account"
-        >
-          <IconAccount size={14} />
-        </button>
         <span
           className="min-w-0 flex-1 truncate"
           style={{
-            opacity: visuallyCollapsed ? 0 : 1,
-            transition: 'opacity var(--ij-motion) var(--ij-ease)',
             color: 'var(--ij-ink-info)',
             fontWeight: 500,
             fontSize: 'var(--ij-sidebar-label-size)',
@@ -858,6 +730,96 @@ export function Sidebar({
           {tenant}
         </span>
       </div>
+    </div>
+  );
+
+  /* Account stays on the rail, not in the panel: it has to survive a collapse,
+     and signatures.spec asserts the trigger is visible at 28px. */
+  const railFooter = (
+    <>
+      <button
+        type="button"
+        data-account-trigger
+        aria-label="Account"
+        aria-pressed={activeSurfaceId === ACCOUNT_SURFACE_ID}
+        onClick={() => void host.activateSurface(ACCOUNT_SURFACE_ID)}
+        className="flex size-ij-control shrink-0 items-center justify-center rounded-ij-arc text-ij-ink-info hover:bg-ij-hover-surface hover:text-ij-ink"
+        style={{
+          transition: 'background-color var(--ij-motion) var(--ij-ease), color var(--ij-motion) var(--ij-ease)',
+          ...(activeSurfaceId === ACCOUNT_SURFACE_ID ? SELECTION_STYLE : {}),
+        }}
+        title="Account"
+      >
+        <IconAccount size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={toggleCollapse}
+        disabled={compact}
+        className="flex size-ij-stripe-icon shrink-0 items-center justify-center text-ij-ink-info hover:text-ij-ink disabled:opacity-50"
+        title={
+          compact
+            ? 'Sidebar stays collapsed at this width'
+            : collapsed
+              ? 'Expand sidebar (Cmd or Ctrl B)'
+              : 'Collapse sidebar (Cmd or Ctrl B)'
+        }
+        aria-label={
+          compact
+            ? 'Sidebar collapsed for narrow width'
+            : collapsed
+              ? 'Expand sidebar'
+              : 'Collapse sidebar'
+        }
+      >
+        <span aria-hidden>{visuallyCollapsed ? '›' : '‹'}</span>
+      </button>
+    </>
+  );
+
+  /* One sidebar system for the whole console: the same 21st rail plus detail
+     panel the chat surface wears. The nav wrapper keeps the element the
+     keyboard-collapse spec targets and the paint region the gates read; the
+     rail and panel below it are the shared component. */
+  return (
+    <nav
+      aria-label="Views, blocks, objects, and pins"
+      data-paint-region="stripe"
+      data-frame-resident="stripe"
+      data-shell-region="rail"
+      data-sidebar-collapsed={visuallyCollapsed}
+      className="h-full w-full font-ij-ui"
+      style={{
+        transition: durations.reduced ? undefined : 'opacity var(--ij-motion) var(--ij-ease)',
+      }}
+    >
+      <TwoLevelSidebarShell
+        items={railItems}
+        activeSection={activeSurfaceId}
+        onSectionChange={(surfaceId) => {
+          const place = PLACE_ENTRIES.find((entry) => entry.surfaceId === surfaceId);
+          if (place) navigateTo(place.surfaceId, place.path);
+        }}
+        panelOpen={!visuallyCollapsed}
+        onPanelOpenChange={(open) => onCollapsedChange(!open)}
+        title={activePlace?.label ?? 'Views'}
+        brand={<IconWorkspace size={20} />}
+        panelBrand={
+          <LayoutSwitcher
+            host={host}
+            surfaces={surfaces}
+            activeSurfaceId={activeSurfaceId}
+            showActiveName={false}
+          />
+        }
+        footer={railFooter}
+        railProps={{
+          role: 'radiogroup',
+          'aria-label': 'Views',
+          ...{ 'data-surface-rail': '', 'data-rail-tier': 'place' },
+        }}
+        panel={panelBody}
+      />
     </nav>
   );
 }

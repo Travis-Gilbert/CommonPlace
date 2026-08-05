@@ -38,6 +38,7 @@
     "@assistant-ui/react-markdown": "0.12.11",
     "@assistant-ui/store": "0.2.13",
     "@assistant-ui/tap": "0.5.16",
+    "@carbon/icons-react": "^11.84.0",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",
