@@ -1,6 +1,6 @@
 // SOURCING: none. Console mount uses fetch SSE to /api/chat/stream (theorem-acp
 // bridge already behind that route). No OpenWork / opencode import.
-import type { ChatTransport } from './transport.js';
+import type { ChatTransport } from './transport';
 
 export type HttpStreamTransportOptions = {
   readonly endpoint?: string;

@@ -2,13 +2,13 @@
 
 // SOURCING: none. SPEC-THEOREM-CHAT-REGISTER-1.0 TheoremChatRegister.
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { REGISTER_IMPL } from './register-impl.js';
+import { REGISTER_IMPL } from './register-impl';
 import {
   createChatSessionController,
   type ChatSessionController,
   type ChatSessionSnapshot,
-} from './session.js';
-import type { ChatTransport } from './transport.js';
+} from './session';
+import type { ChatTransport } from './transport';
 
 export type TheoremChatRegisterProps = {
   readonly transport: ChatTransport;

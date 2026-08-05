@@ -1,5 +1,5 @@
 // SOURCING: none. SPEC-THEOREM-CHAT-REGISTER-1.0 §2 session controller.
-import type { ChatTransport } from './transport.js';
+import type { ChatTransport } from './transport';
 
 export type ChatMessage = {
   readonly id: string;

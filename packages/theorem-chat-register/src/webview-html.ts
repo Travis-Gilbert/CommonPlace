@@ -1,6 +1,6 @@
 // SOURCING: none. Studio webview host: stamped HTML shell shared with the
 // React register's identity (theorem.chat). No OpenWork markup.
-import { REGISTER_IMPL } from './register-impl.js';
+import { REGISTER_IMPL } from './register-impl';
 
 /**
  * Minimal HTML document for VS Code / Studio webviews. The extension host owns
