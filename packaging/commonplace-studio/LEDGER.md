@@ -122,9 +122,15 @@ replacement for `IDefaultChatAgent`.
    extensions workbench, language-model tools, chat widget, chat status,
    agent-sessions welcome, default-account contribution).
 3. Stub onboarding's module-level `defaultChat` when the key is absent so the
-   module can load.
-4. Retitle the web getting-started walkthrough from "VS Code for the Web" to
+   module can load; drop the unused `assertDefined` import (TS6133).
+4. Guard `chatStatusEntry`'s `affectsConfiguration(...)` call: optional
+   `defaultChatAgent` makes `?.completionsEnablementSetting` a
+   `string | undefined`, which tsgo rejects (TS2345). Narrow before the call.
+5. Retitle the web getting-started walkthrough from "VS Code for the Web" to
    "Commonplace Studio".
+
+First Railway build of the retirement commit failed on (3)+(4); the patch was
+regenerated against a clean `1.131.0` apply before re-merge.
 
 Companion configuration (not this patch): overlay deletes `defaultChatAgent`
 and `voiceWsUrl`, clears Copilot auto-update/auth grants, `build.sh` removes

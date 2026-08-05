@@ -49,10 +49,11 @@
     {
       "id": "CR-001",
       "title": "Land Copilot retirement + redeploy Studio image",
-      "status": "pending",
+      "status": "verifying",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "pending",
+      "evidence_class": "artifact",
+      "evidence_note": "PR #190 merged as 644d1ba8; Railway deploy 23822b99 BUILDING that commit. Live product.json proof pending SUCCESS.",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -72,10 +73,11 @@
     {
       "id": "CR-002",
       "title": "Repair sticky empty /workspace/repo",
-      "status": "pending",
+      "status": "verifying",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "pending",
+      "evidence_class": "artifact",
+      "evidence_note": "entrypoint repair on main; WORKSPACE_REPO=Travis-Gilbert/CommonPlace set. Live HEAD/package.json proof pending new image boot.",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
