@@ -8,8 +8,14 @@ Canonical decision: [`docs/records/013-vscode-surface.md`](../../records/013-vsc
 **Unparked, building.** The entrypoint carries Studio as the default IDE host
 (CS-004..CS-006, spec amendment A14). Stock code-server remains the rollback
 behind `--build-arg BUILD_STUDIO_SERVER=0` and is still what the live deploy
-runs until CS-007. The door and pack were always live; this follow-up swaps the
-**workbench binary**.
+runs until CS-007 (`IDE_HOST=code-server` on Railway). The door and pack were
+always live; this follow-up swaps the **workbench binary**.
+
+**2026-08-04 scar after #185.** Dropping `-min` was necessary but not
+sufficient. `gulpfile.reh.ts` starts every `vscode-reh-web-*` task with
+`compileBuildWithManglingTask`, so deploy `7c2690ab` still died in `[mangler]`
+on the unminified target. Patch `0002` routes unminified reh-web through
+`compileBuildWithoutManglingTask`.
 
 CS-003 was marked done on 2026-08-03 and reopened on 2026-08-04, because the
 image never carried Studio at all. Deploy `4e33d620` built green off `01143ad5`
@@ -75,9 +81,9 @@ Authenticated `/IDE` serves Commonplace Studio’s web workbench (`code serve-we
 | ID | Task | Grounding | Proof | Status |
 |---|---|---|---|---|
 | CS-000 | Durable follow-up (this file) + link from parent plan | `FOLLOW-UP-CODE-SERVE-WEB.md`, checklist note | file exists | done |
-| CS-001 | Clear disk floors; run `build.sh prepare` then the deployable target on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | server artifact; ledger-gate pass | doing. Not buildable on the mac: three runs, three kernel SIGKILLs of the whole process tree at the same gulp stage after `compile-src`, 32GiB against node at `--max-old-space-size=8192`. The `studio-server` stage is the linux builder and Railway is the only machine that runs it |
+| CS-001 | Clear disk floors; run `build.sh prepare` then the deployable target on pinned `UPSTREAM_TAG` | `packaging/commonplace-studio/scripts/build.sh`, `RUNBOOK.md` | server artifact; ledger-gate pass | **doing** (Railway). Mangler OOM cleared by patch 0002 (deploy `b1baa84f` got through compile/bundle). Next failure: vsce/`npm list` on staged `theorem-vscode` with `workspace:*` deps — ship manifest strips deps (dist already bundled) |
 | CS-002 | Local smoke: the server boots; pack activates; OpenVSX/telemetry/identity checks | Studio RUNBOOK §5 web bullets | written smoke receipt | harness landed (`scripts/smoke-server.sh`, shellcheck clean); awaiting the CS-001 artifact to produce the receipt |
-| CS-003 | OW5 amendment: workspace image replaces `code-server` install with Studio server output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + `/opt/commonplace/studio-server/bin/commonplace-studio-server` present in the running container | reopened 2026-08-04. Amendment text landed and the stage exists, but nothing copied it into the image and the gate shared a name with the runtime switch, so deploy `4e33d620` shipped no Studio. Stage now gated on `BUILD_STUDIO_SERVER`, `COPY --from=studio-server` added. Proof is the container, not the Dockerfile: the previous "done" was read off the source |
+| CS-003 | OW5 amendment: workspace image replaces `code-server` install with Studio server output | `packaging/workspace/{Dockerfile,entrypoint.sh}`, Studio README | amendment text + `/opt/commonplace/studio-server/bin/commonplace-studio-server` present in the running container | **source done**; live proof still open. Stage gated on `BUILD_STUDIO_SERVER`, `COPY --from=studio-server` present. Last SUCCESS image is still `4e33d620` (no Studio). All later deploys FAILED through `7c2690ab` |
 | CS-004 | Entrypoint: start the Studio server (host/port, user-data, extensions, proposed APIs) without stealing `$PORT` from OpenWork | today’s `env -u PORT` pattern for code-server | `/health` + IDE port respond; chat still on 8787 | **done** (host branch; `env -u PORT` kept; shellcheck clean) |
 | CS-005 | Edge proxy / register: keep `/IDE` path strip; rename or note register impl if product id changes | `edge-proxy.mjs`, `.commonplace-canonical`, `IdeRegister` | register-manifest + proxy tests | **done** (proxy unchanged by design; manifest notes the selectable host and defers the rename to CS-008) |
 | CS-006 | Preserve substrate env: bootstrap `editor.env`, `CONSOLE_EDITOR_SUBSTRATE_URL`, ACP vars | `bootstrap-editor-substrate.mjs`, Railway vars | doctor substrate green; pack GraphQL + SSE | **done** (one `ide_env` array both hosts pass identically) |

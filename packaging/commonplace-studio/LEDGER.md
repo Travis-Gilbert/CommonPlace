@@ -4,13 +4,13 @@ Oracle-debt style: one entry per patch, its reason, the upstream link, and what
 would let it be deleted. A patch with no entry fails `scripts/ledger-gate.sh`, and
 the gate runs in CI.
 
-**Patch count: 1.**
+**Patch count: 2.**
 
 Named choice 1 still holds for capability. Everything V1 through V8 asks for is
 either extension API, which ships in `apps/theorem-vscode` and runs in stock
-hosts, or `product.json`, which is an overlay rather than a patch. The one patch
-below buys no capability at all: it is a build-break in upstream's own tree, and
-it exists only because the minified target does not compile without it.
+hosts, or `product.json`, which is an overlay rather than a patch. The patches
+below buy no capability at all: they are build-breaks or builder-memory limits
+in upstream's own tree.
 
 ## Entries
 
@@ -50,7 +50,42 @@ send upstream rather than carry.
 
 **Delete it when** upstream adds the modifiers, or when `UPSTREAM_TAG` moves to a
 tag whose `-min` target compiles clean. Check by dropping the patch and running
-`./scripts/build.sh server`.
+`./scripts/build.sh server` with `STUDIO_MINIFY=1`.
+
+### 0002-reh-web-unminified-skip-mangler.patch
+
+**Finding.** Deploy `7c2690ab` (after #185) ran `vscode-reh-web-linux-x64`
+without `-min` and still OOM'd in the mangler:
+
+```
+[mangler] Done collecting. Classes: 12414. Exported symbols: 15761
+FATAL ERROR: MarkCompactCollector: young object promotion failed
+Allocation failed - JavaScript heap out of memory
+```
+
+`build/gulpfile.reh.ts` wires **both** the minified and unminified
+`vscode-reh-web-*` tasks through `compileBuildWithManglingTask`. Dropping
+`-min` only skips `minify-vscode-reh-web`; it does not skip private-field
+mangling. Upstream already exports `compileBuildWithoutManglingTask` in
+`gulpfile.compile.ts` as the local/PR compile path; reh-web never used it.
+
+**Why no API expresses this.** Builder memory is not a `product.json` key and
+not an extension capability. Raising `--max-old-space-size` was tried three
+times (default, 12288, 6144, then unminified with 8192 from npm's gulp script)
+and only moved the abort. The mangler is the peak.
+
+**The patch.** One conditional in `gulpfile.reh.ts`: unminified tasks use
+`compileBuildWithoutManglingTask`; `-min` keeps mangling. No runtime behaviour
+change for the workbench.
+
+**Upstream.** Not filed. Reproduced on Railway against 1.131.0 on 2026-08-04.
+Ideal upstream change: reh-web non-min tasks should match
+`compile-build-without-mangling` the way desktop local builds already do.
+
+**Delete it when** Railway (or a larger builder) can finish
+`vscode-reh-web-linux-x64-min` with mangling, and `STUDIO_MINIFY=1` is the
+default again; or when upstream routes unminified reh-web through
+without-mangling itself.
 
 ## Candidates, not yet owed
 

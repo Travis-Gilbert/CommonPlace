@@ -260,6 +260,7 @@ stage_pack() {
         rm -rf "$target"
         mkdir -p "$(dirname "$target")"
         cp -R "$STUDIO_PACK_DIR" "$target"
+        write_ship_pack_manifest "$target"
         return
     fi
 
@@ -273,6 +274,37 @@ stage_pack() {
     if [[ -f "$REPO_DIR/LICENSE" ]]; then
         cp "$REPO_DIR/LICENSE" "$target/LICENSE"
     fi
+    write_ship_pack_manifest "$target"
+}
+
+# dist/extension.{cjs,web.js} are already esbuild-bundled (vscode external only).
+# Upstream packages local extensions via vsce.listFiles → `npm list --production`,
+# which fails on pnpm `workspace:*` deps (deploy b1baa84f after the mangler skip).
+# Mirror what vscode's fromLocal() does for bundled extensions: drop scripts and
+# dependency blocks from the shipped manifest.
+write_ship_pack_manifest() {
+    local extension_dir=$1
+    local manifest="$extension_dir/package.json"
+    [[ -f "$manifest" ]] || {
+        echo "Error: missing $manifest" >&2
+        exit 1
+    }
+    log "writing ship package.json (no workspace deps) for $(basename "$extension_dir")"
+    # shellcheck disable=SC2016  # The ${} in the node script are JS template literals.
+    node -e '
+        const fs = require("fs");
+        const path = process.argv[1];
+        const data = JSON.parse(fs.readFileSync(path, "utf8"));
+        delete data.scripts;
+        delete data.dependencies;
+        delete data.devDependencies;
+        delete data.private;
+        fs.writeFileSync(path, `${JSON.stringify(data, null, "\t")}\n`);
+    ' "$manifest"
+    [[ -f "$extension_dir/dist/extension.cjs" ]] || {
+        echo "Error: ship pack missing dist/extension.cjs under $extension_dir" >&2
+        exit 1
+    }
 }
 
 prepare() {
@@ -326,7 +358,21 @@ build_web() {
 build_server() {
     local platform="${STUDIO_SERVER_PLATFORM:-linux}"
     local arch="${STUDIO_SERVER_ARCH:-x64}"
-    local target="vscode-reh-web-${platform}-${arch}-min"
+    # Unminified by default, AND mangling skipped for that path (patch 0002).
+    # Dropping `-min` alone is not enough: gulpfile.reh.ts still starts every
+    # vscode-reh-web-* task with compileBuildWithManglingTask, so deploy
+    # 7c2690ab OOM'd in [mangler] on vscode-reh-web-linux-x64 after #185.
+    # compileBuildWithoutManglingTask is upstream's local/PR compile; we only
+    # route the unminified reh-web series onto it.
+    #
+    # What -min buys is smaller assets over the wire. What it costs here is the
+    # whole artifact on a ~3–4GiB Railway builder. STUDIO_MINIFY=1 restores the
+    # -min target (and mangling) for a builder that can back it; patch 0001
+    # stays required for that path.
+    local target="vscode-reh-web-${platform}-${arch}"
+    if [[ "${STUDIO_MINIFY:-0}" == "1" ]]; then
+        target="${target}-min"
+    fi
     # gulpfile.reh.ts emits into the parent of the source tree.
     local out="$BUILD_ROOT/vscode-reh-web-${platform}-${arch}"
 
@@ -337,31 +383,16 @@ build_server() {
     # Raise it if a run is ever seen to exceed it, but do not guess it upward.
     require_disk 10 8
 
-    # The mangle step is the memory peak, and what it hits is node's own
-    # ceiling, not the machine's:
-    #   FATAL ERROR: MarkCompactCollector: young object promotion failed
-    #   Allocation failed - JavaScript heap out of memory
-    # exit 134, seven minutes in, on the linux builder. V8 refusing at its
-    # configured limit is a different failure from the kernel reclaiming the
-    # process, and only the first one is fixed by raising the limit. The mac
-    # produced the second, which is why it is not the machine for this.
+    # A ceiling, not a fix. The builder aborts around 3.0GB whatever this
+    # says, so it exists to keep V8 collecting inside the machine rather than
+    # growing until the container refuses. Two aborts look different and mean
+    # different things: MarkCompactCollector is V8 declining at its own limit,
+    # NewSpace::EnsureCurrentCapacity is the OS declining. Only the first is
+    # fixed by raising this, which is why raising it is not monotonic and why
+    # minification moved out of the default path instead.
     #
-    # Overridable because the right number is a property of the builder rather
-    # than of this repository, and it must sit BELOW the builder's memory.
-    #
-    # 12288 was tried first and was worse than the default. The abort moved from
-    # MarkCompactCollector to NewSpace::EnsureCurrentCapacity, which is not V8
-    # declining at its own ceiling but V8 asking the OS for memory and being
-    # refused: the ceiling was above what the machine could back, so instead of
-    # collecting harder it grew until the container said no. Raising this is
-    # therefore not a monotonic improvement, and the direction to move on an
-    # out-of-memory abort depends on which of the two messages appears.
-    #
-    # 6144 is chosen to leave headroom inside a builder that could not back 12G.
-    # It remains a measurement, not a derivation: the builder does not report its
-    # size, so this is the largest value that is comfortably under the smallest
-    # plausible host.
-    local heap_mb="${STUDIO_NODE_HEAP_MB:-6144}"
+    # Overridable, and it belongs below the builder's memory.
+    local heap_mb="${STUDIO_NODE_HEAP_MB:-3072}"
     log "building the server: $target (node heap ceiling ${heap_mb}MiB)"
     (
         cd "$BUILD_DIR" \
