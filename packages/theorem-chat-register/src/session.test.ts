@@ -1,8 +1,8 @@
 // SOURCING: none. SPEC-THEOREM-CHAT-REGISTER-1.0 §2 / §6 CR-004 oracle.
 import { describe, expect, it, vi } from 'vitest';
-import { createChatSessionController } from './session.js';
-import type { ChatTransport } from './transport.js';
-import { REGISTER_IMPL } from './register-impl.js';
+import { createChatSessionController } from './session';
+import type { ChatTransport } from './transport';
+import { REGISTER_IMPL } from './register-impl';
 
 function fakeTransport(replies: Record<string, string> = { hi: 'hello' }): ChatTransport {
   let sessionId = '';
