@@ -139,7 +139,7 @@
       "status": "done",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "artifact",
+      "evidence_class": "live",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -152,15 +152,15 @@
         "No GitHub Copilot sign-in wall for chat"
       ],
       "proof_command": "manual signed-in /IDE session smoke + ACP prompt receipt",
-      "evidence_note": "TheoremChatPanel + theorem.openChat; pack build/check/test green. Live /IDE panel smoke after workspace pack seed."
+      "evidence_note": "Workspace deploy a0f49841 SUCCESS (81a3ada1 / PR #196). Live /opt/commonplace/extensions/theorem-vscode has theorem.openChat + theorem.chat in dist bundles; studio-server extensions list theorem-vscode only (no copilot)."
     },
     {
       "id": "CR-006",
       "title": "Mount register at /chat; retire OpenWork door",
-      "status": "verifying",
+      "status": "done",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "artifact",
+      "evidence_class": "live",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -176,7 +176,7 @@
         "doctor + register-manifest green"
       ],
       "proof_command": "node scripts/check-register-manifest.mjs && node scripts/doctor.mjs",
-      "evidence_note": "Source wired: middleware default Next; stamps theorem.chat; manifest ok. Live doctor /chat pending console deploy."
+      "evidence_note": "Console deploy a4ae048d; /chat unauth 307 login (no openwork.chat); doctor 26/26. OpenWork proxy only if CONSOLE_OPENWORK_CHAT_PROXY=1."
     },
     {
       "id": "CR-007",
