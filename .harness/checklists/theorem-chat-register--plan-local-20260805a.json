@@ -157,10 +157,10 @@
     {
       "id": "CR-006",
       "title": "Mount register at /chat; retire OpenWork door",
-      "status": "verifying",
+      "status": "done",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "artifact",
+      "evidence_class": "live",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -176,7 +176,7 @@
         "doctor + register-manifest green"
       ],
       "proof_command": "node scripts/check-register-manifest.mjs && node scripts/doctor.mjs",
-      "evidence_note": "Source wired: middleware default Next; stamps theorem.chat; manifest ok. Live doctor /chat pending console deploy."
+      "evidence_note": "Console deploy a4ae048d SUCCESS. /chat \u2192 login (no openwork.chat header). doctor 26/26 green."
     },
     {
       "id": "CR-007",

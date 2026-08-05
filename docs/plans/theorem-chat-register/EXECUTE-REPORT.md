@@ -4,9 +4,9 @@ Plan: `plan-theorem-chat-register-20260805a`
 
 ## Summary
 - Final condition: Copilot retired on Studio (CR-001/002 already live); Theorem chat register package shipped and mounted at console `/chat` + Studio `Theorem: Open Chat`; OpenWork no longer the product `/chat` host.
-- Goal achieved: **yes** for CR-001..006 in source; CR-006 live stamp proof pending console deploy of this branch; CR-007 docs closed here.
-- Biggest remaining risk: console deploy must land before production doctor `/chat` expects `theorem.chat`; rotate `THEOREM_GIT_TOKEN` if still exposed from Studio builds.
-- Next action: merge → console Railway deploy → `node scripts/doctor.mjs` green on `/chat`.
+- Goal achieved: **yes** for CR-001..007 (live doctor green; OpenWork off product `/chat`).
+- Biggest remaining risk: Studio pack image may still need a workspace redeploy to seed `theorem.openChat`; rotate `THEOREM_GIT_TOKEN` if still exposed from Studio builds.
+- Next action: signed-in `/IDE` → Theorem: Open Chat after workspace pack seed.
 
 ## Checklist Reconciliation
 | ID | Task | Status | Evidence | Validation | Notes |
@@ -17,7 +17,7 @@ Plan: `plan-theorem-chat-register-20260805a`
 | CR-003 | Register contract | done | SPEC-THEOREM-CHAT-REGISTER-1.0 | artifact | path + `theorem.chat` |
 | CR-004 | Package | done | `@commonplace/theorem-chat-register` | `pnpm --filter … test` 3/3 | no openwork/opencode deps |
 | CR-005 | Studio mount | done | `TheoremChatPanel` + `theorem.openChat` | pack build + tsc | ACP transport |
-| CR-006 | `/chat` + OpenWork out | wired | middleware default off; stamp map; canonical | manifest ok; live pending deploy | rollback env `CONSOLE_OPENWORK_CHAT_PROXY=1` |
+| CR-006 | `/chat` + OpenWork out | done | deploy `a4ae048d`; doctor 26/26 | live | rollback env `CONSOLE_OPENWORK_CHAT_PROXY=1` |
 | CR-007 | Debt + report | done | this file + supersession rows | artifact | D2 archive deferred |
 
 ## Changes Made
@@ -37,7 +37,7 @@ Plan: `plan-theorem-chat-register-20260805a`
 | `node scripts/check-register-manifest.mjs` | pass | 8 registers |
 | console chat page tests | pass | 4 tests |
 | `pnpm --filter theorem-vscode check/build/test` | pass | 60 tests; bundles |
-| `node scripts/doctor.mjs` | partial | fails live `/chat` until console ships `theorem.chat` |
+| `node scripts/doctor.mjs` | pass | 26/26 after console `a4ae048d`; `/chat` unauth → login, no openwork stamp |
 | Live `/IDE` Copilot | pass | prior CR-001 |
 | Live `/workspace/repo` | pass | prior CR-002 |
 
