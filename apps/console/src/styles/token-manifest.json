@@ -829,19 +829,19 @@
     "--ij-control-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": []
     },
     "--ij-control-min-w": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": []
     },
     "--ij-corner-raised": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Round, not squircle: MaterialLayer's SDF draws circular rounded rects",
       "resolvedAlsoIn": []
     },
     "--ij-dialog-inset-top": {
@@ -883,7 +883,7 @@
     "--ij-editor-line": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
+      "note": "Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index",
       "resolvedAlsoIn": [
         "src/styles/theme-engine.ts"
       ]
@@ -957,21 +957,10 @@
       ]
     },
     "--ij-gold": {
-      "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
-      "resolvedAlsoIn": [
-        "src/styles/register-bridge.css",
-        "src/styles/theme-engine.ts"
-      ]
-    },
-    "--ij-gold-tint": {
-      "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
-      "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
-      ]
+      "file": "src/styles/theme-engine.ts",
+      "provenance": "The runtime derivation engine: the appearance surface computes these slots from user knobs, clamped by the contrast gate",
+      "note": "derived at runtime from appearance knobs",
+      "resolvedAlsoIn": []
     },
     "--ij-graph": {
       "file": "src/styles/int-ui-register.css",
@@ -1242,8 +1231,7 @@
       "note": "secondary text, shortcuts, counts",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css",
-        "src/styles/register-bridge.css"
+        "src/styles/primer-register.css"
       ]
     },
     "--ij-inspector-rail-w": {
@@ -1283,11 +1271,11 @@
       ]
     },
     "--ij-island-header-editor": {
-      "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Header band: island base raised one elevation step within the sunken side.",
+      "file": "src/styles/primer-register.css",
+      "provenance": "GitHub Primer primitives, the second coloration register offered by the appearance surface",
+      "note": "Primer owns its own header band. These used to fall through to the base",
       "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
+        "src/styles/primer-register.css"
       ]
     },
     "--ij-island-header-h": {
@@ -1299,11 +1287,11 @@
       ]
     },
     "--ij-island-header-tool": {
-      "file": "src/styles/register-bridge.css",
-      "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Header band: island base raised one elevation step within the sunken side.",
+      "file": "src/styles/primer-register.css",
+      "provenance": "GitHub Primer primitives, the second coloration register offered by the appearance surface",
+      "note": "Primer owns its own header band. These used to fall through to the base",
       "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
+        "src/styles/primer-register.css"
       ]
     },
     "--ij-island-meta-size": {
@@ -1329,7 +1317,7 @@
     "--ij-island-terra-tint": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "note": "Texture pass (owner direction): the grain reads too strong. Two systems",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1482,10 +1470,16 @@
     "--ij-material-grain": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Quieter ground; islands take a hint via --ij-island-terra-tint.",
+      "note": "Texture pass (owner direction): the grain reads too strong. Two systems",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
+    },
+    "--ij-measure-w": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
+      "resolvedAlsoIn": []
     },
     "--ij-memory": {
       "file": "src/styles/int-ui-register.css",
@@ -1796,7 +1790,7 @@
     "--ij-row-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": []
     },
     "--ij-row-orange": {
@@ -1871,7 +1865,7 @@
     "--ij-search-match": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
+      "note": "Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index",
       "resolvedAlsoIn": [
         "src/styles/theme-engine.ts"
       ]
@@ -1974,10 +1968,22 @@
       "note": "Paper Sidebar expanded (Island Shells): rail pad 8, zone gap 3, row gap 2,",
       "resolvedAlsoIn": []
     },
+    "--ij-stage-body-min-h": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
+      "resolvedAlsoIn": []
+    },
+    "--ij-stage-min-h": {
+      "file": "src/styles/int-ui-register.css",
+      "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
+      "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
+      "resolvedAlsoIn": []
+    },
     "--ij-statusbar-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -1993,7 +1999,7 @@
     "--ij-stripe-w": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -2001,7 +2007,7 @@
     "--ij-tab-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -2025,7 +2031,7 @@
     "--ij-text-selection": {
       "file": "src/styles/register-bridge.css",
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
-      "note": "Dialog inset used by cmdk overlays (Goal Stack promotion).",
+      "note": "Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index",
       "resolvedAlsoIn": [
         "src/styles/theme-engine.ts"
       ]
@@ -2097,7 +2103,7 @@
     "--ij-toolbar-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": [
         "src/styles/register-bridge.css"
       ]
@@ -2113,13 +2119,13 @@
     "--ij-tree-inset": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
       "resolvedAlsoIn": []
     },
     "--ij-underline-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
-      "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
+      "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": []
     },
     "--ij-warn": {
