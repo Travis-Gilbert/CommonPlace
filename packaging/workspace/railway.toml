@@ -70,6 +70,7 @@ watchPatterns = [
   "packages/openwork-paths/**",
   "apps/theorem-vscode/**",
   "packages/theorem-acp/**",
+  "packages/theorem-chat-register/**",
   "packages/block-view-contracts/**",
   "packaging/workspace/**",
   # The Studio fork pipeline: patch queue, product overlay, and build.sh. The

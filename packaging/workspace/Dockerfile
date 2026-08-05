@@ -123,11 +123,13 @@ RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/theorem-vscode/package.json apps/theorem-vscode/
 COPY packages/theorem-acp/package.json packages/theorem-acp/
+COPY packages/theorem-chat-register/package.json packages/theorem-chat-register/
 COPY packages/block-view-contracts/package.json packages/block-view-contracts/
 RUN pnpm install --filter theorem-vscode... --frozen-lockfile
 
 COPY apps/theorem-vscode apps/theorem-vscode
 COPY packages/theorem-acp packages/theorem-acp
+COPY packages/theorem-chat-register packages/theorem-chat-register
 COPY packages/block-view-contracts packages/block-view-contracts
 RUN pnpm --filter theorem-vscode run build \
   && mkdir -p /opt/extension/theorem-vscode \
