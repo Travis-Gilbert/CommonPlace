@@ -14,6 +14,7 @@
     "paths": {
       "@commonplace/block-view-contracts/*": ["../../packages/block-view-contracts/src/*"],
       "@commonplace/theorem-acp/*": ["../../packages/theorem-acp/src/*"],
+      "@commonplace/theorem-chat-register/*": ["../../packages/theorem-chat-register/src/*"],
       "@commonplace/console-editor/*": ["../console/src/lib/editor-intelligence/*"]
     }
   },

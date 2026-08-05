@@ -1,9 +1,9 @@
-// SOURCING: none. Thread URLs under /chat/* are owned by the OW4 workspace
-// proxy when CONSOLE_WORKSPACE_URL is set. This page is the fallback body for
-// deploys where the proxy is absent.
+// SOURCING: none. SPEC-THEOREM-CHAT-REGISTER-1.0 CR-006. Thread URLs under
+// /chat/* render the same Theorem register (thread id is UI context only until
+// catalog persistence wires through).
 
 import { redirect } from 'next/navigation';
-import { OpenworkChatRegister } from '@/views/OpenworkChatRegister';
+import { TheoremChatRegisterView } from '@/views/TheoremChatRegister';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import { ChatUnavailable } from '../chat-unavailable';
 
@@ -23,8 +23,9 @@ export default async function ChatThreadPage({
     return <ChatUnavailable settingsHref={null} />;
   }
   return (
-    <OpenworkChatRegister
-      reason={`Thread ${threadId} would open on the openwork door once CONSOLE_WORKSPACE_URL is set and the console proxies /chat.`}
+    <TheoremChatRegisterView
+      reason={`Thread ${threadId} on the Theorem chat register (theorem.chat).`}
+      endpoint="/api/chat/stream"
     />
   );
 }

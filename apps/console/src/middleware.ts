@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// SOURCING: none. SPEC-COMMONPLACE-PRODUCTION-CUTOVER-1.0 GL6 / OW4.
-// When CONSOLE_WORKSPACE_URL is set, /chat is reverse-proxied to the workspace
-// chat door with the /chat prefix stripped. Cookie stays on the console origin.
-// NextResponse.rewrite cannot target an arbitrary external origin here, so this
-// is an explicit fetch proxy.
+// SOURCING: none. SPEC-THEOREM-CHAT-REGISTER-1.0 CR-006.
+// Product /chat is the Theorem register (Next page), not the workspace OpenWork
+// door. Emergency rollback: set CONSOLE_OPENWORK_CHAT_PROXY=1 to restore the
+// former reverse-proxy to CONSOLE_WORKSPACE_URL (:8787).
 
 const WORKSPACE = process.env.CONSOLE_WORKSPACE_URL?.replace(/\/$/, '') ?? '';
+const OPENWORK_PROXY =
+  process.env.CONSOLE_OPENWORK_CHAT_PROXY?.trim() === '1';
 
 export async function middleware(request: NextRequest) {
-  if (!WORKSPACE) return NextResponse.next();
+  if (!OPENWORK_PROXY || !WORKSPACE) return NextResponse.next();
 
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/chat')) return NextResponse.next();

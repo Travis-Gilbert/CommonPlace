@@ -24,3 +24,6 @@ apps/chat/dist/
 # scripts/build.sh and must never be committed.
 apps/theorem-vscode/dist/
 packaging/commonplace-studio/build/
+
+# Local pnpm content-addressable store (agent / CI fallback when user store missing)
+.pnpm-store/

@@ -63,7 +63,7 @@
       "env_keys": [
         "WORKSPACE_TOKEN"
       ],
-      "notes": "OW5 live. Dockerfile VOLUME removed; Railway Volume at /workspace; Node 22 for pnpm; code-server started with env -u PORT and --auth none on :8080; OpenWork on :8787. Console /IDE edge proxies the IDE door. Health 200 at public URL.",
+      "notes": "OW5 live. Dockerfile VOLUME removed; Railway Volume at /workspace; Node 22 for pnpm; code-server/Studio started with env -u PORT and --auth none on :8080; OpenWork may still bind :8787 for healthcheck but is not the product /chat host (theorem.chat via console). Console /IDE edge proxies the IDE door. Health 200 at public URL.",
       "internal_url": "http://commonplace-workspace.railway.internal:8787",
       "public_url": "https://commonplace-workspace-production.up.railway.app",
       "health": "https://commonplace-workspace-production.up.railway.app/health"
@@ -78,11 +78,22 @@
   "registers": [
     {
       "id": "chat",
-      "canonical_package": "apps/chat (@commonplace/chat) + packages/openwork-ui",
+      "canonical_package": "packages/theorem-chat-register (@commonplace/theorem-chat-register)",
       "production_route": "/chat",
       "registry_entry": "chat.surface",
-      "manifest_impl": "openwork.chat",
-      "superseded": []
+      "manifest_impl": "theorem.chat",
+      "superseded": [
+        {
+          "impl": "openwork.chat",
+          "deletion_deadline": "2026-09-01",
+          "paths": [
+            "apps/chat",
+            "packages/openwork-ui",
+            "apps/console/src/views/OpenworkChatRegister.tsx"
+          ],
+          "reason": "SPEC-THEOREM-CHAT-REGISTER-1.0: product /chat is Theorem ACP register; OpenWork proxy retired (CONSOLE_OPENWORK_CHAT_PROXY=1 rollback only)."
+        }
+      ]
     },
     {
       "id": "records",

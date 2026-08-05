@@ -53,13 +53,13 @@ Authenticated users get:
 | ID | Task | Grounding | Proof | Status |
 |---|---|---|---|---|
 | CR-000 | Durable plan + checklist (this file) | `PLAN.md`, checklist JSON | files exist; plan_id named | **done** |
-| CR-001 | Land Copilot retirement (`feat/studio-overlay-retire-copilot`) + redeploy | overlay, patch 0003, entrypoint, smoke | ledger-gate; live product.json; `/IDE` smoke | pending |
-| CR-002 | Repair sticky empty `/workspace/repo` | `packaging/workspace/entrypoint.sh`, Railway volume | `package.json` + `git rev-parse HEAD` on live volume; Explorer non-empty | pending |
-| CR-003 | Register contract: package path, `register_impl`, dual seams, retirement inventory | SPEC draft under this plan | named ids + non-goal on `IDefaultChatAgent` | pending |
-| CR-004 | Implement Theorem chat register package | new package + pack/console adapters | package tests; no openworklabs/opencode on happy path | pending |
-| CR-005 | Mount register in Studio agent/chat panel | theorem-vscode + Studio product settings | signed-in `/IDE` shows Theorem register; no Copilot sign-in wall | pending |
-| CR-006 | Mount register at `/chat`; retire OpenWork door | `OpenworkChatRegister`, middleware, `.commonplace-canonical`, workspace image | stamp ≠ `openwork.chat`; doctor + register-manifest | pending |
-| CR-007 | Retire residual LLM / OpenWork surface debt + EXECUTE-REPORT | docs + deletions | EXECUTE-REPORT; no product route serves OpenWork as chat | pending |
+| CR-001 | Land Copilot retirement (`feat/studio-overlay-retire-copilot`) + redeploy | overlay, patch 0003, entrypoint, smoke | ledger-gate; live product.json; `/IDE` smoke | **done** |
+| CR-002 | Repair sticky empty `/workspace/repo` | `packaging/workspace/entrypoint.sh`, Railway volume | `package.json` + `git rev-parse HEAD` on live volume; Explorer non-empty | **done** |
+| CR-003 | Register contract: package path, `register_impl`, dual seams, retirement inventory | SPEC draft under this plan | named ids + non-goal on `IDefaultChatAgent` | **done** |
+| CR-004 | Implement Theorem chat register package | new package + pack/console adapters | package tests; no openworklabs/opencode on happy path | **done** |
+| CR-005 | Mount register in Studio agent/chat panel | theorem-vscode + Studio product settings | signed-in `/IDE` shows Theorem register; no Copilot sign-in wall | **done** (pack); live smoke after seed |
+| CR-006 | Mount register at `/chat`; retire OpenWork door | `OpenworkChatRegister`, middleware, `.commonplace-canonical`, workspace image | stamp ≠ `openwork.chat`; doctor + register-manifest | **verifying** (await console deploy) |
+| CR-007 | Retire residual LLM / OpenWork surface debt + EXECUTE-REPORT | docs + deletions | EXECUTE-REPORT; no product route serves OpenWork as chat | **done** |
 
 ## Sequence
 

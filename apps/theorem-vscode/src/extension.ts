@@ -33,6 +33,7 @@ import {
 import { registerSpineSearch, searchProposalGranted } from './search/spine';
 import { THEOREM_SCHEME, TheoremFileSystemProvider, saveSelectionToGraph } from './fs/theorem-fs';
 import { AgentPresence } from './agent/presence';
+import { TheoremChatPanel } from './agent/chat-panel';
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Theorem');
@@ -122,6 +123,15 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   context.subscriptions.push(presence);
 
+  const chatPanel = new TheoremChatPanel(
+    context,
+    resolved,
+    async (workspaceRoot) => {
+      const { openIdeSession } = await import('./agent/session-opener');
+      return openIdeSession(resolved, workspaceRoot);
+    },
+  );
+
   // V4, gated. Nothing registered means VS Code's ripgrep search is untouched.
   const roots = (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.toString());
   if (searchProposalGranted()) {
@@ -184,6 +194,7 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     vscode.commands.registerCommand('theorem.startSession', () => presence.start()),
+    vscode.commands.registerCommand('theorem.openChat', () => chatPanel.show()),
     vscode.commands.registerCommand('theorem.showHistory', async (target?: vscode.Uri) => {
       const uri = target ?? vscode.window.activeTextEditor?.document.uri;
       if (uri) await showHistoryQuickPick(timeline, uri);
