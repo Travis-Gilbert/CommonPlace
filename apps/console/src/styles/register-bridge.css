@@ -115,6 +115,9 @@
   --spacing-ij-sidebar-footer: var(--ij-sidebar-footer-h);
   --spacing-ij-sidebar-avatar: var(--ij-sidebar-avatar);
   --spacing-ij-stripe-icon: var(--ij-stripe-icon);
+  --spacing-ij-stage: var(--ij-stage-min-h);
+  --spacing-ij-stage-body: var(--ij-stage-body-min-h);
+  --spacing-ij-measure: var(--ij-measure-w);
   --spacing-ij-toolbar: var(--ij-toolbar-h);
   --spacing-ij-statusbar: var(--ij-statusbar-h);
   --spacing-ij-underline: var(--ij-underline-h);

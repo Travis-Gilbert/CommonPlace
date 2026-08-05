@@ -247,7 +247,7 @@ export function PrototypeStageView(props: ViewRenderProps) {
 
   return (
     <div
-      className="relative flex h-full min-h-[480px] flex-col bg-ij-editor text-ij-ink"
+      className="relative flex h-full min-h-ij-stage flex-col bg-ij-editor text-ij-ink"
       data-prototype-stage
       data-prototype-status={shownStatus}
       data-prototype-expr-id={lastExprId ?? ''}
@@ -255,7 +255,7 @@ export function PrototypeStageView(props: ViewRenderProps) {
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-ij-seam-raised px-3 py-2 text-ij-ink-info">
         <span className="font-ij-mono text-xs" data-prototype-status-label>{shownStatus}</span>
         {rrdUrl ? (
-          <span className="max-w-[40ch] truncate font-ij-mono text-[10px] text-ij-ink-info" title={rrdUrl}>
+          <span className="max-w-ij-measure truncate font-ij-mono text-ij-island-meta text-ij-ink-info" title={rrdUrl}>
             {rrdUrl}
           </span>
         ) : null}
@@ -268,7 +268,7 @@ export function PrototypeStageView(props: ViewRenderProps) {
       </div>
       <div
         ref={containerRef}
-        className="relative min-h-[420px] w-full flex-1 overflow-hidden"
+        className="relative min-h-ij-stage-body w-full flex-1 overflow-hidden"
         data-prototype-viewer
       />
     </div>
