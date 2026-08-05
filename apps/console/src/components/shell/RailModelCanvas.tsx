@@ -42,38 +42,43 @@ export interface RailModelCanvasProps {
 
 export function RailModelCanvas({ topicId = '' }: RailModelCanvasProps) {
   const scope = useMemo<ScopeRef>(() => ({ kind: 'topic', topicId }), [topicId]);
-  const [observed, setObserved] = useState<ObservedModel>(() => emptyObservedModel(scope));
-  const [declared, setDeclared] = useState<DeclaredModel>(() => emptyDeclaredModel(scope));
+  // The fetched model carries the topic it was fetched for, and empty is
+  // derived rather than stored. Resetting to empty inside the effect meant a
+  // synchronous setState in the effect body, which cascades a second render
+  // and which the react-hooks rule rejects. Tagging the payload does the same
+  // job without the write, and fixes a real bug on the way: a payload landing
+  // after the topic changed used to paint the previous topic's model, because
+  // nothing compared what arrived against what was asked for.
+  const [fetched, setFetched] = useState<
+    { readonly topicId: string; readonly observed: ObservedModel; readonly declared: DeclaredModel } | null
+  >(null);
+  const current = fetched?.topicId === topicId ? fetched : null;
+  const observed = current?.observed ?? emptyObservedModel(scope);
+  const declared = current?.declared ?? emptyDeclaredModel(scope);
   const [pendingPins, setPendingPins] = useState<readonly string[]>([]);
   const [positions, setPositions] = useState<LayoutPositions>({});
   const [selection, setSelection] = useState<ModelSelection | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    if (!topicId) {
-      setObserved(emptyObservedModel(scope));
-      setDeclared(emptyDeclaredModel(scope));
-      return;
-    }
+    if (!topicId) return;
     let active = true;
     void fetchObservedModel(topicId)
       .then((payload) => {
         if (!active) return;
-        setObserved(payload.observed);
-        setDeclared(payload.declared);
+        setFetched({ topicId, observed: payload.observed, declared: payload.declared });
       })
       .catch(() => {
         // The rail is not the place to report a model fetch failure: the Data
         // model surface owns that message and would say it twice. An empty
         // canvas next to a surface that explains itself is the quieter truth.
         if (!active) return;
-        setObserved(emptyObservedModel(scope));
-        setDeclared(emptyDeclaredModel(scope));
+        setFetched(null);
       });
     return () => {
       active = false;
     };
-  }, [topicId, reloadToken, scope]);
+  }, [topicId, reloadToken]);
 
   // Pin adopts an observed ghost into the declared model; unpin needs the
   // declared id rather than the observed key, which is why the pinned lookup
