@@ -26,8 +26,13 @@
 #   THEOREM_CONSOLE_ORIGIN           deep links (default v2 console)
 #
 # Optional environment:
-#   WORKSPACE_REPO_URL     Cloned into WORKSPACE_DIR on a fresh volume. Absent,
-#                          the volume is initialized as an empty repository.
+#   WORKSPACE_REPO_URL     Cloned into WORKSPACE_DIR on a fresh or sticky-empty
+#                          volume. Absent, see WORKSPACE_REPO.
+#   WORKSPACE_REPO         owner/name (e.g. Travis-Gilbert/CommonPlace). When
+#                          WORKSPACE_REPO_URL is unset, composed with
+#                          THEOREM_GIT_TOKEN into an HTTPS clone URL so the
+#                          token is not duplicated into a second secret.
+#   THEOREM_GIT_TOKEN      GitHub token used only when composing the clone URL.
 #   THEOREM_MCP_URL        The head's graph door (OW2). Absent, the head runs
 #                          without the graph and says so.
 #   THEOREM_API_KEY        Bearer credential for the above.

@@ -243,10 +243,31 @@ overlay_product() {
             const overlay = JSON.parse(fs.readFileSync(process.env.OVERLAY_PATH, "utf8"));
             for (const key of Object.keys(overlay)) {
                 if (key.startsWith("_")) continue;
-                base[key] = overlay[key];
+                // null means delete: used to retire upstream Copilot/Microsoft
+                // product keys (defaultChatAgent, voiceWsUrl, …) without leaving
+                // a `"key": null` the workbench still treats as present.
+                if (overlay[key] === null) {
+                    delete base[key];
+                } else {
+                    base[key] = overlay[key];
+                }
             }
             fs.writeFileSync(target, `${JSON.stringify(base, null, "\t")}\n`);
         '
+}
+
+# reh-web still ships upstream's built-in `extensions/copilot` tree even after
+# product.json stops naming GitHub Copilot. Drop it from the deployable server
+# so the workbench cannot activate a Microsoft chat host next to Theorem.
+retire_upstream_copilot_extension() {
+    local server_dir=$1
+    local copilot_dir="$server_dir/extensions/copilot"
+    if [[ -d "$copilot_dir" ]]; then
+        log "removing upstream built-in copilot extension from $copilot_dir"
+        rm -rf "$copilot_dir"
+    else
+        log "no upstream copilot extension under $server_dir/extensions (already absent)"
+    fi
 }
 
 stage_pack() {
@@ -406,6 +427,7 @@ build_server() {
         echo "The fork's serverApplicationName drives that filename; check product.overlay.json" >&2
         exit 1
     fi
+    retire_upstream_copilot_extension "$out"
     log "server at $out"
     log "smoke it with: $out/bin/commonplace-studio-server --host 127.0.0.1 --port 8080 --without-connection-token --accept-server-license-terms"
 }
