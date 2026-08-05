@@ -1,7 +1,5 @@
-// SOURCING: none. Ordinary chat stays on /chat for an admitted principal so the
-// OW4 middleware can reverse-proxy the workspace openwork door. The old
-// redirect into /workspace/*/chat is retired: page.tsx forbids it by name
-// because that path misses the proxy matcher and remounts assistant-ui.
+// SOURCING: none. Ordinary chat stays on /chat for an admitted principal and
+// renders the Theorem chat register (SPEC-THEOREM-CHAT-REGISTER-1.0).
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,8 +18,14 @@ vi.mock('next/navigation', () => ({
   redirect: mocks.redirect,
 }));
 
+vi.mock('@/views/TheoremChatRegister', () => ({
+  TheoremChatRegisterView: function TheoremChatRegisterView() {
+    return null;
+  },
+}));
+
 import ChatIndexPage from './page';
-import { OpenworkChatRegister } from '@/views/OpenworkChatRegister';
+import { TheoremChatRegisterView } from '@/views/TheoremChatRegister';
 
 describe('ordinary chat route', () => {
   beforeEach(() => {
@@ -29,7 +33,7 @@ describe('ordinary chat route', () => {
     mocks.redirect.mockClear();
   });
 
-  it('keeps an admitted workspace principal on /chat for the proxy', async () => {
+  it('keeps an admitted workspace principal on /chat Theorem register', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -45,7 +49,7 @@ describe('ordinary chat route', () => {
     const rendered = await ChatIndexPage();
 
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(rendered.type).toBe(OpenworkChatRegister);
+    expect(rendered.type).toBe(TheoremChatRegisterView);
   });
 
   it('sends unresolved principals to login', async () => {

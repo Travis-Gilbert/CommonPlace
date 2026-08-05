@@ -1,9 +1,8 @@
-// SOURCING: none. Chat page route (CH1). Unscoped /chat redirects into the
-// active workspace chat once membership and scope are verified.
+// SOURCING: none. Chat page route (CH1 / SPEC-THEOREM-CHAT-REGISTER-1.0 CR-006).
+// Unscoped /chat renders the Theorem register over /api/chat/stream.
 
 import { ChatUnavailable } from './chat-unavailable';
-import { OpenworkChatRegister } from '@/views/OpenworkChatRegister';
-import { redirect } from 'next/navigation';
+import { TheoremChatRegisterView } from '@/views/TheoremChatRegister';
 import { redirectForFailedPrincipal } from '@/lib/server/principal-redirect';
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 
@@ -16,8 +15,9 @@ export default async function ChatIndexPage() {
     return <ChatUnavailable settingsHref={null} />;
   }
   return (
-    <OpenworkChatRegister
-      reason="CONSOLE_WORKSPACE_URL is unset on this deploy, so the openwork chat door was not proxied. Set the workspace URL and redeploy the console."
+    <TheoremChatRegisterView
+      reason="Theorem ACP stream via /api/chat/stream. OpenWork is no longer the product /chat host."
+      endpoint="/api/chat/stream"
     />
   );
 }

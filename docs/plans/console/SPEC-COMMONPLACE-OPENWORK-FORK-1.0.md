@@ -1,5 +1,11 @@
 # SPEC-COMMONPLACE-OPENWORK-FORK-1.0
 
+> **Superseded as product `/chat` host (2026-08-05).**
+> [`SPEC-THEOREM-CHAT-REGISTER-1.0`](../theorem-chat-register/SPEC-THEOREM-CHAT-REGISTER-1.0.md)
+> mounts `@commonplace/theorem-chat-register` (`theorem.chat`) at `/chat` and in
+> Studio. OpenWork/opencode remains historical record (deferral D2 full archive);
+> emergency proxy rollback is `CONSOLE_OPENWORK_CHAT_PROXY=1` only.
+
 <!-- Plan anchor. The plan is the executable truth; this markdown is the
      human-readable view and is re-rendered from the plan, not hand-edited. -->
 

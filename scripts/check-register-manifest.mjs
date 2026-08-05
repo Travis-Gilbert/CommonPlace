@@ -51,6 +51,7 @@ const ALLOWED_UNMANIFESTED = new Set([
   'record.page',
   'commonplace.console',
   'browser.pane',
+  'prototype.stage',
 ]);
 
 function fail(message) {

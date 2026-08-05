@@ -20,6 +20,10 @@ export default defineConfig({
         find: /^@commonplace\/theorem-acp\/(.*)$/,
         replacement: here('../../packages/theorem-acp/src/$1.ts'),
       },
+      {
+        find: /^@commonplace\/theorem-chat-register\/(.*)$/,
+        replacement: here('../../packages/theorem-chat-register/src/$1.ts'),
+      },
       // V8's other front. The console app is not a workspace dependency of the
       // pack and must not become one; the parity test reaches its adapter by
       // path so the comparison can run without coupling the two builds.

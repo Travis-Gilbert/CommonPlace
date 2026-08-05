@@ -1,4 +1,4 @@
-// SOURCING: none. Thread chat routes fall back to openwork register when proxy absent.
+// SOURCING: none. Thread chat routes render theorem.chat register.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -18,6 +18,20 @@ vi.mock('@/lib/server/harness-principal', () => ({
   resolveHarnessPrincipal: vi.fn(),
 }));
 
+vi.mock('@/views/TheoremChatRegister', () => ({
+  TheoremChatRegisterView: function TheoremChatRegisterView({
+    reason,
+  }: {
+    readonly reason?: string;
+  }) {
+    return (
+      <div data-register-impl="theorem.chat" data-theorem-chat-register>
+        {reason}
+      </div>
+    );
+  },
+}));
+
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import ChatThreadPage from './page';
 
@@ -27,7 +41,7 @@ describe('ChatThreadPage', () => {
     vi.mocked(resolveHarnessPrincipal).mockReset();
   });
 
-  it('renders openwork register for a workspace-scoped principal', async () => {
+  it('renders theorem.chat register for a workspace-scoped principal', async () => {
     vi.mocked(resolveHarnessPrincipal).mockResolvedValue({
       ok: true,
       principal: {
@@ -41,7 +55,7 @@ describe('ChatThreadPage', () => {
       params: Promise.resolve({ threadId: 'thread-1' }),
     });
     const html = renderToStaticMarkup(element as ReactElement);
-    expect(html).toContain('data-register-impl="openwork.chat"');
+    expect(html).toContain('data-register-impl="theorem.chat"');
     expect(html).toContain('thread-1');
   });
 });

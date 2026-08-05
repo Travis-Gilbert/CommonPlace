@@ -61,6 +61,7 @@
     },
     "commands": [
       { "command": "theorem.startSession", "title": "Theorem: Start Session", "category": "Theorem" },
+      { "command": "theorem.openChat", "title": "Theorem: Open Chat", "category": "Theorem" },
       { "command": "theorem.applyFix", "title": "Theorem: Apply Fix", "category": "Theorem" },
       {
         "command": "theorem.sendSelectionToComposer",
@@ -110,6 +111,7 @@
   "dependencies": {
     "@commonplace/block-view-contracts": "workspace:*",
     "@commonplace/theorem-acp": "workspace:*",
+    "@commonplace/theorem-chat-register": "workspace:*",
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {

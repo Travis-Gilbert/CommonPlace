@@ -6,14 +6,11 @@ Canonical decision: [`docs/records/013-vscode-surface.md`](../../records/013-vsc
 
 ## Status
 
-**CS-007 host live; Microsoft/Copilot retirement in flight.** Deploy
-`c4636818` runs `IDE_HOST=studio`. Session smoke showed Commonplace Studio
-chrome plus status-bar Theorem, but upstream Copilot product keys, the built-in
-`extensions/copilot` tree, and “VS Code for the Web” walkthrough titles still
-shipped. Branch `feat/studio-overlay-retire-copilot` deletes those product keys
-(overlay null → remove), adds patch `0003` null-checks, strips the copilot
-extension from the server artifact, seeds `chat.disableAIFeatures`, and retitles
-the web walkthrough. Stock code-server remains the image rollback until CS-008.
+**CS-007 host live; Copilot retirement live (CR-001).** Deploy `4e69fb85`
+ships Commonplace Studio without `defaultChatAgent` / `extensions/copilot`.
+Theorem chat register (Studio panel + console `/chat`) continues under
+[`../theorem-chat-register/PLAN.md`](../theorem-chat-register/PLAN.md).
+Stock code-server remains the image rollback until CS-008.
 
 **2026-08-04 scar after #185.** Dropping `-min` was necessary but not
 sufficient. `gulpfile.reh.ts` starts every `vscode-reh-web-*` task with

@@ -15,7 +15,7 @@ import type { ConsoleViewDescriptor } from '@/lib/rail/rail-model';
 import { RecordTableView } from './RecordTableView';
 import { GalleyDocView } from './GalleyDocView';
 import { CodeFileView } from './CodeFileView';
-import { OpenworkChatRegister } from './OpenworkChatRegister';
+import { TheoremChatRegisterView } from './TheoremChatRegister';
 import { IdeRegister } from './IdeRegister';
 import { DocListView } from './DocListView';
 import { IndexDestinationsView } from './IndexDestinationsView';
@@ -56,13 +56,13 @@ import { PrototypeStageView } from './prototype/PrototypeStageView';
 
 function ThreadRender(_props: ViewRenderProps) {
   return (
-    <OpenworkChatRegister reason="Thread place routes through the openwork chat register at /chat." />
+    <TheoremChatRegisterView reason="Thread place routes through the Theorem chat register at /chat." />
   );
 }
 
 function ChatSurfaceRender(_props: ViewRenderProps) {
   return (
-    <OpenworkChatRegister reason="Chat surface register body is openwork.chat at /chat." />
+    <TheoremChatRegisterView reason="Chat surface register body is theorem.chat at /chat." />
   );
 }
 
@@ -74,7 +74,7 @@ function IdeSurfaceRender(_props: ViewRenderProps) {
 
 function ThreadListRender(_props: ViewRenderProps) {
   return (
-    <OpenworkChatRegister reason="Thread list is owned by the openwork chat door at /chat." />
+    <TheoremChatRegisterView reason="Thread list is owned by the Theorem chat register at /chat." />
   );
 }
 function FilesRender(props: ViewRenderProps) {
@@ -238,10 +238,10 @@ const CHAT_THREAD: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.thread',
-  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
+  sourcing: { mode: 'wrap', upstream: 'theorem.chat' },
   source: {
-    package: '@commonplace/chat',
-    component: 'OpenworkChatRegister',
+    package: '@commonplace/theorem-chat-register',
+    component: 'TheoremChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -262,10 +262,10 @@ const CHAT_SURFACE: ViewDescriptor = {
   accepts: {},
   emits: ['run_agent', 'open'],
   renderer: 'chat.surface',
-  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
+  sourcing: { mode: 'wrap', upstream: 'theorem.chat' },
   source: {
-    package: '@commonplace/chat',
-    component: 'OpenworkChatRegister',
+    package: '@commonplace/theorem-chat-register',
+    component: 'TheoremChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },
@@ -310,10 +310,10 @@ const THREAD_LIST: ViewDescriptor = {
   accepts: {},
   emits: ['open'],
   renderer: 'thread.list',
-  sourcing: { mode: 'wrap', upstream: 'openwork.chat' },
+  sourcing: { mode: 'wrap', upstream: 'theorem.chat' },
   source: {
-    package: '@commonplace/chat',
-    component: 'OpenworkChatRegister',
+    package: '@commonplace/theorem-chat-register',
+    component: 'TheoremChatRegister',
     mode: 'wrap',
     regime: 'css-vars',
   },

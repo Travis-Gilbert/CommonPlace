@@ -93,10 +93,10 @@
     {
       "id": "CR-003",
       "title": "Theorem chat register package contract",
-      "status": "pending",
+      "status": "done",
       "oracle_class": "artifact",
       "implementation_mode": "docs",
-      "evidence_class": "pending",
+      "evidence_class": "artifact",
       "substitution_allowed": false,
       "live_oracle_required": false,
       "grounding": [
@@ -108,15 +108,16 @@
         "Non-goal: IDefaultChatAgent without Chat participant APIs",
         "Retirement inventory lists openwork.chat, OpenWork server, LLM leftovers"
       ],
-      "proof_command": "test -f docs/plans/theorem-chat-register/SPEC-THEOREM-CHAT-REGISTER-1.0.md"
+      "proof_command": "test -f docs/plans/theorem-chat-register/SPEC-THEOREM-CHAT-REGISTER-1.0.md",
+      "evidence_note": "SPEC names packages/theorem-chat-register, theorem.chat, dual mounts, retirement inventory."
     },
     {
       "id": "CR-004",
       "title": "Implement Theorem chat register package",
-      "status": "pending",
+      "status": "done",
       "oracle_class": "test",
       "implementation_mode": "product",
-      "evidence_class": "pending",
+      "evidence_class": "test",
       "substitution_allowed": false,
       "live_oracle_required": false,
       "grounding": [
@@ -129,15 +130,16 @@
         "Tests cover session open and one turn",
         "Happy path has no openworklabs or opencode product dependency"
       ],
-      "proof_command": "pnpm --filter <chat-register-package> test"
+      "proof_command": "pnpm --filter <chat-register-package> test",
+      "evidence_note": "pnpm --filter @commonplace/theorem-chat-register test \u2192 3 passed."
     },
     {
       "id": "CR-005",
       "title": "Mount register in Studio agent/chat panel",
-      "status": "pending",
+      "status": "done",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "pending",
+      "evidence_class": "artifact",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -149,15 +151,16 @@
         "ACP / theorem.startSession works against the shared checkout",
         "No GitHub Copilot sign-in wall for chat"
       ],
-      "proof_command": "manual signed-in /IDE session smoke + ACP prompt receipt"
+      "proof_command": "manual signed-in /IDE session smoke + ACP prompt receipt",
+      "evidence_note": "TheoremChatPanel + theorem.openChat; pack build/check/test green. Live /IDE panel smoke after workspace pack seed."
     },
     {
       "id": "CR-006",
       "title": "Mount register at /chat; retire OpenWork door",
-      "status": "pending",
+      "status": "verifying",
       "oracle_class": "live",
       "implementation_mode": "product",
-      "evidence_class": "pending",
+      "evidence_class": "artifact",
       "substitution_allowed": false,
       "live_oracle_required": true,
       "grounding": [
@@ -172,15 +175,16 @@
         "OpenWork/opencode is not the product /chat host",
         "doctor + register-manifest green"
       ],
-      "proof_command": "node scripts/check-register-manifest.mjs && node scripts/doctor.mjs"
+      "proof_command": "node scripts/check-register-manifest.mjs && node scripts/doctor.mjs",
+      "evidence_note": "Source wired: middleware default Next; stamps theorem.chat; manifest ok. Live doctor /chat pending console deploy."
     },
     {
       "id": "CR-007",
       "title": "Retire residual LLM / OpenWork debt + EXECUTE-REPORT",
-      "status": "pending",
+      "status": "done",
       "oracle_class": "artifact",
       "implementation_mode": "docs_and_delete",
-      "evidence_class": "pending",
+      "evidence_class": "artifact",
       "substitution_allowed": false,
       "live_oracle_required": false,
       "grounding": [
@@ -193,7 +197,8 @@
         "No product route serves OpenWork as the chat register",
         "OW / FOLLOW-UP docs note supersession"
       ],
-      "proof_command": "test -f docs/plans/theorem-chat-register/EXECUTE-REPORT.md"
+      "proof_command": "test -f docs/plans/theorem-chat-register/EXECUTE-REPORT.md",
+      "evidence_note": "EXECUTE-REPORT.md + canonical supersession of openwork.chat."
     }
   ]
 }

@@ -4,7 +4,7 @@
 // .commonplace-canonical.
 
 export const REGISTER_IMPL_BY_DESCRIPTOR = {
-  'chat.surface': 'openwork.chat',
+  'chat.surface': 'theorem.chat',
   'ide.surface': 'code-server.ide',
   'record.table': 'console.record.table',
   'model.studio': 'model-canvas.owox',
