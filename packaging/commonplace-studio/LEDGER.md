@@ -4,13 +4,14 @@ Oracle-debt style: one entry per patch, its reason, the upstream link, and what
 would let it be deleted. A patch with no entry fails `scripts/ledger-gate.sh`, and
 the gate runs in CI.
 
-**Patch count: 2.**
+**Patch count: 3.**
 
 Named choice 1 still holds for capability. Everything V1 through V8 asks for is
 either extension API, which ships in `apps/theorem-vscode` and runs in stock
 hosts, or `product.json`, which is an overlay rather than a patch. The patches
-below buy no capability at all: they are build-breaks or builder-memory limits
-in upstream's own tree.
+below buy no capability at all for the pack: they are build-breaks, builder
+memory limits, or the null-checks required once the overlay *deletes*
+upstream's Copilot product host.
 
 ## Entries
 
@@ -87,6 +88,59 @@ Ideal upstream change: reh-web non-min tasks should match
 default again; or when upstream routes unminified reh-web through
 without-mangling itself.
 
+### 0003-retire-default-chat-agent-copilot.patch
+
+**Finding.** CS-007 live smoke on deploy `c4636818` (`IDE_HOST=studio`) proved
+the name overlay alone does not retire Microsoft Copilot from the workbench:
+
+- Welcome still featured "Get Started with VS Code for the Web".
+- The CHAT Agent panel still targeted GitHub Copilot and GitHub auth.
+- Shipped `product.json` still carried `defaultChatAgent` (aka.ms Copilot
+  URLs), `builtInExtensionsEnabledWithAutoUpdates: ["GitHub.copilot-chat"]`,
+  `trustedExtensionAuthAccess` for GitHub Copilot Chat, and
+  `voiceWsUrl` on `falcon-caas.mai.microsoft.com`.
+- The reh-web artifact still contained `extensions/copilot`.
+
+Deleting `defaultChatAgent` via the overlay is configuration. Booting without
+it is not: at pinned `1.131.0`, dozens of call sites read
+`productService.defaultChatAgent.*` without a guard (extension gallery,
+accounts, chat widget, chat status, onboarding module top-level, …). Setting
+the key to `null` without deleting it, or deleting it without null-checks,
+either leaves Copilot wired or crashes the workbench. Phonon IDE's public
+diff against upstream used the same shape (remove the key + null-checks).
+
+**Why no API expresses this.** There is no supported `product.json` value that
+means "no default chat agent" while the TypeScript contract still requires the
+object. `chat.disableAIFeatures` hides UI but leaves the Copilot product host
+and Microsoft endpoints in the shipped file. The Theorem pack is ACP, not a
+replacement for `IDefaultChatAgent`.
+
+**The patch.** Against `1.131.0` (`3a03d6f7`):
+
+1. Make `IProductConfiguration.defaultChatAgent` optional.
+2. Guard the crash-on-boot call sites (gallery, abstract extension management,
+   extensions workbench, language-model tools, chat widget, chat status,
+   agent-sessions welcome, default-account contribution).
+3. Stub onboarding's module-level `defaultChat` when the key is absent so the
+   module can load.
+4. Retitle the web getting-started walkthrough from "VS Code for the Web" to
+   "Commonplace Studio".
+
+Companion configuration (not this patch): overlay deletes `defaultChatAgent`
+and `voiceWsUrl`, clears Copilot auto-update/auth grants, `build.sh` removes
+`extensions/copilot` from the server artifact, and the workspace entrypoint
+seeds `chat.disableAIFeatures: true` when unset.
+
+**Upstream.** Pattern matches public fork work that removes `defaultChatAgent`
+and adds null-checks. Not filed as a microsoft/vscode PR: upstream wants the
+OSS product to ship with Copilot development config.
+
+**Delete it when** upstream makes `defaultChatAgent` optional end-to-end and
+ships a supported "no default agent" product shape, or when
+`UPSTREAM_TAG` moves to a tree that already null-checks every site this patch
+touches. Check by dropping the patch, deleting the key in the overlay, and
+booting reh-web.
+
 ## Candidates, not yet owed
 
 Recorded here so that if one is ever asked for, the finding is already half
@@ -94,9 +148,8 @@ written and the temptation to patch first is smaller.
 
 | Candidate | Would need a patch because | Delete it when | Upstream |
 | --- | --- | --- | --- |
-| Hiding the stock chat and agent UI | Unknown. `product.json` and default settings may already cover it, and every needed patch is a ledger entry before it is written, so this stays a Verify-first item until someone checks a build. | Configuration is confirmed sufficient, or upstream adds a supported way to hide it. | (to be recorded when checked) |
 | Custom updater endpoint | `updateUrl` is null today, so the app never checks for updates. Wiring our own service is configuration; changing update *behaviour* would not be. | An updater service exists and `product.json` alone drives it. | n/a |
-| Welcome and walkthrough branding beyond `product.json` | Some first-run surfaces read from in-tree resources rather than product configuration. | Upstream exposes them as product configuration. | (to be recorded when checked) |
+| Deeper welcome media beyond walkthrough titles | Some first-run markdown/media still say "VS Code" inside `media/` trees. Titles are covered by 0003. | Upstream exposes remaining copy as product configuration, or we accept residual media strings. | (re-check after next tag) |
 
 ## Rule
 

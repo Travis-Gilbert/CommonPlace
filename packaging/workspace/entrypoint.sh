@@ -35,10 +35,31 @@ fi
 
 mkdir -p "${WORKSPACE_DIR}"
 
+# Prefer an explicit clone URL. Otherwise compose one from WORKSPACE_REPO +
+# THEOREM_GIT_TOKEN so the secret never has to be duplicated into
+# WORKSPACE_REPO_URL on the service (CR-002: production had the token but no
+# URL, so the volume stuck on an empty `git init`).
+if [ -z "${WORKSPACE_REPO_URL:-}" ] && [ -n "${WORKSPACE_REPO:-}" ] && [ -n "${THEOREM_GIT_TOKEN:-}" ]; then
+  WORKSPACE_REPO_URL="https://x-access-token:${THEOREM_GIT_TOKEN}@github.com/${WORKSPACE_REPO}.git"
+  echo "workspace: composed WORKSPACE_REPO_URL from WORKSPACE_REPO=${WORKSPACE_REPO}"
+fi
+
+# True when the volume has no usable checkout: missing .git, or a sticky empty
+# `git init` with no HEAD (the Aug 3 production scar).
+workspace_repo_needs_seed() {
+  if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
+    return 0
+  fi
+  if ! git -C "${WORKSPACE_DIR}" rev-parse --verify HEAD >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
 # A fresh volume is an empty directory, not a repository. Both doors behave
 # better against a real one (git status, diffs, the daemon's VCS reads), and
-# an operator who mounts an existing checkout keeps theirs untouched.
-if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
+# an operator who mounts an existing checkout with commits keeps theirs untouched.
+if workspace_repo_needs_seed; then
   if [ -n "${WORKSPACE_REPO_URL:-}" ]; then
     # A private HTTPS clone URL can carry a deploy token in its userinfo.
     # Printing it publishes the credential to container logs, and git would
@@ -47,7 +68,13 @@ if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
     # recoverable independently of it. Log a redacted form, and rewrite the
     # stored remote to the same URL without userinfo after cloning.
     redacted_url="$(printf '%s' "${WORKSPACE_REPO_URL}" | sed -E 's#(://)[^/@]*@#\1#')"
-    echo "workspace: cloning ${redacted_url} into ${WORKSPACE_DIR}"
+    if [ -d "${WORKSPACE_DIR}/.git" ]; then
+      echo "workspace: repairing sticky empty git init at ${WORKSPACE_DIR} from ${redacted_url}"
+      # Drop only the broken checkout contents; the parent volume keeps state/.
+      find "${WORKSPACE_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+    else
+      echo "workspace: cloning ${redacted_url} into ${WORKSPACE_DIR}"
+    fi
     git clone --depth "${WORKSPACE_CLONE_DEPTH:-1}" "${WORKSPACE_REPO_URL}" "${WORKSPACE_DIR}"
     git -C "${WORKSPACE_DIR}" remote set-url origin "${redacted_url}"
 
@@ -64,8 +91,12 @@ if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
         '!f() { printf "%s\n" "url=${WORKSPACE_REPO_URL}"; }; f'
     fi
   else
-    echo "workspace: initializing an empty repository at ${WORKSPACE_DIR}"
-    git init --quiet "${WORKSPACE_DIR}"
+    if [ -d "${WORKSPACE_DIR}/.git" ]; then
+      echo "workspace: sticky empty git init at ${WORKSPACE_DIR} and no WORKSPACE_REPO_URL/WORKSPACE_REPO; leaving it" >&2
+    else
+      echo "workspace: initializing an empty repository at ${WORKSPACE_DIR}"
+      git init --quiet "${WORKSPACE_DIR}"
+    fi
   fi
 fi
 
@@ -193,6 +224,11 @@ set('theorem.agentUrl', process.env.THEOREM_ACP_WS_URL);
 // Prefer env for the key at runtime; only write settings when explicitly asked.
 if (process.env.THEOREM_EDITOR_WRITE_TOKEN_TO_SETTINGS === '1') {
   set('theorem.token', process.env.THEOREM_EDITOR_API_KEY);
+}
+// Hide upstream Copilot/chat chrome. Theorem ACP lives in the pack, not the
+// stock CHAT Agent panel. Only seed when unset so a user can flip it back.
+if (!Object.prototype.hasOwnProperty.call(current, 'chat.disableAIFeatures')) {
+  current['chat.disableAIFeatures'] = true;
 }
 fs.writeFileSync(path, `${JSON.stringify(current, null, 2)}\n`);
 NODE

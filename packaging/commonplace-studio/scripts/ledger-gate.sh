@@ -112,6 +112,12 @@ check_built_tree() {
         }
         if (product.enableTelemetry !== false) problems.push("enableTelemetry is not false");
         if (product.updateUrl) problems.push(`updateUrl survived as ${JSON.stringify(product.updateUrl)}`);
+        if (product.defaultChatAgent) problems.push("defaultChatAgent survived (Copilot product host still wired)");
+        if (product.voiceWsUrl) problems.push(`voiceWsUrl survived as ${JSON.stringify(product.voiceWsUrl)}`);
+        const auto = product.builtInExtensionsEnabledWithAutoUpdates;
+        if (Array.isArray(auto) && auto.some((id) => /copilot/i.test(String(id)))) {
+            problems.push(`builtInExtensionsEnabledWithAutoUpdates still names Copilot: ${JSON.stringify(auto)}`);
+        }
         const gallery = product.extensionsGallery?.serviceUrl ?? "";
         if (!gallery.includes("open-vsx.org")) {
             problems.push(`extensionsGallery is ${JSON.stringify(gallery)}, expected Open VSX`);

@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "plan_id": "plan-theorem-chat-register-20260805a",
+  "tenant_slug": "Travis-Gilbert",
+  "room_id": "room:ungrouped",
+  "workstream": "theorem-chat-register",
+  "created_at": "2026-08-05",
+  "planning_skill": "theorems-harness:planning-theorem",
+  "execution_skill": "theorems-harness:execute",
+  "substrate_status": "local_projection_only",
+  "substrate_note": "Harness plan create timed out / product plugin discovery 404 at planning time; import with plan import when MCP recovers.",
+  "sources": [
+    "docs/plans/theorem-chat-register/PLAN.md",
+    "docs/plans/ide-substrate-wire/FOLLOW-UP-CODE-SERVE-WEB.md",
+    "docs/plans/console/SPEC-COMMONPLACE-OPENWORK-FORK-1.0.md",
+    "docs/records/013-vscode-surface.md",
+    "feat/studio-overlay-retire-copilot"
+  ],
+  "deferrals": [
+    {
+      "id": "D1",
+      "title": "Theorem as real defaultChatAgent",
+      "reason": "Requires Chat participant / host APIs over ACP; this plan retires Copilot and mounts the Theorem register UI instead.",
+      "consent": "surfaced_in_plan_20260805"
+    },
+    {
+      "id": "D2",
+      "title": "Full OpenWork fork archive cleanup",
+      "reason": "CR-007 supersedes the product path; historical OW* specs remain as record until a dedicated archive pass.",
+      "consent": "surfaced_in_plan_20260805"
+    }
+  ],
+  "items": [
+    {
+      "id": "CR-000",
+      "title": "Durable plan + checklist projection",
+      "status": "done",
+      "oracle_class": "artifact",
+      "implementation_mode": "docs",
+      "evidence_class": "artifact",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "acceptance": [
+        "PLAN.md and checklist projection exist and name CR-001..007",
+        "plan_id plan-theorem-chat-register-20260805a recorded"
+      ],
+      "proof_command": "test -f docs/plans/theorem-chat-register/PLAN.md && test -f .harness/checklists/theorem-chat-register--plan-local-20260805a.json"
+    },
+    {
+      "id": "CR-001",
+      "title": "Land Copilot retirement + redeploy Studio image",
+      "status": "pending",
+      "oracle_class": "live",
+      "implementation_mode": "product",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "grounding": [
+        "packaging/commonplace-studio/product.overlay.json",
+        "packaging/commonplace-studio/patches/0003-retire-default-chat-agent-copilot.patch",
+        "packaging/workspace/entrypoint.sh",
+        "feat/studio-overlay-retire-copilot"
+      ],
+      "acceptance": [
+        "Branch merged to main and workspace redeployed",
+        "Live product.json has no defaultChatAgent / voiceWsUrl Copilot host",
+        "extensions/copilot absent from studio-server",
+        "Signed-in /IDE walkthrough title is Commonplace Studio"
+      ],
+      "proof_command": "cd packaging/commonplace-studio && ./scripts/ledger-gate.sh"
+    },
+    {
+      "id": "CR-002",
+      "title": "Repair sticky empty /workspace/repo",
+      "status": "pending",
+      "oracle_class": "live",
+      "implementation_mode": "product",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "grounding": [
+        "packaging/workspace/entrypoint.sh"
+      ],
+      "acceptance": [
+        "Entrypoint repairs or reclones empty sticky git init when WORKSPACE_REPO_URL is set",
+        "Live /workspace/repo has package.json and a resolvable HEAD",
+        "/IDE Explorer and /chat share that tree"
+      ],
+      "proof_command": "railway ssh --service commonplace-workspace -- 'test -f /workspace/repo/package.json && git -C /workspace/repo rev-parse HEAD'"
+    },
+    {
+      "id": "CR-003",
+      "title": "Theorem chat register package contract",
+      "status": "pending",
+      "oracle_class": "artifact",
+      "implementation_mode": "docs",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "grounding": [
+        "docs/plans/theorem-chat-register/PLAN.md",
+        "docs/plans/theorem-chat-register/SPEC-THEOREM-CHAT-REGISTER-1.0.md"
+      ],
+      "acceptance": [
+        "SPEC names package path, register_impl id, Studio seam, /chat seam",
+        "Non-goal: IDefaultChatAgent without Chat participant APIs",
+        "Retirement inventory lists openwork.chat, OpenWork server, LLM leftovers"
+      ],
+      "proof_command": "test -f docs/plans/theorem-chat-register/SPEC-THEOREM-CHAT-REGISTER-1.0.md"
+    },
+    {
+      "id": "CR-004",
+      "title": "Implement Theorem chat register package",
+      "status": "pending",
+      "oracle_class": "test",
+      "implementation_mode": "product",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "grounding": [
+        "packages/",
+        "apps/theorem-vscode/",
+        "apps/console/"
+      ],
+      "acceptance": [
+        "Package builds in the pnpm workspace",
+        "Tests cover session open and one turn",
+        "Happy path has no openworklabs or opencode product dependency"
+      ],
+      "proof_command": "pnpm --filter <chat-register-package> test"
+    },
+    {
+      "id": "CR-005",
+      "title": "Mount register in Studio agent/chat panel",
+      "status": "pending",
+      "oracle_class": "live",
+      "implementation_mode": "product",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "grounding": [
+        "apps/theorem-vscode/",
+        "packaging/commonplace-studio/"
+      ],
+      "acceptance": [
+        "Signed-in /IDE shows Theorem register UI in the agent/chat region",
+        "ACP / theorem.startSession works against the shared checkout",
+        "No GitHub Copilot sign-in wall for chat"
+      ],
+      "proof_command": "manual signed-in /IDE session smoke + ACP prompt receipt"
+    },
+    {
+      "id": "CR-006",
+      "title": "Mount register at /chat; retire OpenWork door",
+      "status": "pending",
+      "oracle_class": "live",
+      "implementation_mode": "product",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "grounding": [
+        "apps/console/src/views/OpenworkChatRegister.tsx",
+        "apps/console/src/middleware.ts",
+        "apps/console/src/views/registry.tsx",
+        ".commonplace-canonical",
+        "packaging/workspace/"
+      ],
+      "acceptance": [
+        "Live /chat stamp is the Theorem register_impl, not openwork.chat",
+        "OpenWork/opencode is not the product /chat host",
+        "doctor + register-manifest green"
+      ],
+      "proof_command": "node scripts/check-register-manifest.mjs && node scripts/doctor.mjs"
+    },
+    {
+      "id": "CR-007",
+      "title": "Retire residual LLM / OpenWork debt + EXECUTE-REPORT",
+      "status": "pending",
+      "oracle_class": "artifact",
+      "implementation_mode": "docs_and_delete",
+      "evidence_class": "pending",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "grounding": [
+        "docs/plans/theorem-chat-register/EXECUTE-REPORT.md",
+        "apps/chat/MODIFICATIONS.md",
+        "docs/plans/console/SPEC-COMMONPLACE-OPENWORK-FORK-1.0.md"
+      ],
+      "acceptance": [
+        "EXECUTE-REPORT lists deletions and live stamps",
+        "No product route serves OpenWork as the chat register",
+        "OW / FOLLOW-UP docs note supersession"
+      ],
+      "proof_command": "test -f docs/plans/theorem-chat-register/EXECUTE-REPORT.md"
+    }
+  ]
+}

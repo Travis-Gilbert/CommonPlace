@@ -153,11 +153,27 @@ check_identity() {
         indent <<< "$microsoft_hits"
     fi
 
-    local update_url sync_store
+    local update_url sync_store voice_url chat_agent
     update_url="$(json_get "$product" updateUrl)"
     sync_store="$(json_get "$product" configurationSync.store)"
+    voice_url="$(json_get "$product" voiceWsUrl)"
+    chat_agent="$(json_get "$product" defaultChatAgent)"
     expect_unset updateUrl "$update_url"
     expect_unset "configurationSync.store" "$sync_store"
+    expect_unset voiceWsUrl "$voice_url"
+    expect_unset defaultChatAgent "$chat_agent"
+
+    if grep -Eiq 'GitHub\.copilot|aka\.ms/github-copilot|falcon-caas\.mai\.microsoft' "$product"; then
+        fail "product.json still names Copilot or Microsoft Copilot endpoints"
+    else
+        pass "no Copilot / Microsoft Copilot endpoints in product.json"
+    fi
+
+    if [[ -d "$SERVER_DIR/extensions/copilot" ]]; then
+        fail "upstream built-in copilot extension still present under $SERVER_DIR/extensions/copilot"
+    else
+        pass "upstream built-in copilot extension is not shipped"
+    fi
 }
 
 check_pack() {
