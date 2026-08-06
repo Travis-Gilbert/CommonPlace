@@ -204,56 +204,59 @@ export function ForkDiagramCanvas({
   );
 
   return (
-    <ModelCanvasShell
-      graph={graph}
-      onGraphChange={(next) => {
-        if (!onLayoutChange) return;
-        const positions: Record<string, { x: number; y: number }> = {};
-        for (const n of next.nodes) {
-          positions[n.key] = n.position;
-        }
-        onLayoutChange(positions);
-      }}
-      onNodeSelect={(key) => {
-        if (!key) {
+    <div className="h-full min-h-0 w-full" data-model-canvas-shell>
+      <ModelCanvasShell
+        graph={graph}
+        className="h-full min-h-0 w-full"
+        onGraphChange={(next) => {
+          if (!onLayoutChange) return;
+          const positions: Record<string, { x: number; y: number }> = {};
+          for (const n of next.nodes) {
+            positions[n.key] = n.position;
+          }
+          onLayoutChange(positions);
+        }}
+        onNodeSelect={(key) => {
+          if (!key) {
+            onSelect(null);
+            return;
+          }
+          if (key.startsWith('declared:')) {
+            onSelect({ kind: 'declared-type', key: key.slice('declared:'.length) });
+            return;
+          }
+          if (key.startsWith('ghost:')) {
+            onSelect({ kind: 'observed-type', key: key.slice('ghost:'.length) });
+            return;
+          }
           onSelect(null);
-          return;
-        }
-        if (key.startsWith('declared:')) {
-          onSelect({ kind: 'declared-type', key: key.slice('declared:'.length) });
-          return;
-        }
-        if (key.startsWith('ghost:')) {
-          onSelect({ kind: 'observed-type', key: key.slice('ghost:'.length) });
-          return;
-        }
-        onSelect(null);
-      }}
-      onFieldSelect={(nodeKey, fieldKey) => {
-        if (nodeKey.startsWith('declared:')) {
-          const objectTypeId = nodeKey.slice('declared:'.length);
-          const field = declared.fields.find(
-            (candidate) =>
-              candidate.objectTypeId === objectTypeId && candidate.key === fieldKey,
+        }}
+        onFieldSelect={(nodeKey, fieldKey) => {
+          if (nodeKey.startsWith('declared:')) {
+            const objectTypeId = nodeKey.slice('declared:'.length);
+            const field = declared.fields.find(
+              (candidate) =>
+                candidate.objectTypeId === objectTypeId && candidate.key === fieldKey,
+            );
+            onSelect(field ? { kind: 'declared-field', key: field.id } : null);
+            return;
+          }
+          if (nodeKey.startsWith('ghost:')) {
+            const observedKey = nodeKey.slice('ghost:'.length);
+            const field = observed.types
+              .find((type) => type.observedKey === observedKey)
+              ?.fields.find((candidate) => candidate.key === fieldKey);
+            onSelect(field ? { kind: 'observed-field', key: field.observedKey } : null);
+          }
+        }}
+        onEdgeSelect={(edgeKey) => {
+          onSelect(
+            edgeKey.startsWith('declared-relation:')
+              ? { kind: 'declared-relation', key: edgeKey.slice('declared-relation:'.length) }
+              : null,
           );
-          onSelect(field ? { kind: 'declared-field', key: field.id } : null);
-          return;
-        }
-        if (nodeKey.startsWith('ghost:')) {
-          const observedKey = nodeKey.slice('ghost:'.length);
-          const field = observed.types
-            .find((type) => type.observedKey === observedKey)
-            ?.fields.find((candidate) => candidate.key === fieldKey);
-          onSelect(field ? { kind: 'observed-field', key: field.observedKey } : null);
-        }
-      }}
-      onEdgeSelect={(edgeKey) => {
-        onSelect(
-          edgeKey.startsWith('declared-relation:')
-            ? { kind: 'declared-relation', key: edgeKey.slice('declared-relation:'.length) }
-            : null,
-        );
-      }}
-    />
+        }}
+      />
+    </div>
   );
 }

@@ -29,8 +29,12 @@ export interface LensProps {
 }
 
 export function DiagramLens(props: LensProps) {
-  // MF1: the OWOX fork shell supersedes and removes the hand-built canvas.
-  return <ForkDiagramCanvas {...props} />;
+  // MF1: the OWOX fork shell is the Data-model page body (full-bleed).
+  return (
+    <div className="h-full min-h-0 w-full" data-model-canvas-body>
+      <ForkDiagramCanvas {...props} />
+    </div>
+  );
 }
 
 export function FieldsTableLens({

@@ -1,50 +1,36 @@
 'use client';
 
-// SOURCING: @commonplace/block-view for scope and mutation seams,
-// @xyflow/react and tablecn structure through the registered lens components.
+// SOURCING: @commonplace/model-canvas (OWOX hard fork) as the Data-model page
+// body. Registry read/write stays in this adapter; plan-id BlockShell chrome
+// is gone — the canvas is the page (SPEC-COMMONPLACE-MODEL-CANVAS-FORK-1.0).
 
 import { useCallback, useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
   emptyDeclaredModel,
   emptyObservedModel,
-  formatFieldType,
-  type DeclaredModel,
-  type FieldMetadata,
-  type FieldType,
-  type ObservedEdge,
-  type ObservedField,
   type PinKind,
   type SchemaProposalDraft,
-  type ScopeRef,
 } from '@commonplace/data-model-contracts';
 import { DiffDialog, diffGraphs, type ModelGraph } from '@commonplace/model-canvas';
-import { BlockShell } from '@/components/block/BlockShell';
-import { degradationFor, withAction } from '@/lib/degradation';
+import '@commonplace/model-canvas/canvas.css';
 import {
   exportOkfModel,
   fetchObservedModel,
   importOkfModel,
   postPin,
-  postSchemaDeclare,
   postSchemaProposal,
   postSchemaRestore,
   postUnpin,
   previewOkfModel,
   type OkfModelPreviewPayload,
 } from '@/lib/observed-model-client';
-import { WhyTrace } from '../harness-ux/WhyTracePanel';
-import {
-  DiagramLens,
-  FieldsTableLens,
-} from './ObservedDeclaredLenses';
-import { RecordsLens } from './RecordsLens';
+import { DiagramLens } from './ObservedDeclaredLenses';
 import type { LayoutPositions } from './diagram/layout';
 import {
   createModelQueryState,
   modelScopeFromSet,
   reduceModelQuery,
-  type ModelLens,
   type ModelSelection,
 } from './modelQuery';
 import { modelCanvasId } from '@/lib/canvas/store';
@@ -53,7 +39,6 @@ import {
   declaredToModelGraph,
   parseOkfBundle,
 } from './okfBridge';
-import { schemaDeclareInputForField } from './schemaDeclare';
 import {
   UNKNOWN_REGISTRY_SIGNAL,
   registryMoved,
@@ -98,21 +83,6 @@ function positionsFromLayoutDocument(document: JSONCanvas | null): LayoutPositio
     positions[node.id] = { x: node.x, y: node.y };
   }
   return positions;
-}
-
-function selectedObservedEvidence(
-  selection: ModelSelection | null,
-  observed: ReturnType<typeof emptyObservedModel>,
-): ObservedField | ObservedEdge | null {
-  if (selection?.kind === 'observed-field') {
-    return observed.types.flatMap((type) => type.fields)
-      .find((field) => field.observedKey === selection.key) ?? null;
-  }
-  if (selection?.kind === 'observed-edge') {
-    return observed.types.flatMap((type) => type.edges)
-      .find((edge) => edge.observedKey === selection.key) ?? null;
-  }
-  return null;
 }
 
 function ProposalCard({
@@ -167,246 +137,6 @@ function ProposalCard({
   );
 }
 
-function ModelInspector({
-  selection,
-  observed,
-  declared,
-  fieldEditBusy,
-  fieldEditError,
-  onFieldEdit,
-}: {
-  readonly selection: ModelSelection | null;
-  readonly observed: ReturnType<typeof emptyObservedModel>;
-  readonly declared: DeclaredModel;
-  readonly fieldEditBusy: boolean;
-  readonly fieldEditError: string | null;
-  readonly onFieldEdit: (fieldId: string, replacement: FieldMetadata) => void;
-}) {
-  const evidence = selectedObservedEvidence(selection, observed);
-  const declaredField = selection?.kind === 'declared-field'
-    ? declared.fields.find((field) => field.id === selection.key) ?? null
-    : null;
-  const observedOrigin = declaredField?.provenance
-    ? observed.types.flatMap((type) => type.fields)
-        .find((field) => field.observedKey === declaredField.provenance?.observedKey)
-    : null;
-  const whyNodeId = declaredField?.provenance?.nodeId
-    ?? observedOrigin?.provenanceNodeId
-    ?? observedOrigin?.eventIds?.[0];
-  const evidenceSources = evidence?.sourceRefs?.length
-    ? evidence.sourceRefs
-    : observed.sources;
-  const [fieldKey, setFieldKey] = useState(declaredField?.key ?? '');
-  const [fieldLabel, setFieldLabel] = useState(declaredField?.label ?? '');
-  const [fieldKind, setFieldKind] = useState(declaredField?.fieldType.kind ?? 'text');
-  const [fieldRequired, setFieldRequired] = useState(declaredField?.required ?? false);
-
-  // The initialisers above run once, at mount, which normally happens with
-  // nothing selected. Without this reset the editor opened empty on the first
-  // selection and kept field A's key, label, type and required flag after
-  // moving to field B, so submitting could redeclare B with A's values.
-  //
-  // Adjusted during render rather than in an effect: an effect would paint the
-  // stale draft first and then cascade a second render. Guarded by the field
-  // identity so it never fights the reader's typing.
-  const editedFieldId = declaredField?.id ?? null;
-  const [editorFieldId, setEditorFieldId] = useState(editedFieldId);
-  if (editorFieldId !== editedFieldId) {
-    setEditorFieldId(editedFieldId);
-    setFieldKey(declaredField?.key ?? '');
-    setFieldLabel(declaredField?.label ?? '');
-    setFieldKind(declaredField?.fieldType.kind ?? 'text');
-    setFieldRequired(declaredField?.required ?? false);
-  }
-
-  function editedFieldType(current: FieldType, kind: string): FieldType {
-    if (current.kind === kind) return current;
-    switch (kind) {
-      case 'long_text':
-        return { kind: 'long_text' };
-      case 'integer':
-        return { kind: 'integer' };
-      case 'number':
-        return { kind: 'number' };
-      case 'boolean':
-        return { kind: 'boolean' };
-      case 'timestamp':
-        return { kind: 'timestamp' };
-      case 'date':
-        return { kind: 'date' };
-      case 'uuid':
-        return { kind: 'uuid' };
-      case 'json':
-        return { kind: 'json' };
-      case 'geometry':
-        return { kind: 'geometry' };
-      default:
-        return { kind: 'text' };
-    }
-  }
-
-  return (
-    <aside
-      className="w-full shrink-0 overflow-auto border-t border-ij-seam bg-ij-chrome xl:w-ij-inspector-rail xl:border-l xl:border-t-0"
-      aria-label="Model inspector"
-      data-model-inspector
-    >
-      <header className="flex h-ij-toolbar items-center border-b border-ij-seam px-3">
-        <h2 style={{ fontWeight: 'var(--rec-weight-cap)' }}>Inspector</h2>
-      </header>
-      {!selection ? (
-        <p className="p-4 text-ij-ink-info">Select an observed or declared model element.</p>
-      ) : evidence ? (
-        <div className="p-4">
-          <p className="font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{selection.kind}</p>
-          <h3 className="mt-1 font-ij-mono text-ij-ink" style={{ fontWeight: 'var(--rec-weight-cap)' }} data-mono-ok>
-            {selection.key}
-          </h3>
-          <section className="mt-5 border-t border-ij-seam pt-4">
-            <h4 className="text-xs uppercase tracking-wider text-ij-ink-info">Ingest events</h4>
-            {evidence.eventIds?.length ? (
-              <ul className="mt-2 grid gap-1 font-ij-mono text-xs" data-mono-ok>
-                {evidence.eventIds.map((id) => <li key={id}>{id}</li>)}
-              </ul>
-            ) : (
-              <p className="mt-2 text-ij-ink-info">No ingest events recorded.</p>
-            )}
-          </section>
-          <section className="mt-5 border-t border-ij-seam pt-4">
-            <h4 className="text-xs uppercase tracking-wider text-ij-ink-info">Sources</h4>
-            {evidenceSources.length ? (
-              <ul className="mt-2 grid gap-1 font-ij-mono text-xs" data-mono-ok>
-                {evidenceSources.map((source) => <li key={source}>{source}</li>)}
-              </ul>
-            ) : (
-              <p className="mt-2 text-ij-ink-info">No source references recorded.</p>
-            )}
-          </section>
-          <section className="mt-5 border-t border-ij-seam pt-4">
-            <h4 className="text-xs uppercase tracking-wider text-ij-ink-info">Route decision</h4>
-            {evidence.routeDecision === undefined || evidence.routeDecision === null ? (
-              <p className="mt-2 text-ij-ink-info">No route decision recorded.</p>
-            ) : (
-              <pre className="mt-2 overflow-auto font-ij-mono text-xs text-ij-ink" data-mono-ok>
-                {JSON.stringify(evidence.routeDecision, null, 2)}
-              </pre>
-            )}
-          </section>
-        </div>
-      ) : declaredField ? (
-        <div className="flex min-h-full flex-col">
-          <div className="p-4">
-            <p className="text-xs text-ij-gold">declared field</p>
-            <form
-              className="mt-3 grid gap-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                onFieldEdit(declaredField.id, {
-                  ...declaredField,
-                  key: fieldKey,
-                  label: fieldLabel,
-                  fieldType: editedFieldType(declaredField.fieldType, fieldKind),
-                  required: fieldRequired,
-                });
-              }}
-            >
-              <label className="grid gap-1 text-xs text-ij-ink-info">
-                Field key
-                <input
-                  value={fieldKey}
-                  onChange={(event) => setFieldKey(event.target.value)}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink"
-                  data-mono-ok
-                />
-              </label>
-              <label className="grid gap-1 text-xs text-ij-ink-info">
-                Label
-                <input
-                  value={fieldLabel}
-                  onChange={(event) => setFieldLabel(event.target.value)}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-ij-ink"
-                />
-              </label>
-              <label className="grid gap-1 text-xs text-ij-ink-info">
-                Type
-                <select
-                  value={fieldKind}
-                  onChange={(event) => setFieldKind(event.target.value as FieldType['kind'])}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 font-ij-mono text-ij-ink"
-                  data-mono-ok
-                >
-                  {![
-                    'text',
-                    'long_text',
-                    'integer',
-                    'number',
-                    'boolean',
-                    'timestamp',
-                    'date',
-                    'uuid',
-                    'json',
-                    'geometry',
-                  ].includes(declaredField.fieldType.kind) ? (
-                    <option value={declaredField.fieldType.kind}>
-                      {formatFieldType(declaredField.fieldType)}
-                    </option>
-                  ) : null}
-                  <option value="text">text</option>
-                  <option value="long_text">long text</option>
-                  <option value="integer">integer</option>
-                  <option value="number">number</option>
-                  <option value="boolean">boolean</option>
-                  <option value="timestamp">timestamp</option>
-                  <option value="date">date</option>
-                  <option value="uuid">uuid</option>
-                  <option value="json">json</option>
-                  <option value="geometry">geometry</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-xs text-ij-ink-info">
-                <input
-                  type="checkbox"
-                  checked={fieldRequired}
-                  onChange={(event) => setFieldRequired(event.target.checked)}
-                  className="size-4 accent-ij-accent"
-                />
-                Required
-              </label>
-              <button
-                type="submit"
-                disabled={fieldEditBusy || !fieldKey.trim() || !fieldLabel.trim()}
-                className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
-              >
-                {fieldEditBusy ? 'Declaring' : 'Declare field edit'}
-              </button>
-              {fieldEditError ? (
-                <p className="rounded-ij-arc border border-ij-warn bg-ij-warn-bg p-2 text-xs text-ij-warn" role="alert">
-                  {fieldEditError}
-                </p>
-              ) : null}
-            </form>
-          </div>
-          {whyNodeId ? (
-            <div className="min-h-96 flex-1 border-t border-ij-seam">
-              <WhyTrace target={{ kind: 'node', id: whyNodeId }} />
-            </div>
-          ) : (
-            <p className="border-t border-ij-seam p-4 text-ij-ink-info">
-              No provenance node is available for a why trace.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="p-4">
-          <p className="font-ij-mono text-xs text-ij-ink-info" data-mono-ok>{selection.kind}</p>
-          <p className="mt-2 break-all font-ij-mono text-ij-ink" data-mono-ok>{selection.key}</p>
-        </div>
-      )}
-    </aside>
-  );
-}
-
-const LENSES: readonly ModelLens[] = ['diagram', 'fields', 'records'];
 const LAYOUT_PERSIST_MS = 400;
 /** Fallback heartbeat for registry changes made outside this client. */
 const REGISTRY_SIGNAL_MS = 15_000;
@@ -436,8 +166,6 @@ export function ModelView({ set, host }: ViewRenderProps) {
   const [okfPreview, setOkfPreview] = useState<OkfImportPreview | null>(null);
   const [diffVersionIds, setDiffVersionIds] = useState<readonly [string, string]>(['', '']);
   const [diffOpen, setDiffOpen] = useState(false);
-  const [fieldEditBusy, setFieldEditBusy] = useState(false);
-  const [fieldEditError, setFieldEditError] = useState<string | null>(null);
   const setScope = modelScopeFromSet(set);
   const layoutHost = host as ModelLayoutHost;
   const setScopeTopicId = setScope?.kind === 'topic' ? setScope.topicId : '';
@@ -668,30 +396,6 @@ export function ModelView({ set, host }: ViewRenderProps) {
     }
   }
 
-  async function applyFieldEdit(
-    fieldId: string,
-    replacement: FieldMetadata,
-  ): Promise<void> {
-    if (!topicId) return;
-    setFieldEditBusy(true);
-    setFieldEditError(null);
-    try {
-      const input = schemaDeclareInputForField(declared, fieldId, replacement);
-      const result = await postSchemaDeclare(topicId, input, host);
-      setDeclared(result.declared);
-      setNotice(
-        result.receipt.idempotentReplay
-          ? 'Declaration already matches the registry.'
-          : `Declared ${replacement.label}.`,
-      );
-      setReloadToken((token) => token + 1);
-    } catch (editError) {
-      setFieldEditError(editError instanceof Error ? editError.message : String(editError));
-    } finally {
-      setFieldEditBusy(false);
-    }
-  }
-
   async function requestProposal(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const request = proposalRequest.trim();
@@ -836,7 +540,6 @@ export function ModelView({ set, host }: ViewRenderProps) {
     selection: queryState.selection,
     pendingPins: queryState.pendingPins,
     onSelect: (selection: ModelSelection | null) => {
-      setFieldEditError(null);
       dispatch({ type: 'select', selection });
     },
     onPin: (observedKey: string, kind: PinKind, parentObservedKey?: string) => {
@@ -850,241 +553,210 @@ export function ModelView({ set, host }: ViewRenderProps) {
       scheduleLayoutPersist(positions);
     },
   };
-  const unavailable = !topicId
-    ? degradationFor('observed_model_scope_unavailable', 400)
+  const unavailableMessage = !topicId
+    ? 'Select a topic to load the observed model.'
     : error
-      ? withAction(degradationFor(error, 500), () => setReloadToken((token) => token + 1))
+      ? error
       : null;
 
   return (
-    <div className="h-full min-h-0" data-model-studio data-register-impl="model-canvas.owox">
-      <BlockShell
-        material="sunken"
-        title="Data model"
-        scope={topicId ? <span className="font-ij-mono" data-mono-ok>topic:{topicId}</span> : 'No topic selected'}
-        count={`${observed.eventCount} events`}
-        degradation={unavailable}
-        controlRow={(
-          <div className="flex flex-wrap items-center gap-1">
-            <div className="flex items-center gap-1" role="tablist" aria-label="Model lens">
-              {LENSES.map((lens) => (
-                <button
-                  key={lens}
-                  type="button"
-                  role="tab"
-                  aria-selected={queryState.lens === lens}
-                  onClick={() => dispatch({ type: 'switch-lens', lens })}
-                  className="h-ij-control rounded-ij-arc px-3 capitalize hover:bg-ij-hover-surface aria-selected:bg-ij-selection"
-                >
-                  {lens}
-                </button>
-              ))}
-            </div>
-            <label className="flex h-ij-control cursor-pointer items-center rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface">
-              Import OKF
-              <input
-                type="file"
-                accept=".md,.json,text/markdown,application/json"
-                multiple
-                className="sr-only"
-                onChange={(event) => void previewOkfImport(event.target.files)}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => void exportOkf()}
-              disabled={proposalBusy || declared.objectTypes.length === 0}
-              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-            >
-              Export OKF
-            </button>
-            {declared.versions.length >= 2 ? (
-              <div className="flex items-center gap-1">
-                <select
-                  aria-label="Earlier schema version"
-                  value={leftVersionId}
-                  onChange={(event) => setDiffVersionIds([event.target.value, rightVersionId])}
-                  className="h-ij-control max-w-32 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
-                >
-                  <option value="">Earlier version</option>
-                  {declared.versions.map((version) => (
-                    <option key={version.id} value={version.id}>{String(version.version)}</option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Later schema version"
-                  value={rightVersionId}
-                  onChange={(event) => setDiffVersionIds([leftVersionId, event.target.value])}
-                  className="h-ij-control max-w-32 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
-                >
-                  <option value="">Later version</option>
-                  {declared.versions.map((version) => (
-                    <option key={version.id} value={version.id}>{String(version.version)}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={!leftVersion || !rightVersion || leftVersionId === rightVersionId}
-                  onClick={() => setDiffOpen(true)}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-                >
-                  Diff
-                </button>
-                <button
-                  type="button"
-                  disabled={proposalBusy || !rightVersion}
-                  onClick={() => void restoreRightVersion()}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-                >
-                  Restore right version
-                </button>
-              </div>
-            ) : null}
+    <div
+      className="relative h-full min-h-0 bg-ij-editor"
+      data-model-canvas-page
+      data-register-impl="model-canvas.owox"
+    >
+      <div className="absolute inset-0 min-h-0">
+        {loading && topicId ? (
+          <div className="flex h-full items-center justify-center text-ij-ink-info">
+            Loading observed model.
           </div>
+        ) : (
+          <DiagramLens {...lensProps} />
         )}
-        className="bg-transparent text-ij-ink"
-      >
-        <div className="flex h-full min-h-0 flex-col xl:flex-row">
-        <main className="flex min-h-96 min-w-0 flex-1 flex-col">
-          <section className="shrink-0 border-b border-ij-seam bg-ij-chrome px-3 py-2" aria-labelledby="schema-action-heading">
-            {proposalComposerOpen ? (
-              <form className="grid gap-2" onSubmit={(event) => void requestProposal(event)}>
-                <label htmlFor="schema-proposal-request" className="grid gap-1 text-xs text-ij-ink-info">
-                  Schema change
-                  <textarea
-                    id="schema-proposal-request"
-                    value={proposalRequest}
-                    onChange={(event) => setProposalRequest(event.target.value)}
-                    placeholder="Declare customer email as a field"
-                    className="min-h-24 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 py-2 text-sm text-ij-ink focus:outline-2 focus:outline-ij-accent"
-                  />
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="submit"
-                    disabled={proposalBusy || !proposalRequest.trim()}
-                    className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover disabled:opacity-50"
-                  >
-                    Propose schema change
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProposalComposerOpen(false)}
-                    className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <h2 id="schema-action-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-                    Schema actions
-                  </h2>
-                  <p className="text-sm text-ij-ink-info">
-                    Propose a declaration from the observed model.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setProposalComposerOpen(true)}
-                  className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover"
-                >
-                  Propose schema change
-                </button>
-              </div>
-            )}
-          </section>
+      </div>
 
-          {proposal ? (
-            <ProposalCard
-              draft={proposal}
-              busy={proposalBusy}
-              onAccept={() => void acceptProposal()}
-              onDecline={() => setProposal(null)}
-            />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start justify-between gap-2 p-3">
+        <div className="pointer-events-auto flex max-w-md flex-col gap-1">
+          {topicId ? (
+            <p className="rounded-ij-arc bg-ij-chrome/90 px-2 py-1 font-ij-mono text-xs text-ij-ink-info backdrop-blur" data-mono-ok>
+              topic:{topicId} · {observed.eventCount} events
+            </p>
           ) : null}
-          {okfPreview ? (
-            <section className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-3" aria-label="OKF import preview">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="min-w-0 flex-1 text-sm text-ij-ink">
-                  OKF dry run: {okfPreview.diff.tables.added.length} tables added,
-                  {' '}{okfPreview.diff.tables.removed.length} removed, and
-                  {' '}{okfPreview.diff.fields.length} field groups changed.
-                  {' '}{okfPreview.server.changes.length} Rust model-profile declarations checked.
-                </p>
+          {unavailableMessage ? (
+            <p className="rounded-ij-arc border border-ij-control-border bg-ij-chrome/95 px-3 py-2 text-sm text-ij-ink" role="status">
+              {unavailableMessage}
+              {error ? (
                 <button
                   type="button"
-                  disabled={proposalBusy || !okfPreview.server.validation.conformant}
-                  onClick={() => void applyOkfImport()}
-                  className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
+                  className="ml-2 underline"
+                  onClick={() => setReloadToken((token) => token + 1)}
                 >
-                  Confirm import
+                  Retry
                 </button>
-                <button
-                  type="button"
-                  disabled={proposalBusy}
-                  onClick={() => setOkfPreview(null)}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
-                >
-                  Cancel
-                </button>
-              </div>
-              {okfPreview.server.changes.some((change) => change.status === 'conflict') ? (
-                <p className="mt-2 text-xs text-ij-warn">
-                  Registry conflicts: {
-                    okfPreview.server.changes
-                      .filter((change) => change.status === 'conflict')
-                      .map((change) => change.concept_id)
-                      .join(', ')
-                  }
-                </p>
               ) : null}
-            </section>
+            </p>
           ) : null}
           {notice ? (
-            <div className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-2 text-ij-ink" role="status">
+            <p className="rounded-ij-arc bg-ij-selection/95 px-3 py-2 text-sm text-ij-ink" role="status">
               {notice}
-            </div>
+            </p>
           ) : null}
-
-          <div className="min-h-0 flex-1">
-            {loading && topicId ? (
-              <div className="flex h-full items-center justify-center text-ij-ink-info">
-                Loading observed model.
-              </div>
-            ) : queryState.lens === 'diagram' ? (
-              <DiagramLens {...lensProps} />
-            ) : queryState.lens === 'fields' ? (
-              <FieldsTableLens {...lensProps} />
-            ) : (
-              <RecordsLens
-                observed={observed}
-                declared={declared}
-                selection={queryState.selection}
-                host={host}
-              />
-            )}
-          </div>
-        </main>
-        <ModelInspector
-          key={[
-            queryState.selection?.kind ?? 'none',
-            queryState.selection?.key ?? 'none',
-            declared.versions.at(-1)?.id ?? 'unversioned',
-          ].join(':')}
-          selection={queryState.selection}
-          observed={observed}
-          declared={declared}
-          fieldEditBusy={fieldEditBusy}
-          fieldEditError={fieldEditError}
-          onFieldEdit={(fieldId, replacement) => {
-            void applyFieldEdit(fieldId, replacement);
-          }}
-        />
         </div>
-      </BlockShell>
+
+        <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-ij-arc border border-ij-control-border bg-ij-chrome/95 p-1 shadow-sm backdrop-blur">
+          <label className="flex h-ij-control cursor-pointer items-center rounded-ij-arc px-3 text-ij-ink hover:bg-ij-hover-surface">
+            Import OKF
+            <input
+              type="file"
+              accept=".md,.json,text/markdown,application/json"
+              multiple
+              className="sr-only"
+              onChange={(event) => void previewOkfImport(event.target.files)}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void exportOkf()}
+            disabled={proposalBusy || declared.objectTypes.length === 0}
+            className="h-ij-control rounded-ij-arc px-3 text-ij-ink hover:bg-ij-hover-surface disabled:opacity-50"
+          >
+            Export OKF
+          </button>
+          <button
+            type="button"
+            onClick={() => setProposalComposerOpen((open) => !open)}
+            className="h-ij-control rounded-ij-arc px-3 text-ij-ink hover:bg-ij-hover-surface"
+          >
+            Propose
+          </button>
+          {declared.versions.length >= 2 ? (
+            <>
+              <select
+                aria-label="Earlier schema version"
+                value={leftVersionId}
+                onChange={(event) => setDiffVersionIds([event.target.value, rightVersionId])}
+                className="h-ij-control max-w-28 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
+              >
+                <option value="">Earlier</option>
+                {declared.versions.map((version) => (
+                  <option key={version.id} value={version.id}>{String(version.version)}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Later schema version"
+                value={rightVersionId}
+                onChange={(event) => setDiffVersionIds([leftVersionId, event.target.value])}
+                className="h-ij-control max-w-28 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
+              >
+                <option value="">Later</option>
+                {declared.versions.map((version) => (
+                  <option key={version.id} value={version.id}>{String(version.version)}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!leftVersion || !rightVersion || leftVersionId === rightVersionId}
+                onClick={() => setDiffOpen(true)}
+                className="h-ij-control rounded-ij-arc px-3 hover:bg-ij-hover-surface disabled:opacity-50"
+              >
+                Diff
+              </button>
+              <button
+                type="button"
+                disabled={proposalBusy || !rightVersion}
+                onClick={() => void restoreRightVersion()}
+                className="h-ij-control rounded-ij-arc px-3 hover:bg-ij-hover-surface disabled:opacity-50"
+              >
+                Restore
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {proposalComposerOpen ? (
+        <div className="absolute bottom-3 left-3 right-3 z-30 mx-auto max-w-xl rounded-ij-arc border border-ij-control-border bg-ij-chrome/95 p-3 shadow-lg backdrop-blur">
+          <form className="grid gap-2" onSubmit={(event) => void requestProposal(event)}>
+            <label htmlFor="schema-proposal-request" className="grid gap-1 text-xs text-ij-ink-info">
+              Schema change
+              <textarea
+                id="schema-proposal-request"
+                value={proposalRequest}
+                onChange={(event) => setProposalRequest(event.target.value)}
+                placeholder="Declare customer email as a field"
+                className="min-h-20 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 py-2 text-sm text-ij-ink focus:outline-2 focus:outline-ij-accent"
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={proposalBusy || !proposalRequest.trim()}
+                className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover disabled:opacity-50"
+              >
+                Propose
+              </button>
+              <button
+                type="button"
+                onClick={() => setProposalComposerOpen(false)}
+                className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {proposal ? (
+        <div className="absolute bottom-3 left-3 right-3 z-30 mx-auto max-w-2xl overflow-hidden rounded-ij-arc border border-ij-control-border bg-ij-chrome/95 shadow-lg backdrop-blur">
+          <ProposalCard
+            draft={proposal}
+            busy={proposalBusy}
+            onAccept={() => void acceptProposal()}
+            onDecline={() => setProposal(null)}
+          />
+        </div>
+      ) : null}
+
+      {okfPreview ? (
+        <div className="absolute bottom-3 left-3 right-3 z-30 mx-auto max-w-2xl rounded-ij-arc border border-ij-control-border bg-ij-selection/95 p-3 shadow-lg backdrop-blur" aria-label="OKF import preview">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="min-w-0 flex-1 text-sm text-ij-ink">
+              OKF dry run: {okfPreview.diff.tables.added.length} tables added,
+              {' '}{okfPreview.diff.tables.removed.length} removed, and
+              {' '}{okfPreview.diff.fields.length} field groups changed.
+              {' '}{okfPreview.server.changes.length} Rust model-profile declarations checked.
+            </p>
+            <button
+              type="button"
+              disabled={proposalBusy || !okfPreview.server.validation.conformant}
+              onClick={() => void applyOkfImport()}
+              className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
+            >
+              Confirm import
+            </button>
+            <button
+              type="button"
+              disabled={proposalBusy}
+              onClick={() => setOkfPreview(null)}
+              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
+            >
+              Cancel
+            </button>
+          </div>
+          {okfPreview.server.changes.some((change) => change.status === 'conflict') ? (
+            <p className="mt-2 text-xs text-ij-warn">
+              Registry conflicts: {
+                okfPreview.server.changes
+                  .filter((change) => change.status === 'conflict')
+                  .map((change) => change.concept_id)
+                  .join(', ')
+              }
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {diffOpen && leftVersion && rightVersion ? (
         <DiffDialog
           prev={declaredToModelGraph(declared, leftVersion)}
