@@ -203,10 +203,16 @@ fi
 
 # Merge non-secret theorem.* settings from env. Secrets may also ride env
 # (THEOREM_EDITOR_API_KEY) so the pack reads them without requiring settings.json.
+#
+# IMPORTANT: `node - <<'NODE' "$path"` puts the path in argv[2], not argv[1]
+# (argv[1] is the literal "-"). An earlier revision wrote User settings to
+# `$PWD/-` (live: /srv/openwork/-), so chat.disableAIFeatures never reached
+# the Studio profile and the stock Copilot-shaped CHAT panel stayed visible.
 SETTINGS_PATH="${CODE_SERVER_USER_DATA_DIR}/User/settings.json"
-node - <<'NODE' "${SETTINGS_PATH}"
+SETTINGS_PATH="${SETTINGS_PATH}" node <<'NODE'
 const fs = require('node:fs');
-const path = process.argv[1];
+const path = process.env.SETTINGS_PATH;
+if (!path) throw new Error('SETTINGS_PATH unset');
 let current = {};
 try {
   current = JSON.parse(fs.readFileSync(path, 'utf8'));
@@ -230,7 +236,9 @@ if (process.env.THEOREM_EDITOR_WRITE_TOKEN_TO_SETTINGS === '1') {
 if (!Object.prototype.hasOwnProperty.call(current, 'chat.disableAIFeatures')) {
   current['chat.disableAIFeatures'] = true;
 }
+fs.mkdirSync(require('node:path').dirname(path), { recursive: true });
 fs.writeFileSync(path, `${JSON.stringify(current, null, 2)}\n`);
+console.log(`workspace: wrote ${path}`);
 NODE
 
 # --- CS-004: which binary hosts the IDE door -------------------------------
