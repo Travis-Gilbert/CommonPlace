@@ -135,7 +135,11 @@ regenerated against a clean `1.131.0` apply before re-merge.
 Companion configuration (not this patch): overlay deletes `defaultChatAgent`
 and `voiceWsUrl`, clears Copilot auto-update/auth grants, `build.sh` removes
 `extensions/copilot` from the server artifact, and the workspace entrypoint
-seeds `chat.disableAIFeatures: true` when unset.
+always forces `chat.disableAIFeatures: true` (and
+`chat.commandCenter.enabled: false`) on boot, plus welcome
+`.vscode/settings.json`, so a browser click on "Use AI Features" does not
+stick across restarts. Stock CHAT may still appear if the secondary sidebar
+layout restores that view — close it; agent path is Theorem: Open Chat.
 
 **Upstream.** Pattern matches public fork work that removes `defaultChatAgent`
 and adds null-checks. Not filed as a microsoft/vscode PR: upstream wants the

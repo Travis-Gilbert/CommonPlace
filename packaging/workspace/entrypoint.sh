@@ -39,7 +39,7 @@ if [ -n "${WORKSPACE_REPO:-}" ] || [ -n "${WORKSPACE_REPO_URL:-}" ]; then
   exit 78
 fi
 
-mkdir -p "${WORKSPACE_ROOT}" "${WELCOME_DIR}"
+mkdir -p "${WORKSPACE_ROOT}" "${WELCOME_DIR}" "${WELCOME_DIR}/.vscode"
 if [ ! -f "${WELCOME_DIR}/README.md" ]; then
   cat > "${WELCOME_DIR}/README.md" <<'EOF'
 # CommonPlace workspace
@@ -49,8 +49,18 @@ No repository is open yet.
 Connect GitHub in the console, pick a repository, and this IDE will open
 `/workspace/{workspace_id}` for that checkout. Product source is never the
 default folder.
+
+Agent chat: Command Palette → **Theorem: Open Chat** (not the stock CHAT panel).
 EOF
 fi
+# Workspace-scoped AI hide (reh-web may prefer workspace over sticky user
+# settings that a "Use AI Features" click flipped in the browser).
+cat > "${WELCOME_DIR}/.vscode/settings.json" <<'EOF'
+{
+  "chat.disableAIFeatures": true,
+  "chat.commandCenter.enabled": false
+}
+EOF
 
 # The IDE door is reached only through the console's /IDE edge proxy on the
 # private network (Railway does not publish :8080). Console authenticates the
@@ -195,11 +205,12 @@ set('theorem.agentUrl', process.env.THEOREM_ACP_WS_URL);
 if (process.env.THEOREM_EDITOR_WRITE_TOKEN_TO_SETTINGS === '1') {
   set('theorem.token', process.env.THEOREM_EDITOR_API_KEY);
 }
-// Hide upstream Copilot/chat chrome. Theorem ACP lives in the pack, not the
-// stock CHAT Agent panel. Only seed when unset so a user can flip it back.
-if (!Object.prototype.hasOwnProperty.call(current, 'chat.disableAIFeatures')) {
-  current['chat.disableAIFeatures'] = true;
-}
+// Hide upstream Copilot/chat chrome. Theorem ACP lives in the pack
+// (Theorem: Open Chat), not the stock CHAT Agent panel. Always force true:
+// users clicking "Use AI Features" must not re-open Copilot entitlement UI on
+// the next boot of this shared profile (SPEC D1 + Studio Copilot retirement).
+current['chat.disableAIFeatures'] = true;
+current['chat.commandCenter.enabled'] = false;
 fs.mkdirSync(require('node:path').dirname(path), { recursive: true });
 fs.writeFileSync(path, `${JSON.stringify(current, null, 2)}\n`);
 console.log(`workspace: wrote ${path}`);
