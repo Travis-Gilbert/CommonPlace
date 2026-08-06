@@ -317,8 +317,9 @@ RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${OPENW
 
 EXPOSE 8787 8080 50090
 
-# The chat door is the healthcheck: it is the one the console proxies to, so
-# an image that answers here is an image the console can actually use.
+# The OpenWork `:8787` process remains the container HEALTHCHECK target until a
+# follow-up moves health onto the Studio IDE door. Product `/chat` is Theorem
+# register on the console (not this proxy). See SPEC-THEOREM-CHAT-REGISTER-1.0.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
   CMD curl -fsS "http://127.0.0.1:${OPENWORK_PORT}/health" || exit 1
 

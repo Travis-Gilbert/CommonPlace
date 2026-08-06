@@ -22,7 +22,9 @@ must become **one** Theorem chat register. Two hosts, one package, one
 ### Public API (CR-004)
 
 - `REGISTER_IMPL = 'theorem.chat'`
-- `ChatTransport`: `{ openSession(), prompt(text), subscribe(listener), dispose() }`
+- `ChatTransport`: `{ openSession(), prompt(sessionId, text, onDelta), dispose() }`
+  - `onDelta` receives assistant text chunks as they arrive
+  - Snapshot `subscribe` lives on `createChatSessionController`, not on the transport
 - `createChatSessionController(transport)`: session open + one-turn prompt; pure logic, no React
 - `TheoremChatRegister`: React shell with `data-register-impl="theorem.chat"`, composer, message list
 
@@ -66,4 +68,5 @@ until the pack implements VS Code Chat participant / host APIs. Overlay deletion
 ## 7. Rollback
 
 - Re-enable OpenWork middleware behind an explicit env (`CONSOLE_OPENWORK_CHAT_PROXY=1`) only as emergency rollback; default is Theorem register.
-- Studio pack: hide Theorem Chat view command if ACP URL unset; do not restore Copilot product keys.
+- Studio pack: hide Theorem Chat (`theorem.openChat`) from the command palette when ACP URL is unset (`THEOREM_ACP_WS_URL` / `theorem.agentUrl`); do not restore Copilot product keys.
+- Workspace healthcheck may remain on OpenWork `:8787` until a follow-up moves health to the Studio IDE door; that residual is not the product `/chat` host.

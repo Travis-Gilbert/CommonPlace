@@ -363,6 +363,11 @@ function isSettled(status: TheoremAgentState['turnStatus']): boolean {
   return status !== 'idle' && status !== 'running';
 }
 
+/** Extract assistant text from an ACP session update (agent_message_chunk). */
+export function agentMessageTextFromUpdate(update: AcpSessionUpdate): string {
+  return readText(update);
+}
+
 function readText(update: AcpSessionUpdate): string {
   const content = update.content as
     | { type?: string; text?: string; content?: { type?: string; text?: string } }

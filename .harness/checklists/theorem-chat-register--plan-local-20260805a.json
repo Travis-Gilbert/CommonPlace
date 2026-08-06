@@ -152,7 +152,7 @@
         "No GitHub Copilot sign-in wall for chat"
       ],
       "proof_command": "manual signed-in /IDE session smoke + ACP prompt receipt",
-      "evidence_note": "Workspace deploy a0f49841 SUCCESS (81a3ada1 / PR #196). Live /opt/commonplace/extensions/theorem-vscode has theorem.openChat + theorem.chat in dist bundles; studio-server extensions list theorem-vscode only (no copilot)."
+      "evidence_note": "Workspace deploy a0f49841 SUCCESS (81a3ada1 / PR #196). Live pack theorem.openChat + theorem.chat. Spec-review Pass B: ACP agent_message_chunk \u2192 onDelta; Pass C: openChat hidden unless THEOREM_ACP_WS_URL/theorem.agentUrl. Interactive signed-in panel one-turn still optional human smoke."
     },
     {
       "id": "CR-006",
