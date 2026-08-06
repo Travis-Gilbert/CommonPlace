@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 # SOURCING: none. Pure process supervision, no upstream component applies.
 #
-# SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW5: two doors, one checkout, one token.
-# IDE-006 adds a third process: co-located commonplace-api over the same
-# ${WORKSPACE_DIR} so theorem-vscode can query live diagnostics.
+# SPEC-COMMONPLACE-WORKSPACE-TENANCY-1.0 WT4: boot never clones a product repo.
+# Checkouts live at /workspace/{workspace_id} after on-demand provision.
+# Env carries how to reach services (ports, tokens for *doors*), never which
+# tenant, repo, or user. WORKSPACE_REPO / WORKSPACE_REPO_URL are refused.
 #
-# Both processes are started against the same ${WORKSPACE_DIR}. That is the
-# whole mechanism: the chat register's file engine and the IDE register's
-# explorer are reading the same inodes, so an edit through one is visible to
-# the other with no sync step because there is no second copy to sync.
-#
-# Chat authenticates against ${WORKSPACE_TOKEN}. The IDE door runs --auth none
-# on the private network; the console /IDE edge checks cp_active_workspace and
-# is the only public path to :8080. Revoking WORKSPACE_TOKEN still closes chat;
-# revoking the active-workspace cookie closes the IDE edge.
+# IDE :8080 and chat :8787 still share this container near-term (WT9). The
+# active folder is bound per session once the provision API exists; until then
+# Studio opens an empty welcome root, not CommonPlace source.
 
 set -euo pipefail
 
-WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace/repo}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
+# Empty welcome tree for the IDE until a workspace object is provisioned.
+# Not a git clone of product source. Dissolves CR-002 sticky-singleton clone.
+WELCOME_DIR="${WELCOME_DIR:-${WORKSPACE_ROOT}/welcome}"
+WORKSPACE_DIR="${WORKSPACE_DIR:-${WELCOME_DIR}}"
 # Railway healthchecks and public routing use $PORT. The chat door owns that
 # port. code-server also reads $PORT and will ignore --bind-addr when it is set,
 # so it must be started with PORT unset (GL7 collision 2026-08-03).
@@ -33,71 +32,24 @@ if [ -z "${WORKSPACE_TOKEN:-}" ]; then
   exit 64
 fi
 
-mkdir -p "${WORKSPACE_DIR}"
-
-# Prefer an explicit clone URL. Otherwise compose one from WORKSPACE_REPO +
-# THEOREM_GIT_TOKEN so the secret never has to be duplicated into
-# WORKSPACE_REPO_URL on the service (CR-002: production had the token but no
-# URL, so the volume stuck on an empty `git init`).
-if [ -z "${WORKSPACE_REPO_URL:-}" ] && [ -n "${WORKSPACE_REPO:-}" ] && [ -n "${THEOREM_GIT_TOKEN:-}" ]; then
-  WORKSPACE_REPO_URL="https://x-access-token:${THEOREM_GIT_TOKEN}@github.com/${WORKSPACE_REPO}.git"
-  echo "workspace: composed WORKSPACE_REPO_URL from WORKSPACE_REPO=${WORKSPACE_REPO}"
+# SPEC law: env never names which repo. Operators must delete these vars.
+if [ -n "${WORKSPACE_REPO:-}" ] || [ -n "${WORKSPACE_REPO_URL:-}" ]; then
+  echo "workspace: WORKSPACE_REPO / WORKSPACE_REPO_URL are retired (SPEC-COMMONPLACE-WORKSPACE-TENANCY-1.0 WT4)." >&2
+  echo "workspace: remove them from the service. Checkouts are provisioned per workspace object." >&2
+  exit 78
 fi
 
-# True when the volume has no usable checkout: missing .git, or a sticky empty
-# `git init` with no HEAD (the Aug 3 production scar).
-workspace_repo_needs_seed() {
-  if [ ! -d "${WORKSPACE_DIR}/.git" ]; then
-    return 0
-  fi
-  if ! git -C "${WORKSPACE_DIR}" rev-parse --verify HEAD >/dev/null 2>&1; then
-    return 0
-  fi
-  return 1
-}
+mkdir -p "${WORKSPACE_ROOT}" "${WELCOME_DIR}"
+if [ ! -f "${WELCOME_DIR}/README.md" ]; then
+  cat > "${WELCOME_DIR}/README.md" <<'EOF'
+# CommonPlace workspace
 
-# A fresh volume is an empty directory, not a repository. Both doors behave
-# better against a real one (git status, diffs, the daemon's VCS reads), and
-# an operator who mounts an existing checkout with commits keeps theirs untouched.
-if workspace_repo_needs_seed; then
-  if [ -n "${WORKSPACE_REPO_URL:-}" ]; then
-    # A private HTTPS clone URL can carry a deploy token in its userinfo.
-    # Printing it publishes the credential to container logs, and git would
-    # persist the same string as remote.origin.url on a volume any code-server
-    # user can read, so the credential would outlive WORKSPACE_TOKEN and be
-    # recoverable independently of it. Log a redacted form, and rewrite the
-    # stored remote to the same URL without userinfo after cloning.
-    redacted_url="$(printf '%s' "${WORKSPACE_REPO_URL}" | sed -E 's#(://)[^/@]*@#\1#')"
-    if [ -d "${WORKSPACE_DIR}/.git" ]; then
-      echo "workspace: repairing sticky empty git init at ${WORKSPACE_DIR} from ${redacted_url}"
-      # Drop only the broken checkout contents; the parent volume keeps state/.
-      find "${WORKSPACE_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-    else
-      echo "workspace: cloning ${redacted_url} into ${WORKSPACE_DIR}"
-    fi
-    git clone --depth "${WORKSPACE_CLONE_DEPTH:-1}" "${WORKSPACE_REPO_URL}" "${WORKSPACE_DIR}"
-    git -C "${WORKSPACE_DIR}" remote set-url origin "${redacted_url}"
+No repository is open yet.
 
-    # Sanitizing the remote alone would leave the checkout able to clone once
-    # and never fetch again: git does not read WORKSPACE_REPO_URL, and this
-    # image configures no credential helper. Supply the credential through a
-    # helper that reads the environment at call time, so it is never written
-    # to the volume while fetch, pull, and push keep working.
-    #
-    # The helper is per-repository rather than global, and the variable stays
-    # in the daemon's environment where WORKSPACE_TOKEN already lives.
-    if printf '%s' "${WORKSPACE_REPO_URL}" | grep -qE '://[^/@]+@'; then
-      git -C "${WORKSPACE_DIR}" config credential.helper \
-        '!f() { printf "%s\n" "url=${WORKSPACE_REPO_URL}"; }; f'
-    fi
-  else
-    if [ -d "${WORKSPACE_DIR}/.git" ]; then
-      echo "workspace: sticky empty git init at ${WORKSPACE_DIR} and no WORKSPACE_REPO_URL/WORKSPACE_REPO; leaving it" >&2
-    else
-      echo "workspace: initializing an empty repository at ${WORKSPACE_DIR}"
-      git init --quiet "${WORKSPACE_DIR}"
-    fi
-  fi
+Connect GitHub in the console, pick a repository, and this IDE will open
+`/workspace/{workspace_id}` for that checkout. Product source is never the
+default folder.
+EOF
 fi
 
 # The IDE door is reached only through the console's /IDE edge proxy on the
@@ -137,7 +89,7 @@ shutdown() {
 }
 trap shutdown TERM INT
 
-echo "workspace: chat door on :${OPENWORK_PORT}, IDE door on :${CODE_SERVER_PORT}, both over ${WORKSPACE_DIR}"
+echo "workspace: chat door on :${OPENWORK_PORT}, IDE door on :${CODE_SERVER_PORT}, welcome=${WELCOME_DIR} (no boot clone)"
 
 # --- IDE-006: co-located editor substrate ---------------------------------
 # Remote commonplace-api cannot see these inodes. When the binary is in the
@@ -151,29 +103,41 @@ if [ -x /usr/local/bin/commonplace-api ]; then
   export COMMONPLACE_API_KEY="${COMMONPLACE_API_KEY:-${WORKSPACE_TOKEN}}"
   export COMMONPLACE_DATA_DIR="${COMMONPLACE_DATA_DIR:-${EDITOR_SUBSTRATE_STATE_DIR}/data}"
   export COMMONPLACE_INSTANCE_ID="${COMMONPLACE_INSTANCE_ID:-workspace-editor}"
-  export COMMONPLACE_SERVICE_ALLOWED_TENANTS="${COMMONPLACE_SERVICE_ALLOWED_TENANTS:-Travis-Gilbert}"
+  # Never default a product tenant in env (SPEC tenancy law). Empty allow-list
+  # means the co-located API uses its own identity path; do not inject Travis-Gilbert.
+  if [ -n "${COMMONPLACE_SERVICE_ALLOWED_TENANTS:-}" ]; then
+    export COMMONPLACE_SERVICE_ALLOWED_TENANTS
+  else
+    unset COMMONPLACE_SERVICE_ALLOWED_TENANTS || true
+  fi
   # Local service-key registry only. Never pull console cookie secrets or the
   # shared control-plane pepper into this container.
   unset THEOREM_CONTROL_DATABASE_URL THEOREM_API_KEY_PEPPER || true
 
-  echo "workspace: editor substrate on :${EDITOR_SUBSTRATE_PORT} over ${WORKSPACE_DIR}"
+  echo "workspace: editor substrate on :${EDITOR_SUBSTRATE_PORT} (bootstrap deferred until a workspace is provisioned)"
   # Bind [::]:PORT like the hosted API so private-network doctor probes reach it.
   # Do not leak this PORT into chat or code-server children.
   env PORT="${EDITOR_SUBSTRATE_PORT}" \
     COMMONPLACE_API_KEY="${COMMONPLACE_API_KEY}" \
     COMMONPLACE_DATA_DIR="${COMMONPLACE_DATA_DIR}" \
     COMMONPLACE_INSTANCE_ID="${COMMONPLACE_INSTANCE_ID}" \
-    COMMONPLACE_SERVICE_ALLOWED_TENANTS="${COMMONPLACE_SERVICE_ALLOWED_TENANTS}" \
+    ${COMMONPLACE_SERVICE_ALLOWED_TENANTS:+COMMONPLACE_SERVICE_ALLOWED_TENANTS="${COMMONPLACE_SERVICE_ALLOWED_TENANTS}"} \
     setsid commonplace-api &
   pids+=($!)
 
-  EDITOR_SUBSTRATE_URL="http://127.0.0.1:${EDITOR_SUBSTRATE_PORT}" \
-  EDITOR_SUBSTRATE_STATE_DIR="${EDITOR_SUBSTRATE_STATE_DIR}" \
-  EDITOR_SUBSTRATE_ENV_FILE="${EDITOR_SUBSTRATE_ENV_FILE}" \
-  THEOREM_EDITOR_API_KEY="${COMMONPLACE_API_KEY}" \
-  WORKSPACE_DIR="${WORKSPACE_DIR}" \
-    node /usr/local/bin/bootstrap-editor-substrate.mjs \
-    || echo "workspace: editor substrate bootstrap failed; starting doors without project_id" >&2
+  # WT4: do not createProject against a product checkout at boot. Provision
+  # API will bootstrap per /workspace/{workspace_id} later.
+  if [ -n "${WORKSPACE_PROVISION_BOOTSTRAP:-}" ]; then
+    EDITOR_SUBSTRATE_URL="http://127.0.0.1:${EDITOR_SUBSTRATE_PORT}" \
+    EDITOR_SUBSTRATE_STATE_DIR="${EDITOR_SUBSTRATE_STATE_DIR}" \
+    EDITOR_SUBSTRATE_ENV_FILE="${EDITOR_SUBSTRATE_ENV_FILE}" \
+    THEOREM_EDITOR_API_KEY="${COMMONPLACE_API_KEY}" \
+    WORKSPACE_DIR="${WORKSPACE_DIR}" \
+      node /usr/local/bin/bootstrap-editor-substrate.mjs \
+      || echo "workspace: editor substrate bootstrap failed; starting doors without project_id" >&2
+  else
+    echo "workspace: skipping editor createProject at boot (SPEC WT4)"
+  fi
 
   if [ -f "${EDITOR_SUBSTRATE_ENV_FILE}" ]; then
     # shellcheck disable=SC1090

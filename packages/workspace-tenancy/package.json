@@ -1,0 +1,19 @@
+{
+  "name": "@commonplace/workspace-tenancy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Workspace tenancy types and path helpers (SPEC-COMMONPLACE-WORKSPACE-TENANCY-1.0).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./workspace": "./src/workspace.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "check": "npx --yes -p typescript@5.7.3 tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.6"
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "plan_id": "plan-commonplace-workspace-tenancy-20260806a",
+  "tenant_slug": "Travis-Gilbert",
+  "workstream": "workspace-tenancy",
+  "created_at": "2026-08-06",
+  "sources": [
+    "docs/plans/workspace-tenancy/SPEC-COMMONPLACE-WORKSPACE-TENANCY-1.0.md",
+    "docs/plans/workspace-tenancy/VERIFY-FIRST.md",
+    "docs/plans/workspace-tenancy/DECISION-ISOLATION.md"
+  ],
+  "items": [
+    {
+      "id": "WT0",
+      "title": "Durable SPEC + PLAN + Verify-first",
+      "status": "done",
+      "oracle_class": "artifact",
+      "evidence_class": "artifact"
+    },
+    {
+      "id": "WT9",
+      "title": "DECISION-ISOLATION.md",
+      "status": "done",
+      "oracle_class": "artifact",
+      "evidence_class": "artifact",
+      "evidence_note": "Near-term single instance multi-workspace-object; revisit triggers named."
+    },
+    {
+      "id": "WT4",
+      "title": "Remove boot clone; welcome root; refuse WORKSPACE_REPO",
+      "status": "verifying",
+      "oracle_class": "live",
+      "evidence_class": "artifact",
+      "evidence_note": "entrypoint/Dockerfile/railway updated; live proof after deploy + unset Railway WORKSPACE_REPO."
+    },
+    {
+      "id": "WT8",
+      "title": "gate:multitenant first cut",
+      "status": "partial",
+      "oracle_class": "test",
+      "evidence_class": "test",
+      "evidence_note": "scripts/check-multitenant.mjs; inventory burn-down incomplete (shell-state, mobile, harness tenant)."
+    },
+    {
+      "id": "WT1",
+      "title": "GitHub App + Connect flow",
+      "status": "pending",
+      "oracle_class": "live",
+      "evidence_class": "artifact",
+      "evidence_note": "Blocked on vendor App registration + secrets; types package scaffolded."
+    },
+    {
+      "id": "WT2",
+      "title": "Repo picker",
+      "status": "pending",
+      "oracle_class": "live"
+    },
+    {
+      "id": "WT3",
+      "title": "Token mint + credential helper",
+      "status": "pending",
+      "oracle_class": "live"
+    },
+    {
+      "id": "WT5",
+      "title": "One tree three doors",
+      "status": "pending",
+      "oracle_class": "live"
+    },
+    {
+      "id": "WT6",
+      "title": "Tenant keying through substrate",
+      "status": "pending",
+      "oracle_class": "live"
+    },
+    {
+      "id": "WT7",
+      "title": "Disconnect cascade",
+      "status": "pending",
+      "oracle_class": "live"
+    }
+  ]
+}

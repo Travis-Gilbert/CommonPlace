@@ -19,24 +19,19 @@
 # Optional environment (IDE substrate / theorem-vscode):
 #   Co-located commonplace-api is built into the image when
 #   INCLUDE_EDITOR_SUBSTRATE=1 (Dockerfile default). Entrypoint starts it on
-#   :50090, bootstraps createProject(/workspace/repo), and exports
-#   THEOREM_EDITOR_* for the pack. Railway env overrides still win when set.
+#   :50090. Per-workspace createProject is deferred until provision (WT4).
 #   THEOREM_ACP_WS_URL               hosted ACP websocket
 #   THEOREM_ACP_TOKEN                bearer for ACP (may equal editor key)
 #   THEOREM_CONSOLE_ORIGIN           deep links (default v2 console)
 #
+# Retired (SPEC-COMMONPLACE-WORKSPACE-TENANCY-1.0 WT4 — entrypoint exits 78 if set):
+#   WORKSPACE_REPO / WORKSPACE_REPO_URL
+# Checkouts are /workspace/{workspace_id} after Connect GitHub + picker.
+#
 # Optional environment:
-#   WORKSPACE_REPO_URL     Cloned into WORKSPACE_DIR on a fresh or sticky-empty
-#                          volume. Absent, see WORKSPACE_REPO.
-#   WORKSPACE_REPO         owner/name (e.g. Travis-Gilbert/CommonPlace). When
-#                          WORKSPACE_REPO_URL is unset, composed with
-#                          THEOREM_GIT_TOKEN into an HTTPS clone URL so the
-#                          token is not duplicated into a second secret.
-#   THEOREM_GIT_TOKEN      GitHub token used only when composing the clone URL.
 #   THEOREM_MCP_URL        The head's graph door (OW2). Absent, the head runs
 #                          without the graph and says so.
 #   THEOREM_API_KEY        Bearer credential for the above.
-#   THEOREM_TENANT_ID      Tenant scope for the above.
 # Deliberately NOT set here:
 #   COMMONPLACE_ACTIVE_WORKSPACE_SECRET
 #                          The console's cookie signing key is symmetric, so a

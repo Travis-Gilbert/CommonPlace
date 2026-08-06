@@ -27,7 +27,12 @@ export async function openIdeSession(
 
   const agentUrl = pack.agentUrl || pack.consoleOrigin;
   const token = pack.token;
-  const cwd = workspaceRoot && workspaceRoot.length > 0 ? workspaceRoot : '/workspace/repo';
+  const cwd = workspaceRoot && workspaceRoot.length > 0 ? workspaceRoot : undefined;
+  if (!cwd) {
+    throw new Error(
+      'theorem.chat: open a workspace folder first (no /workspace/repo default; SPEC WT4)',
+    );
+  }
 
   const client = await HostedAcpClient.connect({
     agentId: 'theorem',

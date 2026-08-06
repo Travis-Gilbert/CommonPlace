@@ -1,11 +1,8 @@
 # One workspace container, two doors.
-# SPEC-COMMONPLACE-OPENWORK-FORK-1.0 OW5, named choice 6.
+# SPEC-COMMONPLACE-WORKSPACE-TENANCY-1.0 WT4/WT5 + OW5 two-door posture.
 #
-# The chat register and the IDE register see the same filesystem because they
-# are the same filesystem: one checkout at ${WORKSPACE_DIR}, two processes over
-# it. There is no sync step because there is nothing to sync. Any design where
-# the two doors hold separate copies needs a reconciler, and a reconciler is a
-# thing that can be wrong; this cannot.
+# Checkouts are /workspace/{workspace_id} after provision. Boot opens
+# /workspace/welcome — never a product git clone via env.
 #
 # Build context is the repository root:
 #   docker build -f packaging/workspace/Dockerfile -t commonplace-workspace .
@@ -39,7 +36,7 @@ COPY apps/console/src/styles apps/console/src/styles
 RUN pnpm --filter @commonplace/chat build:web
 
 # --- Stage 1a: co-located editor substrate (commonplace-api) --------------
-# Remote Railway commonplace-api cannot see /workspace/repo inodes. IDE-006
+# Remote Railway commonplace-api cannot see workspace inodes. IDE-006
 # runs the same binary beside the volume so createProject(rootPath) indexes
 # the checkout both doors edit.
 #
@@ -281,17 +278,16 @@ COPY --from=web /build/apps/chat/dist /srv/openwork/public
 COPY packaging/workspace/entrypoint.sh /usr/local/bin/workspace-entrypoint
 RUN chmod +x /usr/local/bin/workspace-entrypoint
 
-# The single checkout both doors open. Mount a volume here: everything else in
-# the image is replaceable, and this is the only thing that is not.
-ENV WORKSPACE_DIR=/workspace/repo
+# Volume root. Per-workspace checkouts land at /workspace/{workspace_id} (WT4).
+# Boot opens /workspace/welcome — never a product git clone.
+ENV WORKSPACE_ROOT=/workspace
+ENV WORKSPACE_DIR=/workspace/welcome
 ENV OPENWORK_PORT=8787
 ENV CODE_SERVER_PORT=8080
 ENV EDITOR_SUBSTRATE_PORT=50090
 # Durable local editor graph beside the checkout volume (not the remote API).
 ENV COMMONPLACE_INSTANCE_ID=workspace-editor
-ENV COMMONPLACE_SERVICE_ALLOWED_TENANTS=Travis-Gilbert
-# JSON map tenant → absolute roots the co-located API may mount (createProject).
-ENV COMMONPLACE_WORKSPACE_TENANT_ALLOWED_ROOTS={"Travis-Gilbert":["/workspace/repo"]}
+# No default tenant in image env (SPEC tenancy law). Set at provision time.
 ENV THEOREM_CONSOLE_ORIGIN=https://v2.theoremharness.com
 # Without this the daemon starts with no engine and sessions cannot run
 # (apps/chat-server/src/cli.ts gates the managed engine on exactly "1").
@@ -311,7 +307,7 @@ ENV XDG_CONFIG_HOME=/workspace/state/config
 # $HOME/.openwork and reads OPENWORK_DATA_DIR, so without this the log behind
 # /workspace/:id/audit was still discarded on every redeploy.
 ENV OPENWORK_DATA_DIR=/workspace/state/openwork
-RUN mkdir -p "${WORKSPACE_DIR}" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${OPENWORK_DATA_DIR}"
+RUN mkdir -p "${WORKSPACE_ROOT}/welcome" "${XDG_DATA_HOME}" "${XDG_CONFIG_HOME}" "${OPENWORK_DATA_DIR}"
 # Railway rejects Dockerfile VOLUME. Persist /workspace with a Railway Volume
 # mount on the commonplace-workspace service instead (OW5 / cutover GL7).
 
