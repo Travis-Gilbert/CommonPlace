@@ -1,0 +1,15 @@
+# Lemma pyqtgraph helper — pinned requirements (incomplete matrix)
+
+# Package pins from post-core OSS-REUSE / PG-07.
+# Full OS/arch hash matrix must be completed before PG-07 claims PySide6 closure.
+
+pyqtgraph==0.14.0 \
+  --hash=sha256:7abb7c3e17362add64f8711b474dffac5e7b0e9245abdf992e9a44119b7aa4f5
+
+# PySide6 6.11.1 — verified macOS universal meta-wheel only so far.
+# TODO(PG-07): add linux/windows (and arch-specific) hashes for:
+#   PySide6, PySide6_Addons, PySide6_Essentials, shiboken6
+PySide6==6.11.1 \
+  --hash=sha256:537682c3b7530817203e667c1f5a2f00486b37bf52c52eeab438544c7a0917f6
+
+# Incomplete: addons/essentials/shiboken6 platform hashes not yet enumerated.
