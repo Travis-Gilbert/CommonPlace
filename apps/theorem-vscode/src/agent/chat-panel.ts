@@ -91,8 +91,7 @@ export class TheoremChatPanel {
       },
       prompt: async (_sessionId, text, onDelta) => {
         if (!session) throw new Error('theorem.chat: no ACP session');
-        await session.prompt(text);
-        onDelta('Turn submitted over Theorem ACP.');
+        await session.prompt(text, onDelta);
       },
       dispose: () => {
         session?.dispose();

@@ -9,6 +9,7 @@
 
 import type { TheoremPackConfig } from '../config';
 import type { AcpSession, PermissionOutcome, PermissionRequest } from './presence';
+import { forwardAgentMessageChunk } from './acp-chunks';
 
 /**
  * Open the window's session.
@@ -47,8 +48,17 @@ export async function openIdeSession(
 
   return {
     sessionId,
-    prompt: async (text) => {
-      await client.prompt(sessionId, text);
+    prompt: async (text, onDelta) => {
+      const unsub = onDelta
+        ? client.onSessionUpdate((notification) => {
+            forwardAgentMessageChunk(sessionId, notification, onDelta);
+          })
+        : undefined;
+      try {
+        await client.prompt(sessionId, text);
+      } finally {
+        unsub?.();
+      }
     },
     onPermissionRequest: (handler) => {
       client.onRequestPermission(async (request) => {

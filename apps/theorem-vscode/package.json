@@ -88,6 +88,7 @@
     ],
     "menus": {
       "commandPalette": [
+        { "command": "theorem.openChat", "when": "theorem.acpConfigured" },
         { "command": "theorem.applyFix", "when": "false" },
         { "command": "theorem.diffRevision", "when": "false" },
         { "command": "theorem.restoreRevision", "when": "false" },

@@ -9,6 +9,7 @@ import {
 } from './hosted-client.js';
 import {
   TURN_CONTEXT_SCHEMA,
+  agentMessageTextFromUpdate,
   applySessionUpdate,
   beginTurn,
   cancelTurn,
@@ -199,4 +200,18 @@ test('refusal remains terminal when a later completion is delivered', () => {
   const replayed = completeTurn(refused, 'end_turn');
 
   assert.equal(replayed.turnStatus, 'refused');
+});
+
+test('agentMessageTextFromUpdate reads canonical ACP text chunks', () => {
+  assert.equal(
+    agentMessageTextFromUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'streamed' },
+    }),
+    'streamed',
+  );
+  assert.equal(
+    agentMessageTextFromUpdate({ sessionUpdate: 'theorem_turn_activity', status: 'running' }),
+    '',
+  );
 });

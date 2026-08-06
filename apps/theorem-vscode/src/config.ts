@@ -10,6 +10,12 @@ export interface TheoremPackConfig {
   readonly consoleOrigin: string;
   readonly agentUrl: string;
   readonly token?: string;
+  /**
+   * True when THEOREM_ACP_WS_URL or theorem.agentUrl is set. SPEC rollback:
+   * hide Theorem: Open Chat when ACP URL is unset (consoleOrigin alone is not
+   * an explicit ACP door).
+   */
+  readonly acpConfigured: boolean;
 }
 
 function env(name: string): string | undefined {
@@ -47,10 +53,11 @@ export function resolveTheoremPackConfig(config: WorkspaceConfiguration): Theore
     ?? config.get<string>('consoleOrigin')
     ?? 'https://v2.theoremharness.com';
 
-  const agentUrl =
+  const explicitAgentUrl =
     env('THEOREM_ACP_WS_URL')
-    ?? config.get<string>('agentUrl')
-    ?? consoleOrigin;
+    ?? (config.get<string>('agentUrl')?.trim() || undefined);
+  const acpConfigured = Boolean(explicitAgentUrl);
+  const agentUrl = explicitAgentUrl ?? consoleOrigin;
 
   const token =
     env('THEOREM_EDITOR_API_KEY')
@@ -63,6 +70,7 @@ export function resolveTheoremPackConfig(config: WorkspaceConfiguration): Theore
     ...(projectId ? { projectId } : {}),
     consoleOrigin,
     agentUrl,
+    acpConfigured,
     ...(token ? { token } : {}),
   };
 }

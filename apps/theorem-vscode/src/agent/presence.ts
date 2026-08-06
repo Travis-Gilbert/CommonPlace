@@ -25,7 +25,11 @@ export interface PresenceConfig {
 /** The subset of the ACP session surface the IDE end drives. */
 export interface AcpSession {
   readonly sessionId: string;
-  prompt(text: string): Promise<void>;
+  /**
+   * Send one user turn. When `onDelta` is provided, agent_message_chunk text
+   * from session/update notifications is forwarded as it arrives.
+   */
+  prompt(text: string, onDelta?: (chunk: string) => void): Promise<void>;
   onPermissionRequest(handler: (request: PermissionRequest) => Promise<PermissionOutcome>): void;
   dispose(): void;
 }

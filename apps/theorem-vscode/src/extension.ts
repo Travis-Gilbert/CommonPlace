@@ -39,6 +39,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Theorem');
   const config = vscode.workspace.getConfiguration('theorem');
   const resolved = resolveTheoremPackConfig(config);
+  void vscode.commands.executeCommand('setContext', 'theorem.acpConfigured', resolved.acpConfigured);
+  if (!resolved.acpConfigured) {
+    output.appendLine('chat: ACP URL unset (set THEOREM_ACP_WS_URL or theorem.agentUrl); Theorem: Open Chat hidden');
+  }
 
   const client = new SubstrateClient({
     endpoint: {
@@ -194,7 +198,15 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     vscode.commands.registerCommand('theorem.startSession', () => presence.start()),
-    vscode.commands.registerCommand('theorem.openChat', () => chatPanel.show()),
+    vscode.commands.registerCommand('theorem.openChat', () => {
+      if (!resolved.acpConfigured) {
+        void vscode.window.showWarningMessage(
+          'Theorem Chat needs THEOREM_ACP_WS_URL or theorem.agentUrl before opening.',
+        );
+        return;
+      }
+      chatPanel.show();
+    }),
     vscode.commands.registerCommand('theorem.showHistory', async (target?: vscode.Uri) => {
       const uri = target ?? vscode.window.activeTextEditor?.document.uri;
       if (uri) await showHistoryQuickPick(timeline, uri);
