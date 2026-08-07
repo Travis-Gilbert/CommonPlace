@@ -169,6 +169,12 @@ export const INTERACTION_INVENTORY = [
     reducedMotion: 'size snaps; labels appear or disappear without fade',
   },
   {
+    trigger: 'App shell inner rail collapse and rail toggle hover',
+    effect: 'the collapse button bar glyph rotates and its label fades in by opacity on hover; the inner rail itself snaps open and closed, geometry never animates',
+    spec: 'transform and opacity only on the toggle, transition-[transform,opacity] var(--ij-motion) var(--ij-ease); the collapsed state is a boolean swap, width and left never transition',
+    reducedMotion: 'glyph and label snap with no rotation or fade; --ij-motion is 0ms in the register under reduced motion',
+  },
+  {
     trigger: 'Goal Stack task runs',
     effect: 'the completed segment of the inbound React Flow edge marches toward the task',
     spec: 'CSS keyframes in the motion register only; edge geometry and node positions remain still',
