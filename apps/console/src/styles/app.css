@@ -712,3 +712,17 @@ body::after {
   --sidebar-border: var(--ij-seam);
   --sidebar-ring: var(--ij-accent);
 }
+
+/* Cascade repair for the twenty-ui fork's global button reset
+   (packages/twenty-ui/src/styles/base/reset.scss): it ships unlayered
+   (background: none; border: none;), and unlayered rules beat Tailwind's
+   @layer utilities, so every bg-* and border utility on a <button> loses to
+   it. revert-layer rolls the unlayered reset back to the last layer, so
+   button backgrounds and borders resolve to utilities when present and fall
+   back to the layered preflight otherwise. Later in source order than the
+   fork import, equal specificity, so it beats the reset; fork components
+   that paint via their own module classes keep winning on specificity. */
+button {
+  background: revert-layer;
+  border: revert-layer;
+}
