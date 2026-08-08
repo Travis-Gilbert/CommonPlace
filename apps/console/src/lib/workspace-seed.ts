@@ -22,6 +22,8 @@ export const SURVEY_SURFACE_ID = 'console-survey';
 export const SURVEY_VIEW_INSTANCE_ID = 'survey.vi-board';
 export const MODEL_SURFACE_ID = 'console-models';
 export const MODEL_VIEW_INSTANCE_ID = 'models.vi-studio';
+export const MODEL_SETTINGS_SURFACE_ID = 'console-model-settings';
+export const MODEL_SETTINGS_VIEW_INSTANCE_ID = 'models.vi-settings';
 export const PROGRAM_SURFACE_ID = 'console-program';
 export const PROGRAM_VIEW_INSTANCE_ID = 'program.vi-canvas';
 export const CONSOLE_DATA_SURFACE_ID = 'console-your-data';
@@ -208,10 +210,10 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('workspace', false, ['thread']),
 
     layoutObject('console-goals', 'surface', {
-      name: 'Goal Stack', kind: 'goals', role: 'surface', active: false, seed_revision: 4,
+      name: 'Goal Stack', kind: 'goals', role: 'place', active: false, seed_revision: 5,
     }, ['goals.region-editor', ...companionIds('goals')]),
     layoutObject('goals.region-editor', 'region', {
-      kind: 'editor', size: 100, active_tab: 'goals.vi-stack', seed_revision: 3,
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: 'goals.vi-stack', seed_revision: 4,
     }, ['goals.vi-stack']),
     layoutObject('goals.vi-stack', 'view-instance', {
       descriptor_id: 'goal.stack', title: 'Goal Stack',
@@ -290,10 +292,10 @@ export function seedLayout(): ObjectRef[] {
     ...companionSeeds('survey'),
 
     layoutObject(MODEL_SURFACE_ID, 'surface', {
-      name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 2,
+      name: 'Models', kind: 'model', role: 'place', stripe_order: 4, active: false, seed_revision: 3,
     }, ['models.region-editor', ...companionIds('models')]),
     layoutObject('models.region-editor', 'region', {
-      kind: 'editor', chrome: 'bare', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 2,
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 3,
     }, [MODEL_VIEW_INSTANCE_ID]),
     layoutObject(MODEL_VIEW_INSTANCE_ID, 'view-instance', {
       descriptor_id: 'model.studio',
@@ -313,6 +315,18 @@ export function seedLayout(): ObjectRef[] {
     }),
     ...companionSeeds('models'),
 
+    layoutObject(MODEL_SETTINGS_SURFACE_ID, 'surface', {
+      name: 'Model settings', kind: 'model-settings', role: 'place', active: false, seed_revision: 1,
+    }, ['model-settings.region-editor', ...companionIds('model-settings')]),
+    layoutObject('model-settings.region-editor', 'region', {
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: MODEL_SETTINGS_VIEW_INSTANCE_ID, seed_revision: 1,
+    }, [MODEL_SETTINGS_VIEW_INSTANCE_ID]),
+    layoutObject(MODEL_SETTINGS_VIEW_INSTANCE_ID, 'view-instance', {
+      descriptor_id: 'model.settings',
+      title: 'Model settings',
+    }),
+    ...companionSeeds('model-settings'),
+
     layoutObject(PROGRAM_SURFACE_ID, 'surface', {
       name: 'Program', kind: 'program', role: 'place', active: false, seed_revision: 1,
     }, ['program.region-editor', ...companionIds('program')]),
@@ -323,6 +337,39 @@ export function seedLayout(): ObjectRef[] {
       descriptor_id: 'program.canvas', title: 'Program',
     }),
     ...companionSeeds('program'),
+
+    layoutObject('console-search', 'surface', {
+      name: 'Search', kind: 'search', role: 'place', active: false, seed_revision: 1,
+    }, ['search.region-editor', ...companionIds('search')]),
+    layoutObject('search.region-editor', 'region', {
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: 'search.vi-stack', seed_revision: 1,
+    }, ['search.vi-stack']),
+    layoutObject('search.vi-stack', 'view-instance', {
+      descriptor_id: 'search.stack', title: 'Search',
+    }),
+    ...companionSeeds('search'),
+
+    layoutObject('console-kanban', 'surface', {
+      name: 'Kanban', kind: 'kanban', role: 'place', active: false, seed_revision: 1,
+    }, ['kanban.region-editor', ...companionIds('kanban')]),
+    layoutObject('kanban.region-editor', 'region', {
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: 'kanban.vi-board', seed_revision: 1,
+    }, ['kanban.vi-board']),
+    layoutObject('kanban.vi-board', 'view-instance', {
+      descriptor_id: 'kanban', title: 'Kanban',
+    }),
+    ...companionSeeds('kanban'),
+
+    layoutObject('console-commands', 'surface', {
+      name: 'Commands', kind: 'commands', role: 'place', active: false, seed_revision: 1,
+    }, ['commands.region-editor', ...companionIds('commands')]),
+    layoutObject('commands.region-editor', 'region', {
+      kind: 'editor', chrome: 'bare', size: 100, active_tab: 'commands.vi-gallery', seed_revision: 1,
+    }, ['commands.vi-gallery']),
+    layoutObject('commands.vi-gallery', 'view-instance', {
+      descriptor_id: 'commands.gallery', title: 'Commands',
+    }),
+    ...companionSeeds('commands'),
 
     layoutObject('console-docs', 'surface', {
       name: 'Documents', kind: 'documents', role: 'collection', active: false, seed_revision: 3,

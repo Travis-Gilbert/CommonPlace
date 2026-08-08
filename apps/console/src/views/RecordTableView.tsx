@@ -263,9 +263,16 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
         return;
       }
       const note = receipt.value?.note ?? '';
-      if (/reject|enforcement|refused/i.test(note)) {
+      const code =
+        typeof receipt.value?.code === 'string'
+          ? receipt.value.code
+          : typeof (receipt.value as { refusal?: { code?: string } } | undefined)?.refusal
+                ?.code === 'string'
+            ? (receipt.value as { refusal: { code: string } }).refusal.code
+            : null;
+      if (code || /reject|enforcement|refused|validated|put_item_validated/i.test(note)) {
         setSchemaRowProperty(rowId, fieldKey, previous);
-        setEditError(note);
+        setEditError(code ? `${code}: ${note || 'validated write refused'}` : note || 'Update refused');
         setCellFocus((current) => (current ? { ...current, mode: 'soft' } : current));
         return;
       }

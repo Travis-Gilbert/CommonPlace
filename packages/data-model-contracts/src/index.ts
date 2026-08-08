@@ -381,3 +381,31 @@ export function coerceObservedFieldType(value: unknown): FieldType {
 export function coerceIndexPolicy(value: unknown): IndexPolicy {
   return parseIndexPolicy(value) ?? INDEX_POLICY_NONE;
 }
+
+export type {
+  FacetDefWire,
+  FacetPropertyWire,
+  FieldMetadataWire,
+  FieldSettingsWire,
+  IndexKindWire,
+  IndexMetadataWire,
+  IndexPolicyWire,
+  ObjectConformanceWire,
+  ObjectMetadataWire,
+  PromotionCandidateWire,
+  PromotionTriggerWire,
+  SelectOptionWire,
+  TwentyFieldTypeToken,
+} from './twenty-metadata';
+export {
+  EDITOR_TWENTY_FIELD_TYPES,
+  TWENTY_FIELD_TYPE_TOKENS,
+  editorStateFromField,
+  fieldTypeFromEditor,
+  fieldTypeToTwentyToken,
+  indexPolicyFromSettings,
+  isTwentyFieldTypeToken,
+  objectFields,
+  parseTwentyFieldTypeToken,
+  twentyTokenToFieldType,
+} from './twenty-metadata';

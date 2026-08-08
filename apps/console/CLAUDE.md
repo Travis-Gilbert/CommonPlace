@@ -103,6 +103,7 @@ gap: add the row, with a named source, before writing code.
 | Tabular lenses | tablecn structure on `@tanstack/react-table` plus blocks.so `table-01`..`table-05` anatomy | record.table sorting, filtering, column model |
 | Schema-driven record cells and chips | FieldType map in `views/records/cells.tsx` plus blocks.so badge / jalco chip anatomy | polymorphic cells, RecordChip, select hues |
 | Model canvas object cards | `@xyflow/react` plus jalco `repo-card` header anatomy (structure extract) | ObjectTypeCard / GhostCard on the diagram lens |
+| Data model settings register | `twenty-ui` SegmentedControl, Toggle, Button, Tag, Pill, Card plus `/api/rest/metadata/*` | D31 four screens at `/Data-model/settings` (types, fields, indexes, facet conformance) |
 | Model relation edges | `@xyflow/react` BaseEdge / smooth-step | field-anchored RelationEdge |
 | Record view bar and calculate footer | `cmdk` plus blocks.so command-menu / table footer patterns | ViewBar grammar and server aggregate footer |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |

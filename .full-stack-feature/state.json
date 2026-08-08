@@ -1,0 +1,22 @@
+{
+  "feature": "ARD-THEOREM-2026-08-04 Parts 1/4/6 UI",
+  "status": "awaiting_workos",
+  "phase": "execute",
+  "stack": "commonplace-console + theorem-substrate",
+  "goal_id": "goal:aa1c8c6380701610",
+  "fallback_plan_id": "fallback:ard-ui-remaining-1.0:20260808a",
+  "current_step": "workos-deferred-to-principal",
+  "completed_steps": [
+    "00-research-map",
+    "wave-a-settings-register",
+    "wave-a-gate-twenty",
+    "wave-b1-commands-gallery",
+    "wave-b2-program-validate",
+    "spec-review",
+    "plan-ard-ui-remaining",
+    "execute-ard-ui-remaining"
+  ],
+  "out_of_scope": ["WorkOS AuthKit / next-auth provider swap"],
+  "notes": "Plan+execute remaining ARD UI except WorkOS. Substrate plan mint blocked by store size; fallback checklist used. D20-D23 and D33-D36 closed with named blockers.",
+  "last_updated": "2026-08-08T19:52:00.000Z"
+}

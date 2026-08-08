@@ -1,60 +1,24 @@
 'use client';
 
 // SOURCING: cmdk Command for searchable published-command / monitor-template
-// gallery (SPEC-COMMONPLACE-COMMANDS-AND-SENTINELS-1.0 D5). Fork is the
-// primary action; validation receipts are listed inline.
+// gallery (SPEC-COMMONPLACE-COMMANDS-AND-SENTINELS-1.0 D5). Fork goes through
+// programmable_graph `gallery` / `gallery_fork` (not orphan program.fork).
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import { ViewState } from './ViewStates';
+import {
+  fetchCommandGallery,
+  forkGalleryTemplate,
+  type CommandGalleryEntry,
+} from './program/programClient';
 
-export type GalleryKind = 'command' | 'monitor_template';
-
-export interface GalleryEntry {
-  readonly kind: GalleryKind;
-  readonly slugOrName: string;
-  readonly title: string;
-  readonly summary: string;
-  readonly programId?: string;
-  readonly publicationRef?: string;
-  readonly parentProgramId?: string;
-  readonly validationPassed?: boolean;
-  readonly validationChecks?: readonly string[];
-}
-
-const FIXTURE_GALLERY: readonly GalleryEntry[] = [
-  {
-    kind: 'monitor_template',
-    slugOrName: 'Price watch',
-    title: 'Price watch',
-    summary: 'Watch a product page price and notify when it crosses a threshold.',
-    programId: 'program:price-watch',
-    validationPassed: true,
-    validationChecks: ['program_identity', 'standing_budget', 'typed_stream_edges'],
-  },
-  {
-    kind: 'monitor_template',
-    slugOrName: 'Content watch',
-    title: 'Content watch',
-    summary: 'Watch a page body and notify when the content hash changes.',
-    programId: 'program:content-watch',
-    validationPassed: true,
-    validationChecks: ['program_identity', 'standing_budget'],
-  },
-  {
-    kind: 'monitor_template',
-    slugOrName: 'Release watch',
-    title: 'Release watch',
-    summary: 'Watch a releases or changelog URL and notify plus capture on change.',
-    programId: 'program:release-watch',
-    validationPassed: true,
-    validationChecks: ['program_identity', 'standing_budget'],
-  },
-];
+export type GalleryKind = CommandGalleryEntry['kind'];
+export type GalleryEntry = CommandGalleryEntry;
 
 function entriesFromHost(set: ViewRenderProps['set']): GalleryEntry[] {
-  const fromHost = set.objects
+  return set.objects
     .filter((object) => object.properties.galleryKind || object.properties.kind === 'monitor_template')
     .map((object) => ({
       kind: (String(object.properties.galleryKind ?? 'monitor_template') as GalleryKind),
@@ -77,15 +41,74 @@ function entriesFromHost(set: ViewRenderProps['set']): GalleryEntry[] {
       validationChecks: Array.isArray(object.properties.validationChecks)
         ? object.properties.validationChecks.map(String)
         : [],
+      source: 'substrate' as const,
     }));
-  return fromHost.length > 0 ? fromHost : [...FIXTURE_GALLERY];
 }
 
-export function CommandsGalleryView({ set, host }: ViewRenderProps) {
-  const entries = useMemo(() => entriesFromHost(set), [set]);
+export function CommandsGalleryView({ set }: ViewRenderProps) {
+  const hostEntries = useMemo(() => entriesFromHost(set), [set]);
+  const [entries, setEntries] = useState<readonly GalleryEntry[]>(hostEntries);
+  const [sourceNote, setSourceNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [forked, setForked] = useState<string[]>([]);
 
-  if (entries.length === 0) {
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        if (hostEntries.length > 0) {
+          if (!cancelled) {
+            setEntries(hostEntries);
+            setSourceNote('Host objects');
+          }
+          return;
+        }
+        const gallery = await fetchCommandGallery();
+        if (cancelled) return;
+        setEntries(gallery);
+        const fromStandIn = gallery.some((entry) => entry.source === 'LocalDevCommandGallery');
+        setSourceNote(
+          fromStandIn
+            ? 'LocalDevCommandGallery stand-in (substrate gallery empty or unreachable)'
+            : 'programmable_graph gallery',
+        );
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : String(loadError));
+        }
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hostEntries]);
+
+  async function forkEntry(entry: GalleryEntry): Promise<void> {
+    if (entry.kind !== 'monitor_template') return;
+    const parentProgramId = entry.programId ?? entry.slugOrName;
+    const forkName = `Fork of ${entry.title}`;
+    setBusy(true);
+    setError(null);
+    try {
+      const program = await forkGalleryTemplate({
+        parentProgramId,
+        name: forkName,
+        intent: entry.summary || `Fork of ${entry.title}`,
+      });
+      setForked((current) => [...current, program.name || forkName]);
+    } catch (forkError) {
+      setError(forkError instanceof Error ? forkError.message : String(forkError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!busy && entries.length === 0) {
     return (
       <ViewState
         state="empty"
@@ -104,6 +127,8 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
         <p className="text-xs text-ij-ink-info">
           Published commands and forkable monitor templates. Validation receipts stay visible.
         </p>
+        {sourceNote ? <p className="text-xs text-ij-ink-info">{sourceNote}</p> : null}
+        {error ? <p className="text-xs text-ij-danger" role="alert">{error}</p> : null}
       </header>
       <Command label="Command gallery" className="min-h-0 flex-1 overflow-auto border border-ij-seam">
         <Command.Input
@@ -111,26 +136,15 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
           className="w-full border-b border-ij-seam bg-transparent px-3 py-2 text-sm outline-none"
         />
         <Command.List>
-          <Command.Empty>No published entries</Command.Empty>
+          <Command.Empty>{busy ? 'Loading gallery…' : 'No published entries'}</Command.Empty>
           {entries.map((entry) => (
             <Command.Item
               key={`${entry.kind}:${entry.slugOrName}`}
               value={`${entry.title} ${entry.summary} ${entry.slugOrName}`}
-              className="flex cursor-pointer flex-col gap-1 px-3 py-2 data-[selected=true]:bg-ij-selection"
+              disabled={busy}
+              className="flex cursor-pointer flex-col gap-1 px-3 py-2 data-[selected=true]:bg-ij-selection data-[disabled=true]:opacity-50"
               onSelect={() => {
-                if (entry.kind !== 'monitor_template') {
-                  return;
-                }
-                const forkName = `Fork of ${entry.title}`;
-                setForked((current) => [...current, forkName]);
-                void host.emit({
-                  kind: 'invoke_tool',
-                  tool: 'program.fork',
-                  args: {
-                    parentProgramId: entry.programId ?? '',
-                    name: forkName,
-                  },
-                });
+                void forkEntry(entry);
               }}
             >
               <div className="flex items-center justify-between gap-2">
@@ -147,6 +161,7 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
                 {entry.publicationRef ? <span>pub {entry.publicationRef}</span> : null}
                 {entry.parentProgramId ? <span>lineage {entry.parentProgramId}</span> : null}
                 {entry.kind === 'monitor_template' ? <span>Fork</span> : null}
+                {entry.source === 'LocalDevCommandGallery' ? <span>stand-in</span> : null}
               </div>
             </Command.Item>
           ))}
@@ -154,7 +169,7 @@ export function CommandsGalleryView({ set, host }: ViewRenderProps) {
       </Command>
       {forked.length > 0 ? (
         <p className="text-xs text-ij-ink-info">
-          Forked: {forked.join(', ')}
+          Forked via gallery_fork: {forked.join(', ')}
         </p>
       ) : null}
     </div>

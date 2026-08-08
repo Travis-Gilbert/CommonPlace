@@ -1,0 +1,446 @@
+{
+  "fallback_id": "fallback:ard-ui-remaining-1.0:20260808a",
+  "canonical_plan_id": null,
+  "goal_id": "goal:aa1c8c6380701610",
+  "source_payload": ".harness/session-tools/payloads/create-plan-ard-ui-remaining.json",
+  "binding": "portable_fallback_not_substrate_plan",
+  "rendered_at": "2026-08-08",
+  "title": "ARD-UI-REMAINING-1.0",
+  "destination": "Close remaining ARD-THEOREM-2026-08-04 Parts 1/4/6 UI gaps (SPEC-REVIEW SR partial/missing) except WorkOS. CommonPlace console is the product surface; Theorem supplies MCP/REST seams.",
+  "acceptance_criteria": [
+    "Program Run validates before execute and refuses on failure with node ids surfaced (D24).",
+    "Settings field editor uses tagged FieldType payloads; facets support manual property maps; IndexPolicy shows four flags plus promotion provenance.",
+    "Live or env-gated harness /rest/metadata smoke exists; LocalDevMetadataStore is never counted as production evidence.",
+    "Goal Stack is demoted or folded so Program canvas is the sole computation authoring DAG (P3).",
+    "Commands gallery lists substrate publications/templates without silent fixture-only UX.",
+    "Records Create/Update surfaces put_item_validated refusal codes (D5).",
+    "D20-D23 UI either ships against real substrate seams or is closed with a named substrate blocker receipt.",
+    "D32-D36 either ship thin clients against existing seams or are closed with named service blockers; WorkOS excluded by principal."
+  ],
+  "fog": [
+    "Whether rustyred-thg programmable graph already exposes sweep / fingerprint / cache-pressure receipts that UI can bind without new Rust primitives",
+    "Whether CommandRegistry has a durable store seam already or must be populated from monitor templates only for gallery completeness",
+    "Whether put_item_validated refusal codes are already returned on the console records write path today"
+  ],
+  "out_of_scope": [
+    "WorkOS AuthKit / next-auth provider swap (principal handles at end)",
+    "Vendoring AGPL twenty-front",
+    "Inventing a second agent invoke path",
+    "Faking Blender addon, Dagster deployment, or marimo host when no service/repo exists"
+  ],
+  "notes": [
+    "Portable fallback while substrate plan create may fail store limits; goal goal:aa1c8c6380701610 exists on harness.",
+    "WorkOS explicitly out of scope per principal.",
+    "2026-08-08 execute: all fallback rows marked done or closed-with-blocker; WorkOS remains out of scope. Substrate plan create still blocked by private_store message-size limit."
+  ],
+  "items": [
+    {
+      "id": "d24-gate-run",
+      "title": "D24 gate Run on validate",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "runProgram validates first; refuse Run; surface node ids.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [],
+      "acceptance": [
+        "Run path calls validate and does not call run when validation refuses.",
+        "Refused node ids appear in RunRail / canvas highlight state.",
+        "Focused vitest covers the gated-run client behavior."
+      ],
+      "proof_command": "npm --prefix apps/console exec -- vitest run src/views/program/programClient.gallery.test.ts",
+      "routes": [
+        "apps/console/src/views/program/ProgramView.tsx",
+        "apps/console/src/views/program/RunRail.tsx",
+        "apps/console/src/views/program/programClient.ts"
+      ],
+      "evidence": "ProgramView.runProgram validates first; shouldBlockRunAfterValidation + vitest",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-018 / ARD D24"
+    },
+    {
+      "id": "fieldtype-forms",
+      "title": "Tagged FieldType field editor forms",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "enum/vector/relation subforms on settings Fields screen.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [],
+      "acceptance": [
+        "Creating/editing enum, vector, and relation fields requires the tagged payload fields in the settings UI.",
+        "Twenty presentation tokens still round-trip through the adapter.",
+        "Unit tests cover adapter + at least one payload form serialization."
+      ],
+      "proof_command": "npm --prefix packages/data-model-contracts exec -- vitest run src/twenty-metadata.test.ts && npm --prefix apps/console exec -- vitest run src/lib/server/local-dev-metadata-store.test.ts",
+      "routes": [
+        "apps/console/src/views/model/settings/ModelSettingsView.tsx",
+        "packages/data-model-contracts/src/twenty-metadata.ts"
+      ],
+      "evidence": "FieldSettingsPanels enum/vector/relation + twenty-metadata fieldTypeFromEditor tests",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-003 SR-007 / ARD D3 D31"
+    },
+    {
+      "id": "facet-manual-map",
+      "title": "Manual facet property mapping",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Per-property field picker + relation map display.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "fieldtype-forms"
+      ],
+      "acceptance": [
+        "Operator can change the local field mapped to a facet property before apply.",
+        "Required unmapped properties disable apply and are visually flagged.",
+        "Relation map entries are visible when the facet declares them."
+      ],
+      "proof_command": "npm --prefix apps/console exec -- vitest run src/lib/server/local-dev-metadata-store.test.ts",
+      "routes": [
+        "apps/console/src/views/model/settings/ModelSettingsView.tsx",
+        "apps/console/src/views/model/settings/metadataClient.ts"
+      ],
+      "evidence": "FacetsScreen property pickers + relation map display",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-004 / ARD D4"
+    },
+    {
+      "id": "index-policy-editor",
+      "title": "IndexPolicy four flags + provenance",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Four IndexPolicy flags, promote/demote, trigger provenance.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "fieldtype-forms"
+      ],
+      "acceptance": [
+        "IndexPolicy four flags are editable or clearly displayed per field/index.",
+        "Promotion candidates still promote via REST.",
+        "Demotion of user-mark trigger is available or explicitly refused with reason when API lacks demote."
+      ],
+      "proof_command": "npm --prefix apps/console exec -- vitest run src/lib/server/local-dev-metadata-store.test.ts",
+      "routes": [
+        "apps/console/src/views/model/settings/ModelSettingsView.tsx",
+        "apps/console/src/lib/server/local-dev-metadata-store.ts"
+      ],
+      "evidence": "IndexPolicy four toggles + demote user_marked indexes",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-006 / ARD D6"
+    },
+    {
+      "id": "metadata-live-smoke",
+      "title": "Env-gated live metadata REST smoke",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Named live/env-gated smoke; stand-in never equals done.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": true,
+      "dependencies": [],
+      "acceptance": [
+        "An env-gated test or script exists and is documented.",
+        "Without the env URL, the test skips/ignores rather than claiming pass on LocalDev.",
+        "LocalDevMetadataStore remains explicitly named as stand-in."
+      ],
+      "proof_command": "test -f apps/console/scripts/smoke-metadata-rest.mjs || test -f apps/console/src/lib/server/metadata-rest.live.test.ts",
+      "routes": [
+        "apps/console/src/lib/server/metadata-rest.ts",
+        "apps/console/scripts/smoke-metadata-rest.mjs"
+      ],
+      "evidence": "scripts/smoke-metadata-rest.mjs env-gated (skipped without URL)",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-002 / ARD D2"
+    },
+    {
+      "id": "records-validated-ux",
+      "title": "Records put_item_validated refusal UX",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Wire typed validation errors into records write UI.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [],
+      "acceptance": [
+        "A refused validated write shows a user-visible error naming the code or field.",
+        "Happy-path create/update still works.",
+        "Focused test covers refusal rendering or client parsing."
+      ],
+      "proof_command": "npm --prefix apps/console exec -- vitest run src/views/records",
+      "routes": [
+        "apps/console/src/views/records"
+      ],
+      "evidence": "RecordTableView surfaces refusal code + put_item_validated note",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-005 / ARD D5"
+    },
+    {
+      "id": "p3-goal-stack-demote",
+      "title": "P3 demote Goal Stack",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Demote /goals from authoring DAG to plan lens or fold into program palette.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "d24-gate-run"
+      ],
+      "acceptance": [
+        "Registry/docs no longer present Goal Stack as a second programmable graph authoring surface.",
+        "Program canvas remains the computation authoring DAG.",
+        "Routing tests still pass for remaining surfaces."
+      ],
+      "proof_command": "npm --prefix apps/console exec -- vitest run src/lib/view-routing-retirement.test.ts src/lib/rail/block-surface-targets.test.ts",
+      "routes": [
+        "apps/console/src/views/registry.tsx",
+        "apps/console/src/views/goal-stack",
+        "apps/console/src/lib/surface-routes.ts"
+      ],
+      "evidence": "registry Goal Stack renamed plan lens; kindGlyph automation",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-019 / ARD P3"
+    },
+    {
+      "id": "gallery-substrate-fill",
+      "title": "Commands gallery substrate fill",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Populate gallery beyond empty CommandRegistry + LocalDev.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "d24-gate-run"
+      ],
+      "acceptance": [
+        "With harness reachable, gallery returns at least monitor templates from substrate.",
+        "LocalDev fallback remains labeled when used.",
+        "gallery_fork still works for a template id/name."
+      ],
+      "proof_command": "cd rustyredcore_THG && cargo check -p rustyred-thg-mcp --offline",
+      "routes": [
+        "rustyredcore_THG/crates/rustyred-thg-mcp/src/programmable_graph.rs",
+        "apps/console/src/views/CommandsGalleryView.tsx",
+        "apps/console/src/views/program/programClient.ts"
+      ],
+      "evidence": "list_gallery always includes monitor templates; LocalDev named fallback",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-020"
+    },
+    {
+      "id": "layer-chrome",
+      "title": "D1 Layer 0/1/2 chrome on models settings",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Lightweight L0/L1/L2 labeling without new canvases.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "fieldtype-forms"
+      ],
+      "acceptance": [
+        "Settings IA labels Layer 2 user types distinctly from kernel/system.",
+        "Layer 0/1 are named as non-editable or read-only where appropriate."
+      ],
+      "proof_command": "npm --prefix apps/console exec -- vitest run src/lib/view-routing-retirement.test.ts",
+      "routes": [
+        "apps/console/src/views/model/settings/ModelSettingsView.tsx",
+        "apps/console/src/views/model/ModelView.tsx"
+      ],
+      "evidence": "L0/L1/L2 tags on settings header + object/field screens",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-001 / ARD D1"
+    },
+    {
+      "id": "fabric-seam-inventory",
+      "title": "Inventory D20-D23 substrate seams",
+      "status": "done",
+      "kind": "decision.afk",
+      "node_type": "decision",
+      "controller": "agent",
+      "gist": "Research whether programmable_graph exposes sweep/fingerprint/cache receipts.",
+      "oracle_class": "contract",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [],
+      "acceptance": [
+        "A research note lists each of D20-D23 with present/absent seam and file refs.",
+        "For each absent seam, a blocker receipt reason is written.",
+        "For each present seam, a follow-on build alias is named."
+      ],
+      "proof_command": "test -f CommonPlace/.full-stack-feature/research-d20-d23-seams.md || test -f .full-stack-feature/research-d20-d23-seams.md",
+      "routes": [
+        "rustyredcore_THG/crates/rustyred-thg-programmable-graph",
+        "rustyredcore_THG/crates/rustyred-thg-mcp/src/programmable_graph.rs"
+      ],
+      "evidence": "research-d20-d23-seams.md",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-014..017 / ARD D20-D23"
+    },
+    {
+      "id": "fabric-ui-or-close",
+      "title": "Ship or close D20-D23 UI",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Bind UI to found seams or close with blockers.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "fabric-seam-inventory",
+        "d24-gate-run"
+      ],
+      "acceptance": [
+        "Every D20-D23 item is either UI-wired with a proof or closed with a named blocker.",
+        "No synthetic sweep engine is invented in the console alone."
+      ],
+      "proof_command": "test -f CommonPlace/.full-stack-feature/EXECUTE-REPORT-REMAINING.md || test -f .full-stack-feature/EXECUTE-REPORT-REMAINING.md",
+      "routes": [
+        "apps/console/src/views/program"
+      ],
+      "evidence": "closed with named blockers in research-d20-d23-seams.md — no fake UI",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-014..017"
+    },
+    {
+      "id": "wave-c-seams",
+      "title": "Inventory D32-D36 seams (excl WorkOS)",
+      "status": "done",
+      "kind": "decision.afk",
+      "node_type": "decision",
+      "controller": "agent",
+      "gist": "rerun/pgwire/blender/dagster/datalab presence check.",
+      "oracle_class": "contract",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [],
+      "acceptance": [
+        "A note covers D32-D36 with present/absent and next action.",
+        "WorkOS is explicitly excluded.",
+        "No fake Dagster/Blender/marimo hosts are proposed as done."
+      ],
+      "proof_command": "test -f CommonPlace/.full-stack-feature/research-d32-d36-seams.md || test -f .full-stack-feature/research-d32-d36-seams.md",
+      "routes": [
+        "apps/console/src/views/prototype",
+        "rustyredcore_THG/crates/rustyred-thg-pg-server"
+      ],
+      "evidence": "research-d32-d36-seams.md (WorkOS excluded)",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-021..025"
+    },
+    {
+      "id": "wave-c-ui-or-close",
+      "title": "Ship or close D32-D36 UI (excl WorkOS)",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Promote rerun where possible; close greenfield with blockers.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "wave-c-seams"
+      ],
+      "acceptance": [
+        "D32-D36 each have UI evidence or a named service blocker.",
+        "WorkOS is not claimed done."
+      ],
+      "proof_command": "test -f CommonPlace/.full-stack-feature/EXECUTE-REPORT-REMAINING.md || test -f .full-stack-feature/EXECUTE-REPORT-REMAINING.md",
+      "routes": [
+        "apps/console/src/views/prototype",
+        "apps/console/src/views/registry.tsx"
+      ],
+      "evidence": "D32 partial kept; D33–D36 closed with service blockers; WorkOS excluded",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-021..025"
+    },
+    {
+      "id": "settings-twenty-inputs",
+      "title": "Replace native settings inputs with twenty-ui",
+      "status": "done",
+      "kind": "build.afk",
+      "node_type": "build",
+      "controller": "agent",
+      "gist": "Swap native input/select for twenty-ui where available.",
+      "oracle_class": "unit",
+      "implementation_mode": "local_process",
+      "evidence_class": "unit",
+      "substitution_allowed": false,
+      "live_oracle_required": false,
+      "dependencies": [
+        "facet-manual-map",
+        "index-policy-editor"
+      ],
+      "acceptance": [
+        "Settings field controls use twenty-ui components for text/select where available.",
+        "npm run gate:twenty passes in apps/console."
+      ],
+      "proof_command": "npm --prefix apps/console run gate:twenty",
+      "routes": [
+        "apps/console/src/views/model/settings/ModelSettingsView.tsx",
+        "apps/console/AGENTS.md"
+      ],
+      "evidence": "SearchInput + twenty-ui Toggle/Button/Tag; gate:twenty pass",
+      "deferral_reason": null,
+      "provenance": "SPEC-REVIEW SR-007 / palette rule"
+    }
+  ],
+  "digest": "sha256:bd022e5c0ddf98401f01d187e5eb4441a721570ce1edf8811d42d18a97bae7d1"
+}

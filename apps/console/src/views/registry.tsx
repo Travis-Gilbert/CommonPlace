@@ -38,6 +38,7 @@ import { AutomationHistoryView } from './blocks/AutomationHistoryView';
 import { KanbanBlock } from './blocks/KanbanBlock';
 import { SurveyView } from './SurveyView';
 import { ModelView } from './model/ModelView';
+import { ModelSettingsView } from './model/settings/ModelSettingsView';
 import { SearchStackView } from './search/SearchStackView';
 import { CommandsGalleryView } from './CommandsGalleryView';
 import { PG_TYPES } from '@/lib/proactivity/object-bridge';
@@ -638,6 +639,31 @@ const MODEL_STUDIO: ViewDescriptor = {
   render: ModelView,
 };
 
+const MODEL_SETTINGS: ConsoleViewDescriptor = {
+  id: 'model.settings',
+  name: 'Data model settings',
+  paletteVisible: false,
+  accepts: {},
+  emits: ['update'],
+  renderer: 'model.settings',
+  source: {
+    package: 'twenty-ui',
+    component: 'SegmentedControl+Card+Toggle',
+    mode: 'wrap',
+    regime: 'css-vars',
+  },
+  block: {
+    usage: 'edit object metadata, fields, indexes, and facet conformance',
+    placements: ['ground', 'full'],
+    defaultSize: 'full',
+    density: 'both',
+    surfaceClass: 'editor',
+    kindGlyph: 'model',
+    bodyBleed: 'flush',
+  },
+  render: ModelSettingsView,
+};
+
 const PROGRAM_CANVAS: ConsoleViewDescriptor = {
   id: 'program.canvas',
   name: 'Program',
@@ -766,7 +792,7 @@ const WORKSPACE_SUBSTRATE: ViewDescriptor = {
 
 const GOAL_STACK: ConsoleViewDescriptor = {
   id: 'goal.stack',
-  name: 'Goal Stack',
+  name: 'Goal Stack (plan lens)',
   paletteVisible: true,
   palette: { id: 'plan', label: 'Plan', kind: 'plan', material: 'sunken' },
   accepts: {},
@@ -779,7 +805,8 @@ const GOAL_STACK: ConsoleViewDescriptor = {
     regime: 'css-vars',
   },
   block: {
-    usage: 'inspect agent plan',
+    usage:
+      'P3 plan lens only — not a second computation authoring DAG; author computation on Program canvas',
     placements: ['ground', 'full'],
     defaultSize: 'full',
     density: 'both',
@@ -1091,6 +1118,7 @@ export const CONSOLE_VIEW_DESCRIPTORS: readonly ConsoleViewDescriptor[] = [
   COMMANDS_GALLERY,
   SURVEY_BOARD,
   MODEL_STUDIO,
+  MODEL_SETTINGS,
   PROGRAM_CANVAS,
   SEARCH_STACK,
   BROWSER_PANE,
