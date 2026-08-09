@@ -106,6 +106,7 @@ import {
   validNext,
   validateCompilerProposal,
   validateEdgeSchema,
+  validateProgramDefinition,
   type ProgramListItem,
 } from './programClient';
 import {
@@ -287,6 +288,8 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [validationSummary, setValidationSummary] = useState<string | null>(null);
+  const [validationNodeIds, setValidationNodeIds] = useState<string[]>([]);
   const [livenessByNode, setLivenessByNode] = useState<Record<string, ProcessLiveness>>({});
   const [runReceipt, setRunReceipt] = useState<ProgramRunReceipt | null>(null);
   const [runInvocationId, setRunInvocationId] = useState<string | null>(null);
@@ -1132,16 +1135,68 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setNotice(`Run ${receipt.run_id}: ${receipt.events.length} server events.`);
   }
 
+  async function applyValidationResult(
+    result: Awaited<ReturnType<typeof validateProgramDefinition>>,
+  ): Promise<boolean> {
+    if (result.ok) {
+      const failed = result.receipt.checks.filter((check) => !check.passed);
+      setValidationNodeIds([]);
+      setValidationSummary(
+        failed.length === 0
+          ? `Valid · ${result.receipt.checks.length} checks passed`
+          : `Invalid · ${failed.map((check) => check.requirement).join(', ')}`,
+      );
+      if (failed.length > 0) {
+        setError('Validation reported failed checks.');
+        return false;
+      }
+      return true;
+    }
+    setValidationSummary(`${result.code}: ${result.message}`);
+    setValidationNodeIds([...result.nodeIds]);
+    setError(result.message);
+    return false;
+  }
+
+  /** ARD D24: whole program validates before anything executes. */
   async function runProgram(): Promise<void> {
     setBusy(true);
     setNotice(null);
     setError(null);
+    setValidationSummary(null);
+    setValidationNodeIds([]);
     try {
+      const validation = await validateProgramDefinition(definition);
+      const ok = await applyValidationResult(validation);
+      if (!ok) {
+        setNotice('Run blocked: fix validation before execute.');
+        return;
+      }
       const invocationId = crypto.randomUUID();
       setRunInvocationId(invocationId);
       applyReceipt(await runProgramDefinition(definition, optionsForRun(invocationId)));
     } catch (runError) {
       setError(runError instanceof Error ? runError.message : String(runError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function validateProgram(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    setValidationSummary(null);
+    setValidationNodeIds([]);
+    try {
+      const result = await validateProgramDefinition(definition);
+      const ok = await applyValidationResult(result);
+      if (ok) {
+        setNotice(`Validation passed for ${
+          result.ok ? result.receipt.program_id || 'program' : 'program'
+        }.`);
+      }
+    } catch (validationError) {
+      setError(validationError instanceof Error ? validationError.message : String(validationError));
     } finally {
       setBusy(false);
     }
@@ -1752,6 +1807,9 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
             if (selectedNodeId) updateCodeSource(selectedNodeId, value);
           }}
           onRun={() => void runProgram()}
+          onValidate={() => void validateProgram()}
+          validationSummary={validationSummary}
+          validationNodeIds={validationNodeIds}
           onPin={(value) => void pinSelectedValue(value)}
           onUnpin={() => {
             if (!selectedNodeId) return;

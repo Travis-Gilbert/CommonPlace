@@ -104,8 +104,9 @@ asks for inspiration, reference, mood, or direction.
 | Approval dialog | `cmdk` Dialog | focus-managed, keyboard-selectable one-shot Plan approval and rejection |
 | Tabular lenses | tablecn structure on `@tanstack/react-table` plus blocks.so `table-01`..`table-05` anatomy | record.table sorting, filtering, column model |
 | Schema-driven record cells and chips | FieldType map in `views/records/cells.tsx` plus blocks.so badge / jalco chip anatomy | polymorphic cells, RecordChip, select hues |
-| Model canvas object cards | `@xyflow/react` plus jalco `repo-card` header anatomy (structure extract) | ObjectTypeCard / GhostCard on the diagram lens |
-| Model relation edges | `@xyflow/react` BaseEdge / smooth-step | field-anchored RelationEdge |
+| Model canvas object cards | `@commonplace/model-canvas` OwoxStudio (OWOX/models Apache-2.0 fork) plus `@xyflow/react` MartNode / jalco `repo-card` anatomy | Models Place ERD cards, Dock, Inspector sheet, right rail; registry is semantic truth |
+| Data model settings register | `twenty-ui` SegmentedControl, Toggle, Button, Tag, Pill, Card plus same-origin `/api/rest/metadata/*` (harness `/rest/metadata` or `LocalDevMetadataStore`) | D31 four screens: object types, FieldType/Twenty field editor, IndexPolicy promotion, facet conformance mapping at `/Data-model/settings` |
+| Model relation edges | `@commonplace/model-canvas` RelEdge over `@xyflow/react` BaseEdge / smooth-step | field-anchored relation edges on the Models surface |
 | Program canvas graph, palette, and layout | `@xyflow/react`, `cmdk`, `@dagrejs/dagre`, generated `@commonplace/program-contracts` | typed program nodes/edges, searchable operation insertion, deterministic layout, and Theorem-owned wire contracts |
 | Record view bar and calculate footer | `cmdk` plus blocks.so command-menu / table footer patterns | ViewBar grammar and server aggregate footer |
 | Row virtualization | `@tanstack/react-virtual` | large record sets |

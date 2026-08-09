@@ -23,6 +23,11 @@ const AUXILIARY_ROUTES = [
   { kind: 'automation', path: '/automation', surfaceId: 'console-automation', tier: 'place' as const },
   { kind: 'program', path: '/program', surfaceId: 'console-program', tier: 'place' as const },
   { kind: 'appearance', path: '/appearance', surfaceId: 'console-appearance', tier: 'place' as const },
+  { kind: 'goals', path: '/goals', surfaceId: 'console-goals', tier: 'place' as const },
+  { kind: 'search', path: '/search', surfaceId: 'console-search', tier: 'place' as const },
+  { kind: 'kanban', path: '/kanban', surfaceId: 'console-kanban', tier: 'place' as const },
+  { kind: 'commands', path: '/commands', surfaceId: 'console-commands', tier: 'place' as const },
+  { kind: 'model-settings', path: '/Data-model/settings', surfaceId: 'console-model-settings', tier: 'place' as const },
 ] as const;
 
 /** Surfaces composed by an App Router page. Blocks never own these routes. */

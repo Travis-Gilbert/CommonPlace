@@ -4,6 +4,7 @@
 // @xyflow/react and tablecn structure through the registered lens components.
 
 import { useCallback, useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
 import {
   emptyDeclaredModel,
@@ -19,7 +20,6 @@ import {
   type ScopeRef,
 } from '@commonplace/data-model-contracts';
 import { DiffDialog, diffGraphs, type ModelGraph } from '@commonplace/model-canvas';
-import { BlockShell } from '@/components/block/BlockShell';
 import { degradationFor, withAction } from '@/lib/degradation';
 import {
   exportOkfModel,
@@ -34,17 +34,12 @@ import {
   type OkfModelPreviewPayload,
 } from '@/lib/observed-model-client';
 import { WhyTrace } from '../harness-ux/WhyTracePanel';
-import {
-  DiagramLens,
-  FieldsTableLens,
-} from './ObservedDeclaredLenses';
-import { RecordsLens } from './RecordsLens';
+import { DiagramLens } from './ObservedDeclaredLenses';
 import type { LayoutPositions } from './diagram/layout';
 import {
   createModelQueryState,
   modelScopeFromSet,
   reduceModelQuery,
-  type ModelLens,
   type ModelSelection,
 } from './modelQuery';
 import { modelCanvasId } from '@/lib/canvas/store';
@@ -53,7 +48,7 @@ import {
   declaredToModelGraph,
   parseOkfBundle,
 } from './okfBridge';
-import { schemaDeclareInputForField } from './schemaDeclare';
+import { schemaDeclareInputForField, schemaDeclareInputForNewObject } from './schemaDeclare';
 import {
   UNKNOWN_REGISTRY_SIGNAL,
   registryMoved,
@@ -406,7 +401,6 @@ function ModelInspector({
   );
 }
 
-const LENSES: readonly ModelLens[] = ['diagram', 'fields', 'records'];
 const LAYOUT_PERSIST_MS = 400;
 /** Fallback heartbeat for registry changes made outside this client. */
 const REGISTRY_SIGNAL_MS = 15_000;
@@ -456,12 +450,22 @@ export function ModelView({ set, host }: ViewRenderProps) {
     });
   }, [setScopeTenant, setScopeTopicId]);
 
+  const registrySignalRef = useRef<RegistrySignal>(UNKNOWN_REGISTRY_SIGNAL);
+  const hasPaintedModelRef = useRef(false);
+
+  useEffect(() => {
+    hasPaintedModelRef.current =
+      declared.objectTypes.length > 0 || observed.types.length > 0;
+  }, [declared.objectTypes.length, observed.types.length]);
+
   useEffect(() => {
     if (!topicId) return;
     let active = true;
     void Promise.resolve().then(async () => {
       if (!active) return;
-      setLoading(true);
+      // Soft refresh: keep the current canvas mounted while re-reading. A hard
+      // loading flash during drag/registry polls is what made nodes "vanish".
+      if (!hasPaintedModelRef.current) setLoading(true);
       setError(null);
       setNotice(null);
       try {
@@ -491,8 +495,6 @@ export function ModelView({ set, host }: ViewRenderProps) {
   // and PR 385's versioned projections are how we notice: re-read the head
   // version on the same subscription tick and rehydrate only when the anchor
   // actually moved, so an unchanged registry costs one comparison.
-  const registrySignalRef = useRef<RegistrySignal>(UNKNOWN_REGISTRY_SIGNAL);
-
   useEffect(() => {
     if (!declared) return;
     registrySignalRef.current = registrySignal(declared);
@@ -570,7 +572,9 @@ export function ModelView({ set, host }: ViewRenderProps) {
     return () => {
       active = false;
     };
-  }, [layoutHost, topicId, reloadToken]);
+    // Layout is topic-scoped, not registry-version-scoped. Reloading it on every
+    // reloadToken races drag persistence and snaps nodes away mid-gesture.
+  }, [layoutHost, topicId]);
 
   async function persistLayout(positions: LayoutPositions): Promise<void> {
     pendingLayoutRef.current = null;
@@ -665,6 +669,38 @@ export function ModelView({ set, host }: ViewRenderProps) {
       setReloadToken((token) => token + 1);
     } catch (unpinError) {
       setError(unpinError instanceof Error ? unpinError.message : String(unpinError));
+    }
+  }
+
+  async function spawnObject(position: { x: number; y: number }): Promise<void> {
+    if (!topicId || proposalBusy) return;
+    setProposalBusy(true);
+    setError(null);
+    try {
+      const ordinal = declared.objectTypes.length + 1;
+      const result = await postSchemaDeclare(
+        topicId,
+        schemaDeclareInputForNewObject(ordinal),
+        host,
+      );
+      setDeclared(result.declared);
+      const layoutKey = `declared:${result.receipt.objectTypeId}`;
+      scheduleLayoutPersist({
+        ...layoutPositions,
+        [layoutKey]: position,
+      });
+      setNotice(result.receipt.status === 'declared'
+        ? `${result.receipt.objectTypeId} declared on the canvas.`
+        : 'Object type declaration recorded.');
+      setReloadToken((token) => token + 1);
+      dispatch({
+        type: 'select',
+        selection: { kind: 'declared-type', key: result.receipt.objectTypeId },
+      });
+    } catch (spawnError) {
+      setError(spawnError instanceof Error ? spawnError.message : String(spawnError));
+    } finally {
+      setProposalBusy(false);
     }
   }
 
@@ -830,6 +866,8 @@ export function ModelView({ set, host }: ViewRenderProps) {
   const leftVersion = versionById.get(leftVersionId);
   const rightVersion = versionById.get(rightVersionId);
 
+  const okfFileInputRef = useRef<HTMLInputElement>(null);
+
   const lensProps = {
     observed,
     declared,
@@ -849,6 +887,49 @@ export function ModelView({ set, host }: ViewRenderProps) {
     onLayoutChange: (positions: LayoutPositions) => {
       scheduleLayoutPersist(positions);
     },
+    modelName: topicId ? `topic:${topicId}` : 'Data model',
+    onImport: () => okfFileInputRef.current?.click(),
+    onExport: () => {
+      void exportOkf();
+    },
+    onDeclare: () => {
+      const ghost = observed.types.find(
+        (type) => !declared.objectTypes.some(
+          (objectType) => objectType.provenance?.observedKey === type.observedKey,
+        ),
+      );
+      if (ghost) void applyPin(ghost.observedKey, 'type');
+    },
+    declareDisabled: proposalBusy || observed.types.length === 0,
+    onSpawnObject: (position) => {
+      void spawnObject(position);
+    },
+    onCompareVersion: (id: string) => {
+      const current = declared.versions.at(-1)?.id ?? '';
+      setDiffVersionIds([id, current]);
+      setDiffOpen(true);
+    },
+    onRestoreVersion: (id: string) => {
+      void (async () => {
+        if (!topicId) return;
+        setDiffVersionIds([diffVersionIds[0], id]);
+        setProposalBusy(true);
+        setError(null);
+        try {
+          const result = await postSchemaRestore(topicId, id, host);
+          setDeclared(result.declared);
+          setReloadToken((token) => token + 1);
+          const version = declared.versions.find((row) => row.id === id);
+          setNotice(
+            `Restored schema ${String(version?.version ?? id)} as a new receipted declaration batch.`,
+          );
+        } catch (restoreError) {
+          setError(restoreError instanceof Error ? restoreError.message : String(restoreError));
+        } finally {
+          setProposalBusy(false);
+        }
+      })();
+    },
   };
   const unavailable = !topicId
     ? degradationFor('observed_model_scope_unavailable', 400)
@@ -857,234 +938,85 @@ export function ModelView({ set, host }: ViewRenderProps) {
       : null;
 
   return (
-    <div className="h-full min-h-0" data-model-studio data-register-impl="model-canvas.owox">
-      <BlockShell
-        material="sunken"
-        title="Data model"
-        scope={topicId ? <span className="font-ij-mono" data-mono-ok>topic:{topicId}</span> : 'No topic selected'}
-        count={`${observed.eventCount} events`}
-        degradation={unavailable}
-        controlRow={(
-          <div className="flex flex-wrap items-center gap-1">
-            <div className="flex items-center gap-1" role="tablist" aria-label="Model lens">
-              {LENSES.map((lens) => (
-                <button
-                  key={lens}
-                  type="button"
-                  role="tab"
-                  aria-selected={queryState.lens === lens}
-                  onClick={() => dispatch({ type: 'switch-lens', lens })}
-                  className="h-ij-control rounded-ij-arc px-3 capitalize hover:bg-ij-hover-surface aria-selected:bg-ij-selection"
-                >
-                  {lens}
-                </button>
-              ))}
-            </div>
-            <label className="flex h-ij-control cursor-pointer items-center rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface">
-              Import OKF
-              <input
-                type="file"
-                accept=".md,.json,text/markdown,application/json"
-                multiple
-                className="sr-only"
-                onChange={(event) => void previewOkfImport(event.target.files)}
-              />
-            </label>
+    <div className="flex h-full min-h-0 flex-col" data-model-studio data-register-impl="model-canvas.owox">
+      <div className="flex h-ij-toolbar shrink-0 items-center gap-3 border-b border-ij-seam px-3">
+        <Link
+          href="/Data-model/settings"
+          className="text-sm text-ij-ink-info underline-offset-2 hover:text-ij-ink hover:underline"
+        >
+          Settings register
+        </Link>
+        <span className="text-xs text-ij-ink-info">
+          Object types · fields · indexes · facet conformance
+        </span>
+      </div>
+      <input
+        ref={okfFileInputRef}
+        type="file"
+        accept=".md,.json,text/markdown,application/json"
+        multiple
+        className="sr-only"
+        onChange={(event) => void previewOkfImport(event.target.files)}
+      />
+      {unavailable ? (
+        <div className="shrink-0 border-b border-ij-seam bg-ij-warn-bg px-3 py-2 text-sm text-ij-ink" role="status">
+          {unavailable.cause}
+          {unavailable.level === 'unavailable' && unavailable.action ? (
+            <button type="button" className="ml-2 underline" onClick={unavailable.action.run}>
+              {unavailable.action.label}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {proposal ? (
+        <ProposalCard
+          draft={proposal}
+          busy={proposalBusy}
+          onAccept={() => void acceptProposal()}
+          onDecline={() => setProposal(null)}
+        />
+      ) : null}
+      {okfPreview ? (
+        <section className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-3" aria-label="OKF import preview">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="min-w-0 flex-1 text-sm text-ij-ink">
+              OKF dry run: {okfPreview.diff.tables.added.length} tables added,
+              {' '}{okfPreview.diff.tables.removed.length} removed, and
+              {' '}{okfPreview.diff.fields.length} field groups changed.
+            </p>
             <button
               type="button"
-              onClick={() => void exportOkf()}
-              disabled={proposalBusy || declared.objectTypes.length === 0}
-              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
+              disabled={proposalBusy || !okfPreview.server.validation.conformant}
+              onClick={() => void applyOkfImport()}
+              className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
             >
-              Export OKF
+              Confirm import
             </button>
-            {declared.versions.length >= 2 ? (
-              <div className="flex items-center gap-1">
-                <select
-                  aria-label="Earlier schema version"
-                  value={leftVersionId}
-                  onChange={(event) => setDiffVersionIds([event.target.value, rightVersionId])}
-                  className="h-ij-control max-w-32 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
-                >
-                  <option value="">Earlier version</option>
-                  {declared.versions.map((version) => (
-                    <option key={version.id} value={version.id}>{String(version.version)}</option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Later schema version"
-                  value={rightVersionId}
-                  onChange={(event) => setDiffVersionIds([leftVersionId, event.target.value])}
-                  className="h-ij-control max-w-32 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 text-xs text-ij-ink"
-                >
-                  <option value="">Later version</option>
-                  {declared.versions.map((version) => (
-                    <option key={version.id} value={version.id}>{String(version.version)}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={!leftVersion || !rightVersion || leftVersionId === rightVersionId}
-                  onClick={() => setDiffOpen(true)}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-                >
-                  Diff
-                </button>
-                <button
-                  type="button"
-                  disabled={proposalBusy || !rightVersion}
-                  onClick={() => void restoreRightVersion()}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface disabled:opacity-50"
-                >
-                  Restore right version
-                </button>
-              </div>
-            ) : null}
+            <button
+              type="button"
+              disabled={proposalBusy}
+              onClick={() => setOkfPreview(null)}
+              className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
+            >
+              Cancel
+            </button>
           </div>
-        )}
-        className="bg-transparent text-ij-ink"
-      >
-        <div className="flex h-full min-h-0 flex-col xl:flex-row">
-        <main className="flex min-h-96 min-w-0 flex-1 flex-col">
-          <section className="shrink-0 border-b border-ij-seam bg-ij-chrome px-3 py-2" aria-labelledby="schema-action-heading">
-            {proposalComposerOpen ? (
-              <form className="grid gap-2" onSubmit={(event) => void requestProposal(event)}>
-                <label htmlFor="schema-proposal-request" className="grid gap-1 text-xs text-ij-ink-info">
-                  Schema change
-                  <textarea
-                    id="schema-proposal-request"
-                    value={proposalRequest}
-                    onChange={(event) => setProposalRequest(event.target.value)}
-                    placeholder="Declare customer email as a field"
-                    className="min-h-24 rounded-ij-arc border border-ij-control-border bg-ij-editor px-2 py-2 text-sm text-ij-ink focus:outline-2 focus:outline-ij-accent"
-                  />
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="submit"
-                    disabled={proposalBusy || !proposalRequest.trim()}
-                    className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover disabled:opacity-50"
-                  >
-                    Propose schema change
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProposalComposerOpen(false)}
-                    className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <h2 id="schema-action-heading" style={{ fontWeight: 'var(--rec-weight-cap)' }}>
-                    Schema actions
-                  </h2>
-                  <p className="text-sm text-ij-ink-info">
-                    Propose a declaration from the observed model.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setProposalComposerOpen(true)}
-                  className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright hover:bg-ij-accent-hover"
-                >
-                  Propose schema change
-                </button>
-              </div>
-            )}
-          </section>
-
-          {proposal ? (
-            <ProposalCard
-              draft={proposal}
-              busy={proposalBusy}
-              onAccept={() => void acceptProposal()}
-              onDecline={() => setProposal(null)}
-            />
-          ) : null}
-          {okfPreview ? (
-            <section className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-3" aria-label="OKF import preview">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="min-w-0 flex-1 text-sm text-ij-ink">
-                  OKF dry run: {okfPreview.diff.tables.added.length} tables added,
-                  {' '}{okfPreview.diff.tables.removed.length} removed, and
-                  {' '}{okfPreview.diff.fields.length} field groups changed.
-                  {' '}{okfPreview.server.changes.length} Rust model-profile declarations checked.
-                </p>
-                <button
-                  type="button"
-                  disabled={proposalBusy || !okfPreview.server.validation.conformant}
-                  onClick={() => void applyOkfImport()}
-                  className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
-                >
-                  Confirm import
-                </button>
-                <button
-                  type="button"
-                  disabled={proposalBusy}
-                  onClick={() => setOkfPreview(null)}
-                  className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 hover:bg-ij-hover-surface"
-                >
-                  Cancel
-                </button>
-              </div>
-              {okfPreview.server.changes.some((change) => change.status === 'conflict') ? (
-                <p className="mt-2 text-xs text-ij-warn">
-                  Registry conflicts: {
-                    okfPreview.server.changes
-                      .filter((change) => change.status === 'conflict')
-                      .map((change) => change.concept_id)
-                      .join(', ')
-                  }
-                </p>
-              ) : null}
-            </section>
-          ) : null}
-          {notice ? (
-            <div className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-2 text-ij-ink" role="status">
-              {notice}
-            </div>
-          ) : null}
-
-          <div className="min-h-0 flex-1">
-            {loading && topicId ? (
-              <div className="flex h-full items-center justify-center text-ij-ink-info">
-                Loading observed model.
-              </div>
-            ) : queryState.lens === 'diagram' ? (
-              <DiagramLens {...lensProps} />
-            ) : queryState.lens === 'fields' ? (
-              <FieldsTableLens {...lensProps} />
-            ) : (
-              <RecordsLens
-                observed={observed}
-                declared={declared}
-                selection={queryState.selection}
-                host={host}
-              />
-            )}
-          </div>
-        </main>
-        <ModelInspector
-          key={[
-            queryState.selection?.kind ?? 'none',
-            queryState.selection?.key ?? 'none',
-            declared.versions.at(-1)?.id ?? 'unversioned',
-          ].join(':')}
-          selection={queryState.selection}
-          observed={observed}
-          declared={declared}
-          fieldEditBusy={fieldEditBusy}
-          fieldEditError={fieldEditError}
-          onFieldEdit={(fieldId, replacement) => {
-            void applyFieldEdit(fieldId, replacement);
-          }}
-        />
+        </section>
+      ) : null}
+      {notice ? (
+        <div className="shrink-0 border-b border-ij-seam bg-ij-selection px-3 py-2 text-ij-ink" role="status">
+          {notice}
         </div>
-      </BlockShell>
+      ) : null}
+      <div className="min-h-0 flex-1">
+        {loading && topicId ? (
+          <div className="flex h-full items-center justify-center text-ij-ink-info">
+            Loading observed model.
+          </div>
+        ) : (
+          <DiagramLens {...lensProps} />
+        )}
+      </div>
       {diffOpen && leftVersion && rightVersion ? (
         <DiffDialog
           prev={declaredToModelGraph(declared, leftVersion)}

@@ -21,6 +21,9 @@ export type RunRailProps = {
   readonly onTweakTextChange: (value: string) => void;
   readonly onCodeSourceChange: (value: string) => void;
   readonly onRun: () => void;
+  readonly onValidate?: () => void;
+  readonly validationSummary?: string | null;
+  readonly validationNodeIds?: readonly string[];
   readonly onPin: (value: ProgramValueRef) => void;
   readonly onUnpin: () => void;
   readonly onResume: (answer: string) => void;
@@ -82,6 +85,9 @@ export function RunRail({
   onTweakTextChange,
   onCodeSourceChange,
   onRun,
+  onValidate,
+  validationSummary,
+  validationNodeIds,
   onPin,
   onUnpin,
   onResume,
@@ -105,14 +111,39 @@ export function RunRail({
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col overflow-auto border-l border-ij-seam bg-ij-chrome px-3 py-3 text-ij-ink">
       <h2 className="text-sm" style={{ fontWeight: 'var(--rec-weight-cap)' as never }}>Playground</h2>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={onRun}
-        className="mt-3 h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
-      >
-        {busy ? 'Running' : 'Run program'}
-      </button>
+      <div className="mt-3 grid gap-2">
+        {onValidate ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onValidate}
+            className="h-ij-control rounded-ij-arc border border-ij-control-border px-3 text-sm hover:bg-ij-hover-surface disabled:opacity-50"
+          >
+            {busy ? 'Working…' : 'Validate'}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onRun}
+          className="h-ij-control rounded-ij-arc bg-ij-accent px-3 text-ij-ink-bright disabled:opacity-50"
+        >
+          {busy ? 'Running' : 'Run program'}
+        </button>
+      </div>
+      {validationSummary ? (
+        <section className="mt-3 grid gap-1 border-t border-ij-seam pt-3" aria-label="Validation receipt">
+          <p className="text-xs text-ij-ink-info">Pre-run validation</p>
+          <p className="text-sm text-ij-ink">{validationSummary}</p>
+          {validationNodeIds && validationNodeIds.length > 0 ? (
+            <ul className="font-ij-mono text-xs text-ij-warn" data-mono-ok>
+              {validationNodeIds.map((nodeId) => (
+                <li key={nodeId}>{nodeId}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
       <ul className="mt-3 flex flex-wrap gap-2 font-ij-mono text-xs text-ij-ink-info" data-mono-ok>
         {Object.entries(counts).map(([state, count]) => (
           <li key={state}>{state}: {count}</li>

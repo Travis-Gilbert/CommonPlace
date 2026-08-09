@@ -397,6 +397,213 @@ export async function validateCompilerProposal(
   return callProgramGraph('compiler', { proposal });
 }
 
+export type ProgramValidationResult = {
+  readonly ok: true;
+  readonly receipt: {
+    readonly program_id: string;
+    readonly checks: ReadonlyArray<{ readonly requirement: string; readonly passed: boolean }>;
+  };
+} | {
+  readonly ok: false;
+  readonly code: string;
+  readonly message: string;
+  readonly nodeIds: readonly string[];
+};
+
+/** True when validation must block Run (ARD D24). */
+export function shouldBlockRunAfterValidation(
+  result: ProgramValidationResult,
+): boolean {
+  if (!result.ok) return true;
+  return result.receipt.checks.some((check) => !check.passed);
+}
+
+/** Pre-run validate (ARD D24). Uses programmable_graph action `validate`. */
+export async function validateProgramDefinition(
+  definition: ProgramDefinition,
+): Promise<ProgramValidationResult> {
+  const response = await fetch('/api/harness/programmable-graph', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tool: 'programmable_graph',
+      action: 'validate',
+      args: { definition, program: definition },
+    }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    return {
+      ok: false,
+      code: 'programmable_graph_http',
+      message: typeof payload.error === 'string' ? payload.error : `validate_${response.status}`,
+      nodeIds: [],
+    };
+  }
+  if (payload.ok === false) {
+    const refusal = payload.refusal as
+      | { message?: string; code?: string; node_ids?: unknown }
+      | undefined;
+    const nodeIds = Array.isArray(refusal?.node_ids)
+      ? refusal!.node_ids!.map(String)
+      : [];
+    return {
+      ok: false,
+      code: refusal?.code ?? 'validate_refused',
+      message: refusal?.message ?? 'Program validation refused',
+      nodeIds,
+    };
+  }
+  const nested = (payload.result && typeof payload.result === 'object' && !Array.isArray(payload.result)
+    ? payload.result
+    : payload) as Record<string, unknown>;
+  const checks = Array.isArray(nested.checks)
+    ? nested.checks.flatMap((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+        const row = item as Record<string, unknown>;
+        if (typeof row.requirement !== 'string') return [];
+        return [{ requirement: row.requirement, passed: row.passed !== false }];
+      })
+    : [];
+  return {
+    ok: true,
+    receipt: {
+      program_id: typeof nested.program_id === 'string' ? nested.program_id : '',
+      checks,
+    },
+  };
+}
+
+export type CommandGalleryEntry = {
+  readonly kind: 'command' | 'monitor_template';
+  readonly slugOrName: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly programId?: string;
+  readonly publicationRef?: string;
+  readonly parentProgramId?: string;
+  readonly validationPassed?: boolean;
+  readonly validationChecks?: readonly string[];
+  readonly source: 'substrate' | 'LocalDevCommandGallery';
+};
+
+const LOCAL_DEV_COMMAND_GALLERY: readonly CommandGalleryEntry[] = [
+  {
+    kind: 'monitor_template',
+    slugOrName: 'Price watch',
+    title: 'Price watch',
+    summary: 'LocalDevCommandGallery stand-in: watch a product page price.',
+    programId: 'program:price-watch',
+    validationPassed: true,
+    validationChecks: ['program_identity', 'standing_budget', 'typed_stream_edges'],
+    source: 'LocalDevCommandGallery',
+  },
+  {
+    kind: 'monitor_template',
+    slugOrName: 'Content watch',
+    title: 'Content watch',
+    summary: 'LocalDevCommandGallery stand-in: watch page body hash.',
+    programId: 'program:content-watch',
+    validationPassed: true,
+    validationChecks: ['program_identity', 'standing_budget'],
+    source: 'LocalDevCommandGallery',
+  },
+  {
+    kind: 'monitor_template',
+    slugOrName: 'Release watch',
+    title: 'Release watch',
+    summary: 'LocalDevCommandGallery stand-in: watch releases/changelog URL.',
+    programId: 'program:release-watch',
+    validationPassed: true,
+    validationChecks: ['program_identity', 'standing_budget'],
+    source: 'LocalDevCommandGallery',
+  },
+];
+
+function mapGalleryEntry(raw: Record<string, unknown>): CommandGalleryEntry | null {
+  const kindRaw = String(raw.kind ?? '');
+  const kind: CommandGalleryEntry['kind'] =
+    kindRaw === 'command' || kindRaw === 'Command' ? 'command' : 'monitor_template';
+  const slugOrName = String(raw.slug_or_name ?? raw.slugOrName ?? raw.name ?? '').trim();
+  if (!slugOrName) return null;
+  const validation = raw.validation && typeof raw.validation === 'object' && !Array.isArray(raw.validation)
+    ? raw.validation as Record<string, unknown>
+    : null;
+  const checks = Array.isArray(validation?.checks)
+    ? validation!.checks!.flatMap((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+        const row = item as Record<string, unknown>;
+        return typeof row.requirement === 'string' ? [row.requirement] : [];
+      })
+    : [];
+  const validationPassed = checks.length === 0
+    ? true
+    : checks.every((_, index) => {
+        const item = (validation!.checks as unknown[])[index];
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return true;
+        return (item as { passed?: boolean }).passed !== false;
+      });
+  return {
+    kind,
+    slugOrName,
+    title: String(raw.title ?? slugOrName),
+    summary: String(raw.summary ?? raw.intent ?? ''),
+    programId: typeof raw.program_id === 'string'
+      ? raw.program_id
+      : typeof raw.programId === 'string'
+        ? raw.programId
+        : undefined,
+    publicationRef: typeof raw.publication_ref === 'string'
+      ? raw.publication_ref
+      : typeof raw.publicationRef === 'string'
+        ? raw.publicationRef
+        : undefined,
+    parentProgramId: typeof raw.parent_program_id === 'string'
+      ? raw.parent_program_id
+      : typeof raw.parentProgramId === 'string'
+        ? raw.parentProgramId
+        : undefined,
+    validationPassed,
+    validationChecks: checks,
+    source: 'substrate',
+  };
+}
+
+/** List published commands + monitor templates via MCP `gallery`. */
+export async function fetchCommandGallery(): Promise<readonly CommandGalleryEntry[]> {
+  try {
+    const data = await callProgramGraph('gallery');
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    const mapped = entries.flatMap((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+      const entry = mapGalleryEntry(item as Record<string, unknown>);
+      return entry ? [entry] : [];
+    });
+    return mapped.length > 0 ? mapped : LOCAL_DEV_COMMAND_GALLERY;
+  } catch {
+    return LOCAL_DEV_COMMAND_GALLERY;
+  }
+}
+
+/** Fork a gallery monitor template via MCP `gallery_fork` (not orphan program.fork). */
+export async function forkGalleryTemplate(input: {
+  readonly parentProgramId: string;
+  readonly name: string;
+  readonly intent?: string;
+}): Promise<ProgramDefinition> {
+  const data = await callProgramGraph('gallery_fork', {
+    parent_program_id: input.parentProgramId,
+    name: input.name,
+    intent: input.intent ?? `Fork of ${input.name}`,
+    publish: false,
+  });
+  const program = data.program ?? data;
+  if (!program || typeof program !== 'object' || Array.isArray(program)) {
+    throw new Error('gallery_fork_missing_program');
+  }
+  return program as ProgramDefinition;
+}
+
 export async function forkProgramDefinition(
   definition: ProgramDefinition,
   name: string,
