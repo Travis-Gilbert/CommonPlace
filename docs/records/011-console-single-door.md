@@ -60,15 +60,18 @@ graph search). `THEOREM_NODE_URL` aimed at the wrong public host was the bug.
 | --- | --- |
 | Board via data API | `indexer-harness.ts` uses `consumerGraphqlUrl()` → `CONSOLE_DATA_API_URL`; no `CONSOLE_HARNESS_*` on that path |
 | Search via data API | `web-research.ts` / Indexer live search call `rustyWebSearch` on the data API |
+| Models via data API | `observed-model-harness.ts` uses the authenticated consumer HTTP GraphQL client; authenticated `LocalDevDeclaredModelStore` substitution is allowed only outside production when no consumer endpoint is configured |
+| OKF via data API | `/api/observed-model/okf` calls consumer `okfModel` and `okfModelApply` fields |
+| Models deny-list | `gate:models-data-door` rejects agent-door imports and endpoint references across the Models route family and its consumer transport adapter |
 | One data URL | Railway console: `CONSOLE_DATA_API_URL` reference to commonplace-api; `THEOREM_NODE_URL` and `THEOREM_GRAPHQL_URL` removed |
-| Payload parity | `tests/topic_indexer_objects_acceptance.rs` compares shared payload vs consumer field |
-| No client tenant | SDL field signatures for `topicIndexerObjects` and `rustyWebSearch` omit tenant/actor/project |
+| Payload parity | `tests/topic_indexer_objects_acceptance.rs` and `tests/schema_model_acceptance.rs` compare shared payloads with consumer fields |
+| No client tenant | SDL field signatures for Indexer, search, Models, and OKF omit tenant/actor/project |
 | Tenancy seam | `derive_tenant_from_session` in `tenancy.rs`; interim returns credential tenant |
 
 ## Named agent-door exceptions (still MCP)
 
 These remain on `CONSOLE_HARNESS_URL` + `CONSOLE_HARNESS_TOKEN` until a later
-data-tier fill:
+data-tier fill. Models and OKF are explicitly not exceptions:
 
 - Plan / Goal Stack (`/api/harness/plan`)
 - Programmable graph (`/api/harness/program`)
