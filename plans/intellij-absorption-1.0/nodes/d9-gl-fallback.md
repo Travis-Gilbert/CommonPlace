@@ -31,7 +31,13 @@ Root cause: floem-renderer's device request uses default limits (compute 65535);
 
 ## Discharge
 
-PENDING — decision not yet taken. Blocked on nothing; sequenced after v-ws-integration (it does not gate the integration wave; WebGPU path is healthy).
+PENDING — decision not yet taken. Investigation advanced to the floem source (2026-08-10):
+
+- `gpu_resources.rs:89-118` — first device request uses `Limits::default()` (compute 65535); on error, retry uses `Limits::downlevel_defaults()`. `required_features` comes from the app config (`app_handle.rs:473` `self.config.wgpu_features`).
+- wgpu-types 24.0.0 (the resolved version in the merged lockfile): `downlevel_defaults()` sets `max_compute_workgroups_per_dimension: 0` — so the retry's limits should pass on WebGL2, yet the observed failure still reports `requested: 65535`. **Investigation stopped here** (why the retry reports the first request's limit is an open wgpu-core question — start at `wgpu-core-24.0.5` web/GL backend `request_device`; candidates: limits re-validated against defaults, or the error is re-reported from the first attempt).
+- Decision options and the floem-patch shape are recorded in the Options section above; the patch work (if chosen) is a floem fork/patch-crate task, not this decision node.
+
+STATE: parked (2026-08-10) — decision + the retry-mystery investigation handed to the next agent; evidence complete in G0-VERIFY.md O-G.4. The decision does NOT gate any other node (WebGPU path healthy).
 
 ## Scope
 
