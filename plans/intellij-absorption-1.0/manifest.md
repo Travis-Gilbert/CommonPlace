@@ -24,14 +24,15 @@ Fixpoint: every node's obligations discharged with replayable evidence; S0 repor
 | ws-integration | work | agent | REFINED into ws-merge + ide-proxy-fold + g0-verify (+ v-ws-integration). Fork crates merge into rustyredcore_THG as theorem-ide-app/rpc/proxy/core; IDE proxy folds into theorem binary; g0 carry-forward verify items. | refined (children claimed 2026-08-10) |
 | ws-merge | work | agent | Move+rename fork crates into rustyredcore_THG (theorem-ide-app/rpc/proxy/core); path deps; floem pin travels; fork pruned; wasm-serve re-pointed; register manifest + provenance records. | done (2026-08-10; checks + syntax tests green; app checks closed via g0-verify) |
 | ide-proxy-fold | work | agent | theorem ide-proxy subcommand: CLI's store instance → AgentFsHost/HostFs → serve_ws; one store handle. Depends on ws-merge. | parked (weather: mcp tree unparseable + disk; code landed, check pending) |
-| g0-verify | work | agent | g0 carry-forward items on the merged build: a11y decision, wasm Clipboard adapter, keystroke budget, GL fallback, real-OS IME protocol. Depends on ws-merge. | done (2026-08-10; 2 executed, 2 protocol-deferred, 1 partial; app checks green) |
+| g0-verify | work | agent | g0 carry-forward items on the merged build: a11y decision, wasm Clipboard adapter, keystroke budget, GL fallback, real-OS IME protocol. Depends on ws-merge. | done (2026-08-10; O-G.1/2/5 executed, O-G.3 PASS median 9.9/p95 15.0ms, O-G.4 FAIL root-caused → d9-gl-fallback; app checks green) |
+| d9-gl-fallback | decision | agent | GL fallback policy: floem requests default limits (compute 65535); WebGL2 grants 0 → device creation fails at floem pin 31fa8f44; WebGPU control PASS. Decide: patch floem (downlevel-webgl2 limits + compute-path audit + harden unwrap) vs require WebGPU. Evidence: G0-VERIFY.md O-G.4. | charted (2026-08-10, evidence recorded) |
 | v-ws-integration | verify | agent | Verify the integration wave: light checks, theorem-cli check, records, deferral protocols. | pending (blocked on ide-proxy-fold) | |
 
 ## Edges
 
 ## Edges
 
-start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + ws-transport) -> ws-integration.
+start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + ws-transport) -> ws-integration; g0-verify -> d9-gl-fallback (charted 2026-08-10: GL fallback policy; evidence G0-VERIFY.md O-G.4).
 
 Post-gate wave claimed 2026-08-10 (per user: keep implementing the rest of the plan): p-l3, theorem-proxy, d7, d7m, d8, token-kernel claimed; verify siblings pending; ws-integration blocked on its dependencies.
 
