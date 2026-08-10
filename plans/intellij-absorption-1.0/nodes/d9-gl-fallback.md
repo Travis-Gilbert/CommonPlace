@@ -2,7 +2,7 @@
 
 - kind: decision
 - controller: agent
-- gist: The GL/WebGL2 web backend engages on the merged build but cannot create a wgpu device because floem requests default limits (compute workgroups 65535) and WebGL2 grants 0. Decide the fallback policy: patch floem vs require WebGPU.
+- gist: The GL/WebGL2 backend engages, but Floem's retry is GLES-3.1 rather than WebGL2-safe; a safe-limits live probe then reaches two structural renderer barriers. Policy decided: the browser IDE requires WebGPU at this pin.
 - provenance: g0-verify O-G.4 (EXECUTED 2026-08-10); parent evidence `Theorem/docs/plans/intellij-absorption/G0-VERIFY.md` O-G.4; charted as a decision row, not wave-5 scope (floem is an upstream git dep at Lapce's pin 31fa8f444c37f4c314f47d88c23ffdbc25f2ab53).
 
 ## The finding (evidence, not opinion)
@@ -18,6 +18,12 @@ On the merged `theorem-ide-app` wasm bundle, headed Chrome for Testing 1234:
 
 Root cause: floem-renderer's device request uses default limits (compute 65535); the wgpu GL backend reports compute limits 0 (WebGL2 has no compute shaders). The renderer cannot create a device on GL at this floem pin.
 
+## Decision (2026-08-10)
+
+**Require WebGPU for the browser IDE at floem pin `31fa8f44`.** Do not claim a GL/WebGL2 fallback. The healthy WebGPU/Metal control remains the supported browser path.
+
+The one-line limits patch is necessary but not sufficient. A true no-WebGPU fallback would require a separate renderer project: choose the renderer before wgpu claims the canvas, then either route to TinySkia/Canvas2D without creating a WebGL surface or supply a WebGL-compatible renderer that does not require vertex storage buffers. That work is not a safe dependency patch and is not required by any dependent node on this board.
+
 ## Options (for the deciding session)
 
 1. **Require WebGPU (status quo).** Record the GL-fallback acceptance item as failed-at-pin with this evidence; the browser IDE targets WebGPU-capable Chromium (the realistic host). Zero work; the acceptance item converts to "WebGPU required", documented.
@@ -31,13 +37,34 @@ Root cause: floem-renderer's device request uses default limits (compute 65535);
 
 ## Discharge
 
-PENDING — decision not yet taken. Investigation advanced to the floem source (2026-08-10):
+GATE PASSED (2026-08-10). All decision obligations have replayable evidence:
 
-- `gpu_resources.rs:89-118` — first device request uses `Limits::default()` (compute 65535); on error, retry uses `Limits::downlevel_defaults()`. `required_features` comes from the app config (`app_handle.rs:473` `self.config.wgpu_features`).
-- wgpu-types 24.0.0 (the resolved version in the merged lockfile): `downlevel_defaults()` sets `max_compute_workgroups_per_dimension: 0` — so the retry's limits should pass on WebGL2, yet the observed failure still reports `requested: 65535`. **Investigation stopped here** (why the retry reports the first request's limit is an open wgpu-core question — start at `wgpu-core-24.0.5` web/GL backend `request_device`; candidates: limits re-validated against defaults, or the error is re-reported from the first attempt).
-- Decision options and the floem-patch shape are recorded in the Options section above; the patch work (if chosen) is a floem fork/patch-crate task, not this decision node.
+- [x] **O-D9.1: explain `requested: 65535`.** Pinned wgpu-types `24.0.0` source, `src/lib.rs:1297-1419`, proves `Limits::downlevel_defaults()` is the GLES-3.1/D3D11 profile and retains `max_compute_workgroups_per_dimension: 65535`; only `downlevel_webgl2_defaults()` sets the compute family to zero. The parked record's claim that `downlevel_defaults()` used zero was false. No wgpu-core re-reporting mystery exists.
+- [x] **O-D9.2: test the bounded limits repair on the real app.** A temporary copy of floem `31fa8f44` changed only the retry at `renderer/src/gpu_resources.rs:114` to `Limits::downlevel_webgl2_defaults()`. The release wasm build completed (`Finished release profile [optimized]`), and the committed page-level `navigator.gpu`-shadow oracle was replayed in headed Chrome for Testing 1234.
+- [x] **O-D9.3: identify the next layer.** The patched trace contains no `LimitsExceeded`/`65535`; device creation therefore passed. Vger then refused `adapter doesn't support required downlevel flags` because it requires `DownlevelFlags::VERTEX_STORAGE` (`vger/src/lib.rs:59-69`) and its pinned shaders use storage buffers. Floem's TinySkia fallback then failed because wgpu had already created a WebGL context on the same canvas: `A canvas context other than CanvasRenderingContext2d was already created`.
+- [x] **O-D9.4: take the policy decision.** WebGPU is required at this pin. A future no-WebGPU fallback must be charted as renderer architecture, not described as a limits patch.
+- [x] **O-D9.5: preserve proof.** Patched-run console and screenshot: `evidence/d9-gl-fallback/console-webgl2-safe-limits.log` and `evidence/d9-gl-fallback/render-webgl2-safe-limits.png`. Original failing trace remains in the fork and G0 record.
 
-STATE: parked (2026-08-10) — decision + the retry-mystery investigation handed to the next agent; evidence complete in G0-VERIFY.md O-G.4. The decision does NOT gate any other node (WebGPU path healthy).
+Proof command and output:
+
+```text
+! rg -q 'LimitsExceeded|requested: 65535' /tmp/d9-gl-probe/console.log \
+  && rg -q "adapter doesn't support required downlevel flags" /tmp/d9-gl-probe/console.log \
+  && rg -q 'CanvasRenderingContext2d.*already created' /tmp/d9-gl-probe/console.log \
+  && echo 'PASS: WebGL2-safe limits cleared device creation and exposed the Vger and canvas-context barriers'
+
+PASS: WebGL2-safe limits cleared device creation and exposed the Vger and canvas-context barriers
+```
+
+STATE: done (2026-08-10) — decision sealed; no dependent node was blocked, and the supported WebGPU path remains healthy.
+
+## Released claim
+
+- occupant: `/root` (Codex)
+- occupied_at: `2026-08-10T18:50:14-04:00`
+- released_at: `2026-08-10T19:07:20-04:00`
+- scope: this decision record plus `manifest.md`, `replay.md`, `edges.md`, `lessons.md`, `CONTINUITY.md`, and `evidence/d9-gl-fallback/*`; read-only inspection of the pinned floem/wgpu sources and existing G0 runtime evidence
+- program: resolve why the floem retry still surfaces `requested: 65535`, then take and discharge the GL fallback policy decision without modifying floem or dependency pins in this node
 
 ## Scope
 

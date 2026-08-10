@@ -1,4 +1,4 @@
-# CONTINUITY — next session brief (2026-08-10, end of session 6: wave 5 SEALED, wave 6 charted, two parks)
+# CONTINUITY — next session brief (2026-08-10, session 7: d9 decision SEALED)
 
 ## Where we are
 
@@ -9,7 +9,7 @@ Plan `intellij-absorption-1.0`. S0 spike closed; post-gate wave closed (d8/d7/d7
 - **v-ws-integration DONE, GATE PASSED-with-deferral (session 6)** — light checks re-run green; inspect items verified (floem pin substrate Cargo.toml:233, fork pruned, wasm-serve re-pointed, ledger + rename table); theorem-cli check re-attempted and **still blocked on weather**: `rustyred-thg-mcp` lib.rs unparseable (unclosed delimiter l.41101, brace balance 4) under another agent's in-flight refactor. Named deferral + resume path recorded in the node.
 - **Wave 6 CHARTED (session 6)**: `p-l3-exec` (K2/K5/K6 probe executions), `token-kernel-binding` (floem Style-chain binding, CSS/Rust dialects, light-theme activation in fork, unit tests), `console-host` (wasm frontend in the console surface — weather, apps/console is under other-agent churn). `d9-gl-fallback` charted earlier.
 - **ide-proxy-fold PARKED (weather, unchanged)** — `theorem ide-proxy` code LANDED; check + smoke blocked on the same mcp tree.
-- **d9-gl-fallback PARKED (session 6, with stop point)** — decision pending; floem source read confirms fix shape (gpu_resources.rs:89-118: first attempt `Limits::default()` compute 65535, retry `downlevel_defaults()` compute 0 in wgpu-types 24.0.0 — yet the retry still reports `requested: 65535`; **open question: why — start at wgpu-core-24.0.5 web/GL backend request_device**). Decision options + floem-patch shape in the node. Does NOT gate anything.
+- **d9-gl-fallback DONE, decision SEALED (session 7)** — the retry mystery was a false source premise: wgpu-types 24 `downlevel_defaults()` retains compute 65535. A temporary `downlevel_webgl2_defaults()` patch cleared device creation in the real headed-browser oracle, then exposed two structural barriers: Vger requires `VERTEX_STORAGE`, and TinySkia cannot acquire Canvas2D after wgpu owns the same canvas with WebGL. Policy: **WebGPU required at floem 31fa8f44; no GL fallback claim**. Evidence in `evidence/d9-gl-fallback/`. Does not gate anything.
 
 ## Session-6.5 update (token-kernel-binding executed in parallel)
 
@@ -24,7 +24,7 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 
 ## The one line that matters for the next head
 
-**Wave 5 is sealed with numbers. The next session has four open threads: (1) resume ide-proxy-fold when the mcp tree parses (theorem-cli check → `--help` → smoke → AgentFs one-store seam `serve_ws_with_backend`); (2) decide d9-gl-fallback (or delegate the retry-mystery investigation); (3) start wave 6 — p-l3-exec and token-kernel-binding are the unblocked ones (console-host waits on apps/console weather); (4) the real-OS IME manual verify (needs a CJK font + human at the keyboard).**
+**Wave 5 and d9 are sealed with live evidence. The next session has three open threads: (1) resume ide-proxy-fold when the mcp tree parses (theorem-cli check → `--help` → smoke → AgentFs one-store seam `serve_ws_with_backend`); (2) continue wave 6 — p-l3-exec and the parked floem slice of token-kernel-binding are unblocked (console-host waits on apps/console weather); (3) the real-OS IME manual verify (needs a CJK font + human at the keyboard).**
 
 ## Commits this session
 
@@ -34,7 +34,7 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 
 ## Environment (MANDATORY — machine OOM'd twice historically; now healthy)
 
-- EVERY cargo invocation needs `CARGO_TARGET_DIR=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target` + `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home` (SSD target configured globally). Disk fine (7Gi free at session end).
+- Rechecked during d9: the system volume has only ~4.8Gi free while `/Volumes/SSD Samsung` has ~704Gi free. Heavy builds must use an explicit SSD-backed `CARGO_TARGET_DIR`; the prior system-target instruction is superseded. Keep `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home` and `CARGO_BUILD_JOBS=4` max.
 - `cargo +1.96.1`, check/test only, `-j 4`. wasm32 needs the S0 CC recipe. wasm-bindgen CLI from `.cargo-home/bin` (0.2.126).
 - After ANY dependency-source edit: `rm -rf` affected wasm32 artifacts (cargo 1.96 fingerprints miss dep edits).
 
@@ -45,7 +45,6 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 ## Remains (recorded, not lost)
 
 - ide-proxy-fold resume (mcp-weather trigger; resume path in v-ws-integration node + IDE-PROXY-FOLD.md; honest gap: AgentFsBackend opens its own session store — backend-injection seam `serve_ws_with_backend` is the named remain).
-- d9-gl-fallback: decision + retry-mystery (wgpu-core-24.0.5 web/GL request_device).
 - g0-verify: real-OS IME manual verify (CJK font first — DejaVu has no CJK).
 - Wave 6: p-l3-exec (K2 matcher-gap fixtures, K5 chord semantics, K6 driver traces — probes in P-L3-PROBE.md) is the next unblocked node; token-kernel-binding: dialects + light theme + workspace tests DONE, floem Style-chain binding + fork activation remain parked (shared-build contention; needs a disk-quiet session).
 - console-host: weather (apps/console churn).
@@ -53,7 +52,7 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 
 ## Pitfalls (don't re-discover)
 
-- GL fallback: CfT 1234 ignores `--disable-features=WebGPU` AND `--disable-webgpu`; `--disable-gpu` kills WebGL2 too; working forcing method = page-level `navigator.gpu` shadow (baked into gl-fallback.js). GL renders only via WebGPU at floem pin 31fa8f44 (compute limits).
+- GL fallback: CfT 1234 ignores `--disable-features=WebGPU` AND `--disable-webgpu`; `--disable-gpu` kills WebGL2 too; working forcing method = page-level `navigator.gpu` shadow (baked into gl-fallback.js). WebGPU is required at floem 31fa8f44. `downlevel_webgl2_defaults()` clears device creation but cannot make Vger or TinySkia render on the already WebGL-owned canvas; see the sealed d9 node before proposing a limits-only patch.
 - Cargo 1.96 fingerprints miss dependency-source edits — rm -rf affected artifacts. wasm32 check REQUIRES the S0 CC recipe even for check.
 - Verification scripts: dump ALL console lines; pixel-distinctness alone is a false-positive render oracle (canvas-region probe + no-panics gate).
 - Headed Chrome only (WebGPU); tree clicks: cls threshold >55 + 2-of-5 + collapse-recovery; wire signals (`new_buffer`, `update`) are the success oracle, not editor pixels.

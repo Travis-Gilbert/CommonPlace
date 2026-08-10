@@ -28,20 +28,20 @@ Fixpoint: every node's obligations discharged with replayable evidence; S0 repor
 | ws-merge | work | agent | Move+rename fork crates into rustyredcore_THG (theorem-ide-app/rpc/proxy/core); path deps; floem pin travels; fork pruned; wasm-serve re-pointed; register manifest + provenance records. | done (2026-08-10; checks + syntax tests green; app checks closed via g0-verify) |
 | ide-proxy-fold | work | agent | theorem ide-proxy subcommand: CLI's store instance → AgentFsHost/HostFs → serve_ws; one store handle. Depends on ws-merge. | parked (weather: mcp tree unparseable + disk; code landed, check pending) |
 | g0-verify | work | agent | g0 carry-forward items on the merged build: a11y decision, wasm Clipboard adapter, keystroke budget, GL fallback, real-OS IME protocol. Depends on ws-merge. | done (2026-08-10; O-G.1/2/5 executed, O-G.3 PASS median 9.9/p95 15.0ms, O-G.4 FAIL root-caused → d9-gl-fallback; app checks green) |
-| d9-gl-fallback | decision | agent | GL fallback policy: floem requests default limits (compute 65535); WebGL2 grants 0 → device creation fails at floem pin 31fa8f44; WebGPU control PASS. Decide: patch floem (downlevel-webgl2 limits + compute-path audit + harden unwrap) vs require WebGPU. Evidence: G0-VERIFY.md O-G.4. | parked (2026-08-10; investigation stopped at wgpu-core retry question — next agent) |
+| d9-gl-fallback | decision | agent | GL fallback policy: the retry uses GLES-3.1 limits, not WebGL2-safe limits; a safe-limits live probe clears device creation but Vger requires vertex storage and TinySkia cannot reuse the WebGL-owned canvas. | done (2026-08-10; WebGPU required at floem 31fa8f44; future fallback is renderer architecture, not a limits patch) |
 | v-ws-integration | verify | agent | Verify the integration wave: light checks, theorem-cli check, records, deferral protocols. | done (2026-08-10; GATE PASS-with-deferral: light checks green, theorem-cli check deferred on mcp-weather trigger) | |
 
 ## Edges
 
 ## Edges
 
-start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + ws-transport) -> ws-integration; g0-verify -> d9-gl-fallback (charted 2026-08-10: GL fallback policy; evidence G0-VERIFY.md O-G.4); ws-integration -> wave-6 chart (p-l3-exec, token-kernel-binding, console-host; d9 pending decision).
+start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + ws-transport) -> ws-integration; g0-verify -> d9-gl-fallback -> terminal (decision sealed 2026-08-10: WebGPU required at current floem pin); ws-integration -> wave-6 chart (p-l3-exec, token-kernel-binding, console-host).
 
 Post-gate wave claimed 2026-08-10 (per user: keep implementing the rest of the plan): p-l3, theorem-proxy, d7, d7m, d8, token-kernel claimed; verify siblings pending; ws-integration blocked on its dependencies.
 
 ## Budget clock
 
-Sessions so far: 5 (charting, S0.1/S0.2, S0.3 diagnosis, S0.3 close, post-gate wave). OOMs: 2 (both cargo target-volume on /Volumes/SSD Samsung). SSD cargo target is 100% FULL (366Mi free) as of 2026-08-10 — ALL builds this wave MUST override CARGO_TARGET_DIR to the system disk (~31Gi free): `/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target`. Use cargo check/test only, -j 4 max. Disk pressure shared — free only your own stale artifacts.
+Sessions so far: 7 (through d9 decision closure). OOMs: 2 historical. Rechecked 2026-08-10 during d9: `/Volumes/SSD Samsung` has ~704Gi free; the system volume has ~4.8Gi free. Heavy builds must use an explicit SSD-backed `CARGO_TARGET_DIR` and `CARGO_BUILD_JOBS=4` max; do not follow the superseded system-disk instruction. The d9 probe used `/Volumes/SSD Samsung/theorem-builds/d9-gl-probe-target` successfully. Disk pressure is shared: clear only artifacts you own.
 
 ## Provenance
 

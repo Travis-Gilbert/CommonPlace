@@ -66,3 +66,6 @@ Handoff: a11y decision recorded (focus model = attach seam); WebClipboard adapte
 
 ## (theorem-proxy + d7m + token-kernel + websocket transport) -> ws-integration
 Handoff: merge fork crates into rustyredcore_THG as theorem-ide-app/rpc/proxy (rename; name-collision resolution), IDE proxy folds into theorem binary (one process, one store handle), websocket transport for ProxyMessage, g0 carry-forward verify items (real-OS IME first). BLOCKED on dependencies.
+
+## g0-verify -> d9-gl-fallback -> terminal (decision sealed 2026-08-10)
+Handoff: read the d9 derivation manifest and `evidence/d9-gl-fallback/`. Decided: WebGPU is required for the browser IDE at floem `31fa8f44`; do not advertise GL fallback. Remains: none for this decision or its dependents. If no-WebGPU browser support becomes a requirement, chart a new renderer-architecture node that selects TinySkia before wgpu surface creation or supplies a storage-buffer-free WebGL renderer. Learned: wgpu-types 24 `downlevel_defaults()` retains compute 65535; the one-line WebGL2 limits patch merely reveals Vger vertex-storage incompatibility and same-canvas context ownership.
