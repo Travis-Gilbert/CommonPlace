@@ -10,20 +10,26 @@ Fixpoint: every node's obligations discharged with replayable evidence; S0 repor
 | g0-island-probe | probe | agent | Browser probe of the workbench at fork pin; six-point acceptance (IME first, shaping, GL fallback, one-frame keystroke budget, copy/paste/scroll, a11y decision). Rescoped: target is the forked lapce-app in browser, not bare floem island. | superseded-by-s0 (rescope recorded) |
 | s0-lapce-spike | work | agent | Hard-fork lapce/lapce at c9e4c339 into apps/theorem-ide; sever lapce-app from lapce-proxy; compile wasm32; boot in browser vs StubProxy. S0.1 PASS, S0.2 PASS, S0.3 PASS (2026-08-10). | done |
 | v-s0 | verify | agent | Runs the declared proof commands for s0 (compile matrix rows M1-M3, headed-browser acceptance, evidence file) and gates. GATE PASSED 2026-08-10; verdicts S0.1/S0.2/S0.3 PASS; kill criteria not triggered. | done |
-| p-l3 | probe | agent | K8 retargets onto Lapce's editor behavior layer (post-gate). | pending |
-| theorem-proxy | work | agent | Fork lapce-proxy; WorkspaceBackend trait; AgentFs impl over AgentFsHost; fold into theorem binary (post-gate). | pending |
-| d7 | decision | agent | Single text algebra: rustyred-thg-text-model re-backs on lapce-xi-rope; RopeDelta is wire/compute/rebase algebra; substrate owns durable delta encoding (post-gate). | pending |
-| d8 | decision | agent | vfs/agentfs layering read + one-paragraph decision (post-gate). | pending |
-| token-kernel | work | agent | Typed Space/Inset/Surface kernel; Int UI theme crate binding; generated Lapce theme file (post-gate). | pending |
-| ws-integration | work | agent | Fork crates merge into rustyredcore_THG workspace as theorem-ide-app/rpc/proxy (post-gate). | pending |
+| p-l3 | probe | agent | K8 retargets onto Lapce's editor behavior layer; IdeaVim corpus map; K2/K5/K6 upgrade-decision probes. | done (2026-08-10; evidence P-L3-PROBE.md) |
+| theorem-proxy | work | agent | WorkspaceBackend trait at dispatch.rs file layer; HostFs stock-preserving; AgentFs over AgentFsHost (handoff mapping table); LSP/PTY/git over fuse_host; fold into theorem binary at ws-integration. | done (2026-08-10; check + 14/14 tests; evidence THEOREM-PROXY.md) |
+| v-theorem-proxy | verify | agent | Verify sibling for theorem-proxy: check green, mapping tests, evidence complete. | GATE PASSED 2026-08-10 |
+| d7 | decision | agent | D7 single text algebra decision recorded + fleet manifest amendment row (ropey superseded by lapce-xi-rope, clause still satisfied). | done (2026-08-10) |
+| d7m | work | agent | Text-model migration (shrink, not rewrite): re-back rustyred-thg-text-model on lapce-xi-rope; RopeDelta algebra; fixture suite is the gate; substrate-owned durable delta encoding. | done (2026-08-10; 16/16 tests) |
+| v-d7m | verify | agent | Verify sibling for d7m: fixture suite green on xi-rope, encoding tests green, affinity decision recorded. | GATE PASSED 2026-08-10 |
+| d8 | decision | agent | vfs/agentfs layering read + one-paragraph decision (under or beside agentfs for workspaces). | done (2026-08-10; BESIDE; consumed by theorem-proxy) |
+| token-kernel | work | agent | Typed Space/Inset/Surface kernel (theorem-style, framework-free); Int UI theme crate binding; generated Lapce theme file; K1 token source seeded (int-ui-standalone home absent). | done (2026-08-10; schema MATCH 165 keys; evidence TOKEN-KERNEL.md) |
+| v-token-kernel | verify | agent | Verify sibling for token-kernel: checks green, theme file valid against fork schema, provenance recorded. | GATE PASSED 2026-08-10 |
+| ws-integration | work | agent | Fork crates merge into rustyredcore_THG as theorem-ide-app/rpc/proxy; IDE proxy folds into theorem binary; websocket transport; g0 carry-forward verify items. Depends on theorem-proxy + d7m + token-kernel + transport. | pending (unblocked: all three deps now done; websocket transport remains charted-in) | |
 
 ## Edges
 
-start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; post-gate: theorem-proxy, d7, d8, token-kernel, ws-integration (chart as nodes; not executed in this wave).
+start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + websocket transport) -> ws-integration (blocked).
+
+Post-gate wave claimed 2026-08-10 (per user: keep implementing the rest of the plan): p-l3, theorem-proxy, d7, d7m, d8, token-kernel claimed; verify siblings pending; ws-integration blocked on its dependencies.
 
 ## Budget clock
 
-Sessions so far: 4 (charting, S0.1/S0.2, S0.3 diagnosis, S0.3 close). OOMs: 2 (both cargo target-volume on /Volumes/SSD Samsung; keep 20Gi+ free during builds). Disk pressure is shared with other agents' builds (cargo-target-ff2d75ed, theorem-target-build-performance-1-1 etc.) — free only your own stale artifacts.
+Sessions so far: 5 (charting, S0.1/S0.2, S0.3 diagnosis, S0.3 close, post-gate wave). OOMs: 2 (both cargo target-volume on /Volumes/SSD Samsung). SSD cargo target is 100% FULL (366Mi free) as of 2026-08-10 — ALL builds this wave MUST override CARGO_TARGET_DIR to the system disk (~31Gi free): `/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target`. Use cargo check/test only, -j 4 max. Disk pressure shared — free only your own stale artifacts.
 
 ## Provenance
 

@@ -1,43 +1,46 @@
-# CONTINUITY — next session brief (2026-08-10, S0.3 closed)
+# CONTINUITY — next session brief (2026-08-10, post-gate wave closed)
 
 ## Where we are
 
-Plan `intellij-absorption-1.0`: **s0-lapce-spike DONE, v-s0 gate PASSED**. S0.1 PASS, S0.2 PASS, S0.3 PASS. Kill criteria not triggered. The fork (`Theorem/apps/theorem-ide/lapce`) boots in a headed browser against the in-memory StubProxy: tree renders, files open, typing lands, palette filters — with the clean (uninstrumented) build. The floem-based view layer holds (no Dioxus pivot needed on this evidence).
+Plan `intellij-absorption-1.0`: S0 spike CLOSED (gate PASSED). **Post-gate wave CLOSED 2026-08-10** — six nodes sealed done, three verify gates PASSED:
+- **d8** (decision): vfs sits BESIDE agentfs (siblings over one graph store + blob store). Graph-native workspaces via AgentFsHost; host workspaces via vfs journal (generation cursors) + stock HostFs; fuse_host = LSP/PTY/git mountpoint when AgentFs-backed. Bonus: `rustyred-thg-vfs` is already an IntelliJ-VFS-semantics port in-substrate.
+- **d7** (decision): D7 pinned — lapce-xi-rope 0.3.2 is the single text algebra (RopeDelta wire/compute/rebase); substrate owns durable delta encoding; fleet manifest fleet/andel rope row amended (ropey superseded, clause satisfied).
+- **d7m** (work): text-model migration done — `rustyred-thg-text-model` re-backed on lapce-xi-rope; Operation algebra deleted; `encoding.rs` (353 lines) durable encoding; affinity resolved by fixtures (interval tree retained — Spans cannot express per-boundary greedy affinity); **16/16 tests green** (verify re-ran).
+- **theorem-proxy** (work): `lapce-proxy/src/backend/` — WorkspaceBackend trait (14 methods) at dispatch file layer; HostFs verbatim parity (4 tests); AgentFs over AgentFsHost per handoff mapping (10 tests, feature `agentfs`); **check + 14/14 backend tests green** (verify re-ran). Watcher→store-subscriptions + BufferHead→graph-history recorded as seams (no per-file head / no subscription channel on AgentFsHost).
+- **token-kernel** (work): K1 seed found LIVE — Int UI tokens are the CommonPlace console's `int-ui-register.css` (verbatim JetBrains expUI_dark.theme.json, SHA 1a82cda); canonicalized to `Theorem/apps/theorem-style/tokens/int-ui.json`; `theorem-style` kernel crate (8 Space values, Inset/Gap, Surface roles, density mode, no margin on block-level, zero deps); `theorem-style-intui` theme binding; **generated `theorem-int-ui.toml` into fork themes/ with schema MATCH (165 keys/4 tables)**.
+- **p-l3** (probe): evidence `P-L3-PROBE.md` — inherited-behavior inventory; K8 IdeaVim corpus map (expressible/upgrade/new-machinery buckets); K2/K5/K6 probes named; g0 items informed (copy/paste on wasm = new web-sys Clipboard adapter; text model lives in floem_editor_core, not the fork).
 
 ## The one line that matters for the next head
 
-The Lapce open-buffer path works end to end in the browser; the "selects but doesn't open" bug was automation (click column x≈35–45, not x=80) + two fontdb gaps (generic SansSerif→"Noto Sans" on non-mac/win with no system fonts; italic row labels with no italic face). Fixes are wasm-only and in the `launch_wasm` vendored-fonts block (`set_sans_serif_family("DejaVu Sans")`, `set_monospace_family("DejaVu Sans Mono")`, vendored DejaVuSans-Oblique.ttf + DejaVuSansMono-Oblique.ttf under `extra/fonts/DejaVu/`).
+**ws-integration is UNBLOCKED**: theorem-proxy, d7m, and token-kernel all landed with verified gates. The next wave charts and executes: websocket transport for `ProxyMessage` (chart as a work node), then ws-integration (fork crates → rustyredcore_THG as theorem-ide-app/rpc/proxy; IDE proxy folds into the `theorem` binary — one process, one store handle; rename resolves the `apps/theorem-proxy` name collision → `theorem-ide-proxy`; g0 carry-forward verify: real-OS IME first, GL fallback, one-frame keystroke budget, copy/paste adapter, a11y decision).
 
-## Reproduce the acceptance run
+## Repos / commit state (as of close)
 
-```
-# build (debug wasm; always cargo +1.96.1; env recipe below)
-cargo +1.96.1 build -p lapce-app --bin lapce_wasm --target wasm32-unknown-unknown --no-default-features --features vendored-fonts
-# serve
-rm -rf /tmp/s03-debug-serve && mkdir -p /tmp/s03-debug-serve
-wasm-bindgen "<target>/wasm32-unknown-unknown/debug/lapce_wasm.wasm" --target web --out-dir /tmp/s03-debug-serve --no-typescript
-cp -r <fork>/wasm-serve/{patch-glue.py,index.html,index.js,vendor} /tmp/s03-debug-serve/ && cd /tmp/s03-debug-serve && python3 patch-glue.py
-nohup python3 -m http.server 8766 --directory /tmp/s03-debug-serve &
-# verify (headed Chrome only — headless has no WebGPU)
-cd <fork>/wasm-serve/verify && PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright node accept-final.js
-```
-Env: `CC_wasm32_unknown_unknown="/opt/homebrew/opt/llvm/bin/clang --sysroot=/tmp/wasi-sysroot"`, `CFLAGS_wasm32_unknown_unknown="-Wno-implicit-function-declaration"`, `RUSTFLAGS="-C link-arg=-L/tmp/wasi-sysroot/lib -C link-arg=-lc -C link-arg=--allow-undefined"`.
+- **Fork** (`Theorem/apps/theorem-ide/lapce`, own git repo, master): working tree has lapce-proxy backend changes + themes/theorem-int-ui.toml — COMMIT NEEDED (scoped; no git add -A — wasm-serve artifacts live there).
+- **Theorem** (branch feat/browser-driver-1.0, LARGE dirty tree from other agents — never `git add -A`): stage only `rustyredcore_THG/crates/rustyred-thg-text-model/**`, `docs/plans/jetbrains-fleet-port/CLOSURE-MANIFEST.md`, `docs/plans/intellij-absorption/*.md`, `apps/theorem-style/**`.
+- **Board** (`CommonPlace`, branch feat/ard-ui-parts-1-4-6): plans dir updated (manifest/edges/replay/lessons/continuity/node files) — COMMIT NEEDED.
+- (If the head already committed at close, verify with `git --no-optional-locks status` before re-committing.)
 
-## State of the fork (commit before anything else)
+## Environment (MANDATORY — machine OOM'd twice)
 
-- Fork HEAD: `7dfb664` (previous session's scoped commit). The working tree has the S0.3-close changes: `launch_wasm` font fixes, vendored oblique fonts, the `[font] faces` boot log, web-sys console dep for the stub instrumentation, wasm-serve/verify harness files. **All temporary diagnostics were stripped** (lapce-rpc clean, floem checkout clean, cosmic-text registry clean). Commit the working tree as the s0 close.
-- Evidence: `Theorem/docs/plans/intellij-absorption/S0-LAPCE-SPIKE.md` — complete. Board: `CommonPlace/plans/intellij-absorption-1.0/` — s0/v-s0 done, edges/lessons/replay updated; commit the plans dir on the CommonPlace branch (`feat/ard-ui-parts-1-4-6`, like the previous head).
-- Release bundle-size measurement: `cargo build --release` for wasm32 was started at gate time (log `/tmp/s03-build23.log`); if it finished, run wasm-bindgen + `wasm-opt -Oz` on it and fill the real number into the evidence file's Bundle size section (currently says "recorded at gate"). wasm-opt: `/opt/homebrew/bin/wasm-opt`.
+- SSD `/Volumes/SSD Samsung` is 100% FULL: global `~/.cargo/config.toml` target-dir AND `~/.cargo/registry`+`git` symlinks point there. EVERY cargo invocation needs:
+  - `CARGO_TARGET_DIR=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target`
+  - `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home`
+  - `cargo +1.96.1`, `cargo check`/`test` only, `-j 4`.
+- Theorem repo dirty tree: stage explicit paths only. Fork repo: scoped commits only.
 
-## Post-gate (charted, NOT executed — next wave)
+## Remains (recorded, not lost)
 
-1. theorem-proxy (WorkspaceBackend/AgentFs; fold into `theorem` binary), 2. websocket transport, 3. d7 text-model shrink onto lapce-xi-rope, 4. d8 vfs/agentfs layering read, 5. token-kernel (+ generated Lapce theme file), 6. ws-integration (merge into rustyredcore_THG as theorem-ide-app/rpc/proxy). g0-island-probe is superseded-by-s0; its six-point acceptance carries forward with FIVE items still open: real-OS IME in browser (first thing to verify in the theorem-proxy wave), GL fallback unexercised, one-frame keystroke budget unmeasured, copy/paste/scroll unmeasured, a11y decision unrecorded.
+- d7m: consumer-call-site adapter if old char-based names needed (len_chars→len_bytes, byte↔utf16 renames).
+- theorem-proxy: watcher→store-subscriptions seam, BufferHead-from-graph-history, fuse_host mount lifecycle, rename → theorem-ide-proxy (all ws-integration).
+- token-kernel: floem Style-chain binding, CSS + Rust-constants dialects (`--dialect css|rust`), light Lapce theme (binary ready), fork activation (user data-dir themes — repo themes/ not scanned), font face decision, kernel/binding unit tests.
+- p-l3: K2 matcher-gap fixture run, K5 chord-semantics conformance, K6 driver traces (probes defined, not executed).
+- g0 carry-forward: real-OS IME (browser, unproven), GL fallback (wgpu webgl feature, unexercised), one-frame keystroke budget (unmeasured), copy/paste (web-sys Clipboard adapter needed), a11y decision (unrecorded).
 
 ## Pitfalls (don't re-discover)
 
-- Headed Chrome only (WebGPU). Canvas fixed 800x600. Tree click column x≈35–45; EXPLORER header toggle y≈236; scan-driven clicks at x=40.
-- Cargo 1.96 fingerprinting does NOT reliably detect edits to dependency sources (floem checkout, registry crates) — after any such edit, `rm -rf` the wasm32 target artifacts or the build silently links stale code.
-- Verification scripts must dump ALL console lines; filtered slices hide working logs (cost hours).
-- SSD disk is shared with other agents' builds; keep ≥12Gi free, free only your own artifacts (debug/incremental dirs).
-- "boot failed" logline + `RefCell already borrowed` panic after a font panic are cascade artifacts; the winit control-flow throw is intended.
-- OOM purges /tmp (playwright browsers, serve dirs); the verify harness lives in the fork's `wasm-serve/verify/` — use those copies.
+- Cargo 1.96 fingerprinting misses dependency-source edits — rm -rf affected target artifacts after such edits.
+- Verification scripts must dump ALL console lines; filtered slices hid working logs for hours (S0).
+- Headed Chrome only (WebGPU). Canvas 800x600; tree click column x≈35-45.
+- OOM purges /tmp — verify harness lives in fork's wasm-serve/verify/.
+- Disk is shared with other agents' builds — free only your own stale artifacts; never delete others' targets.
