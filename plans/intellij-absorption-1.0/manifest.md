@@ -19,11 +19,19 @@ Fixpoint: every node's obligations discharged with replayable evidence; S0 repor
 | d8 | decision | agent | vfs/agentfs layering read + one-paragraph decision (under or beside agentfs for workspaces). | done (2026-08-10; BESIDE; consumed by theorem-proxy) |
 | token-kernel | work | agent | Typed Space/Inset/Surface kernel (theorem-style, framework-free); Int UI theme crate binding; generated Lapce theme file; K1 token source seeded (int-ui-standalone home absent). | done (2026-08-10; schema MATCH 165 keys; evidence TOKEN-KERNEL.md) |
 | v-token-kernel | verify | agent | Verify sibling for token-kernel: checks green, theme file valid against fork schema, provenance recorded. | GATE PASSED 2026-08-10 |
-| ws-integration | work | agent | Fork crates merge into rustyredcore_THG as theorem-ide-app/rpc/proxy; IDE proxy folds into theorem binary; websocket transport; g0 carry-forward verify items. Depends on theorem-proxy + d7m + token-kernel + transport. | pending (unblocked: all three deps now done; websocket transport remains charted-in) | |
+| ws-transport | work | agent | Websocket transport for RpcMessage/ProxyMessage: stdio.rs framing over ws; proxy serve_ws fronting Dispatcher; wasm web-sys client; browser smoke vs real proxy. | done (2026-08-10; smoke 5/5; evidence WS-TRANSPORT.md) |
+| v-ws-transport | verify | agent | Verify sibling for ws-transport: native + wasm32 checks green, browser smoke recorded or named deferral. | GATE PASSED 2026-08-10 |
+| ws-integration | work | agent | REFINED into ws-merge + ide-proxy-fold + g0-verify (+ v-ws-integration). Fork crates merge into rustyredcore_THG as theorem-ide-app/rpc/proxy/core; IDE proxy folds into theorem binary; g0 carry-forward verify items. | refined (children claimed 2026-08-10) |
+| ws-merge | work | agent | Move+rename fork crates into rustyredcore_THG (theorem-ide-app/rpc/proxy/core); path deps; floem pin travels; fork pruned; wasm-serve re-pointed; register manifest + provenance records. | done (2026-08-10; checks + syntax tests green; app checks closed via g0-verify) |
+| ide-proxy-fold | work | agent | theorem ide-proxy subcommand: CLI's store instance → AgentFsHost/HostFs → serve_ws; one store handle. Depends on ws-merge. | parked (weather: mcp tree unparseable + disk; code landed, check pending) |
+| g0-verify | work | agent | g0 carry-forward items on the merged build: a11y decision, wasm Clipboard adapter, keystroke budget, GL fallback, real-OS IME protocol. Depends on ws-merge. | done (2026-08-10; 2 executed, 2 protocol-deferred, 1 partial; app checks green) |
+| v-ws-integration | verify | agent | Verify the integration wave: light checks, theorem-cli check, records, deferral protocols. | pending (blocked on ide-proxy-fold) | |
 
 ## Edges
 
-start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + websocket transport) -> ws-integration (blocked).
+## Edges
+
+start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s0 -> g0-island-probe (rescoped acceptance) -> p-l3; s0 -> d7 -> d7m -> v-d7m; s0 -> d8; s0 -> theorem-proxy -> v-theorem-proxy; s0 -> token-kernel -> v-token-kernel; (theorem-proxy + d7m + token-kernel + ws-transport) -> ws-integration.
 
 Post-gate wave claimed 2026-08-10 (per user: keep implementing the rest of the plan): p-l3, theorem-proxy, d7, d7m, d8, token-kernel claimed; verify siblings pending; ws-integration blocked on its dependencies.
 

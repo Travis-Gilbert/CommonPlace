@@ -1,46 +1,47 @@
-# CONTINUITY — next session brief (2026-08-10, post-gate wave closed)
+# CONTINUITY — next session brief (2026-08-10, wave 5: integration wave — mostly sealed, one park)
 
 ## Where we are
 
-Plan `intellij-absorption-1.0`: S0 spike CLOSED (gate PASSED). **Post-gate wave CLOSED 2026-08-10** — six nodes sealed done, three verify gates PASSED:
-- **d8** (decision): vfs sits BESIDE agentfs (siblings over one graph store + blob store). Graph-native workspaces via AgentFsHost; host workspaces via vfs journal (generation cursors) + stock HostFs; fuse_host = LSP/PTY/git mountpoint when AgentFs-backed. Bonus: `rustyred-thg-vfs` is already an IntelliJ-VFS-semantics port in-substrate.
-- **d7** (decision): D7 pinned — lapce-xi-rope 0.3.2 is the single text algebra (RopeDelta wire/compute/rebase); substrate owns durable delta encoding; fleet manifest fleet/andel rope row amended (ropey superseded, clause satisfied).
-- **d7m** (work): text-model migration done — `rustyred-thg-text-model` re-backed on lapce-xi-rope; Operation algebra deleted; `encoding.rs` (353 lines) durable encoding; affinity resolved by fixtures (interval tree retained — Spans cannot express per-boundary greedy affinity); **16/16 tests green** (verify re-ran).
-- **theorem-proxy** (work): `lapce-proxy/src/backend/` — WorkspaceBackend trait (14 methods) at dispatch file layer; HostFs verbatim parity (4 tests); AgentFs over AgentFsHost per handoff mapping (10 tests, feature `agentfs`); **check + 14/14 backend tests green** (verify re-ran). Watcher→store-subscriptions + BufferHead→graph-history recorded as seams (no per-file head / no subscription channel on AgentFsHost).
-- **token-kernel** (work): K1 seed found LIVE — Int UI tokens are the CommonPlace console's `int-ui-register.css` (verbatim JetBrains expUI_dark.theme.json, SHA 1a82cda); canonicalized to `Theorem/apps/theorem-style/tokens/int-ui.json`; `theorem-style` kernel crate (8 Space values, Inset/Gap, Surface roles, density mode, no margin on block-level, zero deps); `theorem-style-intui` theme binding; **generated `theorem-int-ui.toml` into fork themes/ with schema MATCH (165 keys/4 tables)**.
-- **p-l3** (probe): evidence `P-L3-PROBE.md` — inherited-behavior inventory; K8 IdeaVim corpus map (expressible/upgrade/new-machinery buckets); K2/K5/K6 probes named; g0 items informed (copy/paste on wasm = new web-sys Clipboard adapter; text model lives in floem_editor_core, not the fork).
+Plan `intellij-absorption-1.0`. S0 spike closed; post-gate wave closed (d8/d7/d7m/theorem-proxy/token-kernel/p-l3). **Wave 5 (integration) status:**
+- **ws-transport DONE, gate PASSED** — websocket transport (stdio-framing over ws; native tungstenite + wasm web-sys backends; proxy `serve_ws`; wasm client behind `ws-proxy` feature). **Smoke 5/5**: browser ↔ real proxy — real-FS tree, buffer with real bytes, typing `Update{delta,rev}` on the wire, palette. Fork `17ef8dd`.
+- **ws-merge DONE, gate PASSED** — fork crates merged into `rustyredcore_THG` as `theorem-ide-app`/`theorem-ide-rpc`/`theorem-ide-proxy`/`theorem-ide-core`; floem pin traveled; fork pruned; wasm-serve builds `theorem_ide_wasm` from substrate; repairs: tree-sitter 0.26 StreamingIterator wrapper, wasmtime 14.0.4 pin (git rev 21419eb), psp-types vendored (lsp-types 0.97 Url→Uri). Theorem `0f991b63c`, fork `93909f1`. Checks green (rpc/proxy/core) + syntax tests 2/2; **theorem-ide-app native + wasm32 checks now GREEN** (closed by g0-verify's clipboard work).
+- **g0-verify DONE, gate PASSED** — a11y decision recorded (focus model = attach seam); `WebClipboard` adapter landed; keystroke-budget + GL-render protocols staged; real-OS IME protocol written. Evidence `G0-VERIFY.md`.
+- **ide-proxy-fold PARKED (weather)** — `theorem ide-proxy` subcommand code LANDED (`apps/theorem-cli/src/ide_proxy.rs`, main.rs dispatch, wasmtime-14 lockfile pin; one-store proof via EngineHost→rustyred-embedded, SR-017). Check + smoke blocked by: (1) another agent's in-flight `rustyred-thg-mcp` refactor leaving `lib.rs` UNPARSEABLE (unclosed delimiter l.30409), (2) disk. **Trigger: mcp tree heals + ≥1.5Gi quiet disk.**
+- v-ws-integration: pending on the park trigger.
 
 ## The one line that matters for the next head
 
-**ws-integration is UNBLOCKED**: theorem-proxy, d7m, and token-kernel all landed with verified gates. The next wave charts and executes: websocket transport for `ProxyMessage` (chart as a work node), then ws-integration (fork crates → rustyredcore_THG as theorem-ide-app/rpc/proxy; IDE proxy folds into the `theorem` binary — one process, one store handle; rename resolves the `apps/theorem-proxy` name collision → `theorem-ide-proxy`; g0 carry-forward verify: real-OS IME first, GL fallback, one-frame keystroke budget, copy/paste adapter, a11y decision).
+**The wave parks on two triggers, not on code**: (1) `cargo check -p theorem-cli` (resume ide-proxy-fold — chain: mcp → theorem-agentd → harness → rustyred-embedded → theorem-cli; then `--help` capture + smoke + the AgentFs one-store seam `serve_ws_with_backend`); (2) ~4Gi disk headroom → wasm bundle build → run the staged keystroke-budget + GL-fallback scripts, then the real-OS IME manual verify (first manual verify of the merged build). After that: v-ws-integration gate → seal → next wave (console-host consumption of the wasm frontend; token-kernel remains: floem binding, CSS/Rust dialects, light theme, fork activation, unit tests; p-l3 probe executions K2/K5/K6).
 
-## Repos / commit state (as of close)
+## Commits this wave
 
-- **Fork** (`Theorem/apps/theorem-ide/lapce`, own git repo, master): working tree has lapce-proxy backend changes + themes/theorem-int-ui.toml — COMMIT NEEDED (scoped; no git add -A — wasm-serve artifacts live there).
-- **Theorem** (branch feat/browser-driver-1.0, LARGE dirty tree from other agents — never `git add -A`): stage only `rustyredcore_THG/crates/rustyred-thg-text-model/**`, `docs/plans/jetbrains-fleet-port/CLOSURE-MANIFEST.md`, `docs/plans/intellij-absorption/*.md`, `apps/theorem-style/**`.
-- **Board** (`CommonPlace`, branch feat/ard-ui-parts-1-4-6): plans dir updated (manifest/edges/replay/lessons/continuity/node files) — COMMIT NEEDED.
-- (If the head already committed at close, verify with `git --no-optional-locks status` before re-committing.)
+- Fork: `17ef8dd` (ws-transport), `93909f1` (prune). Uncommitted in fork: g0-verify's wasm-serve scripts (stage `wasm-serve/verify/keystroke-budget.js`, `gl-fallback.js` + any shots).
+- Theorem: `0f991b63c` (ws-merge). Uncommitted: g0-verify (theorem-ide-app clipboard + repairs + G0-VERIFY.md) + ide-proxy-fold (theorem-cli code + IDE-PROXY-FOLD.md) — COMMIT NEEDED, scoped paths only.
+- Board: wave-5 updates (manifest/edges/replay/lessons/continuity + ws-transport/v-ws-transport/ws-merge/g0-verify/ide-proxy-fold node records) — COMMIT NEEDED on `feat/ard-ui-parts-1-4-6`.
+- Theorem branch moves under other agents (was feat/browser-driver-1.0, now Travis-Gilbert/incremental-derivation-outstanding) — commit scoped paths wherever HEAD is; never `git add -A`.
 
-## Environment (MANDATORY — machine OOM'd twice)
+## Environment (MANDATORY — machine OOM'd twice; disk is the binding constraint)
 
-- SSD `/Volumes/SSD Samsung` is 100% FULL: global `~/.cargo/config.toml` target-dir AND `~/.cargo/registry`+`git` symlinks point there. EVERY cargo invocation needs:
-  - `CARGO_TARGET_DIR=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target`
-  - `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home`
-  - `cargo +1.96.1`, `cargo check`/`test` only, `-j 4`.
-- Theorem repo dirty tree: stage explicit paths only. Fork repo: scoped commits only.
+- SSD `/Volumes/SSD Samsung` 100% full: `~/.cargo/config.toml` target-dir AND registry/git symlinks point there. EVERY cargo invocation needs `CARGO_TARGET_DIR=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target` + `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home`.
+- System volume was at 110Mi free (254Mi after freeing theorem-style/.target — rebuildable, mine). Other agents' builds consume it unpredictably. Before ANY build: `df -h /`; free only your own stale artifacts (old `lapce_*` fingerprints under .target/debug are garbage post-rename).
+- `cargo +1.96.1`, check/test only, `-j 4`. wasm32 check needs the S0 CC recipe (`CC_wasm32_unknown_unknown="/opt/homebrew/opt/llvm/bin/clang --sysroot=/tmp/wasi-sysroot" CFLAGS_wasm32_unknown_unknown="-Wno-implicit-function-declaration"`).
+- After ANY dependency-source edit: `rm -rf` affected wasm32 artifacts (cargo 1.96 fingerprints miss dep edits).
 
 ## Remains (recorded, not lost)
 
-- d7m: consumer-call-site adapter if old char-based names needed (len_chars→len_bytes, byte↔utf16 renames).
-- theorem-proxy: watcher→store-subscriptions seam, BufferHead-from-graph-history, fuse_host mount lifecycle, rename → theorem-ide-proxy (all ws-integration).
-- token-kernel: floem Style-chain binding, CSS + Rust-constants dialects (`--dialect css|rust`), light Lapce theme (binary ready), fork activation (user data-dir themes — repo themes/ not scanned), font face decision, kernel/binding unit tests.
-- p-l3: K2 matcher-gap fixture run, K5 chord-semantics conformance, K6 driver traces (probes defined, not executed).
-- g0 carry-forward: real-OS IME (browser, unproven), GL fallback (wgpu webgl feature, unexercised), one-frame keystroke budget (unmeasured), copy/paste (web-sys Clipboard adapter needed), a11y decision (unrecorded).
+- ide-proxy-fold: theorem-cli check + smoke + AgentFs one-store seam (serve_ws_with_backend; ide_proxy.rs hands the engine store over — "keystroke → delta in the harness store").
+- g0-verify protocols: keystroke-budget measurement (expected 8-16ms, >32ms = violation), GL-fallback render (3-step ladder: flag-stick, feature-unification, adapter instrumentation), real-OS IME (CJK via macOS IME; composition window → preedit → commit on the wire → zero panics; glyph check needs a CJK font).
+- ws-merge: theorem-ide-app checks (now done); wasm frontend's console-host consumption (charted, next wave).
+- token-kernel remains: floem Style-chain binding (heavy — needs disk), CSS + Rust-constants dialects, light Lapce theme (binary ready), fork activation (user data-dir themes), font face decision, kernel/binding unit tests.
+- p-l3: K2 matcher-gap fixtures, K5 chord-semantics conformance, K6 driver traces (probes defined).
+- d7m: consumer-call-site adapter if old char-based names needed.
+- The editor viewport dark-paint cosmetic (S0.3 quirk) rides along; known, cosmetic.
 
 ## Pitfalls (don't re-discover)
 
-- Cargo 1.96 fingerprinting misses dependency-source edits — rm -rf affected target artifacts after such edits.
-- Verification scripts must dump ALL console lines; filtered slices hid working logs for hours (S0).
-- Headed Chrome only (WebGPU). Canvas 800x600; tree click column x≈35-45.
-- OOM purges /tmp — verify harness lives in fork's wasm-serve/verify/.
-- Disk is shared with other agents' builds — free only your own stale artifacts; never delete others' targets.
+- Cargo 1.96 fingerprints miss dependency-source edits — rm -rf affected artifacts after such edits.
+- wasm32 check REQUIRES the S0 CC recipe even for check (tree-sitter C build script: stdio.h not found without it).
+- Verification scripts must dump ALL console lines (filtered slices hid working logs for hours).
+- Headed Chrome only (WebGPU); canvas 800x600; tree click column x≈35–45.
+- Another agent's in-flight refactor can leave shared crates unparseable — check `cargo check` errors against `git status` before assuming your code broke.
+- The Theorem repo branch moves under other agents; the shared tree has many uncommitted changes — scoped-path staging only.
