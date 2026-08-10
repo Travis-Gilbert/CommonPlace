@@ -11,6 +11,17 @@ Plan `intellij-absorption-1.0`. S0 spike closed; post-gate wave closed (d8/d7/d7
 - **ide-proxy-fold PARKED (weather, unchanged)** — `theorem ide-proxy` code LANDED; check + smoke blocked on the same mcp tree.
 - **d9-gl-fallback PARKED (session 6, with stop point)** — decision pending; floem source read confirms fix shape (gpu_resources.rs:89-118: first attempt `Limits::default()` compute 65535, retry `downlevel_defaults()` compute 0 in wgpu-types 24.0.0 — yet the retry still reports `requested: 65535`; **open question: why — start at wgpu-core-24.0.5 web/GL backend request_device**). Decision options + floem-patch shape in the node. Does NOT gate anything.
 
+## Session-6.5 update (token-kernel-binding executed in parallel)
+
+While the mcp/IDE thread is with Codex, this session claimed **token-kernel-binding**
+(wave 6) and delivered the generator-consumer slice:
+- **CSS dialect** — `--dialect css` → `apps/theorem-style/dialects/int-ui.css` (both schemes; `--ij-*` register contract names via value-join; alpha preserved).
+- **Rust constants dialect + drift guard** — `--dialect rust` → `dialects/int-ui-constants.rs`; the `rust_dialect_matches_kernel_tokens` test (alias-resolved, name-for-name) is the charted drift killer — GREEN.
+- **Light Lapce theme** — `theorem-int-ui-light.toml` in fork `themes/`; schema MATCH (165 keys, 4 tables).
+- **Workspace `cargo test` first-ever green**: kernel 12/12 (fixed pre-existing `space.rs:142` test bug), gen 4/4, intui 8/8, doc 1.
+- **Floem Style-chain binding + fork activation remain PARKED** — reason: multi-GiB codegen on a target/disk contended by the mcp/IDE thread; resume in a disk-quiet session (floem pin 31fa8f44; own target dir).
+- Commits: Theorem (theorem-style crates + dialects outputs + TOKEN-KERNEL.md §8), fork (light theme file), board.
+
 ## The one line that matters for the next head
 
 **Wave 5 is sealed with numbers. The next session has four open threads: (1) resume ide-proxy-fold when the mcp tree parses (theorem-cli check → `--help` → smoke → AgentFs one-store seam `serve_ws_with_backend`); (2) decide d9-gl-fallback (or delegate the retry-mystery investigation); (3) start wave 6 — p-l3-exec and token-kernel-binding are the unblocked ones (console-host waits on apps/console weather); (4) the real-OS IME manual verify (needs a CJK font + human at the keyboard).**
@@ -36,7 +47,7 @@ Plan `intellij-absorption-1.0`. S0 spike closed; post-gate wave closed (d8/d7/d7
 - ide-proxy-fold resume (mcp-weather trigger; resume path in v-ws-integration node + IDE-PROXY-FOLD.md; honest gap: AgentFsBackend opens its own session store — backend-injection seam `serve_ws_with_backend` is the named remain).
 - d9-gl-fallback: decision + retry-mystery (wgpu-core-24.0.5 web/GL request_device).
 - g0-verify: real-OS IME manual verify (CJK font first — DejaVu has no CJK).
-- Wave 6: p-l3-exec (K2 matcher-gap fixtures, K5 chord semantics, K6 driver traces — probes in P-L3-PROBE.md); token-kernel-binding (floem Style-chain binding — heavy compile, needs disk; CSS/Rust dialects; light Lapce theme binary ready — activation = drop into fork's bundled `themes/` dir; kernel/binding unit tests).
+- Wave 6: p-l3-exec (K2 matcher-gap fixtures, K5 chord semantics, K6 driver traces — probes in P-L3-PROBE.md) is the next unblocked node; token-kernel-binding: dialects + light theme + workspace tests DONE, floem Style-chain binding + fork activation remain parked (shared-build contention; needs a disk-quiet session).
 - console-host: weather (apps/console churn).
 - d7m: consumer-call-site adapter if old char-based names needed. Editor viewport dark-paint cosmetic rides along (known, cosmetic).
 
