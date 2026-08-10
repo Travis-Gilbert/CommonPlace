@@ -8,8 +8,8 @@ Fixpoint: every node's obligations discharged with replayable evidence; S0 repor
 | id | kind | controller | gist | state |
 |---|---|---|---|---|
 | g0-island-probe | probe | agent | Browser probe of the workbench at fork pin; six-point acceptance (IME first, shaping, GL fallback, one-frame keystroke budget, copy/paste/scroll, a11y decision). Rescoped: target is the forked lapce-app in browser, not bare floem island. | superseded-by-s0 (rescope recorded) |
-| s0-lapce-spike | work | agent | Hard-fork lapce/lapce at c9e4c339 into apps/theorem-ide; sever lapce-app from lapce-proxy; compile wasm32; boot in browser vs StubProxy. S0.1 PASS, S0.2 PASS, S0.3 OPEN. | occupied |
-| v-s0 | verify | agent | Runs the declared proof commands for s0 (compile matrix rows M1-M3, headed-browser acceptance, evidence file) and gates. | pending |
+| s0-lapce-spike | work | agent | Hard-fork lapce/lapce at c9e4c339 into apps/theorem-ide; sever lapce-app from lapce-proxy; compile wasm32; boot in browser vs StubProxy. S0.1 PASS, S0.2 PASS, S0.3 PASS (2026-08-10). | done |
+| v-s0 | verify | agent | Runs the declared proof commands for s0 (compile matrix rows M1-M3, headed-browser acceptance, evidence file) and gates. GATE PASSED 2026-08-10; verdicts S0.1/S0.2/S0.3 PASS; kill criteria not triggered. | done |
 | p-l3 | probe | agent | K8 retargets onto Lapce's editor behavior layer (post-gate). | pending |
 | theorem-proxy | work | agent | Fork lapce-proxy; WorkspaceBackend trait; AgentFs impl over AgentFsHost; fold into theorem binary (post-gate). | pending |
 | d7 | decision | agent | Single text algebra: rustyred-thg-text-model re-backs on lapce-xi-rope; RopeDelta is wire/compute/rebase algebra; substrate owns durable delta encoding (post-gate). | pending |
@@ -23,7 +23,7 @@ start -> s0 (handoff: HANDOFF-LAPCE-FORK-SPIKE-1.0; board amendments 1-5) -> v-s
 
 ## Budget clock
 
-Sessions so far: 3+ (charting, S0.1/S0.2, S0.3 diagnosis). OOMs: 2 (both cargo target-volume on /Volumes/SSD Samsung; keep 20Gi+ free during builds).
+Sessions so far: 4 (charting, S0.1/S0.2, S0.3 diagnosis, S0.3 close). OOMs: 2 (both cargo target-volume on /Volumes/SSD Samsung; keep 20Gi+ free during builds). Disk pressure is shared with other agents' builds (cargo-target-ff2d75ed, theorem-target-build-performance-1-1 etc.) — free only your own stale artifacts.
 
 ## Provenance
 
