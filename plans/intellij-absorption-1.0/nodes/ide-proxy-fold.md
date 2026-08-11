@@ -42,3 +42,14 @@ O-F.1–3 discharged; O-F.4 recorded or deferred with reason.
 ## Park (weather, resumable)
 
 Reason: proof command blocked by external weather — (1) another agent's unparseable rustyred-thg-mcp lib.rs (must heal), (2) disk headroom ≥1.5Gi quiet needed for the theorem-cli check (resumes from cached rmeta; remaining chain: mcp → theorem-agentd → harness → rustyred-embedded → theorem-cli). Trigger: mcp tree green + `df` headroom. Resume: run `cargo +1.96.1 check -p theorem-cli` (overrides), capture `theorem ide-proxy --help`, run the smoke, then implement the AgentFs one-store seam (serve_ws_with_backend) and hand the engine store over.
+
+## Weather re-probe (2026-08-11, session 10 — disk cleared, block narrowed)
+
+- **Disk trigger CLEARED**: system 27Gi free, SSD 541Gi free (was 0-120Mi). Only the mcp parse block remains.
+- **Backend crate checks GREEN independent of the weather**: `cargo +1.96.1 check -p theorem-ide-proxy -j 4` → Finished in 33.57s, 0 errors (SSD k5-target). The merged proxy crate compiles; the mcp parse break does not reach it.
+- **Subcommand API surface statically verified against the checked-green crate**: `theorem_ide_proxy::serve_ws(&addr)` exists (lib.rs:165); `theorem_ide_proxy::backend::AGENTFS_WORKSPACE_MARKER` = ".theorem-agentfs" (backend/mod.rs:38); the dispatcher's AgentFs classification checks `workspace.join(AGENTFS_WORKSPACE_MARKER).is_file()` (backend/agentfs.rs:62) — exactly what ide_proxy.rs writes for `--agentfs`. The landed code is consistent with the crate as compiled.
+- **The remaining wall is one crate**: `cargo tree -i` shows theorem-cli → rustyred-embedded → rustyred-thg-mcp (hard dep, cannot `--exclude` a path dep). lib.rs brace balance still 4 today (41,106 lines). The instant it parses: `cargo check -p theorem-cli` (warm rmeta) → `theorem ide-proxy --help` → smoke → AgentFs one-store seam.
+
+## Park (weather, resumable — updated 2026-08-11)
+
+Reason: proof command blocked by ONE external wall — `rustyred-thg-mcp` lib.rs unparseable (brace balance 4, 41,106 lines) under another agent's in-flight refactor; it is a hard dep of theorem-cli via rustyred-embedded. Disk headroom no longer a factor (27Gi free system / 541Gi SSD). Trigger: mcp lib.rs parses (balance 0). Resume: `cargo +1.96.1 check -p theorem-cli` (SSD k5-target, warm rmeta) → `theorem ide-proxy --help` capture → smoke (node ws: Initialize → ReadDir roundtrip) → AgentFs one-store seam (serve_ws_with_backend) + engine-store handoff.

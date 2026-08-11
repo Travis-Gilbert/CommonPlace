@@ -45,4 +45,4 @@ Sessions so far: 7 (through d9 decision closure). OOMs: 2 historical. Rechecked 
 
 ## Provenance
 
-Fork: lapce/lapce @ c9e4c33948033f10f003991a037d949a708eedf8, Apache-2.0, NOTICE retained, fork-with-modifications; ledger `apps/theorem-ide/PROVENANCE.md`. floem pin 31fa8f444c37f4c314f47d88c23ffdbc25f2ab53 (Lapce's own). Re-verify note (board amendment 5): the k11 floem closure claim (`Rc<dyn Document>` seam) was taken at floem 778bb5f; confirm at Lapce's pin — recorded as an open verification in S0 report.
+Fork: lapce/lapce @ c9e4c33948033f10f003991a037d949a708eedf8, Apache-2.0, NOTICE retained, fork-with-modifications; ledger `apps/theorem-ide/PROVENANCE.md`. floem pin 31fa8f444c37f4c314f47d88c23ffdbc25f2ab53 (Lapce's own). Re-verify note (board amendment 5): the k11 floem closure claim (`Rc<dyn Document>` seam) was taken at floem 778bb5f — CONFIRMED at Lapce's pin by the S0 spike (editor view working: buffer renders, cursor blink, typing lands; S0-LAPCE-SPIKE.md provenance notes).
