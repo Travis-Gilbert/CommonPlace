@@ -89,3 +89,10 @@ Also this session: ide-proxy-fold weather re-probed — disk trigger cleared; `c
 - **v-ws-integration deferral**: theorem-cli check — same one-crate wall.
 - **Real-OS IME manual verify** (O-G.5): human + real macOS IME; the vendored DejaVu faces have no CJK — tofu glyphs expected, composition events are the actual check.
 - **d7m conditional remain**: consumer-call-site adapter only if old char-based names are needed (no consumer has surfaced).
+
+## Push state (2026-08-11, after session-10 close)
+
+- **Board** (`CommonPlace`, `feat/ard-ui-parts-1-4-6`): PUSHED to origin (`09e01d42..8264deb5`) — includes Codex's d9 seal `e55cb2ff`, the token-kernel-binding seal `9b556573`, weather narrowing `2b55d545`, session close `8264deb5`.
+- **Theorem** (`Travis-Gilbert/incremental-derivation-outstanding`): PUSHED — new remote branch, includes floem binding `9b6bce772` and the other agent's commits on top (HEAD `e40eb1fc`). NOTE: the branch carries other agents' in-flight commits; future pushes re-push the whole head.
+- **Fork** (`apps/theorem-ide/lapce`, `master`): LOCAL-ONLY BY DESIGN — its only remote is upstream `lapce/lapce`; never push. Local commits: `3f3eafe` (ws-merge prune), `810ebd6`, `3f9c96c` (g0-verify), `6243ec2` (light theme), `8931bdc` (p-l3-exec K6). Untracked `wasm-serve/` artifacts (bmp/png/js/wasm/node_modules) are working outputs, not ours to commit.
+- Untracked board file `plans/intellij-absorption-1.0/kb-t0-debug.png` — not ours; left alone.
