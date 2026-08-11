@@ -96,3 +96,17 @@ Also this session: ide-proxy-fold weather re-probed — disk trigger cleared; `c
 - **Theorem** (`Travis-Gilbert/incremental-derivation-outstanding`): PUSHED — new remote branch, includes floem binding `9b6bce772` and the other agent's commits on top (HEAD `e40eb1fc`). NOTE: the branch carries other agents' in-flight commits; future pushes re-push the whole head.
 - **Fork** (`apps/theorem-ide/lapce`, `master`): LOCAL-ONLY BY DESIGN — its only remote is upstream `lapce/lapce`; never push. Local commits: `3f3eafe` (ws-merge prune), `810ebd6`, `3f9c96c` (g0-verify), `6243ec2` (light theme), `8931bdc` (p-l3-exec K6). Untracked `wasm-serve/` artifacts (bmp/png/js/wasm/node_modules) are working outputs, not ours to commit.
 - Untracked board file `plans/intellij-absorption-1.0/kb-t0-debug.png` — not ours; left alone.
+
+## Session 11 (2026-08-11): re-entry review and weather-edge repair
+
+- Verified push state: CommonPlace `279242dd` and Theorem `e40eb1fc` are current on their remotes; unrelated dirty work and fork artifacts were left untouched.
+- `ide-proxy-fold` remains honestly parked. The recorded `cargo check -p theorem-cli` command was itself invalid because `apps/theorem-cli` is a standalone workspace. The corrected manifest-path proof reached the real wall and failed on the same MCP unclosed delimiters at 30409/41078/41101 -> 41106.
+- Found and repaired a board defect: `console-host` existed only as a manifest gist, with no blueprint or verify sibling. D10 now records the reversible ownership decision; `console-host.md` and `v-console-host.md` carry the obligations and fixed oracles.
+- Decision: CommonPlace owns browser-rendering IDE source, loader, and `/IDE` host. Theorem owns the pinned IDE protocol/backend seam. Do not copy the S0 spike directory into Console or ship its loopback/client-workspace assumptions.
+- `console-host` is parked on two triggers: ide-proxy-fold's corrected proof passes, and its exact CommonPlace write scope is clean or reconciled. The current `/IDE` upstream stays the rollback until the live verify receipt exists.
+
+## Next trigger
+
+1. When `rustyred-thg-mcp/src/lib.rs` parses, run the standalone CLI manifest-path check, capture `theorem ide-proxy --help`, execute Initialize -> ReadDir, and close the one-store seam.
+2. Then occupy `console-host` with exact paths. Re-home UI source to CommonPlace, preserve provenance, emit the immutable wasm artifact manifest, and keep production on same-origin `/IDE` HTTP/WebSocket transport.
+3. The real-OS IME item remains a separate manual oracle.

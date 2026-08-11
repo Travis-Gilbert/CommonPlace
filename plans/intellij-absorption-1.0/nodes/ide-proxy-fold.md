@@ -16,7 +16,7 @@
 
 - O-F.1: `theorem ide-proxy` subcommand implemented (args, store construction per CLI patterns, serve_ws launch with backend selection). Proof: code + `theorem ide-proxy --help` output.
 - O-F.2: one-store-handle claim: the CLI's store instance is the proxy's store (no second store constructed). Proof: code refs + evidence paragraph.
-- O-F.3: `cargo +1.96.1 check -p theorem-cli` green. Proof: command output.
+- O-F.3: `cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml` green. Proof: command output. (`theorem-cli` is a standalone workspace and is not selectable with `-p` from `rustyredcore_THG`.)
 - O-F.4 (optional, if disk allows): live smoke — `theorem ide-proxy` + ws client connect (native client or curl-level ws handshake + one RPC roundtrip). Record or defer with reason.
 
 ## Scope
@@ -25,7 +25,7 @@ Writes: `apps/theorem-cli/` (Cargo.toml + new subcommand source + main.rs dispat
 
 ## Environment (MANDATORY)
 
-- `CARGO_TARGET_DIR=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.target` + `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home` on EVERY cargo invocation. `cargo +1.96.1`, check only, `-j 4`. Watch `df -h /` (~2.8Gi free; free stale `lapce_*` artifacts under .target/debug if needed).
+- `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/k5-target` + `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home` on EVERY cargo invocation. Run the standalone CLI proof from the Theorem checkout with `cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml`; `CARGO_BUILD_JOBS=1`. Do not run `cargo check -p theorem-cli` from `rustyredcore_THG`: that workspace does not contain the package.
 - No commits.
 
 ## Acceptance
@@ -52,4 +52,10 @@ Reason: proof command blocked by external weather — (1) another agent's unpars
 
 ## Park (weather, resumable — updated 2026-08-11)
 
-Reason: proof command blocked by ONE external wall — `rustyred-thg-mcp` lib.rs unparseable (brace balance 4, 41,106 lines) under another agent's in-flight refactor; it is a hard dep of theorem-cli via rustyred-embedded. Disk headroom no longer a factor (27Gi free system / 541Gi SSD). Trigger: mcp lib.rs parses (balance 0). Resume: `cargo +1.96.1 check -p theorem-cli` (SSD k5-target, warm rmeta) → `theorem ide-proxy --help` capture → smoke (node ws: Initialize → ReadDir roundtrip) → AgentFs one-store seam (serve_ws_with_backend) + engine-store handoff.
+Reason: proof command blocked by ONE external wall: `rustyred-thg-mcp` lib.rs is unparseable (brace balance 4, 41,106 lines) under another agent's in-flight refactor; it is a hard dependency of theorem-cli through rustyred-embedded. Disk headroom no longer matters (27Gi free system / 541Gi SSD). Trigger: mcp lib.rs parses (balance 0). Resume: `cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml` (SSD k5-target, warm rmeta), capture `theorem ide-proxy --help`, smoke Initialize -> ReadDir, then close the AgentFs one-store seam (`serve_ws_with_backend` plus engine-store handoff).
+
+## Weather re-probe (2026-08-11, session 11)
+
+- The old proof form was invalid: `cargo +1.96.1 check -p theorem-cli` from `rustyredcore_THG` returns `package ID specification theorem-cli did not match any packages` because the CLI declares its own `[workspace]` in `apps/theorem-cli/Cargo.toml`.
+- The corrected proof reached the intended dependency wall: `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/k5-target CARGO_HOME=apps/theorem-ide/.cargo-home CARGO_BUILD_JOBS=1 cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml` failed in `rustyred-thg-mcp/src/lib.rs` with unclosed delimiters opened at lines 30409, 41078, and 41101; final location 41106. This is a replayable refusal receipt, not a CLI finding.
+- The park remains valid. Correct resume: rerun the manifest-path proof after the MCP file parses, then capture `theorem ide-proxy --help`, run Initialize -> ReadDir, and close the one-store injection seam.
