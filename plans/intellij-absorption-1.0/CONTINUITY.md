@@ -64,3 +64,16 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 - Headed Chrome only (WebGPU); tree clicks: cls threshold >55 + 2-of-5 + collapse-recovery; wire signals (`new_buffer`, `update`) are the success oracle, not editor pixels.
 - Shared repos move under other agents — scoped-path staging only; never `git add -A` in Theorem or the fork.
 - Playwright + browsers purged from /tmp on OOM; reinstall recipe in the previous brief (chromium-1234 headed, explicit executablePath).
+
+## Session 10 (2026-08-11): token-kernel-binding SEALED — floem slice done
+
+**token-kernel-binding is DONE** (O-TKB.5 discharged): the parked floem Style-chain binding + fork activation closed in a disk-quiet session.
+- Kernel extension: `TextColorMap` + `Theme::resolve_text_color` (text ink now resolves at the theme boundary; `TextColorRole::ALL`/`index`).
+- New crate `theorem-style-floem`: `ThemeStyle` maps Theme vocabulary → floem Style chains (surface/keyline/text/row/inset/gap/block/radius/control/tab/toolbar/statusbar); 8 readback drift-guard tests; same floem pin 31fa8f44 + features as theorem-ide-app.
+- Fork activation: both generated themes placed in `~/Library/Application Support/dev.lapce.Lapce-{Debug,Stable}/themes/` (the dir the app actually scans).
+- Proof: workspace tests 34/34, 0 warnings (log `/tmp/tkb5-test.log`); evidence TOKEN-KERNEL.md §9. Commits: Theorem (theorem-style workspace + docs), board.
+- The stale "100% full volume" comments in apps/theorem-style Cargo.toml + README replaced with the SSD-target policy.
+
+## The one line that matters for the next head
+
+**Wave 6 is two-thirds done: p-l3-exec + token-kernel-binding sealed.** Remaining: (1) **console-host** (weather: apps/console churn — the ONLY wave-6 work node left); (2) **ide-proxy-fold** resume when the mcp tree parses (brace balance 4 → 0; resume = theorem-cli check → --help → smoke → AgentFs one-store seam); (3) the real-OS IME manual verify (CJK font + human). The floem binding is the first real consumer of the kernel; the console-host node should read `theorem-style-floem`'s `ThemeStyle` as the reference consumer pattern.
