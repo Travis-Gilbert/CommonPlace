@@ -1,4 +1,10 @@
-# CONTINUITY — next session brief (2026-08-10, session 7: d9 decision SEALED)
+# CONTINUITY — next session brief (2026-08-11, session 8: p-l3-exec SEALED — wave 6 first node done)
+
+## Where we are
+
+Plan `intellij-absorption-1.0`. S0 spike closed; post-gate wave closed; wave 5 (integration) sealed; d9 sealed. **Wave 6 first node SEALED this session:**
+- **p-l3-exec DONE, gate PASSED** — K2/K5/K6 upgrade-decision probes executed; verdicts KEEP/KEEP/KEEP. Evidence `Theorem/docs/plans/intellij-absorption/P-L3-EXEC.md`. K2: nucleo 84.9% on the register-relevant fixture subset (174/258 raw; gaps = hump rank noise, `*` globs unused, transliteration); K5: 15/15 conformance tests in merged keypress.rs — KEY FINDING: all common-default chords are modal-gated and dropped under the default `modal=false` config (macOS meta+k pair survives); `0` count/keymap collision resolved by the n==0 rule; timeout fixed 1000ms; K6: browser probe — rank identity 8/8 (Enter→NewBuffer == oracle top-1), per-keystroke typeahead re-filter proven, one >350ms final-keystroke render lag observed; count parity pixel-limited. Fixture set + oracle pair are the upgrade seeds.
+- **World state**: the parallel agent's `ide-absorb-text-matcher`/`ide-absorb-diff` crates are untracked in the shared rustyredcore_THG workspace (their K2-upgrade/K3 lane — do not touch, do not commit). System disk 99% (5.0Gi free) — ALL builds on SSD target `theorem-builds/k5-target` (this session's warm app build: tests rerun in ~11s warm).
 
 ## Where we are
 
@@ -24,29 +30,29 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 
 ## The one line that matters for the next head
 
-**Wave 5 and d9 are sealed with live evidence. The next session has three open threads: (1) resume ide-proxy-fold when the mcp tree parses (theorem-cli check → `--help` → smoke → AgentFs one-store seam `serve_ws_with_backend`); (2) continue wave 6 — p-l3-exec and the parked floem slice of token-kernel-binding are unblocked (console-host waits on apps/console weather); (3) the real-OS IME manual verify (needs a CJK font + human at the keyboard).**
+**Wave 6 is one-third done: p-l3-exec sealed (KEEP/KEEP/KEEP). Next candidates: (1) token-kernel-binding's parked floem Style-chain slice (needs a disk-quiet session — its own target dir, floem pin 31fa8f44; the app test build now has a WARM SSD target in `theorem-builds/k5-target`, which removes the old contention excuse for theorem-ide-app-touching work but NOT for floem-source builds); (2) console-host (weather: apps/console churn); (3) ide-proxy-fold resume when the mcp tree parses (theorem-cli check → --help → smoke → AgentFs one-store seam); (4) the real-OS IME manual verify (CJK font + human).**
 
-## Commits this session
+## Commits this session (p-l3-exec seal)
 
-- Fork (`apps/theorem-ide/lapce`): `3f9c96c` — g0-verify executed (keystroke-budget/gl-fallback script fixes + evidence shots). Never `git add -A` (bundle, .bmp, node_modules).
-- Theorem (`Travis-Gilbert/incremental-derivation-outstanding`): `ce9708b76` — G0-VERIFY.md updated (O-G.3 measured, O-G.4 executed-FAIL → D9).
-- Board (`CommonPlace`, `feat/ard-ui-parts-1-4-6`): `c9f5e03c` (wave-5 seal) — plus this session's final board commit (v-ws-integration discharge, wave-6 chart, d9 park, replay, continuity) — **COMMIT PENDING** (stage manifest.md, nodes/v-ws-integration.md, nodes/d9-gl-fallback.md, replay.md, CONTINUITY.md).
+- Theorem (`Travis-Gilbert/incremental-derivation-outstanding`): k2-probe crate (fixtures + main + palette_oracle bin), K5 test module in theorem-ide-app/src/keypress.rs, P-L3-EXEC.md evidence. Scoped staging only.
+- Fork (`apps/theorem-ide/lapce`): `wasm-serve/verify/p-l3-k6.js`.
+- Board (`CommonPlace`, `feat/ard-ui-parts-1-4-6`): p-l3-exec node, manifest row, replay, CONTINUITY, evidence/p-l3-exec/ (run.log, console.log, screenshots).
 
-## Environment (MANDATORY — machine OOM'd twice historically; now healthy)
+## Environment (MANDATORY — machine OOM'd twice historically; system disk 99%)
 
-- Rechecked during d9: the system volume has only ~4.8Gi free while `/Volumes/SSD Samsung` has ~704Gi free. Heavy builds must use an explicit SSD-backed `CARGO_TARGET_DIR`; the prior system-target instruction is superseded. Keep `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home` and `CARGO_BUILD_JOBS=4` max.
+- System volume has ~5.0Gi free while `/Volumes/SSD Samsung` has ~662Gi free. ALL builds must use an explicit SSD-backed `CARGO_TARGET_DIR`. **Warm app-build target this session: `/Volumes/SSD Samsung/theorem-builds/k5-target`** (theorem-ide-app tests ~11s warm). Keep `CARGO_HOME=/Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home` and `CARGO_BUILD_JOBS=4` max.
 - `cargo +1.96.1`, check/test only, `-j 4`. wasm32 needs the S0 CC recipe. wasm-bindgen CLI from `.cargo-home/bin` (0.2.126).
 - After ANY dependency-source edit: `rm -rf` affected wasm32 artifacts (cargo 1.96 fingerprints miss dep edits).
 
-## Live runtime (may still be up; restart per G0-VERIFY.md close-out)
+## Live runtime (was up at session end)
 
-- `python3 -m http.server 8766` in `wasm-serve/`; `theorem-ide-proxy --serve-ws 127.0.0.1:19414 /tmp/lapce-ws-smoke`; bundle `wasm-serve/theorem_ide_wasm_bg.wasm` (19.1MB, merged crate).
+- `python3 -m http.server 8766` in `wasm-serve/`; `theorem-ide-proxy --serve-ws 127.0.0.1:19414 /tmp/lapce-k6-ws` (K6 fixture workspace — restart with a different root to re-target); bundle `wasm-serve/theorem_ide_wasm_bg.wasm` (19.1MB). Chromium-1234 present.
 
 ## Remains (recorded, not lost)
 
 - ide-proxy-fold resume (mcp-weather trigger; resume path in v-ws-integration node + IDE-PROXY-FOLD.md; honest gap: AgentFsBackend opens its own session store — backend-injection seam `serve_ws_with_backend` is the named remain).
 - g0-verify: real-OS IME manual verify (CJK font first — DejaVu has no CJK).
-- Wave 6: p-l3-exec (K2 matcher-gap fixtures, K5 chord semantics, K6 driver traces — probes in P-L3-PROBE.md) is the next unblocked node; token-kernel-binding: dialects + light theme + workspace tests DONE, floem Style-chain binding + fork activation remain parked (shared-build contention; needs a disk-quiet session).
+- Wave 6: p-l3-exec DONE/SEALED (KEEP/KEEP/KEEP, seeds recorded). token-kernel-binding: dialects + light theme + workspace tests DONE, floem Style-chain binding + fork activation remain parked (build contention; warm SSD target now exists — the binding work touches floem source, not just the app crate, so still needs a disk-quiet session). console-host: weather (apps/console churn).
 - console-host: weather (apps/console churn).
 - d7m: consumer-call-site adapter if old char-based names needed. Editor viewport dark-paint cosmetic rides along (known, cosmetic).
 
