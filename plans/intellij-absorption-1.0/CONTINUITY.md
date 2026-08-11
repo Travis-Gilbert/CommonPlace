@@ -110,3 +110,9 @@ Also this session: ide-proxy-fold weather re-probed — disk trigger cleared; `c
 1. When `rustyred-thg-mcp/src/lib.rs` parses, run the standalone CLI manifest-path check, capture `theorem ide-proxy --help`, execute Initialize -> ReadDir, and close the one-store seam.
 2. Then occupy `console-host` with exact paths. Re-home UI source to CommonPlace, preserve provenance, emit the immutable wasm artifact manifest, and keep production on same-origin `/IDE` HTTP/WebSocket transport.
 3. The real-OS IME item remains a separate manual oracle.
+
+## Session 11 seal and push state
+
+- Board: `5a57a58a` pushed to `origin/feat/ard-ui-parts-1-4-6`; contains only the graph-boundary repair and corrected proof receipt.
+- Theorem: another head advanced the shared local branch to `c938fe65` after re-entry; `origin/Travis-Gilbert/incremental-derivation-outstanding` remains `e40eb1fc`. The new local commit changes only post-core portfolio plan nodes and is not this session's work. Do not push it under this handoff.
+- Fork: unchanged and local-only by design.
