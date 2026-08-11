@@ -77,3 +77,15 @@ While the mcp/IDE thread is with Codex, this session claimed **token-kernel-bind
 ## The one line that matters for the next head
 
 **Wave 6 is two-thirds done: p-l3-exec + token-kernel-binding sealed.** Remaining: (1) **console-host** (weather: apps/console churn — the ONLY wave-6 work node left); (2) **ide-proxy-fold** resume when the mcp tree parses (brace balance 4 → 0; resume = theorem-cli check → --help → smoke → AgentFs one-store seam); (3) the real-OS IME manual verify (CJK font + human). The floem binding is the first real consumer of the kernel; the console-host node should read `theorem-style-floem`'s `ThemeStyle` as the reference consumer pattern.
+
+## Session-10 close (2026-08-11): board at the weather edge
+
+Also this session: ide-proxy-fold weather re-probed — disk trigger cleared; `cargo check -p theorem-ide-proxy` GREEN (33.57s); the subcommand's API surface verified statically against the checked crate; the wall is now exactly ONE crate (`rustyred-thg-mcp` lib.rs, brace balance 4, hard dep of theorem-cli via rustyred-embedded — cannot `--exclude` a path dep). Park trigger updated on the node: the moment mcp lib.rs parses → `cargo check -p theorem-cli` (warm rmeta, SSD k5-target) → `theorem ide-proxy --help` → smoke (Initialize → ReadDir) → AgentFs one-store seam (serve_ws_with_backend). Board commits: 9b556573 (token-kernel-binding seal), 2b55d545 (weather narrowing). Theorem: 9b6bce772 (floem binding).
+
+## Remaining (all weather or manual)
+
+- **console-host**: charted only (no node file); blocked on apps/console churn (58 modified files). When apps/console settles: write the node, consume the wasm frontend build artifact.
+- **ide-proxy-fold**: parked on the single mcp-crate parse wall (trigger + resume above).
+- **v-ws-integration deferral**: theorem-cli check — same one-crate wall.
+- **Real-OS IME manual verify** (O-G.5): human + real macOS IME; the vendored DejaVu faces have no CJK — tofu glyphs expected, composition events are the actual check.
+- **d7m conditional remain**: consumer-call-site adapter only if old char-based names are needed (no consumer has surfaced).
