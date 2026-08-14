@@ -23,15 +23,24 @@ import {
   petStopSpeaking,
   petVoiceStart,
   petVoiceStop,
+  petDismissSentinelChip,
+  petPollStream,
   type PetNativePreferences,
   type PetTranscriptEvent,
   type PetVoiceState,
+  type SentinelChipPayload,
 } from "../../lib/commands";
 import {
   drainPetCaptureQueue,
   enqueuePetCapture,
   newPetCaptureEnvelope,
 } from "./capture";
+import { SentinelChipCard } from "./SentinelChip";
+import {
+  chipsWithoutId,
+  fixtureChipFromSearch,
+  type SentinelChipView,
+} from "./sentinelChip";
 import "./pet.css";
 
 function errorMessage(error: unknown): string {
@@ -93,6 +102,7 @@ export function PetSurface() {
   const [status, setStatus] = useState("Ready when you are.");
   const [voiceState, setVoiceState] = useState<PetVoiceState>("idle");
   const [dropActive, setDropActive] = useState(false);
+  const [chips, setChips] = useState<SentinelChipView[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftHydratedRef = useRef(false);
   const preferencesRef = useRef(preferences);
@@ -140,6 +150,24 @@ export function PetSurface() {
     drain();
     window.addEventListener("online", drain);
     return () => window.removeEventListener("online", drain);
+  }, []);
+
+  useEffect(() => {
+    const fixture = fixtureChipFromSearch(window.location.search);
+    if (fixture) setChips([fixture]);
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cursor = 0;
+    const tick = (): void => {
+      void petPollStream(cursor).then((snapshot) => {
+        cursor = snapshot.cursor;
+      });
+    };
+    tick();
+    const timer = window.setInterval(tick, 4_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -389,6 +417,12 @@ export function PetSurface() {
         setBusy(false);
         setVoiceState("idle");
       }),
+      listen<SentinelChipPayload>("pet:sentinel-chip", ({ payload }) => {
+        setChips((current) => {
+          if (current.some((chip) => chip.id === payload.id)) return current;
+          return [...current, payload];
+        });
+      }),
     ];
     return () => {
       for (const unlisten of listeners) {
@@ -396,6 +430,11 @@ export function PetSurface() {
       }
     };
   }, []);
+
+  const dismissChip = (chip: SentinelChipView): void => {
+    setChips((current) => chipsWithoutId(current, chip.id));
+    void petDismissSentinelChip(chip);
+  };
 
   const submit = async (): Promise<void> => {
     const text = draft.trim();
@@ -519,6 +558,9 @@ export function PetSurface() {
           style={{ backgroundImage: `url(${runeSprite})` }}
           aria-hidden="true"
         />
+        {chips.map((chip) => (
+          <SentinelChipCard key={chip.id} chip={chip} onDismiss={dismissChip} />
+        ))}
       </div>
 
       <section className="pet-composer" aria-label="CommonPlace pet composer">

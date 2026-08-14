@@ -820,23 +820,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
     }
   }
 
-  async function restoreRightVersion(): Promise<void> {
-    if (!rightVersion || !topicId) return;
-    setProposalBusy(true);
-    setError(null);
-    try {
-      const result = await postSchemaRestore(topicId, rightVersion.id, host);
-      setDeclared(result.declared);
-      setReloadToken((token) => token + 1);
-      setNotice(
-        `Restored schema ${String(rightVersion.version)} as a new receipted declaration batch.`,
-      );
-    } catch (restoreError) {
-      setError(restoreError instanceof Error ? restoreError.message : String(restoreError));
-    } finally {
-      setProposalBusy(false);
-    }
-  }
+
 
   async function exportOkf(): Promise<void> {
     const title = topicId ? `Model ${topicId}` : 'Model';

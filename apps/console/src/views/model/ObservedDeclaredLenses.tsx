@@ -26,6 +26,14 @@ export interface LensProps {
   readonly onUnpin: (declaredId: string) => void;
   readonly layoutPositions?: LayoutPositions;
   readonly onLayoutChange?: (positions: LayoutPositions) => void;
+  readonly modelName?: string;
+  readonly onImport?: () => void;
+  readonly onExport?: () => void;
+  readonly onDeclare?: () => void;
+  readonly declareDisabled?: boolean;
+  readonly onSpawnObject?: (position: { x: number; y: number }) => void;
+  readonly onCompareVersion?: (id: string) => void;
+  readonly onRestoreVersion?: (id: string) => void;
 }
 
 export function DiagramLens(props: LensProps) {

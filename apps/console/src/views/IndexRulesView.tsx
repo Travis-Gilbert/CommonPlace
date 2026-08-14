@@ -23,6 +23,7 @@ import {
   useFilingRules,
 } from './filing/filing-client';
 import { AgentAliasPane } from '@/components/agent-address/AgentAliasPane';
+import { LifeCalendarPane } from '@/components/agent-address/LifeCalendarPane';
 import { YourDataEntry } from '@/components/console-plugin/YourDataEntry';
 
 const PREDICATE_KINDS: ReadonlyArray<{
@@ -261,6 +262,9 @@ export function IndexRulesView({ host }: ViewRenderProps) {
       <YourDataEntry host={host} returnSurfaceId="console-index" compact />
       {content}
       <AgentAliasPane />
+      <div className="border-t border-ij-seam px-2 py-3">
+        <LifeCalendarPane />
+      </div>
     </div>
   );
 }

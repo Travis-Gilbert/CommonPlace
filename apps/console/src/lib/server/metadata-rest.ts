@@ -27,12 +27,18 @@ export async function forwardMetadataRest(
   const url = new URL(request.url);
   const search = url.search; // includes leading ?
 
-  if (!base) {
-    return handleLocalDevMetadata(method, segments, await request.clone().text().catch(() => null));
-  }
-
   const resolution = await resolveHarnessPrincipal();
   if (!resolution.ok) return resolution.response;
+
+  if (!base) {
+    if (process.env.NODE_ENV === 'production') {
+      return new Response(JSON.stringify({ error: 'unconfigured', message: 'Harness metadata is unconfigured in production.' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return handleLocalDevMetadata(method, segments, await request.clone().text().catch(() => null));
+  }
 
   const bodyText =
     method === 'GET' || method === 'HEAD' || method === 'DELETE'
@@ -53,6 +59,7 @@ export async function forwardMetadataRest(
       },
       body: bodyText,
       cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
     });
   } catch {
     return handleLocalDevMetadata(method, segments, bodyText);

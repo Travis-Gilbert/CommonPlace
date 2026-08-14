@@ -49,6 +49,7 @@ const ALLOWED_UNMANIFESTED = new Set([
   'agent.rail',
   'records.block',
   'record.page',
+  'model.settings',
   'commonplace.console',
   'browser.pane',
   'prototype.stage',

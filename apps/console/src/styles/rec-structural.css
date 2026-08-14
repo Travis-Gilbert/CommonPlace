@@ -40,3 +40,18 @@
   --survey-open-rail: calc(var(--rec-grid) * 80);
   --survey-open-source-max: calc(var(--rec-grid) * 250);
 }
+
+@media (min-width: 1024px) {
+  .rec-grid-model-settings {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .rec-grid-field-settings-lg {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 640px) {
+  .rec-grid-field-settings-sm {
+    grid-template-columns: 1fr minmax(0, 1fr);
+  }
+}

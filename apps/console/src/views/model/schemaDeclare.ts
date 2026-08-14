@@ -47,3 +47,38 @@ export function schemaDeclareInputForField(
     expectedContentAnchor: objectType.contentAnchor,
   };
 }
+
+/** Canvas spawn: a new declared object type with id + name fields. */
+export function schemaDeclareInputForNewObject(
+  ordinal = 1,
+): SchemaDeclareInput {
+  const suffix = ordinal <= 1 ? '' : `_${ordinal}`;
+  const key = `object${suffix}`;
+  const label = ordinal <= 1 ? 'New object' : `New object ${ordinal}`;
+  return {
+    nameSingular: key,
+    namePlural: `${key}s`,
+    labelSingular: label,
+    labelPlural: `${label}s`,
+    nodeLabel: label,
+    labelIdentifierField: 'id',
+    fields: [
+      {
+        key: 'id',
+        label: 'Id',
+        fieldType: { kind: 'uuid' },
+        required: true,
+        system: true,
+      },
+      {
+        key: 'name',
+        label: 'Name',
+        fieldType: { kind: 'text' },
+        required: false,
+        system: false,
+      },
+    ],
+    enforcement: 'warn',
+    system: false,
+  };
+}

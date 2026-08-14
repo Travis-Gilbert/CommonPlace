@@ -15,9 +15,11 @@ export default async function ChatIndexPage() {
     return <ChatUnavailable settingsHref={null} />;
   }
   return (
-    <TheoremChatRegisterView
-      reason="Theorem ACP stream via /api/chat/stream. OpenWork is no longer the product /chat host."
-      endpoint="/api/chat/stream"
-    />
+    <div className="h-dvh" data-chat-page>
+      <TheoremChatRegisterView
+        reason="Theorem ACP stream via /api/chat/stream. OpenWork is no longer the product /chat host."
+        endpoint="/api/chat/stream"
+      />
+    </div>
   );
 }

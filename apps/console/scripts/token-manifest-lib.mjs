@@ -39,6 +39,8 @@ export const REGISTER_PROVENANCE = {
     'Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary',
   'src/styles/gy-bridge.css':
     'Galley (@travis-gilbert/markdown-theory) document register, bridged onto the console register',
+  'src/styles/twenty-register.css':
+    'Twenty-shaped token register for metadata and presentation elements (2026-08-08)',
   'src/styles/galley-register.css':
     'Generated from the Galley package by scripts/generate-galley-register.mjs',
   'src/styles/theme-engine.ts':

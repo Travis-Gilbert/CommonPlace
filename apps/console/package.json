@@ -10,7 +10,7 @@
     "start:railway": "node scripts/start-railway.mjs",
     "start": "next start",
     "lint": "eslint src scripts next.config.ts",
-    "test": "node --test scripts/railway-env.test.mjs scripts/edge-proxy.test.mjs && vitest run",
+    "test": "node --test scripts/railway-env.test.mjs scripts/edge-proxy.test.mjs scripts/check-models-data-door.test.mjs && vitest run",
     "test:watch": "vitest",
     "gate:fence": "node scripts/check-import-fence.mjs",
     "gate:register": "node scripts/check-register-lint.mjs",
@@ -25,12 +25,15 @@
     "tokens:manifest": "node scripts/generate-token-manifest.mjs",
     "icons:normalize": "node scripts/normalize-noun-icons.mjs",
     "generate:galley": "node scripts/generate-galley-register.mjs",
-    "gates": "npm run gate:fence && npm run gate:twenty && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:sourcing && npm run gate:tokens && npm run gate:blocks && npm run gate:paper-shader-colors && npm run gate:persistence && npm run gate:canonical-root && npm run gate:register-manifest",
+    "gates": "npm run gate:fence && npm run gate:twenty && npm run gate:register && npm run gate:contrast && npm run gate:radius && npm run gate:motion && npm run gate:icons && npm run gate:sourcing && npm run gate:tokens && npm run gate:blocks && npm run gate:paper-shader-colors && npm run gate:persistence && npm run gate:canonical-root && npm run gate:register-manifest && npm run gate:signed-request-bundle && npm run gate:models-data-door",
     "test:e2e": "playwright test",
     "gate:radius": "node scripts/check-radius-lint.mjs",
     "gate:canonical-root": "node ../../scripts/assert-canonical-root.mjs",
     "gate:register-manifest": "node ../../scripts/check-register-manifest.mjs",
-    "gate:twenty": "node scripts/check-twenty-fence.mjs"
+    "gate:twenty": "node scripts/check-twenty-fence.mjs",
+    "gate:signed-request-bundle": "node scripts/check-signed-request-client-bundle.mjs",
+    "gate:models-data-door": "node scripts/check-models-data-door.mjs",
+    "smoke:signed-workspace": "node scripts/smoke-signed-workspace.mjs"
   },
   "dependencies": {
     "@assistant-ui/core": "0.1.17",

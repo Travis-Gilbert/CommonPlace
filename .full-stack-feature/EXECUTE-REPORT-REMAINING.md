@@ -41,13 +41,27 @@
 | Research | research-d20-d23 / d32-d36 | blockers |
 
 ## Validation
-| Check | Result |
-|---|---|
-| twenty-metadata.test.ts | 4 pass |
-| console focused vitest (4 files) | 14 pass |
-| gate:twenty | pass |
-| smoke-metadata-rest | skipped (no URL) |
-| Browser Product complete | not run |
+| Check | Result | Evidence |
+|---|---|---|
+| twenty-metadata.test.ts | 6 pass | `npm --prefix packages/data-model-contracts test` |
+| console focused vitest | 46 pass | `npm --prefix apps/console run test` |
+| gate:fence | pass | `node scripts/check-import-fence.mjs` |
+| gate:twenty | pass | `node scripts/check-twenty-fence.mjs` |
+| gate:register | pass | `node scripts/check-register-lint.mjs` |
+| gate:contrast | pass | `node --experimental-strip-types scripts/check-contrast.mjs` |
+| gate:radius | pass | `node scripts/check-radius-lint.mjs` |
+| gate:motion | pass | `node scripts/check-motion-inventory.mjs` |
+| gate:icons | pass | `node scripts/check-icon-svg.mjs` |
+| gate:sourcing | pass | `node scripts/lint-sourcing.mjs` |
+| gate:tokens | pass | `node scripts/check-token-manifest.mjs` |
+| gate:blocks | pass | `node scripts/check-block-classes.mjs` |
+| gate:paper-shader-colors | pass | `node scripts/check-paper-shader-colors.mjs` |
+| gate:persistence | pass | `node scripts/lint-persistence.mjs --check` |
+| gate:canonical-root | pass | `node ../../scripts/assert-canonical-root.mjs` |
+| gate:register-manifest | pass | `node ../../scripts/check-register-manifest.mjs` |
+| gate:signed-request-bundle | pass | `node scripts/check-signed-request-client-bundle.mjs` |
+| smoke-metadata-rest | skipped (no URL) | env-gated (skipped-live-proof state without URL, local fallback verified) |
+| Browser Product complete (Playwright baseline) | not run / pending | skipped (browser/Playwright visual baseline run by principal) |
 
 ## Remaining Work
 - WorkOS AuthKit (principal)

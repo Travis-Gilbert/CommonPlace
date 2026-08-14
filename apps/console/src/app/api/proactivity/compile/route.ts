@@ -13,9 +13,13 @@ import { proactivityCompilationStream } from '@/lib/proactivity/compilation-stre
 import { resolveHarnessPrincipal } from '@/lib/server/harness-principal';
 import { stageProactivityCompilation } from '@/lib/server/proactivity-harness';
 import {
+  acpAuthTokenFromCredential,
   credentialRefusalResponse,
   resolveUpstreamCredential,
+  serviceUpstreamKey,
 } from '@/lib/server/upstream-credential';
+import { ensurePrincipalCredential } from '@/lib/server/principal-credential-store';
+import { configuredServiceTenantMatches } from '@/lib/harness-principal-core';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -32,6 +36,28 @@ export async function POST(request: Request): Promise<Response> {
   const resolvedCredential = await resolveUpstreamCredential(resolution.principal);
   if (!resolvedCredential.ok) {
     return credentialRefusalResponse(resolvedCredential.refusal);
+  }
+  let authToken = acpAuthTokenFromCredential(resolvedCredential.credential);
+  if (!authToken) {
+    // ACP bridge cannot carry signature headers yet (SI D5 constraint). Fall
+    // back to a principal token or the matching deployment service key.
+    const issued = await ensurePrincipalCredential(resolution.principal);
+    if (issued) {
+      authToken = issued.token;
+    } else if (
+      configuredServiceTenantMatches(resolution.principal, process.env.CONSOLE_HARNESS_TENANT)
+    ) {
+      authToken = serviceUpstreamKey();
+    } else {
+      return Response.json(
+        {
+          error: 'acp_credential_unavailable',
+          message:
+            'Signed-request custody is configured, but ACP still needs a principal token or matching service key until SI D5.',
+        },
+        { status: 403 },
+      );
+    }
   }
   try {
     const command: BridgeCommand = {
@@ -56,10 +82,7 @@ export async function POST(request: Request): Promise<Response> {
     };
     const session = await resolveBridgeSession({
       tenant: resolution.principal.tenant,
-      authToken:
-        resolvedCredential.credential.kind === 'service_key'
-          ? resolvedCredential.credential.key
-          : resolvedCredential.credential.token,
+      authToken,
     });
     await dispatchBridgeCommands(session, [command]);
     return new Response(

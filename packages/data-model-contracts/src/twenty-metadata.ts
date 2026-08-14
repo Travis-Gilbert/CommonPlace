@@ -146,7 +146,12 @@ export function editorStateFromField(field: FieldMetadataWire): {
   let relationCardinality: 'one' | 'many' = 'many';
   if (canonical && typeof canonical === 'object' && !Array.isArray(canonical)) {
     const typed = canonical as FieldType;
-    token = fieldTypeToTwentyToken(typed);
+    // Keep the wire token when it already round-trips to the same canonical
+    // kind, so compound tokens (MULTI_SELECT, EMAILS, CURRENCY) survive.
+    token =
+      twentyTokenToFieldType(field.type).kind === typed.kind
+        ? field.type
+        : fieldTypeToTwentyToken(typed);
     if (typed.kind === 'enum') variants = [...typed.variants];
     if (typed.kind === 'vector') {
       token = 'RAW_JSON';

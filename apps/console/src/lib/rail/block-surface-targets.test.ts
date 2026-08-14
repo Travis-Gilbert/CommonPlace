@@ -24,6 +24,36 @@ describe('resolveBlockSurfaceTarget', () => {
     ).toEqual({ path: '/Data-model', surfaceId: 'console-models' });
   });
 
+  it('maps Models settings descriptor to /Data-model/settings', () => {
+    expect(
+      resolveBlockSurfaceTarget({
+        id: 'settings',
+        kind: 'model',
+        descriptorId: 'model.settings',
+      }),
+    ).toEqual({ path: '/Data-model/settings', surfaceId: 'console-model-settings' });
+  });
+
+  it('resolves using palette-kind or item-ID fallback', () => {
+    expect(
+      resolveBlockSurfaceTarget({
+        id: 'canvas',
+        kind: 'canvas',
+        descriptorId: 'custom.orphan',
+      }),
+    ).toEqual({ path: '/canvas', surfaceId: 'console-canvas' });
+  });
+
+  it('resolves using nested route basename fallback', () => {
+    expect(
+      resolveBlockSurfaceTarget({
+        id: 'settings',
+        kind: 'custom-settings-kind',
+        descriptorId: 'custom.orphan',
+      }),
+    ).toEqual({ path: '/Data-model/settings', surfaceId: 'console-model-settings' });
+  });
+
   it('returns null for embed-only descriptors without a surface', () => {
     expect(
       resolveBlockSurfaceTarget({

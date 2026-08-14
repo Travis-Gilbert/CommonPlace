@@ -1,7 +1,7 @@
 'use client';
 
 // SOURCING: none. SPEC-THEOREM-CHAT-REGISTER-1.0 TheoremChatRegister.
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { REGISTER_IMPL } from './register-impl';
 import {
   createChatSessionController,
@@ -17,6 +17,12 @@ export type TheoremChatRegisterProps = {
   readonly className?: string;
   /** When true, open the ACP/stream session on mount. */
   readonly autoOpen?: boolean;
+  /** Slot after the composer input so hosts can mount a `/` command palette. */
+  readonly renderAfterInput?: (slot: {
+    readonly draft: string;
+    readonly setDraft: (value: string) => void;
+    readonly appendLocal: ChatSessionController['appendLocal'];
+  }) => ReactNode;
 };
 
 /**
@@ -28,6 +34,7 @@ export function TheoremChatRegister({
   reason,
   className,
   autoOpen = true,
+  renderAfterInput,
 }: TheoremChatRegisterProps) {
   const controller = useMemo(
     () => createChatSessionController(transport),
@@ -56,6 +63,7 @@ export function TheoremChatRegister({
     event.preventDefault();
     const text = draft.trim();
     if (!text || snap.running) return;
+    if (text.startsWith('/')) return;
     setDraft('');
     try {
       await controller.prompt(text);
@@ -128,19 +136,33 @@ export function TheoremChatRegister({
         </p>
       ) : null}
 
-      <form onSubmit={onSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
-        <input
-          aria-label="Message"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          disabled={snap.running}
-          placeholder="Message Theorem…"
-          style={{ flex: 1, minWidth: 0, padding: '0.5rem 0.75rem' }}
-        />
-        <button type="submit" disabled={snap.running || !draft.trim()}>
-          {snap.running ? 'Sending…' : 'Send'}
-        </button>
+      <form
+        onSubmit={onSubmit}
+        data-chat-composer
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+      >
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            aria-label="Message"
+            data-composer-input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            disabled={snap.running}
+            placeholder="Message Theorem…  Type / for commands"
+            style={{ flex: 1, minWidth: 0, padding: '0.5rem 0.75rem' }}
+          />
+          <button type="submit" disabled={snap.running || !draft.trim()}>
+            {snap.running ? 'Sending…' : 'Send'}
+          </button>
+        </div>
       </form>
+      {renderAfterInput
+        ? renderAfterInput({
+            draft,
+            setDraft,
+            appendLocal: (role, text) => controller.appendLocal(role, text),
+          })
+        : null}
     </div>
   );
 }

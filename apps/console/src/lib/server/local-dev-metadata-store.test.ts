@@ -43,6 +43,25 @@ describe('LocalDevMetadataStore', () => {
         (row) => row.objectNameSingular === 'customer' && row.fieldName === 'email',
       ),
     ).toBe(false);
+
+    // Demote (DELETE index)
+    const demoted = await handleLocalDevMetadata(
+      'DELETE',
+      ['indexes', 'customer', 'email'],
+      null,
+    );
+    expect(demoted.status).toBe(204);
+
+    // Verify demotion restores the promotion candidate
+    const postDemotedCandidates = await handleLocalDevMetadata('GET', ['promotion-candidates'], null);
+    const postDemotedCandidateBody = (await postDemotedCandidates.json()) as {
+      candidates: Array<{ fieldName: string; objectNameSingular: string }>;
+    };
+    expect(
+      postDemotedCandidateBody.candidates.some(
+        (row) => row.objectNameSingular === 'customer' && row.fieldName === 'email',
+      ),
+    ).toBe(true);
   });
 
   it('maps and revokes facet conformance', async () => {
@@ -68,5 +87,19 @@ describe('LocalDevMetadataStore', () => {
       null,
     );
     expect(revoked.status).toBe(204);
+  });
+
+  it('rejects PATCH on system fields with 403', async () => {
+    const response = await handleLocalDevMetadata(
+      'PATCH',
+      ['fields', 'customer', 'id'],
+      JSON.stringify({ label: 'Identifier' }),
+    );
+    expect(response.status).toBe(403);
+  });
+
+  it('returns 404 for unknown routes', async () => {
+    const response = await handleLocalDevMetadata('GET', ['unknown-junk'], null);
+    expect(response.status).toBe(404);
   });
 });

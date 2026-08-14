@@ -123,7 +123,40 @@ test.describe('Console sidebar', () => {
     await expect(page.getByTestId('model-canvas-shell')).toBeVisible({
       timeout: 120_000,
     });
-    await expect(page.locator('[data-model-inspector]')).toHaveCSS('width', '320px');
+    await expect(page.locator('[data-register-impl="model-canvas.owox"]')).toBeVisible();
+    await expect(page.locator('[data-owox-topbar]')).toBeVisible();
+    await expect(page.locator('[data-dock]')).toBeVisible();
+  });
+
+  test('Blocks palette Records navigates to /records without Models tab pollution', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto('/Data-model');
+    await settled(page);
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-models',
+    );
+
+    const recordsBlock = page.locator('[aria-label="Blocks"] button', { hasText: /Records/i }).first();
+    await expect(recordsBlock).toBeVisible({ timeout: 30_000 });
+    await recordsBlock.click();
+    await settled(page);
+
+    await expect(page).toHaveURL(/\/records\/?$/);
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-records',
+      { timeout: 15_000 },
+    );
+    // Models recovers as the canonical OWOX studio, not a Records tab island.
+    await page.goto('/Data-model');
+    await settled(page);
+    await expect(page.locator('[data-shell]')).toHaveAttribute(
+      'data-active-surface',
+      'console-models',
+    );
+    await expect(page.getByTestId('model-canvas-shell')).toBeVisible();
+    await expect(page.locator('[data-owox-topbar]')).toBeVisible();
   });
 
   test('Program route mounts the canonical Program Canvas surface', async ({ page }) => {

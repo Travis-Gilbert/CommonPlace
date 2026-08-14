@@ -17,6 +17,8 @@ export type ChatSessionSnapshot = {
 export type ChatSessionController = {
   open(): Promise<string>;
   prompt(text: string): Promise<void>;
+  /** Local thread line (slash-command receipts) — does not hit the transport. */
+  appendLocal(role: ChatMessage['role'], text: string): void;
   getSnapshot(): ChatSessionSnapshot;
   subscribe(listener: (snapshot: ChatSessionSnapshot) => void): () => void;
   dispose(): void;
@@ -54,6 +56,12 @@ export function createChatSessionController(transport: ChatTransport): ChatSessi
       sessionId = await transport.openSession();
       emit();
       return sessionId;
+    },
+    appendLocal(role: ChatMessage['role'], text: string) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      messages = [...messages, { id: nextId(), role, text: trimmed }];
+      emit();
     },
     async prompt(text: string) {
       const trimmed = text.trim();

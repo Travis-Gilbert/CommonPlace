@@ -1,0 +1,80 @@
+{
+  "openGraph": {
+    "title": "Free Shadcn UI Components, Blocks, Icons, Templates & MCP",
+    "description": "Free Shadcn UI components and pro blocks for React and Tailwind CSS. Hand-crafted icons, templates, and a hosted MCP server so coding agents build with the shadcn CLI.",
+    "url": "https://reui.io",
+    "site_name": "ReUI",
+    "locale": "en_US",
+    "image": "https://reui.io/og?title=Free%20Shadcn%20UI%20Components%2C%20Blocks%2C%20Icons%2C%20Templates%20%26%20MCP&description=Free%20Shadcn%20UI%20components%20and%20pro%20blocks%20for%20React%20and%20Tailwind%20CSS.%20Hand-crafted%20icons%2C%20templates%2C%20and%20a%20hosted%20MCP%20server%20so%20coding%20agents%20build%20with%20the%20shadcn%20CLI.&v=dpl_Dmc4JhY2945shWDaM1BZFBr39VRK",
+    "image:width": "1200",
+    "image:height": "630",
+    "image:alt": "Free Shadcn UI Components, Blocks, Icons, Templates & MCP",
+    "type": "website"
+  },
+  "twitter": {
+    "card": "summary_large_image",
+    "creator": "@reui_io",
+    "title": "Free Shadcn UI Components, Blocks, Icons, Templates & MCP",
+    "description": "Free Shadcn UI components and pro blocks for React and Tailwind CSS. Hand-crafted icons, templates, and a hosted MCP server so coding agents build with the shadcn CLI.",
+    "image": "https://reui.io/og?title=Free%20Shadcn%20UI%20Components%2C%20Blocks%2C%20Icons%2C%20Templates%20%26%20MCP&description=Free%20Shadcn%20UI%20components%20and%20pro%20blocks%20for%20React%20and%20Tailwind%20CSS.%20Hand-crafted%20icons%2C%20templates%2C%20and%20a%20hosted%20MCP%20server%20so%20coding%20agents%20build%20with%20the%20shadcn%20CLI.&v=dpl_Dmc4JhY2945shWDaM1BZFBr39VRK",
+    "image:alt": "Free Shadcn UI Components, Blocks, Icons, Templates & MCP",
+    "image:width": "1200",
+    "image:height": "630"
+  },
+  "description": "Free Shadcn UI components and pro blocks for React and Tailwind CSS. Hand-crafted icons, templates, and a hosted MCP server so coding agents build with the shadcn CLI.",
+  "canonical": null,
+  "themeColor": "#ffffff",
+  "viewport": "width=device-width, initial-scale=1",
+  "favicons": [
+    {
+      "rel": "shortcut icon",
+      "href": "https://reui.io/favicon.ico",
+      "sizes": "",
+      "type": "image/x-icon"
+    },
+    {
+      "rel": "icon",
+      "href": "https://reui.io/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "rel": "apple-touch-icon",
+      "href": "https://reui.io/brand/logo-default.png",
+      "sizes": "500x500",
+      "type": "image/png"
+    }
+  ],
+  "manifest": "https://reui.io/manifest.webmanifest",
+  "structuredData": [
+    {
+      "type": "Organization",
+      "name": "ReUI",
+      "sample": "{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"name\":\"ReUI\",\"url\":\"https://reui.io\",\"logo\":\"https://reui.io/brand/logo-icon-light.svg\",\"sameAs\":[\"https://github.com/keenthemes/reui\",\"https://x.com/reui_io\"]}"
+    },
+    {
+      "type": "WebSite",
+      "name": "ReUI",
+      "sample": "{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"name\":\"ReUI\",\"url\":\"https://reui.io\",\"description\":\"Free shadcn/ui components and premium blocks, icons, and templates, plus a hosted MCP server so coding agents build production-ready apps faster.\",\"publisher\":{\"@type\":\"Organization\",\"name\":\"ReUI\",\"url\":\"https://reui.io\"},\"potentialAction\":{\"@type\":\"SearchAction\",\"target\":\"https://reui.io/compon"
+    },
+    {
+      "type": "SoftwareApplication",
+      "name": "ReUI",
+      "sample": "{\"@context\":\"https://schema.org\",\"@type\":\"SoftwareApplication\",\"name\":\"ReUI\",\"description\":\"Free shadcn/ui components and premium blocks, icons, and templates, plus a hosted MCP server so coding agents build production-ready apps faster.\",\"url\":\"https://reui.io\",\"applicationCategory\":\"DeveloperApplication\",\"operatingSystem\":\"Web\",\"offers\":{\"@type\":\"Offer\",\"price\":\"0\",\"priceCurrency\":\"USD\"}}"
+    },
+    {
+      "type": "FAQPage",
+      "name": null,
+      "sample": "{\"@context\":\"https://schema.org\",\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"What's included in the library?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"1,052 free shadcn components, 20 ReUI custom primitives, 501 Pro blocks across 5 groups, 638 icons in 4 styles (2,552 variants), and a growing collection of full-page templates. Counts grow with each release.\"}},{\"@type\":\"Question\""
+    }
+  ],
+  "score": {
+    "hasOg": true,
+    "hasTwitter": true,
+    "hasDescription": true,
+    "hasCanonical": false,
+    "hasStructuredData": true,
+    "hasFavicon": true,
+    "hasThemeColor": true
+  }
+}

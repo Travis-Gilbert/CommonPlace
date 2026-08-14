@@ -24,6 +24,8 @@ import { CONTAINS_EDGE } from '@commonplace/block-view/surface-tree';
 import { HttpBlockHost } from '@commonplace/block-view/host/http';
 import {
   CONSOLE_DATA_SURFACE_ID,
+  MODEL_VIEW_INSTANCE_ID,
+  PROGRAM_VIEW_INSTANCE_ID,
   RECORD_FIELDS,
   seedCodeFiles,
   seedDocs,
@@ -544,15 +546,20 @@ export class ConsoleBlockHost implements BlockHost {
     for (const candidate of this.layout.values()) {
       if (candidate.type === 'surface') candidate.properties.active = candidate.id === surfaceId;
     }
+    // Bare Places must recover from polluted editor tabs before paint.
+    const barePrune = this.canonicalizeCanvasPageRegions();
     this.persistLayout();
     this.notifyLayout();
-    const actions = [...this.layout.values()]
-      .filter((node) => node.type === 'surface')
-      .map((node) => ({
-        kind: 'update' as const,
-        id: node.id,
-        patch: { active: node.id === surfaceId },
-      }));
+    const actions: ObjectAction[] = [
+      ...[...this.layout.values()]
+        .filter((node) => node.type === 'surface')
+        .map((node) => ({
+          kind: 'update' as const,
+          id: node.id,
+          patch: { active: node.id === surfaceId } as Record<string, JsonValue>,
+        })),
+      ...barePrune,
+    ];
     const write = this.activationWriteQueue.then(() => this.writeThroughLayoutUpdates(actions));
     this.activationWriteQueue = write.catch(() => undefined);
     await write;
@@ -594,22 +601,71 @@ export class ConsoleBlockHost implements BlockHost {
 
   /** Canonical canvas pages own their internal chrome. Persisted layouts from
    *  before the page routes existed must not keep wrapping them in a second
-   *  generic BlockShell. */
+   *  generic BlockShell. Bare editors also prune foreign palette tabs so
+   *  /Data-model always shows the seed Models view-instance. */
   private canonicalizeCanvasPageRegions(): ObjectAction[] {
     const actions: ObjectAction[] = [];
-    for (const [id, seedRevision] of [
-      ['models.region-editor', 2],
-      ['program.region-editor', 1],
-    ] as const) {
-      const region = this.layout.get(id);
-      if (region?.type !== 'region' || region.properties.chrome === 'bare') continue;
-      region.properties.chrome = 'bare';
-      region.properties.seed_revision = seedRevision;
-      actions.push({
-        kind: 'update',
-        id,
-        patch: { chrome: 'bare', seed_revision: seedRevision },
-      });
+    const bareEditors: ReadonlyArray<{
+      regionId: string;
+      seedVi: string;
+      seedRevision: number;
+    }> = [
+      { regionId: 'models.region-editor', seedVi: MODEL_VIEW_INSTANCE_ID, seedRevision: 3 },
+      { regionId: 'program.region-editor', seedVi: PROGRAM_VIEW_INSTANCE_ID, seedRevision: 1 },
+      { regionId: 'chat.region-editor', seedVi: 'chat.vi-surface', seedRevision: 2 },
+      { regionId: 'goals.region-editor', seedVi: 'goals.vi-stack', seedRevision: 4 },
+      { regionId: 'search.region-editor', seedVi: 'search.vi-stack', seedRevision: 1 },
+      { regionId: 'kanban.region-editor', seedVi: 'kanban.vi-board', seedRevision: 1 },
+      { regionId: 'commands.region-editor', seedVi: 'commands.vi-gallery', seedRevision: 1 },
+    ];
+
+    for (const { regionId, seedVi, seedRevision } of bareEditors) {
+      const region = this.layout.get(regionId);
+      if (region?.type !== 'region') continue;
+
+      let changed = false;
+      if (region.properties.chrome !== 'bare') {
+        region.properties.chrome = 'bare';
+        changed = true;
+      }
+
+      // Ensure the seed view-instance exists in the layout graph.
+      if (!this.layout.has(seedVi)) {
+        const seeded = seedLayout().find((object) => object.id === seedVi);
+        if (seeded) {
+          this.layout.set(seedVi, toMutable(seeded));
+          changed = true;
+        }
+      }
+
+      const foreign = region.children.filter((childId) => childId !== seedVi);
+      if (foreign.length > 0 || !region.children.includes(seedVi)) {
+        for (const childId of foreign) {
+          this.layout.delete(childId);
+          actions.push({ kind: 'delete', id: childId });
+        }
+        region.children = this.layout.has(seedVi) ? [seedVi] : [];
+        changed = true;
+      }
+
+      if (region.properties.active_tab !== seedVi && this.layout.has(seedVi)) {
+        region.properties.active_tab = seedVi;
+        changed = true;
+      }
+
+      const priorRevision = Number(region.properties.seed_revision ?? 0);
+      if (changed || priorRevision < seedRevision) {
+        region.properties.seed_revision = seedRevision;
+        actions.push({
+          kind: 'update',
+          id: regionId,
+          patch: {
+            chrome: 'bare',
+            active_tab: seedVi,
+            seed_revision: seedRevision,
+          },
+        });
+      }
     }
     return actions;
   }

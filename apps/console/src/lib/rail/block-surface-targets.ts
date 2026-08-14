@@ -61,13 +61,17 @@ export function resolveBlockSurfaceTarget(
   const byKind = BY_PALETTE_KIND[item.kind] ?? BY_PALETTE_KIND[item.id];
   if (byKind) return byKind;
   // Last resort: any SURFACE_ROUTES entry whose path basename matches the id.
-  const route = SURFACE_ROUTES.find(
-    (entry) =>
+  const route = SURFACE_ROUTES.find((entry) => {
+    const basename = entry.path.slice(entry.path.lastIndexOf('/') + 1);
+    return (
+      basename === item.id ||
+      basename === item.kind ||
       entry.path === `/${item.id}` ||
       entry.path === `/${item.kind}` ||
       entry.surfaceId === `console-${item.id}` ||
-      entry.surfaceId === `console-${item.kind}`,
-  );
+      entry.surfaceId === `console-${item.kind}`
+    );
+  });
   return route
     ? { path: route.path, surfaceId: route.surfaceId }
     : null;

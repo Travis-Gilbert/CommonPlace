@@ -434,7 +434,8 @@
       "resolvedAlsoIn": [
         "src/styles/int-ui-register.css",
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-accent-hover": {
@@ -443,7 +444,8 @@
       "note": "Accent slot. Default is the authentic Int UI blue. The register accepts a",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-agent": {
@@ -452,7 +454,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-agent-rail-max-w": {
@@ -467,27 +470,33 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-arc": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-arc-underline": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Metrics. --ij-arc remains the mid step; D2 scale expands around it.",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-blue-1": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-10": {
@@ -495,7 +504,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-11": {
@@ -503,27 +513,33 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-12": {
       "file": "src/styles/int-ui-register-light.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_light.theme.json (commit 0db751c0, SHA-256 411be97a), verbatim Int UI Light values",
       "note": null,
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-blue-13": {
       "file": "src/styles/int-ui-register-light.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_light.theme.json (commit 0db751c0, SHA-256 411be97a), verbatim Int UI Light values",
       "note": null,
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-blue-2": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-3": {
@@ -531,7 +547,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-4": {
@@ -539,7 +556,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-5": {
@@ -547,7 +565,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-6": {
@@ -555,7 +574,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-7": {
@@ -563,7 +583,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-8": {
@@ -571,7 +592,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-blue-9": {
@@ -579,7 +601,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-chat-attach-max-w": {
@@ -688,7 +711,8 @@
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-composer-control-size": {
@@ -823,20 +847,25 @@
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-control-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-control-min-w": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-corner-raised": {
       "file": "src/styles/int-ui-register.css",
@@ -862,7 +891,8 @@
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-ease": {
@@ -877,7 +907,8 @@
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-editor-line": {
@@ -885,6 +916,7 @@
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index",
       "resolvedAlsoIn": [
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -894,7 +926,8 @@
       "note": "Status",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-error-bg": {
@@ -903,7 +936,8 @@
       "note": "Status",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-excerpt-header-font-size": {
@@ -928,7 +962,9 @@
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Accent slot. Default is the authentic Int UI blue. The register accepts a",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-font-mono": {
       "file": "src/styles/int-ui-register.css",
@@ -943,7 +979,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Type. The console UI face is IBM Plex Sans at 13px (owner typography",
       "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
+        "src/styles/register-bridge.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-frame": {
@@ -953,13 +990,22 @@
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
     "--ij-gold": {
-      "file": "src/styles/theme-engine.ts",
-      "provenance": "The runtime derivation engine: the appearance surface computes these slots from user knobs, clamped by the contrast gate",
-      "note": "derived at runtime from appearance knobs",
+      "file": "src/styles/twenty-register.css",
+      "provenance": "Twenty-shaped token register for metadata and presentation elements (2026-08-08)",
+      "note": "Harness domain accents, kept semantically: memory green, agent amber,",
+      "resolvedAlsoIn": [
+        "src/styles/theme-engine.ts"
+      ]
+    },
+    "--ij-gold-tint": {
+      "file": "src/styles/twenty-register.css",
+      "provenance": "Twenty-shaped token register for metadata and presentation elements (2026-08-08)",
+      "note": "Harness domain accents, kept semantically: memory green, agent amber,",
       "resolvedAlsoIn": []
     },
     "--ij-graph": {
@@ -968,7 +1014,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-graph-tint": {
@@ -977,7 +1024,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-gray-1": {
@@ -986,6 +1034,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -995,6 +1044,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1004,6 +1054,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1013,6 +1064,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1022,6 +1074,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1031,6 +1084,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1040,6 +1094,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1049,6 +1104,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1058,6 +1114,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1067,6 +1124,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1076,6 +1134,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1085,6 +1144,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1094,6 +1154,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1103,6 +1164,7 @@
       "note": "Palette ramps (Int UI Dark, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1111,7 +1173,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-green-2": {
@@ -1119,7 +1182,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-green-3": {
@@ -1127,7 +1191,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-green-5": {
@@ -1135,7 +1200,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-green-6": {
@@ -1143,7 +1209,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-green-7": {
@@ -1151,7 +1218,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-ground-terra": {
@@ -1180,7 +1248,8 @@
       "note": "9 percent white",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-hover-surface": {
@@ -1189,7 +1258,8 @@
       "note": "State overlays (the alpha law, verbatim from ActionButton)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-inactive-alpha": {
@@ -1204,7 +1274,8 @@
       "note": "Ink",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-ink-bright": {
@@ -1213,7 +1284,8 @@
       "note": "text on solid accent",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-ink-disabled": {
@@ -1222,8 +1294,15 @@
       "note": "Ink",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
+    },
+    "--ij-ink-faint": {
+      "file": "src/styles/twenty-register.css",
+      "provenance": "Twenty-shaped token register for metadata and presentation elements (2026-08-08)",
+      "note": "Ink.",
+      "resolvedAlsoIn": []
     },
     "--ij-ink-info": {
       "file": "src/styles/int-ui-register.css",
@@ -1231,7 +1310,8 @@
       "note": "secondary text, shortcuts, counts",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-inspector-rail-w": {
@@ -1275,7 +1355,8 @@
       "provenance": "GitHub Primer primitives, the second coloration register offered by the appearance surface",
       "note": "Primer owns its own header band. These used to fall through to the base",
       "resolvedAlsoIn": [
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-island-header-h": {
@@ -1291,7 +1372,8 @@
       "provenance": "GitHub Primer primitives, the second coloration register offered by the appearance surface",
       "note": "Primer owns its own header band. These used to fall through to the base",
       "resolvedAlsoIn": [
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-island-meta-size": {
@@ -1335,7 +1417,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-keyline-decorative": {
@@ -1343,7 +1426,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-keyline-focus": {
@@ -1351,7 +1435,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-kind-automation": {
@@ -1456,7 +1541,8 @@
       "note": "Accent slot. Default is the authentic Int UI blue. The register accepts a",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-material-glow": {
@@ -1487,7 +1573,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-memory-tint": {
@@ -1496,7 +1583,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-modified": {
@@ -1505,7 +1593,8 @@
       "note": "modified item foreground",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-motion": {
@@ -1530,7 +1619,8 @@
       "note": "Status",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-ok-bg": {
@@ -1539,7 +1629,8 @@
       "note": "Status",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-orange-1": {
@@ -1547,7 +1638,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-orange-6": {
@@ -1555,7 +1647,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-popover-shadow": {
@@ -1570,38 +1663,49 @@
       "note": "15 percent white",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-program-shape-artifact": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-program-shape-graph": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-program-shape-scalar": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-program-shape-tabular": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-program-shape-tensor": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Program Canvas wire hues encode data shape, not execution state. Keep",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-progress": {
       "file": "src/styles/int-ui-register.css",
@@ -1609,7 +1713,8 @@
       "note": "Progress (verbatim: indeterminate Blue9 to Blue5, track Gray4)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-progress-a": {
@@ -1618,7 +1723,8 @@
       "note": "Progress (verbatim: indeterminate Blue9 to Blue5, track Gray4)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-progress-b": {
@@ -1627,7 +1733,8 @@
       "note": "Progress (verbatim: indeterminate Blue9 to Blue5, track Gray4)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-progress-track": {
@@ -1636,7 +1743,8 @@
       "note": "Progress (verbatim: indeterminate Blue9 to Blue5, track Gray4)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-purple-2": {
@@ -1644,7 +1752,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-purple-7": {
@@ -1652,7 +1761,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-purple-9": {
@@ -1660,38 +1770,49 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-radius-lg": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "panes, islands (BlockSize w)",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-radius-md": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "panels, cards (BlockSize v/sq)",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-radius-sm": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "rail rows, small controls (BlockSize m)",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-radius-xl": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "full surfaces (BlockSize full)",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-radius-xs": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "chips, shortcut badges (BlockSize s)",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-raised": {
       "file": "src/styles/int-ui-register.css",
@@ -1699,7 +1820,8 @@
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-red-1": {
@@ -1707,7 +1829,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-red-3": {
@@ -1715,7 +1838,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-red-5": {
@@ -1723,7 +1847,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-red-6": {
@@ -1731,7 +1856,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-red-7": {
@@ -1739,7 +1865,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-room": {
@@ -1748,7 +1875,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-room-tint": {
@@ -1757,7 +1885,8 @@
       "note": "Harness domain accents on Int UI ramps (continuity with prior console",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-blue": {
@@ -1766,7 +1895,8 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-gray": {
@@ -1775,7 +1905,8 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-green": {
@@ -1784,14 +1915,17 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-row-orange": {
       "file": "src/styles/int-ui-register.css",
@@ -1799,7 +1933,8 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-rose": {
@@ -1808,7 +1943,8 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-violet": {
@@ -1817,7 +1953,8 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-row-yellow": {
@@ -1826,7 +1963,8 @@
       "note": "Row tints for record lists (FileColor set, verbatim)",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-running": {
@@ -1835,7 +1973,8 @@
       "note": "run widget while a run is live",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-scrim-fill": {
@@ -1850,7 +1989,8 @@
       "note": "Structural surfaces mapped onto the tier axis. Raised component surfaces",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-seam-raised": {
@@ -1859,7 +1999,8 @@
       "note": "keyline on raised+",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-search-match": {
@@ -1867,6 +2008,7 @@
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index",
       "resolvedAlsoIn": [
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1877,6 +2019,7 @@
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1887,6 +2030,7 @@
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
         "src/styles/primer-register.css",
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -1985,7 +2129,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
       "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
+        "src/styles/register-bridge.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-stripe-icon": {
@@ -2009,7 +2154,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
+        "src/styles/register-bridge.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-teal-2": {
@@ -2017,7 +2163,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-teal-7": {
@@ -2025,7 +2172,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-text-selection": {
@@ -2033,6 +2181,7 @@
       "provenance": "Derived slots: Tailwind v4 aliases over register tokens, the contrast-gate resolutions, the composer and tool window metrics, Spec 35 island material tokens (radius, gutter, ground terra, grain, glow), and the AMENDMENT-REGISTERS speaker vocabulary",
       "note": "Gold is Twenty's tag-gold pair now (twenty-register.css); the ladder-index",
       "resolvedAlsoIn": [
+        "src/styles/twenty-register.css",
         "src/styles/theme-engine.ts"
       ]
     },
@@ -2059,21 +2208,25 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-tier-frame": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-tier-ground": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-tier-raised": {
@@ -2081,7 +2234,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-tier-scrim": {
@@ -2089,7 +2243,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-tier-sunken": {
@@ -2097,7 +2252,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Five elevation tiers (SPEC-MATERIAL-REGISTER-1.0 D1), compressed dark pass.",
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-toolbar-h": {
@@ -2105,7 +2261,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
       "resolvedAlsoIn": [
-        "src/styles/register-bridge.css"
+        "src/styles/register-bridge.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-toolwindow-header-h": {
@@ -2120,13 +2277,17 @@
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "An embedded viewer needs a real box before it mounts: a 0-height flex slot",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-underline-h": {
       "file": "src/styles/int-ui-register.css",
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": "Paper grain tile opacity (app.css body::after). Zed dark runs its noise",
-      "resolvedAlsoIn": []
+      "resolvedAlsoIn": [
+        "src/styles/twenty-register.css"
+      ]
     },
     "--ij-warn": {
       "file": "src/styles/int-ui-register.css",
@@ -2134,7 +2295,8 @@
       "note": "Status",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-warn-bg": {
@@ -2143,7 +2305,8 @@
       "note": "Status",
       "resolvedAlsoIn": [
         "src/styles/int-ui-register-light.css",
-        "src/styles/primer-register.css"
+        "src/styles/primer-register.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-yellow-1": {
@@ -2151,7 +2314,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-yellow-2": {
@@ -2159,7 +2323,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-yellow-4": {
@@ -2167,7 +2332,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-yellow-5": {
@@ -2175,7 +2341,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--ij-yellow-6": {
@@ -2183,7 +2350,8 @@
       "provenance": "JetBrains/intellij-community platform/platform-resources/src/themes/expUI/expUI_dark.theme.json (SHA 1a82cda), verbatim Int UI Dark values",
       "note": null,
       "resolvedAlsoIn": [
-        "src/styles/int-ui-register-light.css"
+        "src/styles/int-ui-register-light.css",
+        "src/styles/twenty-register.css"
       ]
     },
     "--rec-cell-margin": {

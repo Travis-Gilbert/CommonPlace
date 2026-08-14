@@ -68,16 +68,20 @@ describe('ConsoleBlockHost', () => {
       'console-canvas',
       'console-cards',
       'console-chat',
+      'console-commands',
       'console-docs',
       'console-files',
       'console-goals',
       'console-harness-status',
       'console-index',
+      'console-kanban',
+      'console-model-settings',
       'console-models',
       'console-proactivity',
       'console-program',
       'console-records',
       'console-review',
+      'console-search',
       'console-survey',
       'console-threads',
       'console-workspace',
@@ -136,6 +140,47 @@ describe('ConsoleBlockHost', () => {
     const briefLandmark = set.objects.find((object) => object.id === 'console.landmark-brief');
     expect(briefLandmark?.properties.descriptor_id).toBe('markdown.doc');
     expect(briefLandmark?.properties.pinned).toBe(true);
+  });
+
+  it('prunes foreign palette tabs from bare Models editor on activate', async () => {
+    const polluted = {
+      id: 'palette.records.pollute',
+      type: 'view-instance',
+      properties: {
+        descriptor_id: 'record.table',
+        title: 'Records',
+      },
+      relations: {},
+    } as const;
+    writeLayoutCache([
+      ...seedLayout().map((object) => {
+        if (object.id !== 'models.region-editor') return object;
+        return {
+          ...object,
+          properties: {
+            ...object.properties,
+            chrome: 'bare',
+            active_tab: polluted.id,
+            seed_revision: 1,
+          },
+          relations: {
+            [CONTAINS_EDGE]: [MODEL_VIEW_INSTANCE_ID, polluted.id],
+          },
+        };
+      }),
+      polluted,
+    ]);
+    const pollutedHost = new ConsoleBlockHost(NO_VIEWS);
+    await pollutedHost.activateSurface(MODEL_SURFACE_ID);
+    const models = buildSurfaceTree(
+      MODEL_SURFACE_ID,
+      pollutedHost.queryLayout(surfaceQuery()).objects,
+    );
+    expect(models!.children[0]?.children.map((child) => child.object.id)).toEqual([
+      MODEL_VIEW_INSTANCE_ID,
+    ]);
+    expect(models!.children[0]?.object.properties.active_tab).toBe(MODEL_VIEW_INSTANCE_ID);
+    expect(models!.children[0]?.object.properties.seed_revision).toBe(3);
   });
 
   it('migrates landmarks into a persisted arrangement that lacked them', () => {
@@ -217,7 +262,7 @@ describe('ConsoleBlockHost', () => {
     expect(actionBodies).toContainEqual({
       kind: 'update',
       id: 'models.region-editor',
-      patch: { chrome: 'bare', seed_revision: 2 },
+      patch: { chrome: 'bare', active_tab: MODEL_VIEW_INSTANCE_ID, seed_revision: 3 },
     });
     expect(program!.children[0]?.object.properties.chrome).toBe('bare');
     expect(

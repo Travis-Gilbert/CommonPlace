@@ -35,7 +35,17 @@ function fixturePrincipal(): HarnessPrincipal | null {
   const harnessIdentity = process.env.CONSOLE_E2E_HARNESS_IDENTITY;
   const tenant = githubTenantSlug(githubLogin);
   if (!tenant || !githubLogin || !harnessIdentity) return null;
-  return { tenant, githubLogin, harnessIdentity };
+  const workspaceId = process.env.CONSOLE_E2E_WORKSPACE_ID?.trim();
+  const workspaceSlug = process.env.CONSOLE_E2E_WORKSPACE_SLUG?.trim();
+  const scopeRef = process.env.CONSOLE_E2E_SCOPE_REF?.trim();
+  return {
+    tenant,
+    githubLogin,
+    harnessIdentity,
+    ...(workspaceId && scopeRef
+      ? { workspaceId, workspaceSlug: workspaceSlug || workspaceId, scopeRef }
+      : {}),
+  };
 }
 
 async function clearRejectedActiveWorkspaceCookie(): Promise<void> {

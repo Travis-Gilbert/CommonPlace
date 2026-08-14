@@ -137,6 +137,10 @@ export function AgentAliasPane() {
       className="border-t border-ij-seam bg-ij-editor px-2 py-3 font-ij-ui text-ij-ink"
     >
       <h2 className="mb-2 text-ij-ink">Agent aliases</h2>
+      <p className="mb-2 text-ij-ink-info" data-agent-interrupt-limitation>
+        Interrupt delivery is the Index urgent lane until Twilio 10DLC or
+        toll-free registration is ready; SMS interrupt is not enabled yet.
+      </p>
       {state.status === 'loading' ? <p className="text-ij-ink-info">Loading aliases…</p> : null}
       {state.status === 'unconfigured' ? (
         <p className="text-ij-ink-info" data-agent-aliases-unconfigured>

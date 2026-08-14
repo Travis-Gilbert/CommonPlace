@@ -1,0 +1,15 @@
+[
+  {
+    "name": "graphql_post_basic",
+    "method": "POST",
+    "path": "/v1/graphql",
+    "body_hex": "7b227175657279223a227b205f5f747970656e616d65207d227d",
+    "key_id": "spk:fe812c12f3ab4ce6ac5db69ac352f906",
+    "timestamp_ms": 1700000000000,
+    "nonce": "nonce-fixture-001",
+    "secret_key_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+    "public_key_hex": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c",
+    "canonical_string": "theorem-signed-request-v1\nPOST\n/v1/graphql\n91076a9616ac0cd9ed9ed7ed28bafe720f47c0cd8406e68b45b6ddba1fe8b897\nspk:fe812c12f3ab4ce6ac5db69ac352f906\n1700000000000\nnonce-fixture-001\n",
+    "signature_hex": "607c29532da703cb0fa761e311849008ed0993316e0b3ab8d8e086ed7a26dbd8f3db10302a9be86ef5cfc7b24cd799370b0b0799c720bf6ae935254e23396107"
+  }
+]

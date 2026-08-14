@@ -36,6 +36,14 @@ export interface ForkDiagramCanvasProps {
   readonly onUnpin: (declaredId: string) => void;
   readonly layoutPositions?: LayoutPositions;
   readonly onLayoutChange?: (positions: LayoutPositions) => void;
+  readonly modelName?: string;
+  readonly onImport?: () => void;
+  readonly onExport?: () => void;
+  readonly onDeclare?: () => void;
+  readonly declareDisabled?: boolean;
+  readonly onSpawnObject?: (position: { x: number; y: number }) => void;
+  readonly onCompareVersion?: (id: string) => void;
+  readonly onRestoreVersion?: (id: string) => void;
 }
 
 function recordCountForType(
@@ -197,15 +205,45 @@ export function ForkDiagramCanvas({
   onPin,
   layoutPositions = {},
   onLayoutChange,
+  modelName,
+  onImport,
+  onExport,
+  onDeclare,
+  declareDisabled,
+  onSpawnObject,
+  onCompareVersion,
+  onRestoreVersion,
 }: ForkDiagramCanvasProps) {
   const graph = useMemo(
     () => registryToModelGraph(observed, declared, layoutPositions, pendingPins, onPin),
     [observed, declared, layoutPositions, pendingPins, onPin],
   );
 
+  const versions = useMemo(
+    () =>
+      [...declared.versions]
+        .reverse()
+        .map((version) => ({
+          id: version.id,
+          label: `v${String(version.version)}`,
+          createdAt: typeof version.createdAt === 'string' ? version.createdAt : undefined,
+        })),
+    [declared.versions],
+  );
+
   return (
     <ModelCanvasShell
       graph={graph}
+      modelName={modelName ?? 'Data model'}
+      onImport={onImport}
+      onExport={onExport}
+      onDeclare={onDeclare}
+      declareDisabled={declareDisabled}
+      onSpawnObject={onSpawnObject}
+      pendingCount={pendingPins.length}
+      versions={versions}
+      onCompareVersion={onCompareVersion}
+      onRestoreVersion={onRestoreVersion}
       onGraphChange={(next) => {
         if (!onLayoutChange) return;
         const positions: Record<string, { x: number; y: number }> = {};

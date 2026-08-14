@@ -7,6 +7,7 @@ import {
   TheoremChatRegister,
   createHttpStreamTransport,
 } from '@commonplace/theorem-chat-register';
+import { SlashCommandPalette } from '@/views/program/SlashCommandPalette';
 
 export function TheoremChatRegisterView({
   reason,
@@ -25,6 +26,13 @@ export function TheoremChatRegisterView({
       reason={reason}
       className="flex h-full min-h-0 flex-col bg-ij-editor text-ij-ink"
       autoOpen
+      renderAfterInput={({ draft, setDraft, appendLocal }) => (
+        <SlashCommandPalette
+          draft={draft}
+          setDraft={setDraft}
+          appendLocal={appendLocal}
+        />
+      )}
     />
   );
 }

@@ -61,7 +61,8 @@ export function UrgentLaneView(_props: ViewRenderProps) {
         <div className="flex flex-1 items-center justify-center p-6" data-filing-urgent-empty>
           <p className="max-w-80 text-center text-ij-ink-info">
             Nothing needs you today. Everything that arrived is filed and will
-            keep until you go looking for it.
+            keep until you go looking for it. Interrupt SMS stays off until
+            Twilio registration is ready; this lane is the interrupt surface.
           </p>
         </div>
       </Frame>

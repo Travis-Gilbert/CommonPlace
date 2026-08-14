@@ -1,7 +1,9 @@
 # Spec Review: ARD-THEOREM-2026-08-04 Parts 1 / 4 / 6 (UI)
 
-**Date:** 2026-08-08  
+**Date:** 2026-08-08 (Pre-remediation baseline)  
 **Spec:** `Theorem/docs/ARD-THEOREM-2026-08-04 (1).md`  
+**Commit:** baseline at 6c164f3  
+**Status:** Pre-remediation baseline mapping. For final results, see [.full-stack-feature/EXECUTE-REPORT-REMAINING.md](EXECUTE-REPORT-REMAINING.md).  
 **Code scope:** CommonPlace console + Theorem MCP `programmable_graph` (Wave A + B1/B2)  
 **Runtime scope:** focused vitest only (no browser / deployed smoke)
 

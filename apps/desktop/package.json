@@ -10,7 +10,9 @@
     "build": "tsc && vite build",
     "prepare:pet-native": "./scripts/prepare-pet-native.sh",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "vitest run",
+    "test:e2e:sentinel-chip": "playwright test --config playwright.sentinel-chip.config.ts --reporter=line"
   },
   "dependencies": {
     "@commonplace/capture-client": "workspace:*",
@@ -24,8 +26,10 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "@playwright/test": "^1.56.1",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
+    "vitest": "^4.1.6",
     "@tauri-apps/cli": "^2"
   }
 }

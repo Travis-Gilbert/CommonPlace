@@ -271,6 +271,47 @@ export async function petStopSpeaking(): Promise<void> {
   }
 }
 
+export type SentinelChipPayload = {
+  id: string;
+  programTitle: string;
+  diffSummary: string;
+  receiptLink: string;
+  sentinelNodeId: string;
+  programId: string;
+  observedAtMs: number;
+  digest: boolean;
+  coalescedCount: number;
+};
+
+export async function petDeliverSentinelChips(
+  chips: readonly SentinelChipPayload[],
+): Promise<SentinelChipPayload[]> {
+  if (isTauri()) {
+    return petInvoke<SentinelChipPayload[]>("deliver_sentinel_chips", {
+      chips,
+    });
+  }
+  return [...chips];
+}
+
+export async function petDismissSentinelChip(
+  chip: SentinelChipPayload,
+): Promise<void> {
+  if (isTauri()) {
+    return petInvoke<void>("dismiss_sentinel_chip", { chip });
+  }
+}
+
+export async function petPollStream(cursor: number): Promise<{
+  cursor: number;
+  events: Array<{ kind: string }>;
+}> {
+  if (isTauri()) {
+    return petInvoke("pet_poll_stream", { cursor });
+  }
+  return { cursor, events: [] };
+}
+
 export async function petCapture(
   envelope: CaptureEnvelope,
 ): Promise<PetCaptureResult> {

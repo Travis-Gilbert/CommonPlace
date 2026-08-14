@@ -271,3 +271,13 @@ export const CONSOLE_INSPECTOR_SECTIONS: InspectorRailSections = {
   nav: true,
   canvas: true,
 };
+
+/**
+ * Models owns the OWOX studio in the editor well. The rail must not remount
+ * ForkDiagramCanvas (duplicate empty canvas) or the CommonPlace Workspace
+ * switcher card over that surface.
+ */
+export const MODELS_INSPECTOR_SECTIONS: InspectorRailSections = {
+  nav: false,
+  canvas: false,
+};

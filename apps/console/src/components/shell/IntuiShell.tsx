@@ -35,6 +35,7 @@ import {
   deriveBlockPaletteItems,
   PLACE_ENTRIES,
 } from '@/lib/rail/rail-model';
+import { resolveBlockSurfaceTarget } from '@/lib/rail/block-surface-targets';
 import { surfaceIdForPath } from '@/lib/surface-routes';
 import { writeLastConsoleViewPath } from '@/lib/chat/last-console-view';
 import { useShellStore } from '@/lib/shell-store';
@@ -50,8 +51,8 @@ import {
   InspectorRail,
   InspectorRailReopen,
   CONSOLE_INSPECTOR_SECTIONS,
+  MODELS_INSPECTOR_SECTIONS,
 } from './InspectorRail';
-import { HostCapabilityRailBridge } from '@/components/host/HostCapabilityRailBridge';
 import { HostPresenceCursor } from '@/components/host/HostPresenceCursor';
 import { HostPresenceSync } from '@/components/host/HostPresenceSync';
 import { HostFindLens } from '@/components/host/HostFindLens';
@@ -531,6 +532,9 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     config?: Record<string, unknown>,
   ) => {
     if (!editor) return;
+    // Bare Places own a single canonical view-instance. Palette dumps must
+    // never become tabs or flip active_tab away from the seed.
+    if (editor.object.properties.chrome === 'bare') return;
     if (editor.instances.some((instance) => instance.id === id)) return;
     const created = await host.emit({
       kind: 'create',
@@ -570,18 +574,13 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
   }, [editor, host]);
 
   const handleAddBlock = useCallback((item: BlockPaletteItem) => {
+    const target = resolveBlockSurfaceTarget(item);
+    if (target) {
+      navigateToPlace(target.surfaceId, target.path);
+      return;
+    }
     void placeBlockInEditor(item, `palette.${item.id}.${Date.now()}`);
-  }, [placeBlockInEditor]);
-
-  const handleHostBlockPlaced = useCallback((block: BlockInstance) => {
-    const item = paletteItemForHostBlock(block);
-    if (!item) return;
-    void placeBlockInEditor(item, block.id, {
-      ...block.attrs,
-      hostBlockId: block.id,
-      hostBlockKind: block.kind,
-    });
-  }, [placeBlockInEditor]);
+  }, [navigateToPlace, placeBlockInEditor]);
 
   const activePageText = useCallback(
     () => shellRef.current?.querySelector<HTMLElement>('#console-editor-well')?.innerText ?? null,
@@ -718,6 +717,24 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
     if (next) panel.expand();
     else panel.collapse();
   }, []);
+
+  // Models mounts OwoxStudio in the editor well. The chrome rail used to
+  // remount the same canvas under Places + WorkspaceSwitcher, which looked
+  // like a broken/non-responsive layout (duplicate empty canvas). Collapse
+  // the rail and strip nav/canvas sections on this route.
+  const isModelsRoute =
+    pathname === '/Data-model' ||
+    pathname === '/models' ||
+    pathname === '/Data-model/settings';
+  const inspectorSections = isModelsRoute
+    ? MODELS_INSPECTOR_SECTIONS
+    : CONSOLE_INSPECTOR_SECTIONS;
+
+  useEffect(() => {
+    if (!isModelsRoute) return;
+    const panel = railPanel.current;
+    if (panel && !panel.isCollapsed()) panel.collapse();
+  }, [isModelsRoute]);
 
   if (!root || !editor) {
     // Keep data-shell mounted so activation / e2e oracles do not lose the
@@ -950,7 +967,7 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
                         host={host}
                         open={railOpen}
                         onOpenChange={toggleRail}
-                        sections={CONSOLE_INSPECTOR_SECTIONS}
+                        sections={inspectorSections}
                       />
                     </div>
                   </Panel>
@@ -981,10 +998,6 @@ export function IntuiShell({ host }: { host: ConsoleBlockHost }) {
       <HostPresenceSync workspaceId="default" surface="commonplace" />
       <HostPresenceCursor workspaceId="default" surface="commonplace" />
       <HostFindLens workspaceId="default" surface="commonplace" />
-      <HostCapabilityRailBridge
-        workspaceId="default"
-        onBlockPlaced={handleHostBlockPlaced}
-      />
     </div>
   );
 }

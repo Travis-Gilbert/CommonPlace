@@ -7,6 +7,8 @@ import {
   fieldTypeToTwentyToken,
   parseTwentyFieldTypeToken,
   twentyTokenToFieldType,
+  editorStateFromField,
+  indexPolicyFromSettings,
 } from './twenty-metadata';
 
 describe('twenty-metadata', () => {
@@ -54,5 +56,66 @@ describe('twenty-metadata', () => {
       targetObjectTypeId: 'person',
       cardinality: 'one',
     });
+  });
+
+  it('extracts index policy from settings', () => {
+    expect(indexPolicyFromSettings(undefined)).toEqual({
+      indexed: false,
+      reverseIndexed: false,
+      tokenized: false,
+      indexOnly: false,
+    });
+
+    expect(
+      indexPolicyFromSettings({
+        isFilterable: true,
+        isSortable: true,
+        raw: {
+          indexPolicy: {
+            indexed: true,
+            reverseIndexed: false,
+            tokenized: true,
+            indexOnly: false,
+          },
+        },
+      })
+    ).toEqual({
+      indexed: true,
+      reverseIndexed: false,
+      tokenized: true,
+      indexOnly: false,
+    });
+  });
+
+  it('builds editor state from field preserving compound tokens like MULTI_SELECT', () => {
+    const field = {
+      id: 'test-field',
+      universalIdentifier: 'uuid-1',
+      type: 'MULTI_SELECT' as const,
+      name: 'tags',
+      label: 'Tags',
+      isActive: true,
+      isSystem: false,
+      isUiEditable: true,
+      isNullable: true,
+      isUnique: false,
+      options: [
+        { id: '1', label: 'Tag 1', value: 'tag1', color: 'red', position: 1 },
+        { id: '2', label: 'Tag 2', value: 'tag2', color: 'blue', position: 2 },
+      ],
+      settings: {
+        isFilterable: true,
+        isSortable: false,
+        raw: {
+          fieldType: { kind: 'json' },
+        },
+      },
+      createdAtMs: Date.now(),
+      updatedAtMs: Date.now(),
+    };
+
+    const state = editorStateFromField(field);
+    expect(state.token).toBe('MULTI_SELECT');
+    expect(state.variants).toEqual(['tag1', 'tag2']);
   });
 });

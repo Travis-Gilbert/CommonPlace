@@ -806,7 +806,7 @@ const GOAL_STACK: ConsoleViewDescriptor = {
   },
   block: {
     usage:
-      'P3 plan lens only — not a second computation authoring DAG; author computation on Program canvas',
+      'P3 plan lens only, not a second computation authoring DAG; author computation on Program canvas',
     placements: ['ground', 'full'],
     defaultSize: 'full',
     density: 'both',

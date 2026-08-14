@@ -1,0 +1,15 @@
+/* shadcn/ui Theme — extracted from https://reui.io */
+/* Paste into your globals.css */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --primary: 144 100% 25%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 0%;
+    --border: 0 0% 14%;
+    --radius: 8px;
+  }
+}

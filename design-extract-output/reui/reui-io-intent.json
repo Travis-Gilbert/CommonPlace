@@ -1,0 +1,475 @@
+{
+  "pageIntent": {
+    "type": "landing",
+    "confidence": 0.31,
+    "path": "/",
+    "title": "Free Shadcn UI Components, Blocks, Icons, Templates & MCP - ReUI",
+    "description": "Free Shadcn UI components and pro blocks for React and Tailwind CSS. Hand-crafted icons, templates, and a hosted MCP server so coding agents build with the shadcn CLI.",
+    "signals": [
+      {
+        "kind": "dom",
+        "type": "blog-post",
+        "weight": 0.35,
+        "detail": "byline|min-read"
+      },
+      {
+        "kind": "url",
+        "type": "landing",
+        "weight": 0.45,
+        "detail": "root-path"
+      }
+    ],
+    "alternates": [
+      {
+        "type": "blog-post",
+        "score": 0.35
+      }
+    ],
+    "needsSmart": true
+  },
+  "sectionRoles": {
+    "sections": [
+      {
+        "index": 0,
+        "tag": "header",
+        "role": "nav",
+        "subrole": null,
+        "confidence": 0.4,
+        "heading": null,
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 56
+        },
+        "buttonCount": 5,
+        "cardCount": 21,
+        "slots": {
+          "ctaCount": 5,
+          "lede": "Products\nResources\nDocs\nSupport\nPricing\nRoadmap (has updates coming soon)\nX\nFigma\n3.2K\nLogin\nGet All-access"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 1,
+        "tag": "nav",
+        "role": "nav",
+        "subrole": null,
+        "confidence": 0.9,
+        "heading": null,
+        "bounds": {
+          "x": 425.484375,
+          "y": 9.5,
+          "w": 429.03125,
+          "h": 36
+        },
+        "buttonCount": 2,
+        "cardCount": 5,
+        "slots": {
+          "ctaCount": 2,
+          "lede": "Products\nResources\nDocs\nSupport\nPricing"
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 2,
+        "tag": "main",
+        "role": "faq",
+        "subrole": null,
+        "confidence": 0.85,
+        "heading": "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+        "bounds": {
+          "x": 0,
+          "y": 56,
+          "w": 1280,
+          "h": 12868.734375
+        },
+        "buttonCount": 36,
+        "cardCount": 699,
+        "slots": {
+          "heading": "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+          "subheadings": [
+            "Endorsed by the creator of shadcn/ui",
+            "1,052 Free\n Shadcn UI Components",
+            "Whole apps, not just screens",
+            "Verve - Next.js CRM Template"
+          ],
+          "ctaCount": 36,
+          "lede": "Introducing Data Grid on TanStack Table v9\nDesign-forward\nshadcn/ui\nplatform with MCP fluency for agents"
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 3,
+        "tag": "section",
+        "role": "content",
+        "subrole": null,
+        "confidence": 0.3,
+        "heading": "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+        "bounds": {
+          "x": 0,
+          "y": 56,
+          "w": 1280,
+          "h": 490.09375
+        },
+        "buttonCount": 0,
+        "cardCount": 10,
+        "slots": {
+          "heading": "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+          "lede": "Introducing Data Grid on TanStack Table v9\nDesign-forward\nshadcn/ui\nplatform with MCP fluency for agents"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 4,
+        "tag": "section",
+        "role": "faq",
+        "subrole": null,
+        "confidence": 0.85,
+        "heading": null,
+        "bounds": {
+          "x": 0,
+          "y": 546.09375,
+          "w": 1280,
+          "h": 1466
+        },
+        "buttonCount": 6,
+        "cardCount": 116,
+        "slots": {
+          "ctaCount": 6,
+          "lede": "501 Pro blocks across 5 groups and 53 categories, covering every part of your app."
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 5,
+        "tag": "header",
+        "role": "nav",
+        "subrole": null,
+        "confidence": 0.4,
+        "heading": null,
+        "bounds": {
+          "x": 51,
+          "y": 549.09375,
+          "w": 1178,
+          "h": 36
+        },
+        "buttonCount": 0,
+        "cardCount": 1,
+        "slots": {},
+        "needsSmart": true
+      },
+      {
+        "index": 6,
+        "tag": "section",
+        "role": "content",
+        "subrole": null,
+        "confidence": 0.3,
+        "heading": "Endorsed by the creator of shadcn/ui",
+        "bounds": {
+          "x": 0,
+          "y": 1956.09375,
+          "w": 1280,
+          "h": 243.5
+        },
+        "buttonCount": 0,
+        "cardCount": 2,
+        "slots": {
+          "heading": "Endorsed by the creator of shadcn/ui"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 7,
+        "tag": "section",
+        "role": "pricing",
+        "subrole": null,
+        "confidence": 0.4,
+        "heading": "1,052 Free\n Shadcn UI Components",
+        "bounds": {
+          "x": 0,
+          "y": 2199.59375,
+          "w": 1280,
+          "h": 1426.5
+        },
+        "buttonCount": 0,
+        "cardCount": 217,
+        "slots": {
+          "heading": "1,052 Free\n Shadcn UI Components",
+          "lede": "FREE COMPONENTS\n1,052 Free\n Shadcn UI Components"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 8,
+        "tag": "section",
+        "role": "content",
+        "subrole": null,
+        "confidence": 0.3,
+        "heading": "Whole apps, not just screens",
+        "bounds": {
+          "x": 0,
+          "y": 3626.09375,
+          "w": 1280,
+          "h": 857.984375
+        },
+        "buttonCount": 8,
+        "cardCount": 65,
+        "slots": {
+          "heading": "Whole apps, not just screens",
+          "subheadings": [
+            "Verve - Next.js CRM Template",
+            "Tempo - TanStack Start Task Management Template",
+            "Surge - TanStack Start Commerce Admin Template",
+            "Overture - Next.js Waitlist Template"
+          ],
+          "ctaCount": 8,
+          "lede": "STARTER TEMPLATES\nWhole apps, not just screens"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 9,
+        "tag": "section",
+        "role": "hero",
+        "subrole": null,
+        "confidence": 0.4,
+        "heading": "638 Hand-crafted Premium Icons",
+        "bounds": {
+          "x": 0,
+          "y": 4484.078125,
+          "w": 1280,
+          "h": 1118.5625
+        },
+        "buttonCount": 5,
+        "cardCount": 52,
+        "slots": {
+          "heading": "638 Hand-crafted Premium Icons",
+          "ctaCount": 5,
+          "lede": "INTERACTIVE ICONS\n638 Hand-crafted Premium Icons"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 10,
+        "tag": "section",
+        "role": "comparison",
+        "subrole": null,
+        "confidence": 0.7,
+        "heading": "Connect ReUI to your Coding Agent",
+        "bounds": {
+          "x": 0,
+          "y": 5602.640625,
+          "w": 1280,
+          "h": 1451.75
+        },
+        "buttonCount": 0,
+        "cardCount": 79,
+        "slots": {
+          "heading": "Connect ReUI to your Coding Agent",
+          "subheadings": [
+            "Claude",
+            "Codex",
+            "Cursor",
+            "Grok CLI"
+          ],
+          "lede": "POWERED BY REUI MCP\nConnect ReUI to your Coding Agent"
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 11,
+        "tag": "section",
+        "role": "comparison",
+        "subrole": null,
+        "confidence": 0.7,
+        "heading": "ReUI or the Grind",
+        "bounds": {
+          "x": 0,
+          "y": 7054.390625,
+          "w": 1280,
+          "h": 1039.09375
+        },
+        "buttonCount": 0,
+        "cardCount": 23,
+        "slots": {
+          "heading": "ReUI or the Grind",
+          "subheadings": [
+            "Sloppy, brittle, generic.",
+            "Production grade, every aspect."
+          ],
+          "lede": "CRAFTED, NOT GENERATED\nReUI or the Grind"
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 12,
+        "tag": "section",
+        "role": "content",
+        "subrole": null,
+        "confidence": 0.3,
+        "heading": null,
+        "bounds": {
+          "x": 0,
+          "y": 8093.484375,
+          "w": 1280,
+          "h": 2592
+        },
+        "buttonCount": 0,
+        "cardCount": 91,
+        "slots": {
+          "heading": ""
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 13,
+        "tag": "section",
+        "role": "faq",
+        "subrole": null,
+        "confidence": 0.85,
+        "heading": "Frequently Asked Questions",
+        "bounds": {
+          "x": 0,
+          "y": 10685.484375,
+          "w": 1280,
+          "h": 1204.5
+        },
+        "buttonCount": 17,
+        "cardCount": 19,
+        "slots": {
+          "heading": "Frequently Asked Questions",
+          "subheadings": [
+            "What's included in the library?",
+            "What is ReUI and what should I use it for?",
+            "What's the difference between shadcn blocks and components?",
+            "What are \"ReUI custom primitives\" and how do they differ from shadcn/ui?"
+          ],
+          "ctaCount": 17,
+          "lede": "FAQ\nFrequently Asked Questions"
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 14,
+        "tag": "section",
+        "role": "pricing",
+        "subrole": null,
+        "confidence": 0.4,
+        "heading": "Everything you need to ship with shadcn/ui",
+        "bounds": {
+          "x": 0,
+          "y": 11889.984375,
+          "w": 1280,
+          "h": 694.75
+        },
+        "buttonCount": 0,
+        "cardCount": 21,
+        "slots": {
+          "heading": "Everything you need to ship with shadcn/ui",
+          "subheadings": [
+            "Free Shadcn Components",
+            "Pro Shadcn Blocks",
+            "Pro Shadcn Icons",
+            "AI Tools"
+          ],
+          "lede": "BUILT FOR SHADCN/UI\nEverything you need to ship with shadcn/ui"
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 15,
+        "tag": "section",
+        "role": "content",
+        "subrole": null,
+        "confidence": 0.3,
+        "heading": "Start building with ReUI Pro today.",
+        "bounds": {
+          "x": 0,
+          "y": 12584.734375,
+          "w": 1280,
+          "h": 340
+        },
+        "buttonCount": 0,
+        "cardCount": 3,
+        "slots": {
+          "heading": "Start building with ReUI Pro today."
+        },
+        "needsSmart": true
+      },
+      {
+        "index": 16,
+        "tag": "footer",
+        "role": "footer",
+        "subrole": null,
+        "confidence": 0.95,
+        "heading": "Application",
+        "bounds": {
+          "x": 0,
+          "y": 12924.734375,
+          "w": 1280,
+          "h": 826
+        },
+        "buttonCount": 0,
+        "cardCount": 143,
+        "slots": {
+          "heading": "Application",
+          "subheadings": [
+            "Solutions",
+            "Templates",
+            "eCommerce",
+            "Data Grid"
+          ]
+        },
+        "needsSmart": false
+      },
+      {
+        "index": 17,
+        "tag": "section",
+        "role": "content",
+        "subrole": null,
+        "confidence": 0.3,
+        "heading": null,
+        "bounds": {
+          "x": 0,
+          "y": 13750.734375,
+          "w": 1280,
+          "h": 0
+        },
+        "buttonCount": 0,
+        "cardCount": 0,
+        "slots": {},
+        "needsSmart": true
+      }
+    ],
+    "counts": {
+      "nav": 3,
+      "faq": 3,
+      "content": 6,
+      "pricing": 2,
+      "hero": 1,
+      "comparison": 2,
+      "footer": 1
+    },
+    "readingOrder": [
+      "nav",
+      "nav",
+      "faq",
+      "content",
+      "faq",
+      "nav",
+      "content",
+      "pricing",
+      "content",
+      "hero",
+      "comparison",
+      "comparison",
+      "content",
+      "faq",
+      "pricing",
+      "content",
+      "footer",
+      "content"
+    ]
+  }
+}

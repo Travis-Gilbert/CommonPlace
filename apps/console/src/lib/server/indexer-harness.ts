@@ -79,15 +79,27 @@ async function executeConsumerGraphql(
   }
 
   const timeout = startHarnessRequestTimeout();
+  const graphqlPath = (() => {
+    try {
+      return new URL(endpoint).pathname || '/graphql';
+    } catch {
+      return '/graphql';
+    }
+  })();
+  const body = JSON.stringify({ query, variables });
   try {
     const upstream = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...credentialHeaders(credential.credential),
+        ...credentialHeaders(credential.credential, {
+          method: 'POST',
+          path: graphqlPath,
+          body,
+        }),
         ...principalTenantHeaders(resolution.principal),
       },
-      body: JSON.stringify({ query, variables }),
+      body,
       cache: 'no-store',
       signal: timeout.signal,
     });

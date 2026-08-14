@@ -5,12 +5,15 @@
 // programmable_graph `gallery` / `gallery_fork` (not orphan program.fork).
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import type { ViewRenderProps } from '@commonplace/block-view/types';
+import { softNavigate } from '@/lib/soft-navigate';
 import { ViewState } from './ViewStates';
 import {
+  canForkGalleryEntry,
   fetchCommandGallery,
-  forkGalleryTemplate,
+  forkGalleryEntry,
   type CommandGalleryEntry,
 } from './program/programClient';
 
@@ -46,6 +49,7 @@ function entriesFromHost(set: ViewRenderProps['set']): GalleryEntry[] {
 }
 
 export function CommandsGalleryView({ set }: ViewRenderProps) {
+  const router = useRouter();
   const hostEntries = useMemo(() => entriesFromHost(set), [set]);
   const [entries, setEntries] = useState<readonly GalleryEntry[]>(hostEntries);
   const [sourceNote, setSourceNote] = useState<string | null>(null);
@@ -89,18 +93,22 @@ export function CommandsGalleryView({ set }: ViewRenderProps) {
   }, [hostEntries]);
 
   async function forkEntry(entry: GalleryEntry): Promise<void> {
-    if (entry.kind !== 'monitor_template') return;
-    const parentProgramId = entry.programId ?? entry.slugOrName;
-    const forkName = `Fork of ${entry.title}`;
+    if (!canForkGalleryEntry(entry)) {
+      if (entry.source === 'LocalDevCommandGallery') {
+        setError('Forking is disabled for local stand-in monitor templates (requires live substrate).');
+      }
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const program = await forkGalleryTemplate({
-        parentProgramId,
-        name: forkName,
-        intent: entry.summary || `Fork of ${entry.title}`,
-      });
-      setForked((current) => [...current, program.name || forkName]);
+      const result = await forkGalleryEntry(entry);
+      setForked((current) => [...current, result.program.name || `Fork of ${entry.title}`]);
+      if (typeof window !== 'undefined') {
+        window.location.assign(result.nodeId ? result.href : '/program');
+        return;
+      }
+      await softNavigate(router, '/program', { timeoutMs: 3_000, hardFallback: true });
     } catch (forkError) {
       setError(forkError instanceof Error ? forkError.message : String(forkError));
     } finally {
@@ -142,12 +150,18 @@ export function CommandsGalleryView({ set }: ViewRenderProps) {
               key={`${entry.kind}:${entry.slugOrName}`}
               value={`${entry.title} ${entry.summary} ${entry.slugOrName}`}
               disabled={busy}
+              data-gallery-kind={entry.kind}
+              data-gallery-forkable={canForkGalleryEntry(entry) ? 'true' : 'false'}
               className="flex cursor-pointer flex-col gap-1 px-3 py-2 data-[selected=true]:bg-ij-selection data-[disabled=true]:opacity-50"
               onSelect={() => {
                 void forkEntry(entry);
               }}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div
+                className="flex items-center justify-between gap-2"
+                data-gallery-kind={entry.kind}
+                data-gallery-forkable={canForkGalleryEntry(entry) ? 'true' : 'false'}
+              >
                 <strong className="text-sm">{entry.title}</strong>
                 <span className="text-xs uppercase tracking-wide text-ij-ink-info">
                   {entry.kind === 'monitor_template' ? 'template' : 'command'}
@@ -160,7 +174,7 @@ export function CommandsGalleryView({ set }: ViewRenderProps) {
                 </span>
                 {entry.publicationRef ? <span>pub {entry.publicationRef}</span> : null}
                 {entry.parentProgramId ? <span>lineage {entry.parentProgramId}</span> : null}
-                {entry.kind === 'monitor_template' ? <span>Fork</span> : null}
+                {canForkGalleryEntry(entry) ? <span>Fork</span> : null}
                 {entry.source === 'LocalDevCommandGallery' ? <span>stand-in</span> : null}
               </div>
             </Command.Item>

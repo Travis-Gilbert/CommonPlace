@@ -28,12 +28,16 @@ describe('page-owned routing', () => {
     expect(pathForSurfaceId('console-search')).toBe('/search');
     expect(pathForSurfaceId('console-kanban')).toBe('/kanban');
     expect(pathForSurfaceId('console-commands')).toBe('/commands');
+    expect(pathForSurfaceId('console-model-settings')).toBe('/Data-model/settings');
     expect(surfaceIdForPath('/Data-model')).toBe('console-models');
     expect(surfaceIdForPath('/IDE')).toBe('console-ide');
     expect(surfaceIdForPath('/program')).toBe('console-program');
     expect(surfaceIdForPath('/appearance')).toBe('console-appearance');
     expect(surfaceIdForPath('/goals')).toBe('console-goals');
     expect(surfaceIdForPath('/search')).toBe('console-search');
+    expect(surfaceIdForPath('/kanban')).toBe('console-kanban');
+    expect(surfaceIdForPath('/commands')).toBe('console-commands');
+    expect(surfaceIdForPath('/Data-model/settings')).toBe('console-model-settings');
   });
 
   it('migrates known persisted view routes and refuses unknown ones', () => {

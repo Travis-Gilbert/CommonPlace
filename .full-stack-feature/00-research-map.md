@@ -71,7 +71,7 @@
 
 | ID | Decision | Status | Notes |
 |---|---|---|---|
-| **D31** | 3 canvases + 4-screen settings; records built; gates; WorkOS | **PARTIAL** | Program + Model canvases **DONE**. cosmos.gl **PARTIAL**. Settings 4 screens incomplete. Records **DONE**. Gates **DONE**. WorkOS auth **MISSING** (still GitHub Auth.js) |
+| **D31** | 3 canvases + 4-screen settings; records built; gates; WorkOS | **PARTIAL** | Program + Model canvases **DONE**. cosmos.gl **PARTIAL**. Settings 4 screens incomplete. Records **DONE**. Gates passed (fence, twenty, register, contrast, radius, motion, icons, sourcing, tokens, blocks, paper-shader-colors, persistence, canonical-root, register-manifest, signed-request-bundle). WorkOS auth **MISSING** (still GitHub Auth.js) |
 | **D32** | rerun universal observation | **PARTIAL** | Emit + gateway + PrototypeStageView block live; not fleet-default; Dagster deep-link blocked on D35 |
 | **D33** | pgwire = marimo notebook register | **PARTIAL** | pg-server substantial; **no marimo UI**; Flight/time-pin/`state_hash()` gaps |
 | **D34** | theorem-blender GPL peer | **MISSING** | No repo/addon |

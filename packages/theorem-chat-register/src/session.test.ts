@@ -48,6 +48,21 @@ describe('theorem.chat register', () => {
     controller.dispose();
   });
 
+  it('appendLocal records a receipt without prompting the transport', () => {
+    const transport = fakeTransport();
+    const promptSpy = vi.spyOn(transport, 'prompt');
+    const controller = createChatSessionController(transport);
+    controller.appendLocal('assistant', 'Price watch · command-receipt:t:price-watch:1');
+    expect(promptSpy).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().messages).toEqual([
+      expect.objectContaining({
+        role: 'assistant',
+        text: 'Price watch · command-receipt:t:price-watch:1',
+      }),
+    ]);
+    controller.dispose();
+  });
+
   it('auto-opens on first prompt', async () => {
     const transport = fakeTransport();
     const controller = createChatSessionController(transport);

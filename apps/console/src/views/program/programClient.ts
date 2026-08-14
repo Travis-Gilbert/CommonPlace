@@ -457,14 +457,20 @@ export async function validateProgramDefinition(
   const nested = (payload.result && typeof payload.result === 'object' && !Array.isArray(payload.result)
     ? payload.result
     : payload) as Record<string, unknown>;
-  const checks = Array.isArray(nested.checks)
-    ? nested.checks.flatMap((item) => {
-        if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-        const row = item as Record<string, unknown>;
-        if (typeof row.requirement !== 'string') return [];
-        return [{ requirement: row.requirement, passed: row.passed !== false }];
-      })
-    : [];
+  if (!Array.isArray(nested.checks)) {
+    return {
+      ok: false,
+      code: 'validate_malformed',
+      message: 'Program validation response is missing checks list.',
+      nodeIds: [],
+    };
+  }
+  const checks = nested.checks.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const row = item as Record<string, unknown>;
+    if (typeof row.requirement !== 'string') return [];
+    return [{ requirement: row.requirement, passed: row.passed !== false }];
+  });
   return {
     ok: true,
     receipt: {
@@ -585,23 +591,206 @@ export async function fetchCommandGallery(): Promise<readonly CommandGalleryEntr
   }
 }
 
+export type PaletteCommand = {
+  readonly slug: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly requiresSelection: boolean;
+  readonly params: ReadonlyArray<{ readonly id: string }>;
+};
+
+export type CommandInvocationReceipt = {
+  readonly receiptId: string;
+  readonly commandSlug: string;
+  readonly commandTitle: string;
+  readonly resultStream: readonly string[];
+};
+
+function mapPaletteCommand(raw: Record<string, unknown>): PaletteCommand | null {
+  const slug = typeof raw.slug === 'string' ? raw.slug.trim() : '';
+  if (!slug) return null;
+  const params = Array.isArray(raw.params)
+    ? raw.params.flatMap((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+        const id = (item as { id?: unknown }).id;
+        return typeof id === 'string' && id.trim() ? [{ id }] : [];
+      })
+    : [];
+  return {
+    slug,
+    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : slug,
+    summary: typeof raw.summary === 'string' ? raw.summary : '',
+    requiresSelection: raw.requires_selection === true,
+    params,
+  };
+}
+
+/** `/` palette from the same CommandRegistry as gallery (not LocalDev). */
+export async function fetchCommandPalette(args?: {
+  readonly hasSelection?: boolean;
+}): Promise<readonly PaletteCommand[]> {
+  const data = await callProgramGraph('palette', {
+    surface: 'console',
+    has_selection: args?.hasSelection ?? false,
+  });
+  const commands = Array.isArray(data.commands) ? data.commands : [];
+  return commands.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const mapped = mapPaletteCommand(item as Record<string, unknown>);
+    return mapped ? [mapped] : [];
+  });
+}
+
+export function filterPaletteCommands(
+  commands: readonly PaletteCommand[],
+  hasSelection: boolean,
+): readonly PaletteCommand[] {
+  return commands.filter((command) => hasSelection || !command.requiresSelection);
+}
+
+export async function invokePaletteCommand(
+  slug: string,
+  params: Record<string, unknown> = {},
+): Promise<CommandInvocationReceipt> {
+  const data = await callProgramGraph(
+    'invoke_command',
+    { slug, params, observed_at_ms: Date.now() },
+    'programmable_graph_apply',
+  );
+  return {
+    receiptId: String(data.receipt_id ?? ''),
+    commandSlug: String(data.command_slug ?? slug),
+    commandTitle: String(data.command_title ?? slug),
+    resultStream: Array.isArray(data.result_stream)
+      ? data.result_stream.map(String)
+      : [],
+  };
+}
+
+export const PENDING_PROGRAM_FORK_KEY = 'console.program.pending-fork';
+
+export type PendingProgramFork = {
+  readonly program: ProgramDefinition;
+  readonly nodeId?: string;
+  readonly parentProgramId?: string;
+};
+
+export function canForkGalleryEntry(entry: Pick<CommandGalleryEntry, 'kind' | 'source'>): boolean {
+  return entry.source !== 'LocalDevCommandGallery'
+    && (entry.kind === 'monitor_template' || entry.kind === 'command');
+}
+
+export function lineageFromProgram(program: ProgramDefinition): string | null {
+  if (typeof program.parent_program_id === 'string' && program.parent_program_id.trim()) {
+    return program.parent_program_id;
+  }
+  const forkedFrom = program.metadata?.forked_from;
+  return typeof forkedFrom === 'string' && forkedFrom.trim() ? forkedFrom : null;
+}
+
+export function programCanvasHref(nodeId?: string | null): string {
+  return nodeId ? `/program?id=${encodeURIComponent(nodeId)}` : '/program';
+}
+
+export function storePendingProgramFork(fork: PendingProgramFork): void {
+  if (typeof sessionStorage === 'undefined') return;
+  sessionStorage.setItem(PENDING_PROGRAM_FORK_KEY, JSON.stringify(fork));
+}
+
+export function consumePendingProgramFork(): PendingProgramFork | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  const raw = sessionStorage.getItem(PENDING_PROGRAM_FORK_KEY);
+  if (!raw) return null;
+  sessionStorage.removeItem(PENDING_PROGRAM_FORK_KEY);
+  try {
+    const parsed = JSON.parse(raw) as PendingProgramFork;
+    if (!parsed || typeof parsed !== 'object' || !parsed.program) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function programFromGalleryFork(data: Record<string, unknown>): ProgramDefinition {
+  const program = data.program ?? data;
+  if (!program || typeof program !== 'object' || Array.isArray(program)) {
+    throw new Error('gallery_fork_missing_program');
+  }
+  return program as ProgramDefinition;
+}
+
+function nodeIdFromSave(result: Record<string, unknown>): string | undefined {
+  for (const key of ['node_id', 'id', 'program_id'] as const) {
+    const value = result[key];
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  return undefined;
+}
+
 /** Fork a gallery monitor template via MCP `gallery_fork` (not orphan program.fork). */
 export async function forkGalleryTemplate(input: {
   readonly parentProgramId: string;
   readonly name: string;
   readonly intent?: string;
+  readonly definition?: ProgramDefinition;
 }): Promise<ProgramDefinition> {
   const data = await callProgramGraph('gallery_fork', {
     parent_program_id: input.parentProgramId,
     name: input.name,
     intent: input.intent ?? `Fork of ${input.name}`,
     publish: false,
+    ...(input.definition ? { definition: input.definition, program: input.definition } : {}),
   });
-  const program = data.program ?? data;
-  if (!program || typeof program !== 'object' || Array.isArray(program)) {
-    throw new Error('gallery_fork_missing_program');
+  return programFromGalleryFork(data);
+}
+
+export type GalleryForkResult = {
+  readonly program: ProgramDefinition;
+  readonly nodeId?: string;
+  readonly parentProgramId: string;
+  readonly href: string;
+};
+
+/** Fork a substrate gallery row (template or published command) and stage the canvas handoff. */
+export async function forkGalleryEntry(entry: CommandGalleryEntry): Promise<GalleryForkResult> {
+  if (!canForkGalleryEntry(entry)) {
+    throw new Error('Forking is disabled for local stand-in monitor templates (requires live substrate).');
   }
-  return program as ProgramDefinition;
+  const parentProgramId = entry.programId ?? entry.slugOrName;
+  const name = `Fork of ${entry.title}`;
+  const intent = entry.summary || `Fork of ${entry.title}`;
+  let definition: ProgramDefinition | undefined;
+  if (entry.kind === 'command') {
+    if (!entry.programId) {
+      throw new Error('gallery_fork_command_missing_program');
+    }
+    definition = (await loadProgram(entry.programId)).definition;
+  }
+  const program = await forkGalleryTemplate({
+    parentProgramId,
+    name,
+    intent,
+    definition,
+  });
+  let nodeId: string | undefined;
+  try {
+    nodeId = nodeIdFromSave(await saveProgramDraft(program));
+  } catch {
+    // Canvas can still open from the in-memory fork when apply is unreachable.
+  }
+  const parent = lineageFromProgram(program) ?? parentProgramId;
+  const result: GalleryForkResult = {
+    program,
+    nodeId,
+    parentProgramId: parent,
+    href: programCanvasHref(nodeId),
+  };
+  storePendingProgramFork({
+    program,
+    nodeId,
+    parentProgramId: parent,
+  });
+  return result;
 }
 
 export async function forkProgramDefinition(

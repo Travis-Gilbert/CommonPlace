@@ -3,7 +3,7 @@
 // SOURCING: twenty-ui SegmentedControl / Toggle / Button / Tag / Pill / Card +
 // cmdk SearchInput pattern for D31 four-screen metadata settings register
 // (ARD Part 1 + SPEC-COMMONPLACE-META-MODEL). Facet conformance has no Twenty
-// analog — Card + mapping rows on twenty-ui primitives.
+// analog: Card + mapping rows on twenty-ui primitives.
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -292,7 +292,7 @@ export function ModelSettingsView(_props: ViewRenderProps) {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 rec-grid-model-settings">
         <aside className="min-h-0 overflow-auto border-b border-ij-seam lg:border-b-0 lg:border-r">
           <div className="border-b border-ij-seam p-2">
             <SearchInput
@@ -429,7 +429,7 @@ function ObjectDetailScreen({
           </h3>
           <div className="flex flex-wrap gap-2">
             {(object.conformances ?? []).length === 0 ? (
-              <span className="text-sm text-ij-ink-info">None yet — map on the Facets screen.</span>
+              <span className="text-sm text-ij-ink-info">None yet. Map on the Facets screen.</span>
             ) : (
               (object.conformances ?? []).map((row) => (
                 <Tag key={row.facet} text={row.facet} color="purple" />

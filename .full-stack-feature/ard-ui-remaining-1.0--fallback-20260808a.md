@@ -19,17 +19,17 @@ Close remaining ARD-THEOREM-2026-08-04 Parts 1/4/6 UI gaps (SPEC-REVIEW SR parti
 - Whether put_item_validated refusal codes are already returned on the console records write path today
 
 ## Tasks
-- [ ] **d24-gate-run** (build.afk) — D24 gate Run on validate
-- [ ] **fieldtype-forms** (build.afk) — Tagged FieldType field editor forms
-- [ ] **facet-manual-map** (build.afk) — Manual facet property mapping
-- [ ] **index-policy-editor** (build.afk) — IndexPolicy four flags + provenance
-- [ ] **metadata-live-smoke** (build.afk) — Env-gated live metadata REST smoke
-- [ ] **records-validated-ux** (build.afk) — Records put_item_validated refusal UX
-- [ ] **p3-goal-stack-demote** (build.afk) — P3 demote Goal Stack
-- [ ] **gallery-substrate-fill** (build.afk) — Commands gallery substrate fill
-- [ ] **layer-chrome** (build.afk) — D1 Layer 0/1/2 chrome on models settings
-- [ ] **fabric-seam-inventory** (decision.afk) — Inventory D20-D23 substrate seams
-- [ ] **fabric-ui-or-close** (build.afk) — Ship or close D20-D23 UI
-- [ ] **wave-c-seams** (decision.afk) — Inventory D32-D36 seams (excl WorkOS)
-- [ ] **wave-c-ui-or-close** (build.afk) — Ship or close D32-D36 UI (excl WorkOS)
-- [ ] **settings-twenty-inputs** (build.afk) — Replace native settings inputs with twenty-ui
+- [x] **d24-gate-run** (build.afk) — D24 gate Run on validate
+- [x] **fieldtype-forms** (build.afk) — Tagged FieldType field editor forms
+- [x] **facet-manual-map** (build.afk) — Manual facet property mapping
+- [x] **index-policy-editor** (build.afk) — IndexPolicy four flags + provenance
+- [x] **metadata-live-smoke** (build.afk) — Env-gated live metadata REST smoke
+- [x] **records-validated-ux** (build.afk) — Records put_item_validated refusal UX
+- [x] **p3-goal-stack-demote** (build.afk) — P3 demote Goal Stack
+- [x] **gallery-substrate-fill** (build.afk) — Commands gallery substrate fill
+- [x] **layer-chrome** (build.afk) — D1 Layer 0/1/2 chrome on models settings
+- [x] **fabric-seam-inventory** (decision.afk) — Inventory D20-D23 substrate seams
+- [x] **fabric-ui-or-close** (build.afk) — Ship or close D20-D23 UI
+- [x] **wave-c-seams** (decision.afk) — Inventory D32-D36 seams (excl WorkOS)
+- [x] **wave-c-ui-or-close** (build.afk) — Ship or close D32-D36 UI (excl WorkOS)
+- [x] **settings-twenty-inputs** (build.afk) — Replace native settings inputs with twenty-ui

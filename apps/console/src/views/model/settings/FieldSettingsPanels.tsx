@@ -99,12 +99,12 @@ export function FieldsScreen({
     [type, variantsText, vectorDim, relationTarget, relationCardinality],
   );
 
-  const showEnum = type === 'SELECT' || type === 'MULTI_SELECT';
+  const showEnum = type === 'SELECT';
   const showVector = type === 'RAW_JSON';
   const showRelation = type === 'RELATION' || type === 'MORPH_RELATION';
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+    <div className="grid gap-3 rec-grid-field-settings-lg">
       <ul className="rounded-ij-arc border border-ij-seam p-1">
         {object.fields.map((field) => (
           <li key={field.id}>
@@ -426,9 +426,7 @@ export function FacetsScreen({
       const propertyMap: Record<string, string> = { ...(existing?.propertyMap ?? {}) };
       for (const property of facet.properties) {
         if (propertyMap[property.name]) continue;
-        const match =
-          object.fields.find((field) => field.name === property.name) ??
-          object.fields.find((field) => field.type === property.type);
+        const match = object.fields.find((field) => field.name === property.name);
         if (match) propertyMap[property.name] = match.name;
       }
       next[facet.name] = propertyMap;
@@ -440,7 +438,7 @@ export function FacetsScreen({
     <div className="grid gap-3">
       <p className="text-sm text-ij-ink-info">
         Facet conformance maps object fields onto declared capability contracts
-        (CONFORMS_TO). Pick local fields explicitly — auto-suggestions are only a starting point.
+        (CONFORMS_TO). Pick local fields explicitly. Auto-suggestions are only a starting point.
       </p>
       {facets.map((facet) => {
         const isActive = active.has(facet.name);
@@ -464,7 +462,7 @@ export function FacetsScreen({
               ) : null}
               <ul className="grid gap-2 text-sm">
                 {facet.properties.map((property) => (
-                  <li key={property.name} className="grid gap-1 sm:grid-cols-[1fr_minmax(0,1fr)] sm:items-center">
+                  <li key={property.name} className="grid gap-1 rec-grid-field-settings-sm sm:items-center">
                     <span className="font-ij-mono text-xs" data-mono-ok>
                       {property.name}
                       {property.required ? ' · required' : ''}

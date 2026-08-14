@@ -4,9 +4,8 @@
 // owned so the two services stay independent. The key never reaches the
 // browser; the browser talks only to these same-origin routes.
 //
-// HANDOFF-PRINCIPAL-CREDENTIALS: forward() resolves a credential per
-// principal. Auto-issuance (D4) runs for signed-in principals. Gate 2 remains
-// only as a named refusal when issuance cannot cover a non-matching tenant.
+// HANDOFF-PRINCIPAL-CREDENTIALS + HANDOFF-SIGNED-PRINCIPAL-IDENTITY D3:
+// forward() resolves a credential per principal and signs when custody is set.
 
 import {
   principalTenantHeaders,
@@ -16,6 +15,7 @@ import {
   credentialHeaders,
   credentialRefusalResponse,
   isServicePrincipal,
+  requestBodyBytes,
   resolveUpstreamCredential,
   serviceUpstreamKey,
 } from '@/lib/server/upstream-credential';
@@ -60,13 +60,24 @@ export async function forward(path: string, init: RequestInit): Promise<Response
     return credentialRefusalResponse(credential.refusal);
   }
 
+  const method = (init.method ?? 'GET').toUpperCase();
+  let body: string | Uint8Array = '';
+  try {
+    body = requestBodyBytes(init.body ?? null);
+  } catch {
+    return Response.json(
+      { error: 'signed_request_body_unsupported', message: 'Upstream body must be text or bytes.' },
+      { status: 500 },
+    );
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(`${upstreamBase()}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
-        ...credentialHeaders(credential.credential),
+        ...credentialHeaders(credential.credential, { method, path, body }),
         ...principalTenantHeaders(resolution.principal),
       },
       cache: 'no-store',
@@ -77,8 +88,8 @@ export async function forward(path: string, init: RequestInit): Promise<Response
       { status: 502 },
     );
   }
-  const body = await upstream.text();
-  return new Response(body, {
+  const responseBody = await upstream.text();
+  return new Response(responseBody, {
     status: upstream.status,
     headers: { 'Content-Type': upstream.headers.get('Content-Type') ?? 'application/json' },
   });

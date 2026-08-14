@@ -19,6 +19,12 @@ vi.mock('@/lib/server/upstream-credential', () => ({
   credentialHeaders: vi.fn(() => ({ 'x-api-key': 'test-key' })),
   credentialRefusalResponse: vi.fn(),
   isServicePrincipal: vi.fn(() => false),
+  requestBodyBytes: (body: BodyInit | null | undefined) => {
+    if (body == null) return '';
+    if (typeof body === 'string') return body;
+    if (body instanceof Uint8Array) return body;
+    throw new Error('unsupported body');
+  },
   resolveUpstreamCredential: mocks.resolveUpstreamCredential,
   serviceUpstreamKey: vi.fn(() => 'test-key'),
 }));
@@ -30,7 +36,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', mocks.fetch);
   mocks.resolveUpstreamCredential.mockResolvedValue({
     ok: true,
-    credential: { kind: 'service', key: 'test-key' },
+    credential: { kind: 'service_key', key: 'test-key' },
   });
   mocks.fetch.mockResolvedValue(
     new Response(JSON.stringify([{ id: 'table' }]), {

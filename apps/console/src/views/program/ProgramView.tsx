@@ -96,7 +96,9 @@ import {
   fetchProgramContext,
   fetchProgramSpill,
   fetchStarterPrograms,
+  consumePendingProgramFork,
   forkProgramDefinition,
+  lineageFromProgram,
   listPrograms,
   loadProgram,
   materializeProgram,
@@ -677,6 +679,38 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [toggleNodeCollapsed, toggleNodeAdvanced, setWidgetTweak, definition, nodes]);
 
+  const galleryForkHydrated = useRef(false);
+  useEffect(() => {
+    if (galleryForkHydrated.current || !tenantId) return;
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/program')) {
+      return;
+    }
+    const pending = consumePendingProgramFork();
+    const id = typeof window === 'undefined'
+      ? null
+      : new URLSearchParams(window.location.search).get('id');
+    if (!pending && !id) {
+      galleryForkHydrated.current = true;
+      return;
+    }
+    galleryForkHydrated.current = true;
+    if (pending) {
+      draftGeneration.current += 1;
+      const nextId = pending.nodeId ?? null;
+      setProgramId(nextId);
+      programIdRef.current = nextId;
+      setDefinition(pending.program);
+      layoutRef.current = EMPTY_LAYOUT;
+      setLayoutDoc(EMPTY_LAYOUT);
+      const flow = definitionToFlow(pending.program, catalogById, EMPTY_LAYOUT, nodeHandlers, {});
+      setNodes(flow.nodes);
+      setEdges(flow.edges);
+      setNotice(`Fork opened from ${pending.parentProgramId ?? 'gallery'}.`);
+      return;
+    }
+    void openProgram(id!);
+  }, [tenantId, catalogById, nodeHandlers]);
+
   /** Shape-class family behind a port, for the drag preview and dimming. */
   const familyForHandle = useCallback(
     (nodeId: string, handleId: string | null): EdgeFamily | undefined => {
@@ -1160,13 +1194,21 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
 
   /** ARD D24: whole program validates before anything executes. */
   async function runProgram(): Promise<void> {
+    const generationSnapshot = draftGeneration.current;
+    const definitionSnapshot = definition;
     setBusy(true);
     setNotice(null);
     setError(null);
     setValidationSummary(null);
     setValidationNodeIds([]);
     try {
-      const validation = await validateProgramDefinition(definition);
+      const validation = await validateProgramDefinition(definitionSnapshot);
+      if (
+        generationSnapshot !== draftGeneration.current ||
+        definitionRef.current !== definitionSnapshot
+      ) {
+        return;
+      }
       const ok = await applyValidationResult(validation);
       if (!ok) {
         setNotice('Run blocked: fix validation before execute.');
@@ -1174,21 +1216,40 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       }
       const invocationId = crypto.randomUUID();
       setRunInvocationId(invocationId);
-      applyReceipt(await runProgramDefinition(definition, optionsForRun(invocationId)));
+      applyReceipt(await runProgramDefinition(definitionSnapshot, optionsForRun(invocationId)));
     } catch (runError) {
+      if (
+        generationSnapshot !== draftGeneration.current ||
+        definitionRef.current !== definitionSnapshot
+      ) {
+        return;
+      }
       setError(runError instanceof Error ? runError.message : String(runError));
     } finally {
-      setBusy(false);
+      if (
+        generationSnapshot === draftGeneration.current &&
+        definitionRef.current === definitionSnapshot
+      ) {
+        setBusy(false);
+      }
     }
   }
 
   async function validateProgram(): Promise<void> {
+    const generationSnapshot = draftGeneration.current;
+    const definitionSnapshot = definition;
     setBusy(true);
     setError(null);
     setValidationSummary(null);
     setValidationNodeIds([]);
     try {
-      const result = await validateProgramDefinition(definition);
+      const result = await validateProgramDefinition(definitionSnapshot);
+      if (
+        generationSnapshot !== draftGeneration.current ||
+        definitionRef.current !== definitionSnapshot
+      ) {
+        return;
+      }
       const ok = await applyValidationResult(result);
       if (ok) {
         setNotice(`Validation passed for ${
@@ -1196,9 +1257,20 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
         }.`);
       }
     } catch (validationError) {
+      if (
+        generationSnapshot !== draftGeneration.current ||
+        definitionRef.current !== definitionSnapshot
+      ) {
+        return;
+      }
       setError(validationError instanceof Error ? validationError.message : String(validationError));
     } finally {
-      setBusy(false);
+      if (
+        generationSnapshot === draftGeneration.current &&
+        definitionRef.current === definitionSnapshot
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -1455,6 +1527,8 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
     setWidgetTweaks({});
     setPinnedByNode({});
     setSelectedNodeId(null);
+    setValidationSummary(null);
+    setValidationNodeIds([]);
   }
 
   function openStarter(starter: ProgramDefinition): void {
@@ -1509,7 +1583,16 @@ function ProgramCanvasInner({ host }: ViewRenderProps) {
       <BlockShell
       material="sunken"
       title="Program"
-      scope={programId ? <span className="font-ij-mono" data-mono-ok>{programId}</span> : 'Draft'}
+      scope={(
+        <span className="flex flex-wrap items-center gap-2">
+          {programId ? <span className="font-ij-mono" data-mono-ok>{programId}</span> : 'Draft'}
+          {lineageFromProgram(definition) ? (
+            <span className="font-ij-mono text-ij-ink-info" data-program-lineage>
+              lineage {lineageFromProgram(definition)}
+            </span>
+          ) : null}
+        </span>
+      )}
       count={`${catalog.length} ops`}
       degradation={error ? degradationFor(error, 500) : null}
       controlRow={(

@@ -1,0 +1,629 @@
+{
+  "colors": {
+    "all": [
+      {
+        "hex": "#000000",
+        "rgb": {
+          "r": 0,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        },
+        "hsl": {
+          "h": 0,
+          "s": 0,
+          "l": 0
+        },
+        "count": 1835,
+        "contexts": [
+          "text",
+          "border",
+          "background"
+        ]
+      },
+      {
+        "hex": "#c8c8c8",
+        "rgb": {
+          "r": 200,
+          "g": 200,
+          "b": 200,
+          "a": 0.8
+        },
+        "hsl": {
+          "h": 0,
+          "s": 0,
+          "l": 78
+        },
+        "count": 263,
+        "contexts": [
+          "background",
+          "border"
+        ]
+      },
+      {
+        "hex": "#ffffff",
+        "rgb": {
+          "r": 255,
+          "g": 255,
+          "b": 255,
+          "a": 0.6
+        },
+        "hsl": {
+          "h": 0,
+          "s": 0,
+          "l": 100
+        },
+        "count": 102,
+        "contexts": [
+          "background",
+          "text"
+        ]
+      },
+      {
+        "hex": "#e9e9e9",
+        "rgb": {
+          "r": 233,
+          "g": 233,
+          "b": 233,
+          "a": 0.4
+        },
+        "hsl": {
+          "h": 0,
+          "s": 0,
+          "l": 91
+        },
+        "count": 84,
+        "contexts": [
+          "background"
+        ]
+      },
+      {
+        "hex": "#242424",
+        "rgb": {
+          "r": 36,
+          "g": 36,
+          "b": 36,
+          "a": 0.6
+        },
+        "hsl": {
+          "h": 0,
+          "s": 0,
+          "l": 14
+        },
+        "count": 29,
+        "contexts": [
+          "text"
+        ]
+      },
+      {
+        "hex": "#008134",
+        "rgb": {
+          "r": 0,
+          "g": 129,
+          "b": 52,
+          "a": 0.1
+        },
+        "hsl": {
+          "h": 144,
+          "s": 100,
+          "l": 25
+        },
+        "count": 2,
+        "contexts": [
+          "background",
+          "border"
+        ]
+      },
+      {
+        "hex": "#f4f4f4",
+        "rgb": {
+          "r": 244,
+          "g": 244,
+          "b": 244,
+          "a": 0.8
+        },
+        "hsl": {
+          "h": 0,
+          "s": 0,
+          "l": 96
+        },
+        "count": 1,
+        "contexts": [
+          "text"
+        ]
+      }
+    ]
+  },
+  "regions": [
+    {
+      "role": "nav",
+      "tag": "header",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 56
+      },
+      "heading": null,
+      "buttonCount": 5,
+      "cardCount": 21,
+      "className": "theme-container bg-site-background text-site-foreground font-site-sans w-full overscroll-none"
+    },
+    {
+      "role": "nav",
+      "tag": "nav",
+      "bounds": {
+        "x": 425.484375,
+        "y": 9.5,
+        "w": 429.03125,
+        "h": 36
+      },
+      "heading": null,
+      "buttonCount": 2,
+      "cardCount": 5,
+      "className": "items-center gap-0.5 hidden justify-end lg:flex xl:justify-center"
+    },
+    {
+      "role": "pricing",
+      "tag": "main",
+      "bounds": {
+        "x": 0,
+        "y": 56,
+        "w": 1280,
+        "h": 12868.734375
+      },
+      "heading": "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+      "buttonCount": 36,
+      "cardCount": 699,
+      "className": "relative flex min-h-0 flex-1 flex-col"
+    },
+    {
+      "role": "content",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 56,
+        "w": 1280,
+        "h": 490.09375
+      },
+      "heading": "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+      "buttonCount": 0,
+      "cardCount": 10,
+      "className": "container-wrapper relative overflow-hidden py-16 lg:py-24"
+    },
+    {
+      "role": "testimonials",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 546.09375,
+        "w": 1280,
+        "h": 1466
+      },
+      "heading": null,
+      "buttonCount": 6,
+      "cardCount": 116,
+      "className": "container-wrapper pb-16 lg:pb-24"
+    },
+    {
+      "role": "nav",
+      "tag": "header",
+      "bounds": {
+        "x": 51,
+        "y": 549.09375,
+        "w": 1178,
+        "h": 36
+      },
+      "heading": null,
+      "buttonCount": 0,
+      "cardCount": 1,
+      "className": "flex flex-col gap-1 px-0.5 py-1 pr-2"
+    },
+    {
+      "role": "content",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 1956.09375,
+        "w": 1280,
+        "h": 243.5
+      },
+      "heading": "Endorsed by the creator of shadcn/ui",
+      "buttonCount": 0,
+      "cardCount": 2,
+      "className": "container-wrapper -mt-8 pb-8 lg:-mt-14 lg:pb-10"
+    },
+    {
+      "role": "pricing",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 2199.59375,
+        "w": 1280,
+        "h": 1426.5
+      },
+      "heading": "1,052 Free\n Shadcn UI Components",
+      "buttonCount": 0,
+      "cardCount": 217,
+      "className": "bg-site-background relative overflow-hidden pt-14 pb-0 lg:pt-18"
+    },
+    {
+      "role": "content",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 3626.09375,
+        "w": 1280,
+        "h": 857.984375
+      },
+      "heading": "Whole apps, not just screens",
+      "buttonCount": 8,
+      "cardCount": 65,
+      "className": "bg-site-background relative overflow-hidden py-16 lg:py-24"
+    },
+    {
+      "role": "hero",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 4484.078125,
+        "w": 1280,
+        "h": 1118.5625
+      },
+      "heading": "638 Hand-crafted Premium Icons",
+      "buttonCount": 5,
+      "cardCount": 52,
+      "className": "bg-site-background relative overflow-hidden py-16 lg:py-24"
+    },
+    {
+      "role": "pricing",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 5602.640625,
+        "w": 1280,
+        "h": 1451.75
+      },
+      "heading": "Connect ReUI to your Coding Agent",
+      "buttonCount": 0,
+      "cardCount": 79,
+      "className": "relative isolate"
+    },
+    {
+      "role": "testimonials",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 7054.390625,
+        "w": 1280,
+        "h": 1039.09375
+      },
+      "heading": "ReUI or the Grind",
+      "buttonCount": 0,
+      "cardCount": 23,
+      "className": "bg-site-muted/40 border-site-border/50 relative isolate overflow-hidden border-b"
+    },
+    {
+      "role": "content",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 8093.484375,
+        "w": 1280,
+        "h": 2592
+      },
+      "heading": null,
+      "buttonCount": 0,
+      "cardCount": 91,
+      "className": "relative overflow-hidden py-12 lg:py-24"
+    },
+    {
+      "role": "pricing",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 10685.484375,
+        "w": 1280,
+        "h": 1204.5
+      },
+      "heading": "Frequently Asked Questions",
+      "buttonCount": 17,
+      "cardCount": 19,
+      "className": "container-wrapper relative overflow-hidden py-16 lg:py-24"
+    },
+    {
+      "role": "pricing",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 11889.984375,
+        "w": 1280,
+        "h": 694.75
+      },
+      "heading": "Everything you need to ship with shadcn/ui",
+      "buttonCount": 0,
+      "cardCount": 21,
+      "className": "relative isolate"
+    },
+    {
+      "role": "content",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 12584.734375,
+        "w": 1280,
+        "h": 340
+      },
+      "heading": "Start building with ReUI Pro today.",
+      "buttonCount": 0,
+      "cardCount": 3,
+      "className": "bg-site-foreground text-site-background relative overflow-hidden py-20 dark:bg-site-card/50 dark:text-site-foreground dark:border-site-border dark:border-y"
+    },
+    {
+      "role": "footer",
+      "tag": "footer",
+      "bounds": {
+        "x": 0,
+        "y": 12924.734375,
+        "w": 1280,
+        "h": 826
+      },
+      "heading": "Application",
+      "buttonCount": 0,
+      "cardCount": 143,
+      "className": "site-theme-container font-site-sans bg-site-background text-site-foreground relative"
+    },
+    {
+      "role": "content",
+      "tag": "section",
+      "bounds": {
+        "x": 0,
+        "y": 13750.734375,
+        "w": 1280,
+        "h": 0
+      },
+      "heading": null,
+      "buttonCount": 0,
+      "cardCount": 0,
+      "className": null
+    }
+  ],
+  "componentClusters": [
+    {
+      "kind": "button",
+      "structuralHash": "button>svg",
+      "instanceCount": 16,
+      "variants": [
+        {
+          "css": {
+            "background": "lab(100 0 0)",
+            "color": "lab(2.75381 0 0)",
+            "padding": "8px 12px 8px 12px",
+            "borderRadius": "8px",
+            "border": "0px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "14px",
+            "fontWeight": "500"
+          },
+          "instanceCount": 3
+        },
+        {
+          "css": {
+            "background": "rgba(0, 0, 0, 0)",
+            "color": "rgb(0, 0, 0)",
+            "padding": "16px 0px 16px 0px",
+            "borderRadius": "6px",
+            "border": "0px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "16px",
+            "fontWeight": "500"
+          },
+          "instanceCount": 13
+        }
+      ]
+    },
+    {
+      "kind": "button",
+      "structuralHash": "button>svg>svg",
+      "instanceCount": 1,
+      "variants": [
+        {
+          "css": {
+            "background": "rgba(0, 0, 0, 0)",
+            "color": "lab(2.75381 0 0)",
+            "padding": "0px 0px 0px 0px",
+            "borderRadius": "6px",
+            "border": "0px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "14px",
+            "fontWeight": "500"
+          },
+          "instanceCount": 1
+        }
+      ]
+    },
+    {
+      "kind": "button",
+      "structuralHash": "button>span>span",
+      "instanceCount": 6,
+      "variants": [
+        {
+          "css": {
+            "background": "lab(7.78201 -0.0000149012 0)",
+            "color": "lab(98.26 0 0)",
+            "padding": "8px 16px 8px 16px",
+            "borderRadius": "9999px",
+            "border": "0px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "14px",
+            "fontWeight": "500"
+          },
+          "instanceCount": 6
+        }
+      ]
+    },
+    {
+      "kind": "button",
+      "structuralHash": "button",
+      "instanceCount": 16,
+      "variants": [
+        {
+          "css": {
+            "background": "rgba(0, 0, 0, 0)",
+            "color": "lab(44.32 0 0)",
+            "padding": "0px 0px 0px 0px",
+            "borderRadius": "9999px",
+            "border": "0px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "12px",
+            "fontWeight": "400"
+          },
+          "instanceCount": 16
+        }
+      ]
+    },
+    {
+      "kind": "button",
+      "structuralHash": "button>span",
+      "instanceCount": 1,
+      "variants": [
+        {
+          "css": {
+            "background": "lab(90.952 0 -0.0000119209)",
+            "color": "rgb(0, 0, 0)",
+            "padding": "0px 0px 0px 0px",
+            "borderRadius": "9999px",
+            "border": "1px solid rgba(0, 0, 0, 0)",
+            "fontSize": "16px",
+            "fontWeight": "400"
+          },
+          "instanceCount": 1
+        }
+      ]
+    },
+    {
+      "kind": "card",
+      "structuralHash": "div>span>h3>span",
+      "instanceCount": 15,
+      "variants": [
+        {
+          "css": {
+            "background": "lab(100 0 0)",
+            "color": "rgb(0, 0, 0)",
+            "padding": "24px 24px 24px 24px",
+            "borderRadius": "14px",
+            "border": "1px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "16px",
+            "fontWeight": "400"
+          },
+          "instanceCount": 15
+        }
+      ]
+    },
+    {
+      "kind": "card",
+      "structuralHash": "div>div>div>span",
+      "instanceCount": 4,
+      "variants": [
+        {
+          "css": {
+            "background": "lab(100 0 0)",
+            "color": "rgb(0, 0, 0)",
+            "padding": "24px 24px 24px 24px",
+            "borderRadius": "14px",
+            "border": "1px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "16px",
+            "fontWeight": "400"
+          },
+          "instanceCount": 4
+        }
+      ]
+    },
+    {
+      "kind": "card",
+      "structuralHash": "section>div",
+      "instanceCount": 1,
+      "variants": [
+        {
+          "css": {
+            "background": "lab(2.75381 0 0)",
+            "color": "lab(100 0 0)",
+            "padding": "80px 0px 80px 0px",
+            "borderRadius": "0px",
+            "border": "0px solid lab(90.952 0 -0.0000119209)",
+            "fontSize": "16px",
+            "fontWeight": "400"
+          },
+          "instanceCount": 1
+        }
+      ]
+    }
+  ],
+  "accessibility": {
+    "remediation": []
+  },
+  "cssHealth": {
+    "sheets": [
+      {
+        "url": "https://reui.io/_next/static/immutable/chunks/3xsi-da95clev.css",
+        "totalBytes": 47712,
+        "usedBytes": 0,
+        "unusedBytes": 47712,
+        "unusedPercent": 100
+      },
+      {
+        "url": "https://reui.io/_next/static/immutable/chunks/26xq8ohjth9gk.css",
+        "totalBytes": 2677079,
+        "usedBytes": 2654063,
+        "unusedBytes": 23016,
+        "unusedPercent": 1
+      },
+      {
+        "url": "https://reui.io/_next/static/immutable/chunks/14x1f3uu10ogg.css",
+        "totalBytes": 2111,
+        "usedBytes": 80,
+        "unusedBytes": 2031,
+        "unusedPercent": 96
+      },
+      {
+        "url": "https://reui.io/",
+        "totalBytes": 128,
+        "usedBytes": 0,
+        "unusedBytes": 128,
+        "unusedPercent": 100
+      },
+      {
+        "url": "https://reui.io/",
+        "totalBytes": 95,
+        "usedBytes": 0,
+        "unusedBytes": 95,
+        "unusedPercent": 100
+      }
+    ],
+    "totalBytes": 2727125,
+    "usedBytes": 2654143,
+    "unusedBytes": 72982,
+    "unusedPercent": 3,
+    "importantCount": 642,
+    "duplicates": 39037,
+    "vendorPrefixes": {
+      "webkit": 317,
+      "moz": 6,
+      "ms": 35,
+      "o": 0
+    },
+    "keyframes": [],
+    "specificity": {
+      "max": [
+        2,
+        12,
+        8
+      ],
+      "average": [
+        0,
+        1.95,
+        0.27
+      ],
+      "count": 22776
+    },
+    "issues": [
+      "642 !important rules",
+      "39037 duplicate declarations"
+    ]
+  }
+}

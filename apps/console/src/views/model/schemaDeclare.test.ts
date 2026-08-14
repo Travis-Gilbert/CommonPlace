@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeclaredModel, FieldMetadata } from '@commonplace/data-model-contracts';
-import { schemaDeclareInputForField } from './schemaDeclare';
+import { schemaDeclareInputForField, schemaDeclareInputForNewObject } from './schemaDeclare';
 
 const field: FieldMetadata = {
   id: 'field:customer:name',
@@ -58,5 +58,12 @@ describe('schemaDeclareInputForField', () => {
   it('refuses a stale field selection before sending a partial declaration', () => {
     expect(() => schemaDeclareInputForField(declared, 'missing', field))
       .toThrow('Declared field missing is no longer available.');
+  });
+
+  it('builds a spawn input for a new canvas object type', () => {
+    const input = schemaDeclareInputForNewObject(2);
+    expect(input.nameSingular).toBe('object_2');
+    expect(input.labelSingular).toBe('New object 2');
+    expect(input.fields.map((row) => row.key)).toEqual(['id', 'name']);
   });
 });

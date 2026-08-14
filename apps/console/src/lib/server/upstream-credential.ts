@@ -1,14 +1,19 @@
 // SOURCING: none. Pure credential resolution for the object seam.
-// HANDOFF-PRINCIPAL-CREDENTIALS D1: resolve a credential per principal.
-// The signed_request kind is added by HANDOFF-SIGNED-PRINCIPAL-IDENTITY.
+// HANDOFF-PRINCIPAL-CREDENTIALS D1 + HANDOFF-SIGNED-PRINCIPAL-IDENTITY D3.
 
 import type { HarnessPrincipal } from '@/lib/harness-principal-core';
 import { configuredServiceTenantMatches } from '@/lib/harness-principal-core';
 import { ensurePrincipalCredential } from '@/lib/server/principal-credential-store';
+import {
+  loadSigningCustodyForKeyId,
+  resolveSigningCustodyForPrincipal,
+} from '@/lib/server/signed-request-custody';
+import { newRequestNonce, signRequest } from '@/lib/server/signed-request';
 
 export type UpstreamCredential =
   | { readonly kind: 'service_key'; readonly key: string }
-  | { readonly kind: 'principal_token'; readonly token: string; readonly tenant: string };
+  | { readonly kind: 'principal_token'; readonly token: string; readonly tenant: string }
+  | { readonly kind: 'signed_request'; readonly keyId: string };
 
 export type CredentialRefusal = {
   readonly reason: 'principal_credential_unavailable';
@@ -18,6 +23,14 @@ export type CredentialRefusal = {
 export type CredentialResolution =
   | { readonly ok: true; readonly credential: UpstreamCredential }
   | { readonly ok: false; readonly refusal: CredentialRefusal };
+
+export type CredentialRequestContext = {
+  readonly method: string;
+  readonly path: string;
+  readonly body: string | Uint8Array;
+  readonly nowMs?: number;
+  readonly nonce?: string;
+};
 
 export function isServicePrincipal(principal: HarnessPrincipal): boolean {
   return principal.harnessIdentity.startsWith('service:');
@@ -63,7 +76,10 @@ export function lookupPrincipalToken(
   return matched?.[1] ?? null;
 }
 
-export function credentialHeaders(credential: UpstreamCredential): Record<string, string> {
+export function credentialHeaders(
+  credential: UpstreamCredential,
+  context?: CredentialRequestContext,
+): Record<string, string> {
   switch (credential.kind) {
     case 'service_key':
       return { 'x-api-key': credential.key };
@@ -72,6 +88,49 @@ export function credentialHeaders(credential: UpstreamCredential): Record<string
         'x-api-key': credential.token,
         'x-theorem-credential-kind': 'principal_token',
       };
+    case 'signed_request': {
+      if (!context) {
+        throw new Error('signed_request credentials require method, path, and body context');
+      }
+      const custody = loadSigningCustodyForKeyId(credential.keyId);
+      if (!custody) {
+        throw new Error('signed_request custody is unavailable for this key id');
+      }
+      const timestampMs = context.nowMs ?? Date.now();
+      const nonce = context.nonce ?? newRequestNonce();
+      const signature = signRequest({
+        secretKeyHex: custody.secretKeyHex,
+        method: context.method,
+        path: context.path,
+        body: context.body,
+        keyId: credential.keyId,
+        timestampMs,
+        nonce,
+      });
+      return {
+        'x-theorem-key-id': credential.keyId,
+        'x-theorem-timestamp': String(timestampMs),
+        'x-theorem-nonce': nonce,
+        'x-theorem-signature': signature,
+        'x-theorem-credential-kind': 'signed_request',
+      };
+    }
+    default: {
+      const _exhaustive: never = credential;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Bearer material for ACP / non-HTTP bridges that cannot carry signature headers. */
+export function acpAuthTokenFromCredential(credential: UpstreamCredential): string | null {
+  switch (credential.kind) {
+    case 'service_key':
+      return credential.key;
+    case 'principal_token':
+      return credential.token;
+    case 'signed_request':
+      return null;
     default: {
       const _exhaustive: never = credential;
       return _exhaustive;
@@ -86,6 +145,14 @@ export async function resolveUpstreamCredential(
     return {
       ok: true,
       credential: { kind: 'service_key', key: serviceUpstreamKey() },
+    };
+  }
+
+  const custody = resolveSigningCustodyForPrincipal(principal);
+  if (custody) {
+    return {
+      ok: true,
+      credential: { kind: 'signed_request', keyId: custody.keyId },
     };
   }
 
@@ -127,7 +194,7 @@ export async function resolveUpstreamCredential(
     refusal: {
       reason: 'principal_credential_unavailable',
       message:
-        'This principal has no object-seam credential yet. Open Account to issue one, or ensure the upstream service key may mint for this tenant.',
+        'This principal has no object-seam credential yet. Map a seed in CONSOLE_SIGNED_REQUEST_SEEDS_JSON (or set CONSOLE_SIGNED_REQUEST_SECRET_KEY_HEX for the matching CONSOLE_HARNESS_TENANT owner), register the public key upstream, open Account to issue a token, or ensure the upstream service key may mint for this tenant.',
     },
   };
 }
@@ -140,4 +207,13 @@ export function credentialRefusalResponse(refusal: CredentialRefusal): Response 
     },
     { status: 403 },
   );
+}
+
+export function requestBodyBytes(body: BodyInit | null | undefined): string | Uint8Array {
+  if (body == null) return '';
+  if (typeof body === 'string') return body;
+  if (body instanceof Uint8Array) return body;
+  if (body instanceof ArrayBuffer) return new Uint8Array(body);
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(body)) return body;
+  throw new Error('upstream body must be a string or byte buffer for signed_request');
 }

@@ -1,0 +1,126 @@
+{
+  "tone": "neutral",
+  "pronoun": "you-only",
+  "headingStyle": "Title Case",
+  "headingLengthClass": "balanced",
+  "ctaVerbs": [
+    {
+      "value": "what",
+      "count": 3
+    },
+    {
+      "value": "what's",
+      "count": 2
+    },
+    {
+      "value": "are",
+      "count": 2
+    },
+    {
+      "value": "does",
+      "count": 2
+    },
+    {
+      "value": "products",
+      "count": 1
+    },
+    {
+      "value": "resources",
+      "count": 1
+    },
+    {
+      "value": "all",
+      "count": 1
+    },
+    {
+      "value": "application",
+      "count": 1
+    },
+    {
+      "value": "data",
+      "count": 1
+    },
+    {
+      "value": "solutions",
+      "count": 1
+    }
+  ],
+  "buttonPatterns": [
+    {
+      "value": "+7",
+      "count": 2
+    },
+    {
+      "value": "products",
+      "count": 1
+    },
+    {
+      "value": "resources",
+      "count": 1
+    },
+    {
+      "value": "all\n501",
+      "count": 1
+    },
+    {
+      "value": "application\n291",
+      "count": 1
+    },
+    {
+      "value": "data grid\n35",
+      "count": 1
+    },
+    {
+      "value": "solutions\n64",
+      "count": 1
+    },
+    {
+      "value": "ecommerce\n87",
+      "count": 1
+    },
+    {
+      "value": "marketing\n24",
+      "count": 1
+    },
+    {
+      "value": "+4",
+      "count": 1
+    },
+    {
+      "value": "+2",
+      "count": 1
+    },
+    {
+      "value": "+6",
+      "count": 1
+    },
+    {
+      "value": "+3",
+      "count": 1
+    },
+    {
+      "value": "filled",
+      "count": 1
+    },
+    {
+      "value": "solid",
+      "count": 1
+    }
+  ],
+  "sampleHeadings": [
+    "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+    "Endorsed by the creator of shadcn/ui",
+    "1,052 Free\n Shadcn UI Components",
+    "Whole apps, not just screens",
+    "Verve - Next.js CRM Template",
+    "Design-forward\nshadcn/ui\nplatform with MCP fluency for agents",
+    "Endorsed by the creator of shadcn/ui",
+    "1,052 Free\n Shadcn UI Components",
+    "Whole apps, not just screens",
+    "Verve - Next.js CRM Template"
+  ],
+  "stats": {
+    "buttons": 35,
+    "headings": 38
+  }
+}

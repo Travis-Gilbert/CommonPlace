@@ -262,7 +262,7 @@ export async function handleLocalDevMetadata(
         ...existing,
         labelSingular: patch.labelSingular ?? existing.labelSingular,
         labelPlural: patch.labelPlural ?? existing.labelPlural,
-        description: patch.description ?? existing.description,
+        description: 'description' in patch ? (patch.description ?? undefined) : existing.description,
         isActive: patch.isActive ?? existing.isActive,
         isSearchable: patch.isSearchable ?? existing.isSearchable,
         updatedAtMs: now(),
@@ -397,7 +397,7 @@ export async function handleLocalDevMetadata(
       const nextField: FieldMetadataWire = {
         ...existing,
         label: patch.label ?? existing.label,
-        description: patch.description ?? existing.description,
+        description: 'description' in patch ? (patch.description ?? undefined) : existing.description,
         type: patch.type ?? existing.type,
         isNullable: patch.isNullable ?? existing.isNullable,
         isUnique: patch.isUnique ?? existing.isUnique,
@@ -457,11 +457,24 @@ export async function handleLocalDevMetadata(
       const indexes = object.indexMetadataList.filter(
         (row) => !row.indexFieldMetadataList.some((entry) => entry.fieldMetadataId === target.id),
       );
-      store.objects.set(objectName, {
-        ...object,
-        indexMetadataList: indexes,
-        updatedAtMs: now(),
-      });
+      const fields = object.fields.map((row) =>
+        row.id === target.id
+          ? {
+              ...row,
+              settings: { ...row.settings, isFilterable: false, isSortable: false },
+              updatedAtMs: now(),
+            }
+          : row,
+      );
+      store.objects.set(
+        objectName,
+        withFieldsList({
+          ...object,
+          fields,
+          indexMetadataList: indexes,
+          updatedAtMs: now(),
+        }),
+      );
       return new Response(null, { status: 204 });
     }
   }

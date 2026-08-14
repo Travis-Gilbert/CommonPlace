@@ -1,0 +1,218 @@
+{
+  "library": "heroicons-outline",
+  "confidence": 0.8,
+  "alternates": [
+    {
+      "id": "phosphor",
+      "score": 0.7
+    },
+    {
+      "id": "feather",
+      "score": 0.7
+    },
+    {
+      "id": "tabler",
+      "score": 0.6
+    }
+  ],
+  "stats": {
+    "count": 228,
+    "strokeOnly": 145,
+    "fillOnly": 31,
+    "mixed": 0,
+    "avgStrokeWidth": 2.05,
+    "gridDistribution": {
+      "16": 1,
+      "24": 207,
+      "32": 1
+    },
+    "roundedCapsFraction": 0.66
+  },
+  "signals": [
+    "strokeDominant",
+    "roundedCaps",
+    "grid24"
+  ],
+  "icons": [
+    {
+      "class": "block h-auto shrink-0",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "mixed"
+    },
+    {
+      "class": "lucide lucide-chevron-down size-3.5 transition-transform duration-200 group-data",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-chevron-down size-3.5 transition-transform duration-200 group-data",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-search size-4",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-moon size-4 [html.dark_&]:hidden",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-ship size-[18px]",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "size-3.5",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "size-[18px]",
+      "grid": 24,
+      "strokeWidth": 1.5,
+      "style": "mixed"
+    },
+    {
+      "class": "",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "lucide lucide-rocket text-site-foreground size-4",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-arrow-right text-site-foreground size-3.5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-loader-circle animate-spin text-site-muted-foreground/60 size-4",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "pointer-events-none absolute -bottom-[0.32em] left-0 h-[0.42em] w-full",
+      "grid": null,
+      "strokeWidth": 2.5,
+      "style": "mixed"
+    },
+    {
+      "class": "lucide lucide-chevron-down text-site-muted-foreground group-hover:text-site-fore",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-triangle-alert text-site-muted-foreground group-hover:text-site-fo",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-badge-alert text-site-muted-foreground group-hover:text-site-foreg",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-square text-site-muted-foreground group-hover:text-site-foreground",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-search text-site-muted-foreground group-hover:text-site-foreground",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-user text-site-muted-foreground group-hover:text-site-foreground s",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-badge text-site-muted-foreground group-hover:text-site-foreground ",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-chevron-right text-site-muted-foreground group-hover:text-site-for",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-mouse-pointer2 lucide-mouse-pointer-2 text-site-muted-foreground g",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-columns3 lucide-columns-3 text-site-muted-foreground group-hover:t",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-calendar text-site-muted-foreground group-hover:text-site-foregrou",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-panel-top text-site-muted-foreground group-hover:text-site-foregro",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-gallery-horizontal text-site-muted-foreground group-hover:text-sit",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-chart-column text-site-muted-foreground group-hover:text-site-fore",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-square-check text-site-muted-foreground group-hover:text-site-fore",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-chevrons-up-down text-site-muted-foreground group-hover:text-site-",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-search text-site-muted-foreground group-hover:text-site-foreground",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    }
+  ]
+}

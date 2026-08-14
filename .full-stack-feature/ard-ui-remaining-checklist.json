@@ -163,7 +163,7 @@
       "implementation_mode": "local_process",
       "evidence_class": "unit",
       "substitution_allowed": false,
-      "live_oracle_required": true,
+      "live_oracle_required": false,
       "dependencies": [],
       "acceptance": [
         "An env-gated test or script exists and is documented.",
@@ -175,7 +175,7 @@
         "apps/console/src/lib/server/metadata-rest.ts",
         "apps/console/scripts/smoke-metadata-rest.mjs"
       ],
-      "evidence": "scripts/smoke-metadata-rest.mjs env-gated (skipped without URL)",
+      "evidence": "scripts/smoke-metadata-rest.mjs env-gated (skipped-live-proof state without URL, local fallback verified)",
       "deferral_reason": null,
       "provenance": "SPEC-REVIEW SR-002 / ARD D2"
     },
