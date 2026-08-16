@@ -262,13 +262,15 @@ export function RecordTableView({ set: initialSet, host, instance }: ViewRenderP
         setCellFocus((current) => (current ? { ...current, mode: 'soft' } : current));
         return;
       }
-      const note = receipt.value?.note ?? '';
+      const receiptValue = receipt.value as
+        | { note?: string; code?: string; refusal?: { code?: string } }
+        | undefined;
+      const note = receiptValue?.note ?? '';
       const code =
-        typeof receipt.value?.code === 'string'
-          ? receipt.value.code
-          : typeof (receipt.value as { refusal?: { code?: string } } | undefined)?.refusal
-                ?.code === 'string'
-            ? (receipt.value as { refusal: { code: string } }).refusal.code
+        typeof receiptValue?.code === 'string'
+          ? receiptValue.code
+          : typeof receiptValue?.refusal?.code === 'string'
+            ? receiptValue.refusal.code
             : null;
       if (code || /reject|enforcement|refused|validated|put_item_validated/i.test(note)) {
         setSchemaRowProperty(rowId, fieldKey, previous);
