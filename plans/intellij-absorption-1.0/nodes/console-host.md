@@ -2,8 +2,8 @@
 
 - kind: work
 - controller: agent
-- gist: Re-home the browser-rendering workbench source and loader into CommonPlace, emit an immutable wasm artifact, and serve it through the existing authenticated `/IDE` door against the Theorem IDE proxy/backend.
-- provenance: wave-6 `console-host`, refined by `d10-console-host-boundary`.
+- gist: Re-home the browser-rendering workbench source and loader into CommonPlace (superseded for AgentFS by d12).
+- provenance: wave-6 `console-host`, refined by `d10-console-host-boundary`, destination retracted by `d12-agentfs-dioxus-host`.
 - depends on: `d10-console-host-boundary` (done), `ide-proxy-fold` (parked), and a clean declared CommonPlace scope.
 
 ## Blueprint
@@ -29,8 +29,8 @@ Expected writes after occupancy: a new CommonPlace-owned IDE wasm source/packagi
 
 Do not modify or delete the protected Theorem/CommonPlace worktrees, the local-only fork history, or unrelated Console files. Do not cut over production before `v-console-host` accepts.
 
-## Park (weather, resumable)
+## Park (destination superseded, 2026-08-16)
 
-Reason: `ide-proxy-fold` cannot yet produce the integrated backend receipt because `rustyred-thg-mcp/src/lib.rs` is unparseable. The CommonPlace console also has 58 dirty paths owned by other work. Trigger: the manifest-path theorem-cli proof passes and the intended CommonPlace write scope is clean or explicitly reconciled. Resume by declaring exact source-move and host paths, then occupy this node.
+d12: AgentFS stays in Theorem and deploys with the Dioxus Rust site. Do not re-home the AgentFS workbench into CommonPlace `/IDE`. This node remains parked; do not occupy it to move UI source. CommonPlace `/IDE` stays the existing Studio/code-server rollback until a later chart says otherwise.
 
-- state: parked (2026-08-11)
+- state: parked-superseded (2026-08-16; d12)

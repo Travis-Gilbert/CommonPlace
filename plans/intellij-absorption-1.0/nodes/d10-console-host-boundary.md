@@ -43,3 +43,4 @@ Choose B. `console-host` is refined as a CommonPlace-owned browser UI and host. 
 - reversibility class: reversible with cost
 - retraction path: do not remove or retarget the current `/IDE` upstream until the new verify sibling passes. If the new host fails, leave or restore the existing workspace IDE host variable and edge proxy target, then remove only the uncutover CommonPlace-owned wasm host files.
 - state: done (2026-08-11)
+- amended (2026-08-16): d12 retracts this destination for AgentFS. The OS filesystem and the site that opens it stay in Theorem and deploy with the Dioxus Rust site (`UI/`). CommonPlace `/IDE` remains Studio/code-server rollback, not the AgentFS product door. See `d12-agentfs-dioxus-host.md`.

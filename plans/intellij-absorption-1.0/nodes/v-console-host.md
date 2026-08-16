@@ -3,7 +3,7 @@
 - kind: verify
 - controller: agent
 - verifies: `console-host`
-- state: pending
+- state: parked-superseded (2026-08-16; d12 retracts the CommonPlace `/IDE` destination for AgentFS. Do not run this oracle as the AgentFS product gate.)
 
 ## Fixed oracle
 

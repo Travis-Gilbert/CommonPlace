@@ -1,3 +1,27 @@
+# CONTINUITY — next session brief (2026-08-16: dioxus-agentfs-host GATE PASSED)
+
+## Where we are
+
+Plan `intellij-absorption-1.0`. Binding: portable. Destination path **d11 → d12 → dioxus-agentfs-host → v-dioxus-agentfs-host is DONE**.
+
+- Live origin: `https://travis-theorem-dioxus.fly.dev`
+- App `travis-theorem-dioxus`, machine `8d067dbed54478` (iad, health passing)
+- Volume `dioxus_agentfs` `vol_rnz6qz1wk5zg21er` → `/data` (own volume; not dsh, not personal-store)
+- AgentFS: `/readyz` `{"ok":true,"live_mount":true,"mount":"/workspace"}`; `/proc/mounts` `rustyred-agentfs /workspace fuse`
+- Site: `GET /` `<title>canvas-gallery</title>`; `GET /canvas-gallery.js` 200
+- Infra: `Theorem/infra/fly/dioxus-agentfs/` (Debian `nginx:stable-bookworm` + glibc `theorem-workspace`; start.sh PID 1)
+- Encoded: `mem:doc:Travis-Gilbert:doc-4694544bcae10897`
+
+## The one line that matters for the next head
+
+**Do not occupy `console-host`.** Remaining claimable work on this board is parked weather: **`ide-proxy-fold`** (wasmtime E0310 on `wasi-experimental-http-wasmtime` vs pin-14). Trigger: lockfile on wasmtime 14 + `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy cargo +1.96.1 build --manifest-path apps/theorem-cli/Cargo.toml --bin theorem`. Then `--help` (O-F.1) and Initialize→ReadDir (O-F.4). O-F.2/O-F.3 already have receipts after PR #545. Never `cargo check -p theorem-cli` from `rustyredcore_THG`. Optional: theoremweb.com cert/DNS for the dioxus app (fly.dev is enough as the first receipt).
+
+## Session 2026-08-16 (this head)
+
+- Occupied `dioxus-agentfs-host` (override vs resuming fold; disagreement closed by verify GATE PASS).
+- Rebuilt gallery wasm; created Fly app + volume; deployed; live oracles green; verify sibling GATE PASSED.
+- No commits unless asked. Shared Theorem tree is dirty; never `git add -A`.
+
 # CONTINUITY — next session brief (2026-08-11, session 8: p-l3-exec SEALED — wave 6 first node done)
 
 ## Where we are
