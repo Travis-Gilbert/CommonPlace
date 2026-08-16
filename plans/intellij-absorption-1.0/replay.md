@@ -1,5 +1,8 @@
 # replay (append-only)
 
+- `resume ide-proxy-fold (2026-08-15)` — user asked to resume the JetBrains/Lapce fork. Next ranked claimable node is `ide-proxy-fold` (console-host still depends on it). Occupied after observing mcp lib.rs grew to 47k lines and the old brace-balance-4 wall may have moved; `apps/console` dirty count is 0. Portable binding. Proof starts with MCP parse then standalone `apps/theorem-cli` check on SSD target `intellij-absorption-ide-proxy`.
+- `work ide-proxy-fold (2026-08-15)` — MCP parse wall gone (`check -p rustyred-thg-mcp` 18m28s green). O-F.3 green: `cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml` Finished 30.90s warm. O-F.2 seam closed: `serve_ws_with_backend` / `Dispatcher::with_backend` / `AgentFsBackend::wrap` / `SessionAgentFsBackend` over `EngineHost::with_store_typed` (no second RedCore). `--agentfs` injects that backend. `--help` and HostFs smoke wait on the in-flight `cargo build --bin theorem` link.
+
 - `chart` — plan charted + gated (gates 1+2 PASSED per handoff; board files re-materialized 2026-08-09 after substrate query failed and dir was found empty).
 - `occupy s0-lapce-spike` — claim written; scope = fork + evidence + board.
 - `work s0 S0.1` — local-proxy feature surgery; tree clean. Verify: PASS (M2). Traverse note: none (mid-node).

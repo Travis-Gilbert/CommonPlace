@@ -50,6 +50,28 @@ Reason: proof command blocked by external weather — (1) another agent's unpars
 - **Subcommand API surface statically verified against the checked-green crate**: `theorem_ide_proxy::serve_ws(&addr)` exists (lib.rs:165); `theorem_ide_proxy::backend::AGENTFS_WORKSPACE_MARKER` = ".theorem-agentfs" (backend/mod.rs:38); the dispatcher's AgentFs classification checks `workspace.join(AGENTFS_WORKSPACE_MARKER).is_file()` (backend/agentfs.rs:62) — exactly what ide_proxy.rs writes for `--agentfs`. The landed code is consistent with the crate as compiled.
 - **The remaining wall is one crate**: `cargo tree -i` shows theorem-cli → rustyred-embedded → rustyred-thg-mcp (hard dep, cannot `--exclude` a path dep). lib.rs brace balance still 4 today (41,106 lines). The instant it parses: `cargo check -p theorem-cli` (warm rmeta) → `theorem ide-proxy --help` → smoke → AgentFs one-store seam.
 
+## Occupancy (2026-08-15 resume)
+
+- Occupant: cursor-grok-4.6
+- Occupied at: 2026-08-15T03:18:00Z
+- Binding: portable
+- Scope: `apps/theorem-cli/` proof + AgentFs one-store seam in `theorem-ide-proxy` if the MCP wall is gone; evidence `IDE-PROXY-FOLD.md`
+- Observed before occupy: `rustyred-thg-mcp/src/lib.rs` is 47,287 lines; naive brace balance is 1 (not the old 4). Console dirt is 0. Shared Theorem checkout is `Travis-Gilbert/theorem-ui-shell` and already contains `ide_proxy.rs`. SSD target `k5-target` is gone; using `/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy`.
+
+## Work log (2026-08-15)
+
+- MCP wall CLEARED: `cargo +1.96.1 check -p rustyred-thg-mcp` Finished in 18m 28s, exit 0 (SSD `intellij-absorption-ide-proxy`). lib.rs now 47,287 lines and parses.
+- O-F.3 DISCHARGED: `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy CARGO_HOME=apps/theorem-ide/.cargo-home CARGO_BUILD_JOBS=1 cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml` → Finished `dev` profile in 30.90s (warm after a 21m cold climb through mcp), exit 0, 1 pre-existing dead_code warning in theorem-cli.
+- O-F.2 CLOSED: one-store AgentFs seam landed.
+  - `Dispatcher::with_backend` + `serve_ws_with_backend(addr, make_backend)` in `theorem-ide-proxy`.
+  - Initialize skips `AgentFsBackend::open` when the injected backend is already `BackendKind::AgentFs` (does not clobber the engine store with InMemory).
+  - `AgentFsBackend::wrap(workspace, store, blobs)` binds AgentFs onto a caller-owned `GraphStore`.
+  - `SessionAgentFsBackend` reconstructs AgentFs on the engine thread via `EngineHost::with_store_typed` + cloned `DiskObjectStore` (same physical chunk store). SR-017: no second `RedCoreGraphStore::open`.
+  - `GraphRead`/`GraphWrite` forwarding for `&mut T` so AgentFs can borrow the engine store for one call.
+  - `theorem ide-proxy --agentfs` now calls `serve_ws_with_backend` with that session backend.
+- O-F.1: clap surface unchanged. `cargo build --bin theorem` is in-flight for `--help` capture (check does not emit the binary).
+- O-F.4: still needs the linked binary for Initialize → ReadDir.
+
 ## Park (weather, resumable — updated 2026-08-11)
 
 Reason: proof command blocked by ONE external wall: `rustyred-thg-mcp` lib.rs is unparseable (brace balance 4, 41,106 lines) under another agent's in-flight refactor; it is a hard dependency of theorem-cli through rustyred-embedded. Disk headroom no longer matters (27Gi free system / 541Gi SSD). Trigger: mcp lib.rs parses (balance 0). Resume: `cargo +1.96.1 check --manifest-path apps/theorem-cli/Cargo.toml` (SSD k5-target, warm rmeta), capture `theorem ide-proxy --help`, smoke Initialize -> ReadDir, then close the AgentFs one-store seam (`serve_ws_with_backend` plus engine-store handoff).
