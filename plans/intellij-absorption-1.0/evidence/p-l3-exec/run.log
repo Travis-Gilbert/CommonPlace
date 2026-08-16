@@ -1,0 +1,249 @@
+K6 navigating: http://localhost:8766/?ws=ws://127.0.0.1:19414&workspace=/tmp/lapce-k6-ws
+K6 t=0s canvas={"attrW":800,"attrH":600} connected=true
+K6 final canvas: {"attrW":800,"attrH":600} connected: true
+K6 query hello: opened=8 rows final=1 opened=null trace=["h:1","he:1","hel:1","hell:1","hello:1"]
+K6 query readme: opened=8 rows final=4 opened=null trace=["r:8","re:8","rea:5","read:4","readm:4","readme:4"]
+K6 query templipa: opened=8 rows final=2 opened=null trace=["t:6","te:7","tem:4","temp:2","templ:2","templi:2","templip:2","templipa:2"]
+K6 query maT: opened=8 rows final=4 opened=null trace=["m:8","ma:4","maT:4"]
+K6 query utc: opened=8 rows final=2 opened=null trace=["u:5","ut:4","utc:2"]
+K6 query AppDel: opened=8 rows final=2 opened=null trace=["A:9","Ap:4","App:3","AppD:2","AppDe:2","AppDel:2"]
+K6 query nUt: opened=8 rows final=3 opened=null trace=["n:8","nU:3","nUt:3"]
+K6 query src: opened=8 rows final=4 opened=null trace=["s:8","sr:6","src:4"]
+K6 query xyzz: opened=8 rows final=0 opened=null trace=[]
+K6 verdict: boot clean = PASS — ws=true
+K6 verdict: palette opens with full fixture set = PASS — empty-query rows per open: 8,8,8,8,8,8,8,8,8
+K6 verdict: count hello = PASS — browser 1 vs oracle 1 (cap 8)
+K6 verdict: count readme = PASS — browser 4 vs oracle 4 (cap 8)
+K6 verdict: count templipa = FAIL — browser 2 vs oracle 1 (cap 8)
+K6 verdict: count maT = FAIL — browser 4 vs oracle 5 (cap 8)
+K6 verdict: count utc = PASS — browser 2 vs oracle 2 (cap 8)
+K6 verdict: count AppDel = PASS — browser 2 vs oracle 2 (cap 8)
+K6 verdict: count nUt = PASS — browser 3 vs oracle 3 (cap 8)
+K6 verdict: count src = PASS — browser 4 vs oracle 4 (cap 8)
+K6 verdict: count xyzz = PASS — browser 0 vs oracle 0 (cap 8)
+K6 verdict: top1 hello = FAIL — browser opened null vs oracle notes/hello.md
+K6 verdict: top1 readme = FAIL — browser opened null vs oracle README.md
+K6 verdict: top1 templipa = FAIL — browser opened null vs oracle template_impl_template_list_panel.rs
+K6 verdict: top1 maT = FAIL — browser opened null vs oracle src/main_test.rs
+K6 verdict: top1 utc = FAIL — browser opened null vs oracle unit_controller.rs
+K6 verdict: top1 AppDel = FAIL — browser opened null vs oracle AppDelegate.swift
+K6 verdict: top1 nUt = FAIL — browser opened null vs oracle name_util.rs
+K6 verdict: top1 src = FAIL — browser opened null vs oracle src/lib.rs
+K6 verdict: row counts match oracle = FAIL — 7/9
+K6 verdict: top1 rank matches oracle = FAIL — 0/8
+K6 typeahead traces (rows per keystroke):
+  hello: h->1 he->1 hel->1 hell->1 hello->1
+  readme: r->8 re->8 rea->5 read->4 readm->4 readme->4
+  templipa: t->6 te->7 tem->4 temp->2 templ->2 templi->2 templip->2 templipa->2
+  maT: m->8 ma->4 maT->4
+  utc: u->5 ut->4 utc->2
+  AppDel: A->9 Ap->4 App->3 AppD->2 AppDe->2 AppDel->2
+  nUt: n->8 nU->3 nUt->3
+  src: s->8 sr->6 src->4
+=== FULL CONSOLE (all lines) ===
+[log] [s0.3] initializing theorem_ide_wasm with wasi_snapshot_preview1 shim…
+[warning] using deprecated parameters for the initialization function; pass a single object instead
+[error] Failed to load resource: the server responded with a status of 404 (File not found)
+[log] [ws] proxy client connecting to ws://127.0.0.1:19414
+[log] [ws] Initialize notification queued
+[log] [font] vendored faces: 4 (sans-serif -> DejaVu Sans, monospace -> DejaVu Sans Mono)
+[log] [s0.3] event loop running (winit web control-flow signal)
+[log] [s0.3] probe helpers installed on window.__lapce
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Notification Initialize { workspace: Some("/tmp/lapce-k6-ws"), disabled_volts: [], extra_plugin_paths: [], plugin_configurations: {},…
+[log] [ws] -> Request 0 ReadDir { path: "/tmp/lapce-k6-ws" }
+[log] [ws] connected ws://127.0.0.1:19414
+[log] [ws] <- CoreNotification ProxyStatus { status: Connected }
+[log] [ws] <- CoreNotification HomeDir { path: "/Users/travisgilbert" }
+[log] [ws] <- Response 0 ReadDirResponse { items: [FileNodeItem { path: "/tmp/lapce-k6-ws/notes", is_dir: true, read: false, open: false, children: {}, children_open…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 1 GetFiles { path: "path" }
+[log] [ws] <- Response 1 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 2 NewBuffer { buffer_id: BufferId(10), path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] -> Request 3 GetCodeLens { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] -> Request 4 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] <- Response 2 NewBufferResponse { content: "# hello\n", read_only: false }
+[log] [ws] <- Error 3 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 5 GetInlayHints { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] -> Request 6 GetSemanticTokens { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] -> Request 7 GetCodeLens { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] -> Request 8 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] -> Request 9 BufferHead { path: "/tmp/lapce-k6-ws/notes/hello.md" }
+[log] [ws] <- Error 4 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 5 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 6 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 7 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 8 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 9 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 10 GetCodeActions { path: "/tmp/lapce-k6-ws/notes/hello.md", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 10 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 11 GetFiles { path: "path" }
+[log] [ws] <- Response 11 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 12 NewBuffer { buffer_id: BufferId(11), path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 13 GetCodeLens { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 14 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] <- Response 12 NewBufferResponse { content: "content of README\n", read_only: false }
+[log] [ws] <- Error 13 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 14 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 15 GetInlayHints { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 16 GetSemanticTokens { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 17 GetCodeLens { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 18 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] -> Request 19 BufferHead { path: "/tmp/lapce-k6-ws/README.md" }
+[log] [ws] <- Error 15 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 16 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 17 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 18 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 19 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 20 GetCodeActions { path: "/tmp/lapce-k6-ws/README.md", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 20 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 21 GetFiles { path: "path" }
+[log] [ws] <- Response 21 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 22 NewBuffer { buffer_id: BufferId(12), path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 23 GetCodeLens { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 24 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] <- Response 22 NewBufferResponse { content: "struct Panel;\n", read_only: false }
+[log] [ws] <- Error 23 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 25 GetInlayHints { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 26 GetSemanticTokens { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 27 GetCodeLens { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 28 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] -> Request 29 BufferHead { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs" }
+[log] [ws] <- Error 24 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 25 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 26 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 27 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 28 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 29 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 30 GetCodeActions { path: "/tmp/lapce-k6-ws/template_impl_template_list_panel.rs", position: Position { line: 0, character: 0 }, diagnostics: […
+[log] [ws] <- Error 30 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 31 GetFiles { path: "path" }
+[log] [ws] <- Response 31 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 32 NewBuffer { buffer_id: BufferId(13), path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 33 GetCodeLens { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 34 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] <- Response 32 NewBufferResponse { content: "mod tests;\n", read_only: false }
+[log] [ws] <- Error 33 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 34 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 35 GetInlayHints { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 36 GetSemanticTokens { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 37 GetCodeLens { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 38 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] -> Request 39 BufferHead { path: "/tmp/lapce-k6-ws/src/main_test.rs" }
+[log] [ws] <- Error 35 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 36 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 37 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 38 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 39 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 40 GetCodeActions { path: "/tmp/lapce-k6-ws/src/main_test.rs", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 40 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 41 GetFiles { path: "path" }
+[log] [ws] <- Response 41 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 42 NewBuffer { buffer_id: BufferId(14), path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 43 GetCodeLens { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 44 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] <- Response 42 NewBufferResponse { content: "pub struct Controller;\n", read_only: false }
+[log] [ws] <- Error 43 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 44 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 45 GetInlayHints { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 46 GetSemanticTokens { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 47 GetCodeLens { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 48 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] -> Request 49 BufferHead { path: "/tmp/lapce-k6-ws/unit_controller.rs" }
+[log] [ws] <- Error 45 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 46 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 47 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 48 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 49 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 50 GetCodeActions { path: "/tmp/lapce-k6-ws/unit_controller.rs", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 50 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 51 GetFiles { path: "path" }
+[log] [ws] <- Response 51 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 52 NewBuffer { buffer_id: BufferId(15), path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 53 GetCodeLens { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 54 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] <- Response 52 NewBufferResponse { content: "import UIKit\n", read_only: false }
+[log] [ws] <- Error 53 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 54 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 55 GetInlayHints { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 56 GetSemanticTokens { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 57 GetCodeLens { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 58 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] -> Request 59 BufferHead { path: "/tmp/lapce-k6-ws/AppDelegate.swift" }
+[log] [ws] <- Error 55 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 56 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 57 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 58 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 59 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 60 GetCodeActions { path: "/tmp/lapce-k6-ws/AppDelegate.swift", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 60 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 61 GetFiles { path: "path" }
+[log] [ws] <- Response 61 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 62 NewBuffer { buffer_id: BufferId(16), path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 63 GetCodeLens { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 64 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] <- Response 62 NewBufferResponse { content: "fn util() {}\n", read_only: false }
+[log] [ws] -> Request 65 GetInlayHints { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 66 GetSemanticTokens { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 67 GetCodeLens { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 68 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] -> Request 69 BufferHead { path: "/tmp/lapce-k6-ws/name_util.rs" }
+[log] [ws] <- Error 63 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 64 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 65 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 66 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 67 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 68 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 69 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 70 GetCodeActions { path: "/tmp/lapce-k6-ws/name_util.rs", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 70 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 71 GetFiles { path: "path" }
+[log] [ws] <- Response 71 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: OpenFile { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 72 NewBuffer { buffer_id: BufferId(17), path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 73 GetCodeLens { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 74 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] <- Response 72 NewBufferResponse { content: "pub fn lib() {}\n", read_only: false }
+[log] [ws] <- Error 73 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] -> Request 75 GetInlayHints { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 76 GetSemanticTokens { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 77 GetCodeLens { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 78 GetDocumentSymbols { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] -> Request 79 BufferHead { path: "/tmp/lapce-k6-ws/src/lib.rs" }
+[log] [ws] <- Error 74 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 75 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 76 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 77 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 78 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [ws] <- Error 79 RpcError { code: 0, message: "can't get file head" }
+[log] [ws] -> Request 80 GetCodeActions { path: "/tmp/lapce-k6-ws/src/lib.rs", position: Position { line: 0, character: 0 }, diagnostics: [] }
+[log] [ws] <- Error 80 RpcError { code: 0, message: "no available plugin could make a callback, because the plugins list is empty" }
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Request 81 GetFiles { path: "path" }
+[log] [ws] <- Response 81 GetFilesResponse { items: ["/tmp/lapce-k6-ws/NameUtilTest.rs", "/tmp/lapce-k6-ws/ReadmeNotes.md", "/tmp/lapce-k6-ws/unit_controller_test.rs"…
+[log] [app] internal_command: ResetBlinkCursor
+K6 evidence in /tmp/k6-verify

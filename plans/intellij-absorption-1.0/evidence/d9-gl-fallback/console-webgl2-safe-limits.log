@@ -1,0 +1,49 @@
+[log] [s0.3] initializing theorem_ide_wasm with wasi_snapshot_preview1 shim…
+[warning] using deprecated parameters for the initialization function; pass a single object instead
+[error] Failed to load resource: the server responded with a status of 404 (File not found)
+[log] [ws] proxy client connecting to ws://127.0.0.1:19414
+[log] [ws] Initialize notification queued
+[log] [font] vendored faces: 4 (sans-serif -> DejaVu Sans, monospace -> DejaVu Sans Mono)
+[log] [s0.3] event loop running (winit web control-flow signal)
+[log] [s0.3] probe helpers installed on window.__lapce
+[log] [app] internal_command: ResetBlinkCursor
+[log] [app] internal_command: ResetBlinkCursor
+[log] [ws] -> Notification Initialize { workspace: Some("/tmp/lapce-ws-smoke"), disabled_volts: [], extra_plugin_paths: [], plugin_configurations: …
+[log] [ws] -> Request 0 ReadDir { path: "/tmp/lapce-ws-smoke" }
+[error] panicked at /Volumes/SSD Samsung/d9-floem-probe.j7jPyL/floem/src/renderer.rs:142:13:
+Failed to create VgerRenderer: adapter doesn't support required downlevel flags
+Failed to create TinySkiaRenderer: unable to create surface: Platform error: Some("A canvas context other than `CanvasRenderingContext2d` was already created")
+
+Stack:
+
+Error
+    at __wbg_new_227d7c05414eb861 (http://localhost:8767/theorem_ide_wasm.js:1100:25)
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[9052]:0xceb06d
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[12173]:0xe4afe6
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[986]:0x49a197
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[741]:0x244f2c
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[11065]:0xe32965
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[2283]:0x8786d8
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[2781]:0x94ea58
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[7677]:0xc7d570
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[12960]:0xe5babd
+
+
+[pageerror] unreachable
+[log] [ws] connected ws://127.0.0.1:19414
+[error] panicked at /Users/travisgilbert/Tech Dev Local/Creative/Website/Theorem/apps/theorem-ide/.cargo-home/git/checkouts/winit-4d35a78d1599eac3/ee245c5/src/platform_impl/web/event_loop/runner.rs:622:30:
+RefCell already borrowed
+
+Stack:
+
+Error
+    at __wbg_new_227d7c05414eb861 (http://localhost:8767/theorem_ide_wasm.js:1100:25)
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[9052]:0xceb06d
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[12173]:0xe4afe6
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[14461]:0xe7fd2c
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[12421]:0xe56881
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[2283]:0x878356
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[5732]:0xbc0c81
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[11856]:0xe446b6
+    at http://localhost:8767/theorem_ide_wasm_bg.wasm:wasm-function[12960]:0xe5babd
+    at __wasm_bindgen_func_elem_19870 (http://localhost:8767/theorem_ide_wasm.js:2459:10)
