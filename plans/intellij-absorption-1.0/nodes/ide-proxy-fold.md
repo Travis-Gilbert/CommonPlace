@@ -80,7 +80,28 @@ Reason: proof command blocked by ONE external wall: `rustyred-thg-mcp` lib.rs is
 
 O-F.2 and O-F.3 have receipts (one-store seam on tree after PR #545 fast-forward; prior check green). Remaining O-F.1 (`--help`) and O-F.4 (Initialize→ReadDir) need a linked `theorem` binary. Latest check hit `wasi-experimental-http-wasmtime` E0310 (wasmtime 43 vs pin-14). Trigger: lockfile on the wasmtime 14 line + `cargo +1.96.1 build --manifest-path apps/theorem-cli/Cargo.toml --bin theorem` on the SSD target. Occupancy released so `dioxus-agentfs-host` can run (d12 destination).
 
-- state: parked (2026-08-16; wasmtime E0310 weather)
+- state: occupied (2026-08-16 resume after dioxus-agentfs-host GATE PASS)
+
+## Occupancy (2026-08-16 resume)
+
+- Occupant: cursor-grok-4.6
+- Binding: portable
+- Scope: `apps/theorem-cli` proof only (`--help` + Initialize→ReadDir). Do not use `CARGO_HOME=apps/theorem-ide/.cargo-home` (that rewrite caused the E0310 lockfile drift). SSD target `intellij-absorption-ide-proxy`. `CARGO_BUILD_JOBS=1`.
+- Hypothesis (rung 2): lockfile already pins `wasi-experimental-http-wasmtime` to wasmtime 14.0.4; E0310 was the isolated CARGO_HOME rewrite. Resume with default cargo home.
+
+## Work log (2026-08-16 close)
+
+- Wasmtime wall CLOSED without isolated `CARGO_HOME`. `wasi-experimental-http-wasmtime`'s `wasmtime = "*"` still unified onto 43 in this standalone CLI workspace. Repair: vendor `apps/theorem-cli/vendor/wasi-experimental-http-wasmtime` from lapce @ `21419eb` with `wasmtime`/`wasmtime-wasi`/`wasi-common` pinned `=14.0.4`, plus `[patch."https://github.com/lapce/wasi-experimental-http"]`. Crate compiled with one unused_mut warning; no E0310.
+- O-F.3 re-proven by link: `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy CARGO_BUILD_JOBS=1 cargo +1.96.1 build --manifest-path apps/theorem-cli/Cargo.toml --bin theorem` → Finished `dev` profile in 17m 50s, exit 0. Binary `…/debug/theorem` (570M). Runtime needs `DYLD_FALLBACK_LIBRARY_PATH=$HOME/.cache/rustyred-thg-graphblas/install/lib` (`libgraphblas.9.dylib`). Do not use `CARGO_HOME=apps/theorem-ide/.cargo-home` for this proof.
+- O-F.1 DISCHARGED: `theorem ide-proxy --help` exit 0. Surface: `--serve-ws` (default 127.0.0.1:19414), `--workspace`, `--agentfs` (product default), `--hostfs` (fallback), global `--data-dir`.
+- O-F.4 DISCHARGED (HostFs sentinel): `--hostfs --serve-ws 127.0.0.1:19424 --workspace <tmp>` + stdlib websocket client. Initialize then `read_dir` → `ReadDir items (1): ['O_F4_SENTINEL.txt']`. PASS.
+- Default AgentFs RPC also round-trips: Initialize then `read_dir` → `result.read_dir_response.items = []` (host sentinel is not in the graph until ingest). Not a HostFs failure.
+
+## Seal (2026-08-16)
+
+O-F.1–O-F.4 discharged. Occupancy released.
+
+- state: done (2026-08-16)
 
 ## Weather re-probe (2026-08-11, session 11)
 

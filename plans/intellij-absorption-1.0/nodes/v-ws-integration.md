@@ -24,3 +24,21 @@ PASS only when: light checks green, theorem-cli check green, records complete, e
 - **Scope — no violations**: wave writes stayed in the fork's wasm-serve + theorem-ide-app + evidence files + board.
 
 **GATE: PASS with one named deferral** (theorem-cli check + `--help` on the mcp-weather trigger — same execute-or-named-protocol pattern as every gate in this wave). ws-integration parent: sealed; ide-proxy-fold remains parked on the same trigger.
+
+## Deferral lifted (2026-08-16)
+
+The mcp parse wall is gone; the remaining wasmtime E0310 was the standalone CLI `*` unify onto 43. Linked proof:
+
+```
+CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy
+CARGO_BUILD_JOBS=1
+cargo +1.96.1 build --manifest-path apps/theorem-cli/Cargo.toml --bin theorem
+```
+
+Finished `dev` in 17m 50s, exit 0. Do not use `CARGO_HOME=apps/theorem-ide/.cargo-home`. Runtime: `DYLD_FALLBACK_LIBRARY_PATH=$HOME/.cache/rustyred-thg-graphblas/install/lib`.
+
+- `theorem ide-proxy --help` exit 0 (O-F.1).
+- HostFs Initialize→ReadDir contains `O_F4_SENTINEL.txt` (O-F.4).
+- ide-proxy-fold sealed done. Parent ws-integration children complete.
+
+**GATE: PASS** (named deferral discharged).

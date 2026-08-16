@@ -1,3 +1,23 @@
+# CONTINUITY — next session brief (2026-08-16: ide-proxy-fold SEALED)
+
+## Where we are
+
+Plan `intellij-absorption-1.0`. Binding: portable. Destination path **d11 → d12 → dioxus-agentfs-host → v-dioxus-agentfs-host is DONE**. **ide-proxy-fold is DONE** (O-F.1 `--help`, O-F.4 HostFs Initialize→ReadDir, wasmtime 14 vendor pin). v-ws-integration deferral lifted.
+
+- Live origin: `https://travis-theorem-dioxus.fly.dev`
+- App `travis-theorem-dioxus`, machine `8d067dbed54478` (iad, health passing)
+- Volume `dioxus_agentfs` `vol_rnz6qz1wk5zg21er` → `/data` (own volume; not dsh, not personal-store)
+- AgentFS: `/readyz` `{"ok":true,"live_mount":true,"mount":"/workspace"}`; `/proc/mounts` `rustyred-agentfs /workspace fuse`
+- Site: `GET /` `<title>canvas-gallery</title>`; `GET /canvas-gallery.js` 200
+- Infra: `Theorem/infra/fly/dioxus-agentfs/` (Debian `nginx:stable-bookworm` + glibc `theorem-workspace`; start.sh PID 1)
+- Encoded: `mem:doc:Travis-Gilbert:doc-4694544bcae10897`
+- Fold proof: `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy cargo +1.96.1 build --manifest-path apps/theorem-cli/Cargo.toml --bin theorem` (no isolated `CARGO_HOME`). Runtime `DYLD_FALLBACK_LIBRARY_PATH=$HOME/.cache/rustyred-thg-graphblas/install/lib`.
+- Encoded: `mem:doc:Travis-Gilbert:doc-7a9b9362e44d323d`
+
+## The one line that matters for the next head
+
+**Do not occupy `console-host`** (parked-superseded by d12). This board's claimable work is complete. Optional leftover: theoremweb.com cert/DNS for the dioxus app (fly.dev is enough as the first receipt). Never `cargo check -p theorem-cli` from `rustyredcore_THG`. Never `CARGO_HOME=apps/theorem-ide/.cargo-home` for the CLI proof.
+
 # CONTINUITY — next session brief (2026-08-16: dioxus-agentfs-host GATE PASSED)
 
 ## Where we are
@@ -12,9 +32,9 @@ Plan `intellij-absorption-1.0`. Binding: portable. Destination path **d11 → d1
 - Infra: `Theorem/infra/fly/dioxus-agentfs/` (Debian `nginx:stable-bookworm` + glibc `theorem-workspace`; start.sh PID 1)
 - Encoded: `mem:doc:Travis-Gilbert:doc-4694544bcae10897`
 
-## The one line that matters for the next head
+## The one line that matters for the next head (superseded 2026-08-16 by ide-proxy-fold seal)
 
-**Do not occupy `console-host`.** Remaining claimable work on this board is parked weather: **`ide-proxy-fold`** (wasmtime E0310 on `wasi-experimental-http-wasmtime` vs pin-14). Trigger: lockfile on wasmtime 14 + `CARGO_TARGET_DIR=/Volumes/SSD Samsung/theorem-builds/intellij-absorption-ide-proxy cargo +1.96.1 build --manifest-path apps/theorem-cli/Cargo.toml --bin theorem`. Then `--help` (O-F.1) and Initialize→ReadDir (O-F.4). O-F.2/O-F.3 already have receipts after PR #545. Never `cargo check -p theorem-cli` from `rustyredcore_THG`. Optional: theoremweb.com cert/DNS for the dioxus app (fly.dev is enough as the first receipt).
+**Do not occupy `console-host`.** Remaining claimable work on this board was parked weather: **`ide-proxy-fold`** — now sealed. Optional: theoremweb.com cert/DNS for the dioxus app (fly.dev is enough as the first receipt).
 
 ## Session 2026-08-16 (this head)
 

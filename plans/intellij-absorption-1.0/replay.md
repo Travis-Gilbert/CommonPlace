@@ -98,3 +98,8 @@
 - `discharge O-DAH.1–5` — live `https://travis-theorem-dioxus.fly.dev/`: title canvas-gallery; js 200; `/readyz` `live_mount: true`; SSH `rustyred-agentfs /workspace fuse`; volume `vol_rnz6qz1wk5zg21er` on machine `8d067dbed54478`.
 - `verify v-dioxus-agentfs-host` — independent HTTP re-probe + path/volume audit. GATE PASSED.
 - `traverse dioxus-agentfs-host -> v-dioxus-agentfs-host` — lessons folded; occupancy released. Destination branch at fixpoint. `ide-proxy-fold` remains parked (wasmtime E0310). Encoded `mem:doc:Travis-Gilbert:doc-4694544bcae10897`.
+- `occupy ide-proxy-fold (2026-08-16 resume)` — after dioxus GATE PASS. Scope: linked `theorem` binary, `--help`, Initialize→ReadDir. Isolated `CARGO_HOME` ruled out.
+- `work ide-proxy-fold wasmtime pin` — vendored `apps/theorem-cli/vendor/wasi-experimental-http-wasmtime` (lapce @ 21419eb, wasmtime/wasi-common `=14.0.4`) + git patch. Default cargo home. Build Finished 17m 50s.
+- `discharge O-F.1` — `DYLD_FALLBACK_LIBRARY_PATH=$HOME/.cache/rustyred-thg-graphblas/install/lib theorem ide-proxy --help` exit 0 (`--serve-ws`, `--workspace`, `--agentfs` default, `--hostfs` fallback).
+- `discharge O-F.4` — HostFs `ws://127.0.0.1:19424` Initialize→ReadDir items `['O_F4_SENTINEL.txt']`. Default AgentFs round-trips with empty graph listing (host file not ingested).
+- `seal ide-proxy-fold` — O-F.1–4 done. v-ws-integration named deferral lifted. GATE PASS. Do not occupy `console-host`. Encoded `mem:doc:Travis-Gilbert:doc-7a9b9362e44d323d`.
