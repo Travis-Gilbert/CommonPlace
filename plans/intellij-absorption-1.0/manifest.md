@@ -35,9 +35,7 @@ Fixpoint: every node's obligations discharged with replayable evidence; S0 repor
 | ide-proxy-fold | work | agent | theorem ide-proxy subcommand: CLI's store instance → AgentFsHost/HostFs → serve_ws; one store handle. Depends on ws-merge. | done (2026-08-16; --help + HostFs Initialize→ReadDir PASS; wasmtime 14 vendor pin) |
 | g0-verify | work | agent | g0 carry-forward items on the merged build: a11y decision, wasm Clipboard adapter, keystroke budget, GL fallback, real-OS IME protocol. Depends on ws-merge. | done (2026-08-10; O-G.1/2/5 executed, O-G.3 PASS median 9.9/p95 15.0ms, O-G.4 FAIL root-caused → d9-gl-fallback; app checks green) |
 | d9-gl-fallback | decision | agent | GL fallback policy: the retry uses GLES-3.1 limits, not WebGL2-safe limits; a safe-limits live probe clears device creation but Vger requires vertex storage and TinySkia cannot reuse the WebGL-owned canvas. | done (2026-08-10; WebGPU required at floem 31fa8f44; future fallback is renderer architecture, not a limits patch) |
-| v-ws-integration | verify | agent | Verify the integration wave: light checks, theorem-cli check, records, deferral protocols. | done (2026-08-16; GATE PASS: theorem-cli deferral lifted — linked binary, --help, Initialize→ReadDir) | |
-
-## Edges
+| v-ws-integration | verify | agent | Verify the integration wave: light checks, theorem-cli check, records, deferral protocols. | done (2026-08-16; GATE PASS: theorem-cli deferral lifted: linked binary, --help, Initialize→ReadDir) |
 
 ## Edges
 
