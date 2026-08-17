@@ -885,7 +885,7 @@ export function ModelView({ set, host }: ViewRenderProps) {
       if (ghost) void applyPin(ghost.observedKey, 'type');
     },
     declareDisabled: proposalBusy || observed.types.length === 0,
-    onSpawnObject: (position) => {
+    onSpawnObject: (position: { x: number; y: number }) => {
       void spawnObject(position);
     },
     onCompareVersion: (id: string) => {

@@ -38,6 +38,8 @@ describe('page-owned routing', () => {
     expect(surfaceIdForPath('/kanban')).toBe('console-kanban');
     expect(surfaceIdForPath('/commands')).toBe('console-commands');
     expect(surfaceIdForPath('/Data-model/settings')).toBe('console-model-settings');
+    expect(surfaceIdForPath('/chat')).toBe('console-chat');
+    expect(surfaceIdForPath('/chat/thread-1')).toBe('console-chat');
   });
 
   it('migrates known persisted view routes and refuses unknown ones', () => {

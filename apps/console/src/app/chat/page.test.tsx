@@ -1,5 +1,5 @@
 // SOURCING: none. Ordinary chat stays on /chat for an admitted principal and
-// renders the Theorem chat register (SPEC-THEOREM-CHAT-REGISTER-1.0).
+// mounts the console shell (chat is a Place, not a naked register).
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,14 +18,13 @@ vi.mock('next/navigation', () => ({
   redirect: mocks.redirect,
 }));
 
-vi.mock('@/views/TheoremChatRegister', () => ({
-  TheoremChatRegisterView: function TheoremChatRegisterView() {
+vi.mock('@/lib/console-surface-page', () => ({
+  default: function ConsoleSurfacePage() {
     return null;
   },
 }));
 
 import ChatIndexPage from './page';
-import { TheoremChatRegisterView } from '@/views/TheoremChatRegister';
 
 describe('ordinary chat route', () => {
   beforeEach(() => {
@@ -33,7 +32,7 @@ describe('ordinary chat route', () => {
     mocks.redirect.mockClear();
   });
 
-  it('keeps an admitted workspace principal on /chat Theorem register', async () => {
+  it('keeps an admitted workspace principal on the console shell at /chat', async () => {
     mocks.resolveHarnessPrincipal.mockResolvedValue({
       ok: true,
       principal: {
@@ -49,7 +48,7 @@ describe('ordinary chat route', () => {
     const rendered = await ChatIndexPage();
 
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(rendered.type).toBe(TheoremChatRegisterView);
+    expect((rendered as { type: { name?: string } }).type.name).toBe('ConsoleSurfacePage');
   });
 
   it('sends unresolved principals to login', async () => {

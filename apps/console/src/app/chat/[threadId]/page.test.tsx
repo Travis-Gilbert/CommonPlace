@@ -18,17 +18,9 @@ vi.mock('@/lib/server/harness-principal', () => ({
   resolveHarnessPrincipal: vi.fn(),
 }));
 
-vi.mock('@/views/TheoremChatRegister', () => ({
-  TheoremChatRegisterView: function TheoremChatRegisterView({
-    reason,
-  }: {
-    readonly reason?: string;
-  }) {
-    return (
-      <div data-register-impl="theorem.chat" data-theorem-chat-register>
-        {reason}
-      </div>
-    );
+vi.mock('@/lib/console-surface-page', () => ({
+  default: function ConsoleSurfacePage() {
+    return <div data-console-shell="true" />;
   },
 }));
 
@@ -41,7 +33,7 @@ describe('ChatThreadPage', () => {
     vi.mocked(resolveHarnessPrincipal).mockReset();
   });
 
-  it('renders theorem.chat register for a workspace-scoped principal', async () => {
+  it('renders the console shell for a workspace-scoped principal', async () => {
     vi.mocked(resolveHarnessPrincipal).mockResolvedValue({
       ok: true,
       principal: {
@@ -55,7 +47,6 @@ describe('ChatThreadPage', () => {
       params: Promise.resolve({ threadId: 'thread-1' }),
     });
     const html = renderToStaticMarkup(element as ReactElement);
-    expect(html).toContain('data-register-impl="theorem.chat"');
-    expect(html).toContain('thread-1');
+    expect(html).toContain('data-console-shell="true"');
   });
 });

@@ -35,7 +35,7 @@ import {
   enqueuePetCapture,
   newPetCaptureEnvelope,
 } from "./capture";
-import { SentinelChipCard } from "./SentinelChip";
+import { SentinelChipCard } from "./SentinelChipCard";
 import {
   chipsWithoutId,
   fixtureChipFromSearch,

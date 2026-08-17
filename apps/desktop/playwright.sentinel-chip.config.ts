@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 const port = Number(process.env.PET_E2E_PORT ?? 4_179);
-const origin = `http://127.0.0.1:${port}`;
+const origin = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -15,7 +15,7 @@ export default defineConfig({
     colorScheme: "light",
   },
   webServer: {
-    command: `corepack pnpm exec vite --port ${port} --strictPort`,
+    command: `./node_modules/.bin/vite --port ${port} --strictPort`,
     url: `${origin}/pet.html`,
     reuseExistingServer: false,
     timeout: 60_000,

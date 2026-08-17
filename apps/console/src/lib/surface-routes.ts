@@ -41,7 +41,10 @@ export function pathForSurfaceKind(kind: string): string | null {
 
 export function surfaceIdForPath(pathname: string): string | null {
   const normalized = pathname.replace(/\/$/, '') || '/';
-  return SURFACE_ROUTES.find((route) => route.path === normalized)?.surfaceId ?? null;
+  const exact = SURFACE_ROUTES.find((route) => route.path === normalized)?.surfaceId ?? null;
+  if (exact) return exact;
+  if (normalized.startsWith('/chat/')) return 'console-chat';
+  return null;
 }
 
 export function kindForSurfaceId(surfaceId: string): string | null {
