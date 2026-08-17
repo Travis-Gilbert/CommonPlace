@@ -1,4 +1,4 @@
-// SOURCING: none. Server-only GraphQL adapter for observed and declared model metadata.
+// SOURCING: none. Server-only consumer GraphQL adapter for observed and declared model metadata.
 
 import 'server-only';
 
@@ -33,9 +33,14 @@ import {
   parseProviderFacet,
 } from '@commonplace/data-model-contracts';
 import {
-  callHarnessGraphql,
-  type HarnessGraphqlMode,
-} from '@/lib/server/harness-graphql';
+  executeConsumerGraphql,
+  type ConsumerGraphqlFailureReason,
+} from '@/lib/server/consumer-graphql-client';
+import {
+  declareLocalDevSchema,
+  readLocalDevModels,
+  unpinLocalDevDeclared,
+} from '@/lib/server/local-dev-declared-model-store';
 
 interface GraphqlSuccess {
   readonly ok: true;
@@ -47,6 +52,8 @@ interface GraphqlFailure {
   readonly ok: false;
   readonly status: number;
   readonly error: string;
+  readonly reason?: ConsumerGraphqlFailureReason;
+  readonly tenant?: string;
 }
 
 type GraphqlResult = GraphqlSuccess | GraphqlFailure;
@@ -709,34 +716,44 @@ function normalizeDeclareReceipt(value: unknown): SchemaDeclareReceipt | null {
 async function executeGraphql(
   query: string,
   variables: Record<string, unknown>,
-  mode: HarnessGraphqlMode = 'query',
+  expectedFields: readonly string[],
 ): Promise<GraphqlResult> {
-  const result = await callHarnessGraphql(query, variables, mode);
-  if (!result.ok) {
-    return {
-      ok: false,
-      status: result.status,
-      error: observedModelError(result.error),
-    };
-  }
-  return {
-    ok: true,
-    tenant: result.principal.tenant,
-    data: result.data,
-  };
+  return executeConsumerGraphql(
+    query,
+    variables,
+    'observed_model',
+    expectedFields,
+  );
 }
 
-function observedModelError(error: string): string {
-  const suffix = error.match(/^harness_graphql_(failed|timeout|unconfigured|unreachable)$/)?.[1];
-  return suffix ? `observed_model_graphql_${suffix}` : error;
+function localDevFallbackTenant(result: GraphqlFailure): string | null {
+  if (
+    result.reason !== 'unconfigured'
+    || !result.tenant
+    || process.env.NODE_ENV === 'production'
+  ) {
+    return null;
+  }
+  return result.tenant;
 }
 
 async function readDeclaredModel(topicId: string): Promise<
   | { readonly ok: true; readonly tenant: string; readonly declared: DeclaredModel }
   | GraphqlFailure
 > {
-  const result = await executeGraphql(DECLARED_QUERY, { topicId });
-  if (!result.ok) return result;
+  const result = await executeGraphql(
+    DECLARED_QUERY,
+    { topicId },
+    ['declaredModel'],
+  );
+  if (!result.ok) {
+    const fallbackTenant = localDevFallbackTenant(result);
+    if (fallbackTenant) {
+      const local = readLocalDevModels(topicId, fallbackTenant);
+      return { ok: true, tenant: local.tenant, declared: local.declared };
+    }
+    return result;
+  }
   return {
     ok: true,
     tenant: result.tenant,
@@ -746,8 +763,22 @@ async function readDeclaredModel(topicId: string): Promise<
 
 export async function readObservedModels(topicId: string): Promise<ModelRead> {
   const fallbackScope = scopeFor(topicId);
-  const result = await executeGraphql(MODELS_QUERY, { topicId });
+  const result = await executeGraphql(
+    MODELS_QUERY,
+    { topicId },
+    ['observedModel', 'declaredModel'],
+  );
   if (!result.ok) {
+    const fallbackTenant = localDevFallbackTenant(result);
+    if (fallbackTenant) {
+      const local = readLocalDevModels(topicId, fallbackTenant);
+      return {
+        ok: true,
+        tenant: local.tenant,
+        observed: local.observed,
+        declared: local.declared,
+      };
+    }
     return {
       ...result,
       observed: emptyObservedModel(fallbackScope),
@@ -791,7 +822,11 @@ export async function pinObserved(request: PinRequest): Promise<ModelMutation> {
     input.from_field = fromField;
     input.to_field = toField;
   }
-  const mutation = await executeGraphql(PIN_MUTATION, { input }, 'mutate');
+  const mutation = await executeGraphql(
+    PIN_MUTATION,
+    { input },
+    ['pinObserved'],
+  );
   if (!mutation.ok) return mutation;
   const receipt = normalizeReceipt(mutation.data.pinObserved);
   if (!receipt) return { ok: false, status: 502, error: 'invalid_pin_receipt' };
@@ -801,8 +836,29 @@ export async function pinObserved(request: PinRequest): Promise<ModelMutation> {
 }
 
 export async function unpinDeclared(topicId: string, declaredId: string): Promise<ModelMutation> {
-  const mutation = await executeGraphql(UNPIN_MUTATION, { targetId: declaredId }, 'mutate');
-  if (!mutation.ok) return mutation;
+  const mutation = await executeGraphql(
+    UNPIN_MUTATION,
+    { targetId: declaredId },
+    ['unpinDeclared'],
+  );
+  if (!mutation.ok) {
+    const fallbackTenant = localDevFallbackTenant(mutation);
+    if (fallbackTenant) {
+      const local = unpinLocalDevDeclared(topicId, declaredId, fallbackTenant);
+      return {
+        ok: true,
+        tenant: local.tenant,
+        receipt: {
+          actionKind: 'unpin',
+          status: 'applied',
+          targetIds: [declaredId],
+          note: 'Unpinned via LocalDevDeclaredModelStore.',
+        },
+        declared: local.declared,
+      };
+    }
+    return mutation;
+  }
   const receipt = normalizeReceipt(mutation.data.unpinDeclared);
   if (!receipt) return { ok: false, status: 502, error: 'invalid_unpin_receipt' };
   const declared = await readDeclaredModel(topicId);
@@ -817,9 +873,21 @@ export async function declareSchema(
   const mutation = await executeGraphql(
     DECLARE_MUTATION,
     { input: schemaDeclareWire(input) },
-    'mutate',
+    ['declareSchema'],
   );
-  if (!mutation.ok) return mutation;
+  if (!mutation.ok) {
+    const fallbackTenant = localDevFallbackTenant(mutation);
+    if (fallbackTenant) {
+      const local = declareLocalDevSchema(topicId, input, fallbackTenant);
+      return {
+        ok: true,
+        tenant: local.tenant,
+        receipt: local.receipt,
+        declared: local.declared,
+      };
+    }
+    return mutation;
+  }
   const receipt = normalizeDeclareReceipt(mutation.data.declareSchema);
   if (!receipt) return { ok: false, status: 502, error: 'invalid_schema_declare_receipt' };
   if (receipt.status === 'conflict') {
@@ -846,7 +914,7 @@ export async function restoreDeclaredModel(
   const mutation = await executeGraphql(
     RESTORE_MUTATION,
     { versionId },
-    'mutate',
+    ['restoreDeclaredModel'],
   );
   if (!mutation.ok) return mutation;
   const declared = await readDeclaredModel(topicId);
@@ -866,7 +934,7 @@ export async function proposeSchemaChange(
   const mutation = await executeGraphql(
     PROPOSE_MUTATION,
     { input: { topicId, request } },
-    'mutate',
+    ['proposeSchemaChange'],
   );
   if (!mutation.ok) return mutation;
   const draft = normalizeProposal(mutation.data.proposeSchemaChange, topicId, mutation.tenant);
@@ -876,7 +944,11 @@ export async function proposeSchemaChange(
 }
 
 export async function compileDeclaredModel(topicId: string): Promise<CompileMutation> {
-  const mutation = await executeGraphql(COMPILE_MUTATION, { topicId });
+  const mutation = await executeGraphql(
+    COMPILE_MUTATION,
+    { topicId },
+    ['compileDeclaredModel'],
+  );
   return mutation.ok
     ? { ok: true, tenant: mutation.tenant, value: mutation.data.compileDeclaredModel }
     : mutation;
