@@ -4,7 +4,13 @@
  * tenant passed explicitly; run on a trusted network or behind a proxy.
  */
 import EventSource from 'react-native-sse';
+import type {
+  RemoteSurfaceToken,
+  ResumePage,
+  SnapshotWithTail,
+} from '@commonplace/mobile-contracts';
 
+import { instanceJson } from './client';
 import { readInstanceSettings } from './instance';
 
 export type RoomSummary = {
@@ -24,6 +30,40 @@ export type RoomMessage = {
   created_at_ms?: number;
   [k: string]: unknown;
 };
+
+export type SurfaceTokenRequest = {
+  runId: string;
+  surfaceId: string;
+  surfaceKind?: RemoteSurfaceToken['surfaceKind'];
+  allowedMode: RemoteSurfaceToken['allowedMode'];
+  deviceId: string;
+  ttlSeconds?: number;
+};
+
+export type SurfaceTokenResponse = {
+  token: RemoteSurfaceToken;
+  sealed: {
+    ciphertext: string;
+    nonce: string;
+  };
+};
+
+export function fetchRunEvents(runId: string, afterSeq = 0, limit?: number): Promise<ResumePage> {
+  const query = new URLSearchParams({ after_seq: String(afterSeq) });
+  if (limit !== undefined) query.set('limit', String(limit));
+  return instanceJson<ResumePage>(
+    `/mobile/runs/${encodeURIComponent(runId)}/events?${query.toString()}`,
+  );
+}
+
+export const fetchRunSnapshot = (runId: string) =>
+  instanceJson<SnapshotWithTail>(`/mobile/runs/${encodeURIComponent(runId)}/snapshot`);
+
+export const mintRemoteSurfaceToken = (request: SurfaceTokenRequest) =>
+  instanceJson<SurfaceTokenResponse>('/mobile/remote-surface/token', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
 
 async function harnessBase(): Promise<{ base: string; tenant: string; actorId: string } | null> {
   const s = await readInstanceSettings();

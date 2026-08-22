@@ -1,0 +1,12 @@
+{
+  "at": "2026-08-22T12:00:00Z",
+  "idempotencyKey": "event-fixture-1",
+  "kind": "message",
+  "payload": {
+    "text": "hello from the fixture"
+  },
+  "runId": "harnessrun:fixture",
+  "seq": 1,
+  "sourceEventType": "MESSAGE.ADDED",
+  "stateHashAfter": "sha256:state-1"
+}

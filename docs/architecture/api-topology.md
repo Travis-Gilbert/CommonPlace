@@ -1,6 +1,6 @@
 # API topology — the one map an agent should read before touching data flow
 
-Status: authoritative map, 2026-07-06. If you are about to ask "which API does the
+Status: authoritative map, 2026-08-22. If you are about to ask "which API does the
 frontend call / where does agent-written state live / MCP vs HTTP", read this first.
 
 ## The one-paragraph answer
@@ -14,6 +14,13 @@ the database with one API."* The **MCP** (`rustyred-thg-mcp`) is a **transport f
 agents**, not a second database: it carries `graphql_query` / `graphql_mutate`
 tool-calls onto the **same store**. Two doors, one store — so what an agent writes
 through the MCP is readable by the site through `commonplace-api`.
+
+The canonical source tree is `Travis-Gilbert/Theorem/apps/commonplace-api`. Its
+surviving deployment is the Railway service at
+`https://commonplace-api-production.up.railway.app`; the prior Fly deployment is
+undeployed and retired. CommonPlace contains no second `apps/commonplace-api`
+source tree. Railway must be relinked to the Theorem source before its next
+source build.
 
 ```
 Agents ──tools/call──▶ rustyred-thg-mcp ──┐

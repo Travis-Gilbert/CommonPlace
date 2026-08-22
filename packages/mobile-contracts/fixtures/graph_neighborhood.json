@@ -1,0 +1,33 @@
+{
+  "edges": [
+    {
+      "confidence": 0.93,
+      "edgeId": "edge:fixture",
+      "label": "Related to",
+      "provenanceRef": "receipt:fixture",
+      "relationType": "related-to",
+      "sourceNodeId": "record:fixture",
+      "targetNodeId": "record:related"
+    }
+  ],
+  "focusObjectId": "record:fixture",
+  "hops": 1,
+  "nodes": [
+    {
+      "confidence": 1.0,
+      "label": "Fixture project",
+      "nodeId": "record:fixture",
+      "objectTypeId": "schema:object-type:Travis-Gilbert:project",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "confidence": 0.93,
+      "label": "Related project",
+      "nodeId": "record:related",
+      "objectTypeId": "schema:object-type:Travis-Gilbert:project",
+      "x": 1.0,
+      "y": 0.0
+    }
+  ]
+}

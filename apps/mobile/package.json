@@ -5,6 +5,7 @@
   "dependencies": {
     "@assistant-ui/react-native": "^0.1.30",
     "@commonplace/block-view": "file:../../packages/block-view",
+    "@commonplace/mobile-contracts": "file:../../packages/mobile-contracts",
     "@expo-google-fonts/ibm-plex-sans": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",

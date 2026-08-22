@@ -1,0 +1,10 @@
+{
+  "acquiredAt": "2026-08-22T12:00:00Z",
+  "expiresAt": "2026-08-22T12:05:00Z",
+  "holderDevice": "device:fixture",
+  "leaseId": "lease:fixture",
+  "mode": "observe",
+  "released": false,
+  "runId": "harnessrun:fixture",
+  "surfaceId": "surface:fixture"
+}

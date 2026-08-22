@@ -18,23 +18,27 @@
     },
     "consumer_graphql": {
       "railway_service": "commonplace-api",
-      "railway_config": "apps/commonplace-api/railway.toml",
+      "source_repo": "Travis-Gilbert/Theorem",
+      "source_path": "apps/commonplace-api",
       "public_url": "https://commonplace-api-production.up.railway.app/graphql",
       "env_keys": [
         "THEOREM_GRAPHQL_URL",
         "THEOREM_API_KEY"
       ],
-      "health": "https://commonplace-api-production.up.railway.app/healthz"
+      "health": "https://commonplace-api-production.up.railway.app/healthz",
+      "notes": "Canonical source is Theorem/apps/commonplace-api. The Railway service is the surviving deployment; the prior Fly deployment is retired. Relink Railway source builds to Theorem before the next deploy."
     },
     "object_seam_data_api": {
       "railway_service": "commonplace-api",
+      "source_repo": "Travis-Gilbert/Theorem",
+      "source_path": "apps/commonplace-api",
       "internal_url": "http://commonplace-api.railway.internal:8080",
       "public_url": "https://commonplace-api-production.up.railway.app",
       "env_keys": [
         "CONSOLE_DATA_API_URL",
         "CONSOLE_DATA_API_KEY"
       ],
-      "notes": "Object seam required by the Railway launcher. data.theoremharness.com currently points at commonplace-data, a second Console deploy, and is NOT this seam."
+      "notes": "Object seam required by the Railway launcher. Canonical source is Theorem/apps/commonplace-api. data.theoremharness.com currently points at commonplace-data, a second Console deploy, and is NOT this seam."
     },
     "harness_http": {
       "railway_service": "theorem",

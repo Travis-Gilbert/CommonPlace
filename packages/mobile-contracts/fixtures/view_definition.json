@@ -1,0 +1,15 @@
+{
+  "layout": {
+    "density": "comfortable"
+  },
+  "name": "Fixture projects",
+  "origin": "human",
+  "renderer": "table",
+  "target": {
+    "kind": "object-type",
+    "object_type_id": "schema:object-type:Travis-Gilbert:project"
+  },
+  "temporary": false,
+  "viewId": "view:fixture",
+  "viewKind": "table"
+}
