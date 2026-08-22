@@ -1,0 +1,25 @@
+{
+  "events": [
+    {
+      "at": "2026-08-22T12:00:01Z",
+      "idempotencyKey": "event-fixture-2",
+      "kind": "tool-call",
+      "payload": {
+        "tool": "graphql_query"
+      },
+      "runId": "harnessrun:fixture",
+      "seq": 2,
+      "sourceEventType": "TOOL.CALL.STARTED",
+      "stateHashAfter": "sha256:state-2"
+    }
+  ],
+  "snapshot": {
+    "runId": "harnessrun:fixture",
+    "seq": 1,
+    "state": {
+      "status": "running"
+    },
+    "stateHash": "sha256:state-1",
+    "takenAt": "2026-08-22T12:00:00Z"
+  }
+}

@@ -40,6 +40,18 @@ API key, optional gateway URL (scenes) and harness node URL (rooms).
 
 ## Hosted mobile wiring
 
+The surviving hosted node is
+`https://commonplace-api-production.up.railway.app`; its health endpoint is
+`https://commonplace-api-production.up.railway.app/healthz`. Save that node URL
+and its API key under Account, or set the secret-free build default:
+
+```bash
+EXPO_PUBLIC_COMMONPLACE_CLOUD_URL=https://commonplace-api-production.up.railway.app
+```
+
+Account values stored in SecureStore take precedence over the build default.
+The canonical server source is `Travis-Gilbert/Theorem/apps/commonplace-api`.
+
 The connected commonplace-api node exposes a secret-free `/capabilities`
 bootstrap and the authenticated `/mobile/catalog`. The app discovers the hosted
 ACP chat URL, attachment and web-search support, exact plugin/skill identities,

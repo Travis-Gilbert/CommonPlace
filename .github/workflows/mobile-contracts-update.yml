@@ -1,0 +1,177 @@
+name: Mobile contracts update
+
+on:
+  repository_dispatch:
+    types:
+      - mobile-contracts-updated
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: Theorem source repository in owner/repo form.
+        default: Travis-Gilbert/Theorem
+        required: true
+      source_ref:
+        description: Source branch or ref.
+        default: main
+        required: true
+      source_sha:
+        description: Exact Theorem commit SHA containing generated bindings.
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-mobile-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CommonPlace
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve update payload
+        id: payload
+        env:
+          EVENT_PATH: ${{ github.event_path }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('node:fs');
+          const event = JSON.parse(fs.readFileSync(process.env.EVENT_PATH, 'utf8'));
+          const payload = event.client_payload || {};
+          const inputs = event.inputs || {};
+          console.log(`repo=${payload.repository || inputs.source_repo || 'Travis-Gilbert/Theorem'}`);
+          console.log(`ref=${payload.ref || inputs.source_ref || 'main'}`);
+          console.log(`sha=${payload.sha || inputs.source_sha || ''}`);
+          console.log(`updated_at=${payload.updated_at || new Date().toISOString()}`);
+          console.log(`object_schema_version=${payload.object_schema_version || 'object-schema-v2'}`);
+          console.log(`run_event_version=${payload.run_event_version || 'run-event-v1'}`);
+          console.log(`remote_surface_version=${payload.remote_surface_version || 'remote-surface-v1'}`);
+          NODE
+
+      - name: Require private source access
+        env:
+          SOURCE_TOKEN: ${{ secrets.THEOREM_SOURCE_TOKEN }}
+          SOURCE_SHA: ${{ steps.payload.outputs.sha }}
+        run: |
+          if [ -z "$SOURCE_TOKEN" ]; then
+            echo "THEOREM_SOURCE_TOKEN is required to read the private Theorem repository." >&2
+            exit 1
+          fi
+          if [ -z "$SOURCE_SHA" ]; then
+            echo "The dispatch must name an exact source SHA." >&2
+            exit 1
+          fi
+
+      - name: Checkout pinned Theorem contracts
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.payload.outputs.repo }}
+          ref: ${{ steps.payload.outputs.sha }}
+          token: ${{ secrets.THEOREM_SOURCE_TOKEN }}
+          path: theorem-source
+          sparse-checkout: |
+            rustyredcore_THG/bindings/mobile-kernel-contract
+            rustyredcore_THG/bindings/serde_json
+            rustyredcore_THG/crates/mobile-kernel-contract/fixtures
+
+      - name: Synchronize generated contracts and fixtures
+        env:
+          SOURCE_REPO: ${{ steps.payload.outputs.repo }}
+          SOURCE_REF: ${{ steps.payload.outputs.ref }}
+          SOURCE_SHA: ${{ steps.payload.outputs.sha }}
+          UPDATED_AT: ${{ steps.payload.outputs.updated_at }}
+          OBJECT_SCHEMA_VERSION: ${{ steps.payload.outputs.object_schema_version }}
+          RUN_EVENT_VERSION: ${{ steps.payload.outputs.run_event_version }}
+          REMOTE_SURFACE_VERSION: ${{ steps.payload.outputs.remote_surface_version }}
+        run: |
+          if [ "$OBJECT_SCHEMA_VERSION" != "object-schema-v2" ] \
+            || [ "$RUN_EVENT_VERSION" != "run-event-v1" ] \
+            || [ "$REMOTE_SURFACE_VERSION" != "remote-surface-v1" ]; then
+            echo "Dispatch named an unsupported mobile contract revision." >&2
+            exit 1
+          fi
+
+          rm -rf \
+            packages/mobile-contracts/src/generated/mobile-kernel-contract \
+            packages/mobile-contracts/src/generated/serde_json \
+            packages/mobile-contracts/fixtures
+          mkdir -p packages/mobile-contracts/src/generated packages/mobile-contracts/fixtures
+          cp -R \
+            theorem-source/rustyredcore_THG/bindings/mobile-kernel-contract \
+            packages/mobile-contracts/src/generated/
+          cp -R \
+            theorem-source/rustyredcore_THG/bindings/serde_json \
+            packages/mobile-contracts/src/generated/
+          cp -R \
+            theorem-source/rustyredcore_THG/crates/mobile-kernel-contract/fixtures/. \
+            packages/mobile-contracts/fixtures/
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pinPath = 'packages/mobile-contracts/mobile-contract-source.json';
+          const pin = JSON.parse(fs.readFileSync(pinPath, 'utf8'));
+          pin.source = {
+            repo: process.env.SOURCE_REPO,
+            ref: process.env.SOURCE_REF,
+            sha: process.env.SOURCE_SHA,
+            url: `https://github.com/${process.env.SOURCE_REPO}/tree/${process.env.SOURCE_SHA}`,
+          };
+          pin.contracts = {
+            objectSchema: process.env.OBJECT_SCHEMA_VERSION,
+            runEvent: process.env.RUN_EVENT_VERSION,
+            remoteSurface: process.env.REMOTE_SURFACE_VERSION,
+          };
+          pin.updatedAt = process.env.UPDATED_AT;
+          fs.writeFileSync(pinPath, `${JSON.stringify(pin, null, 2)}\n`);
+          NODE
+
+          npm --prefix packages/mobile-contracts run generate
+          npm --prefix packages/mobile-contracts run check
+
+      - name: Open update PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REPO: ${{ steps.payload.outputs.repo }}
+          SOURCE_REF: ${{ steps.payload.outputs.ref }}
+          SOURCE_SHA: ${{ steps.payload.outputs.sha }}
+        run: |
+          if git diff --quiet -- packages/mobile-contracts; then
+            echo "Mobile contracts are already current."
+            exit 0
+          fi
+
+          short_sha="${SOURCE_SHA:0:12}"
+          branch="automation/mobile-contracts-${short_sha}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add packages/mobile-contracts
+          git commit -m "chore(contracts): update mobile contracts to ${short_sha}"
+          git push --force-with-lease origin "$branch"
+
+          body_file="$(mktemp)"
+          {
+            echo "Updates generated CommonPlace mobile contracts from Theorem."
+            echo
+            echo "- Source: ${SOURCE_REPO}@${SOURCE_SHA}"
+            echo "- Ref: ${SOURCE_REF}"
+            echo "- Contracts: object-schema-v2, run-event-v1, remote-surface-v1"
+            echo "- Validation: \`npm --prefix packages/mobile-contracts run check\`"
+          } > "$body_file"
+
+          if gh pr view "$branch" --json url --jq .url >/dev/null 2>&1; then
+            gh pr edit "$branch" \
+              --title "chore(contracts): update mobile contracts to ${short_sha}" \
+              --body-file "$body_file"
+          else
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "chore(contracts): update mobile contracts to ${short_sha}" \
+              --body-file "$body_file"
+          fi

@@ -1,0 +1,43 @@
+{
+  "contentAnchor": "sha256:object-type-fixture",
+  "description": "A fixture project type",
+  "enforcement": "observe",
+  "fields": [
+    {
+      "description": "Fixture title field",
+      "display": {
+        "component": "text-input"
+      },
+      "fieldType": {
+        "kind": "text"
+      },
+      "indexed": true,
+      "key": "title",
+      "label": "Title",
+      "required": true,
+      "sensitivity": "normal",
+      "system": false
+    }
+  ],
+  "labelPlural": "Projects",
+  "labelSingular": "Project",
+  "namePlural": "projects",
+  "nameSingular": "project",
+  "objectTypeId": "schema:object-type:Travis-Gilbert:project",
+  "relations": [
+    {
+      "cardinality": "many",
+      "fieldKey": "related_project_rel",
+      "inverseLabel": "Related projects",
+      "relationId": "relation:fixture",
+      "required": false,
+      "semantic": "related-to",
+      "sourceObjectTypeId": "schema:object-type:Travis-Gilbert:project",
+      "system": false,
+      "targetObjectTypeId": "schema:object-type:Travis-Gilbert:project"
+    }
+  ],
+  "retired": false,
+  "system": false,
+  "tenantId": "Travis-Gilbert"
+}

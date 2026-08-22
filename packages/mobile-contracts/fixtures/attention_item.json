@@ -1,0 +1,8 @@
+{
+  "attentionId": "attention:approval:fixture",
+  "createdAt": "2026-08-22T12:00:00Z",
+  "risk": "high",
+  "runId": "harnessrun:fixture",
+  "source": "approval-request",
+  "summary": "Approve the fixture action"
+}

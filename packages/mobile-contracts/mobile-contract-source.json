@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repo": "Travis-Gilbert/Theorem",
+    "ref": "codex/mobile-contract-distribution-theorem",
+    "sha": "148132430859bdf38ac51738430319826fd98925",
+    "url": "https://github.com/Travis-Gilbert/Theorem/tree/148132430859bdf38ac51738430319826fd98925"
+  },
+  "contracts": {
+    "objectSchema": "object-schema-v2",
+    "runEvent": "run-event-v1",
+    "remoteSurface": "remote-surface-v1"
+  },
+  "updatedAt": "2026-08-22T19:42:31Z",
+  "notes": [
+    "This file is the CommonPlace-side source pin for generated mobile contracts.",
+    "GitHub Actions updates the pin and generated files from Theorem repository_dispatch events and opens a PR.",
+    "The TypeScript declarations are generated from the pinned Rust source and must never be edited by hand."
+  ]
+}

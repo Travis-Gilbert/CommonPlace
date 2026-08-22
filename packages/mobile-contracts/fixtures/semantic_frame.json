@@ -1,0 +1,24 @@
+{
+  "actionResult": "navigation-complete",
+  "agentCursor": {
+    "x": 420.5,
+    "y": 180.25
+  },
+  "focusedElement": "actionable:search",
+  "proposedAction": "click",
+  "rationale": "Open the selected result",
+  "requiresApproval": false,
+  "scroll": {
+    "x": 0.0,
+    "y": 640.0
+  },
+  "seq": 7,
+  "targetId": "actionable:result-1",
+  "title": "Fixture page",
+  "url": "https://example.com/fixture",
+  "viewport": {
+    "deviceScale": 2.0,
+    "height": 844.0,
+    "width": 390.0
+  }
+}

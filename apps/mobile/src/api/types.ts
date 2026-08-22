@@ -1,4 +1,21 @@
-/** Mirrors apps/commonplace-api/src/schema.rs (async-graphql camelCase). */
+/** Mirrors Theorem/apps/commonplace-api/src/schema.rs (async-graphql camelCase). */
+
+export type {
+  ApprovalRequest,
+  AttentionItem,
+  ContextLens,
+  ContractDescriptor,
+  ControlLease,
+  FieldDefinition,
+  GraphNeighborhood,
+  ObjectType,
+  RemoteSurfaceToken,
+  ResumePage,
+  RunEvent,
+  SemanticFrame,
+  SnapshotWithTail,
+  ViewDefinition,
+} from '@commonplace/mobile-contracts';
 
 export type ItemGql = {
   id: string;

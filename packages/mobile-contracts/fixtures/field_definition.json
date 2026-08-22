@@ -1,0 +1,16 @@
+{
+  "default": "untitled",
+  "description": "Fixture title field",
+  "display": {
+    "component": "text-input"
+  },
+  "fieldType": {
+    "kind": "text"
+  },
+  "indexed": true,
+  "key": "title",
+  "label": "Title",
+  "required": true,
+  "sensitivity": "normal",
+  "system": false
+}

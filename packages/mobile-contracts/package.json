@@ -1,0 +1,28 @@
+{
+  "name": "@commonplace/mobile-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generated Object Schema v2, Run Event v1, and Remote Surface v1 contracts.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./object-schema": "./src/object-schema.ts",
+    "./run-event": "./src/run-event.ts",
+    "./remote-surface": "./src/remote-surface.ts",
+    "./source": "./mobile-contract-source.json",
+    "./mobile-contract-source.json": "./mobile-contract-source.json"
+  },
+  "files": [
+    "src",
+    "fixtures",
+    "mobile-contract-source.json",
+    "README.md"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-barrels.mjs",
+    "check": "node scripts/generate-barrels.mjs --check && npx --yes -p typescript@6.0.3 tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

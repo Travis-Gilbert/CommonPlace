@@ -1,0 +1,32 @@
+{
+  "lensId": "lens:fixture",
+  "permittedObjectTypes": [
+    "schema:object-type:Travis-Gilbert:project"
+  ],
+  "query": "current mobile project",
+  "relationTypes": [
+    "related-to"
+  ],
+  "relevance": {
+    "kind": "ppr",
+    "params": {
+      "alpha": 0.85
+    }
+  },
+  "requiredProvenance": true,
+  "scope": {
+    "projectSlug": "mobile-contract-distribution",
+    "surface": "mobile",
+    "tenantSlug": "Travis-Gilbert"
+  },
+  "seedObjectIds": [
+    "record:fixture"
+  ],
+  "sensitiveFieldPolicy": "redact",
+  "summarizationStrategy": "extractive",
+  "timeWindow": {
+    "start": "2026-08-01T00:00:00Z"
+  },
+  "tokenBudget": 4096,
+  "traversalDepth": 1
+}
