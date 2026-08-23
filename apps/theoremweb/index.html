@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TheoremWeb</title>
+    <style>
+      /* The palette is emitted by theoremweb-chrome as custom properties and
+         injected by the host component. This file only consumes them. It sets
+         no colour of its own beyond the pre-boot fallbacks below, so the theme
+         crate stays the single source of the variables per TK2.
+
+         Those fallbacks matter: the variables do not exist until the wasm
+         module has mounted and injected the theme, and without them the page
+         inherits the host browser's colours and can render dark-on-dark. */
+      html, body { margin: 0; height: 100%; }
+      body {
+        font: 14px/1.5 system-ui, sans-serif;
+        background: var(--background, #fff);
+        color: var(--foreground, #333);
+      }
+      #main { height: 100%; }
+      .theoremweb-host { display: flex; height: 100%; }
+      .theoremweb-navigation {
+        width: 240px; flex: 0 0 240px; padding: 12px; overflow: auto;
+        border-right: 1px solid var(--border, #ebebeb);
+      }
+      .theoremweb-navigation input {
+        width: 100%; box-sizing: border-box; padding: 6px 8px;
+        background: var(--background, #fff);
+        color: var(--foreground, #333);
+        border: 1px solid var(--border, #ebebeb);
+        border-radius: 4px;
+      }
+      .theoremweb-navigation nav { display: flex; flex-direction: column; margin-top: 12px; }
+      .theoremweb-navigation button {
+        text-align: left; padding: 6px 8px; background: none; border: 0;
+        cursor: pointer; font: inherit; border-radius: 4px;
+        color: var(--foreground, #333);
+      }
+      .theoremweb-navigation button:hover { background: var(--accent, #f4f4f4); }
+      .theoremweb-surface { flex: 1 1 auto; padding: 16px; overflow: auto; }
+      .theoremweb-mount {
+        border: 1px solid var(--border, #ebebeb); border-radius: 4px;
+        padding: 12px; color: var(--muted-foreground, #666);
+      }
+      .theoremweb-mount[data-unavailable="true"] { border-style: dashed; }
+    </style>
+  </head>
+  <body>
+    <div id="main"></div>
+    <script type="module">
+      import init from "./theoremweb.js";
+      init().catch((error) => {
+        const target = document.getElementById("main");
+        target.textContent = `TheoremWeb failed to start: ${error}`;
+        target.setAttribute("role", "alert");
+        console.error(error);
+      });
+    </script>
+  </body>
+</html>

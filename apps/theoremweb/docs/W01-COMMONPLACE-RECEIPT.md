@@ -95,3 +95,67 @@ Then, with `THEOREMWEB_MCP_URL` and `THEOREMWEB_AUTH_TOKEN_FILE` set:
 node apps/theoremweb/oracles/host-registry-live.cjs --live --seed
 node apps/theoremweb/oracles/host-registry-live.cjs --live --verify
 ```
+
+## Browser serve path
+
+`cargo check --target wasm32-unknown-unknown` proves the host compiles. It does
+not prove the host runs. V01's oracle class is an authenticated browser run
+against the actual published-capable host, and between "compiles" and "runs"
+sat a bundling step that did not exist: no `index.html`, no wasm-bindgen glue,
+no asset pipeline. `dx` on this machine is Deno's `dx`, not the Dioxus CLI.
+
+`scripts/build-web.sh` closes that gap with wasm-bindgen directly. It refuses
+to run when the CLI version drifts from the version `Cargo.lock` resolved,
+because that mismatch produces glue that fails only at runtime in the browser.
+
+```bash
+scripts/build-web.sh --with-local-registry
+```
+
+Output: `dist/theoremweb_bg.wasm` (1,370,946 bytes), `dist/theoremweb.js`
+(72,457 bytes), `dist/index.html`, `dist/snippets/`, and the pinned contract
+staged at `dist/api/theoremweb/registry/contract`. That staged copy is a local
+stand-in for the graph gateway so a plain static server can serve the path the
+host fetches. It is never an authority.
+
+Serve it with this `.claude/launch.json` entry, matching the existing
+`chrome-shell` precedent:
+
+```json
+{
+  "name": "theoremweb-host",
+  "runtimeExecutable": "python3",
+  "runtimeArgs": ["-m", "http.server", "1802", "--bind", "127.0.0.1",
+    "--directory", "<abs path>/apps/theoremweb/dist"],
+  "port": 1802
+}
+```
+
+### Browser evidence, 2026-08-23
+
+Observed at `http://localhost:1802/`:
+
+- `GET /api/theoremweb/registry/contract` returned `200 OK`. The registry
+  arrived over the network, not from a compiled-in list.
+- All seven rows rendered as surface buttons: Canvas, Records, Model, Chat,
+  Document, IDE, Browser.
+- Zero console messages.
+- The mount region carried `data-renderer-binding="theorem.body.sub_canvas"`
+  and inline `width:240px;height:160px`.
+
+That last number is the discriminating one. The deleted
+`BodyRegistry::initial()` sized `sub_canvas` at 640x480. The canonical crate
+sizes it `SizeNegotiation::flexible(240, 160)`. The browser renders 240x160, so
+the canonical document, not the deleted client list, is driving the pixels.
+
+This is local-process evidence against a pinned contract. It does not discharge
+V01, which needs the live authenticated graph.
+
+## Known gap, queued
+
+The omnibox `<input>` renders but is not yet wired to
+`SurfaceCatalog::resolve`. The resolution logic is real and covered by tests
+and by the boot receipt, but typing in the box does nothing yet. Wiring it is
+an edit to `src/app.rs`, which is frozen at `codex`'s request while the backend
+half of W01 is reconciled. It is the first thing to land when that freeze
+lifts.

@@ -1,0 +1,2 @@
+# wasm-bindgen output. Rebuild with scripts/build-web.sh.
+/dist/
