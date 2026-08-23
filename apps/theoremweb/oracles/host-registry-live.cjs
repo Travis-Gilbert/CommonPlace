@@ -10,7 +10,8 @@
 //
 //   node oracles/host-registry-live.cjs                  offline contract check
 //   node oracles/host-registry-live.cjs --live --seed    write absent rows
-//   node oracles/host-registry-live.cjs --live --verify   verify against graph
+//   node oracles/host-registry-live.cjs --live           verify against graph
+//   node oracles/host-registry-live.cjs --live --verify  same, explicitly
 //
 // Live mode needs THEOREMWEB_MCP_URL and THEOREMWEB_AUTH_TOKEN_FILE, matching
 // oracles/surface-navigation.cjs.
@@ -23,7 +24,7 @@ const { execFileSync } = require("node:child_process");
 const args = new Set(process.argv.slice(2));
 const live = args.has("--live");
 const seed = args.has("--seed");
-const verify = args.has("--verify");
+const verify = args.has("--verify") || (live && !seed);
 
 const HERE = __dirname;
 const APP_ROOT = path.resolve(HERE, "..");
