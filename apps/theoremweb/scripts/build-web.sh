@@ -24,8 +24,11 @@ readonly BIN_NAME="theoremweb"
 readonly WASM_TARGET="wasm32-unknown-unknown"
 readonly DIST_DIR="$APP_ROOT/dist"
 readonly PINNED_CONTRACT="$APP_ROOT/oracles/fixtures/registry-contract-expected.json"
-# Must match src/main.rs REGISTRY_BASE, which appends /contract.
+readonly PINNED_RECORDS="$APP_ROOT/oracles/fixtures/records-page-company.json"
+# Must match src/main.rs REGISTRY_BASE, which appends /contract and
+# /records/<surface_id>.
 readonly REGISTRY_DIR="$DIST_DIR/api/theoremweb/registry"
+readonly RECORDS_DIR="$REGISTRY_DIR/records"
 
 with_local_registry=false
 for arg in "$@"; do
@@ -87,9 +90,12 @@ main() {
 
     if [ "$with_local_registry" = true ]; then
         [ -f "$PINNED_CONTRACT" ] || fail "pinned contract is missing: $PINNED_CONTRACT"
-        mkdir -p "$REGISTRY_DIR"
+        [ -f "$PINNED_RECORDS" ] || fail "pinned record page is missing: $PINNED_RECORDS"
+        mkdir -p "$RECORDS_DIR"
         cp "$PINNED_CONTRACT" "$REGISTRY_DIR/contract"
-        echo "build-web: staged the pinned contract at api/theoremweb/registry/contract (local stand-in only)"
+        # Keyed by surface id, matching records::fetch.
+        cp "$PINNED_RECORDS" "$RECORDS_DIR/records"
+        echo "build-web: staged the pinned contract and record page (local stand-ins only)"
     fi
 
     echo "build-web: wrote $DIST_DIR"

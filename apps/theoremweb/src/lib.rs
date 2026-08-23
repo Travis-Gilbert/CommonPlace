@@ -1,4 +1,4 @@
-//! The runnable TheoremWeb product host.
+//! The runnable `TheoremWeb` product host.
 //!
 //! Plan node W01. Before this package existed the seven surface crates were
 //! seven separate workspace roots, and three of them (`layout`,
@@ -7,10 +7,11 @@
 //! the seven-row seed.
 
 pub mod app;
+pub mod records;
 pub mod registry;
 pub mod seed;
 
-pub use app::{HostModel, TheoremWebHost};
+pub use app::{HostModel, MountRegion, SurfaceBody, TheoremWebHost};
 pub use registry::{RegistryError, SurfaceContract, CONTRACT_VERSION};
 pub use seed::{initial_surfaces, missing_ids, plan_seed, SeedEndpoints};
 
@@ -98,7 +99,7 @@ impl Boot {
             if let Some(back) = self.history.back() {
                 history.push(ResolvedIntent {
                     step: "back".to_owned(),
-                    intent: record.intent.clone(),
+                    intent: record.intent,
                     surface_id: back.surface.surface_id.clone(),
                     binding: back.binding.clone(),
                 });
@@ -106,7 +107,7 @@ impl Boot {
             if let Some(forward) = self.history.forward() {
                 history.push(ResolvedIntent {
                     step: "forward".to_owned(),
-                    intent: question.intent.clone(),
+                    intent: question.intent,
                     surface_id: forward.surface.surface_id.clone(),
                     binding: forward.binding.clone(),
                 });

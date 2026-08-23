@@ -1,25 +1,28 @@
 //! The host root component.
 //!
-//! The old `TheoremWebShell` rendered a title and a one-line label and mounted
-//! nothing. This component mounts, and every value it mounts with comes from
-//! the canonical registry: the renderer binding and the negotiated size are
-//! read out of the body registry the backend published, never composed here.
+//! `MountRegion` resolves what a surface mounts, entirely from canonical
+//! registry data: the renderer binding and the negotiated size are read out of
+//! the body registry the backend published, never composed here.
 //!
-//! Per-body rendering (the record table, the thread) belongs to the W02 and
-//! W05 lanes. W01 owns the dispatch, so an unimplemented body renders as a
-//! named, sized mount region rather than as a pretend table.
+//! `SurfaceBody` then renders it. Body kinds with a real component get one;
+//! kinds whose lane has not landed get a named, correctly sized placeholder
+//! rather than a pretend table.
 
 use dioxus::prelude::*;
-use theoremweb_app::{MountPlan, SurfaceCatalog, SurfaceMount};
+use theoremweb_app::{MountPlan, SurfaceCatalog, SurfaceHistory, SurfaceMount};
+use theoremweb_chrome::ColorScheme;
 use theoremweb_layout::BodyRegistry;
 use theoremweb_navigation::NavigationState;
+use theoremweb_record_table::{RecordPage, RecordTable};
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HostModel {
     pub navigation: NavigationState,
     pub catalog: SurfaceCatalog,
     pub bodies: BodyRegistry,
     pub current: Option<SurfaceMount>,
+    pub records: Option<RecordPage>,
+    pub scheme: ColorScheme,
 }
 
 /// What the host will mount, resolved entirely from canonical data.
@@ -39,9 +42,7 @@ impl MountRegion {
     /// Resolve one mount against the canonical body registry.
     ///
     /// An unregistered body kind produces a labeled placeholder, never a
-    /// panic and never a dropped widget: SPEC-THEOREMWEB-SURFACE-1.0 requires
-    /// a layout whose `body_kind` is unregistered to render a labeled
-    /// placeholder rather than failing the page.
+    /// panic and never a dropped widget.
     #[must_use]
     pub fn resolve(mount: &SurfaceMount, bodies: &BodyRegistry) -> Self {
         let surface_id = mount.surface.surface_id.clone();
@@ -101,17 +102,111 @@ impl MountRegion {
             },
         }
     }
+
+    /// Whether a real component exists for this region's body kind.
+    #[must_use]
+    pub fn has_component(&self, records: Option<&RecordPage>) -> bool {
+        matches!(self.body_kind.as_deref(), Some("record_table")) && records.is_some()
+    }
+}
+
+#[component]
+pub fn SurfaceBody(region: MountRegion, records: Option<RecordPage>, scheme: ColorScheme) -> Element {
+    if let (Some("record_table"), Some(page)) = (region.body_kind.as_deref(), records) {
+        return rsx! {
+            div { class: "theoremweb-mount theoremweb-mount-live",
+                "data-body-kind": "record_table",
+                "data-renderer-binding": "{region.renderer_binding.clone().unwrap_or_default()}",
+                "data-unavailable": "false",
+                RecordTable { page, scheme }
+            }
+        };
+    }
+    let style = region.size.map_or_else(String::new, |(width, height)| {
+        format!("width:{width}px;height:{height}px")
+    });
+    rsx! {
+        div {
+            class: "theoremweb-mount",
+            "data-body-kind": "{region.body_kind.clone().unwrap_or_default()}",
+            "data-renderer-binding": "{region.renderer_binding.clone().unwrap_or_default()}",
+            "data-engine-url": "{region.engine_url.clone().unwrap_or_default()}",
+            "data-unavailable": "{region.unavailable}",
+            style,
+            "{region.label}"
+        }
+    }
+}
+
+/// The mounted surface, or the empty state.
+///
+/// Extracted from the host because `rsx!` moves the region into `SurfaceBody`,
+/// and a component boundary is a clearer place to settle that than a clone
+/// threaded through the parent's tree.
+#[component]
+fn SurfaceSection(
+    region: Option<MountRegion>,
+    records: Option<RecordPage>,
+    scheme: ColorScheme,
+) -> Element {
+    let Some(region) = region else {
+        return rsx! {
+            h1 { "No surface selected" }
+            p { "Choose a surface" }
+        };
+    };
+    let surface_id = region.surface_id.clone();
+    let title = region.title.clone();
+    rsx! {
+        h1 { "data-surface-id": "{surface_id}", "{title}" }
+        SurfaceBody { region, records, scheme }
+    }
 }
 
 #[component]
 pub fn TheoremWebHost(model: HostModel) -> Element {
     let theme_css = theoremweb_chrome::emit_chrome_theme_css(&[]).unwrap_or_default();
-    let region = model
-        .current
+    // chrome owns the variable namespace and never emits selectors, so each
+    // crate that renders class names contributes its own layout.
+    let table_css = theoremweb_record_table::emit_record_table_css();
+    let catalog = model.catalog.clone();
+    let bodies = model.bodies.clone();
+
+    let mut current = use_signal(|| model.current.clone());
+    let mut history = use_signal(|| {
+        let mut history = SurfaceHistory::default();
+        if let Some(mount) = model.current.clone() {
+            history.push(mount);
+        }
+        history
+    });
+    let mut intent = use_signal(String::new);
+    let mut omnibox_error = use_signal(String::new);
+
+    // One place composes an intent into a mount and records it, so the
+    // omnibox, the surface list, and history cannot drift apart. `Callback` is
+    // Copy, which is what lets the same resolver serve several handlers.
+    let open = use_callback({
+        let catalog = catalog.clone();
+        move |raw: String| match catalog.resolve(&raw) {
+            Ok(mount) => {
+                history.write().push(mount.clone());
+                current.set(Some(mount));
+                omnibox_error.set(String::new());
+            }
+            Err(error) => omnibox_error.set(error.to_string()),
+        }
+    });
+
+    let region = current
+        .read()
         .as_ref()
-        .map(|mount| MountRegion::resolve(mount, &model.bodies));
+        .map(|mount| MountRegion::resolve(mount, &bodies));
+    let error_text = omnibox_error();
+
     rsx! {
         style { "{theme_css}" }
+        style { "{table_css}" }
         main { class: "theoremweb-host",
             aside { class: "theoremweb-navigation",
                 input {
@@ -119,14 +214,57 @@ pub fn TheoremWebHost(model: HostModel) -> Element {
                     id: "theoremweb-omnibox",
                     placeholder: "Open a record or ask a question",
                     "aria-label": "TheoremWeb omnibox",
+                    value: "{intent}",
+                    oninput: move |event| intent.set(event.value()),
+                    onkeydown: move |event| {
+                        if event.key() == Key::Enter {
+                            open.call(intent());
+                        }
+                    },
+                }
+                if !error_text.is_empty() {
+                    p { class: "theoremweb-omnibox-error", role: "alert", "{error_text}" }
+                }
+                div { class: "theoremweb-history",
+                    button {
+                        "data-history": "back",
+                        "aria-label": "Back",
+                        onclick: move |_| {
+                            let mount = history.write().back().cloned();
+                            if let Some(mount) = mount {
+                                current.set(Some(mount));
+                            }
+                        },
+                        "Back"
+                    }
+                    button {
+                        "data-history": "forward",
+                        "aria-label": "Forward",
+                        onclick: move |_| {
+                            let mount = history.write().forward().cloned();
+                            if let Some(mount) = mount {
+                                current.set(Some(mount));
+                            }
+                        },
+                        "Forward"
+                    }
                 }
                 nav { "aria-label": "Surfaces",
-                    for surface in model.catalog.surfaces() {
+                    // Owned (id, icon, title) per row, so each click handler
+                    // moves one String rather than holding the whole spec.
+                    for row in catalog.surfaces().iter().map(|surface| {
+                        (
+                            surface.surface_id.clone(),
+                            surface.icon.clone(),
+                            surface.title.clone(),
+                        )
+                    }) {
                         button {
-                            key: "{surface.surface_id}",
-                            "data-surface-id": "{surface.surface_id}",
-                            "data-surface-icon": "{surface.icon}",
-                            "{surface.title}"
+                            key: "{row.0}",
+                            "data-surface-id": "{row.0}",
+                            "data-surface-icon": "{row.1}",
+                            onclick: move |_| open.call(row.0.clone()),
+                            "{row.2}"
                         }
                     }
                 }
@@ -141,24 +279,10 @@ pub fn TheoremWebHost(model: HostModel) -> Element {
                 }
             }
             section { class: "theoremweb-surface",
-                if let Some(region) = region {
-                    h1 { "data-surface-id": "{region.surface_id}", "{region.title}" }
-                    div {
-                        class: "theoremweb-mount",
-                        "data-body-kind": "{region.body_kind.clone().unwrap_or_default()}",
-                        "data-renderer-binding": "{region.renderer_binding.clone().unwrap_or_default()}",
-                        "data-engine-url": "{region.engine_url.clone().unwrap_or_default()}",
-                        "data-unavailable": "{region.unavailable}",
-                        style: if let Some((width, height)) = region.size {
-                            format!("width:{width}px;height:{height}px")
-                        } else {
-                            String::new()
-                        },
-                        "{region.label}"
-                    }
-                } else {
-                    h1 { "No surface selected" }
-                    p { "Choose a surface" }
+                SurfaceSection {
+                    region,
+                    records: model.records.clone(),
+                    scheme: model.scheme,
                 }
             }
         }
@@ -167,7 +291,7 @@ pub fn TheoremWebHost(model: HostModel) -> Element {
 
 #[cfg(test)]
 mod tests {
-    use theoremweb_app::{Renderer, ScopeBinding, SurfaceSpec};
+    use theoremweb_app::{Renderer, ScopeBinding, SurfaceListResponse, SurfaceSpec};
     use theoremweb_layout::{BodySpec, SizeNegotiation};
 
     use super::*;
@@ -206,6 +330,41 @@ mod tests {
         }
     }
 
+    fn page() -> RecordPage {
+        crate::records::parse_page(
+            br#"{
+                "object_type": {
+                    "object_type_id": "company", "tenant_id": "t",
+                    "name_singular": "company", "name_plural": "companies",
+                    "label_singular": "Company", "label_plural": "Companies",
+                    "node_label": "Company", "label_identifier_field": "name",
+                    "fields": [{"key": "name", "label": "Name",
+                        "field_type": {"kind": "text", "raw": {}},
+                        "required": true, "system": false}],
+                    "enforcement": "reject", "system": false,
+                    "content_anchor": "", "retired": false, "schema_version": "v1"
+                },
+                "rows": [{"record_id": "acme", "values": {"name": "Acme"}}],
+                "total": 1
+            }"#,
+        )
+        .expect("fixture page decodes")
+    }
+
+    fn model(records: Option<RecordPage>) -> HostModel {
+        HostModel {
+            navigation: NavigationState::default(),
+            catalog: SurfaceCatalog::from_live(SurfaceListResponse {
+                count: 1,
+                surfaces: vec![mount(Renderer::Dioxus("record_table".into())).surface],
+            }),
+            bodies: bodies(),
+            current: Some(mount(Renderer::Dioxus("record_table".into()))),
+            records,
+            scheme: ColorScheme::Light,
+        }
+    }
+
     #[test]
     fn the_mount_takes_its_binding_and_size_from_the_canonical_registry() {
         let region = MountRegion::resolve(&mount(Renderer::Dioxus("record_table".into())), &bodies());
@@ -237,20 +396,38 @@ mod tests {
     }
 
     #[test]
-    fn the_host_renders_every_catalog_row_in_the_surface_nav() {
-        let catalog = SurfaceCatalog::from_live(theoremweb_app::SurfaceListResponse {
-            count: 1,
-            surfaces: vec![mount(Renderer::Dioxus("record_table".into())).surface],
-        });
-        let model = HostModel {
-            navigation: NavigationState::default(),
-            catalog,
-            bodies: bodies(),
-            current: Some(mount(Renderer::Dioxus("record_table".into()))),
-        };
+    fn the_records_surface_mounts_a_real_grid_not_a_placeholder() {
+        let model = model(Some(page()));
         let html = dioxus_ssr::render_element(rsx! { TheoremWebHost { model } });
-        assert!(html.contains("data-surface-id=\"records\""));
-        assert!(html.contains("theorem.body.record_table"));
+        assert!(html.contains("role=\"grid\""));
+        assert!(html.contains("theorem-record-table"));
+        assert!(html.contains("Acme"));
+        assert!(html.contains("theoremweb-mount-live"));
+    }
+
+    #[test]
+    fn the_records_surface_degrades_to_a_labeled_box_when_no_page_arrived() {
+        let model = model(None);
+        let html = dioxus_ssr::render_element(rsx! { TheoremWebHost { model } });
+        assert!(!html.contains("role=\"grid\""));
+        assert!(html.contains("data-body-kind=\"record_table\""));
+        assert!(html.contains("Record table"));
+    }
+
+    #[test]
+    fn the_host_renders_the_omnibox_and_history_controls() {
+        let model = model(Some(page()));
+        let html = dioxus_ssr::render_element(rsx! { TheoremWebHost { model } });
         assert!(html.contains("theoremweb-omnibox"));
+        assert!(html.contains("data-history=\"back\""));
+        assert!(html.contains("data-history=\"forward\""));
+        assert!(html.contains("data-surface-id=\"records\""));
+    }
+
+    #[test]
+    fn has_component_is_true_only_when_a_page_is_present() {
+        let region = MountRegion::resolve(&mount(Renderer::Dioxus("record_table".into())), &bodies());
+        assert!(region.has_component(Some(&page())));
+        assert!(!region.has_component(None));
     }
 }

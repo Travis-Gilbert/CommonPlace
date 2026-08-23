@@ -141,14 +141,14 @@ pub enum RegistryError {
 }
 
 #[cfg(test)]
-pub(crate) mod fixtures {
+pub mod fixtures {
     use super::{BodyRegistry, BodySpec, SizeNegotiation};
 
     /// A stand-in for the canonical document, for crate-local tests only.
     ///
     /// These values are not authority. A test that needs real numbers must read
     /// the canonical contract instead.
-    pub(crate) fn canonical_stub() -> BodyRegistry {
+    pub fn canonical_stub() -> BodyRegistry {
         BodyRegistry::from_canonical(
             ["fields", "related_records", "record_table", "thread"]
                 .into_iter()

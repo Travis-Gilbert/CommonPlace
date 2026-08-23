@@ -1,0 +1,6610 @@
+{
+  "object_type": {
+    "object_type_id": "company",
+    "tenant_id": "Travis-Gilbert",
+    "name_singular": "company",
+    "name_plural": "companies",
+    "label_singular": "Company",
+    "label_plural": "Companies",
+    "node_label": "Company",
+    "label_identifier_field": "name",
+    "fields": [
+      {
+        "key": "name",
+        "label": "Name",
+        "field_type": {
+          "kind": "text",
+          "raw": {}
+        },
+        "required": true,
+        "system": false
+      },
+      {
+        "key": "domain",
+        "label": "Domain",
+        "field_type": {
+          "kind": "text",
+          "raw": {}
+        },
+        "required": false,
+        "system": false
+      },
+      {
+        "key": "employees",
+        "label": "Employees",
+        "field_type": {
+          "kind": "integer",
+          "raw": {}
+        },
+        "required": false,
+        "system": false
+      },
+      {
+        "key": "arr",
+        "label": "ARR",
+        "field_type": {
+          "kind": "number",
+          "raw": {}
+        },
+        "required": false,
+        "system": false
+      },
+      {
+        "key": "active",
+        "label": "Active",
+        "field_type": {
+          "kind": "boolean",
+          "raw": {}
+        },
+        "required": false,
+        "system": false
+      },
+      {
+        "key": "founded",
+        "label": "Founded",
+        "field_type": {
+          "kind": "date",
+          "raw": {}
+        },
+        "required": false,
+        "system": false
+      },
+      {
+        "key": "stage",
+        "label": "Stage",
+        "field_type": {
+          "kind": "enum",
+          "raw": {
+            "variants": [
+              "seed",
+              "series_a",
+              "series_b",
+              "growth"
+            ]
+          }
+        },
+        "required": false,
+        "system": false
+      },
+      {
+        "key": "notes",
+        "label": "Notes",
+        "field_type": {
+          "kind": "long_text",
+          "raw": {}
+        },
+        "required": false,
+        "system": false
+      }
+    ],
+    "enforcement": "reject",
+    "system": false,
+    "content_anchor": "",
+    "retired": false,
+    "schema_version": "v1"
+  },
+  "view": null,
+  "rows": [
+    {
+      "record_id": "company-0000",
+      "values": {
+        "name": "Acme",
+        "domain": "https://acme.example",
+        "employees": 12,
+        "arr": 50000,
+        "active": false,
+        "founded": "1985-01-10",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0001",
+      "values": {
+        "name": "Globex",
+        "domain": "https://globex.example",
+        "employees": 49,
+        "arr": 141337,
+        "active": true,
+        "founded": "1986-02-11",
+        "stage": "series_a",
+        "notes": "Globex tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0002",
+      "values": {
+        "name": "Initech",
+        "domain": "https://initech.example",
+        "employees": 86,
+        "arr": 232674,
+        "active": true,
+        "founded": "1987-03-12",
+        "stage": "series_b",
+        "notes": "Initech tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0003",
+      "values": {
+        "name": "Umbrella",
+        "domain": "https://umbrella.example",
+        "employees": 123,
+        "arr": 324011,
+        "active": true,
+        "founded": "1988-04-13",
+        "stage": "growth",
+        "notes": "Umbrella tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0004",
+      "values": {
+        "name": "Soylent",
+        "domain": "https://soylent.example",
+        "employees": 160,
+        "arr": 415348,
+        "active": true,
+        "founded": "1989-05-14",
+        "stage": "seed",
+        "notes": "Soylent tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0005",
+      "values": {
+        "name": "Hooli",
+        "domain": "https://hooli.example",
+        "employees": 197,
+        "arr": 506685,
+        "active": false,
+        "founded": "1990-06-15",
+        "stage": "series_a",
+        "notes": "Hooli tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0006",
+      "values": {
+        "name": "Vehement",
+        "domain": "https://vehement.example",
+        "employees": 234,
+        "arr": 598022,
+        "active": true,
+        "founded": "1991-07-16",
+        "stage": "series_b",
+        "notes": "Vehement tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0007",
+      "values": {
+        "name": "Massive Dynamic",
+        "domain": "https://massive-dynamic.example",
+        "employees": 271,
+        "arr": 689359,
+        "active": true,
+        "founded": "1992-08-17",
+        "stage": "growth",
+        "notes": "Massive Dynamic tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0008",
+      "values": {
+        "name": "Cyberdyne",
+        "domain": "https://cyberdyne.example",
+        "employees": 308,
+        "arr": 780696,
+        "active": true,
+        "founded": "1993-09-18",
+        "stage": "seed",
+        "notes": "Cyberdyne tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0009",
+      "values": {
+        "name": "Stark",
+        "domain": "https://stark.example",
+        "employees": 345,
+        "arr": 872033,
+        "active": true,
+        "founded": "1994-01-19",
+        "stage": "series_a",
+        "notes": "Stark tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0010",
+      "values": {
+        "name": "Wayne",
+        "domain": "https://wayne.example",
+        "employees": 382,
+        "arr": 963370,
+        "active": false,
+        "founded": "1995-02-10",
+        "stage": "series_b",
+        "notes": "Wayne tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0011",
+      "values": {
+        "name": "Tyrell",
+        "domain": "https://tyrell.example",
+        "employees": 419,
+        "arr": 1054707,
+        "active": true,
+        "founded": "1996-03-11",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0012",
+      "values": {
+        "name": "Weyland",
+        "domain": "https://weyland.example",
+        "employees": 456,
+        "arr": 1146044,
+        "active": true,
+        "founded": "1997-04-12",
+        "stage": "seed",
+        "notes": "Weyland tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0013",
+      "values": {
+        "name": "Aperture",
+        "domain": "https://aperture.example",
+        "employees": 493,
+        "arr": 1237381,
+        "active": true,
+        "founded": "1998-05-13",
+        "stage": "series_a",
+        "notes": "Aperture tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0014",
+      "values": {
+        "name": "Black Mesa",
+        "domain": "https://black-mesa.example",
+        "employees": 530,
+        "arr": 1328718,
+        "active": true,
+        "founded": "1999-06-14",
+        "stage": "series_b",
+        "notes": "Black Mesa tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0015",
+      "values": {
+        "name": "Oscorp",
+        "domain": "https://oscorp.example",
+        "employees": 567,
+        "arr": 1420055,
+        "active": false,
+        "founded": "2000-07-15",
+        "stage": "growth",
+        "notes": "Oscorp tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0016",
+      "values": {
+        "name": "Acme 1",
+        "domain": "https://acme-1.example",
+        "employees": 604,
+        "arr": 1511392,
+        "active": true,
+        "founded": "2001-08-16",
+        "stage": "seed",
+        "notes": "Acme 1 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0017",
+      "values": {
+        "name": "Globex 1",
+        "domain": "https://globex-1.example",
+        "employees": 641,
+        "arr": 1602729,
+        "active": true,
+        "founded": "2002-09-17",
+        "stage": "series_a",
+        "notes": "Globex 1 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0018",
+      "values": {
+        "name": "Initech 1",
+        "domain": "https://initech-1.example",
+        "employees": 678,
+        "arr": 1694066,
+        "active": true,
+        "founded": "2003-01-18",
+        "stage": "series_b",
+        "notes": "Initech 1 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0019",
+      "values": {
+        "name": "Umbrella 1",
+        "domain": "https://umbrella-1.example",
+        "employees": 715,
+        "arr": 1785403,
+        "active": true,
+        "founded": "2004-02-19",
+        "stage": "growth",
+        "notes": "Umbrella 1 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0020",
+      "values": {
+        "name": "Soylent 1",
+        "domain": "https://soylent-1.example",
+        "employees": 752,
+        "arr": 1876740,
+        "active": false,
+        "founded": "2005-03-10",
+        "stage": "seed",
+        "notes": "Soylent 1 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0021",
+      "values": {
+        "name": "Hooli 1",
+        "domain": "https://hooli-1.example",
+        "employees": 789,
+        "arr": 1968077,
+        "active": true,
+        "founded": "2006-04-11",
+        "stage": "series_a",
+        "notes": "Hooli 1 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0022",
+      "values": {
+        "name": "Vehement 1",
+        "domain": "https://vehement-1.example",
+        "employees": 826,
+        "arr": 2059414,
+        "active": true,
+        "founded": "2007-05-12",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0023",
+      "values": {
+        "name": "Massive Dynamic 1",
+        "domain": "https://massive-dynamic-1.example",
+        "employees": 863,
+        "arr": 2150751,
+        "active": true,
+        "founded": "2008-06-13",
+        "stage": "growth",
+        "notes": "Massive Dynamic 1 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0024",
+      "values": {
+        "name": "Cyberdyne 1",
+        "domain": "https://cyberdyne-1.example",
+        "employees": 900,
+        "arr": 2242088,
+        "active": true,
+        "founded": "2009-07-14",
+        "stage": "seed",
+        "notes": "Cyberdyne 1 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0025",
+      "values": {
+        "name": "Stark 1",
+        "domain": "https://stark-1.example",
+        "employees": 937,
+        "arr": 2333425,
+        "active": false,
+        "founded": "2010-08-15",
+        "stage": "series_a",
+        "notes": "Stark 1 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0026",
+      "values": {
+        "name": "Wayne 1",
+        "domain": "https://wayne-1.example",
+        "employees": 974,
+        "arr": 2424762,
+        "active": true,
+        "founded": "2011-09-16",
+        "stage": "series_b",
+        "notes": "Wayne 1 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0027",
+      "values": {
+        "name": "Tyrell 1",
+        "domain": "https://tyrell-1.example",
+        "employees": 1011,
+        "arr": 2516099,
+        "active": true,
+        "founded": "2012-01-17",
+        "stage": "growth",
+        "notes": "Tyrell 1 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0028",
+      "values": {
+        "name": "Weyland 1",
+        "domain": "https://weyland-1.example",
+        "employees": 1048,
+        "arr": 2607436,
+        "active": true,
+        "founded": "2013-02-18",
+        "stage": "seed",
+        "notes": "Weyland 1 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0029",
+      "values": {
+        "name": "Aperture 1",
+        "domain": "https://aperture-1.example",
+        "employees": 1085,
+        "arr": 2698773,
+        "active": true,
+        "founded": "2014-03-19",
+        "stage": "series_a",
+        "notes": "Aperture 1 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0030",
+      "values": {
+        "name": "Black Mesa 1",
+        "domain": "https://black-mesa-1.example",
+        "employees": 1122,
+        "arr": 2790110,
+        "active": false,
+        "founded": "2015-04-10",
+        "stage": "series_b",
+        "notes": "Black Mesa 1 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0031",
+      "values": {
+        "name": "Oscorp 1",
+        "domain": "https://oscorp-1.example",
+        "employees": 1159,
+        "arr": 2881447,
+        "active": true,
+        "founded": "2016-05-11",
+        "stage": "growth",
+        "notes": "Oscorp 1 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0032",
+      "values": {
+        "name": "Acme 2",
+        "domain": "https://acme-2.example",
+        "employees": 1196,
+        "arr": 2972784,
+        "active": true,
+        "founded": "2017-06-12",
+        "stage": "seed",
+        "notes": "Acme 2 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0033",
+      "values": {
+        "name": "Globex 2",
+        "domain": "https://globex-2.example",
+        "employees": 1233,
+        "arr": 3064121,
+        "active": true,
+        "founded": "2018-07-13",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0034",
+      "values": {
+        "name": "Initech 2",
+        "domain": "https://initech-2.example",
+        "employees": 1270,
+        "arr": 3155458,
+        "active": true,
+        "founded": "2019-08-14",
+        "stage": "series_b",
+        "notes": "Initech 2 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0035",
+      "values": {
+        "name": "Umbrella 2",
+        "domain": "https://umbrella-2.example",
+        "employees": 1307,
+        "arr": 3246795,
+        "active": false,
+        "founded": "2020-09-15",
+        "stage": "growth",
+        "notes": "Umbrella 2 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0036",
+      "values": {
+        "name": "Soylent 2",
+        "domain": "https://soylent-2.example",
+        "employees": 1344,
+        "arr": 3338132,
+        "active": true,
+        "founded": "2021-01-16",
+        "stage": "seed",
+        "notes": "Soylent 2 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0037",
+      "values": {
+        "name": "Hooli 2",
+        "domain": "https://hooli-2.example",
+        "employees": 1381,
+        "arr": 3429469,
+        "active": true,
+        "founded": "2022-02-17",
+        "stage": "series_a",
+        "notes": "Hooli 2 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0038",
+      "values": {
+        "name": "Vehement 2",
+        "domain": "https://vehement-2.example",
+        "employees": 1418,
+        "arr": 3520806,
+        "active": true,
+        "founded": "2023-03-18",
+        "stage": "series_b",
+        "notes": "Vehement 2 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0039",
+      "values": {
+        "name": "Massive Dynamic 2",
+        "domain": "https://massive-dynamic-2.example",
+        "employees": 1455,
+        "arr": 3612143,
+        "active": true,
+        "founded": "2024-04-19",
+        "stage": "growth",
+        "notes": "Massive Dynamic 2 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0040",
+      "values": {
+        "name": "Cyberdyne 2",
+        "domain": "https://cyberdyne-2.example",
+        "employees": 1492,
+        "arr": 3703480,
+        "active": false,
+        "founded": "1985-05-10",
+        "stage": "seed",
+        "notes": "Cyberdyne 2 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0041",
+      "values": {
+        "name": "Stark 2",
+        "domain": "https://stark-2.example",
+        "employees": 1529,
+        "arr": 3794817,
+        "active": true,
+        "founded": "1986-06-11",
+        "stage": "series_a",
+        "notes": "Stark 2 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0042",
+      "values": {
+        "name": "Wayne 2",
+        "domain": "https://wayne-2.example",
+        "employees": 1566,
+        "arr": 3886154,
+        "active": true,
+        "founded": "1987-07-12",
+        "stage": "series_b",
+        "notes": "Wayne 2 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0043",
+      "values": {
+        "name": "Tyrell 2",
+        "domain": "https://tyrell-2.example",
+        "employees": 1603,
+        "arr": 3977491,
+        "active": true,
+        "founded": "1988-08-13",
+        "stage": "growth",
+        "notes": "Tyrell 2 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0044",
+      "values": {
+        "name": "Weyland 2",
+        "domain": "https://weyland-2.example",
+        "employees": 1640,
+        "arr": 4068828,
+        "active": true,
+        "founded": "1989-09-14",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0045",
+      "values": {
+        "name": "Aperture 2",
+        "domain": "https://aperture-2.example",
+        "employees": 1677,
+        "arr": 4160165,
+        "active": false,
+        "founded": "1990-01-15",
+        "stage": "series_a",
+        "notes": "Aperture 2 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0046",
+      "values": {
+        "name": "Black Mesa 2",
+        "domain": "https://black-mesa-2.example",
+        "employees": 1714,
+        "arr": 4251502,
+        "active": true,
+        "founded": "1991-02-16",
+        "stage": "series_b",
+        "notes": "Black Mesa 2 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0047",
+      "values": {
+        "name": "Oscorp 2",
+        "domain": "https://oscorp-2.example",
+        "employees": 1751,
+        "arr": 4342839,
+        "active": true,
+        "founded": "1992-03-17",
+        "stage": "growth",
+        "notes": "Oscorp 2 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0048",
+      "values": {
+        "name": "Acme 3",
+        "domain": "https://acme-3.example",
+        "employees": 1788,
+        "arr": 4434176,
+        "active": true,
+        "founded": "1993-04-18",
+        "stage": "seed",
+        "notes": "Acme 3 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0049",
+      "values": {
+        "name": "Globex 3",
+        "domain": "https://globex-3.example",
+        "employees": 1825,
+        "arr": 4525513,
+        "active": true,
+        "founded": "1994-05-19",
+        "stage": "series_a",
+        "notes": "Globex 3 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0050",
+      "values": {
+        "name": "Initech 3",
+        "domain": "https://initech-3.example",
+        "employees": 1862,
+        "arr": 4616850,
+        "active": false,
+        "founded": "1995-06-10",
+        "stage": "series_b",
+        "notes": "Initech 3 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0051",
+      "values": {
+        "name": "Umbrella 3",
+        "domain": "https://umbrella-3.example",
+        "employees": 1899,
+        "arr": 4708187,
+        "active": true,
+        "founded": "1996-07-11",
+        "stage": "growth",
+        "notes": "Umbrella 3 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0052",
+      "values": {
+        "name": "Soylent 3",
+        "domain": "https://soylent-3.example",
+        "employees": 1936,
+        "arr": 4799524,
+        "active": true,
+        "founded": "1997-08-12",
+        "stage": "seed",
+        "notes": "Soylent 3 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0053",
+      "values": {
+        "name": "Hooli 3",
+        "domain": "https://hooli-3.example",
+        "employees": 1973,
+        "arr": 4890861,
+        "active": true,
+        "founded": "1998-09-13",
+        "stage": "series_a",
+        "notes": "Hooli 3 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0054",
+      "values": {
+        "name": "Vehement 3",
+        "domain": "https://vehement-3.example",
+        "employees": 2010,
+        "arr": 4982198,
+        "active": true,
+        "founded": "1999-01-14",
+        "stage": "series_b",
+        "notes": "Vehement 3 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0055",
+      "values": {
+        "name": "Massive Dynamic 3",
+        "domain": "https://massive-dynamic-3.example",
+        "employees": 2047,
+        "arr": 5073535,
+        "active": false,
+        "founded": "2000-02-15",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0056",
+      "values": {
+        "name": "Cyberdyne 3",
+        "domain": "https://cyberdyne-3.example",
+        "employees": 2084,
+        "arr": 5164872,
+        "active": true,
+        "founded": "2001-03-16",
+        "stage": "seed",
+        "notes": "Cyberdyne 3 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0057",
+      "values": {
+        "name": "Stark 3",
+        "domain": "https://stark-3.example",
+        "employees": 2121,
+        "arr": 5256209,
+        "active": true,
+        "founded": "2002-04-17",
+        "stage": "series_a",
+        "notes": "Stark 3 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0058",
+      "values": {
+        "name": "Wayne 3",
+        "domain": "https://wayne-3.example",
+        "employees": 2158,
+        "arr": 5347546,
+        "active": true,
+        "founded": "2003-05-18",
+        "stage": "series_b",
+        "notes": "Wayne 3 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0059",
+      "values": {
+        "name": "Tyrell 3",
+        "domain": "https://tyrell-3.example",
+        "employees": 2195,
+        "arr": 5438883,
+        "active": true,
+        "founded": "2004-06-19",
+        "stage": "growth",
+        "notes": "Tyrell 3 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0060",
+      "values": {
+        "name": "Weyland 3",
+        "domain": "https://weyland-3.example",
+        "employees": 2232,
+        "arr": 5530220,
+        "active": false,
+        "founded": "2005-07-10",
+        "stage": "seed",
+        "notes": "Weyland 3 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0061",
+      "values": {
+        "name": "Aperture 3",
+        "domain": "https://aperture-3.example",
+        "employees": 2269,
+        "arr": 5621557,
+        "active": true,
+        "founded": "2006-08-11",
+        "stage": "series_a",
+        "notes": "Aperture 3 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0062",
+      "values": {
+        "name": "Black Mesa 3",
+        "domain": "https://black-mesa-3.example",
+        "employees": 2306,
+        "arr": 5712894,
+        "active": true,
+        "founded": "2007-09-12",
+        "stage": "series_b",
+        "notes": "Black Mesa 3 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0063",
+      "values": {
+        "name": "Oscorp 3",
+        "domain": "https://oscorp-3.example",
+        "employees": 2343,
+        "arr": 5804231,
+        "active": true,
+        "founded": "2008-01-13",
+        "stage": "growth",
+        "notes": "Oscorp 3 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0064",
+      "values": {
+        "name": "Acme 4",
+        "domain": "https://acme-4.example",
+        "employees": 2380,
+        "arr": 5895568,
+        "active": true,
+        "founded": "2009-02-14",
+        "stage": "seed",
+        "notes": "Acme 4 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0065",
+      "values": {
+        "name": "Globex 4",
+        "domain": "https://globex-4.example",
+        "employees": 2417,
+        "arr": 5986905,
+        "active": false,
+        "founded": "2010-03-15",
+        "stage": "series_a",
+        "notes": "Globex 4 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0066",
+      "values": {
+        "name": "Initech 4",
+        "domain": "https://initech-4.example",
+        "employees": 2454,
+        "arr": 6078242,
+        "active": true,
+        "founded": "2011-04-16",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0067",
+      "values": {
+        "name": "Umbrella 4",
+        "domain": "https://umbrella-4.example",
+        "employees": 2491,
+        "arr": 6169579,
+        "active": true,
+        "founded": "2012-05-17",
+        "stage": "growth",
+        "notes": "Umbrella 4 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0068",
+      "values": {
+        "name": "Soylent 4",
+        "domain": "https://soylent-4.example",
+        "employees": 2528,
+        "arr": 6260916,
+        "active": true,
+        "founded": "2013-06-18",
+        "stage": "seed",
+        "notes": "Soylent 4 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0069",
+      "values": {
+        "name": "Hooli 4",
+        "domain": "https://hooli-4.example",
+        "employees": 2565,
+        "arr": 6352253,
+        "active": true,
+        "founded": "2014-07-19",
+        "stage": "series_a",
+        "notes": "Hooli 4 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0070",
+      "values": {
+        "name": "Vehement 4",
+        "domain": "https://vehement-4.example",
+        "employees": 2602,
+        "arr": 6443590,
+        "active": false,
+        "founded": "2015-08-10",
+        "stage": "series_b",
+        "notes": "Vehement 4 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0071",
+      "values": {
+        "name": "Massive Dynamic 4",
+        "domain": "https://massive-dynamic-4.example",
+        "employees": 2639,
+        "arr": 6534927,
+        "active": true,
+        "founded": "2016-09-11",
+        "stage": "growth",
+        "notes": "Massive Dynamic 4 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0072",
+      "values": {
+        "name": "Cyberdyne 4",
+        "domain": "https://cyberdyne-4.example",
+        "employees": 2676,
+        "arr": 6626264,
+        "active": true,
+        "founded": "2017-01-12",
+        "stage": "seed",
+        "notes": "Cyberdyne 4 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0073",
+      "values": {
+        "name": "Stark 4",
+        "domain": "https://stark-4.example",
+        "employees": 2713,
+        "arr": 6717601,
+        "active": true,
+        "founded": "2018-02-13",
+        "stage": "series_a",
+        "notes": "Stark 4 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0074",
+      "values": {
+        "name": "Wayne 4",
+        "domain": "https://wayne-4.example",
+        "employees": 2750,
+        "arr": 6808938,
+        "active": true,
+        "founded": "2019-03-14",
+        "stage": "series_b",
+        "notes": "Wayne 4 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0075",
+      "values": {
+        "name": "Tyrell 4",
+        "domain": "https://tyrell-4.example",
+        "employees": 2787,
+        "arr": 6900275,
+        "active": false,
+        "founded": "2020-04-15",
+        "stage": "growth",
+        "notes": "Tyrell 4 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0076",
+      "values": {
+        "name": "Weyland 4",
+        "domain": "https://weyland-4.example",
+        "employees": 2824,
+        "arr": 6991612,
+        "active": true,
+        "founded": "2021-05-16",
+        "stage": "seed",
+        "notes": "Weyland 4 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0077",
+      "values": {
+        "name": "Aperture 4",
+        "domain": "https://aperture-4.example",
+        "employees": 2861,
+        "arr": 7082949,
+        "active": true,
+        "founded": "2022-06-17",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0078",
+      "values": {
+        "name": "Black Mesa 4",
+        "domain": "https://black-mesa-4.example",
+        "employees": 2898,
+        "arr": 7174286,
+        "active": true,
+        "founded": "2023-07-18",
+        "stage": "series_b",
+        "notes": "Black Mesa 4 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0079",
+      "values": {
+        "name": "Oscorp 4",
+        "domain": "https://oscorp-4.example",
+        "employees": 2935,
+        "arr": 7265623,
+        "active": true,
+        "founded": "2024-08-19",
+        "stage": "growth",
+        "notes": "Oscorp 4 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0080",
+      "values": {
+        "name": "Acme 5",
+        "domain": "https://acme-5.example",
+        "employees": 2972,
+        "arr": 7356960,
+        "active": false,
+        "founded": "1985-09-10",
+        "stage": "seed",
+        "notes": "Acme 5 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0081",
+      "values": {
+        "name": "Globex 5",
+        "domain": "https://globex-5.example",
+        "employees": 3009,
+        "arr": 7448297,
+        "active": true,
+        "founded": "1986-01-11",
+        "stage": "series_a",
+        "notes": "Globex 5 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0082",
+      "values": {
+        "name": "Initech 5",
+        "domain": "https://initech-5.example",
+        "employees": 3046,
+        "arr": 7539634,
+        "active": true,
+        "founded": "1987-02-12",
+        "stage": "series_b",
+        "notes": "Initech 5 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0083",
+      "values": {
+        "name": "Umbrella 5",
+        "domain": "https://umbrella-5.example",
+        "employees": 3083,
+        "arr": 7630971,
+        "active": true,
+        "founded": "1988-03-13",
+        "stage": "growth",
+        "notes": "Umbrella 5 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0084",
+      "values": {
+        "name": "Soylent 5",
+        "domain": "https://soylent-5.example",
+        "employees": 3120,
+        "arr": 7722308,
+        "active": true,
+        "founded": "1989-04-14",
+        "stage": "seed",
+        "notes": "Soylent 5 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0085",
+      "values": {
+        "name": "Hooli 5",
+        "domain": "https://hooli-5.example",
+        "employees": 3157,
+        "arr": 7813645,
+        "active": false,
+        "founded": "1990-05-15",
+        "stage": "series_a",
+        "notes": "Hooli 5 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0086",
+      "values": {
+        "name": "Vehement 5",
+        "domain": "https://vehement-5.example",
+        "employees": 3194,
+        "arr": 7904982,
+        "active": true,
+        "founded": "1991-06-16",
+        "stage": "series_b",
+        "notes": "Vehement 5 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0087",
+      "values": {
+        "name": "Massive Dynamic 5",
+        "domain": "https://massive-dynamic-5.example",
+        "employees": 3231,
+        "arr": 7996319,
+        "active": true,
+        "founded": "1992-07-17",
+        "stage": "growth",
+        "notes": "Massive Dynamic 5 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0088",
+      "values": {
+        "name": "Cyberdyne 5",
+        "domain": "https://cyberdyne-5.example",
+        "employees": 3268,
+        "arr": 8087656,
+        "active": true,
+        "founded": "1993-08-18",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0089",
+      "values": {
+        "name": "Stark 5",
+        "domain": "https://stark-5.example",
+        "employees": 3305,
+        "arr": 8178993,
+        "active": true,
+        "founded": "1994-09-19",
+        "stage": "series_a",
+        "notes": "Stark 5 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0090",
+      "values": {
+        "name": "Wayne 5",
+        "domain": "https://wayne-5.example",
+        "employees": 3342,
+        "arr": 8270330,
+        "active": false,
+        "founded": "1995-01-10",
+        "stage": "series_b",
+        "notes": "Wayne 5 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0091",
+      "values": {
+        "name": "Tyrell 5",
+        "domain": "https://tyrell-5.example",
+        "employees": 3379,
+        "arr": 8361667,
+        "active": true,
+        "founded": "1996-02-11",
+        "stage": "growth",
+        "notes": "Tyrell 5 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0092",
+      "values": {
+        "name": "Weyland 5",
+        "domain": "https://weyland-5.example",
+        "employees": 3416,
+        "arr": 8453004,
+        "active": true,
+        "founded": "1997-03-12",
+        "stage": "seed",
+        "notes": "Weyland 5 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0093",
+      "values": {
+        "name": "Aperture 5",
+        "domain": "https://aperture-5.example",
+        "employees": 3453,
+        "arr": 8544341,
+        "active": true,
+        "founded": "1998-04-13",
+        "stage": "series_a",
+        "notes": "Aperture 5 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0094",
+      "values": {
+        "name": "Black Mesa 5",
+        "domain": "https://black-mesa-5.example",
+        "employees": 3490,
+        "arr": 8635678,
+        "active": true,
+        "founded": "1999-05-14",
+        "stage": "series_b",
+        "notes": "Black Mesa 5 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0095",
+      "values": {
+        "name": "Oscorp 5",
+        "domain": "https://oscorp-5.example",
+        "employees": 3527,
+        "arr": 8727015,
+        "active": false,
+        "founded": "2000-06-15",
+        "stage": "growth",
+        "notes": "Oscorp 5 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0096",
+      "values": {
+        "name": "Acme 6",
+        "domain": "https://acme-6.example",
+        "employees": 3564,
+        "arr": 8818352,
+        "active": true,
+        "founded": "2001-07-16",
+        "stage": "seed",
+        "notes": "Acme 6 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0097",
+      "values": {
+        "name": "Globex 6",
+        "domain": "https://globex-6.example",
+        "employees": 3601,
+        "arr": 8909689,
+        "active": true,
+        "founded": "2002-08-17",
+        "stage": "series_a",
+        "notes": "Globex 6 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0098",
+      "values": {
+        "name": "Initech 6",
+        "domain": "https://initech-6.example",
+        "employees": 3638,
+        "arr": 9001026,
+        "active": true,
+        "founded": "2003-09-18",
+        "stage": "series_b",
+        "notes": "Initech 6 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0099",
+      "values": {
+        "name": "Umbrella 6",
+        "domain": "https://umbrella-6.example",
+        "employees": 3675,
+        "arr": 9092363,
+        "active": true,
+        "founded": "2004-01-19",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0100",
+      "values": {
+        "name": "Soylent 6",
+        "domain": "https://soylent-6.example",
+        "employees": 3712,
+        "arr": 9183700,
+        "active": false,
+        "founded": "2005-02-10",
+        "stage": "seed",
+        "notes": "Soylent 6 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0101",
+      "values": {
+        "name": "Hooli 6",
+        "domain": "https://hooli-6.example",
+        "employees": 3749,
+        "arr": 9275037,
+        "active": true,
+        "founded": "2006-03-11",
+        "stage": "series_a",
+        "notes": "Hooli 6 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0102",
+      "values": {
+        "name": "Vehement 6",
+        "domain": "https://vehement-6.example",
+        "employees": 3786,
+        "arr": 9366374,
+        "active": true,
+        "founded": "2007-04-12",
+        "stage": "series_b",
+        "notes": "Vehement 6 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0103",
+      "values": {
+        "name": "Massive Dynamic 6",
+        "domain": "https://massive-dynamic-6.example",
+        "employees": 3823,
+        "arr": 9457711,
+        "active": true,
+        "founded": "2008-05-13",
+        "stage": "growth",
+        "notes": "Massive Dynamic 6 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0104",
+      "values": {
+        "name": "Cyberdyne 6",
+        "domain": "https://cyberdyne-6.example",
+        "employees": 3860,
+        "arr": 9549048,
+        "active": true,
+        "founded": "2009-06-14",
+        "stage": "seed",
+        "notes": "Cyberdyne 6 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0105",
+      "values": {
+        "name": "Stark 6",
+        "domain": "https://stark-6.example",
+        "employees": 3897,
+        "arr": 9640385,
+        "active": false,
+        "founded": "2010-07-15",
+        "stage": "series_a",
+        "notes": "Stark 6 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0106",
+      "values": {
+        "name": "Wayne 6",
+        "domain": "https://wayne-6.example",
+        "employees": 3934,
+        "arr": 9731722,
+        "active": true,
+        "founded": "2011-08-16",
+        "stage": "series_b",
+        "notes": "Wayne 6 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0107",
+      "values": {
+        "name": "Tyrell 6",
+        "domain": "https://tyrell-6.example",
+        "employees": 3971,
+        "arr": 9823059,
+        "active": true,
+        "founded": "2012-09-17",
+        "stage": "growth",
+        "notes": "Tyrell 6 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0108",
+      "values": {
+        "name": "Weyland 6",
+        "domain": "https://weyland-6.example",
+        "employees": 4008,
+        "arr": 9914396,
+        "active": true,
+        "founded": "2013-01-18",
+        "stage": "seed",
+        "notes": "Weyland 6 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0109",
+      "values": {
+        "name": "Aperture 6",
+        "domain": "https://aperture-6.example",
+        "employees": 4045,
+        "arr": 10005733,
+        "active": true,
+        "founded": "2014-02-19",
+        "stage": "series_a",
+        "notes": "Aperture 6 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0110",
+      "values": {
+        "name": "Black Mesa 6",
+        "domain": "https://black-mesa-6.example",
+        "employees": 4082,
+        "arr": 10097070,
+        "active": false,
+        "founded": "2015-03-10",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0111",
+      "values": {
+        "name": "Oscorp 6",
+        "domain": "https://oscorp-6.example",
+        "employees": 4119,
+        "arr": 10188407,
+        "active": true,
+        "founded": "2016-04-11",
+        "stage": "growth",
+        "notes": "Oscorp 6 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0112",
+      "values": {
+        "name": "Acme 7",
+        "domain": "https://acme-7.example",
+        "employees": 4156,
+        "arr": 10279744,
+        "active": true,
+        "founded": "2017-05-12",
+        "stage": "seed",
+        "notes": "Acme 7 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0113",
+      "values": {
+        "name": "Globex 7",
+        "domain": "https://globex-7.example",
+        "employees": 4193,
+        "arr": 10371081,
+        "active": true,
+        "founded": "2018-06-13",
+        "stage": "series_a",
+        "notes": "Globex 7 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0114",
+      "values": {
+        "name": "Initech 7",
+        "domain": "https://initech-7.example",
+        "employees": 4230,
+        "arr": 10462418,
+        "active": true,
+        "founded": "2019-07-14",
+        "stage": "series_b",
+        "notes": "Initech 7 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0115",
+      "values": {
+        "name": "Umbrella 7",
+        "domain": "https://umbrella-7.example",
+        "employees": 4267,
+        "arr": 10553755,
+        "active": false,
+        "founded": "2020-08-15",
+        "stage": "growth",
+        "notes": "Umbrella 7 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0116",
+      "values": {
+        "name": "Soylent 7",
+        "domain": "https://soylent-7.example",
+        "employees": 4304,
+        "arr": 10645092,
+        "active": true,
+        "founded": "2021-09-16",
+        "stage": "seed",
+        "notes": "Soylent 7 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0117",
+      "values": {
+        "name": "Hooli 7",
+        "domain": "https://hooli-7.example",
+        "employees": 4341,
+        "arr": 10736429,
+        "active": true,
+        "founded": "2022-01-17",
+        "stage": "series_a",
+        "notes": "Hooli 7 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0118",
+      "values": {
+        "name": "Vehement 7",
+        "domain": "https://vehement-7.example",
+        "employees": 4378,
+        "arr": 10827766,
+        "active": true,
+        "founded": "2023-02-18",
+        "stage": "series_b",
+        "notes": "Vehement 7 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0119",
+      "values": {
+        "name": "Massive Dynamic 7",
+        "domain": "https://massive-dynamic-7.example",
+        "employees": 4415,
+        "arr": 10919103,
+        "active": true,
+        "founded": "2024-03-19",
+        "stage": "growth",
+        "notes": "Massive Dynamic 7 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0120",
+      "values": {
+        "name": "Cyberdyne 7",
+        "domain": "https://cyberdyne-7.example",
+        "employees": 4452,
+        "arr": 11010440,
+        "active": false,
+        "founded": "1985-04-10",
+        "stage": "seed",
+        "notes": "Cyberdyne 7 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0121",
+      "values": {
+        "name": "Stark 7",
+        "domain": "https://stark-7.example",
+        "employees": 4489,
+        "arr": 11101777,
+        "active": true,
+        "founded": "1986-05-11",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0122",
+      "values": {
+        "name": "Wayne 7",
+        "domain": "https://wayne-7.example",
+        "employees": 4526,
+        "arr": 11193114,
+        "active": true,
+        "founded": "1987-06-12",
+        "stage": "series_b",
+        "notes": "Wayne 7 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0123",
+      "values": {
+        "name": "Tyrell 7",
+        "domain": "https://tyrell-7.example",
+        "employees": 4563,
+        "arr": 11284451,
+        "active": true,
+        "founded": "1988-07-13",
+        "stage": "growth",
+        "notes": "Tyrell 7 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0124",
+      "values": {
+        "name": "Weyland 7",
+        "domain": "https://weyland-7.example",
+        "employees": 4600,
+        "arr": 11375788,
+        "active": true,
+        "founded": "1989-08-14",
+        "stage": "seed",
+        "notes": "Weyland 7 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0125",
+      "values": {
+        "name": "Aperture 7",
+        "domain": "https://aperture-7.example",
+        "employees": 4637,
+        "arr": 11467125,
+        "active": false,
+        "founded": "1990-09-15",
+        "stage": "series_a",
+        "notes": "Aperture 7 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0126",
+      "values": {
+        "name": "Black Mesa 7",
+        "domain": "https://black-mesa-7.example",
+        "employees": 4674,
+        "arr": 11558462,
+        "active": true,
+        "founded": "1991-01-16",
+        "stage": "series_b",
+        "notes": "Black Mesa 7 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0127",
+      "values": {
+        "name": "Oscorp 7",
+        "domain": "https://oscorp-7.example",
+        "employees": 4711,
+        "arr": 11649799,
+        "active": true,
+        "founded": "1992-02-17",
+        "stage": "growth",
+        "notes": "Oscorp 7 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0128",
+      "values": {
+        "name": "Acme 8",
+        "domain": "https://acme-8.example",
+        "employees": 4748,
+        "arr": 11741136,
+        "active": true,
+        "founded": "1993-03-18",
+        "stage": "seed",
+        "notes": "Acme 8 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0129",
+      "values": {
+        "name": "Globex 8",
+        "domain": "https://globex-8.example",
+        "employees": 4785,
+        "arr": 11832473,
+        "active": true,
+        "founded": "1994-04-19",
+        "stage": "series_a",
+        "notes": "Globex 8 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0130",
+      "values": {
+        "name": "Initech 8",
+        "domain": "https://initech-8.example",
+        "employees": 4822,
+        "arr": 11923810,
+        "active": false,
+        "founded": "1995-05-10",
+        "stage": "series_b",
+        "notes": "Initech 8 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0131",
+      "values": {
+        "name": "Umbrella 8",
+        "domain": "https://umbrella-8.example",
+        "employees": 4859,
+        "arr": 12015147,
+        "active": true,
+        "founded": "1996-06-11",
+        "stage": "growth",
+        "notes": "Umbrella 8 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0132",
+      "values": {
+        "name": "Soylent 8",
+        "domain": "https://soylent-8.example",
+        "employees": 4896,
+        "arr": 12106484,
+        "active": true,
+        "founded": "1997-07-12",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0133",
+      "values": {
+        "name": "Hooli 8",
+        "domain": "https://hooli-8.example",
+        "employees": 4933,
+        "arr": 12197821,
+        "active": true,
+        "founded": "1998-08-13",
+        "stage": "series_a",
+        "notes": "Hooli 8 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0134",
+      "values": {
+        "name": "Vehement 8",
+        "domain": "https://vehement-8.example",
+        "employees": 4970,
+        "arr": 12289158,
+        "active": true,
+        "founded": "1999-09-14",
+        "stage": "series_b",
+        "notes": "Vehement 8 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0135",
+      "values": {
+        "name": "Massive Dynamic 8",
+        "domain": "https://massive-dynamic-8.example",
+        "employees": 5007,
+        "arr": 12380495,
+        "active": false,
+        "founded": "2000-01-15",
+        "stage": "growth",
+        "notes": "Massive Dynamic 8 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0136",
+      "values": {
+        "name": "Cyberdyne 8",
+        "domain": "https://cyberdyne-8.example",
+        "employees": 5044,
+        "arr": 12471832,
+        "active": true,
+        "founded": "2001-02-16",
+        "stage": "seed",
+        "notes": "Cyberdyne 8 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0137",
+      "values": {
+        "name": "Stark 8",
+        "domain": "https://stark-8.example",
+        "employees": 5081,
+        "arr": 12563169,
+        "active": true,
+        "founded": "2002-03-17",
+        "stage": "series_a",
+        "notes": "Stark 8 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0138",
+      "values": {
+        "name": "Wayne 8",
+        "domain": "https://wayne-8.example",
+        "employees": 5118,
+        "arr": 12654506,
+        "active": true,
+        "founded": "2003-04-18",
+        "stage": "series_b",
+        "notes": "Wayne 8 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0139",
+      "values": {
+        "name": "Tyrell 8",
+        "domain": "https://tyrell-8.example",
+        "employees": 5155,
+        "arr": 12745843,
+        "active": true,
+        "founded": "2004-05-19",
+        "stage": "growth",
+        "notes": "Tyrell 8 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0140",
+      "values": {
+        "name": "Weyland 8",
+        "domain": "https://weyland-8.example",
+        "employees": 5192,
+        "arr": 12837180,
+        "active": false,
+        "founded": "2005-06-10",
+        "stage": "seed",
+        "notes": "Weyland 8 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0141",
+      "values": {
+        "name": "Aperture 8",
+        "domain": "https://aperture-8.example",
+        "employees": 5229,
+        "arr": 12928517,
+        "active": true,
+        "founded": "2006-07-11",
+        "stage": "series_a",
+        "notes": "Aperture 8 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0142",
+      "values": {
+        "name": "Black Mesa 8",
+        "domain": "https://black-mesa-8.example",
+        "employees": 5266,
+        "arr": 13019854,
+        "active": true,
+        "founded": "2007-08-12",
+        "stage": "series_b",
+        "notes": "Black Mesa 8 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0143",
+      "values": {
+        "name": "Oscorp 8",
+        "domain": "https://oscorp-8.example",
+        "employees": 5303,
+        "arr": 13111191,
+        "active": true,
+        "founded": "2008-09-13",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0144",
+      "values": {
+        "name": "Acme 9",
+        "domain": "https://acme-9.example",
+        "employees": 5340,
+        "arr": 13202528,
+        "active": true,
+        "founded": "2009-01-14",
+        "stage": "seed",
+        "notes": "Acme 9 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0145",
+      "values": {
+        "name": "Globex 9",
+        "domain": "https://globex-9.example",
+        "employees": 5377,
+        "arr": 13293865,
+        "active": false,
+        "founded": "2010-02-15",
+        "stage": "series_a",
+        "notes": "Globex 9 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0146",
+      "values": {
+        "name": "Initech 9",
+        "domain": "https://initech-9.example",
+        "employees": 5414,
+        "arr": 13385202,
+        "active": true,
+        "founded": "2011-03-16",
+        "stage": "series_b",
+        "notes": "Initech 9 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0147",
+      "values": {
+        "name": "Umbrella 9",
+        "domain": "https://umbrella-9.example",
+        "employees": 5451,
+        "arr": 13476539,
+        "active": true,
+        "founded": "2012-04-17",
+        "stage": "growth",
+        "notes": "Umbrella 9 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0148",
+      "values": {
+        "name": "Soylent 9",
+        "domain": "https://soylent-9.example",
+        "employees": 5488,
+        "arr": 13567876,
+        "active": true,
+        "founded": "2013-05-18",
+        "stage": "seed",
+        "notes": "Soylent 9 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0149",
+      "values": {
+        "name": "Hooli 9",
+        "domain": "https://hooli-9.example",
+        "employees": 5525,
+        "arr": 13659213,
+        "active": true,
+        "founded": "2014-06-19",
+        "stage": "series_a",
+        "notes": "Hooli 9 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0150",
+      "values": {
+        "name": "Vehement 9",
+        "domain": "https://vehement-9.example",
+        "employees": 5562,
+        "arr": 13750550,
+        "active": false,
+        "founded": "2015-07-10",
+        "stage": "series_b",
+        "notes": "Vehement 9 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0151",
+      "values": {
+        "name": "Massive Dynamic 9",
+        "domain": "https://massive-dynamic-9.example",
+        "employees": 5599,
+        "arr": 13841887,
+        "active": true,
+        "founded": "2016-08-11",
+        "stage": "growth",
+        "notes": "Massive Dynamic 9 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0152",
+      "values": {
+        "name": "Cyberdyne 9",
+        "domain": "https://cyberdyne-9.example",
+        "employees": 5636,
+        "arr": 13933224,
+        "active": true,
+        "founded": "2017-09-12",
+        "stage": "seed",
+        "notes": "Cyberdyne 9 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0153",
+      "values": {
+        "name": "Stark 9",
+        "domain": "https://stark-9.example",
+        "employees": 5673,
+        "arr": 14024561,
+        "active": true,
+        "founded": "2018-01-13",
+        "stage": "series_a",
+        "notes": "Stark 9 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0154",
+      "values": {
+        "name": "Wayne 9",
+        "domain": "https://wayne-9.example",
+        "employees": 5710,
+        "arr": 14115898,
+        "active": true,
+        "founded": "2019-02-14",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0155",
+      "values": {
+        "name": "Tyrell 9",
+        "domain": "https://tyrell-9.example",
+        "employees": 5747,
+        "arr": 14207235,
+        "active": false,
+        "founded": "2020-03-15",
+        "stage": "growth",
+        "notes": "Tyrell 9 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0156",
+      "values": {
+        "name": "Weyland 9",
+        "domain": "https://weyland-9.example",
+        "employees": 5784,
+        "arr": 14298572,
+        "active": true,
+        "founded": "2021-04-16",
+        "stage": "seed",
+        "notes": "Weyland 9 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0157",
+      "values": {
+        "name": "Aperture 9",
+        "domain": "https://aperture-9.example",
+        "employees": 5821,
+        "arr": 14389909,
+        "active": true,
+        "founded": "2022-05-17",
+        "stage": "series_a",
+        "notes": "Aperture 9 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0158",
+      "values": {
+        "name": "Black Mesa 9",
+        "domain": "https://black-mesa-9.example",
+        "employees": 5858,
+        "arr": 14481246,
+        "active": true,
+        "founded": "2023-06-18",
+        "stage": "series_b",
+        "notes": "Black Mesa 9 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0159",
+      "values": {
+        "name": "Oscorp 9",
+        "domain": "https://oscorp-9.example",
+        "employees": 5895,
+        "arr": 14572583,
+        "active": true,
+        "founded": "2024-07-19",
+        "stage": "growth",
+        "notes": "Oscorp 9 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0160",
+      "values": {
+        "name": "Acme 10",
+        "domain": "https://acme-10.example",
+        "employees": 5932,
+        "arr": 14663920,
+        "active": false,
+        "founded": "1985-08-10",
+        "stage": "seed",
+        "notes": "Acme 10 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0161",
+      "values": {
+        "name": "Globex 10",
+        "domain": "https://globex-10.example",
+        "employees": 5969,
+        "arr": 14755257,
+        "active": true,
+        "founded": "1986-09-11",
+        "stage": "series_a",
+        "notes": "Globex 10 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0162",
+      "values": {
+        "name": "Initech 10",
+        "domain": "https://initech-10.example",
+        "employees": 6006,
+        "arr": 14846594,
+        "active": true,
+        "founded": "1987-01-12",
+        "stage": "series_b",
+        "notes": "Initech 10 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0163",
+      "values": {
+        "name": "Umbrella 10",
+        "domain": "https://umbrella-10.example",
+        "employees": 6043,
+        "arr": 14937931,
+        "active": true,
+        "founded": "1988-02-13",
+        "stage": "growth",
+        "notes": "Umbrella 10 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0164",
+      "values": {
+        "name": "Soylent 10",
+        "domain": "https://soylent-10.example",
+        "employees": 6080,
+        "arr": 15029268,
+        "active": true,
+        "founded": "1989-03-14",
+        "stage": "seed",
+        "notes": "Soylent 10 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0165",
+      "values": {
+        "name": "Hooli 10",
+        "domain": "https://hooli-10.example",
+        "employees": 6117,
+        "arr": 15120605,
+        "active": false,
+        "founded": "1990-04-15",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0166",
+      "values": {
+        "name": "Vehement 10",
+        "domain": "https://vehement-10.example",
+        "employees": 6154,
+        "arr": 15211942,
+        "active": true,
+        "founded": "1991-05-16",
+        "stage": "series_b",
+        "notes": "Vehement 10 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0167",
+      "values": {
+        "name": "Massive Dynamic 10",
+        "domain": "https://massive-dynamic-10.example",
+        "employees": 6191,
+        "arr": 15303279,
+        "active": true,
+        "founded": "1992-06-17",
+        "stage": "growth",
+        "notes": "Massive Dynamic 10 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0168",
+      "values": {
+        "name": "Cyberdyne 10",
+        "domain": "https://cyberdyne-10.example",
+        "employees": 6228,
+        "arr": 15394616,
+        "active": true,
+        "founded": "1993-07-18",
+        "stage": "seed",
+        "notes": "Cyberdyne 10 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0169",
+      "values": {
+        "name": "Stark 10",
+        "domain": "https://stark-10.example",
+        "employees": 6265,
+        "arr": 15485953,
+        "active": true,
+        "founded": "1994-08-19",
+        "stage": "series_a",
+        "notes": "Stark 10 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0170",
+      "values": {
+        "name": "Wayne 10",
+        "domain": "https://wayne-10.example",
+        "employees": 6302,
+        "arr": 15577290,
+        "active": false,
+        "founded": "1995-09-10",
+        "stage": "series_b",
+        "notes": "Wayne 10 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0171",
+      "values": {
+        "name": "Tyrell 10",
+        "domain": "https://tyrell-10.example",
+        "employees": 6339,
+        "arr": 15668627,
+        "active": true,
+        "founded": "1996-01-11",
+        "stage": "growth",
+        "notes": "Tyrell 10 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0172",
+      "values": {
+        "name": "Weyland 10",
+        "domain": "https://weyland-10.example",
+        "employees": 6376,
+        "arr": 15759964,
+        "active": true,
+        "founded": "1997-02-12",
+        "stage": "seed",
+        "notes": "Weyland 10 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0173",
+      "values": {
+        "name": "Aperture 10",
+        "domain": "https://aperture-10.example",
+        "employees": 6413,
+        "arr": 15851301,
+        "active": true,
+        "founded": "1998-03-13",
+        "stage": "series_a",
+        "notes": "Aperture 10 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0174",
+      "values": {
+        "name": "Black Mesa 10",
+        "domain": "https://black-mesa-10.example",
+        "employees": 6450,
+        "arr": 15942638,
+        "active": true,
+        "founded": "1999-04-14",
+        "stage": "series_b",
+        "notes": "Black Mesa 10 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0175",
+      "values": {
+        "name": "Oscorp 10",
+        "domain": "https://oscorp-10.example",
+        "employees": 6487,
+        "arr": 16033975,
+        "active": false,
+        "founded": "2000-05-15",
+        "stage": "growth",
+        "notes": "Oscorp 10 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0176",
+      "values": {
+        "name": "Acme 11",
+        "domain": "https://acme-11.example",
+        "employees": 6524,
+        "arr": 16125312,
+        "active": true,
+        "founded": "2001-06-16",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0177",
+      "values": {
+        "name": "Globex 11",
+        "domain": "https://globex-11.example",
+        "employees": 6561,
+        "arr": 16216649,
+        "active": true,
+        "founded": "2002-07-17",
+        "stage": "series_a",
+        "notes": "Globex 11 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0178",
+      "values": {
+        "name": "Initech 11",
+        "domain": "https://initech-11.example",
+        "employees": 6598,
+        "arr": 16307986,
+        "active": true,
+        "founded": "2003-08-18",
+        "stage": "series_b",
+        "notes": "Initech 11 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0179",
+      "values": {
+        "name": "Umbrella 11",
+        "domain": "https://umbrella-11.example",
+        "employees": 6635,
+        "arr": 16399323,
+        "active": true,
+        "founded": "2004-09-19",
+        "stage": "growth",
+        "notes": "Umbrella 11 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0180",
+      "values": {
+        "name": "Soylent 11",
+        "domain": "https://soylent-11.example",
+        "employees": 6672,
+        "arr": 16490660,
+        "active": false,
+        "founded": "2005-01-10",
+        "stage": "seed",
+        "notes": "Soylent 11 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0181",
+      "values": {
+        "name": "Hooli 11",
+        "domain": "https://hooli-11.example",
+        "employees": 6709,
+        "arr": 16581997,
+        "active": true,
+        "founded": "2006-02-11",
+        "stage": "series_a",
+        "notes": "Hooli 11 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0182",
+      "values": {
+        "name": "Vehement 11",
+        "domain": "https://vehement-11.example",
+        "employees": 6746,
+        "arr": 16673334,
+        "active": true,
+        "founded": "2007-03-12",
+        "stage": "series_b",
+        "notes": "Vehement 11 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0183",
+      "values": {
+        "name": "Massive Dynamic 11",
+        "domain": "https://massive-dynamic-11.example",
+        "employees": 6783,
+        "arr": 16764671,
+        "active": true,
+        "founded": "2008-04-13",
+        "stage": "growth",
+        "notes": "Massive Dynamic 11 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0184",
+      "values": {
+        "name": "Cyberdyne 11",
+        "domain": "https://cyberdyne-11.example",
+        "employees": 6820,
+        "arr": 16856008,
+        "active": true,
+        "founded": "2009-05-14",
+        "stage": "seed",
+        "notes": "Cyberdyne 11 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0185",
+      "values": {
+        "name": "Stark 11",
+        "domain": "https://stark-11.example",
+        "employees": 6857,
+        "arr": 16947345,
+        "active": false,
+        "founded": "2010-06-15",
+        "stage": "series_a",
+        "notes": "Stark 11 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0186",
+      "values": {
+        "name": "Wayne 11",
+        "domain": "https://wayne-11.example",
+        "employees": 6894,
+        "arr": 17038682,
+        "active": true,
+        "founded": "2011-07-16",
+        "stage": "series_b",
+        "notes": "Wayne 11 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0187",
+      "values": {
+        "name": "Tyrell 11",
+        "domain": "https://tyrell-11.example",
+        "employees": 6931,
+        "arr": 17130019,
+        "active": true,
+        "founded": "2012-08-17",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0188",
+      "values": {
+        "name": "Weyland 11",
+        "domain": "https://weyland-11.example",
+        "employees": 6968,
+        "arr": 17221356,
+        "active": true,
+        "founded": "2013-09-18",
+        "stage": "seed",
+        "notes": "Weyland 11 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0189",
+      "values": {
+        "name": "Aperture 11",
+        "domain": "https://aperture-11.example",
+        "employees": 7005,
+        "arr": 17312693,
+        "active": true,
+        "founded": "2014-01-19",
+        "stage": "series_a",
+        "notes": "Aperture 11 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0190",
+      "values": {
+        "name": "Black Mesa 11",
+        "domain": "https://black-mesa-11.example",
+        "employees": 7042,
+        "arr": 17404030,
+        "active": false,
+        "founded": "2015-02-10",
+        "stage": "series_b",
+        "notes": "Black Mesa 11 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0191",
+      "values": {
+        "name": "Oscorp 11",
+        "domain": "https://oscorp-11.example",
+        "employees": 7079,
+        "arr": 17495367,
+        "active": true,
+        "founded": "2016-03-11",
+        "stage": "growth",
+        "notes": "Oscorp 11 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0192",
+      "values": {
+        "name": "Acme 12",
+        "domain": "https://acme-12.example",
+        "employees": 7116,
+        "arr": 17586704,
+        "active": true,
+        "founded": "2017-04-12",
+        "stage": "seed",
+        "notes": "Acme 12 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0193",
+      "values": {
+        "name": "Globex 12",
+        "domain": "https://globex-12.example",
+        "employees": 7153,
+        "arr": 17678041,
+        "active": true,
+        "founded": "2018-05-13",
+        "stage": "series_a",
+        "notes": "Globex 12 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0194",
+      "values": {
+        "name": "Initech 12",
+        "domain": "https://initech-12.example",
+        "employees": 7190,
+        "arr": 17769378,
+        "active": true,
+        "founded": "2019-06-14",
+        "stage": "series_b",
+        "notes": "Initech 12 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0195",
+      "values": {
+        "name": "Umbrella 12",
+        "domain": "https://umbrella-12.example",
+        "employees": 7227,
+        "arr": 17860715,
+        "active": false,
+        "founded": "2020-07-15",
+        "stage": "growth",
+        "notes": "Umbrella 12 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0196",
+      "values": {
+        "name": "Soylent 12",
+        "domain": "https://soylent-12.example",
+        "employees": 7264,
+        "arr": 17952052,
+        "active": true,
+        "founded": "2021-08-16",
+        "stage": "seed",
+        "notes": "Soylent 12 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0197",
+      "values": {
+        "name": "Hooli 12",
+        "domain": "https://hooli-12.example",
+        "employees": 7301,
+        "arr": 18043389,
+        "active": true,
+        "founded": "2022-09-17",
+        "stage": "series_a",
+        "notes": "Hooli 12 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0198",
+      "values": {
+        "name": "Vehement 12",
+        "domain": "https://vehement-12.example",
+        "employees": 7338,
+        "arr": 18134726,
+        "active": true,
+        "founded": "2023-01-18",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0199",
+      "values": {
+        "name": "Massive Dynamic 12",
+        "domain": "https://massive-dynamic-12.example",
+        "employees": 7375,
+        "arr": 18226063,
+        "active": true,
+        "founded": "2024-02-19",
+        "stage": "growth",
+        "notes": "Massive Dynamic 12 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0200",
+      "values": {
+        "name": "Cyberdyne 12",
+        "domain": "https://cyberdyne-12.example",
+        "employees": 7412,
+        "arr": 18317400,
+        "active": false,
+        "founded": "1985-03-10",
+        "stage": "seed",
+        "notes": "Cyberdyne 12 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0201",
+      "values": {
+        "name": "Stark 12",
+        "domain": "https://stark-12.example",
+        "employees": 7449,
+        "arr": 18408737,
+        "active": true,
+        "founded": "1986-04-11",
+        "stage": "series_a",
+        "notes": "Stark 12 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0202",
+      "values": {
+        "name": "Wayne 12",
+        "domain": "https://wayne-12.example",
+        "employees": 7486,
+        "arr": 18500074,
+        "active": true,
+        "founded": "1987-05-12",
+        "stage": "series_b",
+        "notes": "Wayne 12 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0203",
+      "values": {
+        "name": "Tyrell 12",
+        "domain": "https://tyrell-12.example",
+        "employees": 7523,
+        "arr": 18591411,
+        "active": true,
+        "founded": "1988-06-13",
+        "stage": "growth",
+        "notes": "Tyrell 12 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0204",
+      "values": {
+        "name": "Weyland 12",
+        "domain": "https://weyland-12.example",
+        "employees": 7560,
+        "arr": 18682748,
+        "active": true,
+        "founded": "1989-07-14",
+        "stage": "seed",
+        "notes": "Weyland 12 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0205",
+      "values": {
+        "name": "Aperture 12",
+        "domain": "https://aperture-12.example",
+        "employees": 7597,
+        "arr": 18774085,
+        "active": false,
+        "founded": "1990-08-15",
+        "stage": "series_a",
+        "notes": "Aperture 12 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0206",
+      "values": {
+        "name": "Black Mesa 12",
+        "domain": "https://black-mesa-12.example",
+        "employees": 7634,
+        "arr": 18865422,
+        "active": true,
+        "founded": "1991-09-16",
+        "stage": "series_b",
+        "notes": "Black Mesa 12 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0207",
+      "values": {
+        "name": "Oscorp 12",
+        "domain": "https://oscorp-12.example",
+        "employees": 7671,
+        "arr": 18956759,
+        "active": true,
+        "founded": "1992-01-17",
+        "stage": "growth",
+        "notes": "Oscorp 12 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0208",
+      "values": {
+        "name": "Acme 13",
+        "domain": "https://acme-13.example",
+        "employees": 7708,
+        "arr": 19048096,
+        "active": true,
+        "founded": "1993-02-18",
+        "stage": "seed",
+        "notes": "Acme 13 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0209",
+      "values": {
+        "name": "Globex 13",
+        "domain": "https://globex-13.example",
+        "employees": 7745,
+        "arr": 19139433,
+        "active": true,
+        "founded": "1994-03-19",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0210",
+      "values": {
+        "name": "Initech 13",
+        "domain": "https://initech-13.example",
+        "employees": 7782,
+        "arr": 19230770,
+        "active": false,
+        "founded": "1995-04-10",
+        "stage": "series_b",
+        "notes": "Initech 13 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0211",
+      "values": {
+        "name": "Umbrella 13",
+        "domain": "https://umbrella-13.example",
+        "employees": 7819,
+        "arr": 19322107,
+        "active": true,
+        "founded": "1996-05-11",
+        "stage": "growth",
+        "notes": "Umbrella 13 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0212",
+      "values": {
+        "name": "Soylent 13",
+        "domain": "https://soylent-13.example",
+        "employees": 7856,
+        "arr": 19413444,
+        "active": true,
+        "founded": "1997-06-12",
+        "stage": "seed",
+        "notes": "Soylent 13 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0213",
+      "values": {
+        "name": "Hooli 13",
+        "domain": "https://hooli-13.example",
+        "employees": 7893,
+        "arr": 19504781,
+        "active": true,
+        "founded": "1998-07-13",
+        "stage": "series_a",
+        "notes": "Hooli 13 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0214",
+      "values": {
+        "name": "Vehement 13",
+        "domain": "https://vehement-13.example",
+        "employees": 7930,
+        "arr": 19596118,
+        "active": true,
+        "founded": "1999-08-14",
+        "stage": "series_b",
+        "notes": "Vehement 13 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0215",
+      "values": {
+        "name": "Massive Dynamic 13",
+        "domain": "https://massive-dynamic-13.example",
+        "employees": 7967,
+        "arr": 19687455,
+        "active": false,
+        "founded": "2000-09-15",
+        "stage": "growth",
+        "notes": "Massive Dynamic 13 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0216",
+      "values": {
+        "name": "Cyberdyne 13",
+        "domain": "https://cyberdyne-13.example",
+        "employees": 8004,
+        "arr": 19778792,
+        "active": true,
+        "founded": "2001-01-16",
+        "stage": "seed",
+        "notes": "Cyberdyne 13 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0217",
+      "values": {
+        "name": "Stark 13",
+        "domain": "https://stark-13.example",
+        "employees": 8041,
+        "arr": 19870129,
+        "active": true,
+        "founded": "2002-02-17",
+        "stage": "series_a",
+        "notes": "Stark 13 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0218",
+      "values": {
+        "name": "Wayne 13",
+        "domain": "https://wayne-13.example",
+        "employees": 8078,
+        "arr": 19961466,
+        "active": true,
+        "founded": "2003-03-18",
+        "stage": "series_b",
+        "notes": "Wayne 13 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0219",
+      "values": {
+        "name": "Tyrell 13",
+        "domain": "https://tyrell-13.example",
+        "employees": 8115,
+        "arr": 20052803,
+        "active": true,
+        "founded": "2004-04-19",
+        "stage": "growth",
+        "notes": "Tyrell 13 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0220",
+      "values": {
+        "name": "Weyland 13",
+        "domain": "https://weyland-13.example",
+        "employees": 8152,
+        "arr": 20144140,
+        "active": false,
+        "founded": "2005-05-10",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0221",
+      "values": {
+        "name": "Aperture 13",
+        "domain": "https://aperture-13.example",
+        "employees": 8189,
+        "arr": 20235477,
+        "active": true,
+        "founded": "2006-06-11",
+        "stage": "series_a",
+        "notes": "Aperture 13 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0222",
+      "values": {
+        "name": "Black Mesa 13",
+        "domain": "https://black-mesa-13.example",
+        "employees": 8226,
+        "arr": 20326814,
+        "active": true,
+        "founded": "2007-07-12",
+        "stage": "series_b",
+        "notes": "Black Mesa 13 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0223",
+      "values": {
+        "name": "Oscorp 13",
+        "domain": "https://oscorp-13.example",
+        "employees": 8263,
+        "arr": 20418151,
+        "active": true,
+        "founded": "2008-08-13",
+        "stage": "growth",
+        "notes": "Oscorp 13 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0224",
+      "values": {
+        "name": "Acme 14",
+        "domain": "https://acme-14.example",
+        "employees": 8300,
+        "arr": 20509488,
+        "active": true,
+        "founded": "2009-09-14",
+        "stage": "seed",
+        "notes": "Acme 14 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0225",
+      "values": {
+        "name": "Globex 14",
+        "domain": "https://globex-14.example",
+        "employees": 8337,
+        "arr": 20600825,
+        "active": false,
+        "founded": "2010-01-15",
+        "stage": "series_a",
+        "notes": "Globex 14 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0226",
+      "values": {
+        "name": "Initech 14",
+        "domain": "https://initech-14.example",
+        "employees": 8374,
+        "arr": 20692162,
+        "active": true,
+        "founded": "2011-02-16",
+        "stage": "series_b",
+        "notes": "Initech 14 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0227",
+      "values": {
+        "name": "Umbrella 14",
+        "domain": "https://umbrella-14.example",
+        "employees": 8411,
+        "arr": 20783499,
+        "active": true,
+        "founded": "2012-03-17",
+        "stage": "growth",
+        "notes": "Umbrella 14 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0228",
+      "values": {
+        "name": "Soylent 14",
+        "domain": "https://soylent-14.example",
+        "employees": 8448,
+        "arr": 20874836,
+        "active": true,
+        "founded": "2013-04-18",
+        "stage": "seed",
+        "notes": "Soylent 14 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0229",
+      "values": {
+        "name": "Hooli 14",
+        "domain": "https://hooli-14.example",
+        "employees": 8485,
+        "arr": 20966173,
+        "active": true,
+        "founded": "2014-05-19",
+        "stage": "series_a",
+        "notes": "Hooli 14 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0230",
+      "values": {
+        "name": "Vehement 14",
+        "domain": "https://vehement-14.example",
+        "employees": 8522,
+        "arr": 21057510,
+        "active": false,
+        "founded": "2015-06-10",
+        "stage": "series_b",
+        "notes": "Vehement 14 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0231",
+      "values": {
+        "name": "Massive Dynamic 14",
+        "domain": "https://massive-dynamic-14.example",
+        "employees": 8559,
+        "arr": 21148847,
+        "active": true,
+        "founded": "2016-07-11",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0232",
+      "values": {
+        "name": "Cyberdyne 14",
+        "domain": "https://cyberdyne-14.example",
+        "employees": 8596,
+        "arr": 21240184,
+        "active": true,
+        "founded": "2017-08-12",
+        "stage": "seed",
+        "notes": "Cyberdyne 14 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0233",
+      "values": {
+        "name": "Stark 14",
+        "domain": "https://stark-14.example",
+        "employees": 8633,
+        "arr": 21331521,
+        "active": true,
+        "founded": "2018-09-13",
+        "stage": "series_a",
+        "notes": "Stark 14 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0234",
+      "values": {
+        "name": "Wayne 14",
+        "domain": "https://wayne-14.example",
+        "employees": 8670,
+        "arr": 21422858,
+        "active": true,
+        "founded": "2019-01-14",
+        "stage": "series_b",
+        "notes": "Wayne 14 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0235",
+      "values": {
+        "name": "Tyrell 14",
+        "domain": "https://tyrell-14.example",
+        "employees": 8707,
+        "arr": 21514195,
+        "active": false,
+        "founded": "2020-02-15",
+        "stage": "growth",
+        "notes": "Tyrell 14 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0236",
+      "values": {
+        "name": "Weyland 14",
+        "domain": "https://weyland-14.example",
+        "employees": 8744,
+        "arr": 21605532,
+        "active": true,
+        "founded": "2021-03-16",
+        "stage": "seed",
+        "notes": "Weyland 14 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0237",
+      "values": {
+        "name": "Aperture 14",
+        "domain": "https://aperture-14.example",
+        "employees": 8781,
+        "arr": 21696869,
+        "active": true,
+        "founded": "2022-04-17",
+        "stage": "series_a",
+        "notes": "Aperture 14 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0238",
+      "values": {
+        "name": "Black Mesa 14",
+        "domain": "https://black-mesa-14.example",
+        "employees": 8818,
+        "arr": 21788206,
+        "active": true,
+        "founded": "2023-05-18",
+        "stage": "series_b",
+        "notes": "Black Mesa 14 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0239",
+      "values": {
+        "name": "Oscorp 14",
+        "domain": "https://oscorp-14.example",
+        "employees": 8855,
+        "arr": 21879543,
+        "active": true,
+        "founded": "2024-06-19",
+        "stage": "growth",
+        "notes": "Oscorp 14 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0240",
+      "values": {
+        "name": "Acme 15",
+        "domain": "https://acme-15.example",
+        "employees": 8892,
+        "arr": 21970880,
+        "active": false,
+        "founded": "1985-07-10",
+        "stage": "seed",
+        "notes": "Acme 15 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0241",
+      "values": {
+        "name": "Globex 15",
+        "domain": "https://globex-15.example",
+        "employees": 8929,
+        "arr": 22062217,
+        "active": true,
+        "founded": "1986-08-11",
+        "stage": "series_a",
+        "notes": "Globex 15 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0242",
+      "values": {
+        "name": "Initech 15",
+        "domain": "https://initech-15.example",
+        "employees": 8966,
+        "arr": 22153554,
+        "active": true,
+        "founded": "1987-09-12",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0243",
+      "values": {
+        "name": "Umbrella 15",
+        "domain": "https://umbrella-15.example",
+        "employees": 9003,
+        "arr": 22244891,
+        "active": true,
+        "founded": "1988-01-13",
+        "stage": "growth",
+        "notes": "Umbrella 15 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0244",
+      "values": {
+        "name": "Soylent 15",
+        "domain": "https://soylent-15.example",
+        "employees": 40,
+        "arr": 22336228,
+        "active": true,
+        "founded": "1989-02-14",
+        "stage": "seed",
+        "notes": "Soylent 15 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0245",
+      "values": {
+        "name": "Hooli 15",
+        "domain": "https://hooli-15.example",
+        "employees": 77,
+        "arr": 22427565,
+        "active": false,
+        "founded": "1990-03-15",
+        "stage": "series_a",
+        "notes": "Hooli 15 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0246",
+      "values": {
+        "name": "Vehement 15",
+        "domain": "https://vehement-15.example",
+        "employees": 114,
+        "arr": 22518902,
+        "active": true,
+        "founded": "1991-04-16",
+        "stage": "series_b",
+        "notes": "Vehement 15 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0247",
+      "values": {
+        "name": "Massive Dynamic 15",
+        "domain": "https://massive-dynamic-15.example",
+        "employees": 151,
+        "arr": 22610239,
+        "active": true,
+        "founded": "1992-05-17",
+        "stage": "growth",
+        "notes": "Massive Dynamic 15 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0248",
+      "values": {
+        "name": "Cyberdyne 15",
+        "domain": "https://cyberdyne-15.example",
+        "employees": 188,
+        "arr": 22701576,
+        "active": true,
+        "founded": "1993-06-18",
+        "stage": "seed",
+        "notes": "Cyberdyne 15 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0249",
+      "values": {
+        "name": "Stark 15",
+        "domain": "https://stark-15.example",
+        "employees": 225,
+        "arr": 22792913,
+        "active": true,
+        "founded": "1994-07-19",
+        "stage": "series_a",
+        "notes": "Stark 15 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0250",
+      "values": {
+        "name": "Wayne 15",
+        "domain": "https://wayne-15.example",
+        "employees": 262,
+        "arr": 22884250,
+        "active": false,
+        "founded": "1995-08-10",
+        "stage": "series_b",
+        "notes": "Wayne 15 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0251",
+      "values": {
+        "name": "Tyrell 15",
+        "domain": "https://tyrell-15.example",
+        "employees": 299,
+        "arr": 22975587,
+        "active": true,
+        "founded": "1996-09-11",
+        "stage": "growth",
+        "notes": "Tyrell 15 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0252",
+      "values": {
+        "name": "Weyland 15",
+        "domain": "https://weyland-15.example",
+        "employees": 336,
+        "arr": 23066924,
+        "active": true,
+        "founded": "1997-01-12",
+        "stage": "seed",
+        "notes": "Weyland 15 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0253",
+      "values": {
+        "name": "Aperture 15",
+        "domain": "https://aperture-15.example",
+        "employees": 373,
+        "arr": 23158261,
+        "active": true,
+        "founded": "1998-02-13",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0254",
+      "values": {
+        "name": "Black Mesa 15",
+        "domain": "https://black-mesa-15.example",
+        "employees": 410,
+        "arr": 23249598,
+        "active": true,
+        "founded": "1999-03-14",
+        "stage": "series_b",
+        "notes": "Black Mesa 15 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0255",
+      "values": {
+        "name": "Oscorp 15",
+        "domain": "https://oscorp-15.example",
+        "employees": 447,
+        "arr": 23340935,
+        "active": false,
+        "founded": "2000-04-15",
+        "stage": "growth",
+        "notes": "Oscorp 15 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0256",
+      "values": {
+        "name": "Acme 16",
+        "domain": "https://acme-16.example",
+        "employees": 484,
+        "arr": 23432272,
+        "active": true,
+        "founded": "2001-05-16",
+        "stage": "seed",
+        "notes": "Acme 16 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0257",
+      "values": {
+        "name": "Globex 16",
+        "domain": "https://globex-16.example",
+        "employees": 521,
+        "arr": 23523609,
+        "active": true,
+        "founded": "2002-06-17",
+        "stage": "series_a",
+        "notes": "Globex 16 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0258",
+      "values": {
+        "name": "Initech 16",
+        "domain": "https://initech-16.example",
+        "employees": 558,
+        "arr": 23614946,
+        "active": true,
+        "founded": "2003-07-18",
+        "stage": "series_b",
+        "notes": "Initech 16 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0259",
+      "values": {
+        "name": "Umbrella 16",
+        "domain": "https://umbrella-16.example",
+        "employees": 595,
+        "arr": 23706283,
+        "active": true,
+        "founded": "2004-08-19",
+        "stage": "growth",
+        "notes": "Umbrella 16 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0260",
+      "values": {
+        "name": "Soylent 16",
+        "domain": "https://soylent-16.example",
+        "employees": 632,
+        "arr": 23797620,
+        "active": false,
+        "founded": "2005-09-10",
+        "stage": "seed",
+        "notes": "Soylent 16 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0261",
+      "values": {
+        "name": "Hooli 16",
+        "domain": "https://hooli-16.example",
+        "employees": 669,
+        "arr": 23888957,
+        "active": true,
+        "founded": "2006-01-11",
+        "stage": "series_a",
+        "notes": "Hooli 16 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0262",
+      "values": {
+        "name": "Vehement 16",
+        "domain": "https://vehement-16.example",
+        "employees": 706,
+        "arr": 23980294,
+        "active": true,
+        "founded": "2007-02-12",
+        "stage": "series_b",
+        "notes": "Vehement 16 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0263",
+      "values": {
+        "name": "Massive Dynamic 16",
+        "domain": "https://massive-dynamic-16.example",
+        "employees": 743,
+        "arr": 24071631,
+        "active": true,
+        "founded": "2008-03-13",
+        "stage": "growth",
+        "notes": "Massive Dynamic 16 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0264",
+      "values": {
+        "name": "Cyberdyne 16",
+        "domain": "https://cyberdyne-16.example",
+        "employees": 780,
+        "arr": 24162968,
+        "active": true,
+        "founded": "2009-04-14",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0265",
+      "values": {
+        "name": "Stark 16",
+        "domain": "https://stark-16.example",
+        "employees": 817,
+        "arr": 24254305,
+        "active": false,
+        "founded": "2010-05-15",
+        "stage": "series_a",
+        "notes": "Stark 16 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0266",
+      "values": {
+        "name": "Wayne 16",
+        "domain": "https://wayne-16.example",
+        "employees": 854,
+        "arr": 24345642,
+        "active": true,
+        "founded": "2011-06-16",
+        "stage": "series_b",
+        "notes": "Wayne 16 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0267",
+      "values": {
+        "name": "Tyrell 16",
+        "domain": "https://tyrell-16.example",
+        "employees": 891,
+        "arr": 24436979,
+        "active": true,
+        "founded": "2012-07-17",
+        "stage": "growth",
+        "notes": "Tyrell 16 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0268",
+      "values": {
+        "name": "Weyland 16",
+        "domain": "https://weyland-16.example",
+        "employees": 928,
+        "arr": 24528316,
+        "active": true,
+        "founded": "2013-08-18",
+        "stage": "seed",
+        "notes": "Weyland 16 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0269",
+      "values": {
+        "name": "Aperture 16",
+        "domain": "https://aperture-16.example",
+        "employees": 965,
+        "arr": 24619653,
+        "active": true,
+        "founded": "2014-09-19",
+        "stage": "series_a",
+        "notes": "Aperture 16 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0270",
+      "values": {
+        "name": "Black Mesa 16",
+        "domain": "https://black-mesa-16.example",
+        "employees": 1002,
+        "arr": 24710990,
+        "active": false,
+        "founded": "2015-01-10",
+        "stage": "series_b",
+        "notes": "Black Mesa 16 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0271",
+      "values": {
+        "name": "Oscorp 16",
+        "domain": "https://oscorp-16.example",
+        "employees": 1039,
+        "arr": 24802327,
+        "active": true,
+        "founded": "2016-02-11",
+        "stage": "growth",
+        "notes": "Oscorp 16 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0272",
+      "values": {
+        "name": "Acme 17",
+        "domain": "https://acme-17.example",
+        "employees": 1076,
+        "arr": 24893664,
+        "active": true,
+        "founded": "2017-03-12",
+        "stage": "seed",
+        "notes": "Acme 17 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0273",
+      "values": {
+        "name": "Globex 17",
+        "domain": "https://globex-17.example",
+        "employees": 1113,
+        "arr": 24985001,
+        "active": true,
+        "founded": "2018-04-13",
+        "stage": "series_a",
+        "notes": "Globex 17 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0274",
+      "values": {
+        "name": "Initech 17",
+        "domain": "https://initech-17.example",
+        "employees": 1150,
+        "arr": 25076338,
+        "active": true,
+        "founded": "2019-05-14",
+        "stage": "series_b",
+        "notes": "Initech 17 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0275",
+      "values": {
+        "name": "Umbrella 17",
+        "domain": "https://umbrella-17.example",
+        "employees": 1187,
+        "arr": 25167675,
+        "active": false,
+        "founded": "2020-06-15",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0276",
+      "values": {
+        "name": "Soylent 17",
+        "domain": "https://soylent-17.example",
+        "employees": 1224,
+        "arr": 25259012,
+        "active": true,
+        "founded": "2021-07-16",
+        "stage": "seed",
+        "notes": "Soylent 17 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0277",
+      "values": {
+        "name": "Hooli 17",
+        "domain": "https://hooli-17.example",
+        "employees": 1261,
+        "arr": 25350349,
+        "active": true,
+        "founded": "2022-08-17",
+        "stage": "series_a",
+        "notes": "Hooli 17 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0278",
+      "values": {
+        "name": "Vehement 17",
+        "domain": "https://vehement-17.example",
+        "employees": 1298,
+        "arr": 25441686,
+        "active": true,
+        "founded": "2023-09-18",
+        "stage": "series_b",
+        "notes": "Vehement 17 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0279",
+      "values": {
+        "name": "Massive Dynamic 17",
+        "domain": "https://massive-dynamic-17.example",
+        "employees": 1335,
+        "arr": 25533023,
+        "active": true,
+        "founded": "2024-01-19",
+        "stage": "growth",
+        "notes": "Massive Dynamic 17 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0280",
+      "values": {
+        "name": "Cyberdyne 17",
+        "domain": "https://cyberdyne-17.example",
+        "employees": 1372,
+        "arr": 25624360,
+        "active": false,
+        "founded": "1985-02-10",
+        "stage": "seed",
+        "notes": "Cyberdyne 17 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0281",
+      "values": {
+        "name": "Stark 17",
+        "domain": "https://stark-17.example",
+        "employees": 1409,
+        "arr": 25715697,
+        "active": true,
+        "founded": "1986-03-11",
+        "stage": "series_a",
+        "notes": "Stark 17 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0282",
+      "values": {
+        "name": "Wayne 17",
+        "domain": "https://wayne-17.example",
+        "employees": 1446,
+        "arr": 25807034,
+        "active": true,
+        "founded": "1987-04-12",
+        "stage": "series_b",
+        "notes": "Wayne 17 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0283",
+      "values": {
+        "name": "Tyrell 17",
+        "domain": "https://tyrell-17.example",
+        "employees": 1483,
+        "arr": 25898371,
+        "active": true,
+        "founded": "1988-05-13",
+        "stage": "growth",
+        "notes": "Tyrell 17 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0284",
+      "values": {
+        "name": "Weyland 17",
+        "domain": "https://weyland-17.example",
+        "employees": 1520,
+        "arr": 25989708,
+        "active": true,
+        "founded": "1989-06-14",
+        "stage": "seed",
+        "notes": "Weyland 17 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0285",
+      "values": {
+        "name": "Aperture 17",
+        "domain": "https://aperture-17.example",
+        "employees": 1557,
+        "arr": 26081045,
+        "active": false,
+        "founded": "1990-07-15",
+        "stage": "series_a",
+        "notes": "Aperture 17 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0286",
+      "values": {
+        "name": "Black Mesa 17",
+        "domain": "https://black-mesa-17.example",
+        "employees": 1594,
+        "arr": 26172382,
+        "active": true,
+        "founded": "1991-08-16",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0287",
+      "values": {
+        "name": "Oscorp 17",
+        "domain": "https://oscorp-17.example",
+        "employees": 1631,
+        "arr": 26263719,
+        "active": true,
+        "founded": "1992-09-17",
+        "stage": "growth",
+        "notes": "Oscorp 17 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0288",
+      "values": {
+        "name": "Acme 18",
+        "domain": "https://acme-18.example",
+        "employees": 1668,
+        "arr": 26355056,
+        "active": true,
+        "founded": "1993-01-18",
+        "stage": "seed",
+        "notes": "Acme 18 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0289",
+      "values": {
+        "name": "Globex 18",
+        "domain": "https://globex-18.example",
+        "employees": 1705,
+        "arr": 26446393,
+        "active": true,
+        "founded": "1994-02-19",
+        "stage": "series_a",
+        "notes": "Globex 18 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0290",
+      "values": {
+        "name": "Initech 18",
+        "domain": "https://initech-18.example",
+        "employees": 1742,
+        "arr": 26537730,
+        "active": false,
+        "founded": "1995-03-10",
+        "stage": "series_b",
+        "notes": "Initech 18 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0291",
+      "values": {
+        "name": "Umbrella 18",
+        "domain": "https://umbrella-18.example",
+        "employees": 1779,
+        "arr": 26629067,
+        "active": true,
+        "founded": "1996-04-11",
+        "stage": "growth",
+        "notes": "Umbrella 18 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0292",
+      "values": {
+        "name": "Soylent 18",
+        "domain": "https://soylent-18.example",
+        "employees": 1816,
+        "arr": 26720404,
+        "active": true,
+        "founded": "1997-05-12",
+        "stage": "seed",
+        "notes": "Soylent 18 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0293",
+      "values": {
+        "name": "Hooli 18",
+        "domain": "https://hooli-18.example",
+        "employees": 1853,
+        "arr": 26811741,
+        "active": true,
+        "founded": "1998-06-13",
+        "stage": "series_a",
+        "notes": "Hooli 18 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0294",
+      "values": {
+        "name": "Vehement 18",
+        "domain": "https://vehement-18.example",
+        "employees": 1890,
+        "arr": 26903078,
+        "active": true,
+        "founded": "1999-07-14",
+        "stage": "series_b",
+        "notes": "Vehement 18 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0295",
+      "values": {
+        "name": "Massive Dynamic 18",
+        "domain": "https://massive-dynamic-18.example",
+        "employees": 1927,
+        "arr": 26994415,
+        "active": false,
+        "founded": "2000-08-15",
+        "stage": "growth",
+        "notes": "Massive Dynamic 18 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0296",
+      "values": {
+        "name": "Cyberdyne 18",
+        "domain": "https://cyberdyne-18.example",
+        "employees": 1964,
+        "arr": 27085752,
+        "active": true,
+        "founded": "2001-09-16",
+        "stage": "seed",
+        "notes": "Cyberdyne 18 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0297",
+      "values": {
+        "name": "Stark 18",
+        "domain": "https://stark-18.example",
+        "employees": 2001,
+        "arr": 27177089,
+        "active": true,
+        "founded": "2002-01-17",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0298",
+      "values": {
+        "name": "Wayne 18",
+        "domain": "https://wayne-18.example",
+        "employees": 2038,
+        "arr": 27268426,
+        "active": true,
+        "founded": "2003-02-18",
+        "stage": "series_b",
+        "notes": "Wayne 18 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0299",
+      "values": {
+        "name": "Tyrell 18",
+        "domain": "https://tyrell-18.example",
+        "employees": 2075,
+        "arr": 27359763,
+        "active": true,
+        "founded": "2004-03-19",
+        "stage": "growth",
+        "notes": "Tyrell 18 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0300",
+      "values": {
+        "name": "Weyland 18",
+        "domain": "https://weyland-18.example",
+        "employees": 2112,
+        "arr": 27451100,
+        "active": false,
+        "founded": "2005-04-10",
+        "stage": "seed",
+        "notes": "Weyland 18 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0301",
+      "values": {
+        "name": "Aperture 18",
+        "domain": "https://aperture-18.example",
+        "employees": 2149,
+        "arr": 27542437,
+        "active": true,
+        "founded": "2006-05-11",
+        "stage": "series_a",
+        "notes": "Aperture 18 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0302",
+      "values": {
+        "name": "Black Mesa 18",
+        "domain": "https://black-mesa-18.example",
+        "employees": 2186,
+        "arr": 27633774,
+        "active": true,
+        "founded": "2007-06-12",
+        "stage": "series_b",
+        "notes": "Black Mesa 18 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0303",
+      "values": {
+        "name": "Oscorp 18",
+        "domain": "https://oscorp-18.example",
+        "employees": 2223,
+        "arr": 27725111,
+        "active": true,
+        "founded": "2008-07-13",
+        "stage": "growth",
+        "notes": "Oscorp 18 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0304",
+      "values": {
+        "name": "Acme 19",
+        "domain": "https://acme-19.example",
+        "employees": 2260,
+        "arr": 27816448,
+        "active": true,
+        "founded": "2009-08-14",
+        "stage": "seed",
+        "notes": "Acme 19 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0305",
+      "values": {
+        "name": "Globex 19",
+        "domain": "https://globex-19.example",
+        "employees": 2297,
+        "arr": 27907785,
+        "active": false,
+        "founded": "2010-09-15",
+        "stage": "series_a",
+        "notes": "Globex 19 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0306",
+      "values": {
+        "name": "Initech 19",
+        "domain": "https://initech-19.example",
+        "employees": 2334,
+        "arr": 27999122,
+        "active": true,
+        "founded": "2011-01-16",
+        "stage": "series_b",
+        "notes": "Initech 19 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0307",
+      "values": {
+        "name": "Umbrella 19",
+        "domain": "https://umbrella-19.example",
+        "employees": 2371,
+        "arr": 28090459,
+        "active": true,
+        "founded": "2012-02-17",
+        "stage": "growth",
+        "notes": "Umbrella 19 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0308",
+      "values": {
+        "name": "Soylent 19",
+        "domain": "https://soylent-19.example",
+        "employees": 2408,
+        "arr": 28181796,
+        "active": true,
+        "founded": "2013-03-18",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0309",
+      "values": {
+        "name": "Hooli 19",
+        "domain": "https://hooli-19.example",
+        "employees": 2445,
+        "arr": 28273133,
+        "active": true,
+        "founded": "2014-04-19",
+        "stage": "series_a",
+        "notes": "Hooli 19 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0310",
+      "values": {
+        "name": "Vehement 19",
+        "domain": "https://vehement-19.example",
+        "employees": 2482,
+        "arr": 28364470,
+        "active": false,
+        "founded": "2015-05-10",
+        "stage": "series_b",
+        "notes": "Vehement 19 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0311",
+      "values": {
+        "name": "Massive Dynamic 19",
+        "domain": "https://massive-dynamic-19.example",
+        "employees": 2519,
+        "arr": 28455807,
+        "active": true,
+        "founded": "2016-06-11",
+        "stage": "growth",
+        "notes": "Massive Dynamic 19 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0312",
+      "values": {
+        "name": "Cyberdyne 19",
+        "domain": "https://cyberdyne-19.example",
+        "employees": 2556,
+        "arr": 28547144,
+        "active": true,
+        "founded": "2017-07-12",
+        "stage": "seed",
+        "notes": "Cyberdyne 19 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0313",
+      "values": {
+        "name": "Stark 19",
+        "domain": "https://stark-19.example",
+        "employees": 2593,
+        "arr": 28638481,
+        "active": true,
+        "founded": "2018-08-13",
+        "stage": "series_a",
+        "notes": "Stark 19 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0314",
+      "values": {
+        "name": "Wayne 19",
+        "domain": "https://wayne-19.example",
+        "employees": 2630,
+        "arr": 28729818,
+        "active": true,
+        "founded": "2019-09-14",
+        "stage": "series_b",
+        "notes": "Wayne 19 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0315",
+      "values": {
+        "name": "Tyrell 19",
+        "domain": "https://tyrell-19.example",
+        "employees": 2667,
+        "arr": 28821155,
+        "active": false,
+        "founded": "2020-01-15",
+        "stage": "growth",
+        "notes": "Tyrell 19 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0316",
+      "values": {
+        "name": "Weyland 19",
+        "domain": "https://weyland-19.example",
+        "employees": 2704,
+        "arr": 28912492,
+        "active": true,
+        "founded": "2021-02-16",
+        "stage": "seed",
+        "notes": "Weyland 19 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0317",
+      "values": {
+        "name": "Aperture 19",
+        "domain": "https://aperture-19.example",
+        "employees": 2741,
+        "arr": 29003829,
+        "active": true,
+        "founded": "2022-03-17",
+        "stage": "series_a",
+        "notes": "Aperture 19 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0318",
+      "values": {
+        "name": "Black Mesa 19",
+        "domain": "https://black-mesa-19.example",
+        "employees": 2778,
+        "arr": 29095166,
+        "active": true,
+        "founded": "2023-04-18",
+        "stage": "series_b",
+        "notes": "Black Mesa 19 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0319",
+      "values": {
+        "name": "Oscorp 19",
+        "domain": "https://oscorp-19.example",
+        "employees": 2815,
+        "arr": 29186503,
+        "active": true,
+        "founded": "2024-05-19",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0320",
+      "values": {
+        "name": "Acme 20",
+        "domain": "https://acme-20.example",
+        "employees": 2852,
+        "arr": 29277840,
+        "active": false,
+        "founded": "1985-06-10",
+        "stage": "seed",
+        "notes": "Acme 20 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0321",
+      "values": {
+        "name": "Globex 20",
+        "domain": "https://globex-20.example",
+        "employees": 2889,
+        "arr": 29369177,
+        "active": true,
+        "founded": "1986-07-11",
+        "stage": "series_a",
+        "notes": "Globex 20 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0322",
+      "values": {
+        "name": "Initech 20",
+        "domain": "https://initech-20.example",
+        "employees": 2926,
+        "arr": 29460514,
+        "active": true,
+        "founded": "1987-08-12",
+        "stage": "series_b",
+        "notes": "Initech 20 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0323",
+      "values": {
+        "name": "Umbrella 20",
+        "domain": "https://umbrella-20.example",
+        "employees": 2963,
+        "arr": 29551851,
+        "active": true,
+        "founded": "1988-09-13",
+        "stage": "growth",
+        "notes": "Umbrella 20 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0324",
+      "values": {
+        "name": "Soylent 20",
+        "domain": "https://soylent-20.example",
+        "employees": 3000,
+        "arr": 29643188,
+        "active": true,
+        "founded": "1989-01-14",
+        "stage": "seed",
+        "notes": "Soylent 20 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0325",
+      "values": {
+        "name": "Hooli 20",
+        "domain": "https://hooli-20.example",
+        "employees": 3037,
+        "arr": 29734525,
+        "active": false,
+        "founded": "1990-02-15",
+        "stage": "series_a",
+        "notes": "Hooli 20 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0326",
+      "values": {
+        "name": "Vehement 20",
+        "domain": "https://vehement-20.example",
+        "employees": 3074,
+        "arr": 29825862,
+        "active": true,
+        "founded": "1991-03-16",
+        "stage": "series_b",
+        "notes": "Vehement 20 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0327",
+      "values": {
+        "name": "Massive Dynamic 20",
+        "domain": "https://massive-dynamic-20.example",
+        "employees": 3111,
+        "arr": 29917199,
+        "active": true,
+        "founded": "1992-04-17",
+        "stage": "growth",
+        "notes": "Massive Dynamic 20 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0328",
+      "values": {
+        "name": "Cyberdyne 20",
+        "domain": "https://cyberdyne-20.example",
+        "employees": 3148,
+        "arr": 30008536,
+        "active": true,
+        "founded": "1993-05-18",
+        "stage": "seed",
+        "notes": "Cyberdyne 20 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0329",
+      "values": {
+        "name": "Stark 20",
+        "domain": "https://stark-20.example",
+        "employees": 3185,
+        "arr": 30099873,
+        "active": true,
+        "founded": "1994-06-19",
+        "stage": "series_a",
+        "notes": "Stark 20 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0330",
+      "values": {
+        "name": "Wayne 20",
+        "domain": "https://wayne-20.example",
+        "employees": 3222,
+        "arr": 30191210,
+        "active": false,
+        "founded": "1995-07-10",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0331",
+      "values": {
+        "name": "Tyrell 20",
+        "domain": "https://tyrell-20.example",
+        "employees": 3259,
+        "arr": 30282547,
+        "active": true,
+        "founded": "1996-08-11",
+        "stage": "growth",
+        "notes": "Tyrell 20 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0332",
+      "values": {
+        "name": "Weyland 20",
+        "domain": "https://weyland-20.example",
+        "employees": 3296,
+        "arr": 30373884,
+        "active": true,
+        "founded": "1997-09-12",
+        "stage": "seed",
+        "notes": "Weyland 20 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0333",
+      "values": {
+        "name": "Aperture 20",
+        "domain": "https://aperture-20.example",
+        "employees": 3333,
+        "arr": 30465221,
+        "active": true,
+        "founded": "1998-01-13",
+        "stage": "series_a",
+        "notes": "Aperture 20 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0334",
+      "values": {
+        "name": "Black Mesa 20",
+        "domain": "https://black-mesa-20.example",
+        "employees": 3370,
+        "arr": 30556558,
+        "active": true,
+        "founded": "1999-02-14",
+        "stage": "series_b",
+        "notes": "Black Mesa 20 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0335",
+      "values": {
+        "name": "Oscorp 20",
+        "domain": "https://oscorp-20.example",
+        "employees": 3407,
+        "arr": 30647895,
+        "active": false,
+        "founded": "2000-03-15",
+        "stage": "growth",
+        "notes": "Oscorp 20 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0336",
+      "values": {
+        "name": "Acme 21",
+        "domain": "https://acme-21.example",
+        "employees": 3444,
+        "arr": 30739232,
+        "active": true,
+        "founded": "2001-04-16",
+        "stage": "seed",
+        "notes": "Acme 21 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0337",
+      "values": {
+        "name": "Globex 21",
+        "domain": "https://globex-21.example",
+        "employees": 3481,
+        "arr": 30830569,
+        "active": true,
+        "founded": "2002-05-17",
+        "stage": "series_a",
+        "notes": "Globex 21 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0338",
+      "values": {
+        "name": "Initech 21",
+        "domain": "https://initech-21.example",
+        "employees": 3518,
+        "arr": 30921906,
+        "active": true,
+        "founded": "2003-06-18",
+        "stage": "series_b",
+        "notes": "Initech 21 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0339",
+      "values": {
+        "name": "Umbrella 21",
+        "domain": "https://umbrella-21.example",
+        "employees": 3555,
+        "arr": 31013243,
+        "active": true,
+        "founded": "2004-07-19",
+        "stage": "growth",
+        "notes": "Umbrella 21 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0340",
+      "values": {
+        "name": "Soylent 21",
+        "domain": "https://soylent-21.example",
+        "employees": 3592,
+        "arr": 31104580,
+        "active": false,
+        "founded": "2005-08-10",
+        "stage": "seed",
+        "notes": "Soylent 21 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0341",
+      "values": {
+        "name": "Hooli 21",
+        "domain": "https://hooli-21.example",
+        "employees": 3629,
+        "arr": 31195917,
+        "active": true,
+        "founded": "2006-09-11",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0342",
+      "values": {
+        "name": "Vehement 21",
+        "domain": "https://vehement-21.example",
+        "employees": 3666,
+        "arr": 31287254,
+        "active": true,
+        "founded": "2007-01-12",
+        "stage": "series_b",
+        "notes": "Vehement 21 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0343",
+      "values": {
+        "name": "Massive Dynamic 21",
+        "domain": "https://massive-dynamic-21.example",
+        "employees": 3703,
+        "arr": 31378591,
+        "active": true,
+        "founded": "2008-02-13",
+        "stage": "growth",
+        "notes": "Massive Dynamic 21 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0344",
+      "values": {
+        "name": "Cyberdyne 21",
+        "domain": "https://cyberdyne-21.example",
+        "employees": 3740,
+        "arr": 31469928,
+        "active": true,
+        "founded": "2009-03-14",
+        "stage": "seed",
+        "notes": "Cyberdyne 21 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0345",
+      "values": {
+        "name": "Stark 21",
+        "domain": "https://stark-21.example",
+        "employees": 3777,
+        "arr": 31561265,
+        "active": false,
+        "founded": "2010-04-15",
+        "stage": "series_a",
+        "notes": "Stark 21 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0346",
+      "values": {
+        "name": "Wayne 21",
+        "domain": "https://wayne-21.example",
+        "employees": 3814,
+        "arr": 31652602,
+        "active": true,
+        "founded": "2011-05-16",
+        "stage": "series_b",
+        "notes": "Wayne 21 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0347",
+      "values": {
+        "name": "Tyrell 21",
+        "domain": "https://tyrell-21.example",
+        "employees": 3851,
+        "arr": 31743939,
+        "active": true,
+        "founded": "2012-06-17",
+        "stage": "growth",
+        "notes": "Tyrell 21 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0348",
+      "values": {
+        "name": "Weyland 21",
+        "domain": "https://weyland-21.example",
+        "employees": 3888,
+        "arr": 31835276,
+        "active": true,
+        "founded": "2013-07-18",
+        "stage": "seed",
+        "notes": "Weyland 21 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0349",
+      "values": {
+        "name": "Aperture 21",
+        "domain": "https://aperture-21.example",
+        "employees": 3925,
+        "arr": 31926613,
+        "active": true,
+        "founded": "2014-08-19",
+        "stage": "series_a",
+        "notes": "Aperture 21 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0350",
+      "values": {
+        "name": "Black Mesa 21",
+        "domain": "https://black-mesa-21.example",
+        "employees": 3962,
+        "arr": 32017950,
+        "active": false,
+        "founded": "2015-09-10",
+        "stage": "series_b",
+        "notes": "Black Mesa 21 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0351",
+      "values": {
+        "name": "Oscorp 21",
+        "domain": "https://oscorp-21.example",
+        "employees": 3999,
+        "arr": 32109287,
+        "active": true,
+        "founded": "2016-01-11",
+        "stage": "growth",
+        "notes": "Oscorp 21 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0352",
+      "values": {
+        "name": "Acme 22",
+        "domain": "https://acme-22.example",
+        "employees": 4036,
+        "arr": 32200624,
+        "active": true,
+        "founded": "2017-02-12",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0353",
+      "values": {
+        "name": "Globex 22",
+        "domain": "https://globex-22.example",
+        "employees": 4073,
+        "arr": 32291961,
+        "active": true,
+        "founded": "2018-03-13",
+        "stage": "series_a",
+        "notes": "Globex 22 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0354",
+      "values": {
+        "name": "Initech 22",
+        "domain": "https://initech-22.example",
+        "employees": 4110,
+        "arr": 32383298,
+        "active": true,
+        "founded": "2019-04-14",
+        "stage": "series_b",
+        "notes": "Initech 22 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0355",
+      "values": {
+        "name": "Umbrella 22",
+        "domain": "https://umbrella-22.example",
+        "employees": 4147,
+        "arr": 32474635,
+        "active": false,
+        "founded": "2020-05-15",
+        "stage": "growth",
+        "notes": "Umbrella 22 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0356",
+      "values": {
+        "name": "Soylent 22",
+        "domain": "https://soylent-22.example",
+        "employees": 4184,
+        "arr": 32565972,
+        "active": true,
+        "founded": "2021-06-16",
+        "stage": "seed",
+        "notes": "Soylent 22 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0357",
+      "values": {
+        "name": "Hooli 22",
+        "domain": "https://hooli-22.example",
+        "employees": 4221,
+        "arr": 32657309,
+        "active": true,
+        "founded": "2022-07-17",
+        "stage": "series_a",
+        "notes": "Hooli 22 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0358",
+      "values": {
+        "name": "Vehement 22",
+        "domain": "https://vehement-22.example",
+        "employees": 4258,
+        "arr": 32748646,
+        "active": true,
+        "founded": "2023-08-18",
+        "stage": "series_b",
+        "notes": "Vehement 22 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0359",
+      "values": {
+        "name": "Massive Dynamic 22",
+        "domain": "https://massive-dynamic-22.example",
+        "employees": 4295,
+        "arr": 32839983,
+        "active": true,
+        "founded": "2024-09-19",
+        "stage": "growth",
+        "notes": "Massive Dynamic 22 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0360",
+      "values": {
+        "name": "Cyberdyne 22",
+        "domain": "https://cyberdyne-22.example",
+        "employees": 4332,
+        "arr": 32931320,
+        "active": false,
+        "founded": "1985-01-10",
+        "stage": "seed",
+        "notes": "Cyberdyne 22 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0361",
+      "values": {
+        "name": "Stark 22",
+        "domain": "https://stark-22.example",
+        "employees": 4369,
+        "arr": 33022657,
+        "active": true,
+        "founded": "1986-02-11",
+        "stage": "series_a",
+        "notes": "Stark 22 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0362",
+      "values": {
+        "name": "Wayne 22",
+        "domain": "https://wayne-22.example",
+        "employees": 4406,
+        "arr": 33113994,
+        "active": true,
+        "founded": "1987-03-12",
+        "stage": "series_b",
+        "notes": "Wayne 22 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0363",
+      "values": {
+        "name": "Tyrell 22",
+        "domain": "https://tyrell-22.example",
+        "employees": 4443,
+        "arr": 33205331,
+        "active": true,
+        "founded": "1988-04-13",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0364",
+      "values": {
+        "name": "Weyland 22",
+        "domain": "https://weyland-22.example",
+        "employees": 4480,
+        "arr": 33296668,
+        "active": true,
+        "founded": "1989-05-14",
+        "stage": "seed",
+        "notes": "Weyland 22 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0365",
+      "values": {
+        "name": "Aperture 22",
+        "domain": "https://aperture-22.example",
+        "employees": 4517,
+        "arr": 33388005,
+        "active": false,
+        "founded": "1990-06-15",
+        "stage": "series_a",
+        "notes": "Aperture 22 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0366",
+      "values": {
+        "name": "Black Mesa 22",
+        "domain": "https://black-mesa-22.example",
+        "employees": 4554,
+        "arr": 33479342,
+        "active": true,
+        "founded": "1991-07-16",
+        "stage": "series_b",
+        "notes": "Black Mesa 22 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0367",
+      "values": {
+        "name": "Oscorp 22",
+        "domain": "https://oscorp-22.example",
+        "employees": 4591,
+        "arr": 33570679,
+        "active": true,
+        "founded": "1992-08-17",
+        "stage": "growth",
+        "notes": "Oscorp 22 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0368",
+      "values": {
+        "name": "Acme 23",
+        "domain": "https://acme-23.example",
+        "employees": 4628,
+        "arr": 33662016,
+        "active": true,
+        "founded": "1993-09-18",
+        "stage": "seed",
+        "notes": "Acme 23 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0369",
+      "values": {
+        "name": "Globex 23",
+        "domain": "https://globex-23.example",
+        "employees": 4665,
+        "arr": 33753353,
+        "active": true,
+        "founded": "1994-01-19",
+        "stage": "series_a",
+        "notes": "Globex 23 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0370",
+      "values": {
+        "name": "Initech 23",
+        "domain": "https://initech-23.example",
+        "employees": 4702,
+        "arr": 33844690,
+        "active": false,
+        "founded": "1995-02-10",
+        "stage": "series_b",
+        "notes": "Initech 23 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0371",
+      "values": {
+        "name": "Umbrella 23",
+        "domain": "https://umbrella-23.example",
+        "employees": 4739,
+        "arr": 33936027,
+        "active": true,
+        "founded": "1996-03-11",
+        "stage": "growth",
+        "notes": "Umbrella 23 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0372",
+      "values": {
+        "name": "Soylent 23",
+        "domain": "https://soylent-23.example",
+        "employees": 4776,
+        "arr": 34027364,
+        "active": true,
+        "founded": "1997-04-12",
+        "stage": "seed",
+        "notes": "Soylent 23 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0373",
+      "values": {
+        "name": "Hooli 23",
+        "domain": "https://hooli-23.example",
+        "employees": 4813,
+        "arr": 34118701,
+        "active": true,
+        "founded": "1998-05-13",
+        "stage": "series_a",
+        "notes": "Hooli 23 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0374",
+      "values": {
+        "name": "Vehement 23",
+        "domain": "https://vehement-23.example",
+        "employees": 4850,
+        "arr": 34210038,
+        "active": true,
+        "founded": "1999-06-14",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0375",
+      "values": {
+        "name": "Massive Dynamic 23",
+        "domain": "https://massive-dynamic-23.example",
+        "employees": 4887,
+        "arr": 34301375,
+        "active": false,
+        "founded": "2000-07-15",
+        "stage": "growth",
+        "notes": "Massive Dynamic 23 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0376",
+      "values": {
+        "name": "Cyberdyne 23",
+        "domain": "https://cyberdyne-23.example",
+        "employees": 4924,
+        "arr": 34392712,
+        "active": true,
+        "founded": "2001-08-16",
+        "stage": "seed",
+        "notes": "Cyberdyne 23 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0377",
+      "values": {
+        "name": "Stark 23",
+        "domain": "https://stark-23.example",
+        "employees": 4961,
+        "arr": 34484049,
+        "active": true,
+        "founded": "2002-09-17",
+        "stage": "series_a",
+        "notes": "Stark 23 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0378",
+      "values": {
+        "name": "Wayne 23",
+        "domain": "https://wayne-23.example",
+        "employees": 4998,
+        "arr": 34575386,
+        "active": true,
+        "founded": "2003-01-18",
+        "stage": "series_b",
+        "notes": "Wayne 23 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0379",
+      "values": {
+        "name": "Tyrell 23",
+        "domain": "https://tyrell-23.example",
+        "employees": 5035,
+        "arr": 34666723,
+        "active": true,
+        "founded": "2004-02-19",
+        "stage": "growth",
+        "notes": "Tyrell 23 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0380",
+      "values": {
+        "name": "Weyland 23",
+        "domain": "https://weyland-23.example",
+        "employees": 5072,
+        "arr": 34758060,
+        "active": false,
+        "founded": "2005-03-10",
+        "stage": "seed",
+        "notes": "Weyland 23 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0381",
+      "values": {
+        "name": "Aperture 23",
+        "domain": "https://aperture-23.example",
+        "employees": 5109,
+        "arr": 34849397,
+        "active": true,
+        "founded": "2006-04-11",
+        "stage": "series_a",
+        "notes": "Aperture 23 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0382",
+      "values": {
+        "name": "Black Mesa 23",
+        "domain": "https://black-mesa-23.example",
+        "employees": 5146,
+        "arr": 34940734,
+        "active": true,
+        "founded": "2007-05-12",
+        "stage": "series_b",
+        "notes": "Black Mesa 23 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0383",
+      "values": {
+        "name": "Oscorp 23",
+        "domain": "https://oscorp-23.example",
+        "employees": 5183,
+        "arr": 35032071,
+        "active": true,
+        "founded": "2008-06-13",
+        "stage": "growth",
+        "notes": "Oscorp 23 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0384",
+      "values": {
+        "name": "Acme 24",
+        "domain": "https://acme-24.example",
+        "employees": 5220,
+        "arr": 35123408,
+        "active": true,
+        "founded": "2009-07-14",
+        "stage": "seed",
+        "notes": "Acme 24 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0385",
+      "values": {
+        "name": "Globex 24",
+        "domain": "https://globex-24.example",
+        "employees": 5257,
+        "arr": 35214745,
+        "active": false,
+        "founded": "2010-08-15",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0386",
+      "values": {
+        "name": "Initech 24",
+        "domain": "https://initech-24.example",
+        "employees": 5294,
+        "arr": 35306082,
+        "active": true,
+        "founded": "2011-09-16",
+        "stage": "series_b",
+        "notes": "Initech 24 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0387",
+      "values": {
+        "name": "Umbrella 24",
+        "domain": "https://umbrella-24.example",
+        "employees": 5331,
+        "arr": 35397419,
+        "active": true,
+        "founded": "2012-01-17",
+        "stage": "growth",
+        "notes": "Umbrella 24 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0388",
+      "values": {
+        "name": "Soylent 24",
+        "domain": "https://soylent-24.example",
+        "employees": 5368,
+        "arr": 35488756,
+        "active": true,
+        "founded": "2013-02-18",
+        "stage": "seed",
+        "notes": "Soylent 24 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0389",
+      "values": {
+        "name": "Hooli 24",
+        "domain": "https://hooli-24.example",
+        "employees": 5405,
+        "arr": 35580093,
+        "active": true,
+        "founded": "2014-03-19",
+        "stage": "series_a",
+        "notes": "Hooli 24 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0390",
+      "values": {
+        "name": "Vehement 24",
+        "domain": "https://vehement-24.example",
+        "employees": 5442,
+        "arr": 35671430,
+        "active": false,
+        "founded": "2015-04-10",
+        "stage": "series_b",
+        "notes": "Vehement 24 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0391",
+      "values": {
+        "name": "Massive Dynamic 24",
+        "domain": "https://massive-dynamic-24.example",
+        "employees": 5479,
+        "arr": 35762767,
+        "active": true,
+        "founded": "2016-05-11",
+        "stage": "growth",
+        "notes": "Massive Dynamic 24 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0392",
+      "values": {
+        "name": "Cyberdyne 24",
+        "domain": "https://cyberdyne-24.example",
+        "employees": 5516,
+        "arr": 35854104,
+        "active": true,
+        "founded": "2017-06-12",
+        "stage": "seed",
+        "notes": "Cyberdyne 24 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0393",
+      "values": {
+        "name": "Stark 24",
+        "domain": "https://stark-24.example",
+        "employees": 5553,
+        "arr": 35945441,
+        "active": true,
+        "founded": "2018-07-13",
+        "stage": "series_a",
+        "notes": "Stark 24 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0394",
+      "values": {
+        "name": "Wayne 24",
+        "domain": "https://wayne-24.example",
+        "employees": 5590,
+        "arr": 36036778,
+        "active": true,
+        "founded": "2019-08-14",
+        "stage": "series_b",
+        "notes": "Wayne 24 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0395",
+      "values": {
+        "name": "Tyrell 24",
+        "domain": "https://tyrell-24.example",
+        "employees": 5627,
+        "arr": 36128115,
+        "active": false,
+        "founded": "2020-09-15",
+        "stage": "growth",
+        "notes": "Tyrell 24 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0396",
+      "values": {
+        "name": "Weyland 24",
+        "domain": "https://weyland-24.example",
+        "employees": 5664,
+        "arr": 36219452,
+        "active": true,
+        "founded": "2021-01-16",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0397",
+      "values": {
+        "name": "Aperture 24",
+        "domain": "https://aperture-24.example",
+        "employees": 5701,
+        "arr": 36310789,
+        "active": true,
+        "founded": "2022-02-17",
+        "stage": "series_a",
+        "notes": "Aperture 24 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0398",
+      "values": {
+        "name": "Black Mesa 24",
+        "domain": "https://black-mesa-24.example",
+        "employees": 5738,
+        "arr": 36402126,
+        "active": true,
+        "founded": "2023-03-18",
+        "stage": "series_b",
+        "notes": "Black Mesa 24 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0399",
+      "values": {
+        "name": "Oscorp 24",
+        "domain": "https://oscorp-24.example",
+        "employees": 5775,
+        "arr": 36493463,
+        "active": true,
+        "founded": "2024-04-19",
+        "stage": "growth",
+        "notes": "Oscorp 24 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0400",
+      "values": {
+        "name": "Acme 25",
+        "domain": "https://acme-25.example",
+        "employees": 5812,
+        "arr": 36584800,
+        "active": false,
+        "founded": "1985-05-10",
+        "stage": "seed",
+        "notes": "Acme 25 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0401",
+      "values": {
+        "name": "Globex 25",
+        "domain": "https://globex-25.example",
+        "employees": 5849,
+        "arr": 36676137,
+        "active": true,
+        "founded": "1986-06-11",
+        "stage": "series_a",
+        "notes": "Globex 25 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0402",
+      "values": {
+        "name": "Initech 25",
+        "domain": "https://initech-25.example",
+        "employees": 5886,
+        "arr": 36767474,
+        "active": true,
+        "founded": "1987-07-12",
+        "stage": "series_b",
+        "notes": "Initech 25 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0403",
+      "values": {
+        "name": "Umbrella 25",
+        "domain": "https://umbrella-25.example",
+        "employees": 5923,
+        "arr": 36858811,
+        "active": true,
+        "founded": "1988-08-13",
+        "stage": "growth",
+        "notes": "Umbrella 25 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0404",
+      "values": {
+        "name": "Soylent 25",
+        "domain": "https://soylent-25.example",
+        "employees": 5960,
+        "arr": 36950148,
+        "active": true,
+        "founded": "1989-09-14",
+        "stage": "seed",
+        "notes": "Soylent 25 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0405",
+      "values": {
+        "name": "Hooli 25",
+        "domain": "https://hooli-25.example",
+        "employees": 5997,
+        "arr": 37041485,
+        "active": false,
+        "founded": "1990-01-15",
+        "stage": "series_a",
+        "notes": "Hooli 25 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0406",
+      "values": {
+        "name": "Vehement 25",
+        "domain": "https://vehement-25.example",
+        "employees": 6034,
+        "arr": 37132822,
+        "active": true,
+        "founded": "1991-02-16",
+        "stage": "series_b",
+        "notes": "Vehement 25 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0407",
+      "values": {
+        "name": "Massive Dynamic 25",
+        "domain": "https://massive-dynamic-25.example",
+        "employees": 6071,
+        "arr": 37224159,
+        "active": true,
+        "founded": "1992-03-17",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0408",
+      "values": {
+        "name": "Cyberdyne 25",
+        "domain": "https://cyberdyne-25.example",
+        "employees": 6108,
+        "arr": 37315496,
+        "active": true,
+        "founded": "1993-04-18",
+        "stage": "seed",
+        "notes": "Cyberdyne 25 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0409",
+      "values": {
+        "name": "Stark 25",
+        "domain": "https://stark-25.example",
+        "employees": 6145,
+        "arr": 37406833,
+        "active": true,
+        "founded": "1994-05-19",
+        "stage": "series_a",
+        "notes": "Stark 25 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0410",
+      "values": {
+        "name": "Wayne 25",
+        "domain": "https://wayne-25.example",
+        "employees": 6182,
+        "arr": 37498170,
+        "active": false,
+        "founded": "1995-06-10",
+        "stage": "series_b",
+        "notes": "Wayne 25 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0411",
+      "values": {
+        "name": "Tyrell 25",
+        "domain": "https://tyrell-25.example",
+        "employees": 6219,
+        "arr": 37589507,
+        "active": true,
+        "founded": "1996-07-11",
+        "stage": "growth",
+        "notes": "Tyrell 25 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0412",
+      "values": {
+        "name": "Weyland 25",
+        "domain": "https://weyland-25.example",
+        "employees": 6256,
+        "arr": 37680844,
+        "active": true,
+        "founded": "1997-08-12",
+        "stage": "seed",
+        "notes": "Weyland 25 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0413",
+      "values": {
+        "name": "Aperture 25",
+        "domain": "https://aperture-25.example",
+        "employees": 6293,
+        "arr": 37772181,
+        "active": true,
+        "founded": "1998-09-13",
+        "stage": "series_a",
+        "notes": "Aperture 25 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0414",
+      "values": {
+        "name": "Black Mesa 25",
+        "domain": "https://black-mesa-25.example",
+        "employees": 6330,
+        "arr": 37863518,
+        "active": true,
+        "founded": "1999-01-14",
+        "stage": "series_b",
+        "notes": "Black Mesa 25 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0415",
+      "values": {
+        "name": "Oscorp 25",
+        "domain": "https://oscorp-25.example",
+        "employees": 6367,
+        "arr": 37954855,
+        "active": false,
+        "founded": "2000-02-15",
+        "stage": "growth",
+        "notes": "Oscorp 25 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0416",
+      "values": {
+        "name": "Acme 26",
+        "domain": "https://acme-26.example",
+        "employees": 6404,
+        "arr": 38046192,
+        "active": true,
+        "founded": "2001-03-16",
+        "stage": "seed",
+        "notes": "Acme 26 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0417",
+      "values": {
+        "name": "Globex 26",
+        "domain": "https://globex-26.example",
+        "employees": 6441,
+        "arr": 38137529,
+        "active": true,
+        "founded": "2002-04-17",
+        "stage": "series_a",
+        "notes": "Globex 26 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0418",
+      "values": {
+        "name": "Initech 26",
+        "domain": "https://initech-26.example",
+        "employees": 6478,
+        "arr": 38228866,
+        "active": true,
+        "founded": "2003-05-18",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0419",
+      "values": {
+        "name": "Umbrella 26",
+        "domain": "https://umbrella-26.example",
+        "employees": 6515,
+        "arr": 38320203,
+        "active": true,
+        "founded": "2004-06-19",
+        "stage": "growth",
+        "notes": "Umbrella 26 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0420",
+      "values": {
+        "name": "Soylent 26",
+        "domain": "https://soylent-26.example",
+        "employees": 6552,
+        "arr": 38411540,
+        "active": false,
+        "founded": "2005-07-10",
+        "stage": "seed",
+        "notes": "Soylent 26 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0421",
+      "values": {
+        "name": "Hooli 26",
+        "domain": "https://hooli-26.example",
+        "employees": 6589,
+        "arr": 38502877,
+        "active": true,
+        "founded": "2006-08-11",
+        "stage": "series_a",
+        "notes": "Hooli 26 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0422",
+      "values": {
+        "name": "Vehement 26",
+        "domain": "https://vehement-26.example",
+        "employees": 6626,
+        "arr": 38594214,
+        "active": true,
+        "founded": "2007-09-12",
+        "stage": "series_b",
+        "notes": "Vehement 26 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0423",
+      "values": {
+        "name": "Massive Dynamic 26",
+        "domain": "https://massive-dynamic-26.example",
+        "employees": 6663,
+        "arr": 38685551,
+        "active": true,
+        "founded": "2008-01-13",
+        "stage": "growth",
+        "notes": "Massive Dynamic 26 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0424",
+      "values": {
+        "name": "Cyberdyne 26",
+        "domain": "https://cyberdyne-26.example",
+        "employees": 6700,
+        "arr": 38776888,
+        "active": true,
+        "founded": "2009-02-14",
+        "stage": "seed",
+        "notes": "Cyberdyne 26 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0425",
+      "values": {
+        "name": "Stark 26",
+        "domain": "https://stark-26.example",
+        "employees": 6737,
+        "arr": 38868225,
+        "active": false,
+        "founded": "2010-03-15",
+        "stage": "series_a",
+        "notes": "Stark 26 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0426",
+      "values": {
+        "name": "Wayne 26",
+        "domain": "https://wayne-26.example",
+        "employees": 6774,
+        "arr": 38959562,
+        "active": true,
+        "founded": "2011-04-16",
+        "stage": "series_b",
+        "notes": "Wayne 26 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0427",
+      "values": {
+        "name": "Tyrell 26",
+        "domain": "https://tyrell-26.example",
+        "employees": 6811,
+        "arr": 39050899,
+        "active": true,
+        "founded": "2012-05-17",
+        "stage": "growth",
+        "notes": "Tyrell 26 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0428",
+      "values": {
+        "name": "Weyland 26",
+        "domain": "https://weyland-26.example",
+        "employees": 6848,
+        "arr": 39142236,
+        "active": true,
+        "founded": "2013-06-18",
+        "stage": "seed",
+        "notes": "Weyland 26 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0429",
+      "values": {
+        "name": "Aperture 26",
+        "domain": "https://aperture-26.example",
+        "employees": 6885,
+        "arr": 39233573,
+        "active": true,
+        "founded": "2014-07-19",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0430",
+      "values": {
+        "name": "Black Mesa 26",
+        "domain": "https://black-mesa-26.example",
+        "employees": 6922,
+        "arr": 39324910,
+        "active": false,
+        "founded": "2015-08-10",
+        "stage": "series_b",
+        "notes": "Black Mesa 26 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0431",
+      "values": {
+        "name": "Oscorp 26",
+        "domain": "https://oscorp-26.example",
+        "employees": 6959,
+        "arr": 39416247,
+        "active": true,
+        "founded": "2016-09-11",
+        "stage": "growth",
+        "notes": "Oscorp 26 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0432",
+      "values": {
+        "name": "Acme 27",
+        "domain": "https://acme-27.example",
+        "employees": 6996,
+        "arr": 39507584,
+        "active": true,
+        "founded": "2017-01-12",
+        "stage": "seed",
+        "notes": "Acme 27 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0433",
+      "values": {
+        "name": "Globex 27",
+        "domain": "https://globex-27.example",
+        "employees": 7033,
+        "arr": 39598921,
+        "active": true,
+        "founded": "2018-02-13",
+        "stage": "series_a",
+        "notes": "Globex 27 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0434",
+      "values": {
+        "name": "Initech 27",
+        "domain": "https://initech-27.example",
+        "employees": 7070,
+        "arr": 39690258,
+        "active": true,
+        "founded": "2019-03-14",
+        "stage": "series_b",
+        "notes": "Initech 27 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0435",
+      "values": {
+        "name": "Umbrella 27",
+        "domain": "https://umbrella-27.example",
+        "employees": 7107,
+        "arr": 39781595,
+        "active": false,
+        "founded": "2020-04-15",
+        "stage": "growth",
+        "notes": "Umbrella 27 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0436",
+      "values": {
+        "name": "Soylent 27",
+        "domain": "https://soylent-27.example",
+        "employees": 7144,
+        "arr": 39872932,
+        "active": true,
+        "founded": "2021-05-16",
+        "stage": "seed",
+        "notes": "Soylent 27 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0437",
+      "values": {
+        "name": "Hooli 27",
+        "domain": "https://hooli-27.example",
+        "employees": 7181,
+        "arr": 39964269,
+        "active": true,
+        "founded": "2022-06-17",
+        "stage": "series_a",
+        "notes": "Hooli 27 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0438",
+      "values": {
+        "name": "Vehement 27",
+        "domain": "https://vehement-27.example",
+        "employees": 7218,
+        "arr": 55606,
+        "active": true,
+        "founded": "2023-07-18",
+        "stage": "series_b",
+        "notes": "Vehement 27 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0439",
+      "values": {
+        "name": "Massive Dynamic 27",
+        "domain": "https://massive-dynamic-27.example",
+        "employees": 7255,
+        "arr": 146943,
+        "active": true,
+        "founded": "2024-08-19",
+        "stage": "growth",
+        "notes": "Massive Dynamic 27 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0440",
+      "values": {
+        "name": "Cyberdyne 27",
+        "domain": "https://cyberdyne-27.example",
+        "employees": 7292,
+        "arr": 238280,
+        "active": false,
+        "founded": "1985-09-10",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0441",
+      "values": {
+        "name": "Stark 27",
+        "domain": "https://stark-27.example",
+        "employees": 7329,
+        "arr": 329617,
+        "active": true,
+        "founded": "1986-01-11",
+        "stage": "series_a",
+        "notes": "Stark 27 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0442",
+      "values": {
+        "name": "Wayne 27",
+        "domain": "https://wayne-27.example",
+        "employees": 7366,
+        "arr": 420954,
+        "active": true,
+        "founded": "1987-02-12",
+        "stage": "series_b",
+        "notes": "Wayne 27 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0443",
+      "values": {
+        "name": "Tyrell 27",
+        "domain": "https://tyrell-27.example",
+        "employees": 7403,
+        "arr": 512291,
+        "active": true,
+        "founded": "1988-03-13",
+        "stage": "growth",
+        "notes": "Tyrell 27 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0444",
+      "values": {
+        "name": "Weyland 27",
+        "domain": "https://weyland-27.example",
+        "employees": 7440,
+        "arr": 603628,
+        "active": true,
+        "founded": "1989-04-14",
+        "stage": "seed",
+        "notes": "Weyland 27 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0445",
+      "values": {
+        "name": "Aperture 27",
+        "domain": "https://aperture-27.example",
+        "employees": 7477,
+        "arr": 694965,
+        "active": false,
+        "founded": "1990-05-15",
+        "stage": "series_a",
+        "notes": "Aperture 27 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0446",
+      "values": {
+        "name": "Black Mesa 27",
+        "domain": "https://black-mesa-27.example",
+        "employees": 7514,
+        "arr": 786302,
+        "active": true,
+        "founded": "1991-06-16",
+        "stage": "series_b",
+        "notes": "Black Mesa 27 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0447",
+      "values": {
+        "name": "Oscorp 27",
+        "domain": "https://oscorp-27.example",
+        "employees": 7551,
+        "arr": 877639,
+        "active": true,
+        "founded": "1992-07-17",
+        "stage": "growth",
+        "notes": "Oscorp 27 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0448",
+      "values": {
+        "name": "Acme 28",
+        "domain": "https://acme-28.example",
+        "employees": 7588,
+        "arr": 968976,
+        "active": true,
+        "founded": "1993-08-18",
+        "stage": "seed",
+        "notes": "Acme 28 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0449",
+      "values": {
+        "name": "Globex 28",
+        "domain": "https://globex-28.example",
+        "employees": 7625,
+        "arr": 1060313,
+        "active": true,
+        "founded": "1994-09-19",
+        "stage": "series_a",
+        "notes": "Globex 28 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0450",
+      "values": {
+        "name": "Initech 28",
+        "domain": "https://initech-28.example",
+        "employees": 7662,
+        "arr": 1151650,
+        "active": false,
+        "founded": "1995-01-10",
+        "stage": "series_b",
+        "notes": "Initech 28 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0451",
+      "values": {
+        "name": "Umbrella 28",
+        "domain": "https://umbrella-28.example",
+        "employees": 7699,
+        "arr": 1242987,
+        "active": true,
+        "founded": "1996-02-11",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0452",
+      "values": {
+        "name": "Soylent 28",
+        "domain": "https://soylent-28.example",
+        "employees": 7736,
+        "arr": 1334324,
+        "active": true,
+        "founded": "1997-03-12",
+        "stage": "seed",
+        "notes": "Soylent 28 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0453",
+      "values": {
+        "name": "Hooli 28",
+        "domain": "https://hooli-28.example",
+        "employees": 7773,
+        "arr": 1425661,
+        "active": true,
+        "founded": "1998-04-13",
+        "stage": "series_a",
+        "notes": "Hooli 28 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0454",
+      "values": {
+        "name": "Vehement 28",
+        "domain": "https://vehement-28.example",
+        "employees": 7810,
+        "arr": 1516998,
+        "active": true,
+        "founded": "1999-05-14",
+        "stage": "series_b",
+        "notes": "Vehement 28 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0455",
+      "values": {
+        "name": "Massive Dynamic 28",
+        "domain": "https://massive-dynamic-28.example",
+        "employees": 7847,
+        "arr": 1608335,
+        "active": false,
+        "founded": "2000-06-15",
+        "stage": "growth",
+        "notes": "Massive Dynamic 28 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0456",
+      "values": {
+        "name": "Cyberdyne 28",
+        "domain": "https://cyberdyne-28.example",
+        "employees": 7884,
+        "arr": 1699672,
+        "active": true,
+        "founded": "2001-07-16",
+        "stage": "seed",
+        "notes": "Cyberdyne 28 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0457",
+      "values": {
+        "name": "Stark 28",
+        "domain": "https://stark-28.example",
+        "employees": 7921,
+        "arr": 1791009,
+        "active": true,
+        "founded": "2002-08-17",
+        "stage": "series_a",
+        "notes": "Stark 28 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0458",
+      "values": {
+        "name": "Wayne 28",
+        "domain": "https://wayne-28.example",
+        "employees": 7958,
+        "arr": 1882346,
+        "active": true,
+        "founded": "2003-09-18",
+        "stage": "series_b",
+        "notes": "Wayne 28 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0459",
+      "values": {
+        "name": "Tyrell 28",
+        "domain": "https://tyrell-28.example",
+        "employees": 7995,
+        "arr": 1973683,
+        "active": true,
+        "founded": "2004-01-19",
+        "stage": "growth",
+        "notes": "Tyrell 28 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0460",
+      "values": {
+        "name": "Weyland 28",
+        "domain": "https://weyland-28.example",
+        "employees": 8032,
+        "arr": 2065020,
+        "active": false,
+        "founded": "2005-02-10",
+        "stage": "seed",
+        "notes": "Weyland 28 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0461",
+      "values": {
+        "name": "Aperture 28",
+        "domain": "https://aperture-28.example",
+        "employees": 8069,
+        "arr": 2156357,
+        "active": true,
+        "founded": "2006-03-11",
+        "stage": "series_a",
+        "notes": "Aperture 28 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0462",
+      "values": {
+        "name": "Black Mesa 28",
+        "domain": "https://black-mesa-28.example",
+        "employees": 8106,
+        "arr": 2247694,
+        "active": true,
+        "founded": "2007-04-12",
+        "stage": "series_b",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0463",
+      "values": {
+        "name": "Oscorp 28",
+        "domain": "https://oscorp-28.example",
+        "employees": 8143,
+        "arr": 2339031,
+        "active": true,
+        "founded": "2008-05-13",
+        "stage": "growth",
+        "notes": "Oscorp 28 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0464",
+      "values": {
+        "name": "Acme 29",
+        "domain": "https://acme-29.example",
+        "employees": 8180,
+        "arr": 2430368,
+        "active": true,
+        "founded": "2009-06-14",
+        "stage": "seed",
+        "notes": "Acme 29 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0465",
+      "values": {
+        "name": "Globex 29",
+        "domain": "https://globex-29.example",
+        "employees": 8217,
+        "arr": 2521705,
+        "active": false,
+        "founded": "2010-07-15",
+        "stage": "series_a",
+        "notes": "Globex 29 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0466",
+      "values": {
+        "name": "Initech 29",
+        "domain": "https://initech-29.example",
+        "employees": 8254,
+        "arr": 2613042,
+        "active": true,
+        "founded": "2011-08-16",
+        "stage": "series_b",
+        "notes": "Initech 29 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0467",
+      "values": {
+        "name": "Umbrella 29",
+        "domain": "https://umbrella-29.example",
+        "employees": 8291,
+        "arr": 2704379,
+        "active": true,
+        "founded": "2012-09-17",
+        "stage": "growth",
+        "notes": "Umbrella 29 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0468",
+      "values": {
+        "name": "Soylent 29",
+        "domain": "https://soylent-29.example",
+        "employees": 8328,
+        "arr": 2795716,
+        "active": true,
+        "founded": "2013-01-18",
+        "stage": "seed",
+        "notes": "Soylent 29 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0469",
+      "values": {
+        "name": "Hooli 29",
+        "domain": "https://hooli-29.example",
+        "employees": 8365,
+        "arr": 2887053,
+        "active": true,
+        "founded": "2014-02-19",
+        "stage": "series_a",
+        "notes": "Hooli 29 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0470",
+      "values": {
+        "name": "Vehement 29",
+        "domain": "https://vehement-29.example",
+        "employees": 8402,
+        "arr": 2978390,
+        "active": false,
+        "founded": "2015-03-10",
+        "stage": "series_b",
+        "notes": "Vehement 29 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0471",
+      "values": {
+        "name": "Massive Dynamic 29",
+        "domain": "https://massive-dynamic-29.example",
+        "employees": 8439,
+        "arr": 3069727,
+        "active": true,
+        "founded": "2016-04-11",
+        "stage": "growth",
+        "notes": "Massive Dynamic 29 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0472",
+      "values": {
+        "name": "Cyberdyne 29",
+        "domain": "https://cyberdyne-29.example",
+        "employees": 8476,
+        "arr": 3161064,
+        "active": true,
+        "founded": "2017-05-12",
+        "stage": "seed",
+        "notes": "Cyberdyne 29 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0473",
+      "values": {
+        "name": "Stark 29",
+        "domain": "https://stark-29.example",
+        "employees": 8513,
+        "arr": 3252401,
+        "active": true,
+        "founded": "2018-06-13",
+        "stage": "series_a",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0474",
+      "values": {
+        "name": "Wayne 29",
+        "domain": "https://wayne-29.example",
+        "employees": 8550,
+        "arr": 3343738,
+        "active": true,
+        "founded": "2019-07-14",
+        "stage": "series_b",
+        "notes": "Wayne 29 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0475",
+      "values": {
+        "name": "Tyrell 29",
+        "domain": "https://tyrell-29.example",
+        "employees": 8587,
+        "arr": 3435075,
+        "active": false,
+        "founded": "2020-08-15",
+        "stage": "growth",
+        "notes": "Tyrell 29 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0476",
+      "values": {
+        "name": "Weyland 29",
+        "domain": "https://weyland-29.example",
+        "employees": 8624,
+        "arr": 3526412,
+        "active": true,
+        "founded": "2021-09-16",
+        "stage": "seed",
+        "notes": "Weyland 29 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0477",
+      "values": {
+        "name": "Aperture 29",
+        "domain": "https://aperture-29.example",
+        "employees": 8661,
+        "arr": 3617749,
+        "active": true,
+        "founded": "2022-01-17",
+        "stage": "series_a",
+        "notes": "Aperture 29 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0478",
+      "values": {
+        "name": "Black Mesa 29",
+        "domain": "https://black-mesa-29.example",
+        "employees": 8698,
+        "arr": 3709086,
+        "active": true,
+        "founded": "2023-02-18",
+        "stage": "series_b",
+        "notes": "Black Mesa 29 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0479",
+      "values": {
+        "name": "Oscorp 29",
+        "domain": "https://oscorp-29.example",
+        "employees": 8735,
+        "arr": 3800423,
+        "active": true,
+        "founded": "2024-03-19",
+        "stage": "growth",
+        "notes": "Oscorp 29 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0480",
+      "values": {
+        "name": "Acme 30",
+        "domain": "https://acme-30.example",
+        "employees": 8772,
+        "arr": 3891760,
+        "active": false,
+        "founded": "1985-04-10",
+        "stage": "seed",
+        "notes": "Acme 30 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0481",
+      "values": {
+        "name": "Globex 30",
+        "domain": "https://globex-30.example",
+        "employees": 8809,
+        "arr": 3983097,
+        "active": true,
+        "founded": "1986-05-11",
+        "stage": "series_a",
+        "notes": "Globex 30 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0482",
+      "values": {
+        "name": "Initech 30",
+        "domain": "https://initech-30.example",
+        "employees": 8846,
+        "arr": 4074434,
+        "active": true,
+        "founded": "1987-06-12",
+        "stage": "series_b",
+        "notes": "Initech 30 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0483",
+      "values": {
+        "name": "Umbrella 30",
+        "domain": "https://umbrella-30.example",
+        "employees": 8883,
+        "arr": 4165771,
+        "active": true,
+        "founded": "1988-07-13",
+        "stage": "growth",
+        "notes": "Umbrella 30 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0484",
+      "values": {
+        "name": "Soylent 30",
+        "domain": "https://soylent-30.example",
+        "employees": 8920,
+        "arr": 4257108,
+        "active": true,
+        "founded": "1989-08-14",
+        "stage": "seed",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0485",
+      "values": {
+        "name": "Hooli 30",
+        "domain": "https://hooli-30.example",
+        "employees": 8957,
+        "arr": 4348445,
+        "active": false,
+        "founded": "1990-09-15",
+        "stage": "series_a",
+        "notes": "Hooli 30 tracked since FY2020."
+      }
+    },
+    {
+      "record_id": "company-0486",
+      "values": {
+        "name": "Vehement 30",
+        "domain": "https://vehement-30.example",
+        "employees": 8994,
+        "arr": 4439782,
+        "active": true,
+        "founded": "1991-01-16",
+        "stage": "series_b",
+        "notes": "Vehement 30 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0487",
+      "values": {
+        "name": "Massive Dynamic 30",
+        "domain": "https://massive-dynamic-30.example",
+        "employees": 31,
+        "arr": 4531119,
+        "active": true,
+        "founded": "1992-02-17",
+        "stage": "growth",
+        "notes": "Massive Dynamic 30 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0488",
+      "values": {
+        "name": "Cyberdyne 30",
+        "domain": "https://cyberdyne-30.example",
+        "employees": 68,
+        "arr": 4622456,
+        "active": true,
+        "founded": "1993-03-18",
+        "stage": "seed",
+        "notes": "Cyberdyne 30 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0489",
+      "values": {
+        "name": "Stark 30",
+        "domain": "https://stark-30.example",
+        "employees": 105,
+        "arr": 4713793,
+        "active": true,
+        "founded": "1994-04-19",
+        "stage": "series_a",
+        "notes": "Stark 30 tracked since FY2024."
+      }
+    },
+    {
+      "record_id": "company-0490",
+      "values": {
+        "name": "Wayne 30",
+        "domain": "https://wayne-30.example",
+        "employees": 142,
+        "arr": 4805130,
+        "active": false,
+        "founded": "1995-05-10",
+        "stage": "series_b",
+        "notes": "Wayne 30 tracked since FY2015."
+      }
+    },
+    {
+      "record_id": "company-0491",
+      "values": {
+        "name": "Tyrell 30",
+        "domain": "https://tyrell-30.example",
+        "employees": 179,
+        "arr": 4896467,
+        "active": true,
+        "founded": "1996-06-11",
+        "stage": "growth",
+        "notes": "Tyrell 30 tracked since FY2016."
+      }
+    },
+    {
+      "record_id": "company-0492",
+      "values": {
+        "name": "Weyland 30",
+        "domain": "https://weyland-30.example",
+        "employees": 216,
+        "arr": 4987804,
+        "active": true,
+        "founded": "1997-07-12",
+        "stage": "seed",
+        "notes": "Weyland 30 tracked since FY2017."
+      }
+    },
+    {
+      "record_id": "company-0493",
+      "values": {
+        "name": "Aperture 30",
+        "domain": "https://aperture-30.example",
+        "employees": 253,
+        "arr": 5079141,
+        "active": true,
+        "founded": "1998-08-13",
+        "stage": "series_a",
+        "notes": "Aperture 30 tracked since FY2018."
+      }
+    },
+    {
+      "record_id": "company-0494",
+      "values": {
+        "name": "Black Mesa 30",
+        "domain": "https://black-mesa-30.example",
+        "employees": 290,
+        "arr": 5170478,
+        "active": true,
+        "founded": "1999-09-14",
+        "stage": "series_b",
+        "notes": "Black Mesa 30 tracked since FY2019."
+      }
+    },
+    {
+      "record_id": "company-0495",
+      "values": {
+        "name": "Oscorp 30",
+        "domain": "https://oscorp-30.example",
+        "employees": 327,
+        "arr": 5261815,
+        "active": false,
+        "founded": "2000-01-15",
+        "stage": "growth",
+        "notes": null
+      }
+    },
+    {
+      "record_id": "company-0496",
+      "values": {
+        "name": "Acme 31",
+        "domain": "https://acme-31.example",
+        "employees": 364,
+        "arr": 5353152,
+        "active": true,
+        "founded": "2001-02-16",
+        "stage": "seed",
+        "notes": "Acme 31 tracked since FY2021."
+      }
+    },
+    {
+      "record_id": "company-0497",
+      "values": {
+        "name": "Globex 31",
+        "domain": "https://globex-31.example",
+        "employees": 401,
+        "arr": 5444489,
+        "active": true,
+        "founded": "2002-03-17",
+        "stage": "series_a",
+        "notes": "Globex 31 tracked since FY2022."
+      }
+    },
+    {
+      "record_id": "company-0498",
+      "values": {
+        "name": "Initech 31",
+        "domain": "https://initech-31.example",
+        "employees": 438,
+        "arr": 5535826,
+        "active": true,
+        "founded": "2003-04-18",
+        "stage": "series_b",
+        "notes": "Initech 31 tracked since FY2023."
+      }
+    },
+    {
+      "record_id": "company-0499",
+      "values": {
+        "name": "Umbrella 31",
+        "domain": "https://umbrella-31.example",
+        "employees": 475,
+        "arr": 5627163,
+        "active": true,
+        "founded": "2004-05-19",
+        "stage": "growth",
+        "notes": "Umbrella 31 tracked since FY2024."
+      }
+    }
+  ],
+  "total": 12480
+}

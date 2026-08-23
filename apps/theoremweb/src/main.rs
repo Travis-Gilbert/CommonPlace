@@ -1,4 +1,4 @@
-//! The TheoremWeb binary.
+//! The `TheoremWeb` binary.
 //!
 //! On wasm it launches the product against the live canonical registry. On the
 //! host machine it resolves the same boot from a canonical document on disk and
@@ -15,7 +15,7 @@ fn main() {
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use dioxus::prelude::*;
-    use theoremweb_host::{registry, Boot, HostModel, TheoremWebHost};
+    use theoremweb_host::{records, registry, Boot, HostModel, TheoremWebHost};
 
     /// Where the canonical registry document is served, injected at build time
     /// so a deployment can point the host at its own gateway.
@@ -36,23 +36,54 @@ mod wasm {
             Some(Err(error)) => rsx! { p { role: "alert", "{error}" } },
             Some(Ok(contract)) => match Boot::resolve(contract) {
                 Err(error) => rsx! { p { role: "alert", "{error}" } },
-                Ok(boot) => {
-                    let current = boot.catalog.surfaces().first().map(|surface| {
-                        theoremweb_app::SurfaceMount {
-                            binding: surface.default_scope.clone(),
-                            surface: surface.clone(),
-                        }
-                    });
-                    let model = HostModel {
-                        navigation: theoremweb_navigation::NavigationState::default(),
-                        catalog: boot.catalog.clone(),
-                        bodies: boot.bodies.clone(),
-                        current,
-                    };
-                    rsx! { TheoremWebHost { model } }
-                }
+                Ok(boot) => rsx! {
+                    Mounted { catalog: boot.catalog.clone(), bodies: boot.bodies.clone() }
+                },
             },
         }
+    }
+
+    /// The host once the registry has resolved.
+    ///
+    /// Record data is fetched separately from the registry, because a surface
+    /// row is cheap and always needed while a record page is expensive and
+    /// only needed by the surfaces that render one.
+    #[component]
+    fn Mounted(
+        catalog: theoremweb_app::SurfaceCatalog,
+        bodies: theoremweb_layout::BodyRegistry,
+    ) -> Element {
+        let current = catalog
+            .surfaces()
+            .iter()
+            .find(|surface| surface.renderer.body_kind() == Some("record_table"))
+            .or_else(|| catalog.surfaces().first())
+            .map(|surface| theoremweb_app::SurfaceMount {
+                binding: surface.default_scope.clone(),
+                surface: surface.clone(),
+            });
+        let records_key = current.as_ref().and_then(|mount| {
+            (mount.surface.renderer.body_kind() == Some("record_table"))
+                .then(|| mount.surface.surface_id.clone())
+        });
+        let page = use_resource(move || {
+            let key = records_key.clone();
+            async move {
+                match key {
+                    Some(key) => records::fetch(REGISTRY_BASE, &key).await.ok(),
+                    None => None,
+                }
+            }
+        });
+        let model = HostModel {
+            navigation: theoremweb_navigation::NavigationState::default(),
+            catalog,
+            bodies,
+            current,
+            records: page.read_unchecked().clone().flatten(),
+            scheme: theoremweb_chrome::ColorScheme::Light,
+        };
+        rsx! { TheoremWebHost { model } }
     }
 }
 

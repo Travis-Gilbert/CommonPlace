@@ -2,7 +2,7 @@
 //!
 //! D03 sealed the backend registry as the single authority for `BodySpec` rows.
 //! Nothing in this file declares a body kind, an icon, or a size. The client
-//! view is exactly what the canonical document says, so CommonPlace cannot
+//! view is exactly what the canonical document says, so `CommonPlace` cannot
 //! become a second opinion the way `BodyRegistry::initial()` was.
 //!
 //! The seam is the document, not a trait. Parsing and catalog construction are

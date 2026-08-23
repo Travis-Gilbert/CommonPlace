@@ -6,6 +6,7 @@
 //! calls to RustyRed.
 
 pub mod calculate;
+pub mod cell_view;
 pub mod cells;
 pub mod columns;
 pub mod editors;
@@ -14,9 +15,14 @@ pub mod generated_tools;
 pub mod grid;
 pub mod presence;
 pub mod schema;
+pub mod style;
+pub mod table;
 pub mod view_bar;
 
+pub use cell_view::CellView;
 pub use columns::{ColumnSet, FieldColumn};
+pub use style::emit_record_table_css;
+pub use table::{RecordPage, RecordRow, RecordTable};
 pub use schema::{FieldKind, FieldSpec, FieldType, ObjectType, ViewMetadata};
 
 pub const ROW_HEIGHT: u16 = theoremweb_chrome::ThemeCommon::TWENTY.table.row_height_px;

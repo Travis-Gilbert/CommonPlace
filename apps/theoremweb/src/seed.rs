@@ -7,8 +7,9 @@
 //! booted a complete product.
 //!
 //! Body kinds here are drawn from the canonical set the spec fixes at its
-//! `BodyKind` line: fields, related_records, record_table, thread, document,
-//! chart, timeline, iframe, sub_canvas, log. `agent_thread` is deliberately
+//! `BodyKind` line: fields, `related_records`, `record_table`, thread,
+//! document, chart, timeline, iframe, `sub_canvas`, log. `agent_thread` is
+//! deliberately
 //! absent: it appears in the old client resolver and in the old oracle, but it
 //! is not a canonical kind, so a row using it can never resolve against a
 //! canonical registry.
