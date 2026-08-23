@@ -15,7 +15,10 @@ fn main() {
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use dioxus::prelude::*;
-    use theoremweb_host::{records, registry, Boot, HostModel, TheoremWebHost};
+    use std::collections::BTreeMap;
+
+    use theoremweb_host::{layouts, records, registry, Boot, HostModel, TheoremWebHost};
+    use theoremweb_layout::{LayoutMcpCall, LayoutSet};
 
     /// Where the canonical registry document is served, injected at build time
     /// so a deployment can point the host at its own gateway.
@@ -62,6 +65,9 @@ mod wasm {
                 binding: surface.default_scope.clone(),
                 surface: surface.clone(),
             });
+        let surface_key = current
+            .as_ref()
+            .map(|mount| mount.surface.surface_id.clone());
         let records_key = current.as_ref().and_then(|mount| {
             (mount.surface.renderer.body_kind() == Some("record_table"))
                 .then(|| mount.surface.surface_id.clone())
@@ -75,15 +81,67 @@ mod wasm {
                 }
             }
         });
+
+        // Layouts and aggregates are keyed by surface id like records are, so
+        // the server stays the authority on which surfaces have a layout and
+        // which numbers a dashboard is entitled to show.
+        let layouts_key = surface_key.clone();
+        let layouts = use_resource(move || {
+            let key = layouts_key.clone();
+            async move {
+                match key {
+                    Some(key) => layouts::fetch(REGISTRY_BASE, &key)
+                        .await
+                        .unwrap_or_default(),
+                    None => LayoutSet::default(),
+                }
+            }
+        });
+
+        let aggregates_key = surface_key;
+        let server_values = use_resource(move || {
+            let key = aggregates_key.clone();
+            async move {
+                let Some(key) = key else {
+                    return BTreeMap::new();
+                };
+                let receipts = layouts::fetch_aggregates(REGISTRY_BASE, &key)
+                    .await
+                    .unwrap_or_default();
+                // A page-scoped receipt refuses the whole projection. The
+                // charts then render "Server result unavailable", which is the
+                // correct degradation: a missing number beats a wrong one.
+                theoremweb_layout::project_server_aggregates(receipts).unwrap_or_default()
+            }
+        });
+
+        let records = page.read_unchecked().clone().flatten();
+
         let model = HostModel {
             navigation: theoremweb_navigation::NavigationState::default(),
             catalog,
             bodies,
             current,
-            records: page.read_unchecked().clone().flatten(),
+            records,
+            layouts: layouts.read_unchecked().clone().unwrap_or_default(),
+            server_values: server_values.read_unchecked().clone().unwrap_or_default(),
             scheme: theoremweb_chrome::ColorScheme::Light,
         };
-        rsx! { TheoremWebHost { model } }
+        rsx! {
+            TheoremWebHost {
+                model,
+                on_persist: move |call: LayoutMcpCall| {
+                    spawn(async move {
+                        // A refused write must not read as saved. There is no
+                        // optimistic rollback here yet: the draft keeps the
+                        // geometry and the next reload is the correction.
+                        if let Err(error) = layouts::persist(REGISTRY_BASE, &call).await {
+                            dioxus::logger::tracing::error!("layout_write failed: {error}");
+                        }
+                    });
+                },
+            }
+        }
     }
 }
 

@@ -7,9 +7,11 @@
 //! the seven-row seed.
 
 pub mod app;
+pub mod layouts;
 pub mod records;
 pub mod registry;
 pub mod seed;
+pub mod surfaces;
 
 pub use app::{HostModel, MountRegion, SurfaceBody, TheoremWebHost};
 pub use registry::{RegistryError, SurfaceContract, CONTRACT_VERSION};

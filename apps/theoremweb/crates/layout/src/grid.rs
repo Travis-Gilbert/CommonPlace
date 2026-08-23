@@ -387,14 +387,14 @@ impl LayoutEditor {
 #[must_use]
 pub fn emit_layout_css() -> String {
     format!(
-        ".theorem-layout-editor{{display:flex;flex-direction:column;gap:.75rem;color:var(--foreground);}}\
+        ".theorem-layout-editor{{display:flex;flex-direction:column;gap:.75rem;color:var(--foreground);min-width:0;}}\
 .theorem-layout-tabs{{display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;}}\
 .theorem-layout-tabs button{{background:transparent;border:1px solid var(--border);border-radius:var(--radius,4px);color:var(--muted-foreground);padding:.25rem .625rem;cursor:pointer;font:inherit;}}\
 .theorem-layout-tabs button[aria-selected=\"true\"]{{background:var(--accent);color:var(--foreground);border-color:var(--primary);}}\
 .theorem-layout-toolbar{{display:flex;gap:.5rem;align-items:center;margin-left:auto;}}\
 .theorem-layout-palette{{display:flex;gap:.375rem;flex-wrap:wrap;padding:.5rem;border:1px dashed var(--border);border-radius:var(--radius,4px);}}\
 .theorem-layout-palette button{{background:var(--card,var(--background));border:1px solid var(--border);border-radius:var(--radius,4px);color:var(--foreground);padding:.25rem .5rem;cursor:pointer;font:inherit;}}\
-.theorem-layout-grid{{display:grid;grid-template-columns:repeat({GRID_COLUMNS},{GRID_CELL_PX}px);grid-auto-rows:{GRID_ROW_PX}px;gap:.5rem;align-content:start;position:relative;}}\
+.theorem-layout-grid{{display:grid;grid-template-columns:repeat({GRID_COLUMNS},{GRID_CELL_PX}px);grid-auto-rows:{GRID_ROW_PX}px;gap:.5rem;align-content:start;position:relative;overflow-x:auto;min-width:0;touch-action:none;}}\
 .theorem-layout-widget{{position:relative;overflow:hidden;background:var(--card,var(--background));border:1px solid var(--border);border-radius:var(--radius,4px);padding:.5rem;display:flex;flex-direction:column;gap:.25rem;min-width:0;}}\
 .theorem-layout-widget[data-unavailable=\"true\"]{{border-style:dashed;color:var(--muted-foreground);}}\
 .theorem-layout-widget-handle{{cursor:grab;font-size:.6875rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground);user-select:none;}}\
@@ -669,6 +669,30 @@ fn WidgetPalette(props: WidgetPaletteProps) -> Element {
     }
 }
 
+/// Editor and tab state for one mounted layout, re-seeded when it changes.
+///
+/// Re-seeding is conditional on the layout id: an unconditional reset would
+/// discard an in-progress draft on every parent re-render. The tab selection
+/// clears with it, because a tab id from the previous layout means nothing in
+/// the new one.
+fn use_layout_editor(initial: &LayoutObject) -> (Signal<LayoutEditor>, Signal<Option<String>>) {
+    let mut editor = use_signal({
+        let seed = initial.clone();
+        move || LayoutEditor::new(seed)
+    });
+    let mut active_tab = use_signal(|| None::<String>);
+    // `use_reactive` is called directly rather than through its macro: the
+    // macro borrows its argument, which leaves this function taking an owned
+    // `LayoutObject` it never consumes.
+    use_effect(use_reactive(initial, move |initial: LayoutObject| {
+        if editor.peek().draft().layout_id != initial.layout_id {
+            editor.set(LayoutEditor::new(initial));
+            active_tab.set(None);
+        }
+    }));
+    (editor, active_tab)
+}
+
 #[derive(Clone, PartialEq, Props)]
 pub struct LayoutSurfaceProps {
     pub initial: LayoutObject,
@@ -681,16 +705,34 @@ pub struct LayoutSurfaceProps {
     #[props(default)]
     pub server_values: BTreeMap<String, Value>,
     /// The host's chance to own a body kind it has a real component for.
+    ///
+    /// Pair it with `body_epoch`. A `Callback` carries no reactivity of its
+    /// own, so a slot that closes over host data the host later replaces goes
+    /// stale silently: the props here would compare equal, this component
+    /// would not re-render, and the last rendered body would stay on screen.
+    /// That is not hypothetical — it shipped, and a record table sat on
+    /// "Server result unavailable" after its page had arrived.
     pub body: Callback<BodyRequest, Element>,
+    /// A fingerprint of whatever host data `body` reads.
+    ///
+    /// It exists to be compared. The value is meaningless; changing it is the
+    /// whole contract, because that is what makes the slot re-run.
+    #[props(default)]
+    pub body_epoch: u64,
     pub on_persist: EventHandler<LayoutMcpCall>,
 }
 
 /// One layout surface: a record page, a canvas, or a dashboard.
 ///
-/// The editor state is seeded once from `initial`. A host that swaps the
-/// mounted layout must give this component a `key` of the layout id so Dioxus
-/// remounts it; otherwise the new layout would render against the previous
-/// layout's draft.
+/// The editor state is seeded from `initial` and re-seeded whenever the host
+/// mounts a layout with a different id.
+///
+/// That re-seed is not optional and a `key` will not do it. A `key` only
+/// disambiguates siblings inside a list; for a component in a fixed position
+/// Dioxus diffs by position and reuses the scope, so `use_signal`'s
+/// initializer never runs a second time. Relying on the key here shipped a
+/// real bug: navigating from the workspace dashboard to a record kept
+/// rendering the dashboard, because the editor still held the first layout.
 ///
 /// Navigation is not a prop here. The host closes over its own resolver when
 /// it builds the `body` slot, which keeps one owner for "what does opening
@@ -707,11 +749,14 @@ pub fn LayoutSurface(props: LayoutSurfaceProps) -> Element {
         record,
         server_values,
         body,
+        body_epoch,
         on_persist,
     } = props;
+    // Read so the surface re-renders when the host's body data changes; the
+    // value itself is never interpreted.
+    let _ = body_epoch;
 
-    let editor = use_signal(|| LayoutEditor::new(initial));
-    let active_tab = use_signal(|| None::<String>);
+    let (editor, active_tab) = use_layout_editor(&initial);
     let drag = use_signal(|| None::<WidgetDrag>);
 
     let draft = editor.read().draft().clone();
@@ -796,6 +841,7 @@ pub fn LayoutSurface(props: LayoutSurfaceProps) -> Element {
                         editor,
                         drag,
                         body,
+                        body_epoch,
                         on_persist,
                     }
                 }
@@ -815,6 +861,9 @@ struct WidgetFrameProps {
     editor: Signal<LayoutEditor>,
     drag: Signal<Option<WidgetDrag>>,
     body: Callback<BodyRequest, Element>,
+    /// Forwarded so this frame re-renders with the surface; `WidgetFrame` is
+    /// what calls the slot, so memoizing it here would defeat the epoch.
+    body_epoch: u64,
     on_persist: EventHandler<LayoutMcpCall>,
 }
 
@@ -827,8 +876,10 @@ fn WidgetFrame(props: WidgetFrameProps) -> Element {
         mut editor,
         mut drag,
         body,
+        body_epoch,
         on_persist,
     } = props;
+    let _ = body_epoch;
 
     let grid = request.rendered.grid;
     let widget_id = request.rendered.widget_id.clone();
@@ -965,6 +1016,7 @@ mod tests {
                 editor,
                 drag,
                 body,
+                body_epoch: 0,
                 on_persist: move |_| {},
             }
         }
@@ -1183,5 +1235,9 @@ mod tests {
         )));
         assert!(css.contains(&format!("grid-auto-rows:{GRID_ROW_PX}px")));
         assert!(css.contains(".theorem-layout-grid{display:grid;"));
+        // The grid is 12 fixed columns wide, so on a narrow surface it must
+        // scroll inside its own region. Without this the whole page scrolls
+        // and the tab strip and sidebar slide out from under the pointer.
+        assert!(css.contains("overflow-x:auto"));
     }
 }

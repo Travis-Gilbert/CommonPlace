@@ -1,0 +1,9 @@
+[
+  {
+    "widget_id": "revenue",
+    "tool": "aggregate_companies",
+    "arguments": {"field": "annual_recurring_revenue", "op": "sum", "filters": []},
+    "value": 48213000,
+    "completeness": "full_filtered_set"
+  }
+]

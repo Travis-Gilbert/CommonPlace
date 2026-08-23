@@ -1,0 +1,82 @@
+{
+  "layouts": [
+    {
+      "layout_id": "layout:workspace:records",
+      "scope": {"kind": "workspace"},
+      "applies_to": {"kind": "workspace"},
+      "tabs": [
+        {
+          "tab_id": "overview",
+          "title": "Overview",
+          "widgets": [
+            {
+              "widget_id": "companies",
+              "body_kind": "record_table",
+              "body_params": {},
+              "grid": {"x": 0, "y": 0, "w": 8, "h": 8}
+            },
+            {
+              "widget_id": "revenue",
+              "body_kind": "chart",
+              "body_params": {
+                "object_type": "companies",
+                "field": "annual_recurring_revenue",
+                "operation": "sum",
+                "query": {"filters": [], "offset": 0, "limit": 50}
+              },
+              "grid": {"x": 8, "y": 0, "w": 4, "h": 4}
+            },
+            {
+              "widget_id": "future",
+              "body_kind": "orbital_readout",
+              "body_params": {},
+              "grid": {"x": 8, "y": 4, "w": 4, "h": 4}
+            }
+          ]
+        },
+        {
+          "tab_id": "detail",
+          "title": "Detail",
+          "widgets": [
+            {
+              "widget_id": "fields",
+              "body_kind": "fields",
+              "body_params": {},
+              "grid": {"x": 0, "y": 0, "w": 6, "h": 5},
+              "field_visibility": ["name", "domain_name"]
+            },
+            {
+              "widget_id": "related",
+              "body_kind": "related_records",
+              "body_params": {
+                "records": [
+                  {"object_type": "company", "record_id": "acme", "label": "Acme"}
+                ]
+              },
+              "grid": {"x": 6, "y": 0, "w": 6, "h": 5}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "layout_id": "layout:company:record",
+      "scope": {"kind": "workspace"},
+      "applies_to": {"kind": "object_type", "object_type": "company"},
+      "tabs": [
+        {
+          "tab_id": "main",
+          "title": "Main",
+          "widgets": [
+            {
+              "widget_id": "fields",
+              "body_kind": "fields",
+              "body_params": {},
+              "grid": {"x": 0, "y": 0, "w": 12, "h": 5}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

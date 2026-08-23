@@ -25,10 +25,14 @@ readonly WASM_TARGET="wasm32-unknown-unknown"
 readonly DIST_DIR="$APP_ROOT/dist"
 readonly PINNED_CONTRACT="$APP_ROOT/oracles/fixtures/registry-contract-expected.json"
 readonly PINNED_RECORDS="$APP_ROOT/oracles/fixtures/records-page-company.json"
+readonly PINNED_LAYOUTS="$APP_ROOT/oracles/fixtures/layout-set-records.json"
+readonly PINNED_AGGREGATES="$APP_ROOT/oracles/fixtures/aggregates-records.json"
 # Must match src/main.rs REGISTRY_BASE, which appends /contract and
 # /records/<surface_id>.
 readonly REGISTRY_DIR="$DIST_DIR/api/theoremweb/registry"
 readonly RECORDS_DIR="$REGISTRY_DIR/records"
+readonly LAYOUTS_DIR="$REGISTRY_DIR/layouts"
+readonly AGGREGATES_DIR="$REGISTRY_DIR/aggregates"
 
 with_local_registry=false
 for arg in "$@"; do
@@ -91,10 +95,13 @@ main() {
     if [ "$with_local_registry" = true ]; then
         [ -f "$PINNED_CONTRACT" ] || fail "pinned contract is missing: $PINNED_CONTRACT"
         [ -f "$PINNED_RECORDS" ] || fail "pinned record page is missing: $PINNED_RECORDS"
-        mkdir -p "$RECORDS_DIR"
+        mkdir -p "$RECORDS_DIR" "$LAYOUTS_DIR" "$AGGREGATES_DIR"
         cp "$PINNED_CONTRACT" "$REGISTRY_DIR/contract"
-        # Keyed by surface id, matching records::fetch.
+        # Keyed by surface id, matching records::fetch, layouts::fetch, and
+        # layouts::fetch_aggregates.
         cp "$PINNED_RECORDS" "$RECORDS_DIR/records"
+        cp "$PINNED_LAYOUTS" "$LAYOUTS_DIR/records"
+        cp "$PINNED_AGGREGATES" "$AGGREGATES_DIR/records"
         echo "build-web: staged the pinned contract and record page (local stand-ins only)"
     fi
 

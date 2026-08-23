@@ -8,12 +8,19 @@
 //! kinds whose lane has not landed get a named, correctly sized placeholder
 //! rather than a pretend table.
 
+use std::collections::BTreeMap;
+
 use dioxus::prelude::*;
-use theoremweb_app::{MountPlan, SurfaceCatalog, SurfaceHistory, SurfaceMount};
+use serde_json::Value;
+use theoremweb_app::{
+    MountPlan, ScopeBinding as SurfaceScope, SurfaceCatalog, SurfaceHistory, SurfaceMount,
+};
 use theoremweb_chrome::ColorScheme;
-use theoremweb_layout::BodyRegistry;
+use theoremweb_layout::{BodyRegistry, LayoutMcpCall, LayoutSet};
 use theoremweb_navigation::NavigationState;
 use theoremweb_record_table::{RecordPage, RecordTable};
+
+use crate::surfaces::layout::LayoutMount;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HostModel {
@@ -22,6 +29,18 @@ pub struct HostModel {
     pub bodies: BodyRegistry,
     pub current: Option<SurfaceMount>,
     pub records: Option<RecordPage>,
+    /// Layouts the server published for the scopes this host can mount.
+    ///
+    /// A surface renders as a layout when this set claims its scope, and as a
+    /// single body otherwise. No seed row declares which it is, so the server
+    /// stays the authority on that.
+    pub layouts: LayoutSet,
+    /// Server-attested aggregates keyed by widget id.
+    ///
+    /// `dashboard::project_server_aggregates` refuses a page-scoped receipt
+    /// before it can reach here, so a value in this map is full-filtered-set
+    /// truth by construction rather than by convention.
+    pub server_values: BTreeMap<String, Value>,
     pub scheme: ColorScheme,
 }
 
@@ -140,15 +159,37 @@ pub fn SurfaceBody(region: MountRegion, records: Option<RecordPage>, scheme: Col
 
 /// The mounted surface, or the empty state.
 ///
-/// Extracted from the host because `rsx!` moves the region into `SurfaceBody`,
-/// and a component boundary is a clearer place to settle that than a clone
-/// threaded through the parent's tree.
-#[component]
-fn SurfaceSection(
+/// Two mounts are possible. When the published layout set claims this scope
+/// the surface is a layout — many bodies, arranged and editable. Otherwise it
+/// is a single body. Nothing in the seed rows distinguishes them, which is
+/// deliberate: the server decides by publishing a layout or not.
+#[derive(Clone, PartialEq, Props)]
+struct SurfaceSectionProps {
     region: Option<MountRegion>,
+    binding: Option<SurfaceScope>,
+    layouts: LayoutSet,
+    bodies: BodyRegistry,
     records: Option<RecordPage>,
+    server_values: BTreeMap<String, Value>,
     scheme: ColorScheme,
-) -> Element {
+    on_navigate: EventHandler<String>,
+    on_persist: EventHandler<LayoutMcpCall>,
+}
+
+#[allow(non_snake_case, clippy::missing_errors_doc)]
+fn SurfaceSection(props: SurfaceSectionProps) -> Element {
+    let SurfaceSectionProps {
+        region,
+        binding,
+        layouts,
+        bodies,
+        records,
+        server_values,
+        scheme,
+        on_navigate,
+        on_persist,
+    } = props;
+
     let Some(region) = region else {
         return rsx! {
             h1 { "No surface selected" }
@@ -157,18 +198,40 @@ fn SurfaceSection(
     };
     let surface_id = region.surface_id.clone();
     let title = region.title.clone();
+    // Only a binding a published layout actually claims routes to the layout
+    // renderer; the rest fall through to the single-body mount.
+    let layout_binding = binding.filter(|binding| {
+        layouts
+            .resolve(&crate::surfaces::layout::layout_scope(binding))
+            .is_some()
+    });
+
     rsx! {
         h1 { "data-surface-id": "{surface_id}", "{title}" }
-        SurfaceBody { region, records, scheme }
+        if let Some(binding) = layout_binding {
+            LayoutMount {
+                layouts,
+                binding,
+                bodies,
+                server_values,
+                records,
+                scheme,
+                on_navigate,
+                on_persist,
+            }
+        } else {
+            SurfaceBody { region, records, scheme }
+        }
     }
 }
 
 #[component]
-pub fn TheoremWebHost(model: HostModel) -> Element {
+pub fn TheoremWebHost(model: HostModel, on_persist: EventHandler<LayoutMcpCall>) -> Element {
     let theme_css = theoremweb_chrome::emit_chrome_theme_css(&[]).unwrap_or_default();
     // chrome owns the variable namespace and never emits selectors, so each
     // crate that renders class names contributes its own layout.
     let table_css = theoremweb_record_table::emit_record_table_css();
+    let layout_css = theoremweb_layout::emit_layout_css();
     let catalog = model.catalog.clone();
     let bodies = model.bodies.clone();
 
@@ -202,11 +265,13 @@ pub fn TheoremWebHost(model: HostModel) -> Element {
         .read()
         .as_ref()
         .map(|mount| MountRegion::resolve(mount, &bodies));
+    let binding = current.read().as_ref().map(|mount| mount.binding.clone());
     let error_text = omnibox_error();
 
     rsx! {
         style { "{theme_css}" }
         style { "{table_css}" }
+        style { "{layout_css}" }
         main { class: "theoremweb-host",
             aside { class: "theoremweb-navigation",
                 input {
@@ -281,8 +346,16 @@ pub fn TheoremWebHost(model: HostModel) -> Element {
             section { class: "theoremweb-surface",
                 SurfaceSection {
                     region,
+                    binding,
+                    layouts: model.layouts.clone(),
+                    bodies,
                     records: model.records.clone(),
+                    server_values: model.server_values.clone(),
                     scheme: model.scheme,
+                    // One resolver owns "what does opening this mean", so a
+                    // related-record widget and the omnibox cannot disagree.
+                    on_navigate: move |intent: String| open.call(intent),
+                    on_persist,
                 }
             }
         }
@@ -292,7 +365,9 @@ pub fn TheoremWebHost(model: HostModel) -> Element {
 #[cfg(test)]
 mod tests {
     use theoremweb_app::{Renderer, ScopeBinding, SurfaceListResponse, SurfaceSpec};
-    use theoremweb_layout::{BodySpec, SizeNegotiation};
+    use theoremweb_layout::{
+        BodySpec, GridRect, LayoutObject, LayoutTab, LayoutTarget, LayoutWidget, SizeNegotiation,
+    };
 
     use super::*;
 
@@ -351,6 +426,44 @@ mod tests {
         .expect("fixture page decodes")
     }
 
+    /// A closure only becomes an `EventHandler` inside a running Dioxus
+    /// runtime, so SSR assertions go through a component.
+    #[allow(non_snake_case)]
+    #[component]
+    fn HostHarness(model: HostModel) -> Element {
+        rsx! { TheoremWebHost { model, on_persist: move |_| {} } }
+    }
+
+    fn dashboard_layout() -> LayoutSet {
+        LayoutSet {
+            layouts: vec![LayoutObject {
+                layout_id: "layout:workspace".into(),
+                scope: theoremweb_layout::ScopeBinding::Workspace,
+                applies_to: LayoutTarget::Workspace,
+                tabs: vec![LayoutTab {
+                    tab_id: "main".into(),
+                    title: "Main".into(),
+                    widgets: vec![
+                        LayoutWidget {
+                            widget_id: "companies".into(),
+                            body_kind: "record_table".into(),
+                            body_params: serde_json::json!({}),
+                            grid: GridRect { x: 0, y: 0, w: 8, h: 6 },
+                            field_visibility: None,
+                        },
+                        LayoutWidget {
+                            widget_id: "future".into(),
+                            body_kind: "future_body".into(),
+                            body_params: serde_json::json!({}),
+                            grid: GridRect { x: 8, y: 0, w: 4, h: 6 },
+                            field_visibility: None,
+                        },
+                    ],
+                }],
+            }],
+        }
+    }
+
     fn model(records: Option<RecordPage>) -> HostModel {
         HostModel {
             navigation: NavigationState::default(),
@@ -361,6 +474,8 @@ mod tests {
             bodies: bodies(),
             current: Some(mount(Renderer::Dioxus("record_table".into()))),
             records,
+            layouts: LayoutSet::default(),
+            server_values: BTreeMap::new(),
             scheme: ColorScheme::Light,
         }
     }
@@ -398,7 +513,7 @@ mod tests {
     #[test]
     fn the_records_surface_mounts_a_real_grid_not_a_placeholder() {
         let model = model(Some(page()));
-        let html = dioxus_ssr::render_element(rsx! { TheoremWebHost { model } });
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
         assert!(html.contains("role=\"grid\""));
         assert!(html.contains("theorem-record-table"));
         assert!(html.contains("Acme"));
@@ -408,7 +523,7 @@ mod tests {
     #[test]
     fn the_records_surface_degrades_to_a_labeled_box_when_no_page_arrived() {
         let model = model(None);
-        let html = dioxus_ssr::render_element(rsx! { TheoremWebHost { model } });
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
         assert!(!html.contains("role=\"grid\""));
         assert!(html.contains("data-body-kind=\"record_table\""));
         assert!(html.contains("Record table"));
@@ -417,7 +532,7 @@ mod tests {
     #[test]
     fn the_host_renders_the_omnibox_and_history_controls() {
         let model = model(Some(page()));
-        let html = dioxus_ssr::render_element(rsx! { TheoremWebHost { model } });
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
         assert!(html.contains("theoremweb-omnibox"));
         assert!(html.contains("data-history=\"back\""));
         assert!(html.contains("data-history=\"forward\""));
@@ -430,4 +545,72 @@ mod tests {
         assert!(region.has_component(Some(&page())));
         assert!(!region.has_component(None));
     }
+
+    #[test]
+    fn a_published_layout_replaces_the_single_body_mount() {
+        // No seed row says "this surface is a layout". The server saying so,
+        // by publishing a layout that claims the scope, is what routes it.
+        let mut model = model(Some(page()));
+        model.layouts = dashboard_layout();
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
+        // Asserted on attributes the stylesheet does not mention. The host
+        // inlines emit_layout_css() into the same document, so any assertion
+        // on a class name or a styled attribute selector passes whether or
+        // not the element was ever rendered.
+        assert!(html.contains("data-layout-id=\"layout:workspace\""));
+        assert!(html.contains("data-edit-mode=\"false\""));
+        assert!(html.contains("data-layout-edit-toggle"));
+    }
+
+    #[test]
+    fn a_record_table_widget_inside_a_layout_renders_the_real_grid() {
+        // W02's table stops being a whole surface and becomes a widget, from
+        // the same component: this is what LY5 means by a dashboard with
+        // RecordTable bodies.
+        let mut model = model(Some(page()));
+        model.layouts = dashboard_layout();
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
+        assert!(html.contains("data-widget-id=\"companies\""));
+        assert!(html.contains("role=\"grid\""));
+        assert!(html.contains("Acme"));
+    }
+
+    #[test]
+    fn an_unregistered_widget_inside_a_layout_is_labeled_not_dropped() {
+        // LY2's recoverability clause, at the product mount rather than in a
+        // crate test: the rest of the page still renders around it.
+        let mut model = model(Some(page()));
+        model.layouts = dashboard_layout();
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
+        assert!(html.contains("data-widget-id=\"future\""));
+        assert!(html.contains("Unavailable body: future_body"));
+        // `data-unavailable="true"` is also a selector in the inlined
+        // stylesheet, so it cannot discriminate here; the label text can.
+        assert!(html.contains("No renderer registered for future_body"));
+        // and the sibling widget survived it
+        assert!(html.contains("role=\"grid\""));
+    }
+
+    #[test]
+    fn with_no_layout_published_the_single_body_mount_still_wins() {
+        let model = model(Some(page()));
+        assert!(model.layouts.layouts.is_empty());
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
+        assert!(!html.contains("data-layout-id="));
+        assert!(!html.contains("data-edit-mode="));
+        assert!(html.contains("theoremweb-mount-live"));
+        assert!(html.contains("role=\"grid\""));
+    }
+
+    #[test]
+    fn the_host_emits_the_layout_stylesheet_beside_the_table_stylesheet() {
+        // The W02 lesson: chrome emits tokens and never selectors, so a class
+        // whose crate does not contribute its own layout renders unstyled.
+        let mut model = model(Some(page()));
+        model.layouts = dashboard_layout();
+        let html = dioxus_ssr::render_element(rsx! { HostHarness { model } });
+        assert!(html.contains(".theorem-layout-grid{display:grid;"));
+        assert!(html.contains(".theorem-record-row"));
+    }
+
 }
