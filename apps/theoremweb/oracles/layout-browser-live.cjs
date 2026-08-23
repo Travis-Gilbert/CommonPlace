@@ -5,7 +5,8 @@
 //
 //   node oracles/layout-browser-live.cjs                  offline contract check
 //   node oracles/layout-browser-live.cjs --live --seed    write the probe layout
-//   node oracles/layout-browser-live.cjs --live --verify  read it back
+//   node oracles/layout-browser-live.cjs --live           read it back
+//   node oracles/layout-browser-live.cjs --live --verify  same, explicitly
 //
 // The offline mode checks what a fixture can honestly prove: that the pinned
 // layout only names canonical bodies, that its unknown body is deliberate, and
@@ -22,7 +23,7 @@ const { connect, invariant } = require("./mcp-client.cjs");
 const args = new Set(process.argv.slice(2));
 const live = args.has("--live");
 const seed = args.has("--seed");
-const verify = args.has("--verify");
+const verify = args.has("--verify") || (live && !seed);
 
 const HERE = __dirname;
 const PINNED_LAYOUTS = path.join(HERE, "fixtures", "layout-set-records.json");
@@ -92,13 +93,9 @@ function offline() {
 
 async function liveSeed() {
   const client = await connect("theoremweb-layout-oracle");
-  const tools = new Set((await client.listTools()).map((tool) => tool.name));
-  for (const required of ["layout_write", "layout_get"]) {
-    invariant(
-      tools.has(required),
-      `the graph exposes no ${required} tool, so V03 cannot be seeded; this is the backend half of W03`,
-    );
-  }
+  // The hosted MCP advertises only its progressive-disclosure core catalog.
+  // Domain tools remain directly callable, so tools/list absence is not a
+  // capability failure; the call below is the authoritative check.
   await client.call("layout_write", {
     layout: {
       layout_id: GRAPH_ONLY_LAYOUT,
@@ -127,6 +124,7 @@ async function liveVerify() {
   const client = await connect("theoremweb-layout-oracle");
   const stored = await client.call("layout_get", { layout_id: GRAPH_ONLY_LAYOUT });
   const layout = stored.layout ?? stored;
+  invariant(layout, `layout_get found no persisted ${GRAPH_ONLY_LAYOUT} probe`);
   invariant(
     layout.layout_id === GRAPH_ONLY_LAYOUT,
     `layout_get returned ${layout.layout_id}, not the probe; registry truth came from a fixture`,
