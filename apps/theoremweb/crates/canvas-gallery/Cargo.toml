@@ -1,0 +1,18 @@
+[package]
+name = "theoremweb-canvas-gallery"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Registry-driven canvas bodies for TheoremWeb"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = "1.0"
+theoremweb-record-table = { path = "../record-table" }
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,55 @@
+{
+  "object_types": [
+    {
+      "object_type_id": "schema:object-type:tenant-a:task",
+      "tenant_id": "tenant-a",
+      "name_singular": "Task",
+      "name_plural": "Tasks",
+      "label_singular": "Task",
+      "label_plural": "Tasks",
+      "node_label": "Task",
+      "label_identifier_field": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "field_type": { "kind": "text" },
+          "required": true,
+          "system": false
+        },
+        {
+          "key": "done",
+          "label": "Done",
+          "field_type": { "kind": "boolean" },
+          "required": false,
+          "system": false
+        },
+        {
+          "key": "due",
+          "label": "Due",
+          "field_type": { "kind": "date" },
+          "required": false,
+          "system": false
+        },
+        {
+          "key": "assignee",
+          "label": "Assignee",
+          "field_type": {
+            "kind": "relation",
+            "target_object_type_id": "schema:object-type:tenant-a:person",
+            "cardinality": "one"
+          },
+          "required": false,
+          "system": false
+        }
+      ],
+      "enforcement": "reject",
+      "system": false,
+      "extensions": { "theorem.object_icon": "check-square" },
+      "content_anchor": "task-anchor",
+      "retired": false
+    }
+  ],
+  "views": [],
+  "schema_version": { "id": "schema-v9" }
+}

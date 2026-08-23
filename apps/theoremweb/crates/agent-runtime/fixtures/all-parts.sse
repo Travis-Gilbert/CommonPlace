@@ -1,0 +1,60 @@
+data: {"type":"start","messageId":"message-1","messageMetadata":{"model":"live"}}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"text-1"}
+
+data: {"type":"text-delta","id":"text-1","delta":"Hello"}
+
+data: {"type":"text-end","id":"text-1"}
+
+data: {"type":"reasoning-start","id":"reasoning-1"}
+
+data: {"type":"reasoning-delta","id":"reasoning-1","delta":"Check the graph"}
+
+data: {"type":"reasoning-end","id":"reasoning-1"}
+
+data: {"type":"reasoning-file","url":"https://example.invalid/reasoning.txt","mediaType":"text/plain"}
+
+data: {"type":"source-url","sourceId":"source-1","url":"https://example.invalid/source","title":"Source"}
+
+data: {"type":"source-document","sourceId":"company:acme","mediaType":"text/markdown","title":"Acme","filename":"acme.md"}
+
+data: {"type":"file","url":"https://example.invalid/chart.png","mediaType":"image/png","filename":"chart.png"}
+
+data: {"type":"custom","kind":"provider.trace"}
+
+data: {"type":"error","errorText":"recoverable"}
+
+data: {"type":"tool-input-start","toolCallId":"call-1","toolName":"lookup"}
+
+data: {"type":"tool-input-delta","toolCallId":"call-1","inputTextDelta":"{\"id\":"}
+
+data: {"type":"tool-input-available","toolCallId":"call-1","toolName":"lookup","input":{"id":"acme"}}
+
+data: {"type":"tool-input-error","toolCallId":"call-2","toolName":"write","input":{"id":"bad"},"errorText":"invalid input"}
+
+data: {"type":"tool-approval-request","approvalId":"approval-1","toolCallId":"call-1"}
+
+data: {"type":"tool-approval-response","approvalId":"approval-1","approved":false,"reason":"unsafe target"}
+
+data: {"type":"tool-output-available","toolCallId":"call-1","output":{"name":"Acme"}}
+
+data: {"type":"tool-output-error","toolCallId":"call-2","errorText":"provider failed"}
+
+data: {"type":"tool-output-denied","toolCallId":"call-3"}
+
+data: {"type":"message-metadata","messageMetadata":{"traceId":"trace-1"}}
+
+data: {"type":"data-weather","data":{"temperature":70}}
+
+data: {"type":"future-control","mode":"safe"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop"}
+
+data: {"type":"abort","reason":"client cancel"}
+
+data: [DONE]
+

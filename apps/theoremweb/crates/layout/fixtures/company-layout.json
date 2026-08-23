@@ -1,0 +1,49 @@
+{
+  "layout_id": "layout:companies",
+  "scope": {
+    "kind": "record",
+    "object_type": "company",
+    "record_id": "acme"
+  },
+  "applies_to": {
+    "kind": "object_type",
+    "object_type": "company"
+  },
+  "tabs": [
+    {
+      "tab_id": "main",
+      "title": "Main",
+      "widgets": [
+        {
+          "widget_id": "fields",
+          "body_kind": "fields",
+          "body_params": {},
+          "grid": {"x": 0, "y": 0, "w": 6, "h": 4},
+          "field_visibility": ["name", "website"]
+        },
+        {
+          "widget_id": "related",
+          "body_kind": "related_records",
+          "body_params": {
+            "records": [
+              {"object_type": "company", "record_id": "globex", "label": "Globex"}
+            ]
+          },
+          "grid": {"x": 6, "y": 0, "w": 6, "h": 4}
+        }
+      ]
+    },
+    {
+      "tab_id": "activity",
+      "title": "Activity",
+      "widgets": [
+        {
+          "widget_id": "future",
+          "body_kind": "future_body",
+          "body_params": {},
+          "grid": {"x": 0, "y": 0, "w": 12, "h": 3}
+        }
+      ]
+    }
+  ]
+}

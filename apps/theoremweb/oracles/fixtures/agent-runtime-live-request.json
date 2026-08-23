@@ -1,0 +1,15 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Use the supplied source reference as context. Briefly state that you are starting the V06 probe, then use an available shell or filesystem tool to create /data/v06-live-probe.txt containing the word verified. Do not simulate the tool call, and wait for approval before performing the write."
+    }
+  ],
+  "sources": [
+    {
+      "title": "TheoremWeb V06 live stream endpoint",
+      "url": "https://apps.theoremweb.com/api/theoremweb/agent/stream",
+      "snippet": "Bearer-authenticated AI SDK UI-message SSE endpoint used for the live V06 oracle."
+    }
+  ]
+}

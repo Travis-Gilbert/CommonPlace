@@ -1,0 +1,36 @@
+{
+  "surface": {
+    "surface_id": "records",
+    "title": "Records",
+    "icon": "table",
+    "default_scope": {
+      "kind": "workspace"
+    },
+    "renderer": {
+      "kind": "dioxus",
+      "body_kind": "record_table"
+    },
+    "layout_ref": "layout:companies",
+    "capabilities": [
+      "records.read"
+    ]
+  },
+  "scope": {
+    "binding": {
+      "kind": "node",
+      "node_id": "node:companies"
+    },
+    "records": [
+      {
+        "object_type": "company",
+        "record_id": "acme"
+      }
+    ],
+    "documents": [],
+    "thread_id": "thread:companies",
+    "capability_grants": [
+      "records.read"
+    ]
+  }
+}
+

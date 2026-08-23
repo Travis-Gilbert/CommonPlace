@@ -1,0 +1,57 @@
+{
+  "object_types": [
+    {
+      "object_type_id": "schema:object-type:tenant-a:company",
+      "tenant_id": "tenant-a",
+      "name_singular": "Company",
+      "name_plural": "Companies",
+      "label_singular": "Company",
+      "label_plural": "Companies",
+      "node_label": "Company",
+      "label_identifier_field": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "field_type": { "kind": "text" },
+          "required": true,
+          "system": false
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "field_type": { "kind": "text" },
+          "required": false,
+          "system": false
+        },
+        {
+          "key": "revenue",
+          "label": "Revenue",
+          "field_type": { "kind": "number" },
+          "required": false,
+          "system": false
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "field_type": {
+            "kind": "enum",
+            "variants": ["Active", "Dormant"]
+          },
+          "required": false,
+          "system": false
+        }
+      ],
+      "enforcement": "warn",
+      "system": false,
+      "extensions": {
+        "theorem.field_semantics": { "website": "url" },
+        "theorem.object_icon": "building"
+      },
+      "content_anchor": "company-anchor",
+      "retired": false
+    }
+  ],
+  "views": [],
+  "schema_version": { "id": "schema-v7" }
+}
