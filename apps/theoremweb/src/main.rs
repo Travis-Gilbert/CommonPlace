@@ -73,7 +73,7 @@ mod native {
         })?;
         let bytes = std::fs::read(&path).map_err(|error| format!("{path}: {error}"))?;
         let contract = SurfaceContract::parse(&bytes).map_err(|error| error.to_string())?;
-        let boot = Boot::resolve(&contract).map_err(|error| error.to_string())?;
+        let mut boot = Boot::resolve(&contract).map_err(|error| error.to_string())?;
         let endpoints = SeedEndpoints {
             ide_url: std::env::var("THEOREMWEB_IDE_URL").unwrap_or_default(),
             browser_url: std::env::var("THEOREMWEB_BROWSER_URL").unwrap_or_default(),

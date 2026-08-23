@@ -35,6 +35,20 @@ pub struct BootReceipt {
     pub missing_seed_ids: Vec<String>,
     pub unavailable_labels: Vec<String>,
     pub registry_source: &'static str,
+    pub intents: Vec<ResolvedIntent>,
+    pub history: Vec<ResolvedIntent>,
+}
+
+/// One omnibox intent as the host actually resolved it.
+///
+/// V01 asserts against these rather than against a JavaScript
+/// reimplementation, so the oracle proves the product and not itself.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ResolvedIntent {
+    pub step: String,
+    pub intent: String,
+    pub surface_id: String,
+    pub binding: theoremweb_app::ScopeBinding,
 }
 
 impl Boot {
@@ -55,10 +69,58 @@ impl Boot {
         })
     }
 
+    /// Resolve one omnibox intent and record it.
+    fn intent(&self, step: &str, raw: &str) -> Option<ResolvedIntent> {
+        self.catalog.resolve(raw).ok().map(|mount| ResolvedIntent {
+            step: step.to_owned(),
+            intent: raw.to_owned(),
+            surface_id: mount.surface.surface_id,
+            binding: mount.binding,
+        })
+    }
+
+    /// Drive the omnibox and the back/forward stack through the host's own
+    /// logic, so a receipt reports real behavior.
+    ///
+    /// TW3 requires a record identifier to open the record surface at `Record`
+    /// scope, a question to open the chat surface at `Workspace` scope, and
+    /// back and forward to restore both surface and binding.
+    fn exercise(&mut self) -> (Vec<ResolvedIntent>, Vec<ResolvedIntent>) {
+        let record = self.intent("record", "record:company:acme");
+        let question = self.intent("question", "What changed?");
+        let mut history = Vec::new();
+        if let (Some(record), Some(question)) = (record.clone(), question.clone()) {
+            for raw in ["record:company:acme", "What changed?"] {
+                if let Ok(mount) = self.catalog.resolve(raw) {
+                    self.history.push(mount);
+                }
+            }
+            if let Some(back) = self.history.back() {
+                history.push(ResolvedIntent {
+                    step: "back".to_owned(),
+                    intent: record.intent.clone(),
+                    surface_id: back.surface.surface_id.clone(),
+                    binding: back.binding.clone(),
+                });
+            }
+            if let Some(forward) = self.history.forward() {
+                history.push(ResolvedIntent {
+                    step: "forward".to_owned(),
+                    intent: question.intent.clone(),
+                    surface_id: forward.surface.surface_id.clone(),
+                    binding: forward.binding.clone(),
+                });
+            }
+        }
+        (vec![record, question].into_iter().flatten().collect(), history)
+    }
+
     /// Describe the boot for a verification receipt.
-    #[must_use]
-    pub fn receipt(&self, contract: &SurfaceContract, endpoints: &SeedEndpoints) -> BootReceipt {
+    pub fn receipt(&mut self, contract: &SurfaceContract, endpoints: &SeedEndpoints) -> BootReceipt {
+        let (intents, history) = self.exercise();
         BootReceipt {
+            intents,
+            history,
             contract_version: contract.version.clone(),
             surface_ids: contract
                 .surfaces
@@ -132,12 +194,27 @@ mod tests {
     #[test]
     fn the_host_boots_all_seven_rows_and_ten_bodies_from_one_document() {
         let contract = SurfaceContract::parse(document().as_bytes()).expect("document parses");
-        let boot = Boot::resolve(&contract).expect("host resolves");
+        let mut boot = Boot::resolve(&contract).expect("host resolves");
         let receipt = boot.receipt(&contract, &endpoints());
         assert_eq!(receipt.surface_ids.len(), 7);
         assert_eq!(receipt.body_kinds.len(), 10);
         assert!(receipt.missing_seed_ids.is_empty());
         assert_eq!(receipt.registry_source, "canonical-document");
+    }
+
+    #[test]
+    fn the_receipt_reports_real_omnibox_and_history_behavior() {
+        let contract = SurfaceContract::parse(document().as_bytes()).expect("document parses");
+        let mut boot = Boot::resolve(&contract).expect("host resolves");
+        let receipt = boot.receipt(&contract, &endpoints());
+        let steps: Vec<&str> = receipt.intents.iter().map(|i| i.step.as_str()).collect();
+        assert_eq!(steps, ["record", "question"]);
+        assert_eq!(receipt.intents[0].surface_id, "records");
+        assert_eq!(receipt.intents[1].surface_id, "chat");
+        let history: Vec<&str> = receipt.history.iter().map(|i| i.step.as_str()).collect();
+        assert_eq!(history, ["back", "forward"]);
+        assert_eq!(receipt.history[0].surface_id, "records");
+        assert_eq!(receipt.history[1].surface_id, "chat");
     }
 
     #[test]
