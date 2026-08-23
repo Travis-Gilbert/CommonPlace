@@ -12,7 +12,6 @@ path = "src/lib.rs"
 serde_json = "1.0"
 theoremweb-record-table = { path = "../record-table" }
 
-[workspace]
 
 [lints.rust]
 unsafe_code = "forbid"

@@ -8,7 +8,6 @@ description = "Licensed theme tokens and CSS variable bridge for TheoremWeb"
 [lib]
 path = "src/lib.rs"
 
-[workspace]
 
 [lints.rust]
 unsafe_code = "forbid"

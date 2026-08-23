@@ -1,0 +1,75 @@
+# The runnable TheoremWeb product host.
+#
+# SPEC-THEOREMWEB-SURFACE-1.0 TW1-TW4 and plan node W01. The seven surface
+# crates were seven separate workspace roots, so nothing linked them into a
+# product. They are members here, and this package is the binary that mounts
+# them against graph-resolved registry rows.
+#
+# This tree declares its own `[workspace]` rather than joining the CommonPlace
+# root, matching the documented convention there: a sub-tree with its own heavy
+# dependency set (here Dioxus and a wasm renderer) stays out of every root
+# `cargo test`.
+
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+# D02 sealed the exact pin at 0.7.10, deviating from the spec prose 0.7.4,
+# because 0.7.10 is the verified donor/source line. Library crates take
+# `minimal`: a renderer belongs to the host, not to a leaf.
+dioxus = { version = "=0.7.10", default-features = false, features = ["minimal"] }
+dioxus-ssr = "=0.7.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[package]
+name = "theoremweb-host"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "The runnable graph-registry-driven TheoremWeb product host"
+
+[lib]
+name = "theoremweb_host"
+path = "src/lib.rs"
+
+[[bin]]
+name = "theoremweb"
+path = "src/main.rs"
+
+[dependencies]
+dioxus = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+theoremweb-agent-runtime = { path = "crates/agent-runtime" }
+theoremweb-app = { path = "crates/app" }
+theoremweb-canvas-gallery = { path = "crates/canvas-gallery" }
+theoremweb-chrome = { path = "crates/chrome" }
+theoremweb-layout = { path = "crates/layout" }
+theoremweb-navigation = { path = "crates/navigation" }
+theoremweb-record-table = { path = "crates/record-table" }
+
+# The renderer and the network transport are wasm-only. Keeping them off the
+# native target is what lets `cargo test` run the host's logic on the host
+# machine without a browser.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+dioxus = { version = "=0.7.10", default-features = false, features = ["web", "launch", "document", "logger"] }
+gloo-net = { version = "0.6", default-features = false, features = ["http", "json"] }
+
+[dev-dependencies]
+dioxus-ssr = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
+nursery = "deny"

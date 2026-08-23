@@ -184,7 +184,7 @@ mod tests {
                 object_type: "company".into(),
                 record_id: "acme".into(),
             },
-            &BodyRegistry::initial(),
+            &crate::body_registry::fixtures::canonical_stub(),
             Some(&record()),
             &BTreeMap::new(),
         );
@@ -205,7 +205,7 @@ mod tests {
             ScopeBinding::Canvas {
                 canvas_id: "commands".into(),
             },
-            &BodyRegistry::initial(),
+            &crate::body_registry::fixtures::canonical_stub(),
             None,
             &BTreeMap::new(),
         );

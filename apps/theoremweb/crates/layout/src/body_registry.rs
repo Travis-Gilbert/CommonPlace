@@ -1,3 +1,17 @@
+//! The client body registry.
+//!
+//! D03 sealed `theorem-body-registry` in the Theorem repository as the single
+//! authority for body declarations. This module therefore declares no kinds,
+//! no icons, and no sizes. It is a container the host fills from the canonical
+//! document.
+//!
+//! It used to carry a `BodyRegistry::initial()` with its own hardcoded list of
+//! ten kinds. That list disagreed with the canonical crate on six of ten icons
+//! and on all ten sizes, and it disagreed with the canonical wire fixture as
+//! well, so the same body had three different answers depending on which
+//! artifact you read. Removing the list is what collapses those three back to
+//! one.
+
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -37,42 +51,26 @@ pub struct BodyRegistry {
 }
 
 impl BodyRegistry {
-    #[must_use]
-    pub fn initial() -> Self {
-        let specs = [
-            ("fields", "Fields", "list", 480, 320),
-            ("related_records", "Related records", "link", 480, 280),
-            ("record_table", "Record table", "table", 640, 360),
-            ("thread", "Thread", "message", 480, 480),
-            ("document", "Document", "file", 560, 640),
-            ("chart", "Chart", "chart", 480, 320),
-            ("timeline", "Timeline", "clock", 480, 400),
-            ("iframe", "Iframe", "globe", 640, 480),
-            ("sub_canvas", "Sub-canvas", "nodes", 640, 480),
-            ("log", "Log", "terminal", 640, 320),
-        ]
-        .into_iter()
-        .map(|(kind, title, icon, width, height)| {
-            (
-                kind.to_owned(),
-                BodySpec {
-                    kind: kind.into(),
-                    title: title.into(),
-                    icon: icon.into(),
-                    renderer_binding: format!("theorem.body.{kind}"),
-                    size: SizeNegotiation {
-                        min_width: width / 2,
-                        min_height: height / 2,
-                        default_width: width,
-                        default_height: height,
-                        max_width: None,
-                        max_height: None,
-                    },
-                },
-            )
-        })
-        .collect();
-        Self { specs }
+    /// Build the registry from canonical rows.
+    ///
+    /// This is the only constructor that admits bodies. There is deliberately
+    /// no default and no `initial()`: a client that can produce body kinds
+    /// without the backend is a second authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RegistryError::EmptyKind`] for a blank kind or
+    /// [`RegistryError::DuplicateKind`] when the canonical document repeats a
+    /// kind. A repeat is refused rather than last-write-wins, because silently
+    /// collapsing it would hide exactly the drift this registry exists to stop.
+    pub fn from_canonical(
+        specs: impl IntoIterator<Item = BodySpec>,
+    ) -> Result<Self, RegistryError> {
+        let mut registry = Self::default();
+        for spec in specs {
+            registry.register(spec)?;
+        }
+        Ok(registry)
     }
 
     /// Register one body declaration.
@@ -95,6 +93,21 @@ impl BodyRegistry {
     #[must_use]
     pub fn get(&self, kind: &str) -> Option<&BodySpec> {
         self.specs.get(kind)
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.specs.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.specs.is_empty()
+    }
+
+    #[must_use]
+    pub fn kinds(&self) -> Vec<&str> {
+        self.specs.keys().map(String::as_str).collect()
     }
 
     #[must_use]
@@ -128,24 +141,76 @@ pub enum RegistryError {
 }
 
 #[cfg(test)]
+pub(crate) mod fixtures {
+    use super::{BodyRegistry, BodySpec, SizeNegotiation};
+
+    /// A stand-in for the canonical document, for crate-local tests only.
+    ///
+    /// These values are not authority. A test that needs real numbers must read
+    /// the canonical contract instead.
+    pub(crate) fn canonical_stub() -> BodyRegistry {
+        BodyRegistry::from_canonical(
+            ["fields", "related_records", "record_table", "thread"]
+                .into_iter()
+                .map(|kind| BodySpec {
+                    kind: kind.to_owned(),
+                    title: kind.to_owned(),
+                    icon: kind.to_owned(),
+                    renderer_binding: format!("theorem.body.{kind}"),
+                    size: SizeNegotiation {
+                        min_width: 240,
+                        min_height: 160,
+                        default_width: 480,
+                        default_height: 320,
+                        max_width: None,
+                        max_height: None,
+                    },
+                }),
+        )
+        .expect("stub kinds are distinct and non-empty")
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn one_registration_drives_both_palettes() {
-        let registry = BodyRegistry::initial();
+        let registry = fixtures::canonical_stub();
         assert_eq!(registry.widget_palette(), registry.node_palette());
         assert!(registry.get("record_table").is_some());
         assert!(registry.get("thread").is_some());
-        assert_eq!(registry.widget_palette().len(), 10);
     }
 
     #[test]
-    fn duplicate_registration_names_the_kind() {
-        let mut registry = BodyRegistry::initial();
-        let error = registry
-            .register(registry.get("thread").unwrap().clone())
-            .unwrap_err();
+    fn the_registry_declares_nothing_on_its_own() {
+        let registry = BodyRegistry::default();
+        assert!(registry.is_empty());
+        assert!(registry.get("record_table").is_none());
+    }
+
+    #[test]
+    fn a_repeated_canonical_kind_is_refused_by_name() {
+        let registry = fixtures::canonical_stub();
+        let repeated = registry.get("thread").expect("stub has thread").clone();
+        let error = BodyRegistry::from_canonical(
+            registry.specs.values().cloned().chain([repeated]),
+        )
+        .unwrap_err();
         assert_eq!(error.to_string(), "body kind already registered: thread");
+    }
+
+    #[test]
+    fn a_blank_kind_is_refused() {
+        let mut blank = fixtures::canonical_stub()
+            .get("thread")
+            .expect("stub has thread")
+            .clone();
+        blank.kind = "   ".into();
+        assert_eq!(
+            BodyRegistry::from_canonical([blank]).unwrap_err(),
+            RegistryError::EmptyKind
+        );
     }
 }

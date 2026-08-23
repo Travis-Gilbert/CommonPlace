@@ -96,7 +96,7 @@ impl SurfaceCatalog {
             );
         }
         if is_question(intent) {
-            return self.mount_body("agent_thread", ScopeBinding::Workspace);
+            return self.mount_body("thread", ScopeBinding::Workspace);
         }
         self.surfaces
             .iter()
@@ -351,7 +351,7 @@ mod tests {
             count: 2,
             surfaces: vec![
                 surface("tenant-records", "Records", "record_table"),
-                surface("tenant-chat", "Ask", "agent_thread"),
+                surface("tenant-chat", "Ask", "thread"),
             ],
         })
     }

@@ -1,0 +1,241 @@
+{
+  "version": "theoremweb-surface-v1",
+  "bodies": [
+    {
+      "kind": "fields",
+      "title": "Fields",
+      "icon": "fields",
+      "renderer_binding": "theorem.body.fields",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "related_records",
+      "title": "Related records",
+      "icon": "relation",
+      "renderer_binding": "theorem.body.related_records",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "record_table",
+      "title": "Record table",
+      "icon": "table",
+      "renderer_binding": "theorem.body.record_table",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "thread",
+      "title": "Thread",
+      "icon": "message",
+      "renderer_binding": "theorem.body.thread",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "document",
+      "title": "Document",
+      "icon": "document",
+      "renderer_binding": "theorem.body.document",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "chart",
+      "title": "Chart",
+      "icon": "chart",
+      "renderer_binding": "theorem.body.chart",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "timeline",
+      "title": "Timeline",
+      "icon": "timeline",
+      "renderer_binding": "theorem.body.timeline",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "iframe",
+      "title": "Iframe",
+      "icon": "browser",
+      "renderer_binding": "theorem.body.iframe",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "sub_canvas",
+      "title": "Sub-canvas",
+      "icon": "canvas",
+      "renderer_binding": "theorem.body.sub_canvas",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    },
+    {
+      "kind": "log",
+      "title": "Log",
+      "icon": "log",
+      "renderer_binding": "theorem.body.log",
+      "size": {
+        "min_width": 240,
+        "min_height": 160,
+        "default_width": 240,
+        "default_height": 160
+      }
+    }
+  ],
+  "surfaces": [
+    {
+      "surface_id": "canvas",
+      "title": "Canvas",
+      "icon": "canvas",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "dioxus",
+        "body_kind": "sub_canvas"
+      },
+      "capabilities": [
+        "canvas.read"
+      ]
+    },
+    {
+      "surface_id": "records",
+      "title": "Records",
+      "icon": "table",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "dioxus",
+        "body_kind": "record_table"
+      },
+      "capabilities": [
+        "records.read"
+      ]
+    },
+    {
+      "surface_id": "model",
+      "title": "Model",
+      "icon": "fields",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "dioxus",
+        "body_kind": "fields"
+      },
+      "capabilities": [
+        "schema.read"
+      ]
+    },
+    {
+      "surface_id": "chat",
+      "title": "Chat",
+      "icon": "message",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "dioxus",
+        "body_kind": "thread"
+      },
+      "capabilities": [
+        "threads.read"
+      ]
+    },
+    {
+      "surface_id": "document",
+      "title": "Document",
+      "icon": "document",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "dioxus",
+        "body_kind": "document"
+      },
+      "capabilities": [
+        "documents.read"
+      ]
+    },
+    {
+      "surface_id": "ide",
+      "title": "IDE",
+      "icon": "code",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "servo",
+        "url": "https://theorem-code-server.fly.dev/"
+      },
+      "fallback_renderer": {
+        "kind": "system_webview",
+        "url": "https://theorem-code-server.fly.dev/"
+      },
+      "capabilities": [
+        "ide.read",
+        "ide.write"
+      ]
+    },
+    {
+      "surface_id": "browser",
+      "title": "Browser",
+      "icon": "browser",
+      "default_scope": {
+        "kind": "workspace"
+      },
+      "renderer": {
+        "kind": "servo",
+        "url": "https://v2.theoremharness.com/browser"
+      },
+      "fallback_renderer": {
+        "kind": "system_webview",
+        "url": "https://v2.theoremharness.com/browser"
+      },
+      "capabilities": [
+        "browser.read"
+      ]
+    }
+  ]
+}
