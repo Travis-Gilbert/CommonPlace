@@ -67,6 +67,18 @@ pub fn emit_record_table_css() -> String {
 }}
 [data-name=\"GridCellContent\"] {{ overflow: hidden; text-overflow: ellipsis; }}
 
+.theorem-record-cell-focus {{
+  display: flex; align-items: center; width: 100%; height: 100%; min-width: 0;
+  outline: 2px solid transparent; outline-offset: -2px;
+}}
+.theorem-record-cell-soft {{ outline-color: var(--primary, #1961ed); }}
+.theorem-record-cell-hard {{ outline-color: var(--foreground, #333); }}
+.theorem-record-inline-editor {{
+  box-sizing: border-box; width: 100%; min-width: 0; height: 100%;
+  border: 0; outline: 0; background: var(--background, #fff); color: inherit;
+  font: inherit;
+}}
+
 .theorem-cell-empty::after {{ content: \"\\2014\"; opacity: 0.35; }}
 .theorem-cell-number {{ font-variant-numeric: tabular-nums; }}
 .theorem-cell-temporal {{ font-variant-numeric: tabular-nums; color: var(--muted-foreground, #666); }}
@@ -100,7 +112,10 @@ mod tests {
     fn every_dimension_comes_from_the_theme_not_a_literal() {
         let css = emit_record_table_css();
         let table = &ThemeCommon::TWENTY.table;
-        assert!(css.contains(&format!("padding: 0 {}px", table.horizontal_cell_padding_px)));
+        assert!(css.contains(&format!(
+            "padding: 0 {}px",
+            table.horizontal_cell_padding_px
+        )));
         assert!(css.contains(&format!("flex: 0 0 {}px", table.checkbox_column_width_px)));
         assert!(css.contains(&format!("height: {}px", table.row_height_px + 8)));
     }
@@ -111,8 +126,10 @@ mod tests {
         // rows absolutely. Without this rule the cells stack vertically, which
         // renders as a correct-but-unreadable column of values.
         let css = emit_record_table_css();
-        assert!(css.contains(".theorem-record-row {\n  display: flex;")
-            || css.contains(".theorem-record-row { display: flex;"));
+        assert!(
+            css.contains(".theorem-record-row {\n  display: flex;")
+                || css.contains(".theorem-record-row { display: flex;")
+        );
     }
 
     #[test]
@@ -125,5 +142,13 @@ mod tests {
     #[test]
     fn an_empty_cell_is_visibly_distinct_from_a_blank_one() {
         assert!(emit_record_table_css().contains(".theorem-cell-empty::after"));
+    }
+
+    #[test]
+    fn soft_and_hard_focus_have_one_inline_outline() {
+        let css = emit_record_table_css();
+        assert!(css.contains(".theorem-record-cell-soft"));
+        assert!(css.contains(".theorem-record-cell-hard"));
+        assert!(css.contains(".theorem-record-inline-editor"));
     }
 }

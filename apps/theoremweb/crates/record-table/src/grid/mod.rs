@@ -225,7 +225,13 @@ pub fn VirtualizedGridBody(children: Element, total_rows: usize) -> Element {
 }
 
 #[component]
-pub fn GridRow(children: Element, rowindex: usize, index: usize) -> Element {
+pub fn GridRow(
+    children: Element,
+    rowindex: usize,
+    index: usize,
+    class: String,
+    focused_by: String,
+) -> Element {
     let row_height = usize::from(ThemeCommon::TWENTY.table.row_height_px);
     let translate_y = index.saturating_mul(row_height);
     rsx! {
@@ -234,7 +240,8 @@ pub fn GridRow(children: Element, rowindex: usize, index: usize) -> Element {
             "data-name": "GridRow",
             "aria-rowindex": rowindex,
             "data-index": index,
-            class: "theorem-record-row",
+            class,
+            "data-focused-by": focused_by,
             tabindex: "-1",
             style: "position: absolute; width: 100%; height: {row_height}px; transform: translateY({translate_y}px); content-visibility: auto; contain-intrinsic-size: auto {row_height}px;",
             {children}
@@ -328,10 +335,11 @@ pub fn GridSelectCell(children: Element) -> Element {
 }
 
 #[component]
-pub fn GridPinnedHeaderCell(children: Element, left: i32, width: i32) -> Element {
+pub fn GridPinnedHeaderCell(children: Element, colindex: i32, left: i32, width: i32) -> Element {
     rsx! {
         div {
             role: "columnheader",
+            "aria-colindex": colindex,
             "data-name": "GridPinnedHeaderCell",
             style: "left: {left}px; position: sticky; width: {width}px; z-index: 51; background: var(--background);",
             {children}
@@ -340,12 +348,20 @@ pub fn GridPinnedHeaderCell(children: Element, left: i32, width: i32) -> Element
 }
 
 #[component]
-pub fn GridPinnedCell(children: Element, colindex: i32, left: i32, width: i32) -> Element {
+pub fn GridPinnedCell(
+    children: Element,
+    colindex: i32,
+    left: i32,
+    width: i32,
+    #[props(default = false)] current: bool,
+) -> Element {
     rsx! {
         div {
             role: "gridcell",
             "aria-colindex": colindex,
+            "aria-current": current,
             "data-name": "GridPinnedCell",
+            class: "theorem-record-cell",
             style: "left: {left}px; position: sticky; width: {width}px; z-index: 51; background: var(--background);",
             {children}
         }
@@ -409,7 +425,13 @@ mod tests {
     #[test]
     fn rendered_row_uses_the_theme_row_height() {
         let html = dioxus_ssr::render_element(rsx! {
-            GridRow { rowindex: 1, index: 2, "row" }
+            GridRow {
+                rowindex: 1,
+                index: 2,
+                class: "theorem-record-row".to_owned(),
+                focused_by: String::new(),
+                "row"
+            }
         });
         assert!(html.contains("height: 32px"));
         assert!(html.contains("translateY(64px)"));

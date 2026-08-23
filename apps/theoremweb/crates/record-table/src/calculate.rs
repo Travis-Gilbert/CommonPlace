@@ -35,7 +35,7 @@ impl AggregateOperation {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AggregateReceipt {
     pub field: String,
     pub op: String,

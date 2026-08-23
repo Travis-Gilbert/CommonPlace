@@ -52,7 +52,7 @@ pub struct PresenceState {
     actors: BTreeMap<String, ActorPresence>,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CoordinationStreamEvent {
     pub actor: String,
     pub kind: String,

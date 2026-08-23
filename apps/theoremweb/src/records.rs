@@ -5,13 +5,11 @@
 //! as complete. This module is the client half of that contract and computes
 //! none of those things. It fetches a page and hands it to the table.
 //!
-//! The live record stream is W02's backend half and does not exist yet. The
-//! interface here is the real one either way: the host fetches over HTTP and
-//! renders whatever arrives. Until the endpoint is live, a typed fixture is
-//! served at the same path by `scripts/build-web.sh --with-local-registry`,
-//! which is a local stand-in and never an authority.
+//! The same authenticated endpoint accepts domain actions and returns the next
+//! graph-backed page. The browser never names a generated tool or supplies a
+//! tenant: those are resolved by the server from the surface and identity.
 
-use theoremweb_record_table::RecordPage;
+use theoremweb_record_table::{RecordPage, RecordTableAction};
 
 use crate::registry::RegistryError;
 
@@ -24,6 +22,31 @@ use crate::registry::RegistryError;
 /// partially rendered, because a half-decoded row reads as missing data.
 pub fn parse_page(bytes: &[u8]) -> Result<RecordPage, RegistryError> {
     serde_json::from_slice(bytes).map_err(|error| RegistryError::Decode(error.to_string()))
+}
+
+/// Apply the visible half of an edit before the authenticated request returns.
+///
+/// The caller retains the prior [`RecordPage`] as its rollback value. Only an
+/// edit mutates the page; focus, view, and aggregate actions wait for their
+/// authoritative replacement page.
+pub fn apply_optimistic_edit(page: &mut RecordPage, action: &RecordTableAction) -> bool {
+    let RecordTableAction::Edit {
+        record_id,
+        field_key,
+        value,
+    } = action
+    else {
+        return false;
+    };
+    let Some(row) = page.rows.iter_mut().find(|row| row.record_id == *record_id) else {
+        return false;
+    };
+    let Some(cell) = row.values.get_mut(field_key) else {
+        return false;
+    };
+    *cell = value.clone();
+    page.notice = None;
+    true
 }
 
 /// Fetch the record page a surface renders.
@@ -47,6 +70,46 @@ pub async fn fetch(base_url: &str, surface_id: &str) -> Result<RecordPage, Regis
         .binary()
         .await
         .map_err(|error| RegistryError::Transport(error.to_string()))?;
+    parse_page(&bytes)
+}
+
+/// Apply one table gesture and decode the authoritative replacement page.
+///
+/// # Errors
+///
+/// Returns [`RegistryError::Transport`] with the server refusal when the
+/// generated write or coordination event is refused, and
+/// [`RegistryError::Decode`] when an accepted response has the wrong shape.
+#[cfg(target_arch = "wasm32")]
+pub async fn dispatch(
+    base_url: &str,
+    surface_id: &str,
+    action: &RecordTableAction,
+) -> Result<RecordPage, RegistryError> {
+    let response = gloo_net::http::Request::post(&format!("{base_url}/records/{surface_id}"))
+        .json(action)
+        .map_err(|error| RegistryError::Transport(error.to_string()))?
+        .send()
+        .await
+        .map_err(|error| RegistryError::Transport(error.to_string()))?;
+    let status = response.status();
+    let bytes = response
+        .binary()
+        .await
+        .map_err(|error| RegistryError::Transport(error.to_string()))?;
+    if !(200..300).contains(&status) {
+        let detail = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("detail")
+                    .or_else(|| value.get("error"))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            })
+            .unwrap_or_else(|| format!("record action refused with status {status}"));
+        return Err(RegistryError::Transport(detail));
+    }
     parse_page(&bytes)
 }
 
@@ -91,5 +154,19 @@ mod tests {
     fn a_malformed_page_is_refused_rather_than_partially_rendered() {
         let error = parse_page(br#"{"object_type": {"object_type_id": "company"}}"#).unwrap_err();
         assert!(matches!(error, RegistryError::Decode(_)));
+    }
+
+    #[test]
+    fn an_edit_updates_the_visible_cell_before_the_server_reply() {
+        let mut page = parse_page(PAGE.as_bytes()).expect("page decodes");
+        assert!(apply_optimistic_edit(
+            &mut page,
+            &RecordTableAction::Edit {
+                record_id: "acme".into(),
+                field_key: "name".into(),
+                value: serde_json::json!("Acme edited"),
+            },
+        ));
+        assert_eq!(page.rows[0].values["name"], "Acme edited");
     }
 }

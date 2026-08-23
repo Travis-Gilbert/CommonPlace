@@ -39,7 +39,10 @@ pub fn CellView(presentation: CellPresentation) -> Element {
                 if value { "Yes" } else { "No" }
             }
         },
-        CellPresentation::Temporal { value, includes_time } => rsx! {
+        CellPresentation::Temporal {
+            value,
+            includes_time,
+        } => rsx! {
             time {
                 class: "theorem-cell-temporal",
                 "data-includes-time": "{includes_time}",

@@ -21,9 +21,9 @@ pub mod view_bar;
 
 pub use cell_view::CellView;
 pub use columns::{ColumnSet, FieldColumn};
-pub use style::emit_record_table_css;
-pub use table::{RecordPage, RecordRow, RecordTable};
 pub use schema::{FieldKind, FieldSpec, FieldType, ObjectType, ViewMetadata};
+pub use style::emit_record_table_css;
+pub use table::{RecordPage, RecordRow, RecordTable, RecordTableAction};
 
 pub const ROW_HEIGHT: u16 = theoremweb_chrome::ThemeCommon::TWENTY.table.row_height_px;
 pub const HEADER_HEIGHT: u16 = theoremweb_chrome::ThemeCommon::TWENTY.table.row_height_px;

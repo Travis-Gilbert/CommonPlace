@@ -19,6 +19,7 @@ mod wasm {
 
     use theoremweb_host::{layouts, records, registry, Boot, HostModel, TheoremWebHost};
     use theoremweb_layout::{LayoutMcpCall, LayoutSet};
+    use theoremweb_record_table::{RecordPage, RecordTableAction};
 
     /// Where the canonical registry document is served, injected at build time
     /// so a deployment can point the host at its own gateway.
@@ -72,13 +73,15 @@ mod wasm {
             (mount.surface.renderer.body_kind() == Some("record_table"))
                 .then(|| mount.surface.surface_id.clone())
         });
-        let page = use_resource(move || {
+        let mut record_page = use_signal(|| None::<RecordPage>);
+        let _page = use_resource(move || {
             let key = records_key.clone();
             async move {
-                match key {
+                let next = match key {
                     Some(key) => records::fetch(REGISTRY_BASE, &key).await.ok(),
                     None => None,
-                }
+                };
+                record_page.set(next);
             }
         });
 
@@ -115,7 +118,11 @@ mod wasm {
             }
         });
 
-        let records = page.read_unchecked().clone().flatten();
+        let records = record_page();
+        let action_surface = current.as_ref().and_then(|mount| {
+            (mount.surface.renderer.body_kind() == Some("record_table"))
+                .then(|| mount.surface.surface_id.clone())
+        });
 
         let model = HostModel {
             navigation: theoremweb_navigation::NavigationState::default(),
@@ -140,6 +147,37 @@ mod wasm {
                         }
                     });
                 },
+                on_record_action: move |action: RecordTableAction| {
+                    let Some(surface_id) = action_surface.clone() else {
+                        return;
+                    };
+                    let rollback = record_page();
+                    let was_edit = matches!(action, RecordTableAction::Edit { .. });
+                    record_page.with_mut(|page| {
+                        if let Some(page) = page {
+                            records::apply_optimistic_edit(page, &action);
+                        }
+                    });
+                    spawn(async move {
+                        match records::dispatch(REGISTRY_BASE, &surface_id, &action).await {
+                            Ok(page) => record_page.set(Some(page)),
+                            Err(error) => {
+                                let mut restored = rollback;
+                                if let Some(page) = restored.as_mut() {
+                                    page.notice = Some(if was_edit {
+                                        format!(
+                                            "{:?} enforcement: {error}",
+                                            page.object_type.enforcement
+                                        )
+                                    } else {
+                                        format!("Record action refused: {error}")
+                                    });
+                                }
+                                record_page.set(restored);
+                            }
+                        }
+                    });
+                },
             }
         }
     }
@@ -157,9 +195,9 @@ mod native {
     }
 
     fn run() -> Result<(), String> {
-        let path = std::env::args().nth(1).ok_or_else(|| {
-            "usage: theoremweb <canonical-registry-document.json>".to_owned()
-        })?;
+        let path = std::env::args()
+            .nth(1)
+            .ok_or_else(|| "usage: theoremweb <canonical-registry-document.json>".to_owned())?;
         let bytes = std::fs::read(&path).map_err(|error| format!("{path}: {error}"))?;
         let contract = SurfaceContract::parse(&bytes).map_err(|error| error.to_string())?;
         let mut boot = Boot::resolve(&contract).map_err(|error| error.to_string())?;
@@ -168,8 +206,7 @@ mod native {
             browser_url: std::env::var("THEOREMWEB_BROWSER_URL").unwrap_or_default(),
         };
         let receipt = boot.receipt(&contract, &endpoints);
-        let encoded =
-            serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?;
+        let encoded = serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?;
         println!("{encoded}");
         Ok(())
     }

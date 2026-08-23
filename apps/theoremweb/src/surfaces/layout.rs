@@ -22,7 +22,7 @@ use theoremweb_layout::{
     BodyRegistry, BodyRequest, LayoutMcpCall, LayoutSet, LayoutSurface, ProjectedBody, RecordData,
     ScopeBinding as LayoutScope,
 };
-use theoremweb_record_table::{RecordPage, RecordTable};
+use theoremweb_record_table::{RecordPage, RecordTable, RecordTableAction};
 
 /// Translate a mounted surface's binding into the layout crate's binding.
 ///
@@ -60,11 +60,12 @@ pub fn layout_scope(binding: &SurfaceScope) -> LayoutScope {
 /// and, more importantly, cannot disagree with what the table shows: one
 /// payload feeds both the grid and the fields widget.
 #[must_use]
-pub fn record_from_page(page: &RecordPage, object_type: &str, record_id: &str) -> Option<RecordData> {
-    let row = page
-        .rows
-        .iter()
-        .find(|row| row.record_id == record_id)?;
+pub fn record_from_page(
+    page: &RecordPage,
+    object_type: &str,
+    record_id: &str,
+) -> Option<RecordData> {
+    let row = page.rows.iter().find(|row| row.record_id == record_id)?;
     Some(RecordData {
         object_type: object_type.to_owned(),
         record_id: record_id.to_owned(),
@@ -85,6 +86,7 @@ pub struct LayoutMountProps {
     pub scheme: ColorScheme,
     pub on_navigate: EventHandler<String>,
     pub on_persist: EventHandler<LayoutMcpCall>,
+    pub on_record_action: EventHandler<RecordTableAction>,
 }
 
 /// Mount the layout that applies to this scope.
@@ -108,6 +110,7 @@ pub fn LayoutMount(props: LayoutMountProps) -> Element {
         scheme,
         on_navigate,
         on_persist,
+        on_record_action,
     } = props;
 
     let scope = layout_scope(&binding);
@@ -139,9 +142,11 @@ pub fn LayoutMount(props: LayoutMountProps) -> Element {
     // after the layout does, and without this the surface would not re-render
     // when it lands: the slot would keep answering from the render where the
     // page was still absent.
-    let body_epoch = records
-        .as_ref()
-        .map_or(0, |page| u64::try_from(page.rows.len()).unwrap_or(u64::MAX).saturating_add(1));
+    let body_epoch = records.as_ref().map_or(0, |page| {
+        u64::try_from(page.rows.len())
+            .unwrap_or(u64::MAX)
+            .saturating_add(1)
+    });
     let body = use_callback(move |request: BodyRequest| {
         if request.rendered.kind == "record_table" {
             if let Some(page) = records.clone() {
@@ -149,7 +154,7 @@ pub fn LayoutMount(props: LayoutMountProps) -> Element {
                     div {
                         class: "theoremweb-mount-live",
                         "data-body-kind": "record_table",
-                        RecordTable { page, scheme }
+                        RecordTable { page, scheme, on_action: on_record_action }
                     }
                 };
             }
@@ -271,5 +276,4 @@ mod tests {
         // is not on the loaded page".
         assert!(record_from_page(&page(), "company", "initech").is_none());
     }
-
 }

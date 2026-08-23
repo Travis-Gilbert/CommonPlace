@@ -18,7 +18,7 @@ use theoremweb_app::{
 use theoremweb_chrome::ColorScheme;
 use theoremweb_layout::{BodyRegistry, LayoutMcpCall, LayoutSet};
 use theoremweb_navigation::NavigationState;
-use theoremweb_record_table::{RecordPage, RecordTable};
+use theoremweb_record_table::{RecordPage, RecordTable, RecordTableAction};
 
 use crate::surfaces::layout::LayoutMount;
 
@@ -130,14 +130,19 @@ impl MountRegion {
 }
 
 #[component]
-pub fn SurfaceBody(region: MountRegion, records: Option<RecordPage>, scheme: ColorScheme) -> Element {
+pub fn SurfaceBody(
+    region: MountRegion,
+    records: Option<RecordPage>,
+    scheme: ColorScheme,
+    on_record_action: EventHandler<RecordTableAction>,
+) -> Element {
     if let (Some("record_table"), Some(page)) = (region.body_kind.as_deref(), records) {
         return rsx! {
             div { class: "theoremweb-mount theoremweb-mount-live",
                 "data-body-kind": "record_table",
                 "data-renderer-binding": "{region.renderer_binding.clone().unwrap_or_default()}",
                 "data-unavailable": "false",
-                RecordTable { page, scheme }
+                RecordTable { page, scheme, on_action: on_record_action }
             }
         };
     }
@@ -174,6 +179,7 @@ struct SurfaceSectionProps {
     scheme: ColorScheme,
     on_navigate: EventHandler<String>,
     on_persist: EventHandler<LayoutMcpCall>,
+    on_record_action: EventHandler<RecordTableAction>,
 }
 
 #[allow(non_snake_case, clippy::missing_errors_doc)]
@@ -188,6 +194,7 @@ fn SurfaceSection(props: SurfaceSectionProps) -> Element {
         scheme,
         on_navigate,
         on_persist,
+        on_record_action,
     } = props;
 
     let Some(region) = region else {
@@ -218,15 +225,20 @@ fn SurfaceSection(props: SurfaceSectionProps) -> Element {
                 scheme,
                 on_navigate,
                 on_persist,
+                on_record_action,
             }
         } else {
-            SurfaceBody { region, records, scheme }
+            SurfaceBody { region, records, scheme, on_record_action }
         }
     }
 }
 
 #[component]
-pub fn TheoremWebHost(model: HostModel, on_persist: EventHandler<LayoutMcpCall>) -> Element {
+pub fn TheoremWebHost(
+    model: HostModel,
+    on_persist: EventHandler<LayoutMcpCall>,
+    on_record_action: EventHandler<RecordTableAction>,
+) -> Element {
     let theme_css = theoremweb_chrome::emit_chrome_theme_css(&[]).unwrap_or_default();
     // chrome owns the variable namespace and never emits selectors, so each
     // crate that renders class names contributes its own layout.
@@ -356,6 +368,7 @@ pub fn TheoremWebHost(model: HostModel, on_persist: EventHandler<LayoutMcpCall>)
                     // related-record widget and the omnibox cannot disagree.
                     on_navigate: move |intent: String| open.call(intent),
                     on_persist,
+                    on_record_action,
                 }
             }
         }
@@ -431,7 +444,13 @@ mod tests {
     #[allow(non_snake_case)]
     #[component]
     fn HostHarness(model: HostModel) -> Element {
-        rsx! { TheoremWebHost { model, on_persist: move |_| {} } }
+        rsx! {
+            TheoremWebHost {
+                model,
+                on_persist: move |_| {},
+                on_record_action: move |_: RecordTableAction| {},
+            }
+        }
     }
 
     fn dashboard_layout() -> LayoutSet {
@@ -448,14 +467,24 @@ mod tests {
                             widget_id: "companies".into(),
                             body_kind: "record_table".into(),
                             body_params: serde_json::json!({}),
-                            grid: GridRect { x: 0, y: 0, w: 8, h: 6 },
+                            grid: GridRect {
+                                x: 0,
+                                y: 0,
+                                w: 8,
+                                h: 6,
+                            },
                             field_visibility: None,
                         },
                         LayoutWidget {
                             widget_id: "future".into(),
                             body_kind: "future_body".into(),
                             body_params: serde_json::json!({}),
-                            grid: GridRect { x: 8, y: 0, w: 4, h: 6 },
+                            grid: GridRect {
+                                x: 8,
+                                y: 0,
+                                w: 4,
+                                h: 6,
+                            },
                             field_visibility: None,
                         },
                     ],
@@ -482,7 +511,8 @@ mod tests {
 
     #[test]
     fn the_mount_takes_its_binding_and_size_from_the_canonical_registry() {
-        let region = MountRegion::resolve(&mount(Renderer::Dioxus("record_table".into())), &bodies());
+        let region =
+            MountRegion::resolve(&mount(Renderer::Dioxus("record_table".into())), &bodies());
         assert_eq!(
             region.renderer_binding.as_deref(),
             Some("theorem.body.record_table")
@@ -493,7 +523,8 @@ mod tests {
 
     #[test]
     fn an_unregistered_body_is_a_labeled_placeholder_not_a_failure() {
-        let region = MountRegion::resolve(&mount(Renderer::Dioxus("future_body".into())), &bodies());
+        let region =
+            MountRegion::resolve(&mount(Renderer::Dioxus("future_body".into())), &bodies());
         assert_eq!(region.label, "Unavailable body: future_body");
         assert!(region.unavailable);
         assert_eq!(region.renderer_binding, None);
@@ -541,7 +572,8 @@ mod tests {
 
     #[test]
     fn has_component_is_true_only_when_a_page_is_present() {
-        let region = MountRegion::resolve(&mount(Renderer::Dioxus("record_table".into())), &bodies());
+        let region =
+            MountRegion::resolve(&mount(Renderer::Dioxus("record_table".into())), &bodies());
         assert!(region.has_component(Some(&page())));
         assert!(!region.has_component(None));
     }
@@ -612,5 +644,4 @@ mod tests {
         assert!(html.contains(".theorem-layout-grid{display:grid;"));
         assert!(html.contains(".theorem-record-row"));
     }
-
 }
