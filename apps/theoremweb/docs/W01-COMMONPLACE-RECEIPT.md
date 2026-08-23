@@ -20,7 +20,7 @@ only. The Theorem half is `codex`'s, per branch `codex/theoremweb-surface-backen
 
 ```
 cargo test --manifest-path apps/theoremweb/Cargo.toml --workspace
-  87 passed, 0 failed, 1 pre-existing ignored
+  82 passed, 0 failed, 1 pre-existing ignored
 cargo check --target wasm32-unknown-unknown -p theoremweb-host --bin theoremweb
   Finished, 0 errors
 cargo run --bin theoremweb -- oracles/fixtures/registry-contract-expected.json
