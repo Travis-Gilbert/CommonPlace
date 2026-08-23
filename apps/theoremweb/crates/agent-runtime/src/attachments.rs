@@ -1,5 +1,7 @@
 //! Attachment admission and graph-document resolution.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -90,6 +92,58 @@ impl AttachmentDraft {
     }
 }
 
+/// A [`DocumentResolver`] over documents the host has already fetched.
+///
+/// This is the "no second authority" resolver: it never issues a fetch of
+/// its own, so a document only appears here once the host genuinely has it
+/// for some other reason (an open canvas node, a bound record's linked
+/// document, a search result already rendered). Attaching a document the
+/// host does not hold refuses with [`AttachmentError::DocumentNotFound`]
+/// rather than reaching out for it behind the interaction.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DocumentIndex {
+    documents: BTreeMap<String, ResolvedDocument>,
+}
+
+impl DocumentIndex {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            documents: BTreeMap::new(),
+        }
+    }
+
+    /// Build an index from documents the host already holds.
+    pub fn from_documents(documents: impl IntoIterator<Item = ResolvedDocument>) -> Self {
+        Self {
+            documents: documents
+                .into_iter()
+                .map(|document| (document.document_id.clone(), document))
+                .collect(),
+        }
+    }
+
+    /// Record one already-fetched document as attachable.
+    pub fn insert(&mut self, document: ResolvedDocument) {
+        self.documents.insert(document.document_id.clone(), document);
+    }
+
+    #[must_use]
+    pub fn contains(&self, document_id: &str) -> bool {
+        self.documents.contains_key(document_id)
+    }
+
+    pub fn documents(&self) -> impl Iterator<Item = &ResolvedDocument> {
+        self.documents.values()
+    }
+}
+
+impl DocumentResolver for DocumentIndex {
+    fn resolve_document(&self, document_id: &str) -> Option<ResolvedDocument> {
+        self.documents.get(document_id).cloned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,5 +184,31 @@ mod tests {
             error.to_string(),
             "unsupported attachment type: application/x-rar"
         );
+    }
+
+    #[test]
+    fn a_document_index_resolves_only_what_the_host_already_fetched() {
+        let index = DocumentIndex::from_documents([ResolvedDocument {
+            document_id: "doc-9".into(),
+            title: "Runbook".into(),
+            media_type: "text/markdown".into(),
+            content: "Steps".into(),
+        }]);
+        assert!(index.contains("doc-9"));
+        let resolved = AttachmentDraft::GraphDocument {
+            document_id: "doc-9".into(),
+        }
+        .resolve(&index)
+        .unwrap();
+        assert!(matches!(
+            resolved,
+            ResolvedAttachment::Document(ResolvedDocument { ref title, .. }) if title == "Runbook"
+        ));
+        let missing = AttachmentDraft::GraphDocument {
+            document_id: "doc-absent".into(),
+        }
+        .resolve(&index)
+        .unwrap_err();
+        assert_eq!(missing, AttachmentError::DocumentNotFound("doc-absent".into()));
     }
 }

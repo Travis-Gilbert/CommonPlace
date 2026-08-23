@@ -215,13 +215,18 @@ impl ThreadRuntime {
         }
     }
 
+    /// Decide a pending approval and return the real bridge command it
+    /// requires, grounded in the tool's `callId` rather than the display
+    /// `approvalId`. Returns `None` for an unknown or already-decided
+    /// approval id, so a caller cannot resume a permission that was never
+    /// pending.
     pub fn decide_approval(
         &mut self,
         approval_id: &str,
         decision: ApprovalDecision,
-    ) -> Option<crate::ApprovalCommand> {
+    ) -> Option<crate::bridge::BridgeCommand> {
         let approval = self.approvals.get(approval_id)?.clone();
-        let command = approval.command(decision.clone());
+        let command = approval.bridge_command(&decision);
         match decision {
             ApprovalDecision::Approve => self.record_approval_response(approval_id, true, None),
             ApprovalDecision::Deny { reason } => {
@@ -386,8 +391,14 @@ mod tests {
                 },
             )
             .unwrap();
-        assert!(!denied.approved);
-        assert_eq!(denied.reason.as_deref(), Some("unsafe target"));
+        assert_eq!(
+            serde_json::to_value(&denied).unwrap(),
+            serde_json::json!({
+                "type": "permission-response",
+                "callId": "call-1",
+                "decision": "reject",
+            })
+        );
         assert_eq!(runtime.run, RunState::Streaming);
         assert_eq!(runtime.pending_approvals().count(), 0);
 
@@ -400,9 +411,39 @@ mod tests {
         let approved = runtime
             .decide_approval("approval-2", ApprovalDecision::Approve)
             .unwrap();
-        assert!(approved.approved);
-        assert_eq!(approved.reason, None);
+        assert_eq!(
+            serde_json::to_value(&approved).unwrap(),
+            serde_json::json!({
+                "type": "permission-response",
+                "callId": "call-2",
+                "decision": "allow",
+            })
+        );
         assert_eq!(runtime.run, RunState::Streaming);
         assert_eq!(runtime.pending_approvals().count(), 0);
+    }
+
+    #[test]
+    fn decide_approval_resumes_the_tool_call_id_not_the_display_approval_id() {
+        // The historical defect this guards: an earlier ApprovalCommand shape
+        // resumed the derived `approval-<callId>` display id instead of the
+        // ACP tool call id the server bridge actually keys pending
+        // permissions by, which would resume nothing.
+        let mut runtime = ThreadRuntime::new("thread-1", ScopeBinding::Workspace);
+        runtime.apply_part(StreamPart::Known(KnownStreamPart::ToolApprovalRequest {
+            approval_id: "approval-call-9".into(),
+            tool_call_id: "call-9".into(),
+            is_automatic: None,
+            signature: None,
+        }));
+        let command = runtime
+            .decide_approval("approval-call-9", ApprovalDecision::Approve)
+            .unwrap();
+        match command {
+            crate::bridge::BridgeCommand::PermissionResponse { call_id, .. } => {
+                assert_eq!(call_id, "call-9");
+            }
+            other => panic!("expected a permission-response command, got {other:?}"),
+        }
     }
 }

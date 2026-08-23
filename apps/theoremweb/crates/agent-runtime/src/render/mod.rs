@@ -5,6 +5,10 @@ use serde_json::Value;
 
 use crate::{KnownStreamPart, ScopeBinding, ScopeChip, StreamPart};
 
+mod surface;
+
+pub use surface::{AgentThreadSurface, AgentThreadSurfaceProps};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RenderedPartKind {
     Status,

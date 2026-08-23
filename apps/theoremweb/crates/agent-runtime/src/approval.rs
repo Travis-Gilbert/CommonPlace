@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::bridge::BridgeCommand;
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApprovalStatus {
@@ -23,29 +25,15 @@ pub enum ApprovalDecision {
     Deny { reason: String },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ApprovalCommand {
-    #[serde(rename = "approvalId")]
-    pub approval_id: String,
-    pub approved: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-}
-
 impl PendingApproval {
+    /// The real server bridge resumes a permission by `callId`, which is the
+    /// ACP tool call id carried on this approval, never the derived
+    /// `approvalId` a UI-message part uses for display. Building the command
+    /// here, next to the field it must read, is what keeps that distinction
+    /// from being re-broken by a future caller who reaches for the id with
+    /// the friendlier name.
     #[must_use]
-    pub fn command(&self, decision: ApprovalDecision) -> ApprovalCommand {
-        match decision {
-            ApprovalDecision::Approve => ApprovalCommand {
-                approval_id: self.approval_id.clone(),
-                approved: true,
-                reason: None,
-            },
-            ApprovalDecision::Deny { reason } => ApprovalCommand {
-                approval_id: self.approval_id.clone(),
-                approved: false,
-                reason: Some(reason),
-            },
-        }
+    pub fn bridge_command(&self, decision: &ApprovalDecision) -> BridgeCommand {
+        BridgeCommand::permission_response(self.tool_call_id.clone(), decision)
     }
 }

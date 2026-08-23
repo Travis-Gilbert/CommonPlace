@@ -35,6 +35,26 @@ impl ScopeBinding {
             Self::Document { document_id } => format!("document:{document_id}"),
         }
     }
+
+    /// The omnibox intent that opens this scope, in the grammar
+    /// `theoremweb_app::SurfaceCatalog::resolve` understands.
+    ///
+    /// Only `record:<object-type>:<record-id>` is a generically resolvable
+    /// intent today; `Canvas`, `Node`, `Document`, and `Workspace` have no
+    /// registered prefix, so a chip bound to one of those is a real, honest
+    /// label with nowhere yet to navigate rather than a fabricated link.
+    #[must_use]
+    pub fn navigate_intent(&self) -> Option<String> {
+        match self {
+            Self::Record {
+                object_type,
+                record_id,
+            } => Some(format!("record:{object_type}:{record_id}")),
+            Self::Workspace | Self::Canvas { .. } | Self::Node { .. } | Self::Document { .. } => {
+                None
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -87,5 +107,39 @@ mod tests {
             assert_eq!(chip.target, binding);
         }
         assert_eq!(ScopeChip::from(&ScopeBinding::Workspace).label, "Workspace");
+    }
+
+    #[test]
+    fn only_record_scope_has_a_resolvable_navigate_intent_today() {
+        assert_eq!(
+            ScopeBinding::Record {
+                object_type: "company".into(),
+                record_id: "acme".into(),
+            }
+            .navigate_intent(),
+            Some("record:company:acme".into())
+        );
+        assert_eq!(ScopeBinding::Workspace.navigate_intent(), None);
+        assert_eq!(
+            ScopeBinding::Canvas {
+                canvas_id: "canvas-1".into()
+            }
+            .navigate_intent(),
+            None
+        );
+        assert_eq!(
+            ScopeBinding::Node {
+                node_id: "node-1".into()
+            }
+            .navigate_intent(),
+            None
+        );
+        assert_eq!(
+            ScopeBinding::Document {
+                document_id: "doc-1".into()
+            }
+            .navigate_intent(),
+            None
+        );
     }
 }
