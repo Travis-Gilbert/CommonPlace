@@ -182,45 +182,70 @@ async function liveClient() {
   const token = fs.readFileSync(tokenFile, "utf8").trim();
   invariant(token, `${tokenFile} is empty`);
   let id = 0;
-  return async function call(method, params) {
-    id += 1;
+
+  async function postMcp(message, { sessionId, expectResponse = true } = {}) {
+    const headers = {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      authorization: `Bearer ${token}`,
+    };
+    if (sessionId) {
+      headers["mcp-session-id"] = sessionId;
+    }
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-        authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name: method, arguments: params ?? {} } }),
+      headers,
+      body: JSON.stringify(message),
     });
     const text = await response.text();
-    invariant(response.ok, `MCP ${method} returned HTTP ${response.status}: ${text.slice(0, 400)}`);
-    return structuredResult(parseMcpBody(text, response.headers.get("content-type") ?? ""));
-  };
-}
+    invariant(
+      response.ok,
+      `MCP ${message.method} returned HTTP ${response.status}: ${text.slice(0, 400)}`,
+    );
+    if (!expectResponse) {
+      return { body: null, sessionId: response.headers.get("mcp-session-id") };
+    }
+    return {
+      body: parseMcpBody(text, response.headers.get("content-type") ?? ""),
+      sessionId: response.headers.get("mcp-session-id"),
+    };
+  }
 
-/**
- * Read the canonical body list from the backend.
- *
- * The backend exposes no body registry tool yet: surface_tools.rs declares
- * surface_*, scope_*, and layout_* only. Until `body_list` lands, this oracle
- * reports a named degradation and fails, rather than substituting the pinned
- * fixture and calling a fixture-fed run "live". D04 forbids that substitution.
- */
-async function liveBodies(call) {
-  try {
-    const payload = await call("body_list");
-    invariant(Array.isArray(payload.bodies), "body_list returned no bodies array");
-    return payload.bodies;
-  } catch (error) {
+  id += 1;
+  const initialized = await postMcp({
+    jsonrpc: "2.0",
+    id,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "theoremweb-host-registry-oracle", version: "1.0" },
+    },
+  });
+  if (initialized.body.error) {
     throw new Error(
-      "DEGRADED: the backend exposes no canonical body registry over the wire " +
-      "(surface_tools.rs tool_definitions() declares surface_*, scope_*, and layout_* only). " +
-      "V01 cannot be discharged from the pinned fixture, because D04 forbids a fixture " +
-      "standing in for a live oracle. Blocked on the Theorem-side half of W01: add body_list. " +
-      `Underlying error: ${error.message}`,
+      `MCP ${initialized.body.error.code}: ${initialized.body.error.message}`,
     );
   }
+  invariant(initialized.sessionId, "MCP initialize returned no Mcp-Session-Id");
+  await postMcp(
+    { jsonrpc: "2.0", method: "notifications/initialized" },
+    { sessionId: initialized.sessionId, expectResponse: false },
+  );
+
+  return async function call(method, params) {
+    id += 1;
+    const response = await postMcp(
+      {
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: method, arguments: params ?? {} },
+      },
+      { sessionId: initialized.sessionId },
+    );
+    return structuredResult(response.body);
+  };
 }
 
 async function seedLiveGraph(call) {
@@ -252,9 +277,18 @@ async function seedLiveGraph(call) {
 
 async function verifyLiveGraph(call) {
   const payload = await call("surface_list");
-  const surfaces = payload.surfaces ?? [];
-  const bodies = await liveBodies(call);
-  const contract = { version: "theoremweb-surface-v1", bodies, surfaces };
+  const contractPayload = await call("surface_contract");
+  const contract = contractPayload.contract;
+  invariant(
+    contract?.version === "theoremweb-surface-v1",
+    "surface_contract returned the wrong version",
+  );
+  invariant(Array.isArray(contract.bodies), "surface_contract returned no bodies array");
+  invariant(
+    Array.isArray(contract.surfaces),
+    "surface_contract returned no surfaces array",
+  );
+  const { bodies, surfaces } = contract;
   const receipt = hostReceipt(contract);
   assertHostContract(receipt, { expectProbe: true });
 
