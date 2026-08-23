@@ -41,7 +41,18 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+function layoutFromResponse(response) {
+  if (response && typeof response === "object" && Object.hasOwn(response, "layout")) {
+    return response.layout;
+  }
+  return response;
+}
+
 function offline() {
+  invariant(
+    layoutFromResponse({ layout: null, identity_receipt: {} }) === null,
+    "a null layout result must not unwrap to its response envelope",
+  );
   const canonical = new Set(readJson(CONTRACT).bodies.map((body) => body.kind));
   const layouts = readJson(PINNED_LAYOUTS).layouts;
   invariant(layouts.length > 0, "the pinned layout set is empty");
@@ -123,7 +134,7 @@ async function liveSeed() {
 async function liveVerify() {
   const client = await connect("theoremweb-layout-oracle");
   const stored = await client.call("layout_get", { layout_id: GRAPH_ONLY_LAYOUT });
-  const layout = stored.layout ?? stored;
+  const layout = layoutFromResponse(stored);
   invariant(layout, `layout_get found no persisted ${GRAPH_ONLY_LAYOUT} probe`);
   invariant(
     layout.layout_id === GRAPH_ONLY_LAYOUT,
