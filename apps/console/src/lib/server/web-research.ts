@@ -41,8 +41,10 @@ export type LoadWebResearchOptions = {
   readonly emptyOk?: boolean;
 };
 
+// Anonymous operation: some commonplace-api builds return HTTP 400 with an empty
+// body for named operations (e.g. ConsoleRustyWebSearch) on this field.
 const RUSTY_WEB_SEARCH_QUERY = `
-  query ConsoleRustyWebSearch($query: String!, $limit: Int, $providers: [String!]) {
+  query ($query: String!, $limit: Int, $providers: [String!]) {
     rustyWebSearch(query: $query, limit: $limit, providers: $providers)
   }
 `;
@@ -79,23 +81,35 @@ export async function loadWebResearch(
   }
 
   const timeout = startHarnessRequestTimeout();
+  const graphqlPath = (() => {
+    try {
+      return new URL(endpoint).pathname || '/graphql';
+    } catch {
+      return '/graphql';
+    }
+  })();
+  const body = JSON.stringify({
+    query: RUSTY_WEB_SEARCH_QUERY,
+    variables: {
+      query,
+      limit,
+      providers: [...RUSTYWEB_LIVE_SEARCH_PROVIDERS],
+    },
+  });
   let upstream: Response;
   try {
     upstream = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...credentialHeaders(credential.credential),
+        ...credentialHeaders(credential.credential, {
+          method: 'POST',
+          path: graphqlPath,
+          body,
+        }),
         ...principalTenantHeaders(principal),
       },
-      body: JSON.stringify({
-        query: RUSTY_WEB_SEARCH_QUERY,
-        variables: {
-          query,
-          limit,
-          providers: [...RUSTYWEB_LIVE_SEARCH_PROVIDERS],
-        },
-      }),
+      body,
       cache: 'no-store',
       signal: AbortSignal.any([request.signal, timeout.signal]),
     });
