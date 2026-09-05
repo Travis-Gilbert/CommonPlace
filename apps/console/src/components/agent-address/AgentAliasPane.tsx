@@ -153,6 +153,11 @@ export function AgentAliasPane() {
           <p className="mb-2 text-ij-ink-info" data-agent-mail-domain>
             Domain {state.domain}
           </p>
+          <p className="mb-2 text-ij-ink-info" data-agent-sms-limitation>
+            Interrupt items appear in the Index urgent banner until 10DLC or
+            toll-free SMS registration is complete. The agent cannot text
+            interrupts yet.
+          </p>
           <div className="mb-2 flex flex-wrap gap-2">
             <input
               data-agent-alias-input

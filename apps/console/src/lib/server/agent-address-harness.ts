@@ -67,3 +67,32 @@ export async function revokeAgentAlias(alias: string): Promise<
   if (!result.ok) return { ok: false, status: result.status, error: result.error };
   return { ok: true, alias: result.data.revokeAgentAlias as AliasBlock };
 }
+
+export type CalendarWindowEvent = {
+  readonly externalId: string;
+  readonly title: string;
+  readonly start: string;
+  readonly end: string;
+  readonly overlaps: boolean;
+};
+
+export async function readLifeCalendarWindow(input: {
+  windowStart: string;
+  windowEnd: string;
+  eventsJson: string;
+}): Promise<
+  | { readonly ok: true; readonly events: CalendarWindowEvent[] }
+  | { readonly ok: false; readonly status: number; readonly error: string }
+> {
+  const result = await callHarnessGraphql(
+    `query LifeCalendarWindow($windowStart: String!, $windowEnd: String!, $eventsJson: String!) {
+      lifeCalendarWindow(windowStart: $windowStart, windowEnd: $windowEnd, eventsJson: $eventsJson) {
+        externalId title start end overlaps
+      }
+    }`,
+    input,
+  );
+  if (!result.ok) return { ok: false, status: result.status, error: result.error };
+  const events = (result.data.lifeCalendarWindow as CalendarWindowEvent[] | undefined) ?? [];
+  return { ok: true, events };
+}
